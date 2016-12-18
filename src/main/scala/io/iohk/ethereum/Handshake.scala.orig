@@ -25,7 +25,11 @@ class Handshake {
     val kdf: KDF2BytesGenerator = new KDF2BytesGenerator(new SHA256Digest)
     val mac: HMac = new HMac(new SHA256Digest)
     val hash: SHA256Digest = new SHA256Digest
+<<<<<<< HEAD
+    val aes: BufferedBlockCipher = new BufferedBlockCipher(new SICBlockCipher(AESFastEngine))
+=======
     val aes: BufferedBlockCipher = new BufferedBlockCipher(new SICBlockCipher(new AESFastEngine))
+>>>>>>> feature/crypto
 
 
     val params = SECNamedCurves.getByName("secp256k1")
