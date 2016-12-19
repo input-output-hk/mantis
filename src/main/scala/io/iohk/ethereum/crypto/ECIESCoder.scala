@@ -5,7 +5,6 @@ import java.math.BigInteger
 import java.security.SecureRandom
 
 import com.google.common.base.Throwables
-import org.spongycastle.asn1.sec.SECNamedCurves
 import org.spongycastle.crypto.{BufferedBlockCipher, InvalidCipherTextException}
 import org.spongycastle.crypto.agreement.ECDHBasicAgreement
 import org.spongycastle.crypto.digests.{SHA1Digest, SHA256Digest}
@@ -19,17 +18,15 @@ import org.spongycastle.math.ec.ECPoint
 
 object ECIESCoder {
   val KEY_SIZE = 128
-  val params = SECNamedCurves.getByName("secp256k1")
-  val CURVE = new ECDomainParameters(params.getCurve, params.getG, params.getN, params.getH)
 
   @throws[IOException]
   @throws[InvalidCipherTextException]
   def decrypt(privKey: BigInteger, cipher: Array[Byte], macData: Option[Array[Byte]] = None): Array[Byte] = {
     var plaintext: Array[Byte] = null
     val is = new ByteArrayInputStream(cipher)
-    val ephemBytes = new Array[Byte](2 * ((CURVE.getCurve.getFieldSize + 7) / 8) + 1)
+    val ephemBytes = new Array[Byte](2 * ((curve.getCurve.getFieldSize + 7) / 8) + 1)
     is.read(ephemBytes)
-    val ephem = CURVE.getCurve.decodePoint(ephemBytes)
+    val ephem = curve.getCurve.decodePoint(ephemBytes)
     val IV = new Array[Byte](KEY_SIZE / 8)
     is.read(IV)
     val cipherBody = new Array[Byte](is.available)
@@ -46,7 +43,7 @@ object ECIESCoder {
     val e = new Array[Byte](0)
     val p = new IESWithCipherParameters(d, e, KEY_SIZE, KEY_SIZE)
     val parametersWithIV = new ParametersWithIV(p, IV)
-    iesEngine.init(forEncryption = false, new ECPrivateKeyParameters(prv, CURVE), new ECPublicKeyParameters(ephem, CURVE), parametersWithIV)
+    iesEngine.init(forEncryption = false, new ECPrivateKeyParameters(prv, curve), new ECPublicKeyParameters(ephem, curve), parametersWithIV)
     iesEngine.processBlock(cipher, 0, cipher.length, macData)
   }
 
@@ -68,14 +65,14 @@ object ECIESCoder {
     val p = new IESParameters(null, null, KEY_SIZE)
     val parametersWithIV = new ParametersWithIV(p, new Array[Byte](0))
     iesEngine.setHashMacKey(false)
-    iesEngine.init(new ECPrivateKeyParameters(privKey, CURVE), parametersWithIV, new ECIESPublicKeyParser(CURVE))
+    iesEngine.init(new ECPrivateKeyParameters(privKey, curve), parametersWithIV, new ECIESPublicKeyParser(curve))
     iesEngine.processBlock(cipher, 0, cipher.length)
   }
 
   def encrypt(toPub: ECPoint, plaintext: Array[Byte], macData: Option[Array[Byte]] = None): Array[Byte] = {
     val eGen = new ECKeyPairGenerator
     val random = new SecureRandom
-    val gParam = new ECKeyGenerationParameters(CURVE, random)
+    val gParam = new ECKeyGenerationParameters(curve, random)
     eGen.init(gParam)
     val IV = new Array[Byte](KEY_SIZE / 8)
     new SecureRandom().nextBytes(IV)
@@ -83,11 +80,11 @@ object ECIESCoder {
     val prv = ephemPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD
     val pub = ephemPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ
     val iesEngine = makeIESEngine(isEncrypt = true, toPub, prv, IV)
-    val keygenParams = new ECKeyGenerationParameters(CURVE, random)
+    val keygenParams = new ECKeyGenerationParameters(curve, random)
     val generator = new ECKeyPairGenerator
     generator.init(keygenParams)
     val gen = new ECKeyPairGenerator
-    gen.init(new ECKeyGenerationParameters(CURVE, random))
+    gen.init(new ECKeyGenerationParameters(curve, random))
     var cipher: Array[Byte] = null
     try {
       cipher = iesEngine.processBlock(plaintext, 0, plaintext.length, macData)
@@ -127,11 +124,11 @@ object ECIESCoder {
     iesEngine.setHashMacKey(false)
     val eGen = new ECKeyPairGenerator
     val random = new SecureRandom
-    val gParam = new ECKeyGenerationParameters(CURVE, random)
+    val gParam = new ECKeyGenerationParameters(curve, random)
     eGen.init(gParam)
 
-    val ephemeralKeyPairGenerator = new EphemeralKeyPairGenerator(/*testGen*/ eGen, new ECIESPublicKeyEncoder)
-    iesEngine.init(new ECPublicKeyParameters(pub, CURVE), parametersWithIV, ephemeralKeyPairGenerator)
+    val ephemeralKeyPairGenerator = new EphemeralKeyPairGenerator(/*testGen*/ eGen, ECIESPublicKeyEncoder)
+    iesEngine.init(new ECPublicKeyParameters(pub, curve), parametersWithIV, ephemeralKeyPairGenerator)
     iesEngine.processBlock(plaintext, 0, plaintext.length)
   }
 
@@ -142,7 +139,7 @@ object ECIESCoder {
     val e = new Array[Byte](0)
     val p = new IESWithCipherParameters(d, e, KEY_SIZE, KEY_SIZE)
     val parametersWithIV = new ParametersWithIV(p, IV)
-    iesEngine.init(isEncrypt, new ECPrivateKeyParameters(prv, CURVE), new ECPublicKeyParameters(pub, CURVE), parametersWithIV)
+    iesEngine.init(isEncrypt, new ECPrivateKeyParameters(prv, curve), new ECPublicKeyParameters(pub, curve), parametersWithIV)
     iesEngine
   }
 

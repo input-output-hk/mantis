@@ -7,7 +7,7 @@ import org.spongycastle.crypto.params.ECPublicKeyParameters
 /**
   * Created by Anton Nashatyrev on 01.10.2015.
   */
-class ECIESPublicKeyEncoder extends KeyEncoder {
+object ECIESPublicKeyEncoder extends KeyEncoder {
   override def getEncoded(keyParameter: AsymmetricKeyParameter): Array[Byte] =
     keyParameter.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
 }
