@@ -3,6 +3,7 @@ package io.iohk.ethereum.crypto
 import java.io.{ByteArrayInputStream, IOException}
 
 import org.spongycastle.crypto._
+import org.spongycastle.crypto.agreement.ECDHBasicAgreement
 import org.spongycastle.crypto.generators.EphemeralKeyPairGenerator
 import org.spongycastle.crypto.params._
 import org.spongycastle.util.{Arrays, BigIntegers, Pack}
@@ -26,7 +27,7 @@ import org.spongycastle.util.{Arrays, BigIntegers, Pack}
   * @param hash   hash ing function
   * @param cipher the actual cipher
   */
-class EthereumIESEngine(var agree: BasicAgreement, var kdf: DerivationFunction, var mac: Mac, val hash: Digest, var cipher: BufferedBlockCipher) {
+class EthereumIESEngine(var agree: ECDHBasicAgreement, var kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorExt], var mac: Mac, val hash: Digest, var cipher: Option[BufferedBlockCipher]) {
   private[crypto] var macBuf: Array[Byte] = new Array[Byte](mac.getMacSize)
   private[crypto] var forEncryption = false
   private[crypto] var privParam: CipherParameters = null
@@ -87,66 +88,59 @@ class EthereumIESEngine(var agree: BasicAgreement, var kdf: DerivationFunction, 
   }
 
   private def extractParams(params: CipherParameters) {
-    if (params.isInstanceOf[ParametersWithIV]) {
-      this.IV = params.asInstanceOf[ParametersWithIV].getIV
-      this.param = params.asInstanceOf[ParametersWithIV].getParameters.asInstanceOf[IESParameters]
-    }
-    else {
-      this.IV = null
-      this.param = params.asInstanceOf[IESParameters]
+    params match {
+      case v: ParametersWithIV =>
+        this.IV = v.getIV
+        this.param = v.getParameters.asInstanceOf[IESParameters]
+      case _ =>
+        this.IV = null
+        this.param = params.asInstanceOf[IESParameters]
     }
   }
 
-  def getCipher: BufferedBlockCipher = cipher
-
-  def getMac: Mac = mac
-
   @throws[InvalidCipherTextException]
-  private def encryptBlock(in: Array[Byte], inOff: Int, inLen: Int, macData: Option[Array[Byte]]) = {
+  private def encryptBlock(in: Array[Byte], inOff: Int, inLen: Int, macData: Option[Array[Byte]], fillKDFunction: Array[Byte] => Int) = {
     var C: Array[Byte] = null
     var K: Array[Byte] = null
     var K1: Array[Byte] = null
     var K2: Array[Byte] = null
     var len = 0
-    if (cipher == null) {
-      // used only for whispers
-      // Streaming mode.
-      K1 = new Array[Byte](inLen)
-      K2 = new Array[Byte](param.getMacKeySize / 8)
-      K = new Array[Byte](K1.length + K2.length)
-      kdf.generateBytes(K, 0, K.length)
 
-      System.arraycopy(K, 0, K1, 0, K1.length)
-      System.arraycopy(K, inLen, K2, 0, K2.length)
 
-      C = new Array[Byte](inLen)
-      var i = 0
-      while (i != inLen) {
-        {
-          C(i) = (in(inOff + i) ^ K1(i)).toByte
-        }
-        {
-          i += 1;
-          i - 1
-        }
-      }
-      len = inLen
+    cipher match {
+      case Some(cphr) =>
+        // Block cipher mode.
+        K1 = new Array[Byte](param.asInstanceOf[IESWithCipherParameters].getCipherKeySize / 8)
+        K2 = new Array[Byte](param.getMacKeySize / 8)
+        K = new Array[Byte](K1.length + K2.length)
+        fillKDFunction(K)
+        System.arraycopy(K, 0, K1, 0, K1.length)
+        System.arraycopy(K, K1.length, K2, 0, K2.length)
+
+        // If iv provided use it to initialise the cipher
+        if (IV != null) cphr.init(true, new ParametersWithIV(new KeyParameter(K1), IV))
+        else cphr.init(true, new KeyParameter(K1))
+        C = new Array[Byte](cphr.getOutputSize(inLen))
+        len = cphr.processBytes(in, inOff, inLen, C, 0)
+        len += cphr.doFinal(C, len)
+      case None =>
+        // Streaming mode.
+        K1 = new Array[Byte](inLen)
+        K2 = new Array[Byte](param.getMacKeySize / 8)
+        K = new Array[Byte](K1.length + K2.length)
+        fillKDFunction(K)
+
+        System.arraycopy(K, 0, K1, 0, K1.length)
+        System.arraycopy(K, inLen, K2, 0, K2.length)
+
+        C = (0 until inLen).map { i =>
+          (in(inOff + i) ^ K1(i)).toByte
+        }.toArray
+
+        len = inLen
     }
-    else {
-      // Block cipher mode.
-      K1 = new Array[Byte](param.asInstanceOf[IESWithCipherParameters].getCipherKeySize / 8)
-      K2 = new Array[Byte](param.getMacKeySize / 8)
-      K = new Array[Byte](K1.length + K2.length)
-      kdf.generateBytes(K, 0, K.length)
-      System.arraycopy(K, 0, K1, 0, K1.length)
-      System.arraycopy(K, K1.length, K2, 0, K2.length)
-      // If iv provided use it to initialise the cipher
-      if (IV != null) cipher.init(true, new ParametersWithIV(new KeyParameter(K1), IV))
-      else cipher.init(true, new KeyParameter(K1))
-      C = new Array[Byte](cipher.getOutputSize(inLen))
-      len = cipher.processBytes(in, inOff, inLen, C, 0)
-      len += cipher.doFinal(C, len)
-    }
+
+
     // Convert the length of the encoding vector into a byte array.
     val P2 = param.getEncodingV
     // Apply the MAC.
@@ -179,7 +173,7 @@ class EthereumIESEngine(var agree: BasicAgreement, var kdf: DerivationFunction, 
   }
 
   @throws[InvalidCipherTextException]
-  private def decryptBlock(in_enc: Array[Byte], inOff: Int, inLen: Int, macData: Option[Array[Byte]]) = {
+  private def decryptBlock(in_enc: Array[Byte], inOff: Int, inLen: Int, macData: Option[Array[Byte]], fillKDFunction: Array[Byte] => Int) = {
     var M: Array[Byte] = null
     var K: Array[Byte] = null
     var K1: Array[Byte] = null
@@ -187,46 +181,40 @@ class EthereumIESEngine(var agree: BasicAgreement, var kdf: DerivationFunction, 
     var len = 0
     // Ensure that the length of the input is greater than the MAC in bytes
     if (inLen <= (param.getMacKeySize / 8)) throw new InvalidCipherTextException("Length of input must be greater than the MAC")
-    if (cipher == null) {
-      // used only for whispers
-      // Streaming mode.
-      K1 = new Array[Byte](inLen - V.length - mac.getMacSize)
-      K2 = new Array[Byte](param.getMacKeySize / 8)
-      K = new Array[Byte](K1.length + K2.length)
-      kdf.generateBytes(K, 0, K.length)
 
 
-      System.arraycopy(K, 0, K1, 0, K1.length)
-      System.arraycopy(K, K1.length, K2, 0, K2.length)
+    cipher match {
+      case Some(cphr) =>
+        // Block cipher mode.
+        K1 = new Array[Byte](param.asInstanceOf[IESWithCipherParameters].getCipherKeySize / 8)
+        K2 = new Array[Byte](param.getMacKeySize / 8)
+        K = new Array[Byte](K1.length + K2.length)
+        fillKDFunction(K)
+        System.arraycopy(K, 0, K1, 0, K1.length)
+        System.arraycopy(K, K1.length, K2, 0, K2.length)
+        // If IV provide use it to initialize the cipher
+        if (IV != null) cphr.init(false, new ParametersWithIV(new KeyParameter(K1), IV))
+        else cphr.init(false, new KeyParameter(K1))
+        M = new Array[Byte](cphr.getOutputSize(inLen - V.length - mac.getMacSize))
+        len = cphr.processBytes(in_enc, inOff + V.length, inLen - V.length - mac.getMacSize, M, 0)
+        len += cphr.doFinal(M, len)
+      case None =>
+        // Streaming mode.
+        K1 = new Array[Byte](inLen - V.length - mac.getMacSize)
+        K2 = new Array[Byte](param.getMacKeySize / 8)
+        K = new Array[Byte](K1.length + K2.length)
+        fillKDFunction(K)
 
-      M = new Array[Byte](K1.length)
-      var i = 0
-      while (i != K1.length) {
-        {
-          M(i) = (in_enc(inOff + V.length + i) ^ K1(i)).toByte
-        }
-        {
-          i += 1;
-          i - 1
-        }
-      }
-      len = K1.length
+        System.arraycopy(K, 0, K1, 0, K1.length)
+        System.arraycopy(K, K1.length, K2, 0, K2.length)
+
+        M = (0 until K1.length).map { i =>
+          (in_enc(inOff + V.length + i) ^ K1(i)).toByte
+        }.toArray
+
+        len = K1.length
     }
-    else {
-      // Block cipher mode.
-      K1 = new Array[Byte](param.asInstanceOf[IESWithCipherParameters].getCipherKeySize / 8)
-      K2 = new Array[Byte](param.getMacKeySize / 8)
-      K = new Array[Byte](K1.length + K2.length)
-      kdf.generateBytes(K, 0, K.length)
-      System.arraycopy(K, 0, K1, 0, K1.length)
-      System.arraycopy(K, K1.length, K2, 0, K2.length)
-      // If IV provide use it to initialize the cipher
-      if (IV != null) cipher.init(false, new ParametersWithIV(new KeyParameter(K1), IV))
-      else cipher.init(false, new KeyParameter(K1))
-      M = new Array[Byte](cipher.getOutputSize(inLen - V.length - mac.getMacSize))
-      len = cipher.processBytes(in_enc, inOff + V.length, inLen - V.length - mac.getMacSize, M, 0)
-      len += cipher.doFinal(M, len)
-    }
+
     // Convert the length of the encoding vector into a byte array.
     val P2 = param.getEncodingV
     // Verify the MAC.
@@ -259,12 +247,11 @@ class EthereumIESEngine(var agree: BasicAgreement, var kdf: DerivationFunction, 
 
   @throws[InvalidCipherTextException]
   def processBlock(in: Array[Byte], inOff: Int, inLen: Int, macData: Option[Array[Byte]] = None): Array[Byte] = {
-    if (forEncryption) if (keyPairGenerator != null) {
+    if (forEncryption && keyPairGenerator != null) {
       val ephKeyPair = keyPairGenerator.generate
       this.privParam = ephKeyPair.getKeyPair.getPrivate
       this.V = ephKeyPair.getEncodedPublicKey
-    }
-    else if (keyParser != null) {
+    } else if (keyParser != null) {
       val bIn = new ByteArrayInputStream(in, inOff, inLen)
       try
         this.pubParam = keyParser.readKey(bIn)
@@ -280,22 +267,15 @@ class EthereumIESEngine(var agree: BasicAgreement, var kdf: DerivationFunction, 
     // Compute the common value and convert to byte array.
     agree.init(privParam)
     val z = agree.calculateAgreement(pubParam)
-    val Z = BigIntegers.asUnsignedByteArray(agree.getFieldSize, z)
-    // Create input to KDF.
-    var VZ: Array[Byte] = null
+    val VZ = BigIntegers.asUnsignedByteArray(agree.getFieldSize, z)
 
-    VZ = Z
 
-    // Initialise the KDF.
-    var kdfParam: DerivationParameters = null
+    val fillKDFunction = (out: Array[Byte]) => kdf.fold(
+      _.generateBytes(out, 0, out.length),
+      _.generateBytes(out, 0, out.length, VZ)
+    )
 
-    if (kdf.isInstanceOf[MGF1BytesGeneratorExt])
-      kdfParam = new MGFParameters(VZ)
-    else
-      kdfParam = new KDFParameters(VZ, param.getDerivationV)
-
-    kdf.init(kdfParam)
-    if (forEncryption) encryptBlock(in, inOff, inLen, macData)
-    else decryptBlock(in, inOff, inLen, macData)
+    if (forEncryption) encryptBlock(in, inOff, inLen, macData, fillKDFunction)
+    else decryptBlock(in, inOff, inLen, macData, fillKDFunction)
   }
 }

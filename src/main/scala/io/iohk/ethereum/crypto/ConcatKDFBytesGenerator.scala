@@ -1,44 +1,27 @@
 package io.iohk.ethereum.crypto
 
 import org.spongycastle.crypto.params.{ISO18033KDFParameters, KDFParameters}
-import org.spongycastle.crypto.{DataLengthException, DerivationParameters, Digest, DigestDerivationFunction}
+import org.spongycastle.crypto.{DataLengthException, Digest}
 import org.spongycastle.util.Pack
 
 /**
   * Basic KDF generator for derived keys and ivs as defined by NIST SP 800-56A.
   */
-class ConcatKDFBytesGenerator protected(var counterStart: Int, var digest: Digest) extends DigestDerivationFunction {
 
-  /**
-    * Construct a KDF Parameters generator.
-    * <p>
-    *
-    * @param counterStart
-    * value of counter.
-    * @param digest
-    * the digest to be used as the source of derived keys.
-    */
+/**
+  * Construct a KDF Parameters generator.
+  * <p>
+  *
+  * @param counterStart
+  * value of counter.
+  * @param digest
+  * the digest to be used as the source of derived keys.
+  */
 
-  private var shared: Array[Byte] = null
-  private var iv: Array[Byte] = null
+class ConcatKDFBytesGenerator(counterStart: Int = 1: Int, digest: Digest, param: KDFParameters) {
 
-  def this(digest: Digest) {
-    this(1, digest)
-  }
-
-  def init(param: DerivationParameters) {
-    if (param.isInstanceOf[KDFParameters]) {
-      val p = param.asInstanceOf[KDFParameters]
-      shared = p.getSharedSecret
-      iv = p.getIV
-    }
-    else if (param.isInstanceOf[ISO18033KDFParameters]) {
-      val p = param.asInstanceOf[ISO18033KDFParameters]
-      shared = p.getSeed
-      iv = null
-    }
-    else throw new IllegalArgumentException("KDF parameters required for KDF2Generator")
-  }
+  val shared: Array[Byte] = param.getSharedSecret
+  val iv: Array[Byte] = param.getIV
 
   /**
     * return the underlying digest.
@@ -71,36 +54,36 @@ class ConcatKDFBytesGenerator protected(var counterStart: Int, var digest: Diges
     // array with a long index at the moment...
     //
     if (oBytes > ((2L << 32) - 1)) throw new IllegalArgumentException("Output length too large")
-    val cThreshold = ((oBytes + outLen - 1) / outLen).toInt
+
+    val cThreshold = (oBytes + outLen - 1) / outLen
     val dig = new Array[Byte](digest.getDigestSize)
     val C = new Array[Byte](4)
     Pack.intToBigEndian(counterStart, C, 0)
     var counterBase = counterStart & ~0xFF
-    var i = 0
-    while (i < cThreshold) {
-      {
-        digest.update(C, 0, C.length)
-        digest.update(shared, 0, shared.length)
-        if (iv != null) digest.update(iv, 0, iv.length)
-        digest.doFinal(dig, 0)
-        if (currnetLen > outLen) {
-          System.arraycopy(dig, 0, out, currnetOutOff, outLen)
-          currnetOutOff += outLen
-          currnetLen -= outLen
-        }
-        else System.arraycopy(dig, 0, out, currnetOutOff, currnetLen)
 
-        if ( {
-          C(3) = (C(3) + 1.toByte).toByte //TODO test if it overflows correctly in java here was    if (++C[3] == 0)
-          C(3)
-        } == 0) {
-          counterBase += 0x100
-          Pack.intToBigEndian(counterBase, C, 0)
-        }
+
+    (0 until cThreshold).foreach { _ =>
+      digest.update(C, 0, C.length)
+      digest.update(shared, 0, shared.length)
+      digest.update(iv, 0, iv.length)
+      digest.doFinal(dig, 0)
+      if (currnetLen > outLen) {
+        System.arraycopy(dig, 0, out, currnetOutOff, outLen)
+        currnetOutOff += outLen
+        currnetLen -= outLen
+      } else {
+        System.arraycopy(dig, 0, out, currnetOutOff, currnetLen)
       }
 
-      i += 1
+      C(3) = (C(3) + 1.toByte).toByte
+
+      if (C(3) == 0) {
+        counterBase += 0x100
+        Pack.intToBigEndian(counterBase, C, 0)
+      }
     }
+
+
     digest.reset()
     oBytes.toInt
   }
