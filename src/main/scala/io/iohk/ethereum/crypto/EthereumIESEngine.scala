@@ -259,12 +259,11 @@ class EthereumIESEngine(var agree: BasicAgreement, var kdf: DerivationFunction, 
 
   @throws[InvalidCipherTextException]
   def processBlock(in: Array[Byte], inOff: Int, inLen: Int, macData: Option[Array[Byte]] = None): Array[Byte] = {
-    if (forEncryption) if (keyPairGenerator != null) {
+    if (forEncryption && keyPairGenerator != null) {
       val ephKeyPair = keyPairGenerator.generate
       this.privParam = ephKeyPair.getKeyPair.getPrivate
       this.V = ephKeyPair.getEncodedPublicKey
-    }
-    else if (keyParser != null) {
+    } else if (keyParser != null) {
       val bIn = new ByteArrayInputStream(in, inOff, inLen)
       try
         this.pubParam = keyParser.readKey(bIn)
