@@ -2,8 +2,6 @@ package io.iohk.ethereum.utils
 
 import java.nio.ByteBuffer
 
-import io.iohk.ethereum.utils.RLPImplicits._
-
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.util.{Failure, Success, Try}
@@ -173,17 +171,26 @@ object RLP {
 
 
   private def decodeWithPos(data: Array[Byte], pos: Int): Try[(RLPEncodeable, Int)] = Try {
-    if (data.length < 1) (Array.emptyByteArray: RLPEncodeable, pos)
+    if (data.length < 1) (
+      new RLPValue {
+        override def toBytes: Array[Byte] = Array.emptyByteArray
+      }, pos)
     else {
       val prefix: Int = data(pos) & 0xFF
       prefix match {
-        case p if p == OFFSET_SHORT_ITEM => (Array.emptyByteArray: RLPEncodeable, pos + 1)
-        case p if p < OFFSET_SHORT_ITEM => (Array(data(pos)): RLPEncodeable, pos + 1)
+        case p if p == OFFSET_SHORT_ITEM => (new RLPValue {
+          override def toBytes: Array[Byte] = Array.emptyByteArray
+        }, pos + 1)
+        case p if p < OFFSET_SHORT_ITEM => (new RLPValue {
+          override def toBytes: Array[Byte] = Array(data(pos))
+        }, pos + 1)
         case p if p <= OFFSET_LONG_ITEM =>
           val length = p - OFFSET_SHORT_ITEM
           val res: Array[Byte] = new Array[Byte](length)
           Array.copy(data, pos + 1, res, 0, length)
-          (res: RLPEncodeable, pos + length + 1)
+          (new RLPValue {
+            override def toBytes: Array[Byte] = res
+          }, pos + length + 1)
         case p if p < OFFSET_SHORT_LIST =>
           val lengthOfLength = p - OFFSET_LONG_ITEM
           val lengthBytes = new Array[Byte](lengthOfLength)
@@ -192,7 +199,9 @@ object RLP {
           val beginPos = pos + lengthOfLength + 1
           val res = new Array[Byte](length)
           Array.copy(data, beginPos, res, 0, length)
-          (res: RLPEncodeable, beginPos + length)
+          (new RLPValue {
+            override def toBytes: Array[Byte] = res
+          }, beginPos + length)
         case p if p <= OFFSET_LONG_LIST =>
           val length = p - OFFSET_SHORT_LIST
           val (listDecoded, endPos) = decodeList(data, pos + 1, length).get
