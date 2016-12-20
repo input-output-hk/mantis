@@ -27,8 +27,6 @@ object Handshaker {
 
     val initiatePacket = ECIESCoder.encrypt(remotePubKey, authInitiateMessage.encode(), None)
 
-    // send initiatePacket and wait for response
-
     // if (!sessionTokenStorage.contains(remoteNodeId))
     //   sessionTokenStorage += (remoteNodeId -> authInitiateMessage)
   }
@@ -68,9 +66,14 @@ object Handshaker {
     AuthInitiateMessage(signature, ByteString(ephemeralPublicHash), publicKey, ByteString(nonce), knownPeer)
   }
 
-  def decodeAuthInitiateMessage(remoteNodeId: String, data: Array[Byte]) = {
+  def decryptAuthInitiateMessage(data: Array[Byte]) = {
     val plaintext = ECIESCoder.decrypt(nodeKey.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD, data)
     AuthInitiateMessage.decode(plaintext)
+  }
+
+  def decryptAuthResponse(data: Array[Byte]) = {
+    val plaintext = ECIESCoder.decrypt(nodeKey.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD, data)
+    AuthResponseMessage.decode(plaintext)
   }
 
   def generateKeyPair(): AsymmetricCipherKeyPair = {
