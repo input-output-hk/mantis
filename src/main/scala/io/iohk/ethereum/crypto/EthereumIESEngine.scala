@@ -271,8 +271,17 @@ class EthereumIESEngine(var agree: ECDHBasicAgreement, var kdf: Either[ConcatKDF
 
 
     val fillKDFunction = (out: Array[Byte]) => kdf.fold(
-      _.generateBytes(out, 0, out.length),
-      _.generateBytes(out, 0, out.length, VZ)
+      fa => {
+        val result = fa.generateBytes(out.length).toArray
+        System.arraycopy(result, 0, out, 0, result.length)
+        result.length
+      },
+      fb => {
+        val result = fb.generateBytes(out.length, VZ).toArray
+        System.arraycopy(result, 0, out, 0, result.length)
+        result.length
+      }
+
     )
 
     if (forEncryption) encryptBlock(in, inOff, inLen, macData, fillKDFunction)

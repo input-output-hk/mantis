@@ -58,7 +58,7 @@ object ECIESCoder {
 
     val iesEngine = new EthereumIESEngine(
       agree,
-      kdf = Left(new ConcatKDFBytesGenerator(1, new SHA256Digest, new KDFParameters(VZ, p.getDerivationV))),
+      kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest, new KDFParameters(VZ, p.getDerivationV))),
       mac = new HMac(new SHA256Digest),
       hash = new SHA256Digest,
       cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesFastEngine))))
@@ -173,7 +173,7 @@ object ECIESCoder {
 
     val iesEngine = new EthereumIESEngine(
       agree,
-      kdf = Left(new ConcatKDFBytesGenerator(1, new SHA256Digest, new KDFParameters(VZ, p.getDerivationV))),
+      kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest, new KDFParameters(VZ, p.getDerivationV))),
       mac = new HMac(new SHA256Digest),
       hash = new SHA256Digest,
       cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesFastEngine))))
