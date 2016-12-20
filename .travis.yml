@@ -6,3 +6,6 @@ scala:
 branches:
   only:
     - feature/crypto
+script:
+    - sbt test
+
