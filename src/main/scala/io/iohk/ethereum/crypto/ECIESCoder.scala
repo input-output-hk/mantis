@@ -7,8 +7,6 @@ import java.security.SecureRandom
 import com.google.common.base.Throwables
 import org.spongycastle.asn1.sec.SECNamedCurves
 import org.spongycastle.asn1.x9.X9ECParameters
-import org.spongycastle.crypto.{BufferedBlockCipher, InvalidCipherTextException}
-import org.spongycastle.crypto.agreement.ECDHBasicAgreement
 import org.spongycastle.crypto.digests.{SHA1Digest, SHA256Digest}
 import org.spongycastle.crypto.engines.AESFastEngine
 import org.spongycastle.crypto.generators.{ECKeyPairGenerator, EphemeralKeyPairGenerator}
@@ -16,8 +14,8 @@ import org.spongycastle.crypto.macs.HMac
 import org.spongycastle.crypto.modes.SICBlockCipher
 import org.spongycastle.crypto.params._
 import org.spongycastle.crypto.parsers.ECIESPublicKeyParser
+import org.spongycastle.crypto.{BufferedBlockCipher, InvalidCipherTextException}
 import org.spongycastle.math.ec.ECPoint
-import org.spongycastle.util.BigIntegers
 
 object ECIESCoder {
   val KEY_SIZE = 128
@@ -44,24 +42,15 @@ object ECIESCoder {
   def decrypt(ephem: ECPoint, prv: BigInteger, IV: Array[Byte], cipher: Array[Byte], macData: Option[Array[Byte]]): Array[Byte] = {
     val aesFastEngine = new AESFastEngine
 
-    val agree = new ECDHBasicAgreement
-    val privParam = new ECPrivateKeyParameters(prv, CURVE)
-    val pubParam = new ECPublicKeyParameters(ephem, CURVE)
-    agree.init(privParam)
-    val z = agree.calculateAgreement(pubParam)
-    val VZ = BigIntegers.asUnsignedByteArray(agree.getFieldSize, z)
-
-
     val iesEngine = new EthereumIESEngine(
-      agree,
-      kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest, new KDFParameters(VZ, new Array[Byte](0)))),
+      kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest)),
       mac = new HMac(new SHA256Digest),
       hash = new SHA256Digest,
       cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesFastEngine))),
       IV = IV,
-      addLenOfEncodingVector = true,
       prvSrc = Left(new ECPrivateKeyParameters(prv, CURVE)),
-      pubSrc = Left(new ECPublicKeyParameters(ephem, CURVE)))
+      pubSrc = Left(new ECPublicKeyParameters(ephem, CURVE)),
+      addLenOfEncodingVector = true)
 
 
     iesEngine.processBlock(cipher, 0, cipher.length, forEncryption = false, macData)
@@ -82,16 +71,15 @@ object ECIESCoder {
   @throws[InvalidCipherTextException]
   def decryptSimple(privKey: BigInteger, cipher: Array[Byte]): Array[Byte] = {
     val iesEngine = new EthereumIESEngine(
-      agree = new ECDHBasicAgreement,
-      kdf = Right(new MGF1BytesGeneratorExt(new SHA1Digest, 1)),
+      kdf = Right(new MGF1BytesGeneratorExt(new SHA1Digest)),
       mac = new HMac(new SHA1Digest),
       hash = new SHA1Digest,
       cipher = None,
       IV = new Array[Byte](0),
-      addLenOfEncodingVector = false,
       prvSrc = Left(new ECPrivateKeyParameters(privKey, CURVE)),
       pubSrc = Right(new ECIESPublicKeyParser(CURVE)),
-      hashK2 = false)
+      addLenOfEncodingVector = false,
+      hashMacKey = false)
 
     iesEngine.processBlock(cipher, 0, cipher.length, forEncryption = false)
   }
@@ -106,7 +94,9 @@ object ECIESCoder {
     val ephemPair = eGen.generateKeyPair
     val prv = ephemPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD
     val pub = ephemPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ
+
     val iesEngine = makeIESEngine(isEncrypt = true, toPub, prv, IV)
+
     val keygenParams = new ECKeyGenerationParameters(CURVE, random)
     val generator = new ECKeyPairGenerator
     generator.init(keygenParams)
@@ -146,29 +136,23 @@ object ECIESCoder {
   @throws[InvalidCipherTextException]
   def encryptSimple(pub: ECPoint, plaintext: Array[Byte]): Array[Byte] = {
 
-
-    //todo remove?
-    val p = new IESParameters(null, null, KEY_SIZE)
-
     val eGen = new ECKeyPairGenerator
     val random = new SecureRandom
     val gParam = new ECKeyGenerationParameters(CURVE, random)
     eGen.init(gParam)
 
-    val ephemeralKeyPairGenerator = new EphemeralKeyPairGenerator(/*testGen*/ eGen, new ECIESPublicKeyEncoder)
-
+    val ephemeralKeyPairGenerator = new EphemeralKeyPairGenerator(eGen, new ECIESPublicKeyEncoder)
 
     val iesEngine = new EthereumIESEngine(
-      agree = new ECDHBasicAgreement,
-      kdf = Right(new MGF1BytesGeneratorExt(new SHA1Digest, 1)),
+      kdf = Right(new MGF1BytesGeneratorExt(new SHA1Digest)),
       mac = new HMac(new SHA1Digest),
       hash = new SHA1Digest,
       cipher = None,
       IV = new Array[Byte](0),
-      addLenOfEncodingVector = false,
       prvSrc = Right(ephemeralKeyPairGenerator),
       pubSrc = Left(new ECPublicKeyParameters(pub, CURVE)),
-      hashK2 = false)
+      addLenOfEncodingVector = false,
+      hashMacKey = false)
 
     iesEngine.processBlock(plaintext, 0, plaintext.length, forEncryption = true)
   }
@@ -176,23 +160,15 @@ object ECIESCoder {
   private def makeIESEngine(isEncrypt: Boolean, pub: ECPoint, prv: BigInteger, IV: Array[Byte]) = {
     val aesFastEngine = new AESFastEngine
 
-    val agree = new ECDHBasicAgreement
-    val privParam = new ECPrivateKeyParameters(prv, CURVE)
-    val pubParam = new ECPublicKeyParameters(pub, CURVE)
-    agree.init(privParam)
-    val z = agree.calculateAgreement(pubParam)
-    val VZ = BigIntegers.asUnsignedByteArray(agree.getFieldSize, z)
-
     val iesEngine = new EthereumIESEngine(
-      agree,
-      kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest, new KDFParameters(VZ, new Array[Byte](0)))),
+      kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest)),
       mac = new HMac(new SHA256Digest),
       hash = new SHA256Digest,
       cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesFastEngine))),
       IV = IV,
-      addLenOfEncodingVector = true,
       prvSrc = Left(new ECPrivateKeyParameters(prv, CURVE)),
-      pubSrc = Left(new ECPublicKeyParameters(pub, CURVE)))
+      pubSrc = Left(new ECPublicKeyParameters(pub, CURVE)),
+      addLenOfEncodingVector = true)
 
     iesEngine
   }

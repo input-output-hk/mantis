@@ -8,7 +8,7 @@ import org.spongycastle.crypto.{DataLengthException, Digest}
   * The only change made is addition of 'counterStart' parameter to
   * conform to Crypto++ capabilities
   */
-class MGF1BytesGeneratorExt(digest: Digest, counterStart: Int) {
+class MGF1BytesGeneratorExt(digest: Digest) {
   val digestSize: Int = digest.getDigestSize
 
   private def ItoOSP(i: Int, sp: Array[Byte]) {
@@ -21,6 +21,8 @@ class MGF1BytesGeneratorExt(digest: Digest, counterStart: Int) {
   @throws[DataLengthException]
   @throws[IllegalArgumentException]
   def generateBytes(outputLength: Int, seed: Array[Byte]): ByteString = {
+
+    val counterStart = 1
     val hashBuf = new Array[Byte](digestSize)
     val counterValue = new Array[Byte](4)
 

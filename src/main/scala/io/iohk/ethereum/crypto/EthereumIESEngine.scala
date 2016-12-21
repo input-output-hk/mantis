@@ -22,22 +22,25 @@ import org.spongycastle.util.{Arrays, BigIntegers, Pack}
   * set up for use with stream mode, where the key derivation function
   * is used to provide a stream of bytes to xor with the message.
   *
-  * @param agree  the key agreement used as the basis for the encryption
-  * @param kdf    the key derivation function used for byte generation
-  * @param mac    the message authentication code generator for the message
-  * @param hash   hash ing function
-  * @param cipher the actual cipher
+  * @param kdf                    the key derivation function used for byte generation
+  * @param mac                    the message authentication code generator for the message
+  * @param hash                   hash ing function
+  * @param cipher                 the actual cipher
+  * @param IV                     vector with random values used to initialize cipher
+  * @param prvSrc                 private key source
+  * @param pubSrc                 public key source
+  * @param addLenOfEncodingVector determines if length of encoding vector should be added whne calculating mac
+  * @param hashMacKey             determines if for has use mac key value (if false) or hashed mac key value (if true)
   */
-class EthereumIESEngine(var agree: ECDHBasicAgreement,
-                        var kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorExt],
-                        var mac: Mac,
-                        val hash: Digest,
-                        var cipher: Option[BufferedBlockCipher],
+class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorExt],
+                        mac: Mac,
+                        hash: Digest,
+                        cipher: Option[BufferedBlockCipher],
                         IV: Array[Byte],
-                        addLenOfEncodingVector: Boolean,
                         prvSrc: Either[ECPrivateKeyParameters, EphemeralKeyPairGenerator],
                         pubSrc: Either[ECPublicKeyParameters, ECIESPublicKeyParser],
-                        hashK2: Boolean = true) {
+                        addLenOfEncodingVector: Boolean,
+                        hashMacKey: Boolean = true) {
 
   @throws[InvalidCipherTextException]
   private def encryptBlock(in: Array[Byte], inOff: Int, inLen: Int, macData: Option[Array[Byte]], V: Array[Byte], fillKDFunction: Int => Array[Byte]) = {
@@ -83,13 +86,16 @@ class EthereumIESEngine(var agree: ECDHBasicAgreement,
     // Apply the MAC.
     val T = new Array[Byte](mac.getMacSize)
     var K2a: Array[Byte] = null
-    if (hashK2) {
+
+    if (hashMacKey) {
       K2a = new Array[Byte](hash.getDigestSize)
       hash.reset()
       hash.update(K2, 0, K2.length)
       hash.doFinal(K2a, 0)
+    } else {
+      K2a = K2
     }
-    else K2a = K2
+
     mac.init(new KeyParameter(K2a))
     mac.update(IV, 0, IV.length)
     mac.update(C, 0, C.length)
@@ -160,13 +166,16 @@ class EthereumIESEngine(var agree: ECDHBasicAgreement,
     val T1 = Arrays.copyOfRange(in_enc, end - mac.getMacSize, end)
     val T2 = new Array[Byte](T1.length)
     var K2a: Array[Byte] = null
-    if (hashK2) {
+
+    if (hashMacKey) {
       K2a = new Array[Byte](hash.getDigestSize)
       hash.reset()
       hash.update(K2, 0, K2.length)
       hash.doFinal(K2a, 0)
+    } else {
+      K2a = K2
     }
-    else K2a = K2
+
     mac.init(new KeyParameter(K2a))
     mac.update(IV, 0, IV.length)
     mac.update(in_enc, inOff + V.length, inLen - V.length - T2.length)
@@ -208,14 +217,14 @@ class EthereumIESEngine(var agree: ECDHBasicAgreement,
         result
       }
     )
-
+    val agree = new ECDHBasicAgreement
     agree.init(prv)
     val z = agree.calculateAgreement(pub)
     val VZ = BigIntegers.asUnsignedByteArray(agree.getFieldSize, z)
 
 
     val fillKDFunction = (outLen: Int) => kdf.fold(
-      _.generateBytes(outLen).toArray,
+      _.generateBytes(outLen, VZ).toArray,
       _.generateBytes(outLen, VZ).toArray
     )
 
