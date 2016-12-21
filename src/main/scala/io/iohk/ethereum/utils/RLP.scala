@@ -1,6 +1,5 @@
 package io.iohk.ethereum.utils
 
-import java.math.BigInteger
 import java.nio.ByteBuffer
 
 import scala.annotation.tailrec
@@ -143,7 +142,7 @@ object RLP {
 
   def decodeInt(bytes: Array[Byte]): Int = {
     bytes.length match {
-      case l if l <= 4 => new BigInteger(1, bytes).intValue//bytes.foldLeft[Int](0) { (rec, byte) => (rec << 8) + (byte & 0xFF) }
+      case l if l <= 4 => bytes.foldLeft[Int](0) { (rec, byte) => (rec << 8) + (byte & 0xFF) }
       case _ => throw new Exception("Bytes don't represent an int")
     }
   }
