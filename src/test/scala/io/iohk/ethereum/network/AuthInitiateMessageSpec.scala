@@ -28,7 +28,7 @@ class AuthInitiateMessageSpec extends FlatSpec with Matchers {
 
     val msg = AuthInitiateMessage(signature, ByteString(Array.fill(32)(0.toByte)), keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ, ByteString(nonce), false)
 
-    AuthInitiateMessage.decode(msg.encode()) shouldBe msg
+    AuthInitiateMessage.decode(msg.encode().toArray) shouldBe msg
   }
 
   it should "decode predefined message" in {

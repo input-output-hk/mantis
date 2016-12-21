@@ -8,6 +8,8 @@ import org.spongycastle.math.ec.ECPoint
 
 object AuthResponseMessage {
 
+  val encodedLength = 64+32+1
+
   def decode(input: Array[Byte]): AuthResponseMessage = {
     AuthResponseMessage(
       ephemeralPublicKey = curve.getCurve.decodePoint(Array(4.toByte) ++ input.take(64)),
@@ -19,10 +21,11 @@ object AuthResponseMessage {
 
 case class AuthResponseMessage(ephemeralPublicKey: ECPoint, nonce: ByteString, knownPeer: Boolean) {
 
-  def encode(): Array[Byte] = {
-    ECIESPublicKeyEncoder.getEncoded(ephemeralPublicKey.asInstanceOf[ECPublicKeyParameters]) ++
+  def encode(): ByteString = {
+    ByteString(
+      ECIESPublicKeyEncoder.getEncoded(ephemeralPublicKey.asInstanceOf[ECPublicKeyParameters]) ++
       nonce ++
-      Array(if (knownPeer) 1.toByte else 0.toByte)
+      Array(if (knownPeer) 1.toByte else 0.toByte))
   }
 
 }

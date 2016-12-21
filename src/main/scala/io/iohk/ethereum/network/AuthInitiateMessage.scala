@@ -26,12 +26,12 @@ case class AuthInitiateMessage(
     nonce: ByteString,
     knownPeer: Boolean) {
 
-  def encode(): Array[Byte] = {
+  def encode(): ByteString = {
     signature.canonicalise().encode() ++
       ephemeralPublicHash ++
       ECIESPublicKeyEncoder.getEncoded(new ECPublicKeyParameters(publicKey, curve)).drop(1) ++
       nonce ++
-      Array(if (knownPeer) 1.toByte else 0.toByte)
+      ByteString(if (knownPeer) 1.toByte else 0.toByte)
   }
 
 }
