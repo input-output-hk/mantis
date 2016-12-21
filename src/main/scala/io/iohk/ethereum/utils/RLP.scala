@@ -1,5 +1,6 @@
 package io.iohk.ethereum.utils
 
+import java.math.BigInteger
 import java.nio.ByteBuffer
 
 import scala.annotation.tailrec
@@ -142,7 +143,7 @@ object RLP {
 
   def decodeInt(bytes: Array[Byte]): Int = {
     bytes.length match {
-      case l if l <= 4 => bytes.foldLeft[Int](0) { (rec, byte) => (rec << 8) + (byte & 0xFF) }
+      case l if l <= 4 => new BigInteger(1, bytes).intValue//bytes.foldLeft[Int](0) { (rec, byte) => (rec << 8) + (byte & 0xFF) }
       case _ => throw new Exception("Bytes don't represent an int")
     }
   }
@@ -204,22 +205,17 @@ object RLP {
           }, beginPos + length)
         case p if p <= OFFSET_LONG_LIST =>
           val length = p - OFFSET_SHORT_LIST
-          val (listDecoded, endPos) = decodeList(data, pos + 1, length).get
-          (RLPList(listDecoded), endPos)
+          val (listDecoded, endPos) = decodeListRecursive(data, pos + 1, length, Queue()).get
+          (new RLPList{override def items = listDecoded}, endPos)
         case p =>
           val lengthOfLength = p - OFFSET_LONG_LIST
           val lengthBytes = new Array[Byte](lengthOfLength)
           Array.copy(data, pos + 1, lengthBytes, 0, lengthOfLength)
           val length = decodeInt(lengthBytes)
-          val (listDecoded, endPos) = decodeList(data, pos + lengthOfLength + 1, length).get
-          (RLPList(listDecoded), endPos)
+          val (listDecoded, endPos) = decodeListRecursive(data, pos + lengthOfLength + 1, length, Queue()).get
+          (new RLPList{override def items = listDecoded}, endPos)
       }
     }
-  }
-
-  private def decodeList(data: Array[Byte], pos: Int, length: Int): Try[(Queue[RLPEncodeable], Int)] = {
-    if ((data.length - pos) >= length) decodeListRecursive(data, pos, length, Queue())
-    else Failure(new Exception("The data is not long enough for the length declared"))
   }
 
   @tailrec
