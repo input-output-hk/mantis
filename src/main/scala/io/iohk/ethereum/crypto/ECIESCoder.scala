@@ -43,10 +43,6 @@ object ECIESCoder {
   @throws[InvalidCipherTextException]
   def decrypt(ephem: ECPoint, prv: BigInteger, IV: Array[Byte], cipher: Array[Byte], macData: Option[Array[Byte]]): Array[Byte] = {
     val aesFastEngine = new AESFastEngine
-    val d = new Array[Byte](0)
-    val e = new Array[Byte](0)
-    val p = new IESWithCipherParameters(d, e, KEY_SIZE, KEY_SIZE)
-    val parametersWithIV = new ParametersWithIV(p, IV)
 
     val agree = new ECDHBasicAgreement
     val privParam = new ECPrivateKeyParameters(prv, CURVE)
@@ -58,18 +54,17 @@ object ECIESCoder {
 
     val iesEngine = new EthereumIESEngine(
       agree,
-      kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest, new KDFParameters(VZ, p.getDerivationV))),
+      kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest, new KDFParameters(VZ, new Array[Byte](0)))),
       mac = new HMac(new SHA256Digest),
       hash = new SHA256Digest,
-      cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesFastEngine))))
+      cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesFastEngine))),
+      IV = IV,
+      addLenOfEncodingVector = true,
+      prvSrc = Left(new ECPrivateKeyParameters(prv, CURVE)),
+      pubSrc = Left(new ECPublicKeyParameters(ephem, CURVE)))
 
-    iesEngine.init(
-      forEncryption = false,
-      privParam = new ECPrivateKeyParameters(prv, CURVE),
-      pubParam = new ECPublicKeyParameters(ephem, CURVE),
-      params = parametersWithIV)
 
-    iesEngine.processBlock(cipher, 0, cipher.length, macData)
+    iesEngine.processBlock(cipher, 0, cipher.length, forEncryption = false, macData)
   }
 
   /**
@@ -86,12 +81,19 @@ object ECIESCoder {
   @throws[IOException]
   @throws[InvalidCipherTextException]
   def decryptSimple(privKey: BigInteger, cipher: Array[Byte]): Array[Byte] = {
-    val iesEngine = new EthereumIESEngine(new ECDHBasicAgreement, Right(new MGF1BytesGeneratorExt(new SHA1Digest, 1)), new HMac(new SHA1Digest), new SHA1Digest, None)
-    val p = new IESParameters(null, null, KEY_SIZE)
-    val parametersWithIV = new ParametersWithIV(p, new Array[Byte](0))
-    iesEngine.setHashMacKey(false)
-    iesEngine.init(new ECPrivateKeyParameters(privKey, CURVE), parametersWithIV, new ECIESPublicKeyParser(CURVE))
-    iesEngine.processBlock(cipher, 0, cipher.length)
+    val iesEngine = new EthereumIESEngine(
+      agree = new ECDHBasicAgreement,
+      kdf = Right(new MGF1BytesGeneratorExt(new SHA1Digest, 1)),
+      mac = new HMac(new SHA1Digest),
+      hash = new SHA1Digest,
+      cipher = None,
+      IV = new Array[Byte](0),
+      addLenOfEncodingVector = false,
+      prvSrc = Left(new ECPrivateKeyParameters(privKey, CURVE)),
+      pubSrc = Right(new ECIESPublicKeyParser(CURVE)),
+      hashK2 = false)
+
+    iesEngine.processBlock(cipher, 0, cipher.length, forEncryption = false)
   }
 
   def encrypt(toPub: ECPoint, plaintext: Array[Byte], macData: Option[Array[Byte]] = None): Array[Byte] = {
@@ -112,14 +114,14 @@ object ECIESCoder {
     gen.init(new ECKeyGenerationParameters(CURVE, random))
     var cipher: Array[Byte] = null
     try {
-      cipher = iesEngine.processBlock(plaintext, 0, plaintext.length, macData)
+      cipher = iesEngine.processBlock(plaintext, 0, plaintext.length, forEncryption = true, macData)
       val bos = new ByteArrayOutputStream
       bos.write(pub.getEncoded(false))
       bos.write(IV)
       bos.write(cipher)
       bos.toByteArray
 
-    }catch {
+    } catch {
       case e: InvalidCipherTextException => {
         throw Throwables.propagate(e)
       }
@@ -143,26 +145,36 @@ object ECIESCoder {
   @throws[IOException]
   @throws[InvalidCipherTextException]
   def encryptSimple(pub: ECPoint, plaintext: Array[Byte]): Array[Byte] = {
-    val iesEngine = new EthereumIESEngine(new ECDHBasicAgreement, Right(new MGF1BytesGeneratorExt(new SHA1Digest, 1)), new HMac(new SHA1Digest), new SHA1Digest, None)
+
+
+    //todo remove?
     val p = new IESParameters(null, null, KEY_SIZE)
-    val parametersWithIV = new ParametersWithIV(p, new Array[Byte](0))
-    iesEngine.setHashMacKey(false)
+
     val eGen = new ECKeyPairGenerator
     val random = new SecureRandom
     val gParam = new ECKeyGenerationParameters(CURVE, random)
     eGen.init(gParam)
 
     val ephemeralKeyPairGenerator = new EphemeralKeyPairGenerator(/*testGen*/ eGen, new ECIESPublicKeyEncoder)
-    iesEngine.init(new ECPublicKeyParameters(pub, CURVE), parametersWithIV, ephemeralKeyPairGenerator)
-    iesEngine.processBlock(plaintext, 0, plaintext.length)
+
+
+    val iesEngine = new EthereumIESEngine(
+      agree = new ECDHBasicAgreement,
+      kdf = Right(new MGF1BytesGeneratorExt(new SHA1Digest, 1)),
+      mac = new HMac(new SHA1Digest),
+      hash = new SHA1Digest,
+      cipher = None,
+      IV = new Array[Byte](0),
+      addLenOfEncodingVector = false,
+      prvSrc = Right(ephemeralKeyPairGenerator),
+      pubSrc = Left(new ECPublicKeyParameters(pub, CURVE)),
+      hashK2 = false)
+
+    iesEngine.processBlock(plaintext, 0, plaintext.length, forEncryption = true)
   }
 
   private def makeIESEngine(isEncrypt: Boolean, pub: ECPoint, prv: BigInteger, IV: Array[Byte]) = {
     val aesFastEngine = new AESFastEngine
-    val d = new Array[Byte](0)
-    val e = new Array[Byte](0)
-    val p = new IESWithCipherParameters(d, e, KEY_SIZE, KEY_SIZE)
-    val parametersWithIV = new ParametersWithIV(p, IV)
 
     val agree = new ECDHBasicAgreement
     val privParam = new ECPrivateKeyParameters(prv, CURVE)
@@ -173,22 +185,15 @@ object ECIESCoder {
 
     val iesEngine = new EthereumIESEngine(
       agree,
-      kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest, new KDFParameters(VZ, p.getDerivationV))),
+      kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest, new KDFParameters(VZ, new Array[Byte](0)))),
       mac = new HMac(new SHA256Digest),
       hash = new SHA256Digest,
-      cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesFastEngine))))
-
-    iesEngine.init(
-      forEncryption = isEncrypt,
-      privParam = new ECPrivateKeyParameters(prv, CURVE),
-      pubParam = new ECPublicKeyParameters(pub, CURVE),
-      params = parametersWithIV)
+      cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesFastEngine))),
+      IV = IV,
+      addLenOfEncodingVector = true,
+      prvSrc = Left(new ECPrivateKeyParameters(prv, CURVE)),
+      pubSrc = Left(new ECPublicKeyParameters(pub, CURVE)))
 
     iesEngine
-  }
-
-  def getOverhead: Int = {
-    // 256 bit EC public key, IV, 256 bit MAC
-    65 + KEY_SIZE / 8 + 32
   }
 }

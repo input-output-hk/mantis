@@ -28,7 +28,7 @@ class ConcatKDFBytesGenerator(digest: Digest, param: KDFParameters) {
   def generateBytes(outputLength: Int): ByteString = {
     require(outputLength <= (digestSize * 8) * ((2L << 32) - 1), "Output length too large")
 
-    val dig = new Array[Byte](digestSize)
+    val hashBuf = new Array[Byte](digestSize)
     val counterValue = new Array[Byte](4)
 
     digest.reset()
@@ -38,14 +38,14 @@ class ConcatKDFBytesGenerator(digest: Digest, param: KDFParameters) {
       digest.update(counterValue, 0, counterValue.length)
       digest.update(shared, 0, shared.length)
       digest.update(iv, 0, iv.length)
-      digest.doFinal(dig, 0)
+      digest.doFinal(hashBuf, 0)
 
       val spaceLeft = outputLength - (i * digestSize)
 
       if (spaceLeft > digestSize) {
-        ByteString(dig)
+        ByteString(hashBuf)
       } else {
-        ByteString(dig).dropRight(digestSize - spaceLeft)
+        ByteString(hashBuf).dropRight(digestSize - spaceLeft)
       }
     }.reduce[ByteString] { case (a, b) => a ++ b }
   }

@@ -10,8 +10,6 @@ import org.spongycastle.crypto.generators.ECKeyPairGenerator
 import org.spongycastle.crypto.params.{ECDomainParameters, ECKeyGenerationParameters, ECPrivateKeyParameters, ECPublicKeyParameters}
 import org.spongycastle.util.encoders.Hex
 
-import scala.util.Random
-
 class ECIESCoderSpec extends FlatSpec with Matchers {
 
   val params: X9ECParameters = SECNamedCurves.getByName("secp256k1")
