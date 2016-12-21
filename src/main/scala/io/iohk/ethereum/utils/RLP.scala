@@ -2,7 +2,7 @@ package io.iohk.ethereum.utils
 
 import java.nio.ByteBuffer
 
-import scala.annotation.tailrec
+import scala.annotation.{switch, tailrec}
 import scala.collection.immutable.Queue
 import scala.util.{Failure, Success, Try}
 
@@ -141,8 +141,12 @@ object RLP {
   }
 
   def decodeInt(bytes: Array[Byte]): Int = {
-    bytes.length match {
-      case l if l <= 4 => bytes.foldLeft[Int](0) { (rec, byte) => (rec << 8) + (byte & 0xFF) }
+    (bytes.length: @switch) match {
+      case 0 => 0: Short
+      case 1 => bytes(0) & 0xFF
+      case 2 => ((bytes(0) & 0xFF) << 8) + (bytes(1) & 0xFF)
+      case 3 => ((bytes(0) & 0xFF) << 16) + ((bytes(1) & 0xFF) << 8) + (bytes(2) & 0xFF)
+      case 4 => ((bytes(0) & 0xFF) << 24) + ((bytes(1) & 0xFF) << 16) + ((bytes(2) & 0xFF) << 8) + (bytes(3) & 0xFF)
       case _ => throw new Exception("Bytes don't represent an int")
     }
   }
@@ -205,14 +209,18 @@ object RLP {
         case p if p <= OFFSET_LONG_LIST =>
           val length = p - OFFSET_SHORT_LIST
           val (listDecoded, endPos) = decodeListRecursive(data, pos + 1, length, Queue()).get
-          (new RLPList{override def items = listDecoded}, endPos)
+          (new RLPList {
+            override def items = listDecoded
+          }, endPos)
         case p =>
           val lengthOfLength = p - OFFSET_LONG_LIST
           val lengthBytes = new Array[Byte](lengthOfLength)
           Array.copy(data, pos + 1, lengthBytes, 0, lengthOfLength)
           val length = decodeInt(lengthBytes)
           val (listDecoded, endPos) = decodeListRecursive(data, pos + lengthOfLength + 1, length, Queue()).get
-          (new RLPList{override def items = listDecoded}, endPos)
+          (new RLPList {
+            override def items = listDecoded
+          }, endPos)
       }
     }
   }
@@ -266,4 +274,3 @@ trait RLPValue extends RLPEncodeable {
 
   override def hashCode(): Int = toBytes.toSeq.hashCode()
 }
-
