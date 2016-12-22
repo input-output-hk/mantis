@@ -5,10 +5,10 @@ import java.io.ByteArrayInputStream
 import akka.util.ByteString
 import org.spongycastle.crypto._
 import org.spongycastle.crypto.agreement.ECDHBasicAgreement
-import org.spongycastle.crypto.generators.EphemeralKeyPairGenerator
+import org.spongycastle.crypto.generators.ECKeyPairGenerator
 import org.spongycastle.crypto.params._
 import org.spongycastle.crypto.parsers.ECIESPublicKeyParser
-import org.spongycastle.util.{Arrays, BigIntegers, Pack}
+import org.spongycastle.util.{Arrays, BigIntegers}
 
 /**
   * Support class for constructing integrated encryption cipher
@@ -37,7 +37,7 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
                         hash: Digest,
                         cipher: Option[BufferedBlockCipher],
                         IV: Array[Byte],
-                        prvSrc: Either[ECPrivateKeyParameters, EphemeralKeyPairGenerator],
+                        prvSrc: Either[ECPrivateKeyParameters, ECKeyPairGenerator],
                         pubSrc: Either[ECPublicKeyParameters, ECIESPublicKeyParser],
                         hashMacKey: Boolean = true) {
 
@@ -49,8 +49,8 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
 
       case Some(cphr) =>
         // Block cipher mode.
-        val derivedKey = fillKDFunction(ECIESCoder.KEY_SIZE / 8 + ECIESCoder.KEY_SIZE / 8)
-        val (firstPart, secondPart) = derivedKey.splitAt(ECIESCoder.KEY_SIZE / 8)
+        val derivedKey = fillKDFunction(ECIESCoder.KeySize / 8 + ECIESCoder.KeySize / 8)
+        val (firstPart, secondPart) = derivedKey.splitAt(ECIESCoder.KeySize / 8)
 
         if (IV != null)
           cphr.init(true, new ParametersWithIV(new KeyParameter(firstPart.toArray), IV))
@@ -65,7 +65,7 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
 
       case None =>
         // Streaming mode.
-        val derivedKey = fillKDFunction(inLen + ECIESCoder.KEY_SIZE / 8)
+        val derivedKey = fillKDFunction(inLen + ECIESCoder.KeySize / 8)
         val (firstPart, secondPart) = derivedKey.splitAt(inLen)
 
         val encrypted: Seq[Byte] = firstPart.zipWithIndex.map { case (value, idx) =>
@@ -103,13 +103,13 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
                            encodedPublicKey: Array[Byte], fillKDFunction: Int => ByteString): Array[Byte] = {
 
     // Ensure that the length of the input is greater than the MAC in bytes
-    if (inLen <= (ECIESCoder.KEY_SIZE / 8)) throw new InvalidCipherTextException("Length of input must be greater than the MAC")
+    if (inLen <= (ECIESCoder.KeySize / 8)) throw new InvalidCipherTextException("Length of input must be greater than the MAC")
 
     val (derivedKeySecondPart, plainText) = cipher match {
       case Some(cphr) =>
         // Block cipher mode.
-        val derivedKey: ByteString = fillKDFunction(ECIESCoder.KEY_SIZE / 8 + ECIESCoder.KEY_SIZE / 8)
-        val (firstPart, secondPart) = derivedKey.splitAt(ECIESCoder.KEY_SIZE / 8)
+        val derivedKey: ByteString = fillKDFunction(ECIESCoder.KeySize / 8 + ECIESCoder.KeySize / 8)
+        val (firstPart, secondPart) = derivedKey.splitAt(ECIESCoder.KeySize / 8)
 
         if (IV != null)
           cphr.init(false, new ParametersWithIV(new KeyParameter(firstPart.toArray), IV))
@@ -123,7 +123,7 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
         (secondPart, ByteString(decrypted))
       case None =>
         // Streaming mode.
-        val derivedKey = fillKDFunction((inLen - encodedPublicKey.length - mac.getMacSize) + (ECIESCoder.KEY_SIZE / 8))
+        val derivedKey = fillKDFunction((inLen - encodedPublicKey.length - mac.getMacSize) + (ECIESCoder.KeySize / 8))
         val (firstPart, secondPart) = derivedKey.splitAt(inLen - encodedPublicKey.length - mac.getMacSize)
 
         val decrypted: Seq[Byte] = firstPart.zipWithIndex.map { case (value, idx) =>
@@ -168,8 +168,10 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
     val (prv, encodedEphKeyPair) = prvSrc.fold(
       key => (key, None),
       keyPairGenerator => {
-        val ephKeyPair = keyPairGenerator.generate
-        (ephKeyPair.getKeyPair.getPrivate.asInstanceOf[ECPrivateKeyParameters], Some(ephKeyPair.getEncodedPublicKey))
+        val ephKeyPair = keyPairGenerator.generateKeyPair()
+        val prvParam = ephKeyPair.getPrivate.asInstanceOf[ECPrivateKeyParameters]
+        val pubEncodedParam = ephKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
+        (prvParam, Some(pubEncodedParam))
       })
 
     val (pub, encodedPublicKey) = pubSrc.fold(
@@ -181,12 +183,12 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
         (result, Some(Arrays.copyOfRange(in, inOff, inOff + encLength)))
       }
     )
+
     val agree = new ECDHBasicAgreement
     agree.init(prv)
-    val z = agree.calculateAgreement(pub)
-    val VZ = BigIntegers.asUnsignedByteArray(agree.getFieldSize, z)
+    val sharedSecret = BigIntegers.asUnsignedByteArray(agree.getFieldSize, agree.calculateAgreement(pub))
 
-    val fillKDFunction = (outLen: Int) => kdf.fold(_.generateBytes(outLen, VZ), _.generateBytes(outLen, VZ))
+    val fillKDFunction = (outLen: Int) => kdf.fold(_.generateBytes(outLen, sharedSecret), _.generateBytes(outLen, sharedSecret))
 
     val encodedKey = encodedPublicKey.orElse(encodedEphKeyPair).getOrElse(new Array[Byte](0))
 

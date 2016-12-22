@@ -1,6 +1,6 @@
 package io.iohk.ethereum.crypto
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, IOException}
+import java.io.{ByteArrayInputStream, IOException}
 import java.math.BigInteger
 import java.security.SecureRandom
 
@@ -8,7 +8,7 @@ import org.spongycastle.asn1.sec.SECNamedCurves
 import org.spongycastle.asn1.x9.X9ECParameters
 import org.spongycastle.crypto.digests.{SHA1Digest, SHA256Digest}
 import org.spongycastle.crypto.engines.AESFastEngine
-import org.spongycastle.crypto.generators.{ECKeyPairGenerator, EphemeralKeyPairGenerator}
+import org.spongycastle.crypto.generators.ECKeyPairGenerator
 import org.spongycastle.crypto.macs.HMac
 import org.spongycastle.crypto.modes.SICBlockCipher
 import org.spongycastle.crypto.params._
@@ -17,24 +17,22 @@ import org.spongycastle.crypto.{BufferedBlockCipher, InvalidCipherTextException}
 import org.spongycastle.math.ec.ECPoint
 
 object ECIESCoder {
-  val KEY_SIZE = 128
-  val params: X9ECParameters = SECNamedCurves.getByName("secp256k1")
-  val CURVE = new ECDomainParameters(params.getCurve, params.getG, params.getN, params.getH)
+  val KeySize = 128
+  val Params: X9ECParameters = SECNamedCurves.getByName("secp256k1")
+  val Curve = new ECDomainParameters(Params.getCurve, Params.getG, Params.getN, Params.getH)
 
   @throws[IOException]
   @throws[InvalidCipherTextException]
   def decrypt(privKey: BigInteger, cipher: Array[Byte], macData: Option[Array[Byte]] = None): Array[Byte] = {
-    var plaintext: Array[Byte] = null
     val is = new ByteArrayInputStream(cipher)
-    val ephemBytes = new Array[Byte](2 * ((CURVE.getCurve.getFieldSize + 7) / 8) + 1)
+    val ephemBytes = new Array[Byte](2 * ((Curve.getCurve.getFieldSize + 7) / 8) + 1)
     is.read(ephemBytes)
-    val ephem = CURVE.getCurve.decodePoint(ephemBytes)
-    val IV = new Array[Byte](KEY_SIZE / 8)
+    val ephem = Curve.getCurve.decodePoint(ephemBytes)
+    val IV = new Array[Byte](KeySize / 8)
     is.read(IV)
     val cipherBody = new Array[Byte](is.available)
     is.read(cipherBody)
-    plaintext = decrypt(ephem, privKey, IV, cipherBody, macData)
-    plaintext
+    decrypt(ephem, privKey, IV, cipherBody, macData)
   }
 
   @throws[InvalidCipherTextException]
@@ -47,8 +45,8 @@ object ECIESCoder {
       hash = new SHA256Digest,
       cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesFastEngine))),
       IV = IV,
-      prvSrc = Left(new ECPrivateKeyParameters(prv, CURVE)),
-      pubSrc = Left(new ECPublicKeyParameters(ephem, CURVE)))
+      prvSrc = Left(new ECPrivateKeyParameters(prv, Curve)),
+      pubSrc = Left(new ECPublicKeyParameters(ephem, Curve)))
 
 
     iesEngine.processBlock(cipher, 0, cipher.length, forEncryption = false, macData)
@@ -74,8 +72,8 @@ object ECIESCoder {
       hash = new SHA1Digest,
       cipher = None,
       IV = new Array[Byte](0),
-      prvSrc = Left(new ECPrivateKeyParameters(privKey, CURVE)),
-      pubSrc = Right(new ECIESPublicKeyParser(CURVE)),
+      prvSrc = Left(new ECPrivateKeyParameters(privKey, Curve)),
+      pubSrc = Right(new ECIESPublicKeyParser(Curve)),
       hashMacKey = false)
 
     iesEngine.processBlock(cipher, 0, cipher.length, forEncryption = false)
@@ -84,9 +82,9 @@ object ECIESCoder {
   def encrypt(toPub: ECPoint, plaintext: Array[Byte], macData: Option[Array[Byte]] = None): Array[Byte] = {
 
     val random = new SecureRandom
-    val gParam = new ECKeyGenerationParameters(CURVE, random)
+    val gParam = new ECKeyGenerationParameters(Curve, random)
 
-    val IV = new Array[Byte](KEY_SIZE / 8)
+    val IV = new Array[Byte](KeySize / 8)
     random.nextBytes(IV)
 
     val eGen = new ECKeyPairGenerator
@@ -98,19 +96,13 @@ object ECIESCoder {
 
     val iesEngine = makeIESEngine(isEncrypt = true, toPub, prv, IV)
 
-    val keygenParams = new ECKeyGenerationParameters(CURVE, random)
+    val keygenParams = new ECKeyGenerationParameters(Curve, random)
     val generator = new ECKeyPairGenerator
     generator.init(keygenParams)
     val gen = new ECKeyPairGenerator
-    gen.init(new ECKeyGenerationParameters(CURVE, random))
-    var cipher: Array[Byte] = null
+    gen.init(new ECKeyGenerationParameters(Curve, random))
 
-    cipher = iesEngine.processBlock(plaintext, 0, plaintext.length, forEncryption = true, macData)
-    val bos = new ByteArrayOutputStream
-    bos.write(pub.getEncoded(false))
-    bos.write(IV)
-    bos.write(cipher)
-    bos.toByteArray
+    pub.getEncoded(false) ++ IV ++ iesEngine.processBlock(plaintext, 0, plaintext.length, forEncryption = true, macData)
   }
 
   /**
@@ -130,10 +122,8 @@ object ECIESCoder {
 
     val eGen = new ECKeyPairGenerator
     val random = new SecureRandom
-    val gParam = new ECKeyGenerationParameters(CURVE, random)
+    val gParam = new ECKeyGenerationParameters(Curve, random)
     eGen.init(gParam)
-
-    val ephemeralKeyPairGenerator = new EphemeralKeyPairGenerator(eGen, new ECIESPublicKeyEncoder)
 
     val iesEngine = new EthereumIESEngine(
       kdf = Right(new MGF1BytesGeneratorExt(new SHA1Digest)),
@@ -141,8 +131,8 @@ object ECIESCoder {
       hash = new SHA1Digest,
       cipher = None,
       IV = new Array[Byte](0),
-      prvSrc = Right(ephemeralKeyPairGenerator),
-      pubSrc = Left(new ECPublicKeyParameters(pub, CURVE)),
+      prvSrc = Right(eGen),
+      pubSrc = Left(new ECPublicKeyParameters(pub, Curve)),
       hashMacKey = false)
 
     iesEngine.processBlock(plaintext, 0, plaintext.length, forEncryption = true)
@@ -157,8 +147,8 @@ object ECIESCoder {
       hash = new SHA256Digest,
       cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesFastEngine))),
       IV = IV,
-      prvSrc = Left(new ECPrivateKeyParameters(prv, CURVE)),
-      pubSrc = Left(new ECPublicKeyParameters(pub, CURVE)))
+      prvSrc = Left(new ECPrivateKeyParameters(prv, Curve)),
+      pubSrc = Left(new ECPublicKeyParameters(pub, Curve)))
 
     iesEngine
   }

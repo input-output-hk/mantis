@@ -2,7 +2,6 @@ package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
 import org.spongycastle.crypto.Digest
-import org.spongycastle.crypto.params.KDFParameters
 import org.spongycastle.util.Pack
 
 /**
