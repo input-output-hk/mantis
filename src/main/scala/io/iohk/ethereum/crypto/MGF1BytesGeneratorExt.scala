@@ -18,8 +18,6 @@ class MGF1BytesGeneratorExt(digest: Digest) {
     sp(3) = (i >>> 0).toByte
   }
 
-  @throws[DataLengthException]
-  @throws[IllegalArgumentException]
   def generateBytes(outputLength: Int, seed: Array[Byte]): ByteString = {
 
     val counterStart = 1
