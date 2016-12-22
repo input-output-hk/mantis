@@ -32,8 +32,6 @@ import scala.util.{Failure, Success, Try}
   * <p>
   * See: https://github.com/ethereum/wiki/wiki/%5BEnglish%5D-RLP
   *
-  * @author Roman Mandeleil
-  * @since 01.04.2014
   */
 
 object RLP {
