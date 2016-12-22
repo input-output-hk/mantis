@@ -459,18 +459,14 @@ class RLPSuite extends FunSuite
   }
 
   ignore("Performance decode") {
-    val performanceEnabled: Boolean = true
-    if (performanceEnabled) {
-      val blockRaw: String = "f8cbf8c7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347940000000000000000000000000000000000000000a02f4399b08efe68945c1cf90ffe85bbe3ce978959da753f9e649f034015b8817da00000000000000000000000000000000000000000000000000000000000000000834000008080830f4240808080a004994f67dc55b09e814ab7ffc8df3686b4afb2bb53e60eae97ef043fe03fb829c0c0"
-      val payload: Array[Byte] = Hex.decode(blockRaw)
-      val ITERATIONS: Int = 10000000
-      println("Starting " + ITERATIONS + " decoding iterations...")
-      val start1: Long = System.currentTimeMillis
-      (1 to ITERATIONS).foreach { _ => decode(payload); Unit }
-      val end1: Long = System.currentTimeMillis
-      println("Result RLP.decode()\t: " + (end1 - start1) + "ms")
-    }
-    else println("Performance test for RLP.decode() disabled")
+    val blockRaw: String = "f8cbf8c7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347940000000000000000000000000000000000000000a02f4399b08efe68945c1cf90ffe85bbe3ce978959da753f9e649f034015b8817da00000000000000000000000000000000000000000000000000000000000000000834000008080830f4240808080a004994f67dc55b09e814ab7ffc8df3686b4afb2bb53e60eae97ef043fe03fb829c0c0"
+    val payload: Array[Byte] = Hex.decode(blockRaw)
+    val ITERATIONS: Int = 10000000
+    println("Starting " + ITERATIONS + " decoding iterations...")
+    val start1: Long = System.currentTimeMillis
+    (1 to ITERATIONS).foreach { _ => decode(payload); Unit }
+    val end1: Long = System.currentTimeMillis
+    println("Result RLP.decode()\t: " + (end1 - start1) + "ms")
   }
 
   test("Ping message encoded using EthereumJ implementation") {
