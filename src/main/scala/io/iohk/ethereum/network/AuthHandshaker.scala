@@ -69,7 +69,9 @@ case class AuthHandshaker(
     val nonce = new Array[Byte](32)
     Random.nextBytes(nonce)
 
-    val sessionTokenOpt: Option[Array[Byte]] = None // TODO: sessionTokenStorage.get(remoteNodeId)
+    // TODO: handle the case when the peer is known
+    val sessionTokenOpt: Option[Array[Byte]] = None
+    val knownPeer = sessionTokenOpt.isDefined
 
     val sharedSecret = sessionTokenOpt match {
       case Some(sessionToken) => sessionToken
@@ -83,8 +85,6 @@ case class AuthHandshaker(
     val ephemeralPublicHash = sha3(ephemeralPubKey, 1, 64)
 
     val publicKey = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ
-
-    val knownPeer = false // TODO: sessionTokenStorage.contains(remoteNodeId)
 
     val signature = {
       val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
