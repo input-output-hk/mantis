@@ -32,8 +32,6 @@ import scala.util.{Failure, Success, Try}
   * <p>
   * See: https://github.com/ethereum/wiki/wiki/%5BEnglish%5D-RLP
   *
-  * @author Roman Mandeleil
-  * @since 01.04.2014
   */
 
 object RLP {
@@ -46,12 +44,12 @@ object RLP {
     * - so 56 and 2^64 space seems like the right place to put the cutoff
     * - also, that's where Bitcoin's varint does the cutof
     */
-  val SIZE_THRESHOLD: Int = 56
+  val SizeThreshold: Int = 56
 
   /**
     * Allow for content up to size of 2&#94;64 bytes *
     **/
-  val MAX_ITEM_LENGTH: Double = Math.pow(256, 8)
+  val MaxItemLength: Double = Math.pow(256, 8)
 
   /** RLP encoding rules are defined as follows: */
 
@@ -66,7 +64,7 @@ object RLP {
     * byte with value 0x80 plus the length of the string followed by the
     * string. The range of the first byte is thus [0x80, 0xb7].
     */
-  val OFFSET_SHORT_ITEM: Int = 0x80
+  val OffsetShortItem: Int = 0x80
 
   /**
     * [0xb7]
@@ -77,7 +75,7 @@ object RLP {
     * \xb9\x04\x00 followed by the string. The range of the first byte is thus
     * [0xb8, 0xbf].
     */
-  val OFFSET_LONG_ITEM: Int = 0xb7
+  val OffsetLongItem: Int = 0xb7
 
   /**
     * [0xc0]
@@ -87,7 +85,7 @@ object RLP {
     * of the RLP encodings of the items. The range of the first byte is thus
     * [0xc0, 0xf7].
     */
-  val OFFSET_SHORT_LIST: Int = 0xc0
+  val OffsetShortList: Int = 0xc0
 
   /**
     * [0xf7]
@@ -97,27 +95,13 @@ object RLP {
     * followed by the concatenation of the RLP encodings of the items. The
     * range of the first byte is thus [0xf8, 0xff].
     */
-  val OFFSET_LONG_LIST = 0xf7
+  val OffsetLongList = 0xf7
 
-  def encode(input: RLPEncodeable): Try[Array[Byte]] = {
-    input match {
-      case list: RLPList =>
-        val output = list.items.foldLeft(Try(Array[Byte]())) {
-          (acum, item) => {
-            val encoded = encode(item)
-            if (acum.isSuccess && encoded.isSuccess) Success(acum.get ++ encoded.get)
-            else encoded
-          }
-        }
-        output.flatMap((o: Array[Byte]) => encodeLength(o.length, OFFSET_SHORT_LIST)).map(p => p ++ output.get)
-      case value: RLPValue =>
-        val inputAsBytes = value.toBytes
-        if (inputAsBytes.length == 1 && (inputAsBytes(0) & 0xff) < 0x80) Success(inputAsBytes)
-        else encodeLength(inputAsBytes.length, OFFSET_SHORT_ITEM).map(l => l ++ inputAsBytes)
-    }
-  }
+  def encode[T](input: T)(implicit enc: RLPEncoder[T]): Try[Array[Byte]] = encode(enc.encode(input))
 
-  def decode(data: Array[Byte]): Try[RLPEncodeable] = decodeWithPos(data, 0).map(_._1)
+  def decode[T](data: Array[Byte])(implicit dec: RLPDecoder[T]): Try[T] = rawDecode(data).map(dec.decode)
+
+  def rawDecode(data: Array[Byte]): Try[RLPEncodeable] = decodeWithPos(data, 0).map(_._1)
 
   def encodeByte(singleByte: Byte): Array[Byte] = {
     singleByte match {
@@ -151,6 +135,24 @@ object RLP {
     }
   }
 
+  def encode(input: RLPEncodeable): Try[Array[Byte]] = {
+    input match {
+      case list: RLPList =>
+        val output = list.items.foldLeft(Try(Array[Byte]())) {
+          (acum, item) => {
+            val encoded = encode(item)
+            if (acum.isSuccess && encoded.isSuccess) Success(acum.get ++ encoded.get)
+            else encoded
+          }
+        }
+        output.flatMap((o: Array[Byte]) => encodeLength(o.length, OffsetShortList)).map(p => p ++ output.get)
+      case value: RLPValue =>
+        val inputAsBytes = value.toBytes
+        if (inputAsBytes.length == 1 && (inputAsBytes(0) & 0xff) < 0x80) Success(inputAsBytes)
+        else encodeLength(inputAsBytes.length, OffsetShortItem).map(l => l ++ inputAsBytes)
+    }
+  }
+
   /**
     * Converts a int value into a byte array.
     *
@@ -164,11 +166,11 @@ object RLP {
     **/
   private def encodeLength(length: Int, offset: Int): Try[Array[Byte]] = {
     length match {
-      case l if l < SIZE_THRESHOLD => Success(Array((length + offset).toByte))
-      case l if l < MAX_ITEM_LENGTH && length > 0xFF =>
+      case l if l < SizeThreshold => Success(Array((length + offset).toByte))
+      case l if l < MaxItemLength && length > 0xFF =>
         val binaryLength: Array[Byte] = intToBytesNoLeadZeroes(length)
-        Success((binaryLength.length + offset + SIZE_THRESHOLD - 1).toByte +: binaryLength)
-      case l if l < MAX_ITEM_LENGTH && length < 0xFF => Success(Array((1 + offset + SIZE_THRESHOLD - 1).toByte, length.toByte))
+        Success((binaryLength.length + offset + SizeThreshold - 1).toByte +: binaryLength)
+      case l if l < MaxItemLength && length < 0xFF => Success(Array((1 + offset + SizeThreshold - 1).toByte, length.toByte))
       case _ => Failure(new RuntimeException("Input too long"))
     }
   }
@@ -182,21 +184,21 @@ object RLP {
     else {
       val prefix: Int = data(pos) & 0xFF
       prefix match {
-        case p if p == OFFSET_SHORT_ITEM => (new RLPValue {
+        case p if p == OffsetShortItem => (new RLPValue {
           override def toBytes: Array[Byte] = Array.emptyByteArray
         }, pos + 1)
-        case p if p < OFFSET_SHORT_ITEM => (new RLPValue {
+        case p if p < OffsetShortItem => (new RLPValue {
           override def toBytes: Array[Byte] = Array(data(pos))
         }, pos + 1)
-        case p if p <= OFFSET_LONG_ITEM =>
-          val length = p - OFFSET_SHORT_ITEM
+        case p if p <= OffsetLongItem =>
+          val length = p - OffsetShortItem
           val res: Array[Byte] = new Array[Byte](length)
           Array.copy(data, pos + 1, res, 0, length)
           (new RLPValue {
             override def toBytes: Array[Byte] = res
           }, pos + length + 1)
-        case p if p < OFFSET_SHORT_LIST =>
-          val lengthOfLength = p - OFFSET_LONG_ITEM
+        case p if p < OffsetShortList =>
+          val lengthOfLength = p - OffsetLongItem
           val lengthBytes = new Array[Byte](lengthOfLength)
           Array.copy(data, pos + 1, lengthBytes, 0, lengthOfLength)
           val length = decodeInt(lengthBytes)
@@ -206,14 +208,14 @@ object RLP {
           (new RLPValue {
             override def toBytes: Array[Byte] = res
           }, beginPos + length)
-        case p if p <= OFFSET_LONG_LIST =>
-          val length = p - OFFSET_SHORT_LIST
+        case p if p <= OffsetLongList =>
+          val length = p - OffsetShortList
           val (listDecoded, endPos) = decodeListRecursive(data, pos + 1, length, Queue()).get
           (new RLPList {
             override def items = listDecoded
           }, endPos)
         case p =>
-          val lengthOfLength = p - OFFSET_LONG_LIST
+          val lengthOfLength = p - OffsetLongList
           val lengthBytes = new Array[Byte](lengthOfLength)
           Array.copy(data, pos + 1, lengthBytes, 0, lengthOfLength)
           val length = decodeInt(lengthBytes)
