@@ -124,16 +124,9 @@ case class Transaction(nonce: Int, gasprice: Int, startgas: Int, to: Array[Byte]
 object Transaction {
 
   implicit val encDec = new RLPEncoder[Transaction] with RLPDecoder[Transaction] {
-    override def encode(obj: Transaction): RLPEncodeable = new RLPList {
-      override def items: Seq[RLPEncodeable] = intEncDec.encode(obj.nonce) ::
-        intEncDec.encode(obj.gasprice) ::
-        intEncDec.encode(obj.startgas) ::
-        byteArrayEncDec.encode(obj.to) ::
-        intEncDec.encode(obj.value) ::
-        byteArrayEncDec.encode(obj.data) ::
-        intEncDec.encode(obj.v) ::
-        bigIntEncDec.encode(obj.r) ::
-        bigIntEncDec.encode(obj.s) :: Nil
+    override def encode(obj: Transaction): RLPEncodeable = {
+      import obj._
+      RLPList(nonce, gasprice, startgas, to, value, data, v, r, s)
     }
 
     override def decode(rlp: RLPEncodeable): Transaction = rlp match {
@@ -162,23 +155,10 @@ case class BlockHeader(prevhash: Array[Byte], unclesHash: Array[Byte], coinbase:
 
 object BlockHeader {
   implicit val encDec = new RLPEncoder[BlockHeader] with RLPDecoder[BlockHeader] {
-    override def encode(obj: BlockHeader): RLPEncodeable = new RLPList {
-      override def items: Seq[RLPEncodeable] =
-        byteArrayEncDec.encode(obj.prevhash) ::
-          byteArrayEncDec.encode(obj.unclesHash) ::
-          byteArrayEncDec.encode(obj.coinbase) ::
-          byteArrayEncDec.encode(obj.stateRoot) ::
-          byteArrayEncDec.encode(obj.txListRoot) ::
-          byteArrayEncDec.encode(obj.receiptsRoot) ::
-          bigIntEncDec.encode(obj.bloom) ::
-          intEncDec.encode(obj.difficulty) ::
-          intEncDec.encode(obj.number) ::
-          intEncDec.encode(obj.gasLimit) ::
-          intEncDec.encode(obj.gasUsed) ::
-          intEncDec.encode(obj.timestamp) ::
-          byteArrayEncDec.encode(obj.extraData) ::
-          byteArrayEncDec.encode(obj.mixhash) ::
-          byteArrayEncDec.encode(obj.nonce) :: Nil
+    override def encode(obj: BlockHeader): RLPEncodeable = {
+      import obj._
+      RLPList(prevhash, unclesHash, coinbase, stateRoot, txListRoot, receiptsRoot, bloom, difficulty, number, gasLimit,
+        gasUsed, timestamp, extraData, mixhash, nonce)
     }
 
     override def decode(rlp: RLPEncodeable): BlockHeader = rlp match {
@@ -211,14 +191,8 @@ case class Block(header: BlockHeader, transactions: Seq[Transaction], uncles: Se
 
 object Block {
   implicit val encDec = new RLPEncoder[Block] with RLPDecoder[Block] {
-    override def encode(obj: Block): RLPEncodeable = new RLPList {
-      override def items: Seq[RLPEncodeable] = BlockHeader.encDec.encode(obj.header) ::
-        new RLPList {
-          override def items: Seq[RLPEncodeable] = obj.transactions.map(Transaction.encDec.encode)
-        } ::
-        new RLPList {
-          override def items: Seq[RLPEncodeable] = obj.uncles.map(BlockHeader.encDec.encode)
-        } :: Nil
+    override def encode(obj: Block): RLPEncodeable = {
+      RLPList(obj.header, obj.transactions, obj.uncles)
     }
 
     override def decode(rlp: RLPEncodeable): Block = rlp match {

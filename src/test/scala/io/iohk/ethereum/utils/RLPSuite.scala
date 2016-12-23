@@ -472,9 +472,7 @@ class RLPSuite extends FunSuite
 
 
   implicit val stringSeqEncDec = new RLPEncoder[Seq[String]] with RLPDecoder[Seq[String]] {
-    override def encode(strings: Seq[String]): RLPEncodeable = new RLPList {
-      override def items: Seq[RLPEncodeable] = strings.map(stringEncDec.encode)
-    }
+    override def encode(strings: Seq[String]): RLPEncodeable = RLPList(strings)
 
     override def decode(rlp: RLPEncodeable): Seq[String] = rlp match {
       case l: RLPList => l.items.map(stringEncDec.decode)
@@ -483,9 +481,7 @@ class RLPSuite extends FunSuite
   }
 
   implicit val intSeqEncDec = new RLPEncoder[Seq[Int]] with RLPDecoder[Seq[Int]] {
-    override def encode(ints: Seq[Int]): RLPEncodeable = new RLPList {
-      override def items: Seq[RLPEncodeable] = ints.map(intEncDec.encode)
-    }
+    override def encode(ints: Seq[Int]): RLPEncodeable = RLPList(ints)
 
     override def decode(rlp: RLPEncodeable): Seq[Int] = rlp match {
       case l: RLPList => l.items.map(intEncDec.decode)
@@ -497,11 +493,9 @@ class RLPSuite extends FunSuite
 
   object MultiList1 {
     implicit val encDec = new RLPEncoder[MultiList1] with RLPDecoder[MultiList1] {
-      override def encode(obj: MultiList1): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = intEncDec.encode(obj.number) ::
-          stringSeqEncDec.encode(obj.seq1) ::
-          stringEncDec.encode(obj.string) ::
-          intSeqEncDec.encode(obj.seq2) :: Nil
+      override def encode(obj: MultiList1): RLPEncodeable = {
+        import obj._
+        RLPList(number, seq1, string, seq2)
       }
 
       override def decode(rlp: RLPEncodeable): MultiList1 = rlp match {
@@ -518,10 +512,9 @@ class RLPSuite extends FunSuite
 
   object MultiList2 {
     implicit val encDec = new RLPEncoder[MultiList2] with RLPDecoder[MultiList2] {
-      override def encode(obj: MultiList2): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = stringSeqEncDec.encode(obj.seq1) ::
-          intSeqEncDec.encode(obj.seq2) ::
-          emptySeqEncDec.encode(obj.seq3) :: Nil
+      override def encode(obj: MultiList2): RLPEncodeable = {
+        import obj._
+        RLPList(seq1, seq2, seq3)
       }
 
       override def decode(rlp: RLPEncodeable): MultiList2 = rlp match {
@@ -540,9 +533,7 @@ class RLPSuite extends FunSuite
     val instance = Seq(RLPList(RLPList(), RLPList()), RLPList())
 
     implicit val encDec = new RLPEncoder[EmptyListOfList] with RLPDecoder[EmptyListOfList] {
-      override def encode(obj: EmptyListOfList): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = instance
-      }
+      override def encode(obj: EmptyListOfList): RLPEncodeable = RLPList(instance)
 
       override def decode(rlp: RLPEncodeable): EmptyListOfList = rlp match {
         case l: RLPList =>
@@ -561,9 +552,7 @@ class RLPSuite extends FunSuite
     val instance = Seq(RLPList(), RLPList(RLPList()), RLPList(RLPList(), RLPList(RLPList())))
 
     implicit val encDec = new RLPEncoder[RepOfTwoListOfList] with RLPDecoder[RepOfTwoListOfList] {
-      override def encode(obj: RepOfTwoListOfList): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = instance
-      }
+      override def encode(obj: RepOfTwoListOfList): RLPEncodeable = RLPList(instance)
 
       override def decode(rlp: RLPEncodeable): RepOfTwoListOfList = rlp match {
         case l: RLPList =>
@@ -598,8 +587,9 @@ class RLPSuite extends FunSuite
 
   object SimpleTransaction {
     implicit val encDec = new RLPEncoder[SimpleTransaction] with RLPDecoder[SimpleTransaction] {
-      override def encode(obj: SimpleTransaction): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = intEncDec.encode(obj.id) :: stringEncDec.encode(obj.name) :: Nil
+      override def encode(obj: SimpleTransaction): RLPEncodeable = {
+        import obj._
+        RLPList(id, name)
       }
 
       override def decode(rlp: RLPEncodeable): SimpleTransaction = rlp match {
@@ -613,15 +603,9 @@ class RLPSuite extends FunSuite
 
   object SimpleBlock {
     implicit val encDec = new RLPEncoder[SimpleBlock] with RLPDecoder[SimpleBlock] {
-      override def encode(obj: SimpleBlock): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = byteEncDec.encode(obj.id) ::
-          shortEncDec.encode(obj.parentId) ::
-          stringEncDec.encode(obj.owner) ::
-          intEncDec.encode(obj.nonce) ::
-          new RLPList {
-            override def items: Seq[RLPEncodeable] = obj.txs.map(o => SimpleTransaction.encDec.encode(o))
-          } ::
-          intSeqEncDec.encode(obj.unclesIds) :: Nil
+      override def encode(obj: SimpleBlock): RLPEncodeable = {
+        import obj._
+        RLPList(id, parentId, owner, nonce, RLPList(txs), unclesIds)
       }
 
       override def decode(rlp: RLPEncodeable): SimpleBlock = rlp match {
@@ -653,10 +637,9 @@ class RLPSuite extends FunSuite
 
   object Endpoint {
     implicit val encDec = new RLPEncoder[Endpoint] with RLPDecoder[Endpoint] {
-      override def encode(obj: Endpoint): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = byteArrayEncDec.encode(obj.address) ::
-          longEncDec.encode(obj.tcpPort) ::
-          longEncDec.encode(obj.udpPort) :: Nil
+      override def encode(obj: Endpoint): RLPEncodeable = {
+        import obj._
+        RLPList(address, tcpPort, udpPort)
       }
 
       override def decode(rlp: RLPEncodeable): Endpoint = rlp match {
@@ -671,13 +654,9 @@ class RLPSuite extends FunSuite
   object PingMessage {
 
     implicit val encDec = new RLPEncoder[PingMessage] with RLPDecoder[PingMessage] {
-      override def encode(obj: PingMessage): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = Seq(
-          intEncDec.encode(obj.version),
-          Endpoint.encDec.encode(obj.from),
-          Endpoint.encDec.encode(obj.to),
-          longEncDec.encode(obj.expiration)
-        )
+      override def encode(obj: PingMessage): RLPEncodeable = {
+        import obj._
+        RLPList(version, from, to, expiration)
       }
 
       override def decode(rlp: RLPEncodeable): PingMessage = rlp match {
