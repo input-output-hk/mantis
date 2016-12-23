@@ -132,20 +132,12 @@ object Transaction {
     override def decode(rlp: RLPEncodeable): Transaction = rlp match {
       case l: RLPList =>
         val items = l.items
-        Transaction(
-          intEncDec.decode(items.head),
-          intEncDec.decode(items(1)),
-          intEncDec.decode(items(2)),
-          byteArrayEncDec.decode(items(3)),
-          intEncDec.decode(items(4)),
-          byteArrayEncDec.decode(items(5)),
-          intEncDec.decode(items(6)),
-          bigIntEncDec.decode(items(7)),
-          bigIntEncDec.decode(items(8))
-        )
+        Transaction(items.head, items(1), items(2), items(3), items(4), items(5), items(6), items(7), items(8))
       case _ => throw new RuntimeException("Invalid Transaction")
     }
   }
+
+  implicit def transactionFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Transaction]): Transaction = dec.decode(rlp)
 }
 
 case class BlockHeader(prevhash: Array[Byte], unclesHash: Array[Byte], coinbase: Array[Byte], stateRoot: Array[Byte],
@@ -165,26 +157,28 @@ object BlockHeader {
       case l: RLPList => {
         val fields = l.items
         BlockHeader(
-          prevhash = byteArrayEncDec.decode(fields.head),
-          unclesHash = byteArrayEncDec.decode(fields(1)),
-          coinbase = byteArrayEncDec.decode(fields(2)),
-          stateRoot = byteArrayEncDec.decode(fields(3)),
-          txListRoot = byteArrayEncDec.decode(fields(4)),
-          receiptsRoot = byteArrayEncDec.decode(fields(6)),
-          bloom = bigIntEncDec.decode(fields(7)),
-          difficulty = intEncDec.decode(fields(8)),
-          number = intEncDec.decode(fields(9)),
-          gasLimit = intEncDec.decode(fields(10)),
-          gasUsed = intEncDec.decode(fields(11)),
-          timestamp = intEncDec.decode(fields(11)),
-          extraData = byteArrayEncDec.decode(fields(12)),
-          mixhash = byteArrayEncDec.decode(fields(13)),
-          nonce = byteArrayEncDec.decode(fields(14))
+          prevhash = fields.head,
+          unclesHash = fields(1),
+          coinbase = fields(2),
+          stateRoot = fields(3),
+          txListRoot = fields(4),
+          receiptsRoot = fields(6),
+          bloom = fields(7),
+          difficulty = fields(8),
+          number = fields(9),
+          gasLimit = fields(10),
+          gasUsed = fields(11),
+          timestamp = fields(11),
+          extraData = fields(12),
+          mixhash = fields(13),
+          nonce = fields(14)
         )
       }
       case _ => throw new RuntimeException("Invalid BlockHeader encodeable")
     }
   }
+
+  implicit def blockHeaderFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[BlockHeader]): BlockHeader = dec.decode(rlp)
 }
 
 case class Block(header: BlockHeader, transactions: Seq[Transaction], uncles: Seq[BlockHeader])
@@ -199,14 +193,14 @@ object Block {
       case l: RLPList => {
         val fields = l.items
         val txs = fields(1) match {
-          case encTxs: RLPList => encTxs.items.map(Transaction.encDec.decode)
+          case encTxs: RLPList => encTxs.items.map(item => item: Transaction)
           case _ => throw new RuntimeException("Invalid Block encodeable")
         }
         val headers = fields(2) match {
-          case encHeaders: RLPList => encHeaders.items.map(BlockHeader.encDec.decode)
+          case encHeaders: RLPList => encHeaders.items.map(item => item: BlockHeader)
           case _ => throw new RuntimeException("Invalid Block encodeable")
         }
-        Block(BlockHeader.encDec.decode(fields.head), txs, headers)
+        Block(fields.head, txs, headers)
       }
       case _ => throw new RuntimeException("Invalid Block encodeable")
     }

@@ -475,19 +475,23 @@ class RLPSuite extends FunSuite
     override def encode(strings: Seq[String]): RLPEncodeable = RLPList(strings)
 
     override def decode(rlp: RLPEncodeable): Seq[String] = rlp match {
-      case l: RLPList => l.items.map(stringEncDec.decode)
+      case l: RLPList => l.items.map(item => item: String)
       case _ => throw new RuntimeException("Invalid String Seq Decoder")
     }
   }
+
+  implicit def stringSeqFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Seq[String]]): Seq[String] = dec.decode(rlp)
 
   implicit val intSeqEncDec = new RLPEncoder[Seq[Int]] with RLPDecoder[Seq[Int]] {
     override def encode(ints: Seq[Int]): RLPEncodeable = RLPList(ints)
 
     override def decode(rlp: RLPEncodeable): Seq[Int] = rlp match {
-      case l: RLPList => l.items.map(intEncDec.decode)
+      case l: RLPList => l.items.map(item => item: Int)
       case _ => throw new RuntimeException("Invalid Int Seq Decoder")
     }
   }
+
+  implicit def intSeqFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Seq[Int]]): Seq[Int] = dec.decode(rlp)
 
   case class MultiList1(number: Int, seq1: Seq[String], string: String, seq2: Seq[Int])
 
@@ -499,10 +503,7 @@ class RLPSuite extends FunSuite
       }
 
       override def decode(rlp: RLPEncodeable): MultiList1 = rlp match {
-        case l: RLPList => MultiList1(intEncDec.decode(l.items.head),
-          stringSeqEncDec.decode(l.items(1)),
-          stringEncDec.decode(l.items(2)),
-          intSeqEncDec.decode(l.items(3)))
+        case l: RLPList => MultiList1(l.items.head, l.items(1), l.items(2), l.items(3))
         case _ => throw new RuntimeException("Invalid Int Seq Decoder")
       }
     }
@@ -518,10 +519,7 @@ class RLPSuite extends FunSuite
       }
 
       override def decode(rlp: RLPEncodeable): MultiList2 = rlp match {
-        case l: RLPList => MultiList2(stringSeqEncDec.decode(l.items.head),
-          intSeqEncDec.decode(l.items(1)),
-          emptySeqEncDec.decode(l.items(2))
-        )
+        case l: RLPList => MultiList2(l.items.head, l.items(1), emptySeqEncDec.decode(l.items(2)))
         case _ => throw new RuntimeException("Invalid Int Seq Decoder")
       }
     }
@@ -593,10 +591,12 @@ class RLPSuite extends FunSuite
       }
 
       override def decode(rlp: RLPEncodeable): SimpleTransaction = rlp match {
-        case l: RLPList => SimpleTransaction(intEncDec.decode(l.items.head), stringEncDec.decode(l.items(1)))
+        case l: RLPList => SimpleTransaction(l.items.head, l.items(1))
         case _ => throw new RuntimeException("Invalid Simple Transaction")
       }
     }
+
+    implicit def fromEncodeable(rlp : RLPEncodeable)(implicit dec: RLPDecoder[SimpleTransaction]): SimpleTransaction = dec.decode(rlp)
   }
 
   case class SimpleBlock(id: Byte, parentId: Short, owner: String, nonce: Int, txs: Seq[SimpleTransaction], unclesIds: Seq[Int])
@@ -611,19 +611,14 @@ class RLPSuite extends FunSuite
       override def decode(rlp: RLPEncodeable): SimpleBlock = rlp match {
         case encBlock: RLPList if encBlock.items.size == 6 =>
           val txs: Seq[SimpleTransaction] = encBlock.items(4) match {
-            case txs: RLPList => txs.items.map(tx => SimpleTransaction.encDec.decode(tx))
+            case txs: RLPList => txs.items.map(tx => tx: SimpleTransaction)
             case _ => throw new Exception("Can't transaform txs to Seq[SimpleTransaction]")
           }
           val unclesIds: Seq[Int] = encBlock.items(5) match {
-            case unclesIds: RLPList => intSeqEncDec.decode(unclesIds)
+            case unclesIds: RLPList => unclesIds
             case _ => throw new Exception("Can't transaform unclesIds to Seq[Int]")
           }
-          SimpleBlock(byteEncDec.decode(encBlock.items.head),
-            shortEncDec.decode(encBlock.items(1)),
-            stringEncDec.decode(encBlock.items(2)),
-            intEncDec.decode(encBlock.items(3)),
-            txs,
-            unclesIds)
+          SimpleBlock(encBlock.items.head, encBlock.items(1), encBlock.items(2), encBlock.items(3), txs, unclesIds)
         case _ => throw new Exception("Can't transform RLPEncodeable to block")
       }
     }
@@ -643,12 +638,12 @@ class RLPSuite extends FunSuite
       }
 
       override def decode(rlp: RLPEncodeable): Endpoint = rlp match {
-        case l: RLPList => Endpoint(byteArrayEncDec.decode(l.items.head),
-          longEncDec.decode(l.items(1)),
-          longEncDec.decode(l.items(2)))
+        case l: RLPList => Endpoint(l.items.head, l.items(1), l.items(2))
         case _ => throw new RuntimeException("Invalid Endpoint")
       }
     }
+
+    implicit def endpointFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Endpoint]): Endpoint = dec.decode(rlp)
   }
 
   object PingMessage {
@@ -660,11 +655,7 @@ class RLPSuite extends FunSuite
       }
 
       override def decode(rlp: RLPEncodeable): PingMessage = rlp match {
-        case l: RLPList => PingMessage(
-          intEncDec.decode(l.items.head),
-          Endpoint.encDec.decode(l.items(1)),
-          Endpoint.encDec.decode(l.items(2)),
-          longEncDec.decode(l.items(3)))
+        case l: RLPList => PingMessage(l.items.head, l.items(1), l.items(2), l.items(3))
         case _ => throw new RuntimeException("Not a Ping Message")
       }
     }
