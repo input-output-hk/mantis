@@ -4,49 +4,26 @@ import io.iohk.ethereum.utils.RLP._
 
 import scala.language.implicitConversions
 
+
+trait RLPEncoder[T] {
+  def encode(obj: T): RLPEncodeable
+}
+
+trait RLPDecoder[T] {
+  def decode(rlp: RLPEncodeable): T
+}
+
 object RLPImplicits {
 
-  implicit def byteToRLPValue(singleByte: Byte): RLPValue = new RLPValue {
-    override def toBytes: Array[Byte] = encodeByte(singleByte)
-  }
-
-  implicit def shortToRLPValue(singleShort: Short): RLPValue = new RLPValue {
-    override def toBytes: Array[Byte] = encodeShort(singleShort)
-  }
-
-  implicit def intToRLPValue(singleInt: Int): RLPValue = new RLPValue {
-    override def toBytes: Array[Byte] = encodeInt(singleInt)
-  }
-
-  implicit def longToRLPValue(singleLong: Long): RLPValue = bigIntToRLPValue(BigInt(singleLong))
-
-  implicit def stringToRLPValue(srcString: String): RLPValue = new RLPValue {
-    override def toBytes: Array[Byte] = srcString.getBytes()
-  }
-
-  implicit def bigIntToRLPValue(srcBigInteger: BigInt): RLPValue = new RLPValue {
-
-    def asUnsignedByteArray(srcBigInteger: BigInt): Array[Byte] = {
-      val asByteArray = srcBigInteger.toByteArray
-      if (asByteArray(0) == 0) asByteArray.tail
-      else asByteArray
+  implicit val byteEncDec = new RLPEncoder[Byte] with RLPDecoder[Byte] {
+    override def encode(obj: Byte): RLPValue = new RLPValue {
+      override def toBytes: Array[Byte] = encodeByte(obj)
     }
 
-    override def toBytes: Array[Byte] = {
-      if (srcBigInteger.equals(BigInt(0))) encodeByte(0: Byte)
-      else asUnsignedByteArray(srcBigInteger)
-    }
-  }
-
-  implicit def byteArrayToRLPValue(srcByteArray: Array[Byte]): RLPValue = new RLPValue {
-    override def toBytes: Array[Byte] = srcByteArray
-  }
-
-  implicit def rlpEncodeableToByte(srcRLPEncodeable: RLPEncodeable): Byte = {
-    srcRLPEncodeable match{
+    override def decode(rlp: RLPEncodeable): Byte = rlp match {
       case srcRLPValue: RLPValue =>
         val bytes = srcRLPValue.toBytes
-        bytes.length match{
+        bytes.length match {
           case 0 => 0: Byte
           case 1 => (bytes(0) & 0xFF).toByte
           case _ => throw new Exception("src doesn't represent a byte")
@@ -55,11 +32,15 @@ object RLPImplicits {
     }
   }
 
-  implicit def rlpEncodeableToShort(srcRLPEncodeable: RLPEncodeable): Short = {
-    srcRLPEncodeable match{
+  implicit val shortEncDec = new RLPEncoder[Short] with RLPDecoder[Short] {
+    override def encode(obj: Short): RLPValue = new RLPValue {
+      override def toBytes: Array[Byte] = encodeShort(obj)
+    }
+
+    override def decode(rlp: RLPEncodeable): Short = rlp match {
       case srcRLPValue: RLPValue =>
         val bytes = srcRLPValue.toBytes
-        bytes.length match{
+        bytes.length match {
           case 0 => 0: Short
           case 1 => (bytes(0) & 0xFF).toShort
           case 2 => (((bytes(0) & 0xFF) << 8) + (bytes(1) & 0xFF)).toShort
@@ -69,40 +50,89 @@ object RLPImplicits {
     }
   }
 
-  implicit def rlpEncodeableToInt(srcRLPEncodeable: RLPEncodeable): Int = {
-    srcRLPEncodeable match{
+  implicit val intEncDec = new RLPEncoder[Int] with RLPDecoder[Int] {
+    override def encode(obj: Int): RLPValue = new RLPValue {
+      override def toBytes: Array[Byte] = encodeInt(obj)
+    }
+
+    override def decode(rlp: RLPEncodeable): Int = rlp match {
       case srcRLPValue: RLPValue => decodeInt(srcRLPValue.toBytes)
       case _ => throw new Exception("src is not an RLPValue")
     }
   }
 
-  implicit def rlpEncodeableToLong(srcRLPEncodeable: RLPEncodeable): Long = rlpEncodeableToBigInteger(srcRLPEncodeable).toLong
+  implicit val bigIntEncDec = new RLPEncoder[BigInt] with RLPDecoder[BigInt] {
 
-  implicit def rlpEncodeableToString(srcString: RLPEncodeable): String = {
-    srcString match{
+    def asUnsignedByteArray(srcBigInteger: BigInt): Array[Byte] = {
+      val asByteArray = srcBigInteger.toByteArray
+      if (asByteArray(0) == 0) asByteArray.tail
+      else asByteArray
+    }
+
+    override def encode(obj: BigInt): RLPValue = new RLPValue {
+      override def toBytes: Array[Byte] = if (obj.equals(BigInt(0))) encodeByte(0: Byte) else asUnsignedByteArray(obj)
+    }
+
+    override def decode(rlp: RLPEncodeable): BigInt = rlp match {
+      case srcRLPValue: RLPValue => srcRLPValue.toBytes.foldLeft[BigInt](BigInt(0)) { (rec, byte) => (rec << (8: Int)) + BigInt(byte & 0xFF) }
+      case _ => throw new Exception("src is not an RLPValue")
+    }
+  }
+
+  implicit val longEncDec = new RLPEncoder[Long] with RLPDecoder[Long] {
+    override def encode(obj: Long): RLPValue = bigIntEncDec.encode(BigInt(obj))
+
+    override def decode(rlp: RLPEncodeable): Long = bigIntEncDec.decode(rlp).toLong
+  }
+
+  implicit val stringEncDec = new RLPEncoder[String] with RLPDecoder[String] {
+    override def encode(obj: String): RLPValue = new RLPValue {
+      override def toBytes: Array[Byte] = obj.getBytes()
+    }
+
+    override def decode(rlp: RLPEncodeable): String = rlp match {
       case srcString: RLPValue => new String(srcString.toBytes)
       case _ => throw new Exception("src is not an RLPValue")
     }
   }
 
-  implicit def rlpEncodeableToBigInteger(srcRLPEncodeable: RLPEncodeable): BigInt = {
-    srcRLPEncodeable match{
-      case srcRLPValue: RLPValue => srcRLPValue.toBytes.foldLeft[BigInt](BigInt(0)){(rec, byte) => (rec << (8: Int)) + BigInt(byte & 0xFF) }
-      case _ => throw new Exception("src is not an RLPValue")
-    }
-  }
+  implicit val byteArrayEncDec = new RLPEncoder[Array[Byte]] with RLPDecoder[Array[Byte]] {
 
-  implicit def rlpEncodeableToArrayByte(srcRLPEncodeable: RLPEncodeable): Array[Byte] = {
-    srcRLPEncodeable match{
+    override def encode(obj: Array[Byte]): RLPValue = new RLPValue {
+      override def toBytes: Array[Byte] = obj
+    }
+
+    override def decode(rlp: RLPEncodeable): Array[Byte] = rlp match {
       case srcRLPValue: RLPValue => srcRLPValue.toBytes
       case _ => throw new Exception("src is not an RLPValue")
     }
   }
 
-  implicit def rlpEncodeableToRLPList(srcRLPEncodeable: RLPEncodeable): RLPList = {
-    srcRLPEncodeable match{
-      case srcRLPList: RLPList => srcRLPList
-      case _ => throw new Exception("src is not an RLPList")
+  implicit val emptyEncDec = new RLPEncoder[Nothing] {
+    override def encode(obj: Nothing): RLPEncodeable = new RLPValue {
+      override def toBytes: Array[Byte] = Array.emptyByteArray
+    }
+  }
+
+  implicit def seqEncDec[T]()(implicit enc: RLPEncoder[T], dec: RLPDecoder[T]) = new RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] {
+    override def encode(obj: Seq[T]): RLPEncodeable = new RLPList {
+      override def items: Seq[RLPEncodeable] = obj.map(enc.encode)
+    }
+
+    override def decode(rlp: RLPEncodeable): Seq[T] = rlp match {
+      case l: RLPList => l.items.map(dec.decode)
+      case _ => throw new Exception("src is not a Seq")
+    }
+  }
+
+  implicit def emptySeqEncDec = new RLPEncoder[Seq[Any]] with RLPDecoder[Seq[Any]] {
+    override def encode(obj: Seq[Any]): RLPEncodeable = new RLPList {
+      override def items: Seq[RLPEncodeable] = if (obj.isEmpty) Seq() else throw new Exception("src is not an Empty Seq")
+    }
+
+    override def decode(rlp: RLPEncodeable): Seq[Any] = rlp match {
+      case l: RLPList if l.items.isEmpty => Seq()
+      case _ => throw new Exception("src is not an empty Seq")
     }
   }
 }

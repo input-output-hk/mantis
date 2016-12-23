@@ -97,25 +97,11 @@ object RLP {
     */
   val OffsetLongList = 0xf7
 
-  def encode(input: RLPEncodeable): Try[Array[Byte]] = {
-    input match {
-      case list: RLPList =>
-        val output = list.items.foldLeft(Try(Array[Byte]())) {
-          (acum, item) => {
-            val encoded = encode(item)
-            if (acum.isSuccess && encoded.isSuccess) Success(acum.get ++ encoded.get)
-            else encoded
-          }
-        }
-        output.flatMap((o: Array[Byte]) => encodeLength(o.length, OffsetShortList)).map(p => p ++ output.get)
-      case value: RLPValue =>
-        val inputAsBytes = value.toBytes
-        if (inputAsBytes.length == 1 && (inputAsBytes(0) & 0xff) < 0x80) Success(inputAsBytes)
-        else encodeLength(inputAsBytes.length, OffsetShortItem).map(l => l ++ inputAsBytes)
-    }
-  }
+  def encode[T](input: T)(implicit enc: RLPEncoder[T]): Try[Array[Byte]] = encode(enc.encode(input))
 
-  def decode(data: Array[Byte]): Try[RLPEncodeable] = decodeWithPos(data, 0).map(_._1)
+  def decode[T](data: Array[Byte])(implicit dec: RLPDecoder[T]): Try[T] = rawDecode(data).map(dec.decode)
+
+  def rawDecode(data: Array[Byte]): Try[RLPEncodeable] = decodeWithPos(data, 0).map(_._1)
 
   def encodeByte(singleByte: Byte): Array[Byte] = {
     singleByte match {
@@ -146,6 +132,24 @@ object RLP {
       case 3 => ((bytes(0) & 0xFF) << 16) + ((bytes(1) & 0xFF) << 8) + (bytes(2) & 0xFF)
       case 4 => ((bytes(0) & 0xFF) << 24) + ((bytes(1) & 0xFF) << 16) + ((bytes(2) & 0xFF) << 8) + (bytes(3) & 0xFF)
       case _ => throw new Exception("Bytes don't represent an int")
+    }
+  }
+
+  def encode(input: RLPEncodeable): Try[Array[Byte]] = {
+    input match {
+      case list: RLPList =>
+        val output = list.items.foldLeft(Try(Array[Byte]())) {
+          (acum, item) => {
+            val encoded = encode(item)
+            if (acum.isSuccess && encoded.isSuccess) Success(acum.get ++ encoded.get)
+            else encoded
+          }
+        }
+        output.flatMap((o: Array[Byte]) => encodeLength(o.length, OffsetShortList)).map(p => p ++ output.get)
+      case value: RLPValue =>
+        val inputAsBytes = value.toBytes
+        if (inputAsBytes.length == 1 && (inputAsBytes(0) & 0xff) < 0x80) Success(inputAsBytes)
+        else encodeLength(inputAsBytes.length, OffsetShortItem).map(l => l ++ inputAsBytes)
     }
   }
 
