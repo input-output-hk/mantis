@@ -138,7 +138,7 @@ object RLPImplicits {
 
   implicit def toEncodeable[T](value: T)(implicit enc: RLPEncoder[T]): RLPEncodeable = enc.encode(value)
 
-  implicit def toEncodalbeList[T](values: Seq[T])(implicit enc: RLPEncoder[T]): RLPList = new RLPList {
+  implicit def toEncodeableList[T](values: Seq[T])(implicit enc: RLPEncoder[T]): RLPList = new RLPList {
     override def items: Seq[RLPEncodeable] = values.map(v => toEncodeable[T](v))
   }
 
