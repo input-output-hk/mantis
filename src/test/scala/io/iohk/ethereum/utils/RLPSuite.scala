@@ -6,6 +6,8 @@ import org.scalatest.FunSuite
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.spongycastle.util.encoders.Hex
 
+import scala.util.Try
+
 class RLPSuite extends FunSuite
   with PropertyChecks
   with GeneratorDrivenPropertyChecks {
@@ -34,7 +36,7 @@ class RLPSuite extends FunSuite
     assert(data3.isSuccess)
     assert(expected3 sameElements data3.get)
     val dataObtained3 = RLP.decode[Byte](data3.get)
-    assert(dataObtained2.isSuccess)
+    assert(dataObtained3.isSuccess)
     val obtained3: Byte = dataObtained3.get
     assert((127: Byte) == obtained3)
 
@@ -470,45 +472,94 @@ class RLPSuite extends FunSuite
     assert(parsed.expiration == 1481979502)
   }
 
+  test("Partial Data Parse Test") {
+    val hex: String = "000080c180000000000000000000000042699b1104e93abf0008be55f912c2ff"
+    val data = Hex.decode(hex)
+    val decoded: Try[Seq[Int]] = RLP.decode[Seq[Int]](data.splitAt(3)._2)
+    assert(decoded.isSuccess)
+    assert(1 == decoded.get.length)
+    assert(0 == decoded.get.head)
+  }
+
+  test("Multiple partial decode") {
+    val seq1 = Seq("cat", "dog")
+    val seq2 = Seq(23, 10, 1986)
+    val seq3 = Seq("cat", "Lorem ipsum dolor sit amet, consectetur adipisicing elit")
+    val data = Seq(
+      RLP.encode[Seq[String]](seq1),
+      RLP.encode[Seq[Int]](seq2),
+      RLP.encode[Seq[String]](seq3))
+      .flatMap(_.toOption).reduce(_ ++ _)
+
+    val decoded1 = RLP.decode[Seq[String]](data)
+    assert(decoded1.isSuccess)
+    assert(decoded1.get equals seq1)
+
+    val secondItemIndex = RLP.nextElementIndex(data, 0)
+    assert(secondItemIndex.isSuccess)
+    val decoded2 = RLP.decode[Seq[Int]](data.drop(secondItemIndex.get))
+    assert(decoded2.isSuccess)
+    assert(decoded2.get equals seq2)
+
+    val thirdItemIndex = RLP.nextElementIndex(data, secondItemIndex.get)
+    assert(thirdItemIndex.isSuccess)
+    val decoded3 = RLP.decode[Seq[String]](data.drop(thirdItemIndex.get))
+    assert(decoded3.isSuccess)
+    assert(decoded3.get equals seq3)
+  }
+
+  test("Multiple objects partial decode") {
+    val multiplePingEncoded =
+      Hex.decode("ee04d38c38352e36352e31392e32333182765f82765fd38c38352e36352e31392e32333182765f82765f845855366e") ++
+        Hex.decode("ee04d38c38352e36352e31392e32333182765f82765fd38c38352e36352e31392e32333182765f82765f845855366e") ++
+        Hex.decode("ee04d38c38352e36352e31392e32333182765f82765fd38c38352e36352e31392e32333182765f82765f845855366e")
+
+    val decoded = RLP.decode[PingMessage](multiplePingEncoded)(PingMessage.encDec)
+    assert(decoded.isSuccess)
+
+    val secondItemIndex = RLP.nextElementIndex(multiplePingEncoded, 0)
+    val decoded2 = RLP.decode[PingMessage](multiplePingEncoded.drop(secondItemIndex.get))(PingMessage.encDec)
+    assert(decoded2.isSuccess)
+
+    val thirdItemIndex = RLP.nextElementIndex(multiplePingEncoded, secondItemIndex.get)
+    val decoded3 = RLP.decode[PingMessage](multiplePingEncoded.drop(thirdItemIndex.get))(PingMessage.encDec)
+    assert(decoded3.isSuccess)
+  }
+
 
   implicit val stringSeqEncDec = new RLPEncoder[Seq[String]] with RLPDecoder[Seq[String]] {
-    override def encode(strings: Seq[String]): RLPEncodeable = new RLPList {
-      override def items: Seq[RLPEncodeable] = strings.map(stringEncDec.encode)
-    }
+    override def encode(strings: Seq[String]): RLPEncodeable = RLPList(strings)
 
     override def decode(rlp: RLPEncodeable): Seq[String] = rlp match {
-      case l: RLPList => l.items.map(stringEncDec.decode)
+      case l: RLPList => l.items.map(item => item: String)
       case _ => throw new RuntimeException("Invalid String Seq Decoder")
     }
   }
 
+  implicit def stringSeqFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Seq[String]]): Seq[String] = dec.decode(rlp)
+
   implicit val intSeqEncDec = new RLPEncoder[Seq[Int]] with RLPDecoder[Seq[Int]] {
-    override def encode(ints: Seq[Int]): RLPEncodeable = new RLPList {
-      override def items: Seq[RLPEncodeable] = ints.map(intEncDec.encode)
-    }
+    override def encode(ints: Seq[Int]): RLPEncodeable = RLPList(ints)
 
     override def decode(rlp: RLPEncodeable): Seq[Int] = rlp match {
-      case l: RLPList => l.items.map(intEncDec.decode)
+      case l: RLPList => l.items.map(item => item: Int)
       case _ => throw new RuntimeException("Invalid Int Seq Decoder")
     }
   }
+
+  implicit def intSeqFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Seq[Int]]): Seq[Int] = dec.decode(rlp)
 
   case class MultiList1(number: Int, seq1: Seq[String], string: String, seq2: Seq[Int])
 
   object MultiList1 {
     implicit val encDec = new RLPEncoder[MultiList1] with RLPDecoder[MultiList1] {
-      override def encode(obj: MultiList1): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = intEncDec.encode(obj.number) ::
-          stringSeqEncDec.encode(obj.seq1) ::
-          stringEncDec.encode(obj.string) ::
-          intSeqEncDec.encode(obj.seq2) :: Nil
+      override def encode(obj: MultiList1): RLPEncodeable = {
+        import obj._
+        RLPList(number, seq1, string, seq2)
       }
 
       override def decode(rlp: RLPEncodeable): MultiList1 = rlp match {
-        case l: RLPList => MultiList1(intEncDec.decode(l.items.head),
-          stringSeqEncDec.decode(l.items(1)),
-          stringEncDec.decode(l.items(2)),
-          intSeqEncDec.decode(l.items(3)))
+        case l: RLPList => MultiList1(l.items.head, l.items(1), l.items(2), l.items(3))
         case _ => throw new RuntimeException("Invalid Int Seq Decoder")
       }
     }
@@ -518,17 +569,13 @@ class RLPSuite extends FunSuite
 
   object MultiList2 {
     implicit val encDec = new RLPEncoder[MultiList2] with RLPDecoder[MultiList2] {
-      override def encode(obj: MultiList2): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = stringSeqEncDec.encode(obj.seq1) ::
-          intSeqEncDec.encode(obj.seq2) ::
-          emptySeqEncDec.encode(obj.seq3) :: Nil
+      override def encode(obj: MultiList2): RLPEncodeable = {
+        import obj._
+        RLPList(seq1, seq2, seq3)
       }
 
       override def decode(rlp: RLPEncodeable): MultiList2 = rlp match {
-        case l: RLPList => MultiList2(stringSeqEncDec.decode(l.items.head),
-          intSeqEncDec.decode(l.items(1)),
-          emptySeqEncDec.decode(l.items(2))
-        )
+        case l: RLPList => MultiList2(l.items.head, l.items(1), emptySeqEncDec.decode(l.items(2)))
         case _ => throw new RuntimeException("Invalid Int Seq Decoder")
       }
     }
@@ -540,9 +587,7 @@ class RLPSuite extends FunSuite
     val instance = Seq(RLPList(RLPList(), RLPList()), RLPList())
 
     implicit val encDec = new RLPEncoder[EmptyListOfList] with RLPDecoder[EmptyListOfList] {
-      override def encode(obj: EmptyListOfList): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = instance
-      }
+      override def encode(obj: EmptyListOfList): RLPEncodeable = RLPList(instance)
 
       override def decode(rlp: RLPEncodeable): EmptyListOfList = rlp match {
         case l: RLPList =>
@@ -561,9 +606,7 @@ class RLPSuite extends FunSuite
     val instance = Seq(RLPList(), RLPList(RLPList()), RLPList(RLPList(), RLPList(RLPList())))
 
     implicit val encDec = new RLPEncoder[RepOfTwoListOfList] with RLPDecoder[RepOfTwoListOfList] {
-      override def encode(obj: RepOfTwoListOfList): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = instance
-      }
+      override def encode(obj: RepOfTwoListOfList): RLPEncodeable = RLPList(instance)
 
       override def decode(rlp: RLPEncodeable): RepOfTwoListOfList = rlp match {
         case l: RLPList =>
@@ -598,48 +641,40 @@ class RLPSuite extends FunSuite
 
   object SimpleTransaction {
     implicit val encDec = new RLPEncoder[SimpleTransaction] with RLPDecoder[SimpleTransaction] {
-      override def encode(obj: SimpleTransaction): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = intEncDec.encode(obj.id) :: stringEncDec.encode(obj.name) :: Nil
+      override def encode(obj: SimpleTransaction): RLPEncodeable = {
+        import obj._
+        RLPList(id, name)
       }
 
       override def decode(rlp: RLPEncodeable): SimpleTransaction = rlp match {
-        case l: RLPList => SimpleTransaction(intEncDec.decode(l.items.head), stringEncDec.decode(l.items(1)))
+        case l: RLPList => SimpleTransaction(l.items.head, l.items(1))
         case _ => throw new RuntimeException("Invalid Simple Transaction")
       }
     }
+
+    implicit def fromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[SimpleTransaction]): SimpleTransaction = dec.decode(rlp)
   }
 
   case class SimpleBlock(id: Byte, parentId: Short, owner: String, nonce: Int, txs: Seq[SimpleTransaction], unclesIds: Seq[Int])
 
   object SimpleBlock {
     implicit val encDec = new RLPEncoder[SimpleBlock] with RLPDecoder[SimpleBlock] {
-      override def encode(obj: SimpleBlock): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = byteEncDec.encode(obj.id) ::
-          shortEncDec.encode(obj.parentId) ::
-          stringEncDec.encode(obj.owner) ::
-          intEncDec.encode(obj.nonce) ::
-          new RLPList {
-            override def items: Seq[RLPEncodeable] = obj.txs.map(o => SimpleTransaction.encDec.encode(o))
-          } ::
-          intSeqEncDec.encode(obj.unclesIds) :: Nil
+      override def encode(obj: SimpleBlock): RLPEncodeable = {
+        import obj._
+        RLPList(id, parentId, owner, nonce, RLPList(txs), unclesIds)
       }
 
       override def decode(rlp: RLPEncodeable): SimpleBlock = rlp match {
         case encBlock: RLPList if encBlock.items.size == 6 =>
           val txs: Seq[SimpleTransaction] = encBlock.items(4) match {
-            case txs: RLPList => txs.items.map(tx => SimpleTransaction.encDec.decode(tx))
+            case txs: RLPList => txs.items.map(tx => tx: SimpleTransaction)
             case _ => throw new Exception("Can't transaform txs to Seq[SimpleTransaction]")
           }
           val unclesIds: Seq[Int] = encBlock.items(5) match {
-            case unclesIds: RLPList => intSeqEncDec.decode(unclesIds)
+            case unclesIds: RLPList => unclesIds
             case _ => throw new Exception("Can't transaform unclesIds to Seq[Int]")
           }
-          SimpleBlock(byteEncDec.decode(encBlock.items.head),
-            shortEncDec.decode(encBlock.items(1)),
-            stringEncDec.decode(encBlock.items(2)),
-            intEncDec.decode(encBlock.items(3)),
-            txs,
-            unclesIds)
+          SimpleBlock(encBlock.items.head, encBlock.items(1), encBlock.items(2), encBlock.items(3), txs, unclesIds)
         case _ => throw new Exception("Can't transform RLPEncodeable to block")
       }
     }
@@ -653,39 +688,30 @@ class RLPSuite extends FunSuite
 
   object Endpoint {
     implicit val encDec = new RLPEncoder[Endpoint] with RLPDecoder[Endpoint] {
-      override def encode(obj: Endpoint): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = byteArrayEncDec.encode(obj.address) ::
-          longEncDec.encode(obj.tcpPort) ::
-          longEncDec.encode(obj.udpPort) :: Nil
+      override def encode(obj: Endpoint): RLPEncodeable = {
+        import obj._
+        RLPList(address, tcpPort, udpPort)
       }
 
       override def decode(rlp: RLPEncodeable): Endpoint = rlp match {
-        case l: RLPList => Endpoint(byteArrayEncDec.decode(l.items.head),
-          longEncDec.decode(l.items(1)),
-          longEncDec.decode(l.items(2)))
+        case l: RLPList => Endpoint(l.items.head, l.items(1), l.items(2))
         case _ => throw new RuntimeException("Invalid Endpoint")
       }
     }
+
+    implicit def endpointFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Endpoint]): Endpoint = dec.decode(rlp)
   }
 
   object PingMessage {
 
     implicit val encDec = new RLPEncoder[PingMessage] with RLPDecoder[PingMessage] {
-      override def encode(obj: PingMessage): RLPEncodeable = new RLPList {
-        override def items: Seq[RLPEncodeable] = Seq(
-          intEncDec.encode(obj.version),
-          Endpoint.encDec.encode(obj.from),
-          Endpoint.encDec.encode(obj.to),
-          longEncDec.encode(obj.expiration)
-        )
+      override def encode(obj: PingMessage): RLPEncodeable = {
+        import obj._
+        RLPList(version, from, to, expiration)
       }
 
       override def decode(rlp: RLPEncodeable): PingMessage = rlp match {
-        case l: RLPList => PingMessage(
-          intEncDec.decode(l.items.head),
-          Endpoint.encDec.decode(l.items(1)),
-          Endpoint.encDec.decode(l.items(2)),
-          longEncDec.decode(l.items(3)))
+        case l: RLPList => PingMessage(l.items.head, l.items(1), l.items(2), l.items(3))
         case _ => throw new RuntimeException("Not a Ping Message")
       }
     }
