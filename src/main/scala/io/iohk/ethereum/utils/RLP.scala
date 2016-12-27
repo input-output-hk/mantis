@@ -103,6 +103,13 @@ object RLP {
 
   def decode[T](data: Array[Byte])(implicit dec: RLPDecoder[T]): Try[T] = rawDecode(data).map(dec.decode)
 
+  def nextElementIndex(data: Array[Byte], pos: Int): Try[Int] = {
+    getItemBounds(ByteString(data), pos) match {
+      case Success(ItemBounds(_, end, _, _)) => Success(end + 1)
+      case Failure(ex) => Failure(ex)
+    }
+  }
+
   def rawDecode(data: Array[Byte]): Try[RLPEncodeable] = decodeWithPos(ByteString(data), 0).map(_._1)
 
   def encodeByte(singleByte: Byte): ByteString = {
@@ -177,56 +184,61 @@ object RLP {
     }
   }
 
+  private def getItemBounds(data: ByteString, pos: Int): Try[ItemBounds] =
+    if (data.length < 1) Failure(new RuntimeException("Empty Data"))
+    else
+      Try {
+        val prefix: Int = data(pos) & 0xFF
+        prefix match {
+          case p if p == OffsetShortItem => ItemBounds(start = pos, end = pos, isList = false, isEmpty = true)
+          case p if p < OffsetShortItem => ItemBounds(start = pos, end = pos, isList = false)
+          case p if p <= OffsetLongItem =>
+            val length = p - OffsetShortItem
+            ItemBounds(start = pos + 1, end = pos + length, isList = false)
+          case p if p < OffsetShortList =>
+            val lengthOfLength = p - OffsetLongItem
+            val lengthBytes = data.slice(pos + 1, pos + 1 + lengthOfLength)
+            val length = decodeInt(lengthBytes)
+            val beginPos = pos + 1 + lengthOfLength
+            ItemBounds(start = beginPos, end = beginPos + length - 1, isList = false)
+          case p if p <= OffsetLongList =>
+            val length = p - OffsetShortList
+            ItemBounds(start = pos + 1, end = pos + length, isList = true)
+          case p =>
+            val lengthOfLength = p - OffsetLongList
+            val lengthBytes = data.slice(pos + 1, pos + 1 + lengthOfLength)
+            val length = decodeInt(lengthBytes)
+            val beginPos = pos + 1 + lengthOfLength
+            ItemBounds(start = beginPos, end = beginPos + length - 1, isList = true)
+        }
+      }
 
-  private def decodeWithPos(data: ByteString, pos: Int): Try[(RLPEncodeable, Int)] = Try {
-    if (data.length < 1) (
-      new RLPValue {
-        override def bytes = ByteString.empty
-      }, pos)
+  private def decodeWithPos(data: ByteString, pos: Int): Try[(RLPEncodeable, Int)] =
+    if (data.length < 1) Success(new RLPValue {
+      override def bytes = ByteString.empty
+    }, pos)
     else {
-      val prefix: Int = data(pos) & 0xFF
-      prefix match {
-        case p if p == OffsetShortItem => (new RLPValue {
-          override def bytes = ByteString.empty
-        }, pos + 1)
-        case p if p < OffsetShortItem => (new RLPValue {
-          override def bytes = data.slice(pos, pos + 1)
-        }, pos + 1)
-        case p if p <= OffsetLongItem =>
-          val length = p - OffsetShortItem
-          (new RLPValue {
-            override def bytes = data.slice(pos + 1, pos + 1 + length)
-          }, pos + length + 1)
-        case p if p < OffsetShortList =>
-          val lengthOfLength = p - OffsetLongItem
-          val lengthBytes = data.slice(pos + 1, pos + 1 + lengthOfLength)
-          val length = decodeInt(lengthBytes)
-          val beginPos = pos + lengthOfLength + 1
-          (new RLPValue {
-            override def bytes = data.slice(beginPos, beginPos + length)
-          }, beginPos + length)
-        case p if p <= OffsetLongList =>
-          val length = p - OffsetShortList
-          val (listDecoded, endPos) = decodeListRecursive(data, pos + 1, length, Queue()).get
-          (new RLPList {
+      getItemBounds(data, pos) match {
+        case Success(ItemBounds(start, end, false, isEmpty)) => {
+          Success(new RLPValue {
+            override def bytes = if (isEmpty) ByteString.empty else data.slice(start, end + 1)
+          }, end + 1)
+        }
+        case Success(ItemBounds(start, end, true, _)) => {
+          val (listDecoded) = decodeListRecursive(data, start, end - start + 1, Queue()).get
+          Success(new RLPList {
             override def items = listDecoded
-          }, endPos)
-        case p =>
-          val lengthOfLength = p - OffsetLongList
-          val lengthBytes = data.slice(pos + 1, pos + 1 + lengthOfLength)
-          val length = decodeInt(lengthBytes)
-          val (listDecoded, endPos) = decodeListRecursive(data, pos + lengthOfLength + 1, length, Queue()).get
-          (new RLPList {
-            override def items = listDecoded
-          }, endPos)
+          }, end + 1)
+        }
+        case Failure(ex) => Failure(ex)
       }
     }
-  }
+
 
   @tailrec
   private def decodeListRecursive(data: ByteString, pos: Int, length: Int,
-                                  acum: Queue[RLPEncodeable]): Try[(Queue[RLPEncodeable], Int)] = {
-    if (length == 0) Success((acum, pos))
+                                  acum: Queue[RLPEncodeable]): Try[(Queue[RLPEncodeable])] = {
+    if (length == 0) Success(acum)
     else {
       val maybeDecoded = decodeWithPos(data, pos)
       maybeDecoded match {
@@ -236,6 +248,8 @@ object RLP {
     }
   }
 }
+
+case class ItemBounds(start: Int, end: Int, isList: Boolean, isEmpty: Boolean = false)
 
 sealed trait RLPEncodeable
 

@@ -36,7 +36,7 @@ class RLPSuite extends FunSuite
     assert(data3.isSuccess)
     assert(expected3 sameElements data3.get)
     val dataObtained3 = RLP.decode[Byte](data3.get)
-    assert(dataObtained2.isSuccess)
+    assert(dataObtained3.isSuccess)
     val obtained3: Byte = dataObtained3.get
     assert((127: Byte) == obtained3)
 
@@ -481,6 +481,51 @@ class RLPSuite extends FunSuite
     assert(0 == decoded.get.head)
   }
 
+  test("Multiple partial decode") {
+    val seq1 = Seq("cat", "dog")
+    val seq2 = Seq(23, 10, 1986)
+    val seq3 = Seq("cat", "Lorem ipsum dolor sit amet, consectetur adipisicing elit")
+    val data = Seq(
+      RLP.encode[Seq[String]](seq1),
+      RLP.encode[Seq[Int]](seq2),
+      RLP.encode[Seq[String]](seq3))
+      .flatMap(_.toOption).reduce(_ ++ _)
+
+    val decoded1 = RLP.decode[Seq[String]](data)
+    assert(decoded1.isSuccess)
+    assert(decoded1.get equals seq1)
+
+    val secondItemIndex = RLP.nextElementIndex(data, 0)
+    assert(secondItemIndex.isSuccess)
+    val decoded2 = RLP.decode[Seq[Int]](data.drop(secondItemIndex.get))
+    assert(decoded2.isSuccess)
+    assert(decoded2.get equals seq2)
+
+    val thirdItemIndex = RLP.nextElementIndex(data, secondItemIndex.get)
+    assert(thirdItemIndex.isSuccess)
+    val decoded3 = RLP.decode[Seq[String]](data.drop(thirdItemIndex.get))
+    assert(decoded3.isSuccess)
+    assert(decoded3.get equals seq3)
+  }
+
+  test("Multiple objects partial decode") {
+    val multiplePingEncoded =
+      Hex.decode("ee04d38c38352e36352e31392e32333182765f82765fd38c38352e36352e31392e32333182765f82765f845855366e") ++
+        Hex.decode("ee04d38c38352e36352e31392e32333182765f82765fd38c38352e36352e31392e32333182765f82765f845855366e") ++
+        Hex.decode("ee04d38c38352e36352e31392e32333182765f82765fd38c38352e36352e31392e32333182765f82765f845855366e")
+
+    val decoded = RLP.decode[PingMessage](multiplePingEncoded)(PingMessage.encDec)
+    assert(decoded.isSuccess)
+
+    val secondItemIndex = RLP.nextElementIndex(multiplePingEncoded, 0)
+    val decoded2 = RLP.decode[PingMessage](multiplePingEncoded.drop(secondItemIndex.get))(PingMessage.encDec)
+    assert(decoded2.isSuccess)
+
+    val thirdItemIndex = RLP.nextElementIndex(multiplePingEncoded, secondItemIndex.get)
+    val decoded3 = RLP.decode[PingMessage](multiplePingEncoded.drop(thirdItemIndex.get))(PingMessage.encDec)
+    assert(decoded3.isSuccess)
+  }
+
 
   implicit val stringSeqEncDec = new RLPEncoder[Seq[String]] with RLPDecoder[Seq[String]] {
     override def encode(strings: Seq[String]): RLPEncodeable = RLPList(strings)
@@ -607,7 +652,7 @@ class RLPSuite extends FunSuite
       }
     }
 
-    implicit def fromEncodeable(rlp : RLPEncodeable)(implicit dec: RLPDecoder[SimpleTransaction]): SimpleTransaction = dec.decode(rlp)
+    implicit def fromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[SimpleTransaction]): SimpleTransaction = dec.decode(rlp)
   }
 
   case class SimpleBlock(id: Byte, parentId: Short, owner: String, nonce: Int, txs: Seq[SimpleTransaction], unclesIds: Seq[Int])
