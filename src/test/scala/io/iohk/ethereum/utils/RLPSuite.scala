@@ -6,6 +6,8 @@ import org.scalatest.FunSuite
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.spongycastle.util.encoders.Hex
 
+import scala.util.Try
+
 class RLPSuite extends FunSuite
   with PropertyChecks
   with GeneratorDrivenPropertyChecks {
@@ -441,7 +443,7 @@ class RLPSuite extends FunSuite
     assert(block equals obtained)
   }
 
-  test("Performance decode") {
+  ignore("Performance decode") {
     val blockRaw: String = "f8cbf8c7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347940000000000000000000000000000000000000000a02f4399b08efe68945c1cf90ffe85bbe3ce978959da753f9e649f034015b8817da00000000000000000000000000000000000000000000000000000000000000000834000008080830f4240808080a004994f67dc55b09e814ab7ffc8df3686b4afb2bb53e60eae97ef043fe03fb829c0c0"
     val payload: Array[Byte] = Hex.decode(blockRaw)
     val ITERATIONS: Int = 10000000
@@ -468,6 +470,15 @@ class RLPSuite extends FunSuite
     assert(parsed.to.udpPort == 30303)
 
     assert(parsed.expiration == 1481979502)
+  }
+
+  test("Partial Data Parse Test") {
+    val hex: String = "000080c180000000000000000000000042699b1104e93abf0008be55f912c2ff"
+    val data = Hex.decode(hex)
+    val decoded: Try[Seq[Int]] = RLP.decode[Seq[Int]](data.splitAt(3)._2)
+    assert(decoded.isSuccess)
+    assert(1 == decoded.get.length)
+    assert(0 == decoded.get.head)
   }
 
 
