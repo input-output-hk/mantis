@@ -137,8 +137,11 @@ object RLP {
         val output = list.items.foldLeft(Try(Array[Byte]())) {
           (acum, item) => {
             val encoded = encode(item)
-            if (acum.isSuccess && encoded.isSuccess) Success(acum.get ++ encoded.get)
-            else encoded
+            (acum, encoded) match {
+              case (Success(acumArr), Success(encodedArr)) => Success(acumArr ++ encodedArr)
+              case (Failure(ex), _) => Failure(ex)
+              case (_, Failure(ex)) => Failure(ex)
+            }
           }
         }
         output.flatMap((o: Array[Byte]) => encodeLength(o.length, OffsetShortList)).map(p => p ++ output.get)
