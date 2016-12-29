@@ -223,7 +223,7 @@ object RLP {
       case l if l < MaxItemLength && length > 0xFF =>
         val binaryLength: Array[Byte] = intToBytesNoLeadZeroes(length)
         Success((binaryLength.length + offset + SizeThreshold - 1).toByte +: binaryLength)
-      case l if l < MaxItemLength && length < 0xFF => Success(Array((1 + offset + SizeThreshold - 1).toByte, length.toByte))
+      case l if l < MaxItemLength && length <= 0xFF => Success(Array((1 + offset + SizeThreshold - 1).toByte, length.toByte))
       case _ => Failure(new RuntimeException("Input too long"))
     }
   }

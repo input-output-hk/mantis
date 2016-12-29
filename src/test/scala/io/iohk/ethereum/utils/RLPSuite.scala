@@ -311,6 +311,10 @@ class RLPSuite extends FunSuite
     val obtained: Array[Byte] = dataObtained.get
     assert(byteArray sameElements obtained)
 
+    val byteArray255Elements = Array.fill(255)(0x1 toByte)
+    val data2 = RLP.encode(byteArray255Elements)
+    assert(data2.isSuccess)
+
     forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte])) {
       (aByteList: List[Byte]) => {
         val data = RLP.encode(aByteList.toArray)
