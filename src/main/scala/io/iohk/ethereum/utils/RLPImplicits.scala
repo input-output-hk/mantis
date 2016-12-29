@@ -18,7 +18,7 @@ object RLPImplicits {
 
   implicit val byteEncDec = new RLPEncoder[Byte] with RLPDecoder[Byte] {
     override def encode(obj: Byte): RLPValue = new RLPValue {
-      override def bytes = encodeByte(obj)
+      override def bytes = byteToByteString(obj)
     }
 
     override def decode(rlp: RLPEncodeable): Byte = rlp match {
@@ -35,7 +35,7 @@ object RLPImplicits {
 
   implicit val shortEncDec = new RLPEncoder[Short] with RLPDecoder[Short] {
     override def encode(obj: Short): RLPValue = new RLPValue {
-      override def bytes = encodeShort(obj)
+      override def bytes = shortToBigEndianMinLength(obj)
     }
 
     override def decode(rlp: RLPEncodeable): Short = rlp match {
@@ -53,11 +53,11 @@ object RLPImplicits {
 
   implicit val intEncDec = new RLPEncoder[Int] with RLPDecoder[Int] {
     override def encode(obj: Int): RLPValue = new RLPValue {
-      override def bytes = encodeInt(obj)
+      override def bytes = intToBigEndianMinLength(obj)
     }
 
     override def decode(rlp: RLPEncodeable): Int = rlp match {
-      case srcRLPValue: RLPValue => decodeInt(srcRLPValue.bytes)
+      case srcRLPValue: RLPValue => bigEndianMinLengthToInt(srcRLPValue.bytes)
       case _ => throw new Exception("src is not an RLPValue")
     }
   }
@@ -71,7 +71,7 @@ object RLPImplicits {
     }
 
     override def encode(obj: BigInt): RLPValue = new RLPValue {
-      override def bytes = if (obj.equals(BigInt(0))) encodeByte(0: Byte) else ByteString(asUnsignedByteArray(obj))
+      override def bytes = if (obj.equals(BigInt(0))) byteToByteString(0: Byte) else ByteString(asUnsignedByteArray(obj))
     }
 
     override def decode(rlp: RLPEncodeable): BigInt = rlp match {
