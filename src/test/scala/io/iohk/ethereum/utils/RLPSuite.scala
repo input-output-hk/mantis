@@ -1,5 +1,6 @@
 package io.iohk.ethereum.utils
 
+import akka.util.ByteString
 import io.iohk.ethereum.utils.RLPImplicits._
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
@@ -323,6 +324,20 @@ class RLPSuite extends FunSuite
         assert(dataObtained.isSuccess)
         val obtained: Array[Byte] = dataObtained.get
         assert(aByteList.toArray sameElements obtained)
+      }
+    }
+  }
+
+  test("Encode ByteString") {
+    forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte])) {
+      (aByteList: List[Byte]) => {
+        val byteString = ByteString(aByteList.toArray)
+        val data = RLP.encode(byteString)
+        assert(data.isSuccess)
+        val dataObtained = RLP.decode[ByteString](data.get)
+        assert(dataObtained.isSuccess)
+        val obtained: ByteString = dataObtained.get
+        assert(byteString equals obtained)
       }
     }
   }

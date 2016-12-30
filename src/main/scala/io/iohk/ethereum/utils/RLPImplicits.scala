@@ -109,6 +109,12 @@ object RLPImplicits {
     }
   }
 
+  implicit val byteStringEncDec = new RLPEncoder[ByteString] with RLPDecoder[ByteString] {
+    override def encode(obj: ByteString): RLPEncodeable = byteArrayEncDec.encode(obj.toArray[Byte])
+
+    override def decode(rlp: RLPEncodeable): ByteString = ByteString(byteArrayEncDec.decode(rlp))
+  }
+
   implicit val emptyEncDec = new RLPEncoder[Nothing] {
     override def encode(obj: Nothing): RLPEncodeable = new RLPValue {
       override def bytes = ByteString.empty
