@@ -27,7 +27,7 @@ case class AuthInitiateMessage(
     knownPeer: Boolean) {
 
   def encode(): ByteString = {
-    signature.canonicalise().encode() ++
+    signature.encode() ++
       ephemeralPublicHash ++
       ECIESPublicKeyEncoder.getEncoded(new ECPublicKeyParameters(publicKey, curve)).drop(1) ++
       nonce ++

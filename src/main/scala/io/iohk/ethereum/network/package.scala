@@ -22,5 +22,17 @@ package object network {
     bytes
   }
 
+  def bytesToHex(bytes: Array[Byte]): String = {
+    val hexArray = "0123456789ABCDEF".toCharArray
+    val hexChars: Array[Char] = new Array[Char](bytes.length * 2)
+    var j = 0
+    while ( j < bytes.length) {
+      val v: Int = bytes(j) & 0xFF
+      hexChars(j * 2) = hexArray(v >>> 4)
+      hexChars(j * 2 + 1) = hexArray(v & 0x0F)
+      j += 1
+    }
+    new String(hexChars)
+  }
 
 }

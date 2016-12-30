@@ -15,12 +15,12 @@ import scorex.core.network.{AuthHandshakeError, AuthHandshakeResult, AuthHandsha
 
 import scala.util.Random
 
-case class Secrets(
-    aes: ByteString,
-    mac: ByteString,
-    token: ByteString,
-    egressMac: KeccakDigest,
-    ingressMac: KeccakDigest)
+class Secrets(
+    val aes: Array[Byte],
+    val mac: Array[Byte],
+    val token: Array[Byte],
+    val egressMac: KeccakDigest,
+    val ingressMac: KeccakDigest)
   extends scorex.core.network.Secrets
 
 case class AuthHandshaker(
@@ -29,20 +29,18 @@ case class AuthHandshaker(
     initiateMessageOpt: Option[AuthInitiateMessage] = None,
     initiatePacketOpt: Option[ByteString] = None,
     responseMessageOpt: Option[AuthResponseMessage] = None,
-    responsePacketOpt: Option[ByteString] = None)
+    responsePacketOpt: Option[ByteString] = None,
+    ephemeralKey: AsymmetricCipherKeyPair = generateKeyPair())
   extends scorex.core.network.AuthHandshaker {
 
   val nonceSize = 32
   val macSize = 256
   val secretSize = 32
 
-  val ephemeralKey = generateKeyPair()
-
   override def initiate(uri: URI): (ByteString, network.AuthHandshaker) = {
     val remotePubKey = publicKeyFromNodeId(uri.getUserInfo)
     val message = createAuthInitiateMessage(remotePubKey)
     val encryptedPacket = ByteString(ECIESCoder.encrypt(remotePubKey, message.encode().toArray, None))
-
     (encryptedPacket, copy(initiated = true, initiateMessageOpt = Some(message), initiatePacketOpt = Some(encryptedPacket)))
   }
 
@@ -81,7 +79,7 @@ case class AuthHandshaker(
         bigIntegerToBytes(agreement.calculateAgreement(new ECPublicKeyParameters(remotePubKey, curve)), nonceSize)
     }
 
-    val ephemeralPubKey = ECIESPublicKeyEncoder.getEncoded(ephemeralKey.getPublic.asInstanceOf[ECPublicKeyParameters])
+    val ephemeralPubKey = ECIESPublicKeyEncoder.getEncoded(ephemeralKey.getPublic)
     val ephemeralPublicHash = sha3(ephemeralPubKey, 1, 64)
 
     val publicKey = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ
@@ -92,7 +90,7 @@ case class AuthHandshaker(
       val messageToSign = xor(sharedSecret, nonce)
       val components = signer.generateSignature(messageToSign)
       val r = components(0)
-      val s = components(1)
+      val s = ECDSASignature.canonicalise(components(1))
       val v = ECDSASignature
         .calculateV(r, s, ephemeralKey, messageToSign)
         .getOrElse(throw new RuntimeException("Failed to calculate signature rec id"))
@@ -121,7 +119,24 @@ case class AuthHandshaker(
 
       val remoteEphemeralKey =
         if (initiated) responseMessage.ephemeralPublicKey
-        else ephemeralKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ
+        else {
+          // TODO: needs testing (the case when this node is not initiator)
+          val agreement = new ECDHBasicAgreement
+          agreement.init(nodeKey.getPrivate)
+          val sharedSecret = agreement.calculateAgreement(new ECPublicKeyParameters(initiateMessage.publicKey, curve))
+
+          val token: Array[Byte] = bigIntegerToBytes(sharedSecret, nonceSize)
+          val signed: Array[Byte] = xor(token, initiateMessage.nonce.toArray)
+
+          val signaturePubBytes =
+            ECDSASignature.recoverPubBytes(
+              r = initiateMessage.signature.r,
+              s = initiateMessage.signature.s,
+              recId = ECDSASignature.recIdFromSignatureV(initiateMessage.signature.v),
+              message = signed).get
+
+          curve.getCurve.decodePoint(signaturePubBytes)
+        }
 
       val secretScalar = {
         val agreement = new ECDHBasicAgreement
@@ -154,15 +169,17 @@ case class AuthHandshaker(
         if (initiated) (mac1, mac2)
         else (mac2, mac1)
 
-      AuthHandshakeSuccess(Secrets(
-        aes = ByteString(aesSecret),
-        mac = ByteString(sha3(agreedSecret, aesSecret)),
-        token = ByteString(sha3(sharedSecret)),
+      AuthHandshakeSuccess(new Secrets(
+        aes = aesSecret,
+        mac = sha3(agreedSecret, aesSecret),
+        token = sha3(sharedSecret),
         egressMac = egressMacSecret,
         ingressMac = ingressMacSecret))
     }
 
     successOpt getOrElse AuthHandshakeError
   }
+
+
 
 }
