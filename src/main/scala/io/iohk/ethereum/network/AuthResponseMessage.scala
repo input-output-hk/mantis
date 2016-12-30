@@ -1,9 +1,7 @@
 package io.iohk.ethereum.network
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.ECIESPublicKeyEncoder
 import io.iohk.ethereum.crypto._
-import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.math.ec.ECPoint
 
 object AuthResponseMessage {
@@ -22,7 +20,7 @@ case class AuthResponseMessage(ephemeralPublicKey: ECPoint, nonce: ByteString, k
 
   def encode(): ByteString = {
     ByteString(
-      ECIESPublicKeyEncoder.getEncoded(ephemeralPublicKey.asInstanceOf[ECPublicKeyParameters]) ++
+      ephemeralPublicKey.getEncoded(false).drop(1) ++
       nonce ++
       Array(if (knownPeer) 1.toByte else 0.toByte))
   }

@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network
 
-import java.io.InputStream
+import java.io.{OutputStream, InputStream}
 import java.net.{URI, Socket}
 
 import scala.annotation.tailrec
@@ -9,7 +9,7 @@ import scala.util.{Failure, Success}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.p2p._
-import io.iohk.ethereum.utils.RLP
+import io.iohk.ethereum.utils.{RLPEncoder, RLP}
 import scorex.core.network.AuthHandshakeSuccess
 
 object TestSocketHandshaker {
@@ -46,29 +46,26 @@ object TestSocketHandshaker {
       listenPort = 3333,
       nodeId = ByteString(nodeId))
 
-    val helloEncoded = RLP.encode(helloMsg).get
-    val helloFrameData = frameCodec.writeFrame(helloMsg.code, None, None, ByteString(helloEncoded))
-
-    println("Sending Hello message")
-    out.write(helloFrameData.toArray)
+    sendMessage(helloMsg, frameCodec, out)
 
     println("Waiting for Hello")
-
     val remoteHello = readAtLeastOneMessage(frameCodec, inp).head.asInstanceOf[Hello]
     println(s"Received Hello: $remoteHello")
 
     val pingMsg = Ping()
-    val pingEncoded = RLP.encode(pingMsg).get
-    val pingFrameData = frameCodec.writeFrame(pingMsg.code, None, None, ByteString(pingEncoded))
-
-    println("Sending Ping message")
-    out.write(pingFrameData.toArray)
-
+    sendMessage(pingMsg, frameCodec, out)
 
     while (true) {
       val msgs = readAtLeastOneMessage(frameCodec, inp)
       msgs.foreach { m => println("Received message: " + m) }
     }
+  }
+
+  def sendMessage[M <: Message : RLPEncoder](message: M, frameCodec: FrameCodec, out: OutputStream) = {
+    val encoded = RLP.encode(message).get
+    val frame = frameCodec.writeFrame(message.code, None, None, ByteString(encoded))
+    println(s"Sending message: $message")
+    out.write(frame.toArray)
   }
 
   @tailrec

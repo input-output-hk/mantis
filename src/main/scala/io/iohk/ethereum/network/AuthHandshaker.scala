@@ -23,17 +23,31 @@ class Secrets(
     val ingressMac: KeccakDigest)
   extends scorex.core.network.Secrets
 
+object AuthHandshaker {
+
+  val nonceSize = 32
+
+  def apply(nodeKey: AsymmetricCipherKeyPair): AuthHandshaker = {
+    val nonce = new Array[Byte](nonceSize)
+    new SecureRandom().nextBytes(nonce)
+    AuthHandshaker(nodeKey, ByteString(nonce))
+  }
+
+}
+
 case class AuthHandshaker(
     nodeKey: AsymmetricCipherKeyPair,
-    initiated: Boolean = false,
+    nonce: ByteString,
+    ephemeralKey: AsymmetricCipherKeyPair = generateKeyPair(),
+    isInitiator: Boolean = false,
     initiateMessageOpt: Option[AuthInitiateMessage] = None,
     initiatePacketOpt: Option[ByteString] = None,
     responseMessageOpt: Option[AuthResponseMessage] = None,
-    responsePacketOpt: Option[ByteString] = None,
-    ephemeralKey: AsymmetricCipherKeyPair = generateKeyPair())
+    responsePacketOpt: Option[ByteString] = None)
   extends scorex.core.network.AuthHandshaker {
 
-  val nonceSize = 32
+  import AuthHandshaker._
+
   val macSize = 256
   val secretSize = 32
 
@@ -41,32 +55,36 @@ case class AuthHandshaker(
     val remotePubKey = publicKeyFromNodeId(uri.getUserInfo)
     val message = createAuthInitiateMessage(remotePubKey)
     val encryptedPacket = ByteString(ECIESCoder.encrypt(remotePubKey, message.encode().toArray, None))
-    (encryptedPacket, copy(initiated = true, initiateMessageOpt = Some(message), initiatePacketOpt = Some(encryptedPacket)))
+
+    (encryptedPacket, copy(isInitiator = true, initiateMessageOpt = Some(message), initiatePacketOpt = Some(encryptedPacket)))
   }
 
   override def handleResponseMessage(data: ByteString): AuthHandshakeResult = {
     val plaintext = ECIESCoder.decrypt(nodeKey.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD, data.toArray)
     val message = AuthResponseMessage.decode(plaintext)
 
-    copy(responseMessageOpt = Some(message), responsePacketOpt = Some(data)).finalizeHandshake()
+    copy(
+      responseMessageOpt = Some(message),
+      responsePacketOpt = Some(data)).finalizeHandshake()
   }
 
   override def handleInitialMessage(data: ByteString): (ByteString, AuthHandshakeResult) = {
-    val remotePubKey = curve.getCurve.decodePoint(data.take(64).toArray)
-
     val plaintext = ECIESCoder.decrypt(nodeKey.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD, data.toArray)
     val message = AuthInitiateMessage.decode(plaintext)
 
     val response = createAuthResponseMessage()
-    val encryptedPacket = ByteString(ECIESCoder.encrypt(remotePubKey, message.encode().toArray, None))
+    val encryptedPacket = ByteString(ECIESCoder.encrypt(message.publicKey, response.encode().toArray, None))
 
-    (encryptedPacket, copy(responseMessageOpt = Some(response), responsePacketOpt = Some(encryptedPacket)).finalizeHandshake())
+    val handshakeResult = copy(
+      initiateMessageOpt = Some(message),
+      initiatePacketOpt = Some(data),
+      responseMessageOpt = Some(response),
+      responsePacketOpt = Some(encryptedPacket)).finalizeHandshake()
+
+    (encryptedPacket, handshakeResult)
   }
 
   private def createAuthInitiateMessage(remotePubKey: ECPoint) = {
-    val nonce = new Array[Byte](32)
-    new SecureRandom().nextBytes(nonce)
-
     // TODO: handle the case when the peer is known
     val sessionTokenOpt: Option[Array[Byte]] = None
     val knownPeer = sessionTokenOpt.isDefined
@@ -87,7 +105,7 @@ case class AuthHandshaker(
     val signature = {
       val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
       signer.init(true, ephemeralKey.getPrivate)
-      val messageToSign = xor(sharedSecret, nonce)
+      val messageToSign = xor(sharedSecret, nonce.toArray)
       val components = signer.generateSignature(messageToSign)
       val r = components(0)
       val s = ECDSASignature.canonicalise(components(1))
@@ -98,18 +116,16 @@ case class AuthHandshaker(
       ECDSASignature(r, s, v)
     }
 
-    AuthInitiateMessage(signature, ByteString(ephemeralPublicHash), publicKey, ByteString(nonce), knownPeer)
+    AuthInitiateMessage(signature, ByteString(ephemeralPublicHash), publicKey, nonce, knownPeer)
   }
 
-  // TODO: needed to handle incoming peer connections
   private def createAuthResponseMessage() = {
-    ???
+    // TODO: handle the case when the peer is known
+    AuthResponseMessage(ephemeralKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ, nonce, knownPeer = false)
   }
 
   private def finalizeHandshake(): AuthHandshakeResult = {
-
-    // TODO: handle the case when it's a known peer (ethereumj doesn't seem to handle that?)
-
+    // TODO: handle the case when the peer is known
     val successOpt = for {
       initiatePacket <- initiatePacketOpt
       initiateMessage <- initiateMessageOpt
@@ -118,15 +134,14 @@ case class AuthHandshaker(
     } yield {
 
       val remoteEphemeralKey =
-        if (initiated) responseMessage.ephemeralPublicKey
+        if (isInitiator) responseMessage.ephemeralPublicKey
         else {
-          // TODO: needs testing (the case when this node is not initiator)
           val agreement = new ECDHBasicAgreement
           agreement.init(nodeKey.getPrivate)
           val sharedSecret = agreement.calculateAgreement(new ECPublicKeyParameters(initiateMessage.publicKey, curve))
 
-          val token: Array[Byte] = bigIntegerToBytes(sharedSecret, nonceSize)
-          val signed: Array[Byte] = xor(token, initiateMessage.nonce.toArray)
+          val token = bigIntegerToBytes(sharedSecret, nonceSize)
+          val signed = xor(token, initiateMessage.nonce.toArray)
 
           val signaturePubBytes =
             ECDSASignature.recoverPubBytes(
@@ -153,20 +168,19 @@ case class AuthHandshaker(
 
       val mac1 = new KeccakDigest(macSize)
       mac1.update(xor(macSecret, responseMessage.nonce.toArray), 0, macSecret.length)
-
       val buf = new Array[Byte](32)
       new KeccakDigest(mac1).doFinal(buf, 0)
       mac1.update(initiatePacket.toArray, 0, initiatePacket.toArray.length)
       new KeccakDigest(mac1).doFinal(buf, 0)
-      val mac2 = new KeccakDigest(macSize)
 
+      val mac2 = new KeccakDigest(macSize)
       mac2.update(xor(macSecret, initiateMessage.nonce.toArray), 0, macSecret.length)
       new KeccakDigest(mac2).doFinal(buf, 0)
       mac2.update(responsePacket.toArray, 0, responsePacket.toArray.length)
       new KeccakDigest(mac2).doFinal(buf, 0)
 
       val (egressMacSecret, ingressMacSecret) =
-        if (initiated) (mac1, mac2)
+        if (isInitiator) (mac1, mac2)
         else (mac2, mac1)
 
       AuthHandshakeSuccess(new Secrets(
