@@ -5,14 +5,15 @@ import java.io.IOException
 import akka.util.ByteString
 import io.iohk.ethereum.network.Secrets
 import io.iohk.ethereum.utils.RLP
+import io.iohk.ethereum.utils.RLPImplicits._
 import org.spongycastle.crypto.StreamCipher
 import org.spongycastle.crypto.digests.KeccakDigest
 import org.spongycastle.crypto.engines.AESFastEngine
 import org.spongycastle.crypto.modes.SICBlockCipher
 import org.spongycastle.crypto.params.{KeyParameter, ParametersWithIV}
-import io.iohk.ethereum.utils.RLPImplicits._
 
 case class Frame(header: Header, `type`: Int, payload: Array[Byte])
+
 case class Header(bodySize: Int, protocol: Int, contextId: Option[Int], totalFrameSize: Option[Int])
 
 class FrameCodec(private val secrets: Secrets) {
@@ -49,19 +50,19 @@ class FrameCodec(private val secrets: Secrets) {
         if (unprocessedData.length >= totalSizeToRead) {
           val buffer = unprocessedData.take(totalSizeToRead).toArray
 
-          val frameSize: Int = totalSizeToRead - macSize
+          val frameSize = totalSizeToRead - macSize
           secrets.ingressMac.update(buffer, 0, frameSize)
           dec.processBytes(buffer, 0, frameSize, buffer, 0)
 
-          val `type`: Int = RLP.decode[Int](buffer).get
+          val `type` = RLP.decode[Int](buffer).get
 
           val pos = RLP.nextElementIndex(buffer, 0).get
           val payload = buffer.drop(pos).take(header.bodySize - pos)
-          val size: Int = header.bodySize - pos
-          val macBuffer: Array[Byte] = new Array[Byte](secrets.ingressMac.getDigestSize)
+          val size = header.bodySize - pos
+          val macBuffer = new Array[Byte](secrets.ingressMac.getDigestSize)
 
           doSum(secrets.ingressMac, macBuffer)
-          updateMac(secrets.ingressMac, macBuffer, 0, buffer, frameSize, false)
+          updateMac(secrets.ingressMac, macBuffer, 0, buffer, frameSize, egress = false)
 
           headerOpt = None
           unprocessedData = unprocessedData.drop(totalSizeToRead)
@@ -98,25 +99,24 @@ class FrameCodec(private val secrets: Secrets) {
   def writeFrame(`type`: Int, contextId: Option[Int], totalFrameSize: Option[Int], payload: ByteString): ByteString = {
     var out: ByteString = ByteString("")
 
-    val headBuffer: Array[Byte] = new Array[Byte](32)
-    val ptype = RLP.encodeInt(`type`)
+    val headBuffer = new Array[Byte](32)
+    val ptype = RLP.encode(`type`).get
 
     val totalSize: Int = payload.length + ptype.length
     headBuffer(0) = (totalSize >> 16).toByte
     headBuffer(1) = (totalSize >> 8).toByte
-    headBuffer(2) = (totalSize).toByte
+    headBuffer(2) = totalSize.toByte
 
     var headerDataElems: Seq[Array[Byte]] = Nil
-    headerDataElems :+= RLP.encodeInt(0).toArray
-    contextId.foreach { cid => headerDataElems :+= RLP.encodeInt(cid).toArray }
-    totalFrameSize foreach { tfs => headerDataElems :+= RLP.encodeInt(tfs).toArray }
+    headerDataElems :+= RLP.encode(0).get
+    contextId.foreach { cid => headerDataElems :+= RLP.encode(cid).get }
+    totalFrameSize foreach { tfs => headerDataElems :+= RLP.encode(tfs).get }
 
-    val headerData: Array[Byte] = RLP.encode(headerDataElems)(seqEncDec[Array[Byte]]).get
+    val headerData = RLP.encode(headerDataElems)(seqEncDec[Array[Byte]]).get
     System.arraycopy(headerData, 0, headBuffer, 3, headerData.length)
 
     enc.processBytes(headBuffer, 0, 16, headBuffer, 0)
 
-    // Header MAC
     updateMac(secrets.egressMac, headBuffer, 0, headBuffer, 16, egress = true)
 
     val buff: Array[Byte] = new Array[Byte](256)
@@ -144,7 +144,7 @@ class FrameCodec(private val secrets: Secrets) {
 
     val macBuffer: Array[Byte] = new Array[Byte](secrets.egressMac.getDigestSize)
     doSum(secrets.egressMac, macBuffer)
-    updateMac(secrets.egressMac, macBuffer, 0, macBuffer, 0, true)
+    updateMac(secrets.egressMac, macBuffer, 0, macBuffer, 0, egress = true)
     out ++= macBuffer.take(16)
 
     out
@@ -160,36 +160,27 @@ class FrameCodec(private val secrets: Secrets) {
     val aesBlock = new Array[Byte](mac.getDigestSize)
     doSum(mac, aesBlock)
     makeMacCipher.processBlock(aesBlock, 0, aesBlock, 0)
-    val length: Int = 16
 
-    // TODO:
-    var i: Int = 0
-    while (i < length) {
+    val length = 16
+
+    (0 until length) foreach { i =>
       aesBlock(i) = (aesBlock(i) ^ seed(i + offset)).toByte
-      i += 1
     }
+
     mac.update(aesBlock, 0, length)
     val result = new Array[Byte](mac.getDigestSize)
     doSum(mac, result)
+
     if (egress) System.arraycopy(result, 0, out, outOffset, length)
-    else {
-
-      // TODO:
-      var i: Int = 0
-      while (i < length) {
-        if (out(i + outOffset) != result(i)) {
-          throw new IOException("MAC mismatch")
-        }
-        i += 1
-      }
-
+    else (0 until length) foreach { i =>
+      if (out(i + outOffset) != result(i)) throw new IOException("MAC mismatch")
     }
+
     result
   }
 
   private def doSum(mac: KeccakDigest, out: Array[Byte]) = {
     new KeccakDigest(mac).doFinal(out, 0)
   }
-
 
 }

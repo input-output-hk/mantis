@@ -1,20 +1,22 @@
 package io.iohk.ethereum.network.p2p
 
+import scala.util.Try
+
 import akka.util.ByteString
-import io.iohk.ethereum.utils._
 import io.iohk.ethereum.utils.RLPImplicits._
+import io.iohk.ethereum.utils._
 
 object Message {
 
-  def decode(`type`: Int, payload: Array[Byte]): Option[Message] = {
+  def decode(`type`: Int, payload: Array[Byte]): Try[Message] = {
     `type` match {
-      case Hello.code => Some(RLP.decode[Hello](payload)(Hello.rlpEndDec).get) // TODO implicit encDec (sbt)
-      case Ping.code => Some(RLP.decode[Ping](payload)(Ping.rlpEndDec).get)
-      case Pong.code => Some(RLP.decode[Pong](payload)(Pong.rlpEndDec).get)
-      case _ => None
+      case Hello.code => RLP.decode(payload)(Hello.rlpEndDec)
+      case Disconnect.code => RLP.decode(payload)(Disconnect.rlpEndDec)
+      case Ping.code => RLP.decode(payload)(Ping.rlpEndDec)
+      case Pong.code => RLP.decode(payload)(Pong.rlpEndDec)
+      case _ => Try(throw new RuntimeException(s"Unknown message type: ${`type`}"))
     }
   }
-
 }
 
 sealed trait Message {
@@ -41,7 +43,7 @@ object Hello {
   implicit val rlpEndDec = new RLPEncoder[Hello] with RLPDecoder[Hello] {
     override def encode(obj: Hello): RLPEncodeable = {
       import obj._
-      RLPList(p2pVersion, clientId, capabilities, listenPort, nodeId)
+      RLPList(p2pVersion, clientId, capabilities, listenPort, nodeId.toArray[Byte])
     }
 
     override def decode(rlp: RLPEncodeable): Hello = rlp match {
@@ -55,96 +57,65 @@ object Hello {
     }
   }
 
-  val code = 0x80
+  val code = 0x00
 
 }
 
 case class Hello(
-    p2pVersion: Int,
+    p2pVersion: Long,
     clientId: String,
     capabilities: Seq[Capability],
-    listenPort: Int,
+    listenPort: Long,
     nodeId: ByteString)
   extends Message {
 
   override val code = Hello.code
 }
 
-object Endpoint {
-  implicit val rlpEncDec = new RLPEncoder[Endpoint] with RLPDecoder[Endpoint] {
-    override def encode(obj: Endpoint): RLPEncodeable = {
-      RLPList(obj.address, obj.udpPort, obj.tcpPort)
-    }
-
-    override def decode(rlp: RLPEncodeable): Endpoint = rlp match {
-      case rlpList: RLPList => Endpoint(ByteString(rlpList.items(0): Array[Byte]), rlpList.items(1), rlpList.items(2))
-      case _ => throw new RuntimeException("Cannot decode Endpoint")
-    }
-  }
-}
-
-case class Endpoint(
-      address: ByteString,
-      udpPort: Int,
-      tcpPort: Int)
-
 object Ping {
 
   implicit val rlpEndDec = new RLPEncoder[Ping] with RLPDecoder[Ping] {
-    override def encode(obj: Ping): RLPEncodeable = {
-      RLPList(obj.version, obj.from, obj.to, obj.timestamp)
-    }
-
-    override def decode(rlp: RLPEncodeable): Ping = rlp match {
-      case rlpList: RLPList =>
-        Ping(version = rlpList.items(0),
-          from = Endpoint.rlpEncDec.decode(rlpList.items(1)),
-          to = Endpoint.rlpEncDec.decode(rlpList.items(2)), // TODO: implicit?
-          timestamp = rlpList.items(3))
-      case _ => throw new RuntimeException("Cannot decode Ping")
-    }
+    override def encode(obj: Ping): RLPEncodeable = RLPList()
+    override def decode(rlp: RLPEncodeable): Ping = Ping()
   }
 
-  val code = 0x01
+  val code = 0x02
 }
 
-case class Ping(
-    version: Int,
-    from: Endpoint,
-    to: Endpoint,
-    timestamp: Long)
-  extends Message {
-
+case class Ping() extends Message {
   override val code = Ping.code
 }
 
 object Pong {
 
   implicit val rlpEndDec = new RLPEncoder[Pong] with RLPDecoder[Pong] {
-    override def encode(obj: Pong): RLPEncodeable = {
-      RLPList(obj.to, obj.echo, obj.timestamp)
-    }
-
-    override def decode(rlp: RLPEncodeable): Pong = rlp match {
-      case rlpList: RLPList =>
-        Pong(
-          to = Endpoint.rlpEncDec.decode(rlpList.items(0)),
-          echo = rlpList.items(1),
-          timestamp = rlpList.items(2))
-      case _ => throw new RuntimeException("Cannot decode Pong")
-    }
+    override def encode(obj: Pong): RLPEncodeable = RLPList()
+    override def decode(rlp: RLPEncodeable): Pong = Pong()
   }
 
-  val code = 0x02
+  val code = 0x03
 }
 
-case class Pong(
-    to: Endpoint,
-    echo: Array[Byte],
-    timestamp: Long)
-  extends Message {
-
+case class Pong() extends Message {
   override val code = Pong.code
 }
 
+object Disconnect {
+  implicit val rlpEndDec = new RLPEncoder[Disconnect] with RLPDecoder[Disconnect] {
+    override def encode(obj: Disconnect): RLPEncodeable = {
+      RLPList(obj.reason)
+    }
 
+    override def decode(rlp: RLPEncodeable): Disconnect = rlp match {
+      case rlpList: RLPList =>
+        Disconnect(reason = rlpList.items.head)
+      case _ => throw new RuntimeException("Cannot decode Disconnect")
+    }
+  }
+
+  val code = 0x01
+}
+
+case class Disconnect(reason: Long) extends Message {
+  override val code = Disconnect.code
+}

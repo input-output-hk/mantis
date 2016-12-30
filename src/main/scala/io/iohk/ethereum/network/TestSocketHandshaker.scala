@@ -3,40 +3,21 @@ package io.iohk.ethereum.network
 import java.io.InputStream
 import java.net.{URI, Socket}
 
+import scala.annotation.tailrec
+import scala.util.{Failure, Success}
+
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.utils.RLP
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-import org.spongycastle.util.encoders.Hex
 import scorex.core.network.AuthHandshakeSuccess
-
-import scala.annotation.tailrec
 
 object TestSocketHandshaker {
 
   val nodeKey = generateKeyPair()
-  val nodeId = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
+  val nodeId = nodeIdFromPublicKey(nodeKey.getPublic)
 
   def main(args: Array[String]): Unit = {
-    val msg = Hello(
-      3,
-      "computronium1",
-      Seq(
-        Capability("eth", 60.toByte),
-      Capability("shh", 2.toByte)
-    ),
-    3333,
-      ByteString(Hex.decode("04E5B3A94853763C573CF772BA19B95C0216B8958A6BE424534B46F93798BA043DBE2B085A33CFBA4B1607C17AE18AB4679F2E885829CEE6A4D6868F80A06420DF")))
-
-    val encoded = RLP.encode(msg).get
-
-    println("enc=" + Hex.toHexString(encoded))
-
-      sys.exit(0)
-
-
-
     val remoteUri = new URI(args(0))
 
     val (initiatePacket, authHandshaker) = AuthHandshaker(nodeKey).initiate(remoteUri)
@@ -61,7 +42,7 @@ object TestSocketHandshaker {
     val helloMsg = Hello(
       p2pVersion = 4,
       clientId = "etc-client",
-      capabilities = Seq(Capability("eth", 63.toByte), Capability("eth", 62.toByte)),
+      capabilities = Seq(Capability("eth", 62.toByte)),
       listenPort = 3333,
       nodeId = ByteString(nodeId))
 
@@ -71,25 +52,23 @@ object TestSocketHandshaker {
     println("Sending Hello message")
     out.write(helloFrameData.toArray)
 
-    println("Waiting for Hello response")
+    println("Waiting for Hello")
 
     val remoteHello = readAtLeastOneMessage(frameCodec, inp).head.asInstanceOf[Hello]
     println(s"Received Hello: $remoteHello")
 
-    /*
-    val pingMsg = Ping(0x03, Endpoint(ByteString(""), 0, 0), Endpoint(ByteString(""), 0, 0), System.currentTimeMillis)
+    val pingMsg = Ping()
     val pingEncoded = RLP.encode(pingMsg).get
     val pingFrameData = frameCodec.writeFrame(pingMsg.code, None, None, ByteString(pingEncoded))
 
     println("Sending Ping message")
     out.write(pingFrameData.toArray)
 
-    println("Waiting for Pong response")
 
-    val remotePong = readAtLeastOneMessage(frameCodec, inp).head.asInstanceOf[Pong]
-
-    println(s"Received Pong: $remotePong")
-    */
+    while (true) {
+      val msgs = readAtLeastOneMessage(frameCodec, inp)
+      msgs.foreach { m => println("Received message: " + m) }
+    }
   }
 
   @tailrec
@@ -98,12 +77,16 @@ object TestSocketHandshaker {
     val n = inp.read(buff)
     if (n > 0) {
       val frames = frameCodec.readFrames(ByteString(buff))
-      if (frames.nonEmpty) {
-        frames map { frame =>
-          println("Received a frame, decoding message")
-          Message.decode(frame.`type`, frame.payload).get
-        }
-      } else readAtLeastOneMessage(frameCodec, inp)
+      val decodedFrames = frames.map(f => Message.decode(f.`type`, f.payload))
+      val messages = decodedFrames.collect { case Success(msg) => msg }
+
+      decodedFrames
+        .collect { case Failure(ex) => ex }
+        .foreach { ex => println(s"Unable to decode frame: $ex") }
+
+      if (messages.nonEmpty) messages
+      else readAtLeastOneMessage(frameCodec, inp)
+
     } else readAtLeastOneMessage(frameCodec, inp)
   }
 

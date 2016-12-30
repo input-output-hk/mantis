@@ -16,7 +16,6 @@ object AuthResponseMessage {
       nonce = ByteString(input.drop(64).take(32)),
       knownPeer = input(96) == 1)
   }
-
 }
 
 case class AuthResponseMessage(ephemeralPublicKey: ECPoint, nonce: ByteString, knownPeer: Boolean) {
@@ -27,5 +26,4 @@ case class AuthResponseMessage(ephemeralPublicKey: ECPoint, nonce: ByteString, k
       nonce ++
       Array(if (knownPeer) 1.toByte else 0.toByte))
   }
-
 }

@@ -75,5 +75,4 @@ case class ECDSASignature(r: BigInteger, s: BigInteger, v: Byte) {
       asUnsignedByteArray(s).reverse.padTo(32, 0.toByte).reverse ++
       Array(ECDSASignature.recIdFromSignatureV(v)))
   }
-
 }

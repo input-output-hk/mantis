@@ -1,6 +1,8 @@
 package io.iohk.ethereum.network
 
+import java.math.BigInteger
 import java.net.URI
+import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
@@ -11,9 +13,7 @@ import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParame
 import org.spongycastle.crypto.signers.{HMacDSAKCalculator, ECDSASigner}
 import org.spongycastle.math.ec.ECPoint
 import scorex.core.network
-import scorex.core.network.{AuthHandshakeError, AuthHandshakeResult, AuthHandshakeSuccess}
-
-import scala.util.Random
+import scorex.core.network._
 
 class Secrets(
     val aes: Array[Byte],
@@ -65,7 +65,7 @@ case class AuthHandshaker(
 
   private def createAuthInitiateMessage(remotePubKey: ECPoint) = {
     val nonce = new Array[Byte](32)
-    Random.nextBytes(nonce)
+    new SecureRandom().nextBytes(nonce)
 
     // TODO: handle the case when the peer is known
     val sessionTokenOpt: Option[Array[Byte]] = None
@@ -180,6 +180,12 @@ case class AuthHandshaker(
     successOpt getOrElse AuthHandshakeError
   }
 
-
-
+  private def bigIntegerToBytes(b: BigInteger, numBytes: Int): Array[Byte] = {
+    val bytes = new Array[Byte](numBytes)
+    val biBytes = b.toByteArray
+    val start = if (biBytes.length == numBytes + 1) 1 else 0
+    val length = Math.min(biBytes.length, numBytes)
+    System.arraycopy(biBytes, start, bytes, numBytes - length, length)
+    bytes
+  }
 }
