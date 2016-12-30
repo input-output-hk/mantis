@@ -344,7 +344,7 @@ class RLPSuite extends FunSuite
 
   test("Encode Empty List") {
     val expected = "c0"
-    val data = RLP.encode(Seq[Any]())(emptySeqEncDec)
+    val data = RLP.encode(Seq[Any]())
 
     assert(data.isSuccess)
     assert(expected == Hex.toHexString(data.get))
@@ -545,6 +545,16 @@ class RLPSuite extends FunSuite
     assert(decoded3.isSuccess)
   }
 
+  implicit def emptySeqEncDec = new RLPEncoder[Seq[Any]] with RLPDecoder[Seq[Any]] {
+    override def encode(obj: Seq[Any]): RLPEncodeable = new RLPList {
+      override def items: Seq[RLPEncodeable] = if (obj.isEmpty) Seq() else throw new Exception("src is not an Empty Seq")
+    }
+
+    override def decode(rlp: RLPEncodeable): Seq[Any] = rlp match {
+      case l: RLPList if l.items.isEmpty => Seq()
+      case _ => throw new Exception("src is not an empty Seq")
+    }
+  }
 
   implicit val stringSeqEncDec = new RLPEncoder[Seq[String]] with RLPDecoder[Seq[String]] {
     override def encode(strings: Seq[String]): RLPEncodeable = RLPList(strings)
