@@ -29,7 +29,7 @@ trait SecureChannelSetup {
   val AuthHandshakeSuccess(secrets: Secrets) = handshakerInitiated.handleResponseMessage(responsePacket)
 
   def randomNonce() = {
-    val arr = new Array[Byte](AuthHandshaker.nonceSize)
+    val arr = new Array[Byte](AuthHandshaker.NonceSize)
     new SecureRandom().nextBytes(arr)
     ByteString(arr)
   }

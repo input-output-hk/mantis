@@ -25,10 +25,12 @@ class Secrets(
 
 object AuthHandshaker {
 
-  val nonceSize = 32
+  val NonceSize = 32
+  val MacSize = 256
+  val SecretSize = 32
 
   def apply(nodeKey: AsymmetricCipherKeyPair): AuthHandshaker = {
-    val nonce = new Array[Byte](nonceSize)
+    val nonce = new Array[Byte](NonceSize)
     new SecureRandom().nextBytes(nonce)
     AuthHandshaker(nodeKey, ByteString(nonce))
   }
@@ -47,9 +49,6 @@ case class AuthHandshaker(
   extends scorex.core.network.AuthHandshaker {
 
   import AuthHandshaker._
-
-  val macSize = 256
-  val secretSize = 32
 
   override def initiate(uri: URI): (ByteString, network.AuthHandshaker) = {
     val remotePubKey = publicKeyFromNodeId(uri.getUserInfo)
@@ -94,7 +93,7 @@ case class AuthHandshaker(
       case None =>
         val agreement = new ECDHBasicAgreement
         agreement.init(nodeKey.getPrivate)
-        bigIntegerToBytes(agreement.calculateAgreement(new ECPublicKeyParameters(remotePubKey, curve)), nonceSize)
+        bigIntegerToBytes(agreement.calculateAgreement(new ECPublicKeyParameters(remotePubKey, curve)), NonceSize)
     }
 
     val ephemeralPubKey = ephemeralKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
@@ -140,7 +139,7 @@ case class AuthHandshaker(
           agreement.init(nodeKey.getPrivate)
           val sharedSecret = agreement.calculateAgreement(new ECPublicKeyParameters(initiateMessage.publicKey, curve))
 
-          val token = bigIntegerToBytes(sharedSecret, nonceSize)
+          val token = bigIntegerToBytes(sharedSecret, NonceSize)
           val signed = xor(token, initiateMessage.nonce.toArray)
 
           val signaturePubBytes =
@@ -159,21 +158,21 @@ case class AuthHandshaker(
         agreement.calculateAgreement(new ECPublicKeyParameters(remoteEphemeralKey, curve))
       }
 
-      val agreedSecret = bigIntegerToBytes(secretScalar, secretSize)
+      val agreedSecret = bigIntegerToBytes(secretScalar, SecretSize)
       val sharedSecret = sha3(agreedSecret, sha3(responseMessage.nonce.toArray, initiateMessage.nonce.toArray))
 
       val aesSecret = sha3(agreedSecret, sharedSecret)
 
       val macSecret = sha3(agreedSecret, aesSecret)
 
-      val mac1 = new KeccakDigest(macSize)
+      val mac1 = new KeccakDigest(MacSize)
       mac1.update(xor(macSecret, responseMessage.nonce.toArray), 0, macSecret.length)
       val buf = new Array[Byte](32)
       new KeccakDigest(mac1).doFinal(buf, 0)
       mac1.update(initiatePacket.toArray, 0, initiatePacket.toArray.length)
       new KeccakDigest(mac1).doFinal(buf, 0)
 
-      val mac2 = new KeccakDigest(macSize)
+      val mac2 = new KeccakDigest(MacSize)
       mac2.update(xor(macSecret, initiateMessage.nonce.toArray), 0, macSecret.length)
       new KeccakDigest(mac2).doFinal(buf, 0)
       mac2.update(responsePacket.toArray, 0, responsePacket.toArray.length)
