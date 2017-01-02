@@ -100,6 +100,47 @@ case class Pong() extends Message {
   override val code = Pong.code
 }
 
+object GetBlockHashes {
+  implicit val rlpEndDec = new RLPEncoder[GetBlockHashes] with RLPDecoder[GetBlockHashes] {
+
+    override def encode(obj: GetBlockHashes): RLPEncodeable = {
+      import obj._
+      RLPList(startingHash.toArray[Byte], maxBlocks)
+    }
+
+    override def decode(rlp: RLPEncodeable): GetBlockHashes = rlp match {
+      case rlpList: RLPList => GetBlockHashes(ByteString(rlpList.items.head: Array[Byte]), rlpList.items(1))
+      case _ => throw new RuntimeException("Cannot decode GetBlockHashes")
+    }
+  }
+
+  val code: Int = 0x10 + 0x03
+}
+
+case class GetBlockHashes(startingHash: ByteString, maxBlocks: Int) extends Message {
+  val code: Int = GetBlockHashes.code
+}
+
+object BlockHashes {
+  implicit val rlpEndDec = new RLPEncoder[BlockHashes] with RLPDecoder[BlockHashes] {
+    override def encode(obj: BlockHashes): RLPEncodeable = {
+      import obj._
+      RLPList(blockHashes.map(_.toArray[Byte]))
+    }
+
+    override def decode(rlp: RLPEncodeable): BlockHashes = rlp match {
+      case rlpList: RLPList => BlockHashes(rlpList.items.map(e => e:Array[Byte]).map(ByteString(_)))
+      case _ => throw new RuntimeException("Cannot decode BlockHashes")
+    }
+  }
+
+  val code: Int = 0x10 + 0x04
+}
+
+case class BlockHashes(blockHashes: Seq[ByteString]) extends Message {
+  val code: Int = BlockHashes.code
+}
+
 object Disconnect {
   implicit val rlpEndDec = new RLPEncoder[Disconnect] with RLPDecoder[Disconnect] {
     override def encode(obj: Disconnect): RLPEncodeable = {
@@ -117,5 +158,26 @@ object Disconnect {
 }
 
 case class Disconnect(reason: Long) extends Message {
-  override val code = Disconnect.code
+  override val code: Int = Disconnect.code
+
+  override def toString: String = {
+
+    val message = reason match {
+      case 0x00 => "Disconnect requested"
+      case 0x01 => "TCP sub-system error"
+      case 0x03 => "Useless peer"
+      case 0x04 => "Too many peers"
+      case 0x05 => "Already connected"
+      case 0x06 => "Incompatible P2P protocol version"
+      case 0x07 => "Null node identity received - this is automatically invalid"
+      case 0x08 => "Client quitting"
+      case 0x09 => "Unexpected identity"
+      case 0x0a => "Identity is the same as this node"
+      case 0x0b => "Timeout on receiving a message"
+      case 0x10 => "Some other reason specific to a subprotocol"
+      case _ => s"unknown code $code"
+    }
+
+    s"Disconnect($message)"
+  }
 }

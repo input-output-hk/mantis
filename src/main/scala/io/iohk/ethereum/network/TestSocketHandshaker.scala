@@ -42,7 +42,7 @@ object TestSocketHandshaker {
     val helloMsg = Hello(
       p2pVersion = 4,
       clientId = "etc-client",
-      capabilities = Seq(Capability("eth", 62.toByte)),
+      capabilities = Seq(Capability("eth", 63.toByte)),
       listenPort = 3333,
       nodeId = ByteString(nodeId))
 
@@ -54,6 +54,10 @@ object TestSocketHandshaker {
 
     val pingMsg = Ping()
     sendMessage(pingMsg, frameCodec, out)
+
+    //Array[Byte](32) => 0x0000000000000000000000000000000000000000000000000000000000000000 genesis block parent
+    val getHashesMsg = GetBlockHashes(ByteString(Array[Byte](32)), 10)
+    sendMessage(getHashesMsg, frameCodec, out)
 
     while (true) {
       val msgs = readAtLeastOneMessage(frameCodec, inp)
