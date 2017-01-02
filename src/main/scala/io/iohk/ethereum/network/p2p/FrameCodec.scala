@@ -96,7 +96,7 @@ class FrameCodec(private val secrets: Secrets) {
     }
   }
 
-  def writeFrame(`type`: Int, contextId: Option[Int], totalFrameSize: Option[Int], payload: ByteString): ByteString = {
+  def writeFrame(`type`: Int, payload: ByteString, contextId: Option[Int] = None, totalFrameSize: Option[Int] = None): ByteString = {
     var out: ByteString = ByteString("")
 
     val headBuffer = new Array[Byte](32)

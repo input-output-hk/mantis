@@ -121,6 +121,17 @@ object RLPImplicits {
     }
   }
 
+  implicit def seqEncDec[T]()(implicit enc: RLPEncoder[T], dec: RLPDecoder[T]) = new RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] {
+    override def encode(obj: Seq[T]): RLPEncodeable = new RLPList {
+      override def items: Seq[RLPEncodeable] = obj.map(enc.encode)
+    }
+
+    override def decode(rlp: RLPEncodeable): Seq[T] = rlp match {
+      case l: RLPList => l.items.map(dec.decode)
+      case _ => throw new Exception("src is not a Seq")
+    }
+  }
+
   implicit def toEncodeable[T](value: T)(implicit enc: RLPEncoder[T]): RLPEncodeable = enc.encode(value)
 
   implicit def toEncodeableList[T](values: Seq[T])(implicit enc: RLPEncoder[T]): RLPList = new RLPList {
