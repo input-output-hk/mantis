@@ -1,5 +1,6 @@
 package io.iohk.ethereum.utils
 
+import akka.util.ByteString
 import io.iohk.ethereum.utils.RLPImplicits._
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
@@ -311,6 +312,10 @@ class RLPSuite extends FunSuite
     val obtained: Array[Byte] = dataObtained.get
     assert(byteArray sameElements obtained)
 
+    val byteArray255Elements = Array.fill(255)(0x1 toByte)
+    val data2 = RLP.encode(byteArray255Elements)
+    assert(data2.isSuccess)
+
     forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte])) {
       (aByteList: List[Byte]) => {
         val data = RLP.encode(aByteList.toArray)
@@ -323,9 +328,23 @@ class RLPSuite extends FunSuite
     }
   }
 
+  test("Encode ByteString") {
+    forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte])) {
+      (aByteList: List[Byte]) => {
+        val byteString = ByteString(aByteList.toArray)
+        val data = RLP.encode(byteString)
+        assert(data.isSuccess)
+        val dataObtained = RLP.decode[ByteString](data.get)
+        assert(dataObtained.isSuccess)
+        val obtained: ByteString = dataObtained.get
+        assert(byteString equals obtained)
+      }
+    }
+  }
+
   test("Encode Empty List") {
     val expected = "c0"
-    val data = RLP.encode(Seq[Any]())(emptySeqEncDec)
+    val data = RLP.encode(Seq[Any]())
 
     assert(data.isSuccess)
     assert(expected == Hex.toHexString(data.get))
@@ -526,6 +545,16 @@ class RLPSuite extends FunSuite
     assert(decoded3.isSuccess)
   }
 
+  implicit def emptySeqEncDec = new RLPEncoder[Seq[Any]] with RLPDecoder[Seq[Any]] {
+    override def encode(obj: Seq[Any]): RLPEncodeable = new RLPList {
+      override def items: Seq[RLPEncodeable] = if (obj.isEmpty) Seq() else throw new Exception("src is not an Empty Seq")
+    }
+
+    override def decode(rlp: RLPEncodeable): Seq[Any] = rlp match {
+      case l: RLPList if l.items.isEmpty => Seq()
+      case _ => throw new Exception("src is not an empty Seq")
+    }
+  }
 
   implicit val stringSeqEncDec = new RLPEncoder[Seq[String]] with RLPDecoder[Seq[String]] {
     override def encode(strings: Seq[String]): RLPEncodeable = RLPList(strings)
