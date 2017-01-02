@@ -46,14 +46,14 @@ class RLPSpeedSuite extends FunSuite
     (1 until rounds).foreach(_ => {
       RLP.encode[T](toSerialize)
     })
-    RLP.encode[T](toSerialize).get
+    RLP.encode[T](toSerialize)
   }
 
   def doTestDeserialize[T](serialized: Array[Byte], rounds: Int)(implicit dec: RLPDecoder[T]): T = {
     (1 until rounds).foreach(_ => {
       RLP.decode[T](serialized)
     })
-    RLP.decode[T](serialized).get
+    RLP.decode[T](serialized)
   }
 
 
