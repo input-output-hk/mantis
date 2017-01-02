@@ -8,13 +8,13 @@ import io.iohk.ethereum.utils._
 
 object Message {
 
-  def decode(`type`: Int, payload: Array[Byte]): Try[Message] = {
+  def decode(`type`: Int, payload: Array[Byte]): Try[Message] = Try {
     `type` match {
       case Hello.code => RLP.decode(payload)(Hello.rlpEndDec)
       case Disconnect.code => RLP.decode(payload)(Disconnect.rlpEndDec)
       case Ping.code => RLP.decode(payload)(Ping.rlpEndDec)
       case Pong.code => RLP.decode(payload)(Pong.rlpEndDec)
-      case _ => Try(throw new RuntimeException(s"Unknown message type: ${`type`}"))
+      case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
     }
   }
 }
