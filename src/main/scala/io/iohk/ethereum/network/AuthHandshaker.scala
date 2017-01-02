@@ -97,7 +97,7 @@ case class AuthHandshaker(
         bigIntegerToBytes(agreement.calculateAgreement(new ECPublicKeyParameters(remotePubKey, curve)), nonceSize)
     }
 
-    val ephemeralPubKey = ECIESPublicKeyEncoder.getEncoded(ephemeralKey.getPublic)
+    val ephemeralPubKey = ephemeralKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
     val ephemeralPublicHash = sha3(ephemeralPubKey, 1, 64)
 
     val publicKey = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ

@@ -78,8 +78,8 @@ class ECIESCoderSpec extends FlatSpec with Matchers {
     val payload = Hex.decode("1122334455")
     val pubKeyPoint = curve.getG.multiply(privKey)
     val cipher = ECIESCoder.encrypt(pubKeyPoint, payload)
-    val decrypted_payload = ECIESCoder.decrypt(privKey, cipher)
+    val decryptedPayload = ECIESCoder.decrypt(privKey, cipher)
 
-    decrypted_payload shouldBe payload
+    decryptedPayload shouldBe payload
   }
 }
