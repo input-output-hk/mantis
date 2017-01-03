@@ -54,6 +54,7 @@ object RLPImplicits {
     }
   }
 
+  //Used for decoding and encoding positive (or 0) BigInts
   implicit val bigIntEncDec = new RLPEncoder[BigInt] with RLPDecoder[BigInt] {
 
     def asUnsignedByteArray(srcBigInteger: BigInt): Array[Byte] = {
@@ -72,6 +73,7 @@ object RLPImplicits {
     }
   }
 
+  //Used for decoding and encoding positive (or 0) longs
   implicit val longEncDec = new RLPEncoder[Long] with RLPDecoder[Long] {
     override def encode(obj: Long): RLPValue = bigIntEncDec.encode(BigInt(obj))
 
@@ -106,10 +108,6 @@ object RLPImplicits {
     override def decode(rlp: RLPEncodeable): ByteString = ByteString(byteArrayEncDec.decode(rlp))
   }
 
-  implicit val emptyEncDec = new RLPEncoder[Nothing] {
-    override def encode(obj: Nothing): RLPEncodeable = RLPValue(Array.emptyByteArray)
-  }
-
   implicit def seqEncDec[T]()(implicit enc: RLPEncoder[T], dec: RLPDecoder[T]) = new RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] {
     override def encode(obj: Seq[T]): RLPEncodeable = RLPList(obj.map(enc.encode): _*)
 
@@ -137,6 +135,4 @@ object RLPImplicits {
   implicit def stringFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[String]): String = dec.decode(rlp)
 
   implicit def byteArrayFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Array[Byte]]): Array[Byte] = dec.decode(rlp)
-
-  implicit def byteStringFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[ByteString]): ByteString = dec.decode(rlp)
 }
