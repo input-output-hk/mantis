@@ -17,7 +17,7 @@ trait RLPDecoder[T] {
 object RLPImplicits {
 
   implicit val byteEncDec = new RLPEncoder[Byte] with RLPDecoder[Byte] {
-    override def encode(obj: Byte): RLPValue = RLPValue(byteToByteString(obj))
+    override def encode(obj: Byte): RLPValue = RLPValue(byteToByteArray(obj))
 
     override def decode(rlp: RLPEncodeable): Byte = rlp match {
       case RLPValue(bytes) =>
@@ -63,7 +63,7 @@ object RLPImplicits {
     }
 
     override def encode(obj: BigInt): RLPValue = RLPValue(
-      if (obj.equals(BigInt(0))) byteToByteString(0: Byte) else ByteString(asUnsignedByteArray(obj))
+      if (obj.equals(BigInt(0))) byteToByteArray(0: Byte) else asUnsignedByteArray(obj)
     )
 
     override def decode(rlp: RLPEncodeable): BigInt = rlp match {
@@ -79,20 +79,20 @@ object RLPImplicits {
   }
 
   implicit val stringEncDec = new RLPEncoder[String] with RLPDecoder[String] {
-    override def encode(obj: String): RLPValue = RLPValue(ByteString(obj))
+    override def encode(obj: String): RLPValue = RLPValue(obj.getBytes)
 
     override def decode(rlp: RLPEncodeable): String = rlp match {
-      case RLPValue(bytes) => new String(bytes.toArray)
+      case RLPValue(bytes) => new String(bytes)
       case _ => throw new RuntimeException("src is not an RLPValue")
     }
   }
 
   implicit val byteArrayEncDec = new RLPEncoder[Array[Byte]] with RLPDecoder[Array[Byte]] {
 
-    override def encode(obj: Array[Byte]): RLPValue = RLPValue(ByteString(obj))
+    override def encode(obj: Array[Byte]): RLPValue = RLPValue(obj)
 
     override def decode(rlp: RLPEncodeable): Array[Byte] = rlp match {
-      case RLPValue(bytes) => bytes.toArray
+      case RLPValue(bytes) => bytes
       case _ => throw new RuntimeException("src is not an RLPValue")
     }
   }
@@ -104,7 +104,7 @@ object RLPImplicits {
   }
 
   implicit val emptyEncDec = new RLPEncoder[Nothing] {
-    override def encode(obj: Nothing): RLPEncodeable = RLPValue(ByteString.empty)
+    override def encode(obj: Nothing): RLPEncodeable = RLPValue(Array.emptyByteArray)
   }
 
   implicit def seqEncDec[T]()(implicit enc: RLPEncoder[T], dec: RLPDecoder[T]) = new RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] {

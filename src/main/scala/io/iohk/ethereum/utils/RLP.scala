@@ -2,8 +2,6 @@ package io.iohk.ethereum.utils
 
 import java.nio.ByteBuffer
 
-import akka.util.ByteString
-
 import scala.annotation.{switch, tailrec}
 import scala.collection.immutable.Queue
 
@@ -112,7 +110,7 @@ object RLP {
     * @return Next item position
     * @throws RuntimeException if there is any error
     */
-  def nextElementIndex(data: Array[Byte], pos: Int): Int = getItemBounds(ByteString(data), pos).end + 1
+  def nextElementIndex(data: Array[Byte], pos: Int): Int = getItemBounds(data, pos).end + 1
 
   /**
     * This functions decodes an RLP encoded Array[Byte] without converting it to any specific type. This method should
@@ -122,7 +120,7 @@ object RLP {
     * @return A RLPEncodeable
     * @throws RuntimeException if there is any error
     */
-  def rawDecode(data: Array[Byte]): RLPEncodeable = decodeWithPos(ByteString(data), 0)._1
+  def rawDecode(data: Array[Byte]): RLPEncodeable = decodeWithPos(data, 0)._1
 
   /**
     * This function encodes an RLPEncodeable instance
@@ -136,7 +134,7 @@ object RLP {
         val output = list.items.foldLeft(Array[Byte]()) { (acum, item) => acum ++ encode(item) }
         encodeLength(output.length, OffsetShortList) ++ output
       case value: RLPValue =>
-        val inputAsBytes = value.bytes.toArray
+        val inputAsBytes = value.bytes
         if (inputAsBytes.length == 1 && (inputAsBytes(0) & 0xff) < 0x80) inputAsBytes
         else encodeLength(inputAsBytes.length, OffsetShortItem) ++ inputAsBytes
     }
@@ -146,35 +144,35 @@ object RLP {
     * This function transform a byte into byte array
     *
     * @param singleByte to encode
-    * @return encoded byte string
+    * @return encoded bytes
     */
-  private[utils] def byteToByteString(singleByte: Byte): ByteString = {
-    if ((singleByte & 0xFF) == 0) ByteString.empty
-    else ByteString(singleByte)
+  private[utils] def byteToByteArray(singleByte: Byte): Array[Byte] = {
+    if ((singleByte & 0xFF) == 0) Array.emptyByteArray
+    else Array[Byte](singleByte)
   }
 
   /**
     * This function converts a short value to a big endian byte array of minimal length
     *
     * @param singleShort value to encode
-    * @return encoded byte string
+    * @return encoded bytes
     */
-  private[utils] def shortToBigEndianMinLength(singleShort: Short): ByteString = {
-    if ((singleShort & 0xFF) == singleShort) byteToByteString(singleShort.toByte)
-    else ByteString((singleShort >> 8 & 0xFF).toByte, (singleShort >> 0 & 0xFF).toByte)
+  private[utils] def shortToBigEndianMinLength(singleShort: Short): Array[Byte] = {
+    if ((singleShort & 0xFF) == singleShort) byteToByteArray(singleShort.toByte)
+    else Array[Byte]((singleShort >> 8 & 0xFF).toByte, (singleShort >> 0 & 0xFF).toByte)
   }
 
   /**
     * This function converts an int value to a big endian byte array of minimal length
     *
     * @param singleInt value to encode
-    * @return encoded byte string
+    * @return encoded bytes
     */
-  private[utils] def intToBigEndianMinLength(singleInt: Int): ByteString = {
-    if (singleInt == (singleInt & 0xFF)) byteToByteString(singleInt.toByte)
+  private[utils] def intToBigEndianMinLength(singleInt: Int): Array[Byte] = {
+    if (singleInt == (singleInt & 0xFF)) byteToByteArray(singleInt.toByte)
     else if (singleInt == (singleInt & 0xFFFF)) shortToBigEndianMinLength(singleInt.toShort)
-    else if (singleInt == (singleInt & 0xFFFFFF)) ByteString((singleInt >>> 16).toByte, (singleInt >>> 8).toByte, singleInt.toByte)
-    else ByteString((singleInt >>> 24).toByte, (singleInt >>> 16).toByte, (singleInt >>> 8).toByte, singleInt.toByte)
+    else if (singleInt == (singleInt & 0xFFFFFF)) Array[Byte]((singleInt >>> 16).toByte, (singleInt >>> 8).toByte, singleInt.toByte)
+    else Array[Byte]((singleInt >>> 24).toByte, (singleInt >>> 16).toByte, (singleInt >>> 8).toByte, singleInt.toByte)
   }
 
   /**
@@ -184,7 +182,7 @@ object RLP {
     * @return Int value
     * @throws RuntimeException If the value cannot be converted to a valid int
     */
-  private[utils] def bigEndianMinLengthToInt(bytes: ByteString): Int = {
+  private[utils] def bigEndianMinLengthToInt(bytes: Array[Byte]): Int = {
     (bytes.length: @switch) match {
       case 0 => 0: Short
       case 1 => bytes(0) & 0xFF
@@ -219,12 +217,12 @@ object RLP {
   /**
     * This function calculates, based on RLP definition, the bounds of a single value.
     *
-    * @param data A byteString containing the RLP item to be searched
+    * @param data An Array[Byte] containing the RLP item to be searched
     * @param pos  Initial position to start searching
     * @return Item Bounds description
     * @see [[io.iohk.ethereum.utils.ItemBounds]]
     */
-  private def getItemBounds(data: ByteString, pos: Int): ItemBounds =
+  private def getItemBounds(data: Array[Byte], pos: Int): ItemBounds =
   if (data.length < 1) throw new RuntimeException("Empty Data")
   else {
     val prefix: Int = data(pos) & 0xFF
@@ -253,12 +251,12 @@ object RLP {
     }
   }
 
-  private def decodeWithPos(data: ByteString, pos: Int): (RLPEncodeable, Int) =
-    if (data.length < 1) RLPValue(ByteString.empty) -> pos
+  private def decodeWithPos(data: Array[Byte], pos: Int): (RLPEncodeable, Int) =
+    if (data.length < 1) RLPValue(Array.emptyByteArray) -> pos
     else {
       getItemBounds(data, pos) match {
         case ItemBounds(start, end, false, isEmpty) =>
-          RLPValue(if (isEmpty) ByteString.empty else data.slice(start, end + 1)) -> (end + 1)
+          RLPValue(if (isEmpty) Array.emptyByteArray else data.slice(start, end + 1)) -> (end + 1)
         case ItemBounds(start, end, true, _) =>
           RLPList(decodeListRecursive(data, start, end - start + 1, Queue()): _*) -> (end + 1)
       }
@@ -266,7 +264,7 @@ object RLP {
 
 
   @tailrec
-  private def decodeListRecursive(data: ByteString, pos: Int, length: Int,
+  private def decodeListRecursive(data: Array[Byte], pos: Int, length: Int,
                                   acum: Queue[RLPEncodeable]): (Queue[RLPEncodeable]) = {
     if (length == 0) acum
     else {
@@ -282,4 +280,4 @@ sealed trait RLPEncodeable
 
 case class RLPList(items: RLPEncodeable*) extends RLPEncodeable
 
-case class RLPValue(bytes: ByteString) extends RLPEncodeable
+case class RLPValue(bytes: Array[Byte]) extends RLPEncodeable
