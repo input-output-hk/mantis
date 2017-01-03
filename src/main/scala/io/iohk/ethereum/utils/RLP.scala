@@ -284,22 +284,6 @@ case class ItemBounds(start: Int, end: Int, isList: Boolean, isEmpty: Boolean = 
 
 sealed trait RLPEncodeable
 
-case class RLPList(items: RLPEncodeable*) extends RLPEncodeable {
-
-  /*def sameElements(other: RLPList)(): Boolean = items == other.items
-
-  override def equals(other: Any): Boolean = other match {
-    case other: RLPList => hashCode() == other.hashCode()
-    case _ => false
-  }
-
-  override def hashCode(): Int = items.hashCode()*/
-}
-
-/*object RLPList {
-  def apply(enc: RLPEncodeable*): RLPList = new RLPList(enc.toList)
-
-  def apply[E](seq: Seq[E])(implicit convert: E => RLPEncodeable): RLPList = new RLPList(seq.map(convert).toList)
-}*/
+case class RLPList(items: RLPEncodeable*) extends RLPEncodeable
 
 case class RLPValue(bytes: ByteString) extends RLPEncodeable
