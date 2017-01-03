@@ -13,6 +13,48 @@ class RLPSuite extends FunSuite
   with PropertyChecks
   with GeneratorDrivenPropertyChecks {
 
+  test("nextElementIndex of empty data"){
+    val maybeIndex = Try{RLP.nextElementIndex(Array.emptyByteArray, 0)}
+    assert(maybeIndex.isFailure)
+  }
+
+  test("Decoding of empty data"){
+    val maybeDecoded = Try{RLP.decode[Array[Byte]](Array.emptyByteArray)}
+    assert(maybeDecoded.isSuccess)
+    assert(maybeDecoded.get sameElements Array.emptyByteArray)
+  }
+
+  test("Decoding failure: Passing RLPList when RLPValue is expected"){
+    val data = RLP.encode(RLPList("cat", "dog"))
+    val maybeByteObtained = Try{RLP.decode[Byte](data)}
+    val maybeShortObtained = Try{RLP.decode[Short](data)}
+    val maybeIntObtained = Try{RLP.decode[Int](data)}
+    val maybeLongObtained = Try{RLP.decode[Long](data)}
+    val maybeBigIntObtained = Try{RLP.decode[BigInt](data)}
+    val maybeStringObtained = Try{RLP.decode[String](data)}
+    val maybeByteArrayObtained = Try{RLP.decode[Array[Byte]](data)}
+    assert(maybeByteObtained.isFailure)
+    assert(maybeShortObtained.isFailure)
+    assert(maybeIntObtained.isFailure)
+    assert(maybeLongObtained.isFailure)
+    assert(maybeStringObtained.isFailure)
+    assert(maybeByteArrayObtained.isFailure)
+    assert(maybeBigIntObtained.isFailure)
+  }
+
+  test("Decoding failure: Passing an RLPValue larger than expected"){
+    val num: BigInt = 16 * BigInt(Long.MaxValue)
+    val data = RLP.encode(num)
+    val maybeByteObtained = Try{RLP.decode[Byte](data)}
+    val maybeShortObtained = Try{RLP.decode[Short](data)}
+    val maybeIntObtained = Try{RLP.decode[Int](data)}
+    val maybeLongObtained = Try{RLP.decode[Long](data)}
+    assert(maybeByteObtained.isFailure)
+    assert(maybeShortObtained.isFailure)
+    assert(maybeIntObtained.isFailure)
+    assert(maybeLongObtained.isFailure)
+  }
+
   test("Byte Encoding") {
     val expected = Array[Byte](0x80.toByte)
     val data = RLP.encode(0: Byte)
@@ -67,6 +109,20 @@ class RLPSuite extends FunSuite
     val dataObtained6 = RLP.decode[Short](data6)
     val obtained6: Short = dataObtained6
     assert(40202.toShort == obtained6)
+
+    val expected7 = Array[Byte](0x7f.toByte)
+    val data7 = RLP.encode(127.toShort)
+    assert(expected7 sameElements data7)
+    val dataObtained7 = RLP.decode[Short](data7)
+    val obtained7: Short = dataObtained7
+    assert(127.toShort == obtained7)
+
+    val expected8 = Array[Byte](0x80.toByte)
+    val data8 = RLP.encode(0.toShort)
+    assert(expected8 sameElements data8)
+    val dataObtained8 = RLP.decode[Short](data8)
+    val obtained8: Short = dataObtained8
+    assert(0.toShort == obtained8)
 
     forAll(Gen.choose[Short](Short.MinValue, Short.MaxValue)) {
       (aShort: Short) => {
@@ -215,6 +271,17 @@ class RLPSuite extends FunSuite
         val dataObtained = RLP.decode[Int](data)
         val obtained: Int = dataObtained
         assert(anInt == obtained)
+      }
+    }
+  }
+
+  test("Long Encoding") {
+    forAll(Gen.choose[Long](Long.MinValue, Long.MaxValue)) {
+      (aLong: Long) => {
+        val data = RLP.encode(aLong)
+        val dataObtained = RLP.decode[Long](data)
+        val obtained: Long = dataObtained
+        assert(aLong == obtained)
       }
     }
   }
