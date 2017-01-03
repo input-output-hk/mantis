@@ -62,11 +62,11 @@ object Hello {
 }
 
 case class Hello(
-    p2pVersion: Long,
-    clientId: String,
-    capabilities: Seq[Capability],
-    listenPort: Long,
-    nodeId: ByteString)
+                  p2pVersion: Long,
+                  clientId: String,
+                  capabilities: Seq[Capability],
+                  listenPort: Long,
+                  nodeId: ByteString)
   extends Message {
 
   override val code = Hello.code
@@ -76,6 +76,7 @@ object Ping {
 
   implicit val rlpEndDec = new RLPEncoder[Ping] with RLPDecoder[Ping] {
     override def encode(obj: Ping): RLPEncodeable = RLPList()
+
     override def decode(rlp: RLPEncodeable): Ping = Ping()
   }
 
@@ -90,6 +91,7 @@ object Pong {
 
   implicit val rlpEndDec = new RLPEncoder[Pong] with RLPDecoder[Pong] {
     override def encode(obj: Pong): RLPEncodeable = RLPList()
+
     override def decode(rlp: RLPEncodeable): Pong = Pong()
   }
 
@@ -100,46 +102,41 @@ case class Pong() extends Message {
   override val code = Pong.code
 }
 
-object GetBlockHashes {
-  implicit val rlpEndDec = new RLPEncoder[GetBlockHashes] with RLPDecoder[GetBlockHashes] {
-
-    override def encode(obj: GetBlockHashes): RLPEncodeable = {
+object BlockBodies {
+  implicit val rlpEndDec = new RLPEncoder[BlockBodies] with RLPDecoder[BlockBodies] {
+    override def encode(obj: BlockBodies): RLPEncodeable = {
       import obj._
-      RLPList(startingHash.toArray[Byte], maxBlocks)
+      RLPList(bodies.map(BlockBody.rlpEndDec.encode))
     }
 
-    override def decode(rlp: RLPEncodeable): GetBlockHashes = rlp match {
-      case rlpList: RLPList => GetBlockHashes(ByteString(rlpList.items.head: Array[Byte]), rlpList.items(1))
-      case _ => throw new RuntimeException("Cannot decode GetBlockHashes")
+    override def decode(rlp: RLPEncodeable): BlockBodies = rlp match {
+      case rlpList: RLPList => BlockBodies(rlpList.items.map(BlockBody.rlpEndDec.decode))
+      case _ => throw new RuntimeException("Cannot decode BlockBodies")
     }
   }
 
-  val code: Int = 0x10 + 0x03
+  val code: Int = 0x10 + 0x06
 }
 
-case class GetBlockHashes(startingHash: ByteString, maxBlocks: Int) extends Message {
-  val code: Int = GetBlockHashes.code
+case class BlockBodies(bodies: Seq[BlockBody]) extends Message {
+  val code: Int = BlockBodies.code
 }
 
-object BlockHashes {
-  implicit val rlpEndDec = new RLPEncoder[BlockHashes] with RLPDecoder[BlockHashes] {
-    override def encode(obj: BlockHashes): RLPEncodeable = {
+object BlockBody {
+  implicit val rlpEndDec = new RLPEncoder[BlockBody] with RLPDecoder[BlockBody] {
+    override def encode(obj: BlockBody): RLPEncodeable = {
       import obj._
-      RLPList(blockHashes.map(_.toArray[Byte]))
+      RLPList(transactionList, uncleNodesList)
     }
 
-    override def decode(rlp: RLPEncodeable): BlockHashes = rlp match {
-      case rlpList: RLPList => BlockHashes(rlpList.items.map(e => e:Array[Byte]).map(ByteString(_)))
-      case _ => throw new RuntimeException("Cannot decode BlockHashes")
+    override def decode(rlp: RLPEncodeable): BlockBody = rlp match {
+      case RLPList((transactions: RLPList) :: (uncles: RLPList) :: Nil) => BlockBody(transactions, uncles)
+      case _ => throw new RuntimeException("Cannot decode BlockBody")
     }
   }
-
-  val code: Int = 0x10 + 0x04
 }
 
-case class BlockHashes(blockHashes: Seq[ByteString]) extends Message {
-  val code: Int = BlockHashes.code
-}
+case class BlockBody(transactionList: RLPList, uncleNodesList: RLPList)
 
 object Disconnect {
   implicit val rlpEndDec = new RLPEncoder[Disconnect] with RLPDecoder[Disconnect] {

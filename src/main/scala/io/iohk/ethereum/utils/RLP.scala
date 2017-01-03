@@ -281,9 +281,7 @@ object RLP {
         }
         case Success(ItemBounds(start, end, true, _)) => {
           val (listDecoded) = decodeListRecursive(data, start, end - start + 1, Queue()).get
-          Success(new RLPList {
-            override def items = listDecoded
-          }, end + 1)
+          Success(new RLPList (listDecoded), end + 1)
         }
         case Failure(ex) => Failure(ex)
       }
@@ -308,8 +306,7 @@ case class ItemBounds(start: Int, end: Int, isList: Boolean, isEmpty: Boolean = 
 
 sealed trait RLPEncodeable
 
-trait RLPList extends RLPEncodeable {
-  def items: Seq[RLPEncodeable]
+case class RLPList(items: Seq[RLPEncodeable]) extends RLPEncodeable {
 
   def sameElements(other: RLPList)(): Boolean = items == other.items
 
@@ -322,13 +319,9 @@ trait RLPList extends RLPEncodeable {
 }
 
 object RLPList {
-  def apply(enc: RLPEncodeable*): RLPList = new RLPList {
-    override def items: Seq[RLPEncodeable] = enc.toSeq
-  }
+  def apply(enc: RLPEncodeable*): RLPList =  RLPList(enc.toSeq)
 
-  def apply[E](seq: Seq[E])(implicit convert: E => RLPEncodeable): RLPList = new RLPList {
-    override def items: Seq[RLPEncodeable] = seq.map(convert)
-  }
+  def apply[E](seq: Seq[E])(implicit convert: E => RLPEncodeable): RLPList = RLPList(seq.map(convert))
 }
 
 trait RLPValue extends RLPEncodeable {
