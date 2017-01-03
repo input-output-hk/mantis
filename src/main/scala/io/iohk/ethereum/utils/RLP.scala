@@ -258,20 +258,13 @@ object RLP {
   }
 
   private def decodeWithPos(data: ByteString, pos: Int): (RLPEncodeable, Int) =
-    if (data.length < 1) (new RLPValue {
-      override def bytes = ByteString.empty
-    }, pos)
+    if (data.length < 1) RLPValue(ByteString.empty) -> pos
     else {
       getItemBounds(data, pos) match {
         case ItemBounds(start, end, false, isEmpty) =>
-          (new RLPValue {
-            override def bytes = if (isEmpty) ByteString.empty else data.slice(start, end + 1)
-          }, end + 1)
+          RLPValue(if (isEmpty) ByteString.empty else data.slice(start, end + 1)) -> (end + 1)
         case ItemBounds(start, end, true, _) =>
-          val (listDecoded) = decodeListRecursive(data, start, end - start + 1, Queue())
-          (new RLPList {
-            override def items = listDecoded
-          }, end + 1)
+          RLPList(decodeListRecursive(data, start, end - start + 1, Queue()): _*) -> (end + 1)
       }
     }
 
@@ -291,36 +284,22 @@ case class ItemBounds(start: Int, end: Int, isList: Boolean, isEmpty: Boolean = 
 
 sealed trait RLPEncodeable
 
-trait RLPList extends RLPEncodeable {
-  def items: Seq[RLPEncodeable]
+case class RLPList(items: RLPEncodeable*) extends RLPEncodeable {
 
-  def sameElements(other: RLPList)(): Boolean = items == other.items
+  /*def sameElements(other: RLPList)(): Boolean = items == other.items
 
   override def equals(other: Any): Boolean = other match {
     case other: RLPList => hashCode() == other.hashCode()
     case _ => false
   }
 
-  override def hashCode(): Int = items.hashCode()
+  override def hashCode(): Int = items.hashCode()*/
 }
 
-object RLPList {
-  def apply(enc: RLPEncodeable*): RLPList = new RLPList {
-    override def items: Seq[RLPEncodeable] = enc.toSeq
-  }
+/*object RLPList {
+  def apply(enc: RLPEncodeable*): RLPList = new RLPList(enc.toList)
 
-  def apply[E](seq: Seq[E])(implicit convert: E => RLPEncodeable): RLPList = new RLPList {
-    override def items: Seq[RLPEncodeable] = seq.map(convert)
-  }
-}
+  def apply[E](seq: Seq[E])(implicit convert: E => RLPEncodeable): RLPList = new RLPList(seq.map(convert).toList)
+}*/
 
-trait RLPValue extends RLPEncodeable {
-  def bytes: ByteString
-
-  override def equals(other: Any): Boolean = other match {
-    case other: RLPValue => hashCode() == other.hashCode()
-    case _ => false
-  }
-
-  override def hashCode(): Int = bytes.hashCode()
-}
+case class RLPValue(bytes: ByteString) extends RLPEncodeable

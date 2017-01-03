@@ -299,14 +299,14 @@ class RLPSuite extends FunSuite
 
   test("Encode Short  List") {
     val expected = "c88363617483646f67"
-    val data = RLP.encode(Seq("cat", "dog"))
+    val data = RLP.encode(RLPList("cat", "dog"))
     assert(expected == Hex.toHexString(data))
     val dataObtained = RLP.decode[Seq[String]](data)
     val obtained = dataObtained
     assert(Seq("cat", "dog") equals obtained)
 
     val expected2 = "cc83646f6783676f6483636174"
-    val data2 = RLP.encode(Seq("dog", "god", "cat"))
+    val data2 = RLP.encode(RLPList("dog", "god", "cat"))
     assert(expected2 == Hex.toHexString(data2))
     val dataObtained2 = RLP.decode[Seq[String]](data2)
     val obtained2 = dataObtained2
@@ -316,7 +316,7 @@ class RLPSuite extends FunSuite
   test("Encode Long  List") {
     val list = Seq("cat", "Lorem ipsum dolor sit amet, consectetur adipisicing elit")
     val expected = "f83e83636174b8384c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c6974"
-    val data = RLP.encode(list)
+    val data = RLP.encode(RLPList(list.map(i => toEncodeable(i)): _*))
     assert(expected == Hex.toHexString(data))
     val dataObtained = RLP.decode[Seq[String]](data)
     val obtained = dataObtained
@@ -424,23 +424,21 @@ class RLPSuite extends FunSuite
   }
 
   test("Multiple partial decode") {
-    val seq1 = Seq("cat", "dog")
-    val seq2 = Seq(23, 10, 1986)
-    val seq3 = Seq("cat", "Lorem ipsum dolor sit amet, consectetur adipisicing elit")
-    val data = Seq(RLP.encode[Seq[String]](seq1),
-      RLP.encode[Seq[Int]](seq2),
-      RLP.encode[Seq[String]](seq3)).reduce(_ ++ _)
+    val seq1 = RLPList("cat", "dog")
+    val seq2 = RLPList(23, 10, 1986)
+    val seq3 = RLPList("cat", "Lorem ipsum dolor sit amet, consectetur adipisicing elit")
+    val data = Seq(RLP.encode(seq1), RLP.encode(seq2), RLP.encode(seq3)).reduce(_ ++ _)
 
     val decoded1 = RLP.decode[Seq[String]](data)
-    assert(decoded1 equals seq1)
+    assert(decoded1 equals "cat" :: "dog" :: Nil)
 
     val secondItemIndex = RLP.nextElementIndex(data, 0)
     val decoded2 = RLP.decode[Seq[Int]](data.drop(secondItemIndex))
-    assert(decoded2 equals seq2)
+    assert(decoded2 equals 23 :: 10 :: 1986 :: Nil)
 
     val thirdItemIndex = RLP.nextElementIndex(data, secondItemIndex)
     val decoded3 = RLP.decode[Seq[String]](data.drop(thirdItemIndex))
-    assert(decoded3 equals seq3)
+    assert(decoded3 equals Seq("cat", "Lorem ipsum dolor sit amet, consectetur adipisicing elit"))
   }
 
   test("Multiple objects partial decode") {
@@ -462,9 +460,7 @@ class RLPSuite extends FunSuite
   }
 
   implicit def emptySeqEncDec = new RLPEncoder[Seq[Any]] with RLPDecoder[Seq[Any]] {
-    override def encode(obj: Seq[Any]): RLPEncodeable = new RLPList {
-      override def items: Seq[RLPEncodeable] = if (obj.isEmpty) Seq() else throw new Exception("src is not an Empty Seq")
-    }
+    override def encode(obj: Seq[Any]): RLPEncodeable = RLPList(Seq(): _*)
 
     override def decode(rlp: RLPEncodeable): Seq[Any] = rlp match {
       case l: RLPList if l.items.isEmpty => Seq()
@@ -473,7 +469,7 @@ class RLPSuite extends FunSuite
   }
 
   implicit val stringSeqEncDec = new RLPEncoder[Seq[String]] with RLPDecoder[Seq[String]] {
-    override def encode(strings: Seq[String]): RLPEncodeable = RLPList(strings)
+    override def encode(strings: Seq[String]): RLPEncodeable = RLPList(strings.map(stringEncDec.encode): _*)
 
     override def decode(rlp: RLPEncodeable): Seq[String] = rlp match {
       case l: RLPList => l.items.map(item => item: String)
@@ -532,7 +528,7 @@ class RLPSuite extends FunSuite
     val instance = Seq(RLPList(RLPList(), RLPList()), RLPList())
 
     implicit val encDec = new RLPEncoder[EmptyListOfList] with RLPDecoder[EmptyListOfList] {
-      override def encode(obj: EmptyListOfList): RLPEncodeable = RLPList(instance)
+      override def encode(obj: EmptyListOfList): RLPEncodeable = RLPList(instance: _*)
 
       override def decode(rlp: RLPEncodeable): EmptyListOfList = rlp match {
         case l: RLPList =>
@@ -551,7 +547,7 @@ class RLPSuite extends FunSuite
     val instance = Seq(RLPList(), RLPList(RLPList()), RLPList(RLPList(), RLPList(RLPList())))
 
     implicit val encDec = new RLPEncoder[RepOfTwoListOfList] with RLPDecoder[RepOfTwoListOfList] {
-      override def encode(obj: RepOfTwoListOfList): RLPEncodeable = RLPList(instance)
+      override def encode(obj: RepOfTwoListOfList): RLPEncodeable = RLPList(instance: _*)
 
       override def decode(rlp: RLPEncodeable): RepOfTwoListOfList = rlp match {
         case l: RLPList =>
@@ -592,7 +588,7 @@ class RLPSuite extends FunSuite
       }
 
       override def decode(rlp: RLPEncodeable): SimpleTransaction = rlp match {
-        case l: RLPList => SimpleTransaction(l.items.head, l.items(1))
+        case RLPList(id, name) => SimpleTransaction(id, name)
         case _ => throw new RuntimeException("Invalid Simple Transaction")
       }
     }
@@ -606,20 +602,13 @@ class RLPSuite extends FunSuite
     implicit val encDec = new RLPEncoder[SimpleBlock] with RLPDecoder[SimpleBlock] {
       override def encode(obj: SimpleBlock): RLPEncodeable = {
         import obj._
-        RLPList(id, parentId, owner, nonce, RLPList(txs), unclesIds)
+        RLPList(id, parentId, owner, nonce, RLPList(txs.map(SimpleTransaction.encDec.encode): _*), RLPList(unclesIds.map(id => (id: RLPEncodeable)): _*))
       }
 
       override def decode(rlp: RLPEncodeable): SimpleBlock = rlp match {
-        case encBlock: RLPList if encBlock.items.size == 6 =>
-          val txs: Seq[SimpleTransaction] = encBlock.items(4) match {
-            case txs: RLPList => txs.items.map(tx => tx: SimpleTransaction)
-            case _ => throw new Exception("Can't transaform txs to Seq[SimpleTransaction]")
-          }
-          val unclesIds: Seq[Int] = encBlock.items(5) match {
-            case unclesIds: RLPList => unclesIds
-            case _ => throw new Exception("Can't transaform unclesIds to Seq[Int]")
-          }
-          SimpleBlock(encBlock.items.head, encBlock.items(1), encBlock.items(2), encBlock.items(3), txs, unclesIds)
+        case RLPList(id, parentId, owner, nonce, (txs: RLPList), (unclesIds: RLPList)) => {
+          SimpleBlock(id, parentId, owner, nonce, txs.items.map(SimpleTransaction.encDec.decode), unclesIds.items.map(intEncDec.decode))
+        }
         case _ => throw new Exception("Can't transform RLPEncodeable to block")
       }
     }
