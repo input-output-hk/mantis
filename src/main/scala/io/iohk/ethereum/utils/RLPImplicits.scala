@@ -75,7 +75,10 @@ object RLPImplicits {
   implicit val longEncDec = new RLPEncoder[Long] with RLPDecoder[Long] {
     override def encode(obj: Long): RLPValue = bigIntEncDec.encode(BigInt(obj))
 
-    override def decode(rlp: RLPEncodeable): Long = bigIntEncDec.decode(rlp).toLong
+    override def decode(rlp: RLPEncodeable): Long = rlp match {
+      case RLPValue(bytes) if bytes.length <= 8 => bigIntEncDec.decode(rlp).toLong
+      case _ =>  throw new RuntimeException("src is not an RLPValue")
+    }
   }
 
   implicit val stringEncDec = new RLPEncoder[String] with RLPDecoder[String] {
