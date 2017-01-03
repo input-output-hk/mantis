@@ -149,10 +149,8 @@ object RLP {
     * @return encoded byte string
     */
   private[utils] def byteToByteString(singleByte: Byte): ByteString = {
-    singleByte match {
-      case value if (value & 0xFF) == 0 => ByteString.empty
-      case value => ByteString(singleByte)
-    }
+    if ((singleByte & 0xFF) == 0) ByteString.empty
+    else ByteString(singleByte)
   }
 
   /**
@@ -173,12 +171,10 @@ object RLP {
     * @return encoded byte string
     */
   private[utils] def intToBigEndianMinLength(singleInt: Int): ByteString = {
-    singleInt match {
-      case value if value == (value & 0xFF) => byteToByteString(singleInt.toByte)
-      case value if value == (value & 0xFFFF) => shortToBigEndianMinLength(singleInt.toShort)
-      case value if value == (value & 0xFFFFFF) => ByteString((singleInt >>> 16).toByte, (singleInt >>> 8).toByte, singleInt.toByte)
-      case value => ByteString((singleInt >>> 24).toByte, (singleInt >>> 16).toByte, (singleInt >>> 8).toByte, singleInt.toByte)
-    }
+    if (singleInt == (singleInt & 0xFF)) byteToByteString(singleInt.toByte)
+    else if (singleInt == (singleInt & 0xFFFF)) shortToBigEndianMinLength(singleInt.toShort)
+    else if (singleInt == (singleInt & 0xFFFFFF)) ByteString((singleInt >>> 16).toByte, (singleInt >>> 8).toByte, singleInt.toByte)
+    else ByteString((singleInt >>> 24).toByte, (singleInt >>> 16).toByte, (singleInt >>> 8).toByte, singleInt.toByte)
   }
 
   /**
@@ -211,14 +207,13 @@ object RLP {
     * Integer limitation goes up to 2&#94;31-1 so length can never be bigger than MAX_ITEM_LENGTH
     **/
   private def encodeLength(length: Int, offset: Int): Array[Byte] = {
-    length match {
-      case l if l < SizeThreshold => Array((length + offset).toByte)
-      case l if l < MaxItemLength && length > 0xFF =>
-        val binaryLength: Array[Byte] = intToBytesNoLeadZeroes(length)
-        (binaryLength.length + offset + SizeThreshold - 1).toByte +: binaryLength
-      case l if l < MaxItemLength && length <= 0xFF => Array((1 + offset + SizeThreshold - 1).toByte, length.toByte)
-      case _ => throw new RuntimeException("Input too long")
+    if (length < SizeThreshold) Array((length + offset).toByte)
+    else if (length < MaxItemLength && length > 0xFF) {
+      val binaryLength: Array[Byte] = intToBytesNoLeadZeroes(length)
+      (binaryLength.length + offset + SizeThreshold - 1).toByte +: binaryLength
     }
+    else if (length < MaxItemLength && length <= 0xFF) Array((1 + offset + SizeThreshold - 1).toByte, length.toByte)
+    else throw new RuntimeException("Input too long")
   }
 
   /**
@@ -233,27 +228,28 @@ object RLP {
   if (data.length < 1) throw new RuntimeException("Empty Data")
   else {
     val prefix: Int = data(pos) & 0xFF
-    prefix match {
-      case p if p == OffsetShortItem => ItemBounds(start = pos, end = pos, isList = false, isEmpty = true)
-      case p if p < OffsetShortItem => ItemBounds(start = pos, end = pos, isList = false)
-      case p if p <= OffsetLongItem =>
-        val length = p - OffsetShortItem
-        ItemBounds(start = pos + 1, end = pos + length, isList = false)
-      case p if p < OffsetShortList =>
-        val lengthOfLength = p - OffsetLongItem
-        val lengthBytes = data.slice(pos + 1, pos + 1 + lengthOfLength)
-        val length = bigEndianMinLengthToInt(lengthBytes)
-        val beginPos = pos + 1 + lengthOfLength
-        ItemBounds(start = beginPos, end = beginPos + length - 1, isList = false)
-      case p if p <= OffsetLongList =>
-        val length = p - OffsetShortList
-        ItemBounds(start = pos + 1, end = pos + length, isList = true)
-      case p =>
-        val lengthOfLength = p - OffsetLongList
-        val lengthBytes = data.slice(pos + 1, pos + 1 + lengthOfLength)
-        val length = bigEndianMinLengthToInt(lengthBytes)
-        val beginPos = pos + 1 + lengthOfLength
-        ItemBounds(start = beginPos, end = beginPos + length - 1, isList = true)
+    if (prefix == OffsetShortItem) {
+      ItemBounds(start = pos, end = pos, isList = false, isEmpty = true)
+    } else if (prefix < OffsetShortItem) {
+      ItemBounds(start = pos, end = pos, isList = false)
+    } else if (prefix <= OffsetLongItem) {
+      val length = prefix - OffsetShortItem
+      ItemBounds(start = pos + 1, end = pos + length, isList = false)
+    } else if (prefix < OffsetShortList) {
+      val lengthOfLength = prefix - OffsetLongItem
+      val lengthBytes = data.slice(pos + 1, pos + 1 + lengthOfLength)
+      val length = bigEndianMinLengthToInt(lengthBytes)
+      val beginPos = pos + 1 + lengthOfLength
+      ItemBounds(start = beginPos, end = beginPos + length - 1, isList = false)
+    } else if (prefix <= OffsetLongList) {
+      val length = prefix - OffsetShortList
+      ItemBounds(start = pos + 1, end = pos + length, isList = true)
+    } else {
+      val lengthOfLength = prefix - OffsetLongList
+      val lengthBytes = data.slice(pos + 1, pos + 1 + lengthOfLength)
+      val length = bigEndianMinLengthToInt(lengthBytes)
+      val beginPos = pos + 1 + lengthOfLength
+      ItemBounds(start = beginPos, end = beginPos + length - 1, isList = true)
     }
   }
 
