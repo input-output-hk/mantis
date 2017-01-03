@@ -14,6 +14,8 @@ object Message {
       case Disconnect.code => RLP.decode(payload)(Disconnect.rlpEndDec)
       case Ping.code => RLP.decode(payload)(Ping.rlpEndDec)
       case Pong.code => RLP.decode(payload)(Pong.rlpEndDec)
+      case BlockBodies.code => RLP.decode(payload)(BlockBodies.rlpEndDec)
+      case Status.code => RLP.decode(payload)(Status.rlpEndDec)
       case _ => Try(throw new RuntimeException(s"Unknown message type: ${`type`}"))
     }
   }
@@ -47,7 +49,7 @@ object Hello {
     }
 
     override def decode(rlp: RLPEncodeable): Hello = rlp match {
-      case RLPList(p2pVersion :: clientId :: (capabilities:RLPList) :: listenPort:: nodeId :: Nil)=>
+      case RLPList(p2pVersion :: clientId :: (capabilities: RLPList) :: listenPort :: nodeId :: Nil) =>
         Hello(p2pVersion, clientId, capabilities.items.map(Capability.rlpEncDec.decode),
           listenPort, ByteString(nodeId: Array[Byte]))
       case _ => throw new RuntimeException("Cannot decode Hello")
@@ -134,6 +136,27 @@ object BlockBody {
 }
 
 case class BlockBody(transactionList: RLPList, uncleNodesList: RLPList)
+
+object Status {
+  implicit val rlpEndDec = new RLPEncoder[Status] with RLPDecoder[Status] {
+    override def encode(obj: Status): RLPEncodeable = {
+      import obj._
+      RLPList(protocolVersion, networkId, totalDifficulty, bestHash.toArray[Byte], genesisHash.toArray[Byte])
+    }
+
+    override def decode(rlp: RLPEncodeable): Status = rlp match {
+      case RLPList(protocolVersion :: networkId :: totalDifficulty :: bestHash :: genesisHash :: Nil) =>
+        Status(protocolVersion, networkId, totalDifficulty, ByteString(bestHash: Array[Byte]), ByteString(genesisHash: Array[Byte]))
+      case _ => throw new RuntimeException("Cannot decode BlockBodies")
+    }
+  }
+
+  val code: Int = 0x10 + 0x00
+}
+
+case class Status(protocolVersion: Int, networkId: Int, totalDifficulty: BigInt, bestHash: ByteString, genesisHash: ByteString) extends Message {
+  override def code: Int = Status.code
+}
 
 object Disconnect {
   implicit val rlpEndDec = new RLPEncoder[Disconnect] with RLPDecoder[Disconnect] {

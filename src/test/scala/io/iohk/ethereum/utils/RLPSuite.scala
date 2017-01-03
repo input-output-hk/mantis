@@ -546,9 +546,7 @@ class RLPSuite extends FunSuite
   }
 
   implicit def emptySeqEncDec = new RLPEncoder[Seq[Any]] with RLPDecoder[Seq[Any]] {
-    override def encode(obj: Seq[Any]): RLPEncodeable = new RLPList {
-      override def items: Seq[RLPEncodeable] = if (obj.isEmpty) Seq() else throw new Exception("src is not an Empty Seq")
-    }
+    override def encode(obj: Seq[Any]): RLPEncodeable = new RLPList(if (obj.isEmpty) List() else throw new Exception("src is not an Empty List"))
 
     override def decode(rlp: RLPEncodeable): Seq[Any] = rlp match {
       case l: RLPList if l.items.isEmpty => Seq()

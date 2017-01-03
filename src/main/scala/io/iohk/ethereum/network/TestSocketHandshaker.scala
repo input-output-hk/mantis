@@ -52,11 +52,9 @@ object TestSocketHandshaker {
     val remoteHello = readAtLeastOneMessage(frameCodec, inp).head.asInstanceOf[Hello]
     println(s"Received Hello: $remoteHello")
 
-    val pingMsg = Ping()
-    sendMessage(pingMsg, frameCodec, out)
-
     while (true) {
       val msgs = readAtLeastOneMessage(frameCodec, inp)
+      msgs.collect { case a: Status => a }.foreach { m: Status => sendMessage(m, frameCodec, out) } //send same status message
       msgs.foreach { m => println("Received message: " + m) }
     }
   }
