@@ -186,8 +186,8 @@ object Block {
   implicit val encDec = new RLPEncoder[Block] with RLPDecoder[Block] {
     override def encode(obj: Block): RLPEncodeable = {
       RLPList(obj.header,
-        RLPList(obj.transactions.map(Transaction.encDec.encode):_*),
-        RLPList(obj.uncles.map(BlockHeader.encDec.encode):_*)
+        obj.transactions: RLPList,
+        obj.uncles: RLPList
       )
     }
 
