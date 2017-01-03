@@ -30,7 +30,7 @@ object Capability {
     }
 
     override def decode(rlp: RLPEncodeable): Capability = rlp match {
-      case rlpList: RLPList => Capability(rlpList.items(0), rlpList.items(1))
+      case RLPList(name :: version :: Nil) => Capability(name, version)
       case _ => throw new RuntimeException("Cannot decode Capability")
     }
   }
@@ -47,12 +47,9 @@ object Hello {
     }
 
     override def decode(rlp: RLPEncodeable): Hello = rlp match {
-      case rlpList: RLPList =>
-        Hello(p2pVersion = rlpList.items(0),
-          clientId = rlpList.items(1),
-          capabilities = rlpList.items(2).asInstanceOf[RLPList].items.map(Capability.rlpEncDec.decode),
-          listenPort = rlpList.items(3),
-          nodeId = ByteString(rlpList.items(4): Array[Byte]))
+      case RLPList(p2pVersion :: clientId :: (capabilities:RLPList) :: listenPort:: nodeId :: Nil)=>
+        Hello(p2pVersion, clientId, capabilities.items.map(Capability.rlpEncDec.decode),
+          listenPort, ByteString(nodeId: Array[Byte]))
       case _ => throw new RuntimeException("Cannot decode Hello")
     }
   }
@@ -69,7 +66,7 @@ case class Hello(
                   nodeId: ByteString)
   extends Message {
 
-  override val code = Hello.code
+  override val code: Int = Hello.code
 }
 
 object Ping {
@@ -84,7 +81,7 @@ object Ping {
 }
 
 case class Ping() extends Message {
-  override val code = Ping.code
+  override val code: Int = Ping.code
 }
 
 object Pong {
@@ -99,7 +96,7 @@ object Pong {
 }
 
 case class Pong() extends Message {
-  override val code = Pong.code
+  override val code: Int = Pong.code
 }
 
 object BlockBodies {
@@ -126,7 +123,7 @@ object BlockBody {
   implicit val rlpEndDec = new RLPEncoder[BlockBody] with RLPDecoder[BlockBody] {
     override def encode(obj: BlockBody): RLPEncodeable = {
       import obj._
-      RLPList(transactionList, uncleNodesList)
+      RLPList(transactionList :: uncleNodesList :: Nil)
     }
 
     override def decode(rlp: RLPEncodeable): BlockBody = rlp match {

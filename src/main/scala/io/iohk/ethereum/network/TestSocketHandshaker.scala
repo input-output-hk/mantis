@@ -55,10 +55,6 @@ object TestSocketHandshaker {
     val pingMsg = Ping()
     sendMessage(pingMsg, frameCodec, out)
 
-    //Array[Byte](32) => 0x0000000000000000000000000000000000000000000000000000000000000000 genesis block parent
-    val getHashesMsg = GetBlockHashes(ByteString(Array[Byte](32)), 10)
-    sendMessage(getHashesMsg, frameCodec, out)
-
     while (true) {
       val msgs = readAtLeastOneMessage(frameCodec, inp)
       msgs.foreach { m => println("Received message: " + m) }

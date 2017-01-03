@@ -122,9 +122,7 @@ object RLPImplicits {
   }
 
   implicit def seqEncDec[T]()(implicit enc: RLPEncoder[T], dec: RLPDecoder[T]) = new RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] {
-    override def encode(obj: Seq[T]): RLPEncodeable = new RLPList {
-      override def items: Seq[RLPEncodeable] = obj.map(enc.encode)
-    }
+    override def encode(obj: Seq[T]): RLPEncodeable = new RLPList(obj.map(enc.encode).toList)
 
     override def decode(rlp: RLPEncodeable): Seq[T] = rlp match {
       case l: RLPList => l.items.map(dec.decode)
@@ -134,9 +132,8 @@ object RLPImplicits {
 
   implicit def toEncodeable[T](value: T)(implicit enc: RLPEncoder[T]): RLPEncodeable = enc.encode(value)
 
-  implicit def toEncodeableList[T](values: Seq[T])(implicit enc: RLPEncoder[T]): RLPList = new RLPList {
-    override def items: Seq[RLPEncodeable] = values.map(v => toEncodeable[T](v))
-  }
+  implicit def toEncodeableList[T](values: Seq[T])(implicit enc: RLPEncoder[T]): RLPList =
+    new RLPList(values.map(v => toEncodeable[T](v)).toList)
 
   implicit def byteFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Byte]): Byte = dec.decode(rlp)
   implicit def shortFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Short]): Short = dec.decode(rlp)
