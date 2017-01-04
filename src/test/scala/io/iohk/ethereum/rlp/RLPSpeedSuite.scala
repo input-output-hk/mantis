@@ -1,10 +1,11 @@
-package io.iohk.ethereum.utils
+package io.iohk.ethereum.rlp
 
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.utils.RLPImplicits._
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import io.iohk.ethereum.rlp.RLPEncoding._
+import io.iohk.ethereum.rlp.RLPEncoding.Implicits._
 
 /**
   * Tests based on
@@ -22,8 +23,8 @@ class RLPSpeedSuite extends FunSuite
     val startBlockSerialization: Long = System.currentTimeMillis
     val block = blockGen.sample.get
     val serializedBlock = doTestSerialize[Block](block, rounds)(Block.encDec)
-    val elapsedsBlockSerialization = (System.currentTimeMillis() - startBlockSerialization) / 1000f
-    System.out.println(s"Block serializations / sec: (${rounds.toFloat / elapsedsBlockSerialization})")
+    val elapsedBlockSerialization = (System.currentTimeMillis() - startBlockSerialization) / 1000f
+    System.out.println(s"Block serializations / sec: (${rounds.toFloat / elapsedBlockSerialization})")
 
     val blockDeserializationStart: Long = System.currentTimeMillis
     val deserializedBlock: Block = doTestDeserialize(serializedBlock, rounds)(Block.encDec)
@@ -44,16 +45,16 @@ class RLPSpeedSuite extends FunSuite
 
   def doTestSerialize[T](toSerialize: T, rounds: Int)(implicit enc: RLPEncoder[T]): Array[Byte] = {
     (1 until rounds).foreach(_ => {
-      RLP.encode[T](toSerialize)
+      RLPEncoding.encode[T](toSerialize)
     })
-    RLP.encode[T](toSerialize)
+    RLPEncoding.encode[T](toSerialize)
   }
 
   def doTestDeserialize[T](serialized: Array[Byte], rounds: Int)(implicit dec: RLPDecoder[T]): T = {
     (1 until rounds).foreach(_ => {
-      RLP.decode[T](serialized)
+      RLPEncoding.decode[T](serialized)
     })
-    RLP.decode[T](serialized)
+    RLPEncoding.decode[T](serialized)
   }
 
 
@@ -154,7 +155,7 @@ object BlockHeader {
 
     override def decode(rlp: RLPEncodeable): BlockHeader = rlp match {
       case RLPList(prevhash, unclesHash, coinbase, stateRoot, txListRoot, receiptsRoot, bloom, difficulty, number, gasLimit,
-      gasUsed, timestamp, extraData, mixhash, nonce) => {
+      gasUsed, timestamp, extraData, mixhash, nonce) =>
         BlockHeader(
           prevhash = prevhash,
           unclesHash = unclesHash,
@@ -172,7 +173,6 @@ object BlockHeader {
           mixhash = mixhash,
           nonce = nonce
         )
-      }
       case _ => throw new RuntimeException("Invalid BlockHeader encodeable")
     }
   }
@@ -192,9 +192,8 @@ object Block {
     }
 
     override def decode(rlp: RLPEncodeable): Block = rlp match {
-      case RLPList(header, (txs: RLPList), (uncles: RLPList))  => {
+      case RLPList(header, (txs: RLPList), (uncles: RLPList))  =>
         Block(header, txs.items.map(item => item: Transaction), uncles.items.map(item => item: BlockHeader))
-      }
       case _ => throw new RuntimeException("Invalid Block encodeable")
     }
   }

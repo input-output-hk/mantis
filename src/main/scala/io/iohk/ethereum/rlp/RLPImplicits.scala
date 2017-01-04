@@ -1,7 +1,7 @@
-package io.iohk.ethereum.utils
+package io.iohk.ethereum.rlp
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.RLP._
+import io.iohk.ethereum.rlp.RLP._
 
 import scala.language.implicitConversions
 
@@ -14,7 +14,7 @@ trait RLPDecoder[T] {
   def decode(rlp: RLPEncodeable): T
 }
 
-object RLPImplicits {
+private[rlp] object RLPImplicits {
 
   implicit val byteEncDec = new RLPEncoder[Byte] with RLPDecoder[Byte] {
     override def encode(obj: Byte): RLPValue = RLPValue(byteToByteArray(obj))
