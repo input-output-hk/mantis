@@ -1,7 +1,7 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
-import org.spongycastle.crypto.{DataLengthException, Digest}
+import org.spongycastle.crypto.Digest
 
 /**
   * This class is borrowed from spongycastle project
@@ -18,8 +18,6 @@ class MGF1BytesGeneratorExt(digest: Digest) {
     sp(3) = (i >>> 0).toByte
   }
 
-  @throws[DataLengthException]
-  @throws[IllegalArgumentException]
   def generateBytes(outputLength: Int, seed: Array[Byte]): ByteString = {
 
     val counterStart = 1
