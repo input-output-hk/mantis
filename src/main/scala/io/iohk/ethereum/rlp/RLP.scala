@@ -236,7 +236,7 @@ private[rlp] object RLP {
   }
 
   private def decodeWithPos(data: Array[Byte], pos: Int): (RLPEncodeable, Int) =
-    if (data.length < 1) RLPValue(Array.emptyByteArray) -> pos
+    if (data.length < 1) throw new Exception("data is too short")
     else {
       getItemBounds(data, pos) match {
         case ItemBounds(start, end, false, isEmpty) =>

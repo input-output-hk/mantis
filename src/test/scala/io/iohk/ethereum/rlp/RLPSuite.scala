@@ -21,8 +21,7 @@ class RLPSuite extends FunSuite
 
   test("Decoding of empty data"){
     val maybeDecoded = Try{RLPEncoding.decode[Array[Byte]](Array.emptyByteArray)}
-    assert(maybeDecoded.isSuccess)
-    assert(maybeDecoded.get sameElements Array.emptyByteArray)
+    assert(maybeDecoded.isFailure)
   }
 
   test("Decoding failure: Passing RLPValue when RLPList is expected"){
