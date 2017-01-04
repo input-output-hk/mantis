@@ -102,7 +102,7 @@ private[rlp] object RLP {
     *
     * @param data RLP Encoded instance to be decoded
     * @return A RLPEncodeable
-    * @throws RuntimeException if there is any error
+    * @throws RLPException if there is any error
     */
   private[rlp] def rawDecode(data: Array[Byte]): RLPEncodeable = decodeWithPos(data, 0)._1
 
@@ -164,7 +164,7 @@ private[rlp] object RLP {
     *
     * @param bytes encoded bytes
     * @return Int value
-    * @throws RuntimeException If the value cannot be converted to a valid int
+    * @throws RLPException If the value cannot be converted to a valid int
     */
   private[rlp] def bigEndianMinLengthToInt(bytes: Array[Byte]): Int = {
     (bytes.length: @switch) match {
@@ -173,7 +173,7 @@ private[rlp] object RLP {
       case 2 => ((bytes(0) & 0xFF) << 8) + (bytes(1) & 0xFF)
       case 3 => ((bytes(0) & 0xFF) << 16) + ((bytes(1) & 0xFF) << 8) + (bytes(2) & 0xFF)
       case 4 => ((bytes(0) & 0xFF) << 24) + ((bytes(1) & 0xFF) << 16) + ((bytes(2) & 0xFF) << 8) + (bytes(3) & 0xFF)
-      case _ => throw new RuntimeException("Bytes don't represent an int")
+      case _ => throw new RLPException("Bytes don't represent an int")
     }
   }
 
@@ -195,7 +195,7 @@ private[rlp] object RLP {
       (binaryLength.length + offset + SizeThreshold - 1).toByte +: binaryLength
     }
     else if (length < MaxItemLength && length <= 0xFF) Array((1 + offset + SizeThreshold - 1).toByte, length.toByte)
-    else throw new RuntimeException("Input too long")
+    else throw new RLPException("Input too long")
   }
 
   /**
@@ -206,37 +206,38 @@ private[rlp] object RLP {
     * @return Item Bounds description
     * @see [[io.iohk.ethereum.rlp.ItemBounds]]
     */
-  private[rlp] def getItemBounds(data: Array[Byte], pos: Int): ItemBounds =
-  if (data.length < 1) throw new RuntimeException("Empty Data")
-  else {
-    val prefix: Int = data(pos) & 0xFF
-    if (prefix == OffsetShortItem) {
-      ItemBounds(start = pos, end = pos, isList = false, isEmpty = true)
-    } else if (prefix < OffsetShortItem) {
-      ItemBounds(start = pos, end = pos, isList = false)
-    } else if (prefix <= OffsetLongItem) {
-      val length = prefix - OffsetShortItem
-      ItemBounds(start = pos + 1, end = pos + length, isList = false)
-    } else if (prefix < OffsetShortList) {
-      val lengthOfLength = prefix - OffsetLongItem
-      val lengthBytes = data.slice(pos + 1, pos + 1 + lengthOfLength)
-      val length = bigEndianMinLengthToInt(lengthBytes)
-      val beginPos = pos + 1 + lengthOfLength
-      ItemBounds(start = beginPos, end = beginPos + length - 1, isList = false)
-    } else if (prefix <= OffsetLongList) {
-      val length = prefix - OffsetShortList
-      ItemBounds(start = pos + 1, end = pos + length, isList = true)
-    } else {
-      val lengthOfLength = prefix - OffsetLongList
-      val lengthBytes = data.slice(pos + 1, pos + 1 + lengthOfLength)
-      val length = bigEndianMinLengthToInt(lengthBytes)
-      val beginPos = pos + 1 + lengthOfLength
-      ItemBounds(start = beginPos, end = beginPos + length - 1, isList = true)
+  private[rlp] def getItemBounds(data: Array[Byte], pos: Int): ItemBounds = {
+    if (data.isEmpty) throw new RLPException("Empty Data")
+    else {
+      val prefix: Int = data(pos) & 0xFF
+      if (prefix == OffsetShortItem) {
+        ItemBounds(start = pos, end = pos, isList = false, isEmpty = true)
+      } else if (prefix < OffsetShortItem)
+        ItemBounds(start = pos, end = pos, isList = false)
+      else if (prefix <= OffsetLongItem) {
+        val length = prefix - OffsetShortItem
+        ItemBounds(start = pos + 1, end = pos + length, isList = false)
+      } else if (prefix < OffsetShortList) {
+        val lengthOfLength = prefix - OffsetLongItem
+        val lengthBytes = data.slice(pos + 1, pos + 1 + lengthOfLength)
+        val length = bigEndianMinLengthToInt(lengthBytes)
+        val beginPos = pos + 1 + lengthOfLength
+        ItemBounds(start = beginPos, end = beginPos + length - 1, isList = false)
+      } else if (prefix <= OffsetLongList) {
+        val length = prefix - OffsetShortList
+        ItemBounds(start = pos + 1, end = pos + length, isList = true)
+      } else {
+        val lengthOfLength = prefix - OffsetLongList
+        val lengthBytes = data.slice(pos + 1, pos + 1 + lengthOfLength)
+        val length = bigEndianMinLengthToInt(lengthBytes)
+        val beginPos = pos + 1 + lengthOfLength
+        ItemBounds(start = beginPos, end = beginPos + length - 1, isList = true)
+      }
     }
   }
 
   private def decodeWithPos(data: Array[Byte], pos: Int): (RLPEncodeable, Int) =
-    if (data.length < 1) throw new Exception("data is too short")
+    if (data.isEmpty) throw new RLPException("data is too short")
     else {
       getItemBounds(data, pos) match {
         case ItemBounds(start, end, false, isEmpty) =>
@@ -260,8 +261,3 @@ private[rlp] object RLP {
 
 private case class ItemBounds(start: Int, end: Int, isList: Boolean, isEmpty: Boolean = false)
 
-sealed trait RLPEncodeable
-
-case class RLPList(items: RLPEncodeable*) extends RLPEncodeable
-
-case class RLPValue(bytes: Array[Byte]) extends RLPEncodeable

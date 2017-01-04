@@ -4,8 +4,9 @@ import io.iohk.ethereum.ObjectGenerators
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import io.iohk.ethereum.rlp.RLPEncoding._
-import io.iohk.ethereum.rlp.RLPEncoding.Implicits._
+
+import scala.language.implicitConversions
+import io.iohk.ethereum.rlp.RLPImplicits._
 
 /**
   * Tests based on
@@ -45,16 +46,16 @@ class RLPSpeedSuite extends FunSuite
 
   def doTestSerialize[T](toSerialize: T, rounds: Int)(implicit enc: RLPEncoder[T]): Array[Byte] = {
     (1 until rounds).foreach(_ => {
-      RLPEncoding.encode[T](toSerialize)
+      encode[T](toSerialize)
     })
-    RLPEncoding.encode[T](toSerialize)
+    encode[T](toSerialize)
   }
 
   def doTestDeserialize[T](serialized: Array[Byte], rounds: Int)(implicit dec: RLPDecoder[T]): T = {
     (1 until rounds).foreach(_ => {
-      RLPEncoding.decode[T](serialized)
+      decode[T](serialized)
     })
-    RLPEncoding.decode[T](serialized)
+    decode[T](serialized)
   }
 
 

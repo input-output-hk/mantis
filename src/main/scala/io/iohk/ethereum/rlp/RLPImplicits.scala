@@ -6,27 +6,21 @@ import io.iohk.ethereum.rlp.RLP._
 import scala.language.implicitConversions
 
 
-trait RLPEncoder[T] {
-  def encode(obj: T): RLPEncodeable
-}
-
-trait RLPDecoder[T] {
-  def decode(rlp: RLPEncodeable): T
-}
-
-private[rlp] object RLPImplicits {
+object RLPImplicits {
 
   implicit val byteEncDec = new RLPEncoder[Byte] with RLPDecoder[Byte] {
     override def encode(obj: Byte): RLPValue = RLPValue(byteToByteArray(obj))
 
     override def decode(rlp: RLPEncodeable): Byte = rlp match {
       case RLPValue(bytes) =>
-        bytes.length match {
-          case 0 => 0: Byte
-          case 1 => (bytes(0) & 0xFF).toByte
-          case _ => throw new RuntimeException("src doesn't represent a byte")
-        }
-      case _ => throw new RuntimeException("src is not an RLPValue")
+
+        val len = bytes.length
+
+        if (len == 0) 0: Byte
+        else if (len == 1) (bytes(0) & 0xFF).toByte
+        else throw new RLPException("src doesn't represent a byte")
+
+      case _ => throw new RLPException("src is not an RLPValue")
     }
   }
 
@@ -35,13 +29,15 @@ private[rlp] object RLPImplicits {
 
     override def decode(rlp: RLPEncodeable): Short = rlp match {
       case RLPValue(bytes) =>
-        bytes.length match {
-          case 0 => 0: Short
-          case 1 => (bytes(0) & 0xFF).toShort
-          case 2 => (((bytes(0) & 0xFF) << 8) + (bytes(1) & 0xFF)).toShort
-          case _ => throw new RuntimeException("src doesn't represent a short")
-        }
-      case _ => throw new RuntimeException("src is not an RLPValue")
+
+        val len = bytes.length
+
+        if (len == 0) 0: Short
+        else if (len == 1) (bytes(0) & 0xFF).toShort
+        else if (len == 2) (((bytes(0) & 0xFF) << 8) + (bytes(1) & 0xFF)).toShort
+        else throw new RLPException("src doesn't represent a short")
+
+      case _ => throw new RLPException("src is not an RLPValue")
     }
   }
 
@@ -50,7 +46,7 @@ private[rlp] object RLPImplicits {
 
     override def decode(rlp: RLPEncodeable): Int = rlp match {
       case RLPValue(bytes) => bigEndianMinLengthToInt(bytes)
-      case _ => throw new RuntimeException("src is not an RLPValue")
+      case _ => throw new RLPException("src is not an RLPValue")
     }
   }
 
@@ -59,7 +55,7 @@ private[rlp] object RLPImplicits {
 
     def asUnsignedByteArray(srcBigInteger: BigInt): Array[Byte] = {
       val asByteArray = srcBigInteger.toByteArray
-      if (asByteArray(0) == 0) asByteArray.tail
+      if (asByteArray.head == 0) asByteArray.tail
       else asByteArray
     }
 
@@ -69,7 +65,7 @@ private[rlp] object RLPImplicits {
 
     override def decode(rlp: RLPEncodeable): BigInt = rlp match {
       case RLPValue(bytes) => bytes.foldLeft[BigInt](BigInt(0)) { (rec, byte) => (rec << (8: Int)) + BigInt(byte & 0xFF) }
-      case _ => throw new RuntimeException("src is not an RLPValue")
+      case _ => throw new RLPException("src is not an RLPValue")
     }
   }
 
@@ -79,7 +75,7 @@ private[rlp] object RLPImplicits {
 
     override def decode(rlp: RLPEncodeable): Long = rlp match {
       case RLPValue(bytes) if bytes.length <= 8 => bigIntEncDec.decode(rlp).toLong
-      case _ =>  throw new RuntimeException("src is not an RLPValue")
+      case _ =>  throw new RLPException("src is not an RLPValue")
     }
   }
 
@@ -88,7 +84,7 @@ private[rlp] object RLPImplicits {
 
     override def decode(rlp: RLPEncodeable): String = rlp match {
       case RLPValue(bytes) => new String(bytes)
-      case _ => throw new RuntimeException("src is not an RLPValue")
+      case _ => throw new RLPException("src is not an RLPValue")
     }
   }
 
@@ -98,7 +94,7 @@ private[rlp] object RLPImplicits {
 
     override def decode(rlp: RLPEncodeable): Array[Byte] = rlp match {
       case RLPValue(bytes) => bytes
-      case _ => throw new RuntimeException("src is not an RLPValue")
+      case _ => throw new RLPException("src is not an RLPValue")
     }
   }
 
@@ -113,7 +109,7 @@ private[rlp] object RLPImplicits {
 
     override def decode(rlp: RLPEncodeable): Seq[T] = rlp match {
       case l: RLPList => l.items.map(dec.decode)
-      case _ => throw new RuntimeException("src is not a Seq")
+      case _ => throw new RLPException("src is not a Seq")
     }
   }
 
