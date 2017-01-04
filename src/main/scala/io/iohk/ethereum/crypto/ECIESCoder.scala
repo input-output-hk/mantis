@@ -152,4 +152,9 @@ object ECIESCoder {
 
     iesEngine
   }
+
+  def getOverhead: Int = {
+    // 256 bit EC public key, IV, 256 bit MAC
+    65 + KeySize / 8 + 32
+  }
 }
