@@ -2,15 +2,13 @@ package io.iohk.ethereum.utils
 
 import akka.util.ByteString
 import io.iohk.ethereum.utils.MerklePatriciaTree.HashFn
-import io.iohk.ethereum.utils.RLPImplicits._
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.{encode => encodeRLP, decode => decodeRLP, _}
 
 import scala.annotation.tailrec
 
 object MerklePatriciaTree {
   type HashFn = Array[Byte] => Array[Byte]
-  //FIXME: Start using them
-  type KeyType = ByteString
-  type NodeId = Array[Byte]
 
   val PairSize: Byte = 2
   val ListSize: Byte = 17
@@ -21,7 +19,7 @@ object MerklePatriciaTree {
 
   private[utils] def getNode(nodeId: Array[Byte], source: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] =
     tryGetNode(nodeId, source).flatMap {
-      arr: Array[Byte] => Some(RLP.decode[Node](arr))
+      arr: Array[Byte] => Some(decodeRLP[Node](arr))
     }
 
   private def tryGetNode[K <: ByteArraySerializable[K], V <: ByteArraySerializable[V]]
@@ -454,7 +452,7 @@ private sealed trait Node {
   private[this] var hashedCache: Option[Array[Byte]] = None
 
   def encode: Array[Byte] = encodedCache.getOrElse {
-    val encoded = RLP.encode[Node](this)
+    val encoded = encodeRLP[Node](this)
     encodedCache = Some(encoded)
     encoded
   }

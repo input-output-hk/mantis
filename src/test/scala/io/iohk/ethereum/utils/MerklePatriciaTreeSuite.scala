@@ -6,7 +6,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.Keccak
 import io.iohk.ethereum.utils.MerklePatriciaTree.defaultByteArraySerializable
-import io.iohk.ethereum.utils.RLPImplicits._
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.{encode => encodeRLP, decode => decodeRLP}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
@@ -23,9 +24,9 @@ class MerklePatriciaTreeSuite extends FunSuite
   val EmptyTrie = MerklePatriciaTree[Array[Byte], Array[Byte]](HashMapDataSource(), hashFn)
 
   implicit val intByteArraySerializable = new ByteArraySerializable[Int] {
-    override def toBytes(input: Int): Array[Byte] = RLP.encode(input)
+    override def toBytes(input: Int): Array[Byte] = encodeRLP(input)
 
-    override def fromBytes(bytes: Array[Byte]): Int = RLP.decode[Int](bytes)
+    override def fromBytes(bytes: Array[Byte]): Int = decodeRLP[Int](bytes)
   }
 
   test("PatriciaTrie insert") {
