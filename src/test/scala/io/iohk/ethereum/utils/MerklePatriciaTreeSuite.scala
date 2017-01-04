@@ -12,9 +12,8 @@ import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 import org.spongycastle.util.encoders.Hex
-import scala.util.Try
 
-import scala.util.Random
+import scala.util.{Random, Try}
 
 class MerklePatriciaTreeSuite extends FunSuite
   with PropertyChecks
@@ -42,28 +41,12 @@ class MerklePatriciaTreeSuite extends FunSuite
     }
   }
 
-  test("RLP Encoding bugs: Test that failed") {
-    val keyValueList = Seq[(Int, Int)](
-      (-2147483648, -2147483648), (-2139741427, -2139741427), (-1746330028, -1746330028), (-458731819, -458731819),
-      (1122618027, 1122618027), (-1, -1), (-1748846769, -1748846769), (2147483647, 2147483647), (-1783615678, -1783615678), (0, 0),
-      (872004722, 872004722), (1868571645, 1868571645), (-1853322342, -1853322342), (1, 1))
-    val trie = keyValueList.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
-      case (recTrie, (key, value)) =>
-        recTrie.put(key, value)
-    }
-    keyValueList.foreach { case (key, value) =>
-      val obtained = trie.get(key)
-      assert(obtained.isDefined)
-      assert(obtained.get == value)
-    }
-  }
-
   test("PatriciaTrie delete") {
     forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[Int])) { keyList: List[Int] =>
       val keyValueList = keyList.distinct.zipWithIndex
-    val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
-      case (recTrie, (key, value)) => recTrie.put(key, value)
-    }
+      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
+        case (recTrie, (key, value)) => recTrie.put(key, value)
+      }
       val (keyValueToDelete, keyValueLeft) = Random.shuffle(keyValueList).splitAt(Gen.choose(0, keyValueList.size).sample.get)
       val trieAfterDelete = keyValueToDelete.foldLeft(trieAfterInsert) {
         case (recTrie, (key, value)) => recTrie.remove(key)
@@ -119,19 +102,6 @@ class MerklePatriciaTreeSuite extends FunSuite
 
       assert(trieAfterInsert.rootHash.get sameElements trieAfterInsertShuffle.rootHash.get)
     }
-  }
-
-  test("Trie insert should have the same root independently on the order its pairs are inserted: Failed previously") {
-    val keyValuePairs1 = List((-504569441, -504569441), (2147483647, 2147483647), (-36171361, -36171361), (0, 0))
-    val keyValuePairs2 = List((-36171361, -36171361), (0, 0), (2147483647, 2147483647), (-504569441, -504569441))
-    val trie1 = keyValuePairs1.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
-      case (recTrie, (key, value)) => recTrie.put(key, value)
-    }
-    val trie2 = keyValuePairs2.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
-      case (recTrie, (key, value)) => recTrie.put(key, value)
-    }
-
-    assert(trie1.rootHash.get sameElements trie2.rootHash.get)
   }
 
   test("Insert only one (key, value) pair to a trie and then deleted") {
@@ -324,7 +294,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     assert(obtainedAfterDelete.isEmpty)
   }
 
-  test("Remove of a trie with an extension whose next is not on source"){
+  test("Remove of a trie with an extension whose next is not on source") {
     val key1: Array[Byte] = Hex.decode("123500")
     val key2: Array[Byte] = Hex.decode("123600")
     val key3: Array[Byte] = Hex.decode("123700")
@@ -332,12 +302,14 @@ class MerklePatriciaTreeSuite extends FunSuite
     val trie = EmptyTrie.put(key1, key1).put(key2, key2).put(key3, key3).put(key4, key4)
     val wrongSource = HashMapDataSource().update(trie.rootHash.get, trie.dataSource.get(trie.rootHash.get).get)
     val trieWithWrongSource = MerklePatriciaTree[Array[Byte], Array[Byte]](trie.rootHash, wrongSource, trie.hashFn)
-    val trieAfterDelete = Try{trieWithWrongSource.remove(key1)}
+    val trieAfterDelete = Try {
+      trieWithWrongSource.remove(key1)
+    }
     assert(trieAfterDelete.isFailure)
   }
 
   /* EthereumJ tests */
-  test("testDeleteCompletellyDiferentItems"){
+  test("testDeleteCompletellyDiferentItems") {
     val val1: String = "1000000000000000000000000000000000000000000000000000000000000000"
     val val2: String = "2000000000000000000000000000000000000000000000000000000000000000"
     val val3: String = "3000000000000000000000000000000000000000000000000000000000000000"
@@ -347,7 +319,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     val trieWithThreeElements = trieWithTwoElements.put(Hex.decode(val3), Hex.decode(val3))
     val trieAfterDelete = trieWithThreeElements.remove(Hex.decode(val3))
     val root1Obtained: String = Hex.toHexString(trieAfterDelete.rootHash.get)
-    assert(root1==root1Obtained)
+    assert(root1 == root1Obtained)
   }
 
   test("storageHashCalc_1") {
@@ -367,6 +339,28 @@ class MerklePatriciaTreeSuite extends FunSuite
     val hash: String = Hex.toHexString(storage4.rootHash.get)
     storage4.get(key1)
     assert("517eaccda568f3fa24915fed8add49d3b743b3764c0bc495b19a47c54dbc3d62" == hash)
+  }
+
+  test("EtheruemJ compatibility - BranchNode hash") {
+    val key1: Array[Byte] = Hex.decode("11")
+    val key2: Array[Byte] = Hex.decode("00")
+    val storage = EmptyTrie.put(key1, key1).put(key2, key2)
+    assert(Hex.toHexString(storage.rootHash.get) == "47ec8b5bd21ca0cbd0bd003f2e791778ccae44e7e21476da60fe7a1e0e6ac838")
+  }
+
+  test("EthereumJ compatibility - ExtensionNode hash") {
+    val key1: Array[Byte] = Hex.decode("1111")
+    val key2: Array[Byte] = Hex.decode("1100")
+    val storage = EmptyTrie.put(key1, key1).put(key2, key2)
+    assert(Hex.toHexString(storage.rootHash.get) == "ad9523c662fc9654b79620685a67b1b521517c73d7915a8e18ef929e1c1e6807")
+  }
+
+  test("EthereumJ compatibility - BranchNode with extension hash") {
+    val key1: Array[Byte] = Hex.decode("0111")
+    val key2: Array[Byte] = Hex.decode("0211")
+    val key3: Array[Byte] = Hex.decode("1100")
+    val storage = EmptyTrie.put(key1, key1).put(key2, key2).put(key3, key3)
+    assert(Hex.toHexString(storage.rootHash.get) == "a3d0686205c7ed10a85c3bce4118d5d559bcda47ca39e4dd4f09719958a179f1")
   }
 }
 
@@ -390,5 +384,5 @@ case class HashMapDataSource(storage: Map[ByteString, Array[Byte]]) extends Data
 }
 
 object HashMapDataSource {
-def apply(): HashMapDataSource = HashMapDataSource(Map())
+  def apply(): HashMapDataSource = HashMapDataSource(Map())
 }
