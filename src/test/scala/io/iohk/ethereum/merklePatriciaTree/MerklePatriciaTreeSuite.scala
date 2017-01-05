@@ -13,8 +13,9 @@ import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 import org.spongycastle.util.encoders.Hex
-
 import scala.util.{Random, Try}
+import java.security.MessageDigest
+import java.nio.ByteBuffer
 
 class MerklePatriciaTreeSuite extends FunSuite
   with PropertyChecks
@@ -24,9 +25,17 @@ class MerklePatriciaTreeSuite extends FunSuite
   val EmptyTrie = MerklePatriciaTree[Array[Byte], Array[Byte]](HashMapDataSource(), hashFn)
 
   implicit val intByteArraySerializable = new ByteArraySerializable[Int] {
-    override def toBytes(input: Int): Array[Byte] = encodeRLP(input)
+    override def toBytes(input: Int): Array[Byte] = {
+      val b: ByteBuffer = ByteBuffer.allocate(4)
+      b.putInt(input)
+      b.array
+    }
 
-    override def fromBytes(bytes: Array[Byte]): Int = decodeRLP[Int](bytes)
+    override def fromBytes(bytes: Array[Byte]): Int = ByteBuffer.wrap(bytes).getInt()
+  }
+
+  def md5(bytes: Array[Byte]) = {
+    MessageDigest.getInstance("MD5").digest(bytes)
   }
 
   test("PatriciaTrie insert") {
@@ -66,17 +75,14 @@ class MerklePatriciaTreeSuite extends FunSuite
       val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
-      assert(
-        (trieAfterDelete.rootHash.isEmpty && keyValueLeft.isEmpty) ||
-          (trieAfterDelete.rootHash.get sameElements trieWithKeyValueLeft.rootHash.get)
-      )
+      assert(trieAfterDelete.getRootHash sameElements trieWithKeyValueLeft.getRootHash)
     }
   }
 
   test("Remove key from an empty tree") {
     val emptyTrie = MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)
     val afterDeleteTrie = emptyTrie.remove(1)
-    assert(afterDeleteTrie.rootHash.isEmpty)
+    assert(afterDeleteTrie.getRootHash == afterDeleteTrie.EmptyTrieHash)
   }
 
   test("Remove a key that does not exist") {
@@ -101,7 +107,7 @@ class MerklePatriciaTreeSuite extends FunSuite
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
 
-      assert(trieAfterInsert.rootHash.get sameElements trieAfterInsertShuffle.rootHash.get)
+      assert(trieAfterInsert.getRootHash sameElements trieAfterInsertShuffle.getRootHash)
     }
   }
 
@@ -259,7 +265,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     val obtained2 = trieAfterDelete.get(key2)
     assert(obtained2.isDefined)
     assert(obtained2.get sameElements val2)
-    assert(trieAfterDelete.rootHash.get sameElements EmptyTrie.put(key2, val2).rootHash.get)
+    assert(trieAfterDelete.getRootHash sameElements EmptyTrie.put(key2, val2).getRootHash)
   }
 
   test("Insert 2 (key-value) pairs with nothing in common and then delete one of them, has the same result as only adding the pair left") {
@@ -274,7 +280,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     val obtained2 = trieAfterDelete.get(key2)
     assert(obtained2.isDefined)
     assert(obtained2.get sameElements val2)
-    assert(trieAfterDelete.rootHash.get sameElements EmptyTrie.put(key2, val2).rootHash.get)
+    assert(trieAfterDelete.getRootHash sameElements EmptyTrie.put(key2, val2).getRootHash)
   }
 
   test("Simple test with IODB as Source") {
@@ -301,12 +307,48 @@ class MerklePatriciaTreeSuite extends FunSuite
     val key3: Array[Byte] = Hex.decode("123700")
     val key4: Array[Byte] = Hex.decode("123500")
     val trie = EmptyTrie.put(key1, key1).put(key2, key2).put(key3, key3).put(key4, key4)
-    val wrongSource = HashMapDataSource().update(trie.rootHash.get, trie.dataSource.get(trie.rootHash.get).get)
-    val trieWithWrongSource = MerklePatriciaTree[Array[Byte], Array[Byte]](trie.rootHash, wrongSource, trie.hashFn)
+    val wrongSource = HashMapDataSource().update(trie.getRootHash, trie.dataSource.get(trie.getRootHash).get)
+    val trieWithWrongSource = MerklePatriciaTree[Array[Byte], Array[Byte]](trie.getRootHash, wrongSource, trie.hashFn)
     val trieAfterDelete = Try {
       trieWithWrongSource.remove(key1)
     }
     assert(trieAfterDelete.isFailure)
+  }
+
+  test("Get in an empty trie"){
+    val obtained = EmptyTrie.get(Hex.decode("1234"))
+    assert(obtained.isEmpty)
+  }
+
+  test("Insert with an empty key in a branch node"){
+    val key1: Array[Byte] = Hex.decode("00")
+    val key2: Array[Byte] = Hex.decode("f0")
+    val trieWithBranch = EmptyTrie.put(key1, key1).put(key2, key2)
+    val key3: Array[Byte] = Hex.decode("")
+    val val3: Array[Byte] = Hex.decode("1234")
+    val trie = trieWithBranch.put(key3, val3)
+    val key1Get = trie.get(key1)
+    val key2Get = trie.get(key2)
+    val key3Get = trie.get(key3)
+    assert(key1Get.isDefined && (key1Get.get sameElements key1))
+    assert(key2Get.isDefined && (key2Get.get sameElements key2))
+    assert(key3Get.isDefined && (key3Get.get sameElements val3))
+  }
+
+  test("Remove of a key (not in trie) whose value should be in a branch node"){
+    val key1: Array[Byte] = Hex.decode("1100")
+    val key2: Array[Byte] = Hex.decode("11f0")
+    val trieWithBranch = EmptyTrie.put(key1, key1).put(key2, key2)
+    val trieAfterDelete = trieWithBranch.remove(Hex.decode("11"))
+    assert(trieAfterDelete.getRootHash sameElements trieWithBranch.getRootHash)
+  }
+
+  test("Remove of a key (not in trie) that should be in the child of a BranchNode that is not present"){
+    val key1: Array[Byte] = Hex.decode("1100")
+    val key2: Array[Byte] = Hex.decode("11f0")
+    val trieWithBranch = EmptyTrie.put(key1, key1).put(key2, key2)
+    val trieAfterDelete = trieWithBranch.remove(Hex.decode("11a0"))
+    assert(trieAfterDelete.getRootHash sameElements trieWithBranch.getRootHash)
   }
 
   /* EthereumJ tests */
@@ -316,10 +358,10 @@ class MerklePatriciaTreeSuite extends FunSuite
     val val3: String = "3000000000000000000000000000000000000000000000000000000000000000"
     val trieWithOneElement = EmptyTrie.put(Hex.decode(val1), Hex.decode(val1))
     val trieWithTwoElements = trieWithOneElement.put(Hex.decode(val2), Hex.decode(val2))
-    val root1: String = Hex.toHexString(trieWithTwoElements.rootHash.get)
+    val root1: String = Hex.toHexString(trieWithTwoElements.getRootHash)
     val trieWithThreeElements = trieWithTwoElements.put(Hex.decode(val3), Hex.decode(val3))
     val trieAfterDelete = trieWithThreeElements.remove(Hex.decode(val3))
-    val root1Obtained: String = Hex.toHexString(trieAfterDelete.rootHash.get)
+    val root1Obtained: String = Hex.toHexString(trieAfterDelete.getRootHash)
     assert(root1 == root1Obtained)
   }
 
@@ -337,23 +379,35 @@ class MerklePatriciaTreeSuite extends FunSuite
     val storage2 = storage1.put(key2, val2)
     val storage3 = storage2.put(key3, val3)
     val storage4 = storage3.put(key4, val4)
-    val hash: String = Hex.toHexString(storage4.rootHash.get)
+    val hash: String = Hex.toHexString(storage4.getRootHash)
     storage4.get(key1)
     assert("517eaccda568f3fa24915fed8add49d3b743b3764c0bc495b19a47c54dbc3d62" == hash)
+  }
+
+  test("EthereumJ compatibility - Empty Trie"){
+    val trie = EmptyTrie
+    assert(Hex.toHexString(trie.EmptyTrieHash) == "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+  }
+
+  test("EthereumJ compatibility - LeafNode Hash") {
+    val key1: Array[Byte] = Hex.decode("10")
+    val val1: Array[Byte] = Hex.decode("947e70f9460402290a3e487dae01f610a1a8218fda")
+    val storage = EmptyTrie.put(key1, val1)
+    assert(Hex.toHexString(storage.getRootHash) == "e6fbee0b67e3a6f0b9ea775ce585509aa4a0c3fe3f83d1e49a7d484489b755bc")
   }
 
   test("EtheruemJ compatibility - BranchNode hash") {
     val key1: Array[Byte] = Hex.decode("11")
     val key2: Array[Byte] = Hex.decode("00")
     val storage = EmptyTrie.put(key1, key1).put(key2, key2)
-    assert(Hex.toHexString(storage.rootHash.get) == "47ec8b5bd21ca0cbd0bd003f2e791778ccae44e7e21476da60fe7a1e0e6ac838")
+    assert(Hex.toHexString(storage.getRootHash) == "47ec8b5bd21ca0cbd0bd003f2e791778ccae44e7e21476da60fe7a1e0e6ac838")
   }
 
   test("EthereumJ compatibility - ExtensionNode hash") {
     val key1: Array[Byte] = Hex.decode("1111")
     val key2: Array[Byte] = Hex.decode("1100")
     val storage = EmptyTrie.put(key1, key1).put(key2, key2)
-    assert(Hex.toHexString(storage.rootHash.get) == "ad9523c662fc9654b79620685a67b1b521517c73d7915a8e18ef929e1c1e6807")
+    assert(Hex.toHexString(storage.getRootHash) == "ad9523c662fc9654b79620685a67b1b521517c73d7915a8e18ef929e1c1e6807")
   }
 
   test("EthereumJ compatibility - BranchNode with extension hash") {
@@ -361,7 +415,67 @@ class MerklePatriciaTreeSuite extends FunSuite
     val key2: Array[Byte] = Hex.decode("0211")
     val key3: Array[Byte] = Hex.decode("1100")
     val storage = EmptyTrie.put(key1, key1).put(key2, key2).put(key3, key3)
-    assert(Hex.toHexString(storage.rootHash.get) == "a3d0686205c7ed10a85c3bce4118d5d559bcda47ca39e4dd4f09719958a179f1")
+    assert(Hex.toHexString(storage.getRootHash) == "a3d0686205c7ed10a85c3bce4118d5d559bcda47ca39e4dd4f09719958a179f1")
+  }
+
+  test("EthereumJ compatibility - Insert of the first 40000 numbers"){
+    val shuffledKeys = Random.shuffle(0 to 40000).map(intByteArraySerializable.toBytes(_))
+    val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(key, key) }
+    assert(Hex.toHexString(trie.getRootHash) == "3f8b75707975e5c16588fa1ba3e69f8da39f4e7bf3ca28b029c7dcb589923463")
+  }
+
+  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed"){
+    val shuffledKeys = Random.shuffle(0 to 20000).map(intByteArraySerializable.toBytes(_))
+    val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
+
+    // We insert keys that should have no effect so as to test that is the case (and for more code coverage)
+    val trieAfterInsertNoEffect = shuffledKeys.take(20000/2).foldLeft(trie) { case (recTrie, key) => recTrie.put(md5(key), key) }
+    assert(Hex.toHexString(trieAfterInsertNoEffect.getRootHash) == "a522b23a640c5fdb726e3f9644863e8913fe86339909fe881957efa0c23cebaa")
+  }
+
+  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed and then remove half of them"){
+    val keys = (0 to 20000).map(intByteArraySerializable.toBytes(_))
+    val trie = Random.shuffle(keys).foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
+
+    // We delete have of the (key-value) pairs we had inserted
+    val trieAfterDelete = Random.shuffle(keys.take(20000/2)).foldLeft(trie) { case (recTrie, key) => recTrie.remove(md5(key)) }
+
+    // We delete keys with no effect so as to test that is the case (and for more code coverage)
+    val trieAfterDeleteNoEffect = keys.take(20000/2).foldLeft(trieAfterDelete) { case (recTrie, key) => recTrie.remove(md5(key)) }
+    assert(Hex.toHexString(trieAfterDeleteNoEffect.getRootHash) == "a693b82dcc5a9e581e9bf9aa7af3aed31fe3eb61f97fd733ce44c9f9df2d7f45")
+  }
+
+  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced)"){
+    val keys = (0 to 20000).map(intByteArraySerializable.toBytes(_))
+
+    // We slice some of the keys so that me test more code coverage (if not we only test keys with the same length)
+    val slicedKeys = keys.zipWithIndex.map{case (key, index) =>
+      val hashedKey = md5(key)
+      if(index%2==0) hashedKey.take(hashedKey.length/2) else hashedKey
+    }
+    val keyValuePairs = slicedKeys.zip(keys)
+
+    val trie = Random.shuffle(keyValuePairs).foldLeft(EmptyTrie) { case (recTrie, (key, value)) => recTrie.put(key, value) }
+    assert(Hex.toHexString(trie.getRootHash) == "46cde8656f3be6ce93ba9dcb1017548f44c65d1ea659ac827fac8c9ac77cf6b3")
+  }
+
+  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced) and then remove half of them") {
+    val keys = (0 to 20000).map(intByteArraySerializable.toBytes(_))
+
+    // We slice some of the keys so that me test more code coverage (if not we only test keys with the same length)
+    val slicedKeys = keys.zipWithIndex.map { case (key, index) =>
+      val hashedKey = md5(key)
+      if (index % 2 == 0) hashedKey.take(hashedKey.length / 2) else hashedKey }
+    val keyValuePairs = slicedKeys.zip(keys)
+
+    val trie = Random.shuffle(keyValuePairs).foldLeft(EmptyTrie) { case (recTrie, (key, value)) => recTrie.put(key, value) }
+
+    assert(Hex.toHexString(trie.getRootHash) == "46cde8656f3be6ce93ba9dcb1017548f44c65d1ea659ac827fac8c9ac77cf6b3")
+
+    // We delete have of the (key-value) pairs we had inserted
+    val trieAfterDelete = Random.shuffle(keyValuePairs.take(20000 / 2)).foldLeft(trie) { case (recTrie, (key, _)) => recTrie.remove(key) }
+
+    assert(Hex.toHexString(trieAfterDelete.getRootHash) == "ae7b65dddd3ac0428082160cf3ceff0276cf6e6deaa23b42c4c156b50a459822")
   }
 }
 
