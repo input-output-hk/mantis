@@ -17,7 +17,11 @@ object MerklePatriciaTree {
                  (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V])
   : MerklePatriciaTree[K, V] = MerklePatriciaTree[K, V](None, source, hashFn)(kSerializer, vSerializer)
 
-  private[merklePatriciaTree] def getNode(nodeId: Array[Byte], source: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] =
+  def apply[K, V](rootHash: Array[Byte], source: DataSource, hashFn: HashFn)
+                 (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V])
+  : MerklePatriciaTree[K, V] = MerklePatriciaTree[K, V](Some(rootHash), source, hashFn)(kSerializer, vSerializer)
+
+  private def getNode(nodeId: Array[Byte], source: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] =
     tryGetNode(nodeId, source).flatMap {
       arr: Array[Byte] => Some(decodeRLP[Node](arr))
     }
@@ -38,23 +42,23 @@ object MerklePatriciaTree {
     dataSource.update(toBeRemoved, toBeUpdated)
   }
 
-  private[merklePatriciaTree] def getNextNode(extensionNode: ExtensionNode, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] = extensionNode.next match {
+  private def getNextNode(extensionNode: ExtensionNode, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] = extensionNode.next match {
     case Right(node) => Some(node)
     case Left(hash) => MerklePatriciaTree.getNode(hash, dataSource)
   }
 
-  private[merklePatriciaTree] def getNextNodeId(extensionNode: ExtensionNode, hashFn: HashFn): Array[Byte] = extensionNode.next match {
+  private def getNextNodeId(extensionNode: ExtensionNode, hashFn: HashFn): Array[Byte] = extensionNode.next match {
     case Right(node) => node.capped(hashFn)
     case Left(hash) => hash
   }
 
-  private[merklePatriciaTree] def getChild(branchNode: BranchNode, pos: Int, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] = branchNode.children(pos) match {
+  private def getChild(branchNode: BranchNode, pos: Int, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] = branchNode.children(pos) match {
     case Some(Right(node)) => Some(node)
     case Some(Left(hash)) => MerklePatriciaTree.getNode(hash, dataSource)
     case None => None
   }
 
-  private[merklePatriciaTree] def getChildId(branchNode: BranchNode, pos: Int, hashFn: HashFn): Option[Array[Byte]] = branchNode.children(pos) match {
+  private def getChildId(branchNode: BranchNode, pos: Int, hashFn: HashFn): Option[Array[Byte]] = branchNode.children(pos) match {
     case Some(Right(node)) => Some(node.capped(hashFn))
     case Some(Left(hash)) => Some(hash)
     case None => None
@@ -113,10 +117,17 @@ object MerklePatriciaTree {
   }
 }
 
-case class MerklePatriciaTree[K, V](rootHash: Option[Array[Byte]], dataSource: DataSource, hashFn: HashFn)
+case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], dataSource: DataSource, hashFn: HashFn)
                                    (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V]) {
 
   import MerklePatriciaTree._
+
+  lazy val EmptyTrieHash = hashFn(encodeRLP(Array.emptyByteArray))
+
+  val getRootHash = rootHash match{
+    case Some(root) => root
+    case None => EmptyTrieHash
+  }
 
   def get(key: K): Option[V] = {
     rootHash match {
@@ -448,8 +459,8 @@ private sealed trait Node {
 
   import MerklePatriciaTree._
 
-  private[this] var encodedCache: Option[Array[Byte]] = None
-  private[this] var hashedCache: Option[Array[Byte]] = None
+  private var encodedCache: Option[Array[Byte]] = None
+  private var hashedCache: Option[Array[Byte]] = None
 
   def encode: Array[Byte] = encodedCache.getOrElse {
     val encoded = encodeRLP[Node](this)
