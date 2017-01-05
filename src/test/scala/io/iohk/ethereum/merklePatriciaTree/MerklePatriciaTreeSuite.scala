@@ -1,11 +1,11 @@
-package io.iohk.ethereum.utils
+package io.iohk.ethereum.merklePatriciaTree
 
 import java.io.File
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.Keccak
-import io.iohk.ethereum.utils.MerklePatriciaTree.defaultByteArraySerializable
+import io.iohk.ethereum.merklePatriciaTree.MerklePatriciaTree.defaultByteArraySerializable
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => encodeRLP, decode => decodeRLP}
 import io.iohk.iodb.LSMStore

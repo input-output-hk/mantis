@@ -1,4 +1,4 @@
-package io.iohk.ethereum.utils
+package io.iohk.ethereum.merklePatriciaTree
 
 object HexPrefix {
   /**

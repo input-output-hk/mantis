@@ -1,7 +1,7 @@
-package io.iohk.ethereum.utils
+package io.iohk.ethereum.merklePatriciaTree
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.MerklePatriciaTree.HashFn
+import io.iohk.ethereum.merklePatriciaTree.MerklePatriciaTree.HashFn
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => encodeRLP, decode => decodeRLP, _}
 
@@ -17,7 +17,7 @@ object MerklePatriciaTree {
                  (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V])
   : MerklePatriciaTree[K, V] = MerklePatriciaTree[K, V](None, source, hashFn)(kSerializer, vSerializer)
 
-  private[utils] def getNode(nodeId: Array[Byte], source: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] =
+  private[merklePatriciaTree] def getNode(nodeId: Array[Byte], source: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] =
     tryGetNode(nodeId, source).flatMap {
       arr: Array[Byte] => Some(decodeRLP[Node](arr))
     }
@@ -38,23 +38,23 @@ object MerklePatriciaTree {
     dataSource.update(toBeRemoved, toBeUpdated)
   }
 
-  private[utils] def getNextNode(extensionNode: ExtensionNode, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] = extensionNode.next match {
+  private[merklePatriciaTree] def getNextNode(extensionNode: ExtensionNode, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] = extensionNode.next match {
     case Right(node) => Some(node)
     case Left(hash) => MerklePatriciaTree.getNode(hash, dataSource)
   }
 
-  private[utils] def getNextNodeId(extensionNode: ExtensionNode, hashFn: HashFn): Array[Byte] = extensionNode.next match {
+  private[merklePatriciaTree] def getNextNodeId(extensionNode: ExtensionNode, hashFn: HashFn): Array[Byte] = extensionNode.next match {
     case Right(node) => node.capped(hashFn)
     case Left(hash) => hash
   }
 
-  private[utils] def getChild(branchNode: BranchNode, pos: Int, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] = branchNode.children(pos) match {
+  private[merklePatriciaTree] def getChild(branchNode: BranchNode, pos: Int, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] = branchNode.children(pos) match {
     case Some(Right(node)) => Some(node)
     case Some(Left(hash)) => MerklePatriciaTree.getNode(hash, dataSource)
     case None => None
   }
 
-  private[utils] def getChildId(branchNode: BranchNode, pos: Int, hashFn: HashFn): Option[Array[Byte]] = branchNode.children(pos) match {
+  private[merklePatriciaTree] def getChildId(branchNode: BranchNode, pos: Int, hashFn: HashFn): Option[Array[Byte]] = branchNode.children(pos) match {
     case Some(Right(node)) => Some(node.capped(hashFn))
     case Some(Left(hash)) => Some(hash)
     case None => None
@@ -71,7 +71,7 @@ object MerklePatriciaTree {
     */
 
   // FIXME Improve this visibility
-  private[utils] implicit val nodeEncDec = new RLPDecoder[Node] with RLPEncoder[Node] {
+  private[merklePatriciaTree] implicit val nodeEncDec = new RLPDecoder[Node] with RLPEncoder[Node] {
     override def encode(obj: Node): RLPEncodeable = obj match {
       case leaf: LeafNode => RLPList(HexPrefix.encode(nibbles = leaf.key, t = true), leaf.value)
       case extension: ExtensionNode =>
