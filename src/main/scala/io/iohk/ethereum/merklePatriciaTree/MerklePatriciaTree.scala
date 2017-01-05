@@ -133,7 +133,11 @@ case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], d
     rootHash match {
       case Some(rootId) =>
         val keyNibbles = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
-        get(rootId, keyNibbles).map(bytes => vSerializer.fromBytes(bytes))
+        val maybeRootNode = getNode(rootId, dataSource)
+        maybeRootNode match{
+          case Some(rootNode) => get(rootNode, keyNibbles).map(bytes => vSerializer.fromBytes(bytes))
+          case None => None
+        }
       case None => None
     }
   }
@@ -171,26 +175,23 @@ case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], d
 
   /* Private functions */
   @tailrec
-  private def get(nodeId: Array[Byte], searchKey: Array[Byte]): Option[Array[Byte]] = {
-    val optNode = getNode(nodeId, dataSource)
-    optNode match {
-      case Some(node) => node match {
-        case LeafNode(key, value) =>
-          if (key sameElements searchKey) Some(value) else None
-        case extNode@ExtensionNode(sharedKey, next) =>
-          val (commonKey, remainingKey) = searchKey.splitAt(sharedKey.length)
-          if (searchKey.length >= sharedKey.length && (sharedKey sameElements commonKey))
-            get(getNextNodeId(extNode, hashFn), remainingKey)
-          else None
-        case branch@BranchNode(children, terminator) =>
-          if (searchKey.isEmpty) terminator
-          else getChildId(branch, searchKey(0), hashFn) match {
-            case Some(childId) => get(childId, searchKey.slice(1, searchKey.length))
-            case None => None
-          }
+  private def get(node: Node, searchKey: Array[Byte]): Option[Array[Byte]] = node match {
+    case LeafNode(key, value) =>
+      if (key sameElements searchKey) Some(value) else None
+    case extNode@ExtensionNode(sharedKey, next) =>
+      val (commonKey, remainingKey) = searchKey.splitAt(sharedKey.length)
+      if (searchKey.length >= sharedKey.length && (sharedKey sameElements commonKey))
+        getNextNode(extNode, dataSource) match{
+          case Some(nextNode) => get(nextNode, remainingKey)
+          case None => None
+        }
+      else None
+    case branch@BranchNode(children, terminator) =>
+      if (searchKey.isEmpty) terminator
+      else getChild(branch, searchKey(0), dataSource) match {
+        case Some(child) => get(child, searchKey.slice(1, searchKey.length))
+        case None => None
       }
-      case None => None
-    }
   }
 
   private def put(nodeId: Array[Byte], searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = {
