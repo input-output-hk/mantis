@@ -52,23 +52,12 @@ object MerklePatriciaTree {
       case Left(hash) => MerklePatriciaTree.getNode(hash, dataSource)
     }
 
-  private def getNextNodeId(extensionNode: ExtensionNode, hashFn: HashFn): Array[Byte] = extensionNode.next match {
-    case Right(node) => node.capped(hashFn)
-    case Left(hash) => hash
-  }
-
   private def getChild(branchNode: BranchNode, pos: Int, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] =
     branchNode.children(pos) match {
       case Some(Right(node)) => Some(node)
       case Some(Left(hash)) => Some(MerklePatriciaTree.getNode(hash, dataSource))
       case None => None
     }
-
-  private def getChildId(branchNode: BranchNode, pos: Int, hashFn: HashFn): Option[Array[Byte]] = branchNode.children(pos) match {
-    case Some(Right(node)) => Some(node.capped(hashFn))
-    case Some(Left(hash)) => Some(hash)
-    case None => None
-  }
 
   implicit val defaultByteArraySerializable = new ByteArraySerializable[Array[Byte]] {
     override def toBytes(input: Array[Byte]): Array[Byte] = input
@@ -149,7 +138,8 @@ case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], d
     val keyNibbles = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
     rootHash match {
       case Some(rootId) =>
-        val NodeInsertResult(newRoot, newSource) = put(rootId, keyNibbles, vSerializer.toBytes(value))
+        val root = getNode(rootId, dataSource)
+        val NodeInsertResult(newRoot, newSource) = put(root, keyNibbles, vSerializer.toBytes(value))
         MerklePatriciaTree(Some(newRoot.hash(hashFn)),
           replaceRoot(rootId, newRoot, newSource, hashFn),
           hashFn)
@@ -165,7 +155,8 @@ case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], d
     rootHash match {
       case Some(rootId) =>
         val keyNibbles = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
-        remove(rootId, keyNibbles) match {
+        val root = getNode(rootId, dataSource)
+        remove(root, keyNibbles) match {
           case NodeRemoveResult(true, Some(newRoot), afterDeleteDataSource) =>
             MerklePatriciaTree(Some(newRoot.hash(hashFn)), replaceRoot(rootId, newRoot, afterDeleteDataSource, hashFn), hashFn)
           case NodeRemoveResult(true, None, newDataSource) =>
@@ -196,15 +187,18 @@ case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], d
       }
   }
 
-  private def put(nodeId: Array[Byte], searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = {
-    val node = getNode(nodeId, dataSource)
-    put(node, searchKey, value)
-  }
-
   private def put(node: Node, searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = {
     node match {
       case LeafNode(existingKey, storedValue) =>
         matchingLength(existingKey, searchKey) match {
+          case ml if ml == existingKey.length && ml == searchKey.length =>
+            // We are trying to insert a leaf node that has the same key as this one but different value so we need to
+            // replace it
+            val newLeafNode = LeafNode(existingKey, value)
+            NodeInsertResult(
+              newNode = newLeafNode,
+              dataSource = updateNodesInStorage(Seq(node), Seq(newLeafNode), dataSource, hashFn)
+            )
           case 0 =>
             // There is no common prefix between the node which means that we need to replace this leaf node
             val (temporalBranchNode, maybeNewLeaf) =
@@ -215,18 +209,10 @@ case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], d
                 val newLeafNode = LeafNode(existingKey.tail, storedValue)
                 BranchNode.withSingleChild(existingKey(0), newLeafNode, None, hashFn) -> Some(newLeafNode)
               }
-            val NodeInsertResult(newBranchNode, dataSourceAfterPut) = put(temporalBranchNode, searchKey, value)
+            val NodeInsertResult(newBranchNode: BranchNode, dataSourceAfterPut) = put(temporalBranchNode, searchKey, value)
             NodeInsertResult(
               newNode = newBranchNode,
               dataSource = updateNodesInStorage(Seq(node), Seq(newBranchNode) ++ maybeNewLeaf.toList, dataSourceAfterPut, hashFn)
-            )
-          case ml if ml == existingKey.length && ml == searchKey.length =>
-            // We are trying to insert a leaf node that has the same key as this one but different value so we need to
-            // replace it
-            val newLeafNode = LeafNode(existingKey, value)
-            NodeInsertResult(
-              newNode = newLeafNode,
-              dataSource = updateNodesInStorage(Seq(node), Seq(newLeafNode), dataSource, hashFn)
             )
           case ml if ml == existingKey.length =>
             // Current leaf's key is exactly the common prefix so we need to replace this node with an extension
@@ -266,14 +252,14 @@ case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], d
                 BranchNode.withSingleChild(sharedKeyHead, newExtNode, None, hashFn) -> Some(newExtNode)
               }
             }
-            val NodeInsertResult(newBranchNode, dataSourceAfterPut) = put(temporalBranchNode, searchKey, value)
+            val NodeInsertResult(newBranchNode: BranchNode, dataSourceAfterPut) = put(temporalBranchNode, searchKey, value)
             NodeInsertResult(
               newNode = newBranchNode,
               dataSource = updateNodesInStorage(Seq(node), Seq(newBranchNode) ++ maybeNewLeaf.toList, dataSourceAfterPut, hashFn)
             )
           case ml if ml == sharedKey.length =>
             // Current extension node's key is a prefix of the one being inserted, so we insert recursively on the extension's child
-            val NodeInsertResult(newChild: BranchNode, dataSourceAfterPut) = put(getNextNodeId(extensionNode, hashFn), searchKey.drop(ml), value)
+            val NodeInsertResult(newChild: BranchNode, dataSourceAfterPut) = put(getNextNode(extensionNode, dataSource), searchKey.drop(ml), value)
             val newExtNode = ExtensionNode(sharedKey, newChild, hashFn)
             NodeInsertResult(
               newNode = newExtNode,
@@ -306,7 +292,7 @@ case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], d
           children(searchKeyHead) match {
             case Some(_) =>
               // The associated child is not empty, we recursively insert in that child
-              val NodeInsertResult(changedChild, dataSourceAfterPut) = put(getChildId(branchNode, searchKeyHead, hashFn).get, searchKeyRemaining, value)
+              val NodeInsertResult(changedChild, dataSourceAfterPut) = put(getChild(branchNode, searchKeyHead, dataSource).get, searchKeyRemaining, value)
               val newBranchNode = branchNode.updateChild(searchKeyHead, changedChild, hashFn)
               NodeInsertResult(
                 newNode = newBranchNode,
@@ -325,11 +311,6 @@ case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], d
     }
   }
 
-  private def remove(nodeId: Array[Byte], searchKey: Array[Byte]): NodeRemoveResult = {
-    val node = getNode(nodeId, dataSource)
-    remove(node, searchKey)
-  }
-
   private def remove(node: Node, searchKey: Array[Byte]): NodeRemoveResult = (node, searchKey.isEmpty) match {
     // They key matches a branch node but it's value doesn't match the key
     case (BranchNode(children, None), true) => NodeRemoveResult(hasChanged = false, maybeNewChild = None, dataSource = dataSource)
@@ -342,7 +323,7 @@ case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], d
     case (branchNode@BranchNode(children, optStoredValue), false) =>
       // We might be trying to remove a node that's inside one of the 16 mapped nibbles
       val searchKeyHead = searchKey(0)
-      getChildId(branchNode, searchKeyHead, hashFn) match {
+      getChild(branchNode, searchKeyHead, dataSource) match {
         // Child has been found so we try to remove it
         case Some(child) =>
           remove(child, searchKey.tail) match {
@@ -372,7 +353,7 @@ case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], d
       val cp = matchingLength(sharedKey, searchKey)
       if (cp == sharedKey.length) {
         // A child node of this extension is removed, so move forward
-        remove(getNextNodeId(extensionNode, hashFn), searchKey.drop(cp)) match {
+        remove(getNextNode(extensionNode, dataSource), searchKey.drop(cp)) match {
           case NodeRemoveResult(true, maybeNewChild, afterChildRemovalDataSource) =>
             // If we changed the child, we need to fix this extension node
             maybeNewChild match {
