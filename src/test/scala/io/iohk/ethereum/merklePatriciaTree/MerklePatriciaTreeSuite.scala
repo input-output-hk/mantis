@@ -39,7 +39,7 @@ class MerklePatriciaTreeSuite extends FunSuite
   }
 
   /* Random get, insert and delete tests */
-  test("PatriciaTrie insert") {
+  test("PatriciaTrie insert and get") {
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
       val trie = keyValueList.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
@@ -372,6 +372,25 @@ class MerklePatriciaTreeSuite extends FunSuite
     // We delete keys with no effect so as to test that is the case (and for more code coverage)
     val trieAfterDeleteNoEffect = keys.take(100/2).foldLeft(trieAfterDelete) { case (recTrie, key) => recTrie.remove(md5(key)) }
     assert(Hex.toHexString(trieAfterDeleteNoEffect.getRootHash) == "b0bfbf4d2d6f3c9863c27f41a087208131f775edd9de2cb66242d1e0981aa94c")
+  }
+
+  test("IODB Test - PatriciaTrie insert and get") {
+    forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
+      //create temporary dir
+      val dir = File.createTempFile("iodb", "iodb")
+      dir.delete()
+      dir.mkdir()
+
+      val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = 32))
+      val trie = keyValueList.foldLeft(MerklePatriciaTree[Int, Int](dataSource, hashFn)) {
+        case (recTrie, (key, value)) => recTrie.put(key, value)
+      }
+      keyValueList.foreach { case (key, value) =>
+        val obtained = trie.get(key)
+        assert(obtained.isDefined)
+        assert(obtained.get == value)
+      }
+    }
   }
 
   /* EthereumJ tests */
