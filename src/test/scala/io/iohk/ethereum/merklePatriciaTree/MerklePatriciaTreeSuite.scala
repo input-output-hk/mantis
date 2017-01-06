@@ -307,7 +307,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     val key3: Array[Byte] = Hex.decode("123700")
     val key4: Array[Byte] = Hex.decode("123500")
     val trie = EmptyTrie.put(key1, key1).put(key2, key2).put(key3, key3).put(key4, key4)
-    val wrongSource = HashMapDataSource().update(trie.getRootHash, trie.dataSource.get(trie.getRootHash).get)
+    val wrongSource = HashMapDataSource().update(Array.emptyByteArray, trie.getRootHash, trie.dataSource.get(trie.getRootHash).get)
     val trieWithWrongSource = MerklePatriciaTree[Array[Byte], Array[Byte]](trie.getRootHash, wrongSource, hashFn)
     val trieAfterDelete = Try {
       trieWithWrongSource.remove(key1)
@@ -481,11 +481,11 @@ class MerklePatriciaTreeSuite extends FunSuite
 
 case class HashMapDataSource(storage: Map[ByteString, Array[Byte]]) extends DataSource {
 
-  override def update(key: Array[Byte], value: Array[Byte]): DataSource = HashMapDataSource(storage + (ByteString(key) -> value))
-
   override def get(key: Array[Byte]): Option[Array[Byte]] = storage.get(ByteString(key))
 
-  override def update(toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource = {
+  override def update(version: Array[Byte],key: Array[Byte], value: Array[Byte]): DataSource = HashMapDataSource(storage + (ByteString(key) -> value))
+
+  override def update(version: Array[Byte], toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource = {
     val afterRemoval = toRemove.foldLeft(storage)((storage, key) => storage - ByteString(key))
     val afterUpdate = toUpdate.foldLeft(afterRemoval)((storage, toUpdate) => storage + (ByteString(toUpdate._1) -> toUpdate._2))
     HashMapDataSource(afterUpdate)
