@@ -424,10 +424,6 @@ trait DataSource {
 
   def update(key: Key, value: Value): DataSource
 
-  def update(toInsert: Seq[(Key, Value)]): DataSource
-
-  def remove(toRemove: Key): DataSource
-
   def update(toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource
 }
 

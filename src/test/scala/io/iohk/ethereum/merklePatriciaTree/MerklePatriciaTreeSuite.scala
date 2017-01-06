@@ -485,12 +485,6 @@ case class HashMapDataSource(storage: Map[ByteString, Array[Byte]]) extends Data
 
   override def get(key: Array[Byte]): Option[Array[Byte]] = storage.get(ByteString(key))
 
-  override def remove(key: Array[Byte]): DataSource = HashMapDataSource(storage - ByteString(key))
-
-  override def update(keys: Seq[(Array[Byte], Array[Byte])]): DataSource = keys.foldLeft[DataSource](this) {
-    (curr, toPut) => curr.update(toPut._1, toPut._2)
-  }
-
   override def update(toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource = {
     val afterRemoval = toRemove.foldLeft(storage)((storage, key) => storage - ByteString(key))
     val afterUpdate = toUpdate.foldLeft(afterRemoval)((storage, toUpdate) => storage + (ByteString(toUpdate._1) -> toUpdate._2))

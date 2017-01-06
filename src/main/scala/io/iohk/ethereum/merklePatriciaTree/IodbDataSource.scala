@@ -11,16 +11,6 @@ class IodbDataSource(lSMStore: LSMStore) extends DataSource {
     new IodbDataSource(lSMStore)
   }
 
-  override def update(keyValues: Seq[(Array[Byte], Array[Byte])]): DataSource = {
-    lSMStore.update(lSMStore.lastVersion + 1, Seq(), asStorables(keyValues))
-    new IodbDataSource(lSMStore)
-  }
-
-  override def remove(key: Array[Byte]): DataSource = {
-    lSMStore.update(lSMStore.lastVersion + 1, Seq(ByteArrayWrapper(key)), Seq())
-    new IodbDataSource(lSMStore)
-  }
-
   override def update(toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource = {
     lSMStore.update(lSMStore.lastVersion + 1, toRemove.map(key => ByteArrayWrapper(key)), asStorables(toUpdate))
     new IodbDataSource(lSMStore)
