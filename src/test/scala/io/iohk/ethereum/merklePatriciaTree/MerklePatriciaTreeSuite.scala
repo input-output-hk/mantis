@@ -38,6 +38,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     MessageDigest.getInstance("MD5").digest(bytes)
   }
 
+  /* Random get, insert and delete tests */
   test("PatriciaTrie insert") {
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
       val trie = keyValueList.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
@@ -79,23 +80,6 @@ class MerklePatriciaTreeSuite extends FunSuite
     }
   }
 
-  test("Remove key from an empty tree") {
-    val emptyTrie = MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)
-    val afterDeleteTrie = emptyTrie.remove(1)
-    assert(afterDeleteTrie.getRootHash == afterDeleteTrie.EmptyTrieHash)
-  }
-
-  test("Remove a key that does not exist") {
-    val emptyTrie = MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)
-    val trieWithOneElement = emptyTrie.put(1, 5)
-    val obtained = trieWithOneElement.get(1)
-    assert(obtained.isDefined)
-    assert(obtained.get == 5)
-    val trieAfterDelete = trieWithOneElement.remove(2)
-    val obtainedAfterDelete = trieAfterDelete.get(1)
-    assert(obtainedAfterDelete.get == 5)
-  }
-
   test("Trie insert should have the same root independently on the order its pairs are inserted") {
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
       val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
@@ -109,6 +93,24 @@ class MerklePatriciaTreeSuite extends FunSuite
 
       assert(trieAfterInsert.getRootHash sameElements trieAfterInsertShuffle.getRootHash)
     }
+  }
+
+  /* MerklePatriciaTree API tests for particular cases */
+  test("Remove key from an empty tree") {
+    val emptyTrie = MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)
+    val afterDeleteTrie = emptyTrie.remove(1)
+    assert(afterDeleteTrie.getRootHash sameElements emptyTrie.getRootHash)
+  }
+
+  test("Remove a key that does not exist") {
+    val emptyTrie = MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)
+    val trieWithOneElement = emptyTrie.put(1, 5)
+    val obtained = trieWithOneElement.get(1)
+    assert(obtained.isDefined)
+    assert(obtained.get == 5)
+    val trieAfterDelete = trieWithOneElement.remove(2)
+    val obtainedAfterDelete = trieAfterDelete.get(1)
+    assert(obtainedAfterDelete.get == 5)
   }
 
   test("Insert only one (key, value) pair to a trie and then deleted") {
@@ -283,24 +285,6 @@ class MerklePatriciaTreeSuite extends FunSuite
     assert(trieAfterDelete.getRootHash sameElements EmptyTrie.put(key2, val2).getRootHash)
   }
 
-  test("Simple test with IODB as Source") {
-    //create temporary dir
-    val dir = File.createTempFile("iodb", "iodb")
-    dir.delete()
-    dir.mkdir()
-
-    //open new store
-    val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = 32))
-    val emptyTrie = MerklePatriciaTree[Int, Int](dataSource, hashFn)
-    val trieWithOneElement = emptyTrie.put(1, 5)
-    val obtained = trieWithOneElement.get(1)
-    assert(obtained.isDefined)
-    assert(obtained.get == 5)
-    val trieAfterDelete = trieWithOneElement.remove(1)
-    val obtainedAfterDelete = trieAfterDelete.get(1)
-    assert(obtainedAfterDelete.isEmpty)
-  }
-
   test("Remove of a trie with an extension whose next is not on source") {
     val key1: Array[Byte] = Hex.decode("123500")
     val key2: Array[Byte] = Hex.decode("123600")
@@ -351,6 +335,45 @@ class MerklePatriciaTreeSuite extends FunSuite
     assert(trieAfterDelete.getRootHash sameElements trieWithBranch.getRootHash)
   }
 
+  /* IODB tests */
+  test("Simple test with IODB as Source") {
+    //create temporary dir
+    val dir = File.createTempFile("iodb", "iodb")
+    dir.delete()
+    dir.mkdir()
+
+    //open new store
+    val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = 32))
+    val emptyTrie = MerklePatriciaTree[Int, Int](dataSource, hashFn)
+    val trieWithOneElement = emptyTrie.put(1, 5)
+    val obtained = trieWithOneElement.get(1)
+    assert(obtained.isDefined)
+    assert(obtained.get == 5)
+    val trieAfterDelete = trieWithOneElement.remove(1)
+    val obtainedAfterDelete = trieAfterDelete.get(1)
+    assert(obtainedAfterDelete.isEmpty)
+  }
+
+  test("IODB test - Insert of the first 5000 numbers hashed and then remove half of them"){
+    //create temporary dir
+    val dir = File.createTempFile("iodb", "iodb")
+    dir.delete()
+    dir.mkdir()
+
+    val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = 32))
+    val emptyTrie = MerklePatriciaTree[Array[Byte], Array[Byte]](dataSource, hashFn)
+
+    val keys = (0 to 100).map(intByteArraySerializable.toBytes)
+    val trie = Random.shuffle(keys).foldLeft(emptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
+
+    // We delete have of the (key-value) pairs we had inserted
+    val trieAfterDelete = Random.shuffle(keys.take(100/2)).foldLeft(trie) { case (recTrie, key) => recTrie.remove(md5(key)) }
+
+    // We delete keys with no effect so as to test that is the case (and for more code coverage)
+    val trieAfterDeleteNoEffect = keys.take(100/2).foldLeft(trieAfterDelete) { case (recTrie, key) => recTrie.remove(md5(key)) }
+    assert(Hex.toHexString(trieAfterDeleteNoEffect.getRootHash) == "b0bfbf4d2d6f3c9863c27f41a087208131f775edd9de2cb66242d1e0981aa94c")
+  }
+
   /* EthereumJ tests */
   test("testDeleteCompletellyDiferentItems") {
     val val1: String = "1000000000000000000000000000000000000000000000000000000000000000"
@@ -386,7 +409,7 @@ class MerklePatriciaTreeSuite extends FunSuite
 
   test("EthereumJ compatibility - Empty Trie"){
     val trie = EmptyTrie
-    assert(Hex.toHexString(trie.EmptyTrieHash) == "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+    assert(Hex.toHexString(trie.getRootHash) == "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
   }
 
   test("EthereumJ compatibility - LeafNode Hash") {
@@ -419,13 +442,13 @@ class MerklePatriciaTreeSuite extends FunSuite
   }
 
   ignore("EthereumJ compatibility - Insert of the first 40000 numbers"){
-    val shuffledKeys = Random.shuffle(0 to 40000).map(intByteArraySerializable.toBytes(_))
+    val shuffledKeys = Random.shuffle(0 to 40000).map(intByteArraySerializable.toBytes)
     val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(key, key) }
     assert(Hex.toHexString(trie.getRootHash) == "3f8b75707975e5c16588fa1ba3e69f8da39f4e7bf3ca28b029c7dcb589923463")
   }
 
   ignore("EthereumJ compatibility - Insert of the first 20000 numbers hashed"){
-    val shuffledKeys = Random.shuffle(0 to 20000).map(intByteArraySerializable.toBytes(_))
+    val shuffledKeys = Random.shuffle(0 to 20000).map(intByteArraySerializable.toBytes)
     val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
 
     // We insert keys that should have no effect so as to test that is the case (and for more code coverage)
@@ -434,7 +457,7 @@ class MerklePatriciaTreeSuite extends FunSuite
   }
 
   ignore("EthereumJ compatibility - Insert of the first 20000 numbers hashed and then remove half of them"){
-    val keys = (0 to 20000).map(intByteArraySerializable.toBytes(_))
+    val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
     val trie = Random.shuffle(keys).foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
 
     // We delete have of the (key-value) pairs we had inserted
@@ -446,7 +469,7 @@ class MerklePatriciaTreeSuite extends FunSuite
   }
 
   ignore("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced)"){
-    val keys = (0 to 20000).map(intByteArraySerializable.toBytes(_))
+    val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
 
     // We slice some of the keys so that me test more code coverage (if not we only test keys with the same length)
     val slicedKeys = keys.zipWithIndex.map{case (key, index) =>
@@ -460,7 +483,7 @@ class MerklePatriciaTreeSuite extends FunSuite
   }
 
   ignore("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced) and then remove half of them") {
-    val keys = (0 to 20000).map(intByteArraySerializable.toBytes(_))
+    val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
 
     // We slice some of the keys so that me test more code coverage (if not we only test keys with the same length)
     val slicedKeys = keys.zipWithIndex.map { case (key, index) =>
@@ -476,6 +499,35 @@ class MerklePatriciaTreeSuite extends FunSuite
     val trieAfterDelete = Random.shuffle(keyValuePairs.take(20000 / 2)).foldLeft(trie) { case (recTrie, (key, _)) => recTrie.remove(key) }
 
     assert(Hex.toHexString(trieAfterDelete.getRootHash) == "ae7b65dddd3ac0428082160cf3ceff0276cf6e6deaa23b42c4c156b50a459822")
+  }
+
+  /* Performance test */
+  test("Performance test (From: https://github.com/ethereum/wiki/wiki/Benchmarks)"){
+    val debug = false
+    val Rounds = 1000
+    val Symmetric = true
+
+    val start: Long = System.currentTimeMillis
+    val emptyTrie = MerklePatriciaTree[Array[Byte], Array[Byte]](HashMapDataSource(), hashFn)
+    var seed: Array[Byte] = Array.fill(32)(0.toByte)
+
+    val trieResult = (0 until Rounds).foldLeft(emptyTrie){ case (recTrie, i) =>
+      seed = hashFn(seed)
+      val mykey = seed.take(32)
+      if(!Symmetric) recTrie.put(mykey, mykey)
+      else{
+        seed = hashFn(seed)
+        val myval = if((seed(0) & 0xFF) % 2 == 1) Array[Byte](seed.last) else seed
+        recTrie.put(mykey, myval)
+      }
+    }
+    val rootHash = Hex.toHexString(trieResult.getRootHash)
+    if(debug){
+      println("Time taken(ms): "+(System.currentTimeMillis - start))
+      println("Root hash obtained: "+rootHash)
+    }
+    if(Symmetric) assert(rootHash.take(4) == "36f6" && rootHash.drop(rootHash.length-4) == "93a3")
+    else assert(rootHash.take(4) == "da8a" && rootHash.drop(rootHash.length-4) == "0ca4")
   }
 }
 
