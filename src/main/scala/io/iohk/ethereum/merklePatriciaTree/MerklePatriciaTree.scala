@@ -1,6 +1,7 @@
 package io.iohk.ethereum.merklePatriciaTree
 
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicLong
 
 import io.iohk.ethereum.merklePatriciaTree.MerklePatriciaTree.HashFn
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -16,6 +17,7 @@ object MerklePatriciaTree {
 
   private val PairSize: Byte = 2
   private[merklePatriciaTree] val ListSize: Byte = 17
+  private val updateCounter = new AtomicLong(System.currentTimeMillis())
 
   def apply[K, V](source: DataSource, hashFn: HashFn)
                  (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V])
@@ -38,14 +40,14 @@ object MerklePatriciaTree {
   private def matchingLength(bytes1: Array[Byte], bytes2: Array[Byte]): Int = bytes1.zip(bytes2).takeWhile(t => t._1 == t._2).length
 
   private def storageVersionGen(rootHash: Array[Byte]): Array[Byte] = {
-    rootHash ++ ByteBuffer.allocate(java.lang.Long.SIZE / java.lang.Byte.SIZE).putLong(System.currentTimeMillis()).array()
+    rootHash ++ ByteBuffer.allocate(java.lang.Long.SIZE / java.lang.Byte.SIZE).putLong(updateCounter.incrementAndGet()).array()
   }
 
   private def updateNodesInStorage(version: Array[Byte], root: Option[Node], toRemove: Seq[Node], toUpdate: Seq[Node],
                                    dataSource: DataSource, hashFn: HashFn): DataSource = {
     val toBeRemoved = toRemove.map(node => node.capped(hashFn)).filter(_.length == 32)
     val toBeUpdated = (toUpdate.filter(n => n.capped(hashFn).length == 32) ++ root.toList)
-      .map(node => node.hash(hashFn) -> node.encode)
+      .map(node => node.hash(hashFn) -> node.encode).groupBy(_._1).map(n => n._1 -> n._2.head).values.toSeq
     dataSource.update(version, toBeRemoved, toBeUpdated)
   }
 
@@ -148,15 +150,15 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
           storageVersionGen(newRootHash),
           Some(newRoot),
           nodesToRemoveFromStorage,
-          newRoot +: nodesToUpdateInStorage,
+          nodesToUpdateInStorage,
           dataSource,
           hashFn)
         new MerklePatriciaTree(Some(newRootHash), newSource, hashFn)
       case None =>
         val newRoot = LeafNode(keyNibbles, vSerializer.toBytes(value))
-        val rootHash = newRoot.hash(hashFn)
-        new MerklePatriciaTree(Some(rootHash),
-          updateNodesInStorage(storageVersionGen(rootHash), Some(newRoot), Seq(), Seq(), dataSource, hashFn),
+        val newRootHash = newRoot.hash(hashFn)
+        new MerklePatriciaTree(Some(newRootHash),
+          updateNodesInStorage(storageVersionGen(newRootHash), Some(newRoot), Seq(), Seq(), dataSource, hashFn),
           hashFn)
     }
   }
