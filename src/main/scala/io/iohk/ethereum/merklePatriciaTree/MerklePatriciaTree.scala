@@ -17,11 +17,11 @@ object MerklePatriciaTree {
 
   def apply[K, V](source: DataSource, hashFn: HashFn)
                  (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V])
-  : MerklePatriciaTree[K, V] = MerklePatriciaTree[K, V](None, source, hashFn)(kSerializer, vSerializer)
+  : MerklePatriciaTree[K, V] = new MerklePatriciaTree[K, V](None, source, hashFn)(kSerializer, vSerializer)
 
   def apply[K, V](rootHash: Array[Byte], source: DataSource, hashFn: HashFn)
                  (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V])
-  : MerklePatriciaTree[K, V] = MerklePatriciaTree[K, V](Some(rootHash), source, hashFn)(kSerializer, vSerializer)
+  : MerklePatriciaTree[K, V] = new MerklePatriciaTree[K, V](Some(rootHash), source, hashFn)(kSerializer, vSerializer)
 
   private def getNode(nodeId: Array[Byte], source: DataSource)(implicit nodeDec: RLPDecoder[Node]): Node = {
     val nodeEncoded = tryGetNode(nodeId, source)
@@ -112,14 +112,16 @@ object MerklePatriciaTree {
   }
 }
 
-case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], dataSource: DataSource, hashFn: HashFn)
-                                   (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V]) {
+class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
+                               val dataSource: DataSource,
+                               private val hashFn: HashFn)
+                              (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V]) {
 
   import MerklePatriciaTree._
 
   lazy val EmptyTrieHash = hashFn(encodeRLP(Array.emptyByteArray))
 
-  val getRootHash = rootHash match{
+  lazy val getRootHash = rootHash match{
     case Some(root) => root
     case None => EmptyTrieHash
   }
@@ -140,12 +142,12 @@ case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], d
       case Some(rootId) =>
         val root = getNode(rootId, dataSource)
         val NodeInsertResult(newRoot, newSource) = put(root, keyNibbles, vSerializer.toBytes(value))
-        MerklePatriciaTree(Some(newRoot.hash(hashFn)),
+        new MerklePatriciaTree(Some(newRoot.hash(hashFn)),
           replaceRoot(rootId, newRoot, newSource, hashFn),
           hashFn)
       case None =>
         val root = LeafNode(keyNibbles, vSerializer.toBytes(value))
-        MerklePatriciaTree(Some(root.hash(hashFn)),
+        new MerklePatriciaTree(Some(root.hash(hashFn)),
           updateNodeInStorage(root, dataSource, hashFn),
           hashFn)
     }
@@ -158,9 +160,9 @@ case class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]], d
         val root = getNode(rootId, dataSource)
         remove(root, keyNibbles) match {
           case NodeRemoveResult(true, Some(newRoot), afterDeleteDataSource) =>
-            MerklePatriciaTree(Some(newRoot.hash(hashFn)), replaceRoot(rootId, newRoot, afterDeleteDataSource, hashFn), hashFn)
+            new MerklePatriciaTree(Some(newRoot.hash(hashFn)), replaceRoot(rootId, newRoot, afterDeleteDataSource, hashFn), hashFn)
           case NodeRemoveResult(true, None, newDataSource) =>
-            MerklePatriciaTree(None, newDataSource, hashFn)
+            new MerklePatriciaTree(None, newDataSource, hashFn)
           case NodeRemoveResult(false, _, _) => this
         }
       case None => this
