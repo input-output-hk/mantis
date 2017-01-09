@@ -4,8 +4,9 @@ import java.io.IOException
 
 import akka.util.ByteString
 import io.iohk.ethereum.network.Secrets
-import io.iohk.ethereum.utils.RLP
-import io.iohk.ethereum.utils.RLPImplicits._
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.{decode, encode}
+import io.iohk.ethereum.rlp._
 import org.spongycastle.crypto.StreamCipher
 import org.spongycastle.crypto.digests.KeccakDigest
 import org.spongycastle.crypto.engines.AESFastEngine
@@ -54,9 +55,9 @@ class FrameCodec(private val secrets: Secrets) {
           secrets.ingressMac.update(buffer, 0, frameSize)
           dec.processBytes(buffer, 0, frameSize, buffer, 0)
 
-          val `type` = RLP.decode[Int](buffer).get
+          val `type` = decode[Int](buffer)
 
-          val pos = RLP.nextElementIndex(buffer, 0).get
+          val pos = nextElementIndex(buffer, 0)
           val payload = buffer.drop(pos).take(header.bodySize - pos)
           val size = header.bodySize - pos
           val macBuffer = new Array[Byte](secrets.ingressMac.getDigestSize)
@@ -86,7 +87,7 @@ class FrameCodec(private val secrets: Secrets) {
       bodySize = (bodySize << 8) + (headBuffer(1) & 0xFF)
       bodySize = (bodySize << 8) + (headBuffer(2) & 0xFF)
 
-      val rlpList = RLP.decode[Seq[Int]](headBuffer.drop(3))(seqEncDec[Int]).get.lift
+      val rlpList = decode[Seq[Int]](headBuffer.drop(3))(seqEncDec[Int]).lift
       val protocol = rlpList(0).get
       val contextId = rlpList(1)
       val totalFrameSize = rlpList(2)
@@ -100,7 +101,7 @@ class FrameCodec(private val secrets: Secrets) {
     var out: ByteString = ByteString("")
 
     val headBuffer = new Array[Byte](32)
-    val ptype = RLP.encode(`type`).get
+    val ptype = encode(`type`)
 
     val totalSize: Int = payload.length + ptype.length
     headBuffer(0) = (totalSize >> 16).toByte
@@ -108,11 +109,11 @@ class FrameCodec(private val secrets: Secrets) {
     headBuffer(2) = totalSize.toByte
 
     var headerDataElems: Seq[Array[Byte]] = Nil
-    headerDataElems :+= RLP.encode(0).get
-    contextId.foreach { cid => headerDataElems :+= RLP.encode(cid).get }
-    totalFrameSize foreach { tfs => headerDataElems :+= RLP.encode(tfs).get }
+    headerDataElems :+= encode(0)
+    contextId.foreach { cid => headerDataElems :+= encode(cid) }
+    totalFrameSize foreach { tfs => headerDataElems :+= encode(tfs) }
 
-    val headerData = RLP.encode(headerDataElems)(seqEncDec[Array[Byte]]).get
+    val headerData = encode(headerDataElems)(seqEncDec[Array[Byte]])
     System.arraycopy(headerData, 0, headBuffer, 3, headerData.length)
 
     enc.processBytes(headBuffer, 0, 16, headBuffer, 0)

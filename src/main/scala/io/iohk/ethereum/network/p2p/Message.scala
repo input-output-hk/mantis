@@ -2,23 +2,24 @@ package io.iohk.ethereum.network.p2p
 
 import scala.util.Try
 import akka.util.ByteString
-import io.iohk.ethereum.utils.RLPImplicits._
-import io.iohk.ethereum.utils.{RLPList, _}
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.{decode => rlpDecode}
+import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
 
 object Message {
 
   def decode(`type`: Int, payload: Array[Byte]): Try[Message] = {
     `type` match {
-      case Hello.code => RLP.decode(payload)(Hello.rlpEndDec)
-      case Disconnect.code => RLP.decode(payload)(Disconnect.rlpEndDec)
-      case Ping.code => RLP.decode(payload)(Ping.rlpEndDec)
-      case Pong.code => RLP.decode(payload)(Pong.rlpEndDec)
-      case Status.code => RLP.decode(payload)(Status.rlpEndDec)
-      case Transactions.code => RLP.decode(payload)(Transactions.rlpEndDec)
-      case NewBlockHashes.code => RLP.decode(payload)(NewBlockHashes.rlpEndDec)
-      case GetBlockHeaders.code => RLP.decode(payload)(GetBlockHeaders.rlpEndDec)
-      case BlockBodies.code => RLP.decode(payload)(BlockBodies.rlpEndDec)
+      case Hello.code => Try(rlpDecode(payload)(Hello.rlpEndDec))
+      case Disconnect.code => Try(rlpDecode(payload)(Disconnect.rlpEndDec))
+      case Ping.code => Try(rlpDecode(payload)(Ping.rlpEndDec))
+      case Pong.code => Try(rlpDecode(payload)(Pong.rlpEndDec))
+      case Status.code => Try(rlpDecode(payload)(Status.rlpEndDec))
+      case Transactions.code => Try(rlpDecode(payload)(Transactions.rlpEndDec))
+      case NewBlockHashes.code => Try(rlpDecode(payload)(NewBlockHashes.rlpEndDec))
+      case GetBlockHeaders.code => Try(rlpDecode(payload)(GetBlockHeaders.rlpEndDec))
+      case BlockBodies.code => Try(rlpDecode(payload)(BlockBodies.rlpEndDec))
       case _ => Try(throw new RuntimeException(s"Unknown message type: ${`type`}"))
     }
   }
@@ -35,7 +36,7 @@ object Capability {
     }
 
     override def decode(rlp: RLPEncodeable): Capability = rlp match {
-      case RLPList(name :: version :: Nil) => Capability(name, version)
+      case RLPList(name, version) => Capability(name, version)
       case _ => throw new RuntimeException("Cannot decode Capability")
     }
   }
@@ -52,7 +53,7 @@ object Hello {
     }
 
     override def decode(rlp: RLPEncodeable): Hello = rlp match {
-      case RLPList(p2pVersion :: clientId :: (capabilities: RLPList) :: listenPort :: nodeId :: Nil) =>
+      case RLPList(p2pVersion, clientId, (capabilities: RLPList), listenPort, nodeId) =>
         Hello(p2pVersion, clientId, capabilities.items.map(Capability.rlpEncDec.decode),
           listenPort, ByteString(nodeId: Array[Byte]))
       case _ => throw new RuntimeException("Cannot decode Hello")
@@ -118,7 +119,7 @@ object BlockBodies {
   implicit val rlpEndDec = new RLPEncoder[BlockBodies] with RLPDecoder[BlockBodies] {
     override def encode(obj: BlockBodies): RLPEncodeable = {
       import obj._
-      RLPList(bodies.map(BlockBody.rlpEndDec.encode))
+      RLPList(bodies.map(BlockBody.rlpEndDec.encode):_*)
     }
 
     override def decode(rlp: RLPEncodeable): BlockBodies = rlp match {
@@ -142,7 +143,7 @@ object BlockBody {
     }
 
     override def decode(rlp: RLPEncodeable): BlockBody = rlp match {
-      case RLPList((transactions: RLPList) :: (uncles: RLPList) :: Nil) => BlockBody(transactions, uncles)
+      case RLPList((transactions: RLPList), (uncles: RLPList)) => BlockBody(transactions, uncles)
       case _ => throw new RuntimeException("Cannot decode BlockBody")
     }
   }
@@ -158,7 +159,7 @@ object Status {
     }
 
     override def decode(rlp: RLPEncodeable): Status = rlp match {
-      case RLPList(protocolVersion :: networkId :: totalDifficulty :: bestHash :: genesisHash :: Nil) =>
+      case RLPList(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash) =>
         Status(protocolVersion, networkId, totalDifficulty, ByteString(bestHash: Array[Byte]), ByteString(genesisHash: Array[Byte]))
       case _ => throw new RuntimeException("Cannot decode Status")
     }
@@ -185,7 +186,7 @@ object NewBlockHashes {
   implicit val rlpEndDec = new RLPEncoder[NewBlockHashes] with RLPDecoder[NewBlockHashes] {
     override def encode(obj: NewBlockHashes): RLPEncodeable = {
       import obj._
-      RLPList(hashes.map(BlockHash.rlpEndDec.encode))
+      RLPList(hashes.map(BlockHash.rlpEndDec.encode):_*)
     }
 
     override def decode(rlp: RLPEncodeable): NewBlockHashes = rlp match {
@@ -210,7 +211,7 @@ object BlockHash {
     }
 
     override def decode(rlp: RLPEncodeable): BlockHash = rlp match {
-      case RLPList(hash :: number :: Nil) => BlockHash(ByteString(hash: Array[Byte]), number)
+      case RLPList(hash, number) => BlockHash(ByteString(hash: Array[Byte]), number)
       case _ => throw new RuntimeException("Cannot decode BlockHash")
     }
   }
@@ -236,10 +237,10 @@ object GetBlockHeaders {
     }
 
     override def decode(rlp: RLPEncodeable): GetBlockHeaders = rlp match {
-      case RLPList((block: RLPValue) :: maxHeaders :: skip :: reverse :: Nil) if block.bytes.length < 32 =>
+      case RLPList((block: RLPValue), maxHeaders, skip, reverse) if block.bytes.length < 32 =>
         GetBlockHeaders(Left(block), maxHeaders, skip, reverse)
 
-      case RLPList((block: RLPValue) :: maxHeaders :: skip :: reverse :: Nil) =>
+      case RLPList((block: RLPValue), maxHeaders, skip, reverse) =>
         GetBlockHeaders(Right(ByteString(block: Array[Byte])), maxHeaders, skip, reverse)
 
       case _ => throw new RuntimeException("Cannot decode GetBlockHeaders")
@@ -257,7 +258,7 @@ object Transactions {
   implicit val rlpEndDec = new RLPEncoder[Transactions] with RLPDecoder[Transactions] {
     override def encode(obj: Transactions): RLPEncodeable = {
       import obj._
-      RLPList(txs.map(Transaction.rlpEndDec.encode))
+      RLPList(txs.map(Transaction.rlpEndDec.encode):_*)
     }
 
     override def decode(rlp: RLPEncodeable): Transactions = rlp match {
@@ -283,12 +284,13 @@ object Transaction {
     }
 
     override def decode(rlp: RLPEncodeable): Transaction = rlp match {
-      case RLPList(nonce :: gasPrice :: gasLimit :: (receivingAddress: RLPValue) :: value :: payload :: pointSign :: signatureRandom :: signature :: Nil)
+      case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value, payload, pointSign, signatureRandom, signature)
         if receivingAddress.bytes.nonEmpty =>
-        Transaction(nonce, gasPrice, gasLimit, receivingAddress, value, Right(TransactionData(ByteString(payload: Array[Byte]))),
+        Transaction(nonce, gasPrice, gasLimit, ByteString(receivingAddress: Array[Byte]), value, Right(TransactionData(ByteString(payload: Array[Byte]))),
           pointSign, ByteString(signatureRandom: Array[Byte]), ByteString(signature: Array[Byte]))
 
-      case RLPList(nonce :: gasPrice :: gasLimit :: receivingAddress :: value :: payload :: pointSign :: signatureRandom :: signature :: Nil) =>
+      case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value, payload, pointSign, signatureRandom, signature)
+        if receivingAddress.bytes.isEmpty =>
         Transaction(nonce, gasPrice, gasLimit, ByteString(), value, Left(ContractInit(ByteString(payload: Array[Byte]))),
           pointSign, ByteString(signatureRandom: Array[Byte]), ByteString(signature: Array[Byte]))
 
