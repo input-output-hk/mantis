@@ -34,7 +34,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     override def fromBytes(bytes: Array[Byte]): Int = ByteBuffer.wrap(bytes).getInt()
   }
 
-  def md5(bytes: Array[Byte]) = {
+  def md5(bytes: Array[Byte]): Array[Byte] = {
     MessageDigest.getInstance("MD5").digest(bytes)
   }
 
@@ -542,8 +542,8 @@ class MerklePatriciaTreeSuite extends FunSuite
     }
     val rootHash = Hex.toHexString(trieResult.getRootHash)
     if(debug){
-      println("Time taken(ms): "+(System.currentTimeMillis - start))
-      println("Root hash obtained: "+rootHash)
+      println("Time taken(ms): " + (System.currentTimeMillis - start))
+      println("Root hash obtained: " + rootHash)
     }
     if(Symmetric) assert(rootHash.take(4) == "36f6" && rootHash.drop(rootHash.length-4) == "93a3")
     else assert(rootHash.take(4) == "da8a" && rootHash.drop(rootHash.length-4) == "0ca4")

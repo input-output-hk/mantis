@@ -9,7 +9,7 @@ object HexPrefix {
     *
     */
   def encode(nibbles: Array[Byte], t: Boolean): Array[Byte] = {
-    val hasOddLength = (nibbles.length) % 2 == 1
+    val hasOddLength = nibbles.length % 2 == 1
     val firstByteFlag: Byte = (2*(if(t) 1 else 0) + (if(hasOddLength) 1 else 0)).toByte
     val lengthFlag = if(hasOddLength) 1 else 2
 
