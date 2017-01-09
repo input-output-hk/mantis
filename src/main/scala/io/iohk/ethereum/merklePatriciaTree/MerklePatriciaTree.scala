@@ -36,10 +36,7 @@ object MerklePatriciaTree {
   private def tryGetNode[K <: ByteArraySerializable[K], V <: ByteArraySerializable[V]](key: Array[Byte],
                                                                                        source: DataSource): Array[Byte] =
     if (key.length < 32) key
-    else source.get(key) match {
-      case Some(a) => a
-      case None => throw MPTException("Node not found, trie is inconsistent")
-    }
+    else source.get(key).getOrElse(throw MPTException("Node not found, trie is inconsistent"))
 
   private def matchingLength(bytes1: Array[Byte], bytes2: Array[Byte]): Int = bytes1.zip(bytes2).takeWhile(t => t._1 == t._2).length
 
@@ -298,7 +295,8 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
             )
           case ml if ml == sharedKey.length =>
             // Current extension node's key is a prefix of the one being inserted, so we insert recursively on the extension's child
-            val NodeInsertResult(newChild: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(getNextNode(extensionNode, dataSource), searchKey.drop(ml), value)
+            val NodeInsertResult(newChild: BranchNode, toDeleteFromStorage, toUpdateInStorage) =
+              put(getNextNode(extensionNode, dataSource), searchKey.drop(ml), value)
             val newExtNode = ExtensionNode(sharedKey, newChild, hashFn)
             NodeInsertResult(
               newNode = newExtNode,
@@ -334,7 +332,8 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
           children(searchKeyHead) match {
             case Some(_) =>
               // The associated child is not empty, we recursively insert in that child
-              val NodeInsertResult(changedChild, toDeleteFromStorage, toUpdateInStorage) = put(getChild(branchNode, searchKeyHead, dataSource).get, searchKeyRemaining, value)
+              val NodeInsertResult(changedChild, toDeleteFromStorage, toUpdateInStorage) =
+                put(getChild(branchNode, searchKeyHead, dataSource).get, searchKeyRemaining, value)
               val newBranchNode = branchNode.updateChild(searchKeyHead, changedChild, hashFn)
               NodeInsertResult(
                 newNode = newBranchNode,
@@ -451,16 +450,15 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
         case _ => node
       }
     case extensionNode@ExtensionNode(sharedKey, next) =>
-      val nextNode = Try(getNextNode(extensionNode, dataSource)) match {
-        case Success(n) => n
-        case Failure(ex@MPTException(_)) =>
-          // If node is not in db it might be a node to be inserted at the end of this remove so we search in this list too
-          val nextHash = extensionNode.next match {
-            case Left(hash) => hash
-            case Right(_) => throw ex // it should have been returned in getNextNode so there is something wrong here, we throw an exception
+      val nextNode = extensionNode.next match{
+        case Left(nextHash) =>
+          // If the node is not in the extension node then it might be a node to be inserted at the end of this remove
+          // so we search in this list too
+          notStoredYet.find(n => n.hash(hashFn) sameElements nextHash) match{
+            case Some(node) => node
+            case None => getNextNode(extensionNode, dataSource) // We search for the node in the db
           }
-          notStoredYet.find(n => n.hash(hashFn) sameElements nextHash).getOrElse(throw ex) // Node should exist somewhere!
-        case Failure(ex) => throw ex
+        case Right(node) => node
       }
       val newNode = nextNode match {
         // Compact Two extensions into one
