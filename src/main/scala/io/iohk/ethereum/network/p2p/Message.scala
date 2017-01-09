@@ -1,24 +1,20 @@
 package io.iohk.ethereum.network.p2p
 
+import akka.util.ByteString
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rlp.RLPImplicits._
 
-import scala.util.Try
-
-import akka.util.ByteString
-
 object Message {
 
-  def decode(`type`: Int, payload: Array[Byte]): Try[Message] = Try {
-    `type` match {
-      case Hello.code => rlp.decode(payload)(Hello.rlpEndDec)
-      case Disconnect.code => rlp.decode(payload)(Disconnect.rlpEndDec)
-      case Ping.code => rlp.decode(payload)(Ping.rlpEndDec)
-      case Pong.code => rlp.decode(payload)(Pong.rlpEndDec)
-      case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
-    }
+  def decode(`type`: Int, payload: Array[Byte]): Message = `type` match {
+    case Hello.code => rlp.decode(payload)(Hello.rlpEndDec)
+    case Disconnect.code => rlp.decode(payload)(Disconnect.rlpEndDec)
+    case Ping.code => rlp.decode(payload)(Ping.rlpEndDec)
+    case Pong.code => rlp.decode(payload)(Pong.rlpEndDec)
+    case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
   }
+
 }
 
 sealed trait Message {

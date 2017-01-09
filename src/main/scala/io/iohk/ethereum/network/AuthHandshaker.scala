@@ -1,11 +1,11 @@
 package io.iohk.ethereum.network
 
-import java.math.BigInteger
 import java.net.URI
 import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.utils.ByteUtils._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.agreement.ECDHBasicAgreement
 import org.spongycastle.crypto.digests.{KeccakDigest, SHA256Digest}
@@ -53,7 +53,7 @@ case class AuthHandshaker(
   override def initiate(uri: URI): (ByteString, network.AuthHandshaker) = {
     val remotePubKey = publicKeyFromNodeId(uri.getUserInfo)
     val message = createAuthInitiateMessage(remotePubKey)
-    val encryptedPacket = ByteString(ECIESCoder.encrypt(remotePubKey, message.encode().toArray, None))
+    val encryptedPacket = ByteString(ECIESCoder.encrypt(remotePubKey, message.encoded.toArray, None))
 
     (encryptedPacket, copy(isInitiator = true, initiateMessageOpt = Some(message), initiatePacketOpt = Some(encryptedPacket)))
   }
@@ -72,7 +72,7 @@ case class AuthHandshaker(
     val message = AuthInitiateMessage.decode(plaintext)
 
     val response = createAuthResponseMessage()
-    val encryptedPacket = ByteString(ECIESCoder.encrypt(message.publicKey, response.encode().toArray, None))
+    val encryptedPacket = ByteString(ECIESCoder.encrypt(message.publicKey, response.encoded.toArray, None))
 
     val handshakeResult = copy(
       initiateMessageOpt = Some(message),
@@ -193,12 +193,4 @@ case class AuthHandshaker(
     successOpt getOrElse AuthHandshakeError
   }
 
-  private def bigIntegerToBytes(b: BigInteger, numBytes: Int): Array[Byte] = {
-    val bytes = new Array[Byte](numBytes)
-    val biBytes = b.toByteArray
-    val start = if (biBytes.length == numBytes + 1) 1 else 0
-    val length = Math.min(biBytes.length, numBytes)
-    System.arraycopy(biBytes, start, bytes, numBytes - length, length)
-    bytes
-  }
 }

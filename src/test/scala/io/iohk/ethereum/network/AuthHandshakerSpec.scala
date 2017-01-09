@@ -23,7 +23,7 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
 
   val remoteNonce = ByteString(Array.fill[Byte](AuthHandshaker.NonceSize)(9.toByte))
 
-  val remoteNodeId = nodeIdFromPublicKey(remoteNodeKey.getPublic)
+  val remoteNodeId = remoteNodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
   val remoteUri = new URI(s"enode://${Hex.toHexString(remoteNodeId)}@127.0.0.1:30303")
 
   val nodeKey = new AsymmetricCipherKeyPair(
@@ -54,7 +54,7 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
       nonce = remoteNonce,
       knownPeer = false)
 
-    val encodedResponse = response.encode()
+    val encodedResponse = response.encoded
     val encryptedResponse = ECIESCoder.encrypt(nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ, encodedResponse.toArray)
 
     val AuthHandshakeSuccess(secrets: Secrets) = authHandshaker.handleResponseMessage(ByteString(encryptedResponse))

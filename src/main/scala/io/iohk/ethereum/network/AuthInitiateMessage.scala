@@ -23,11 +23,12 @@ case class AuthInitiateMessage(
     nonce: ByteString,
     knownPeer: Boolean) {
 
-  def encode(): ByteString = {
-    signature.encode() ++
-      ephemeralPublicHash ++
-      publicKey.getEncoded(false).drop(1) ++
-      nonce ++
-      ByteString(if (knownPeer) 1.toByte else 0.toByte)
+  lazy val encoded: ByteString = {
+    signature.encoded ++
+    ephemeralPublicHash ++
+    publicKey.getEncoded(false).drop(1) ++
+    nonce ++
+    ByteString(if (knownPeer) 1.toByte else 0.toByte)
   }
+
 }

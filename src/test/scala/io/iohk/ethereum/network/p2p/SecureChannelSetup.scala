@@ -6,6 +6,7 @@ import java.security.SecureRandom
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network._
+import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
 import scorex.core.network.AuthHandshakeSuccess
 
@@ -14,7 +15,7 @@ trait SecureChannelSetup {
   val remoteNodeKey = generateKeyPair()
   val remoteEphemeralKey = generateKeyPair()
   val remoteNonce = randomNonce()
-  val remoteNodeId = nodeIdFromPublicKey(remoteNodeKey.getPublic)
+  val remoteNodeId = remoteNodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
   val remoteUri = new URI(s"enode://${Hex.toHexString(remoteNodeId)}@127.0.0.1:30303")
 
   val nodeKey = generateKeyPair()

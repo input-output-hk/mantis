@@ -69,10 +69,11 @@ object ECDSASignature {
 
 case class ECDSASignature(r: BigInteger, s: BigInteger, v: Byte) {
 
-  def encode() = {
+  lazy val encoded: ByteString = {
     ByteString(
       asUnsignedByteArray(r).reverse.padTo(32, 0.toByte).reverse ++
       asUnsignedByteArray(s).reverse.padTo(32, 0.toByte).reverse ++
       Array(ECDSASignature.recIdFromSignatureV(v)))
   }
+
 }

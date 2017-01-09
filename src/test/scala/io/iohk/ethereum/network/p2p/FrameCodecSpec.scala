@@ -2,7 +2,6 @@ package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp._
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.util.Success
@@ -20,7 +19,7 @@ class FrameCodecSpec extends FlatSpec with Matchers {
     val firstFrame = readFrames.head
     val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload)
 
-    readMessage shouldBe Success(Ping())
+    readMessage shouldBe Ping()
   }
 
   it should "send and receive Hello message" in new SecureChannelSetup {
@@ -34,7 +33,7 @@ class FrameCodecSpec extends FlatSpec with Matchers {
     val firstFrame = readFrames.head
     val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload)
 
-    readMessage shouldBe Success(msg)
+    readMessage shouldBe msg
   }
 
   it should "send message and receive a response" in new SecureChannelSetup {
@@ -51,8 +50,8 @@ class FrameCodecSpec extends FlatSpec with Matchers {
     val pongReadFrames = frameCodec.readFrames(pongData)
     val pongReadMessage = Message.decode(pongReadFrames.head.`type`, pongReadFrames.head.payload)
 
-    pingReadMessage shouldBe Success(ping)
-    pongReadMessage shouldBe Success(pong)
+    pingReadMessage shouldBe ping
+    pongReadMessage shouldBe pong
   }
 
 }
