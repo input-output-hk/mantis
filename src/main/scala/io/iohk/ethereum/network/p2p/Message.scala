@@ -72,6 +72,16 @@ case class Hello(
   extends Message {
 
   override val code: Int = Hello.code
+
+  override def toString: String = {
+    s"""{
+       |p2pVersion: $p2pVersion
+       |clientId: $clientId
+       |capabilities: $capabilities
+       |listenPort: $listenPort
+       |nodeId: ${Hex.toHexString(nodeId.toArray[Byte])}
+       |}""".stripMargin
+  }
 }
 
 object Ping {
@@ -159,6 +169,16 @@ object Status {
 
 case class Status(protocolVersion: Int, networkId: Int, totalDifficulty: BigInt, bestHash: ByteString, genesisHash: ByteString) extends Message {
   override def code: Int = Status.code
+
+  override def toString: String = {
+    s"""{
+       |protocolVersion: $protocolVersion
+       |networkId: $networkId
+       |totalDifficulty: $totalDifficulty
+       |bestHash: ${Hex.toHexString(bestHash.toArray[Byte])}
+       |genesisHash: ${Hex.toHexString(genesisHash.toArray[Byte])}
+       |}""".stripMargin
+  }
 }
 
 object NewBlockHashes {
@@ -196,7 +216,14 @@ object BlockHash {
   }
 }
 
-case class BlockHash(hash: ByteString, number: BigInt)
+case class BlockHash(hash: ByteString, number: BigInt){
+  override def toString: String = {
+    s"""{
+       |hash: ${Hex.toHexString(hash.toArray[Byte])}
+       |number: $number
+       |}""".stripMargin
+  }
+}
 
 object GetBlockHeaders {
   implicit val rlpEndDec = new RLPEncoder[GetBlockHeaders] with RLPDecoder[GetBlockHeaders] {
