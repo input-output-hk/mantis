@@ -7,7 +7,7 @@ branches:
   only:
     - master
     - feature/crypto
-    - feature/rlp
+    - feature/rlpRefactor
 script:
     - sbt test
 
