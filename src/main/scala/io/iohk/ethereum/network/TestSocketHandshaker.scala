@@ -55,15 +55,19 @@ object TestSocketHandshaker {
 
     while (true) {
       val msgs = readAtLeastOneMessage(frameCodec, inp)
-      msgs.collect { case a: Status => a }.foreach { m: Status => sendMessage(m, frameCodec, out) } //send same status message
-      msgs.foreach { m => println("Received message: " + m) }
+      msgs.foreach { m => println("\n Received message: " + m) }
+
+      msgs.collect { case a: Status => a }.foreach { m: Status =>
+        sendMessage(m, frameCodec, out)//send same status message
+        sendMessage(GetBlockHeaders(Right(m.genesisHash), maxHeaders = 5, skip = 0, reverse = 0), frameCodec, out)
+      }
     }
   }
 
   def sendMessage[M <: Message : RLPEncoder](message: M, frameCodec: FrameCodec, out: OutputStream) = {
     val encoded = rlpEncode(message)
     val frame = frameCodec.writeFrame(message.code, ByteString(encoded))
-    println(s"Sending message: $message")
+    println(s"\n Sending message: $message")
     out.write(frame.toArray)
   }
 

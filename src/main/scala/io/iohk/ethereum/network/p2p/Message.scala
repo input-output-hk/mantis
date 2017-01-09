@@ -20,6 +20,7 @@ object Message {
       case NewBlockHashes.code => Try(rlpDecode(payload)(NewBlockHashes.rlpEndDec))
       case GetBlockHeaders.code => Try(rlpDecode(payload)(GetBlockHeaders.rlpEndDec))
       case BlockBodies.code => Try(rlpDecode(payload)(BlockBodies.rlpEndDec))
+      case BlockHeaders.code => Try(rlpDecode(payload)(BlockHeaders.rlpEndDec))
       case _ => Try(throw new RuntimeException(s"Unknown message type: ${`type`}"))
     }
   }
@@ -75,7 +76,7 @@ case class Hello(
   override val code: Int = Hello.code
 
   override def toString: String = {
-    s"""{
+    s"""Hello {
        |p2pVersion: $p2pVersion
        |clientId: $clientId
        |capabilities: $capabilities
@@ -172,7 +173,7 @@ case class Status(protocolVersion: Int, networkId: Int, totalDifficulty: BigInt,
   override def code: Int = Status.code
 
   override def toString: String = {
-    s"""{
+    s"""Status {
        |protocolVersion: $protocolVersion
        |networkId: $networkId
        |totalDifficulty: $totalDifficulty
@@ -219,7 +220,7 @@ object BlockHash {
 
 case class BlockHash(hash: ByteString, number: BigInt){
   override def toString: String = {
-    s"""{
+    s"""BlockHash {
        |hash: ${Hex.toHexString(hash.toArray[Byte])}
        |number: $number
        |}""".stripMargin
@@ -252,6 +253,109 @@ object GetBlockHeaders {
 
 case class GetBlockHeaders(block: Either[BigInt, ByteString], maxHeaders: BigInt, skip: BigInt, reverse: Int) extends Message {
   override def code: Int = GetBlockHeaders.code
+}
+
+object BlockHeaders {
+  implicit val rlpEndDec = new RLPEncoder[BlockHeaders] with RLPDecoder[BlockHeaders] {
+    override def encode(obj: BlockHeaders): RLPEncodeable = {
+      import obj._
+      RLPList(headers.map(BlockHeader.rlpEndDec.encode):_*)
+    }
+
+    override def decode(rlp: RLPEncodeable): BlockHeaders = rlp match {
+      case rlpList: RLPList => BlockHeaders(rlpList.items.map(BlockHeader.rlpEndDec.decode))
+
+      case _ => throw new RuntimeException("Cannot decode BlockHeaders")
+    }
+  }
+
+  val code: Int = 0x10 + 0x04
+}
+
+case class BlockHeaders(headers: Seq[BlockHeader]) extends Message {
+  override def code: Int = BlockHeaders.code
+}
+
+object BlockHeader{
+  implicit val rlpEndDec = new RLPEncoder[BlockHeader] with RLPDecoder[BlockHeader] {
+    override def encode(obj: BlockHeader): RLPEncodeable = {
+      import obj._
+      RLPList(
+        parentHash.toArray[Byte],
+        ommersHash.toArray[Byte],
+        beneficiary.toArray[Byte],
+        stateRoot.toArray[Byte],
+        transactionsRoot.toArray[Byte],
+        receiptsRoot.toArray[Byte],
+        logsBloom.toArray[Byte],
+        difficulty,
+        number,
+        gasLimit,
+        gasUsed,
+        unixTimestamp,
+        extraData.toArray[Byte],
+        mixHash.toArray[Byte],
+        nonce.toArray[Byte])
+    }
+
+    override def decode(rlp: RLPEncodeable): BlockHeader = rlp match {
+      case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot, logsBloom,
+      difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce) =>
+        BlockHeader(ByteString(parentHash: Array[Byte]),
+          ByteString(ommersHash: Array[Byte]),
+          ByteString(beneficiary: Array[Byte]),
+          ByteString(stateRoot: Array[Byte]),
+          ByteString(transactionsRoot: Array[Byte]),
+          ByteString(receiptsRoot: Array[Byte]),
+          ByteString(logsBloom: Array[Byte]),
+          difficulty,
+          number,
+          gasLimit,
+          gasUsed,
+          unixTimestamp,
+          ByteString(extraData: Array[Byte]),
+          ByteString(mixHash: Array[Byte]),
+          ByteString(nonce: Array[Byte]))
+
+      case _ => throw new RuntimeException("Cannot decode BlockHeaders")
+    }
+  }
+}
+
+case class BlockHeader(parentHash: ByteString,
+                       ommersHash: ByteString,
+                       beneficiary: ByteString,
+                       stateRoot: ByteString,
+                       transactionsRoot: ByteString,
+                       receiptsRoot: ByteString,
+                       logsBloom: ByteString,
+                       difficulty: BigInt,
+                       number: BigInt,
+                       gasLimit: BigInt,
+                       gasUsed: BigInt,
+                       unixTimestamp: Long,
+                       extraData: ByteString,
+                       mixHash: ByteString,
+                       nonce: ByteString){
+  override def toString: String = {
+    s"""BlockHeader {
+       |parentHash: ${Hex.toHexString(parentHash.toArray[Byte])}
+       |ommersHash: ${Hex.toHexString(ommersHash.toArray[Byte])}
+       |beneficiary: ${Hex.toHexString(beneficiary.toArray[Byte])}
+       |stateRoot: ${Hex.toHexString(stateRoot.toArray[Byte])}
+       |transactionsRoot: ${Hex.toHexString(transactionsRoot.toArray[Byte])}
+       |receiptsRoot: ${Hex.toHexString(receiptsRoot.toArray[Byte])}
+       |logsBloom: ${Hex.toHexString(logsBloom.toArray[Byte])}
+       |difficulty: $difficulty,
+       |number: $number,
+       |gasLimit: $gasLimit,
+       |gasUsed: $gasUsed,
+       |unixTimestamp: $unixTimestamp,
+       |extraData: ${Hex.toHexString(extraData.toArray[Byte])}
+       |mixHash: ${Hex.toHexString(mixHash.toArray[Byte])}
+       |nonce: ${Hex.toHexString(nonce.toArray[Byte])}
+       |}""".stripMargin
+  }
 }
 
 object Transactions {
@@ -312,7 +416,7 @@ case class Transaction(nonce: BigInt,
                        signature: ByteString //s
                       ) {
   override def toString: String = {
-    s"""{
+    s"""Transaction {
        |nonce: $nonce
        |gasPrice: $gasPrice
        |gasLimit: $gasLimit
