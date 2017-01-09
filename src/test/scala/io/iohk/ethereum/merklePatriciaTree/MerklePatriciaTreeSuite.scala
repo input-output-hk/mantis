@@ -291,7 +291,11 @@ class MerklePatriciaTreeSuite extends FunSuite
     val key3: Array[Byte] = Hex.decode("123700")
     val key4: Array[Byte] = Hex.decode("123500")
     val trie = EmptyTrie.put(key1, key1).put(key2, key2).put(key3, key3).put(key4, key4)
-    val wrongSource = HashMapDataSource().update(Array.emptyByteArray, trie.getRootHash, trie.dataSource.get(trie.getRootHash).get)
+    val wrongSource = HashMapDataSource().update(
+      rootHash = Array.emptyByteArray,
+      toRemove = Seq(),
+      toUpdate = Seq(trie.getRootHash -> trie.dataSource.get(trie.getRootHash).get)
+    )
     val trieWithWrongSource = MerklePatriciaTree[Array[Byte], Array[Byte]](trie.getRootHash, wrongSource, hashFn)
     val trieAfterDelete = Try {
       trieWithWrongSource.remove(key1)
@@ -393,6 +397,45 @@ class MerklePatriciaTreeSuite extends FunSuite
     }
   }
 
+  test("IODB Test - PatriciaTrie delete") {
+    forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[Int])) { keyList: List[Int] =>
+      //create temporary dir
+      val dirWithDelete = File.createTempFile("iodb", "iodb1")
+      dirWithDelete.delete()
+      dirWithDelete.mkdir()
+      val dataSourceWithDelete = new IodbDataSource(new LSMStore(dir = dirWithDelete, keySize = 32))
+
+      val keyValueList = keyList.distinct.zipWithIndex
+      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTree[Int, Int](dataSourceWithDelete, hashFn)) {
+        case (recTrie, (key, value)) => recTrie.put(key, value)
+      }
+      val (keyValueToDelete, keyValueLeft) = Random.shuffle(keyValueList).splitAt(Gen.choose(0, keyValueList.size).sample.get)
+      val trieAfterDelete = keyValueToDelete.foldLeft(trieAfterInsert) {
+        case (recTrie, (key, value)) => recTrie.remove(key)
+      }
+
+      keyValueLeft.foreach { case (key, value) =>
+        val obtained = trieAfterDelete.get(key)
+        assert(obtained.isDefined)
+        assert(obtained.get == value)
+      }
+      keyValueToDelete.foreach { case (key, value) =>
+        val obtained = trieAfterDelete.get(key)
+        assert(obtained.isEmpty)
+      }
+
+      val dirOnlyInsert = File.createTempFile("iodb", "iodb2")
+      dirOnlyInsert.delete()
+      dirOnlyInsert.mkdir()
+      val dataSourceOnlyInsert = new IodbDataSource(new LSMStore(dir = dirOnlyInsert, keySize = 32))
+
+      val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTree[Int, Int](dataSourceOnlyInsert, hashFn)) {
+        case (recTrie, (key, value)) => recTrie.put(key, value)
+      }
+      assert(trieAfterDelete.getRootHash sameElements trieWithKeyValueLeft.getRootHash)
+    }
+  }
+
   /* EthereumJ tests */
   test("testDeleteCompletellyDiferentItems") {
     val val1: String = "1000000000000000000000000000000000000000000000000000000000000000"
@@ -460,13 +503,13 @@ class MerklePatriciaTreeSuite extends FunSuite
     assert(Hex.toHexString(storage.getRootHash) == "a3d0686205c7ed10a85c3bce4118d5d559bcda47ca39e4dd4f09719958a179f1")
   }
 
-  test("EthereumJ compatibility - Insert of the first 40000 numbers"){
+  ignore("EthereumJ compatibility - Insert of the first 40000 numbers"){
     val shuffledKeys = Random.shuffle(0 to 40000).map(intByteArraySerializable.toBytes)
     val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(key, key) }
     assert(Hex.toHexString(trie.getRootHash) == "3f8b75707975e5c16588fa1ba3e69f8da39f4e7bf3ca28b029c7dcb589923463")
   }
 
-  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed"){
+  ignore("EthereumJ compatibility - Insert of the first 20000 numbers hashed"){
     val shuffledKeys = Random.shuffle(0 to 20000).map(intByteArraySerializable.toBytes)
     val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
 
@@ -475,7 +518,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     assert(Hex.toHexString(trieAfterInsertNoEffect.getRootHash) == "a522b23a640c5fdb726e3f9644863e8913fe86339909fe881957efa0c23cebaa")
   }
 
-  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed and then remove half of them"){
+  ignore("EthereumJ compatibility - Insert of the first 20000 numbers hashed and then remove half of them"){
     val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
     val trie = Random.shuffle(keys).foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
 
@@ -487,7 +530,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     assert(Hex.toHexString(trieAfterDeleteNoEffect.getRootHash) == "a693b82dcc5a9e581e9bf9aa7af3aed31fe3eb61f97fd733ce44c9f9df2d7f45")
   }
 
-  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced)"){
+  ignore("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced)"){
     val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
 
     // We slice some of the keys so that me test more code coverage (if not we only test keys with the same length)
@@ -501,7 +544,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     assert(Hex.toHexString(trie.getRootHash) == "46cde8656f3be6ce93ba9dcb1017548f44c65d1ea659ac827fac8c9ac77cf6b3")
   }
 
-  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced) and then remove half of them") {
+  ignore("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced) and then remove half of them") {
     val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
 
     // We slice some of the keys so that me test more code coverage (if not we only test keys with the same length)
@@ -553,8 +596,6 @@ class MerklePatriciaTreeSuite extends FunSuite
 case class HashMapDataSource(storage: Map[ByteString, Array[Byte]]) extends DataSource {
 
   override def get(key: Array[Byte]): Option[Array[Byte]] = storage.get(ByteString(key))
-
-  override def update(rootHash: Array[Byte], key: Array[Byte], value: Array[Byte]): DataSource = HashMapDataSource(storage + (ByteString(key) -> value))
 
   override def update(rootHash: Array[Byte], toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource = {
     val afterRemoval = toRemove.foldLeft(storage)((storage, key) => storage - ByteString(key))

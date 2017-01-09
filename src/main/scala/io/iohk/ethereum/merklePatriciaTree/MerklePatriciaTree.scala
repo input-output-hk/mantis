@@ -121,13 +121,19 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
 
   import MerklePatriciaTree._
 
-  lazy val EmptyTrieHash = hashFn(encodeRLP(Array.emptyByteArray))
-
+  private lazy val EmptyTrieHash = hashFn(encodeRLP(Array.emptyByteArray))
   lazy val getRootHash = rootHash match {
     case Some(root) => root
     case None => EmptyTrieHash
   }
 
+  /**
+    * This function obtains the value asociated with the key passed, if there exists one.
+    *
+    * @param key
+    * @return Option object with value if there exists one.
+    * @throws MPTException if there is any inconsistency in how the trie is build.
+    */
   def get(key: K): Option[V] = {
     rootHash match {
       case Some(rootId) =>
@@ -138,6 +144,14 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
     }
   }
 
+  /**
+    * This function inserts a (key-value) pair into the trie. If the key is already asociated with another value it is updated.
+    *
+    * @param key
+    * @param value
+    * @return New trie with the (key-value) pair inserted.
+    * @throws MPTException if there is any inconsistency in how the trie is build.
+    */
   def put(key: K, value: V): MerklePatriciaTree[K, V] = {
     val keyNibbles = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
     rootHash match {
@@ -162,6 +176,13 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
     }
   }
 
+  /**
+    * This function deletes a (key-value) pair from the trie. If no (key-value) pair exists with the passed trie then there's no effect on it.
+    *
+    * @param key
+    * @return New trie with the (key-value) pair associated with the key passed deleted from the trie.
+    * @throws MPTException if there is any inconsistency in how the trie is build.
+    */
   def remove(key: K): MerklePatriciaTree[K, V] = {
     rootHash match {
       case Some(rootId) =>
@@ -180,12 +201,12 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
             new MerklePatriciaTree(Some(newRootHash), afterDeleteDataSource, hashFn)
           case NodeRemoveResult(true, None, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
             val afterDeleteDataSource = updateNodesInStorage(
-              EmptyTrieHash,
-              None,
-              nodesToRemoveFromStorage,
-              nodesToUpdateInStorage,
-              dataSource,
-              hashFn)
+              rootHash = EmptyTrieHash,
+              root = None,
+              toRemove = nodesToRemoveFromStorage,
+              toUpdate = nodesToUpdateInStorage,
+              dataSource = dataSource,
+              hashFn = hashFn)
             new MerklePatriciaTree(None, afterDeleteDataSource, hashFn)
           case NodeRemoveResult(false, _, _, _) => this
         }
@@ -193,7 +214,6 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
     }
   }
 
-  /* Private functions */
   @tailrec
   private def get(node: Node, searchKey: Array[Byte]): Option[Array[Byte]] = node match {
     case LeafNode(key, value) =>
@@ -242,23 +262,13 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
               toDeleteFromStorage = node +: toDeleteFromStorage,
               toUpdateInStorage = maybeNewLeaf.toList ++ toUpdateInStorage
             )
-          case ml if ml == existingKey.length =>
-            // Current leaf's key is exactly the common prefix so we need to replace this node with an extension
-            // and a branch to continue inserting our key
-            val (searchKeyPrefix, searchKeySuffix) = searchKey.splitAt(ml)
-            val temporalBranchNode = BranchNode.withValueOnly(storedValue)
-            val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(temporalBranchNode, searchKeySuffix, value)
-            val newExtNode = ExtensionNode(searchKeyPrefix, newBranchNode, hashFn)
-            NodeInsertResult(
-              newNode = newExtNode,
-              toDeleteFromStorage = node +: toDeleteFromStorage,
-              toUpdateInStorage = newExtNode +: toUpdateInStorage
-            )
           case ml =>
             // Partially shared prefix, we replace the leaf with an extension and a branch node
             val (searchKeyPrefix, searchKeySuffix) = searchKey.splitAt(ml)
-            val temporalLeafNode = LeafNode(existingKey.drop(ml), storedValue)
-            val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(temporalLeafNode, searchKeySuffix, value)
+            val temporalNode =
+              if (ml == existingKey.length) BranchNode.withValueOnly(storedValue)
+              else LeafNode(existingKey.drop(ml), storedValue)
+            val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(temporalNode, searchKeySuffix, value)
             val newExtNode = ExtensionNode(searchKeyPrefix, newBranchNode, hashFn)
             NodeInsertResult(
               newNode = newExtNode,
@@ -273,9 +283,7 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
             val sharedKeyHead = sharedKey(0)
             val (temporalBranchNode, maybeNewLeaf) = {
               // Direct extension, we just replace the extension with a branch
-              if (sharedKey.length == 1) {
-                BranchNode.withSingleChild(sharedKeyHead, next, None) -> None
-              }
+              if (sharedKey.length == 1) BranchNode.withSingleChild(sharedKeyHead, next, None) -> None
               else {
                 // The new branch node will have an extension that replaces current one
                 val newExtNode = ExtensionNode(sharedKey.tail, next)
@@ -423,12 +431,17 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
   }
 
   /**
-    * Given a node which may be in an _invalid state_, fix it such that it is then in a valid state.
-    *
-    * _invalid state_ means:
+    * Given a node which may be in an invalid state, fix it such that it is then in a valid state. Invalid state means:
     *   - Branch node where there is only a single entry;
     *   - Extension node followed by anything other than a Branch node.
     *
+    * @param node that may be in an invalid state.
+    * @param dataSource to obtain the nodes referenced in the node that may be in an invalid state.
+    * @param notStoredYet to obtain the nodes referenced in the node that may be in an invalid state,
+    *                     if they were not yet inserted into the dataSource.
+    * @param hashFn
+    * @return fixed node.
+    * @throws MPTException if there is any inconsistency in how the trie is build.
     */
   @tailrec
   private def fix(node: Node, dataSource: DataSource, notStoredYet: Seq[Node], hashFn: HashFn): Node = node match {
@@ -445,11 +458,11 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
         case _ => node
       }
     case extensionNode@ExtensionNode(sharedKey, next) =>
-      val nextNode = extensionNode.next match{
+      val nextNode = extensionNode.next match {
         case Left(nextHash) =>
           // If the node is not in the extension node then it might be a node to be inserted at the end of this remove
           // so we search in this list too
-          notStoredYet.find(n => n.hash(hashFn) sameElements nextHash) match{
+          notStoredYet.find(n => n.hash(hashFn) sameElements nextHash) match {
             case Some(nextNodeOnList) => nextNodeOnList
             case None => getNextNode(extensionNode, dataSource) // We search for the node in the db
           }
@@ -480,8 +493,6 @@ trait DataSource {
   type Value = Array[Byte]
 
   def get(key: Key): Option[Value]
-
-  def update(rootHash: Array[Byte], key: Key, value: Value): DataSource
 
   def update(rootHash: Array[Byte], toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource
 }
