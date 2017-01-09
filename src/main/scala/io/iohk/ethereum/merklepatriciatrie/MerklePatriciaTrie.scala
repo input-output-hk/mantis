@@ -1,14 +1,10 @@
 package io.iohk.ethereum.merklepatriciatrie
 
-import java.nio.ByteBuffer
-import java.util.concurrent.atomic.AtomicLong
-
 import io.iohk.ethereum.merklepatriciatrie.MerklePatriciaTrie.HashFn
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => decodeRLP, encode => encodeRLP, _}
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
 
 object MerklePatriciaTrie {
 
@@ -32,8 +28,7 @@ object MerklePatriciaTrie {
     decodeRLP[Node](nodeEncoded)
   }
 
-  private def tryGetNode[K <: ByteArraySerializable[K], V <: ByteArraySerializable[V]](key: Array[Byte],
-                                                                                       source: DataSource): Array[Byte] =
+  private def tryGetNode(key: Array[Byte], source: DataSource): Array[Byte] =
     if (key.length < 32) key
     else source.get(key).getOrElse(throw MPTException("Node not found, trie is inconsistent"))
 
@@ -452,7 +447,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
   private def fix(node: Node, dataSource: DataSource, notStoredYet: Seq[Node], hashFn: HashFn): Node = node match {
     case BranchNode(children, optStoredValue) =>
       val usedIndexes = children.indices.foldLeft[Seq[Int]](Seq.empty) { (acc, i) =>
-        if (children(i).isDefined) acc :+ i else acc
+        if (children(i).isDefined) i +: acc else acc
       }
       (usedIndexes, optStoredValue) match {
         case (Nil, None) => throw MPTException("Branch with no subvalues")
