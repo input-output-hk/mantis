@@ -1,4 +1,4 @@
-package io.iohk.ethereum.merklePatriciaTree
+package io.iohk.ethereum.merklepatriciatrie
 
 import io.iohk.ethereum.ObjectGenerators
 import org.scalatest.FunSuite

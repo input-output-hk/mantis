@@ -1,11 +1,11 @@
-package io.iohk.ethereum.merklePatriciaTree
+package io.iohk.ethereum.merklepatriciatrie
 
 import java.io.File
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.Keccak
-import io.iohk.ethereum.merklePatriciaTree.MerklePatriciaTree.defaultByteArraySerializable
+import io.iohk.ethereum.merklepatriciatrie.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => encodeRLP, decode => decodeRLP}
 import io.iohk.iodb.LSMStore
@@ -22,7 +22,7 @@ class MerklePatriciaTreeSuite extends FunSuite
   with ObjectGenerators {
   val hashFn = Keccak.hash256 _
 
-  val EmptyTrie = MerklePatriciaTree[Array[Byte], Array[Byte]](HashMapDataSource(), hashFn)
+  val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](HashMapDataSource(), hashFn)
 
   implicit val intByteArraySerializable = new ByteArraySerializable[Int] {
     override def toBytes(input: Int): Array[Byte] = {
@@ -41,7 +41,7 @@ class MerklePatriciaTreeSuite extends FunSuite
   /* Random get, insert and delete tests */
   test("PatriciaTrie insert and get") {
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
-      val trie = keyValueList.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
+      val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](HashMapDataSource(), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       keyValueList.foreach { case (key, value) =>
@@ -55,7 +55,7 @@ class MerklePatriciaTreeSuite extends FunSuite
   test("PatriciaTrie delete") {
     forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[Int])) { keyList: List[Int] =>
       val keyValueList = keyList.distinct.zipWithIndex
-      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
+      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](HashMapDataSource(), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       val (keyValueToDelete, keyValueLeft) = Random.shuffle(keyValueList).splitAt(Gen.choose(0, keyValueList.size).sample.get)
@@ -73,7 +73,7 @@ class MerklePatriciaTreeSuite extends FunSuite
         assert(obtained.isEmpty)
       }
 
-      val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
+      val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTrie[Int, Int](HashMapDataSource(), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       assert(trieAfterDelete.getRootHash sameElements trieWithKeyValueLeft.getRootHash)
@@ -82,12 +82,12 @@ class MerklePatriciaTreeSuite extends FunSuite
 
   test("Trie insert should have the same root independently on the order its pairs are inserted") {
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
-      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
+      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](HashMapDataSource(), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       val keyValueListShuffle = Random.shuffle(keyValueList)
 
-      val trieAfterInsertShuffle = keyValueListShuffle.foldLeft(MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)) {
+      val trieAfterInsertShuffle = keyValueListShuffle.foldLeft(MerklePatriciaTrie[Int, Int](HashMapDataSource(), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
 
@@ -97,13 +97,13 @@ class MerklePatriciaTreeSuite extends FunSuite
 
   /* MerklePatriciaTree API tests for particular cases */
   test("Remove key from an empty tree") {
-    val emptyTrie = MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)
+    val emptyTrie = MerklePatriciaTrie[Int, Int](HashMapDataSource(), hashFn)
     val afterDeleteTrie = emptyTrie.remove(1)
     assert(afterDeleteTrie.getRootHash sameElements emptyTrie.getRootHash)
   }
 
   test("Remove a key that does not exist") {
-    val emptyTrie = MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)
+    val emptyTrie = MerklePatriciaTrie[Int, Int](HashMapDataSource(), hashFn)
     val trieWithOneElement = emptyTrie.put(1, 5)
     val obtained = trieWithOneElement.get(1)
     assert(obtained.isDefined)
@@ -114,7 +114,7 @@ class MerklePatriciaTreeSuite extends FunSuite
   }
 
   test("Insert only one (key, value) pair to a trie and then deleted") {
-    val emptyTrie = MerklePatriciaTree[Int, Int](HashMapDataSource(), hashFn)
+    val emptyTrie = MerklePatriciaTrie[Int, Int](HashMapDataSource(), hashFn)
     val trieWithOneElement = emptyTrie.put(1, 5)
     val obtained = trieWithOneElement.get(1)
     assert(obtained.isDefined)
@@ -296,7 +296,7 @@ class MerklePatriciaTreeSuite extends FunSuite
       toRemove = Seq(),
       toUpdate = Seq(trie.getRootHash -> trie.dataSource.get(trie.getRootHash).get)
     )
-    val trieWithWrongSource = MerklePatriciaTree[Array[Byte], Array[Byte]](trie.getRootHash, wrongSource, hashFn)
+    val trieWithWrongSource = MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, wrongSource, hashFn)
     val trieAfterDelete = Try {
       trieWithWrongSource.remove(key1)
     }
@@ -348,7 +348,7 @@ class MerklePatriciaTreeSuite extends FunSuite
 
     //open new store
     val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = 32))
-    val emptyTrie = MerklePatriciaTree[Int, Int](dataSource, hashFn)
+    val emptyTrie = MerklePatriciaTrie[Int, Int](dataSource, hashFn)
     val trieWithOneElement = emptyTrie.put(1, 5)
     val obtained = trieWithOneElement.get(1)
     assert(obtained.isDefined)
@@ -365,7 +365,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     dir.mkdir()
 
     val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = 32))
-    val emptyTrie = MerklePatriciaTree[Array[Byte], Array[Byte]](dataSource, hashFn)
+    val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](dataSource, hashFn)
 
     val keys = (0 to 100).map(intByteArraySerializable.toBytes)
     val trie = Random.shuffle(keys).foldLeft(emptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
@@ -386,7 +386,7 @@ class MerklePatriciaTreeSuite extends FunSuite
       dir.mkdir()
 
       val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = 32))
-      val trie = keyValueList.foldLeft(MerklePatriciaTree[Int, Int](dataSource, hashFn)) {
+      val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](dataSource, hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       keyValueList.foreach { case (key, value) =>
@@ -406,7 +406,7 @@ class MerklePatriciaTreeSuite extends FunSuite
       val dataSourceWithDelete = new IodbDataSource(new LSMStore(dir = dirWithDelete, keySize = 32))
 
       val keyValueList = keyList.distinct.zipWithIndex
-      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTree[Int, Int](dataSourceWithDelete, hashFn)) {
+      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](dataSourceWithDelete, hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       val (keyValueToDelete, keyValueLeft) = Random.shuffle(keyValueList).splitAt(Gen.choose(0, keyValueList.size).sample.get)
@@ -429,7 +429,7 @@ class MerklePatriciaTreeSuite extends FunSuite
       dirOnlyInsert.mkdir()
       val dataSourceOnlyInsert = new IodbDataSource(new LSMStore(dir = dirOnlyInsert, keySize = 32))
 
-      val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTree[Int, Int](dataSourceOnlyInsert, hashFn)) {
+      val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTrie[Int, Int](dataSourceOnlyInsert, hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       assert(trieAfterDelete.getRootHash sameElements trieWithKeyValueLeft.getRootHash)
@@ -570,7 +570,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     val Symmetric = true
 
     val start: Long = System.currentTimeMillis
-    val emptyTrie = MerklePatriciaTree[Array[Byte], Array[Byte]](HashMapDataSource(), hashFn)
+    val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](HashMapDataSource(), hashFn)
     var seed: Array[Byte] = Array.fill(32)(0.toByte)
 
     val trieResult = (0 until Rounds).foldLeft(emptyTrie){ case (recTrie, i) =>

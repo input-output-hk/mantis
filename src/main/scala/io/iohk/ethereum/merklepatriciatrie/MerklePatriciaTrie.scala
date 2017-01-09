@@ -1,31 +1,31 @@
-package io.iohk.ethereum.merklePatriciaTree
+package io.iohk.ethereum.merklepatriciatrie
 
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLong
 
-import io.iohk.ethereum.merklePatriciaTree.MerklePatriciaTree.HashFn
+import io.iohk.ethereum.merklepatriciatrie.MerklePatriciaTrie.HashFn
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => decodeRLP, encode => encodeRLP, _}
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-object MerklePatriciaTree {
+object MerklePatriciaTrie {
 
   case class MPTException(message: String) extends RuntimeException(message)
 
   type HashFn = Array[Byte] => Array[Byte]
 
   private val PairSize: Byte = 2
-  private[merklePatriciaTree] val ListSize: Byte = 17
+  private[merklepatriciatrie] val ListSize: Byte = 17
 
   def apply[K, V](source: DataSource, hashFn: HashFn)
                  (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V])
-  : MerklePatriciaTree[K, V] = new MerklePatriciaTree[K, V](None, source, hashFn)(kSerializer, vSerializer)
+  : MerklePatriciaTrie[K, V] = new MerklePatriciaTrie[K, V](None, source, hashFn)(kSerializer, vSerializer)
 
   def apply[K, V](rootHash: Array[Byte], source: DataSource, hashFn: HashFn)
                  (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V])
-  : MerklePatriciaTree[K, V] = new MerklePatriciaTree[K, V](Some(rootHash), source, hashFn)(kSerializer, vSerializer)
+  : MerklePatriciaTrie[K, V] = new MerklePatriciaTrie[K, V](Some(rootHash), source, hashFn)(kSerializer, vSerializer)
 
   private def getNode(nodeId: Array[Byte], source: DataSource)(implicit nodeDec: RLPDecoder[Node]): Node = {
     val nodeEncoded = tryGetNode(nodeId, source)
@@ -53,13 +53,13 @@ object MerklePatriciaTree {
   private def getNextNode(extensionNode: ExtensionNode, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Node =
     extensionNode.next match {
       case Right(node) => node
-      case Left(hash) => MerklePatriciaTree.getNode(hash, dataSource)
+      case Left(hash) => MerklePatriciaTrie.getNode(hash, dataSource)
     }
 
   private def getChild(branchNode: BranchNode, pos: Int, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] =
     branchNode.children(pos) match {
       case Some(Right(node)) => Some(node)
-      case Some(Left(hash)) => Some(MerklePatriciaTree.getNode(hash, dataSource))
+      case Some(Left(hash)) => Some(MerklePatriciaTrie.getNode(hash, dataSource))
       case None => None
     }
 
@@ -72,7 +72,7 @@ object MerklePatriciaTree {
   /**
     * Implicits
     */
-  private[merklePatriciaTree] implicit val nodeEncDec = new RLPDecoder[Node] with RLPEncoder[Node] {
+  private[merklepatriciatrie] implicit val nodeEncDec = new RLPDecoder[Node] with RLPEncoder[Node] {
     override def encode(obj: Node): RLPEncodeable = obj match {
       case leaf: LeafNode => RLPList(HexPrefix.encode(nibbles = leaf.key, t = true), leaf.value)
       case extension: ExtensionNode =>
@@ -90,7 +90,7 @@ object MerklePatriciaTree {
     }
 
     override def decode(rlp: RLPEncodeable): Node = rlp match {
-      case RLPList(items@_*) if items.size == MerklePatriciaTree.ListSize =>
+      case RLPList(items@_*) if items.size == MerklePatriciaTrie.ListSize =>
         val parsedChildren: Seq[Option[Either[Array[Byte], Node]]] = items.init.map {
           case list: RLPList => Some(Right(this.decode(list)))
           case RLPValue(bytes) =>
@@ -99,7 +99,7 @@ object MerklePatriciaTree {
         }
         val terminatorAsArray: Array[Byte] = items.last
         BranchNode(children = parsedChildren, terminator = if (terminatorAsArray.isEmpty) None else Some(terminatorAsArray))
-      case RLPList(items@_*) if items.size == MerklePatriciaTree.PairSize =>
+      case RLPList(items@_*) if items.size == MerklePatriciaTrie.PairSize =>
         val (key, isLeaf) = HexPrefix.decode(items.head)
         if (isLeaf) LeafNode(key, items.last)
         else {
@@ -114,12 +114,12 @@ object MerklePatriciaTree {
   }
 }
 
-class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
+class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
                                val dataSource: DataSource,
                                private val hashFn: HashFn)
                               (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V]) {
 
-  import MerklePatriciaTree._
+  import MerklePatriciaTrie._
 
   private lazy val EmptyTrieHash = hashFn(encodeRLP(Array.emptyByteArray))
   lazy val getRootHash = rootHash match {
@@ -152,7 +152,7 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
     * @return New trie with the (key-value) pair inserted.
     * @throws MPTException if there is any inconsistency in how the trie is build.
     */
-  def put(key: K, value: V): MerklePatriciaTree[K, V] = {
+  def put(key: K, value: V): MerklePatriciaTrie[K, V] = {
     val keyNibbles = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
     rootHash match {
       case Some(rootId) =>
@@ -166,11 +166,11 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
           toUpdate = nodesToUpdateInStorage,
           dataSource = dataSource,
           hashFn = hashFn)
-        new MerklePatriciaTree(Some(newRootHash), newSource, hashFn)
+        new MerklePatriciaTrie(Some(newRootHash), newSource, hashFn)
       case None =>
         val newRoot = LeafNode(keyNibbles, vSerializer.toBytes(value))
         val newRootHash = newRoot.hash(hashFn)
-        new MerklePatriciaTree(Some(newRootHash),
+        new MerklePatriciaTrie(Some(newRootHash),
           updateNodesInStorage(newRootHash, Some(newRoot), Seq(), Seq(newRoot), dataSource, hashFn),
           hashFn)
     }
@@ -183,7 +183,7 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
     * @return New trie with the (key-value) pair associated with the key passed deleted from the trie.
     * @throws MPTException if there is any inconsistency in how the trie is build.
     */
-  def remove(key: K): MerklePatriciaTree[K, V] = {
+  def remove(key: K): MerklePatriciaTrie[K, V] = {
     rootHash match {
       case Some(rootId) =>
         val keyNibbles = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
@@ -198,7 +198,7 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
               toUpdate = nodesToUpdateInStorage,
               dataSource = dataSource,
               hashFn = hashFn)
-            new MerklePatriciaTree(Some(newRootHash), afterDeleteDataSource, hashFn)
+            new MerklePatriciaTrie(Some(newRootHash), afterDeleteDataSource, hashFn)
           case NodeRemoveResult(true, None, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
             val afterDeleteDataSource = updateNodesInStorage(
               rootHash = EmptyTrieHash,
@@ -207,7 +207,7 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
               toUpdate = nodesToUpdateInStorage,
               dataSource = dataSource,
               hashFn = hashFn)
-            new MerklePatriciaTree(None, afterDeleteDataSource, hashFn)
+            new MerklePatriciaTrie(None, afterDeleteDataSource, hashFn)
           case NodeRemoveResult(false, _, _, _) => this
         }
       case None => this
@@ -502,7 +502,7 @@ trait DataSource {
   */
 private sealed trait Node {
 
-  import MerklePatriciaTree._
+  import MerklePatriciaTrie._
 
   private var encodedCache: Option[Array[Byte]] = None
   private var hashedCache: Option[Array[Byte]] = None
@@ -544,7 +544,7 @@ private case class BranchNode(children: Seq[Option[Either[Array[Byte], Node]]], 
 }
 
 private object BranchNode {
-  private val emptyChildren: Seq[Option[Either[Array[Byte], Node]]] = Array.fill(MerklePatriciaTree.ListSize - 1)(None)
+  private val emptyChildren: Seq[Option[Either[Array[Byte], Node]]] = Array.fill(MerklePatriciaTrie.ListSize - 1)(None)
 
   def withValueOnly(terminator: Array[Byte]): BranchNode =
     BranchNode(emptyChildren, Some(terminator))
