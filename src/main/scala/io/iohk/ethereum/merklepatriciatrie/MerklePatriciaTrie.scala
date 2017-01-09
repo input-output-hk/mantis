@@ -39,15 +39,17 @@ object MerklePatriciaTrie {
 
   private def matchingLength(bytes1: Array[Byte], bytes2: Array[Byte]): Int = bytes1.zip(bytes2).takeWhile(t => t._1 == t._2).length
 
-  private def updateNodesInStorage(rootHash: Array[Byte], root: Option[Node], toRemove: Seq[Node], toUpdate: Seq[Node],
-                                   dataSource: DataSource, hashFn: HashFn): DataSource = {
-    val rootCapped = root.map(_.capped(hashFn)).getOrElse(Array.emptyByteArray)
-    val toBeRemoved = toRemove.map(node => node.capped(hashFn)).filter(_.length == 32)
+  private def updateNodesInStorage(previousRootHash: Array[Byte], newRootHash: Array[Byte], newRoot: Option[Node],
+                                   toRemove: Seq[Node], toUpdate: Seq[Node], dataSource: DataSource, hashFn: HashFn): DataSource = {
+    val rootCapped = newRoot.map(_.capped(hashFn)).getOrElse(Array.emptyByteArray)
+    val toBeRemoved = toRemove.filter{node =>
+      val nCapped = node.capped(hashFn)
+      nCapped.length == 32 || (node.hash(hashFn) sameElements previousRootHash) }.map(_.hash(hashFn))
     val toBeUpdated = toUpdate.filter { n =>
       val nCapped = n.capped(hashFn)
       nCapped.length == 32 || (nCapped sameElements rootCapped)
     }.map(node => node.hash(hashFn) -> node.encode)
-    dataSource.update(rootHash, toBeRemoved, toBeUpdated)
+    dataSource.update(newRootHash, toBeRemoved, toBeUpdated)
   }
 
   private def getNextNode(extensionNode: ExtensionNode, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Node =
@@ -160,8 +162,9 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
         val NodeInsertResult(newRoot, nodesToRemoveFromStorage, nodesToUpdateInStorage) = put(root, keyNibbles, vSerializer.toBytes(value))
         val newRootHash = newRoot.hash(hashFn)
         val newSource = updateNodesInStorage(
-          rootHash = newRootHash,
-          root = Some(newRoot),
+          previousRootHash = getRootHash,
+          newRootHash = newRootHash,
+          newRoot = Some(newRoot),
           toRemove = nodesToRemoveFromStorage,
           toUpdate = nodesToUpdateInStorage,
           dataSource = dataSource,
@@ -171,7 +174,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
         val newRoot = LeafNode(keyNibbles, vSerializer.toBytes(value))
         val newRootHash = newRoot.hash(hashFn)
         new MerklePatriciaTrie(Some(newRootHash),
-          updateNodesInStorage(newRootHash, Some(newRoot), Seq(), Seq(newRoot), dataSource, hashFn),
+          updateNodesInStorage(getRootHash, newRootHash, Some(newRoot), Seq(), Seq(newRoot), dataSource, hashFn),
           hashFn)
     }
   }
@@ -192,8 +195,9 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
           case NodeRemoveResult(true, Some(newRoot), nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
             val newRootHash = newRoot.hash(hashFn)
             val afterDeleteDataSource = updateNodesInStorage(
-              rootHash = newRootHash,
-              root = Some(newRoot),
+              previousRootHash = getRootHash,
+              newRootHash = newRootHash,
+              newRoot = Some(newRoot),
               toRemove = nodesToRemoveFromStorage,
               toUpdate = nodesToUpdateInStorage,
               dataSource = dataSource,
@@ -201,8 +205,9 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
             new MerklePatriciaTrie(Some(newRootHash), afterDeleteDataSource, hashFn)
           case NodeRemoveResult(true, None, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
             val afterDeleteDataSource = updateNodesInStorage(
-              rootHash = EmptyTrieHash,
-              root = None,
+              previousRootHash = getRootHash,
+              newRootHash = EmptyTrieHash,
+              newRoot = None,
               toRemove = nodesToRemoveFromStorage,
               toUpdate = nodesToUpdateInStorage,
               dataSource = dataSource,
@@ -417,7 +422,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
                   maybeNewChild = Some(fixedNode),
                   toDeleteFromStorage = node +: nodesToRemoveFromStorage,
                   toUpdateInStorage = fixedNode +: nodesToUpdateInStorage)
-              case None => throw MPTException("A trie with root extension should have at least 2 values stored")
+              case None => throw MPTException("A trie with newRoot extension should have at least 2 values stored")
             }
           case NodeRemoveResult(false, _, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
             NodeRemoveResult(
@@ -504,14 +509,9 @@ private sealed trait Node {
 
   import MerklePatriciaTrie._
 
-  private var encodedCache: Option[Array[Byte]] = None
   private var hashedCache: Option[Array[Byte]] = None
 
-  def encode: Array[Byte] = encodedCache.getOrElse {
-    val encoded = encodeRLP[Node](this)
-    encodedCache = Some(encoded)
-    encoded
-  }
+  lazy val encode: Array[Byte] = encodeRLP[Node](this)
 
   def hash(hashFn: HashFn): Array[Byte] = hashedCache.getOrElse {
     val hashed = hashFn(encode)
