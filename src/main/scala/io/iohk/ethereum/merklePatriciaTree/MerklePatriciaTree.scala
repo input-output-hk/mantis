@@ -18,7 +18,6 @@ object MerklePatriciaTree {
 
   private val PairSize: Byte = 2
   private[merklePatriciaTree] val ListSize: Byte = 17
-  private val updateCounter = new AtomicLong(System.currentTimeMillis())
 
   def apply[K, V](source: DataSource, hashFn: HashFn)
                  (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V])
@@ -40,11 +39,7 @@ object MerklePatriciaTree {
 
   private def matchingLength(bytes1: Array[Byte], bytes2: Array[Byte]): Int = bytes1.zip(bytes2).takeWhile(t => t._1 == t._2).length
 
-  private def storageVersionGen(rootHash: Array[Byte]): Array[Byte] = {
-    rootHash ++ ByteBuffer.allocate(java.lang.Long.SIZE / java.lang.Byte.SIZE).putLong(updateCounter.incrementAndGet()).array()
-  }
-
-  private def updateNodesInStorage(version: Array[Byte], root: Option[Node], toRemove: Seq[Node], toUpdate: Seq[Node],
+  private def updateNodesInStorage(rootHash: Array[Byte], root: Option[Node], toRemove: Seq[Node], toUpdate: Seq[Node],
                                    dataSource: DataSource, hashFn: HashFn): DataSource = {
     val rootCapped = root.map(_.capped(hashFn)).getOrElse(Array.emptyByteArray)
     val toBeRemoved = toRemove.map(node => node.capped(hashFn)).filter(_.length == 32)
@@ -52,7 +47,7 @@ object MerklePatriciaTree {
       var nCapped = n.capped(hashFn)
       nCapped.length == 32 || (nCapped sameElements rootCapped)
     }.map(node => node.hash(hashFn) -> node.encode)
-    dataSource.update(version, toBeRemoved, toBeUpdated)
+    dataSource.update(rootHash, toBeRemoved, toBeUpdated)
   }
 
   private def getNextNode(extensionNode: ExtensionNode, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Node =
@@ -151,7 +146,7 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
         val NodeInsertResult(newRoot, nodesToRemoveFromStorage, nodesToUpdateInStorage) = put(root, keyNibbles, vSerializer.toBytes(value))
         val newRootHash = newRoot.hash(hashFn)
         val newSource = updateNodesInStorage(
-          version = storageVersionGen(newRootHash),
+          rootHash = newRootHash,
           root = Some(newRoot),
           toRemove = nodesToRemoveFromStorage,
           toUpdate = nodesToUpdateInStorage,
@@ -162,7 +157,7 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
         val newRoot = LeafNode(keyNibbles, vSerializer.toBytes(value))
         val newRootHash = newRoot.hash(hashFn)
         new MerklePatriciaTree(Some(newRootHash),
-          updateNodesInStorage(storageVersionGen(newRootHash), Some(newRoot), Seq(), Seq(newRoot), dataSource, hashFn),
+          updateNodesInStorage(newRootHash, Some(newRoot), Seq(), Seq(newRoot), dataSource, hashFn),
           hashFn)
     }
   }
@@ -176,7 +171,7 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
           case NodeRemoveResult(true, Some(newRoot), nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
             val newRootHash = newRoot.hash(hashFn)
             val afterDeleteDataSource = updateNodesInStorage(
-              version = storageVersionGen(newRootHash),
+              rootHash = newRootHash,
               root = Some(newRoot),
               toRemove = nodesToRemoveFromStorage,
               toUpdate = nodesToUpdateInStorage,
@@ -185,7 +180,7 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
             new MerklePatriciaTree(Some(newRootHash), afterDeleteDataSource, hashFn)
           case NodeRemoveResult(true, None, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
             val afterDeleteDataSource = updateNodesInStorage(
-              storageVersionGen(EmptyTrieHash),
+              EmptyTrieHash,
               None,
               nodesToRemoveFromStorage,
               nodesToUpdateInStorage,
@@ -486,9 +481,9 @@ trait DataSource {
 
   def get(key: Key): Option[Value]
 
-  def update(version: Array[Byte], key: Key, value: Value): DataSource
+  def update(rootHash: Array[Byte], key: Key, value: Value): DataSource
 
-  def update(version: Array[Byte], toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource
+  def update(rootHash: Array[Byte], toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource
 }
 
 /**

@@ -460,13 +460,13 @@ class MerklePatriciaTreeSuite extends FunSuite
     assert(Hex.toHexString(storage.getRootHash) == "a3d0686205c7ed10a85c3bce4118d5d559bcda47ca39e4dd4f09719958a179f1")
   }
 
-  ignore("EthereumJ compatibility - Insert of the first 40000 numbers"){
+  test("EthereumJ compatibility - Insert of the first 40000 numbers"){
     val shuffledKeys = Random.shuffle(0 to 40000).map(intByteArraySerializable.toBytes)
     val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(key, key) }
     assert(Hex.toHexString(trie.getRootHash) == "3f8b75707975e5c16588fa1ba3e69f8da39f4e7bf3ca28b029c7dcb589923463")
   }
 
-  ignore("EthereumJ compatibility - Insert of the first 20000 numbers hashed"){
+  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed"){
     val shuffledKeys = Random.shuffle(0 to 20000).map(intByteArraySerializable.toBytes)
     val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
 
@@ -475,7 +475,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     assert(Hex.toHexString(trieAfterInsertNoEffect.getRootHash) == "a522b23a640c5fdb726e3f9644863e8913fe86339909fe881957efa0c23cebaa")
   }
 
-  ignore("EthereumJ compatibility - Insert of the first 20000 numbers hashed and then remove half of them"){
+  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed and then remove half of them"){
     val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
     val trie = Random.shuffle(keys).foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
 
@@ -487,7 +487,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     assert(Hex.toHexString(trieAfterDeleteNoEffect.getRootHash) == "a693b82dcc5a9e581e9bf9aa7af3aed31fe3eb61f97fd733ce44c9f9df2d7f45")
   }
 
-  ignore("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced)"){
+  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced)"){
     val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
 
     // We slice some of the keys so that me test more code coverage (if not we only test keys with the same length)
@@ -501,7 +501,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     assert(Hex.toHexString(trie.getRootHash) == "46cde8656f3be6ce93ba9dcb1017548f44c65d1ea659ac827fac8c9ac77cf6b3")
   }
 
-  ignore("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced) and then remove half of them") {
+  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced) and then remove half of them") {
     val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
 
     // We slice some of the keys so that me test more code coverage (if not we only test keys with the same length)
@@ -554,9 +554,9 @@ case class HashMapDataSource(storage: Map[ByteString, Array[Byte]]) extends Data
 
   override def get(key: Array[Byte]): Option[Array[Byte]] = storage.get(ByteString(key))
 
-  override def update(version: Array[Byte],key: Array[Byte], value: Array[Byte]): DataSource = HashMapDataSource(storage + (ByteString(key) -> value))
+  override def update(rootHash: Array[Byte], key: Array[Byte], value: Array[Byte]): DataSource = HashMapDataSource(storage + (ByteString(key) -> value))
 
-  override def update(version: Array[Byte], toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource = {
+  override def update(rootHash: Array[Byte], toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource = {
     val afterRemoval = toRemove.foldLeft(storage)((storage, key) => storage - ByteString(key))
     val afterUpdate = toUpdate.foldLeft(afterRemoval)((storage, toUpdate) => storage + (ByteString(toUpdate._1) -> toUpdate._2))
     HashMapDataSource(afterUpdate)
