@@ -9,7 +9,8 @@ import scala.util.{Failure, Success}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.p2p._
-import io.iohk.ethereum.utils.{RLPEncoder, RLP}
+import io.iohk.ethereum.rlp
+import io.iohk.ethereum.rlp._
 import scorex.core.network.AuthHandshakeSuccess
 
 object TestSocketHandshaker {
@@ -62,7 +63,7 @@ object TestSocketHandshaker {
   }
 
   def sendMessage[M <: Message : RLPEncoder](message: M, frameCodec: FrameCodec, out: OutputStream) = {
-    val encoded = RLP.encode(message)
+    val encoded = rlp.encode(message)
     val frame = frameCodec.writeFrame(message.code, ByteString(encoded))
     println(s"Sending message: $message")
     out.write(frame.toArray)
