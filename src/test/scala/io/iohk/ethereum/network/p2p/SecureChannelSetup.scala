@@ -1,11 +1,11 @@
 package io.iohk.ethereum.network.p2p
 
 import java.net.URI
-import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network._
+import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
 import scorex.core.network.AuthHandshakeSuccess
@@ -29,10 +29,6 @@ trait SecureChannelSetup {
   val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets)) = remoteHandshaker.handleInitialMessage(initPacket)
   val AuthHandshakeSuccess(secrets: Secrets) = handshakerInitiated.handleResponseMessage(responsePacket)
 
-  def randomNonce() = {
-    val arr = new Array[Byte](AuthHandshaker.NonceSize)
-    new SecureRandom().nextBytes(arr)
-    ByteString(arr)
-  }
+  def randomNonce() = ByteString(ByteUtils.secureRandomBytes(AuthHandshaker.NonceSize))
 
 }

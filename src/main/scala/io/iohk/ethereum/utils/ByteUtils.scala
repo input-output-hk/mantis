@@ -1,6 +1,9 @@
 package io.iohk.ethereum.utils
 
 import java.math.BigInteger
+import java.security.SecureRandom
+
+import scala.util.Random
 
 object ByteUtils {
 
@@ -15,6 +18,18 @@ object ByteUtils {
 
   def xor(a: Array[Byte], b: Array[Byte]): Array[Byte] = {
     (a zip b) map { case (b1, b2) => (b1 ^ b2).toByte }
+  }
+
+  def secureRandomBytes(len: Int): Array[Byte] = {
+    val arr = new Array[Byte](len)
+    new SecureRandom().nextBytes(arr)
+    arr
+  }
+
+  def randomBytes(len: Int): Array[Byte] = {
+    val arr = new Array[Byte](len)
+    new Random().nextBytes(arr)
+    arr
   }
 
 }

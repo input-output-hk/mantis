@@ -5,12 +5,11 @@ import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.utils.ByteUtils
 import org.scalatest.{Matchers, FlatSpec}
 import org.spongycastle.crypto.generators.ECKeyPairGenerator
 import org.spongycastle.crypto.params.{ECPublicKeyParameters, ECKeyGenerationParameters}
 import org.spongycastle.util.encoders.Hex
-
-import scala.util.Random
 
 class AuthInitiateMessageSpec extends FlatSpec with Matchers {
 
@@ -21,8 +20,7 @@ class AuthInitiateMessageSpec extends FlatSpec with Matchers {
       generator.generateKeyPair()
     }
 
-    val nonce = new Array[Byte](32)
-    Random.nextBytes(nonce)
+    val nonce = ByteUtils.randomBytes(AuthHandshaker.NonceSize)
 
     val signature = ECDSASignature(new BigInteger("123"), new BigInteger("456"), 0)
 

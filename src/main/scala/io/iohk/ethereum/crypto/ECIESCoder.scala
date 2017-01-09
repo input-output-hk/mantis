@@ -4,6 +4,7 @@ import java.io.{ByteArrayInputStream, IOException}
 import java.math.BigInteger
 import java.security.SecureRandom
 
+import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.crypto.digests.{SHA1Digest, SHA256Digest}
 import org.spongycastle.crypto.engines.AESFastEngine
 import org.spongycastle.crypto.generators.ECKeyPairGenerator
@@ -80,8 +81,7 @@ object ECIESCoder {
     val random = new SecureRandom
     val gParam = new ECKeyGenerationParameters(curve, random)
 
-    val IV = new Array[Byte](KeySize / 8)
-    random.nextBytes(IV)
+    val IV = ByteUtils.secureRandomBytes(KeySize / 8)
 
     val eGen = new ECKeyPairGenerator
     eGen.init(gParam)

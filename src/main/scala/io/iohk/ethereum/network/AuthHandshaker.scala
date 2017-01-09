@@ -1,10 +1,10 @@
 package io.iohk.ethereum.network
 
 import java.net.URI
-import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.utils.ByteUtils._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.agreement.ECDHBasicAgreement
@@ -30,8 +30,7 @@ object AuthHandshaker {
   val SecretSize = 32
 
   def apply(nodeKey: AsymmetricCipherKeyPair): AuthHandshaker = {
-    val nonce = new Array[Byte](NonceSize)
-    new SecureRandom().nextBytes(nonce)
+    val nonce = ByteUtils.secureRandomBytes(NonceSize)
     AuthHandshaker(nodeKey, ByteString(nonce))
   }
 
