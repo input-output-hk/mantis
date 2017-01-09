@@ -19,8 +19,9 @@ object Message {
       case Transactions.code => Try(rlpDecode(payload)(Transactions.rlpEndDec))
       case NewBlockHashes.code => Try(rlpDecode(payload)(NewBlockHashes.rlpEndDec))
       case GetBlockHeaders.code => Try(rlpDecode(payload)(GetBlockHeaders.rlpEndDec))
-      case BlockBodies.code => Try(rlpDecode(payload)(BlockBodies.rlpEndDec))
       case BlockHeaders.code => Try(rlpDecode(payload)(BlockHeaders.rlpEndDec))
+      case GetBlockBodies.code => Try(rlpDecode(payload)(GetBlockBodies.rlpEndDec))
+      case BlockBodies.code => Try(rlpDecode(payload)(BlockBodies.rlpEndDec))
       case _ => Try(throw new RuntimeException(s"Unknown message type: ${`type`}"))
     }
   }
@@ -144,7 +145,8 @@ object BlockBody {
     }
 
     override def decode(rlp: RLPEncodeable): BlockBody = rlp match {
-      case RLPList((transactions: RLPList), (uncles: RLPList)) => BlockBody(transactions, uncles)
+      case RLPList((transactions: RLPList), (uncles: RLPList)) =>
+        BlockBody(transactions, uncles)
       case _ => throw new RuntimeException("Cannot decode BlockBody")
     }
   }
@@ -355,6 +357,34 @@ case class BlockHeader(parentHash: ByteString,
        |mixHash: ${Hex.toHexString(mixHash.toArray[Byte])}
        |nonce: ${Hex.toHexString(nonce.toArray[Byte])}
        |}""".stripMargin
+  }
+}
+
+object GetBlockBodies{
+  implicit val rlpEndDec = new RLPEncoder[GetBlockBodies] with RLPDecoder[GetBlockBodies] {
+    override def encode(obj: GetBlockBodies): RLPEncodeable = {
+      import obj._
+      RLPList(hashes.map(e => RLPValue(e.toArray[Byte])): _*)
+    }
+
+    override def decode(rlp: RLPEncodeable): GetBlockBodies = rlp match {
+      case rlpList: RLPList => GetBlockBodies(rlpList.items.map(e => ByteString(e: Array[Byte])))
+
+      case _ => throw new RuntimeException("Cannot decode BlockHeaders")
+    }
+  }
+
+  val code: Int = 0x10 + 0x05
+}
+
+case class GetBlockBodies(hashes: Seq[ByteString])extends Message {
+  override def code: Int = GetBlockBodies.code
+
+  override def toString: String = {
+    s"""GetBlockBodies {
+       |hashes: ${hashes.map(h => Hex.toHexString(h.toArray[Byte]))}
+       |}
+     """.stripMargin
   }
 }
 

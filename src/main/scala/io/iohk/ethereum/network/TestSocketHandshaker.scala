@@ -57,9 +57,12 @@ object TestSocketHandshaker {
       val msgs = readAtLeastOneMessage(frameCodec, inp)
       msgs.foreach { m => println("\n Received message: " + m) }
 
-      msgs.collect { case a: Status => a }.foreach { m: Status =>
-        sendMessage(m, frameCodec, out)//send same status message
-        sendMessage(GetBlockHeaders(Right(m.genesisHash), maxHeaders = 5, skip = 0, reverse = 0), frameCodec, out)
+      msgs.collect {
+        case m: Status =>
+          sendMessage(m, frameCodec, out) //send same status message
+          sendMessage(GetBlockHeaders(Right(m.genesisHash), maxHeaders = 5, skip = 0, reverse = 0), frameCodec, out) //ask for block headers from genesis without genesis header
+        case m: BlockHeaders =>
+          sendMessage(GetBlockBodies(m.headers.map(_.parentHash)), frameCodec, out) //ask for block bodies
       }
     }
   }
