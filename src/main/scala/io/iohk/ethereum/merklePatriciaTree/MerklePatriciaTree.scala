@@ -49,7 +49,7 @@ object MerklePatriciaTree {
     val rootCapped = root.map(_.capped(hashFn)).getOrElse(Array.emptyByteArray)
     val toBeRemoved = toRemove.map(node => node.capped(hashFn)).filter(_.length == 32)
     val toBeUpdated = toUpdate.filter { n =>
-      var nCapped = n.capped(hashFn)
+      val nCapped = n.capped(hashFn)
       nCapped.length == 32 || (nCapped sameElements rootCapped)
     }.map(node => node.hash(hashFn) -> node.encode)
     dataSource.update(version, toBeRemoved, toBeUpdated)
@@ -455,10 +455,10 @@ class MerklePatriciaTree[K, V](private val rootHash: Option[Array[Byte]],
           // If the node is not in the extension node then it might be a node to be inserted at the end of this remove
           // so we search in this list too
           notStoredYet.find(n => n.hash(hashFn) sameElements nextHash) match{
-            case Some(node) => node
+            case Some(nextNodeOnList) => nextNodeOnList
             case None => getNextNode(extensionNode, dataSource) // We search for the node in the db
           }
-        case Right(node) => node
+        case Right(nextNodeOnExt) => nextNodeOnExt
       }
       val newNode = nextNode match {
         // Compact Two extensions into one
