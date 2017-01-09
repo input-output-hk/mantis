@@ -60,9 +60,9 @@ object TestSocketHandshaker {
       msgs.collect {
         case m: Status =>
           sendMessage(m, frameCodec, out) //send same status message
-          sendMessage(GetBlockHeaders(Right(m.genesisHash), maxHeaders = 5, skip = 0, reverse = 0), frameCodec, out) //ask for block headers from genesis without genesis header
+          sendMessage(GetBlockHeaders(Right(m.genesisHash), maxHeaders = 20, skip = 5000, reverse = 0), frameCodec, out) //ask for block further in chain to get some transactions
         case m: BlockHeaders =>
-          sendMessage(GetBlockBodies(m.headers.map(_.parentHash)), frameCodec, out) //ask for block bodies
+          sendMessage(GetBlockBodies(m.headers.map(_.parentHash)), frameCodec, out) //ask for block bodies for headers
       }
     }
   }

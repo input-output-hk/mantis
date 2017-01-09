@@ -3,8 +3,7 @@ package io.iohk.ethereum.network.p2p
 import scala.util.Try
 import akka.util.ByteString
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{decode => rlpDecode}
-import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.rlp.{RLPList, decode => rlpDecode, _}
 import org.spongycastle.util.encoders.Hex
 
 object Message {
@@ -141,18 +140,29 @@ object BlockBody {
   implicit val rlpEndDec = new RLPEncoder[BlockBody] with RLPDecoder[BlockBody] {
     override def encode(obj: BlockBody): RLPEncodeable = {
       import obj._
-      RLPList(transactionList, uncleNodesList)
+      RLPList(
+        RLPList(transactionList.map(Transaction.rlpEndDec.encode):_*),
+        RLPList(uncleNodesList.map(BlockHeader.rlpEndDec.encode):_*))
     }
 
     override def decode(rlp: RLPEncodeable): BlockBody = rlp match {
       case RLPList((transactions: RLPList), (uncles: RLPList)) =>
-        BlockBody(transactions, uncles)
+        BlockBody(
+          transactions.items.map(Transaction.rlpEndDec.decode),
+          uncles.items.map(BlockHeader.rlpEndDec.decode))
       case _ => throw new RuntimeException("Cannot decode BlockBody")
     }
   }
 }
 
-case class BlockBody(transactionList: RLPList, uncleNodesList: RLPList)
+case class BlockBody(transactionList: Seq[Transaction], uncleNodesList: Seq[BlockHeader]) {
+  override def toString: String =
+    s"""BlockBody{
+       |transactionList: $transactionList
+       |uncleNodesList: $uncleNodesList
+       |}
+    """.stripMargin
+}
 
 object Status {
   implicit val rlpEndDec = new RLPEncoder[Status] with RLPDecoder[Status] {
