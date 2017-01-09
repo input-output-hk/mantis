@@ -265,6 +265,16 @@ object GetBlockHeaders {
 
 case class GetBlockHeaders(block: Either[BigInt, ByteString], maxHeaders: BigInt, skip: BigInt, reverse: Int) extends Message {
   override def code: Int = GetBlockHeaders.code
+
+  override def toString: String = {
+    s"""GetBlockHeaders{
+       |block: ${block.fold(a => a, b => Hex.toHexString(b.toArray[Byte]))}
+       |maxHeaders: $maxHeaders
+       |skip: $skip
+       |reverse: ${reverse == 1}
+       |}
+     """.stripMargin
+  }
 }
 
 object BlockHeaders {
