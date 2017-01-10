@@ -4,7 +4,7 @@ import java.io.File
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.crypto.Keccak
+import io.iohk.ethereum.crypto.sha3
 import io.iohk.ethereum.merklepatriciatrie.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => encodeRLP, decode => decodeRLP}
@@ -20,7 +20,7 @@ import java.nio.ByteBuffer
 class MerklePatriciaTreeSuite extends FunSuite
   with PropertyChecks
   with ObjectGenerators {
-  val hashFn = Keccak.hash256 _ //FIXME: Update to new feature/crypto implementation
+  val hashFn = (input: Array[Byte]) => sha3(input)
 
   val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](HashMapDataSource(), hashFn)
 
