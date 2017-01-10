@@ -11,7 +11,6 @@ package object network {
       pubKey.asInstanceOf[ECPublicKeyParameters].getQ
       .getEncoded(false)
       .drop(1) // drop type info
-
   }
 
   def publicKeyFromNodeId(nodeId: String) = {

@@ -13,7 +13,6 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp._
-import scorex.core.network.AuthHandshakeSuccess
 
 object TestSocketHandshaker {
 
@@ -37,7 +36,7 @@ object TestSocketHandshaker {
     println("Received auth handshake response packet")
 
     val result = authHandshaker.handleResponseMessage(ByteString(responsePacket))
-    val secrets = result.asInstanceOf[AuthHandshakeSuccess].secrets.asInstanceOf[Secrets]
+    val secrets = result.asInstanceOf[AuthHandshakeSuccess].secrets
     println(s"Auth handshake result: $result")
 
     val frameCodec = new FrameCodec(secrets)
