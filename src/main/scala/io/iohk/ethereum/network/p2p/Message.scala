@@ -64,11 +64,11 @@ object Hello {
 }
 
 case class Hello(
-                  p2pVersion: Long,
-                  clientId: String,
-                  capabilities: Seq[Capability],
-                  listenPort: Long,
-                  nodeId: ByteString)
+  p2pVersion: Long,
+  clientId: String,
+  capabilities: Seq[Capability],
+  listenPort: Long,
+  nodeId: ByteString)
   extends Message {
 
   override val code: Int = Hello.code
@@ -118,7 +118,7 @@ object BlockBodies {
   implicit val rlpEndDec = new RLPEncoder[BlockBodies] with RLPDecoder[BlockBodies] {
     override def encode(obj: BlockBodies): RLPEncodeable = {
       import obj._
-      RLPList(bodies.map(BlockBody.rlpEndDec.encode):_*)
+      RLPList(bodies.map(BlockBody.rlpEndDec.encode): _*)
     }
 
     override def decode(rlp: RLPEncodeable): BlockBodies = rlp match {
@@ -139,8 +139,8 @@ object BlockBody {
     override def encode(obj: BlockBody): RLPEncodeable = {
       import obj._
       RLPList(
-        RLPList(transactionList.map(Transaction.rlpEndDec.encode):_*),
-        RLPList(uncleNodesList.map(BlockHeader.rlpEndDec.encode):_*))
+        RLPList(transactionList.map(Transaction.rlpEndDec.encode): _*),
+        RLPList(uncleNodesList.map(BlockHeader.rlpEndDec.encode): _*))
     }
 
     override def decode(rlp: RLPEncodeable): BlockBody = rlp match {
@@ -197,7 +197,7 @@ object NewBlockHashes {
   implicit val rlpEndDec = new RLPEncoder[NewBlockHashes] with RLPDecoder[NewBlockHashes] {
     override def encode(obj: NewBlockHashes): RLPEncodeable = {
       import obj._
-      RLPList(hashes.map(BlockHash.rlpEndDec.encode):_*)
+      RLPList(hashes.map(BlockHash.rlpEndDec.encode): _*)
     }
 
     override def decode(rlp: RLPEncodeable): NewBlockHashes = rlp match {
@@ -228,7 +228,7 @@ object BlockHash {
   }
 }
 
-case class BlockHash(hash: ByteString, number: BigInt){
+case class BlockHash(hash: ByteString, number: BigInt) {
   override def toString: String = {
     s"""BlockHash {
        |hash: ${Hex.toHexString(hash.toArray[Byte])}
@@ -279,7 +279,7 @@ object BlockHeaders {
   implicit val rlpEndDec = new RLPEncoder[BlockHeaders] with RLPDecoder[BlockHeaders] {
     override def encode(obj: BlockHeaders): RLPEncodeable = {
       import obj._
-      RLPList(headers.map(BlockHeader.rlpEndDec.encode):_*)
+      RLPList(headers.map(BlockHeader.rlpEndDec.encode): _*)
     }
 
     override def decode(rlp: RLPEncodeable): BlockHeaders = rlp match {
@@ -296,7 +296,7 @@ case class BlockHeaders(headers: Seq[BlockHeader]) extends Message {
   override def code: Int = BlockHeaders.code
 }
 
-object BlockHeader{
+object BlockHeader {
   implicit val rlpEndDec = new RLPEncoder[BlockHeader] with RLPDecoder[BlockHeader] {
     override def encode(obj: BlockHeader): RLPEncodeable = {
       import obj._
@@ -342,21 +342,23 @@ object BlockHeader{
   }
 }
 
-case class BlockHeader(parentHash: ByteString,
-                       ommersHash: ByteString,
-                       beneficiary: ByteString,
-                       stateRoot: ByteString,
-                       transactionsRoot: ByteString,
-                       receiptsRoot: ByteString,
-                       logsBloom: ByteString,
-                       difficulty: BigInt,
-                       number: BigInt,
-                       gasLimit: BigInt,
-                       gasUsed: BigInt,
-                       unixTimestamp: Long,
-                       extraData: ByteString,
-                       mixHash: ByteString,
-                       nonce: ByteString){
+case class BlockHeader(
+  parentHash: ByteString,
+  ommersHash: ByteString,
+  beneficiary: ByteString,
+  stateRoot: ByteString,
+  transactionsRoot: ByteString,
+  receiptsRoot: ByteString,
+  logsBloom: ByteString,
+  difficulty: BigInt,
+  number: BigInt,
+  gasLimit: BigInt,
+  gasUsed: BigInt,
+  unixTimestamp: Long,
+  extraData: ByteString,
+  mixHash: ByteString,
+  nonce: ByteString) {
+
   override def toString: String = {
     s"""BlockHeader {
        |parentHash: ${Hex.toHexString(parentHash.toArray[Byte])}
@@ -378,7 +380,7 @@ case class BlockHeader(parentHash: ByteString,
   }
 }
 
-object GetBlockBodies{
+object GetBlockBodies {
   implicit val rlpEndDec = new RLPEncoder[GetBlockBodies] with RLPDecoder[GetBlockBodies] {
     override def encode(obj: GetBlockBodies): RLPEncodeable = {
       import obj._
@@ -395,7 +397,7 @@ object GetBlockBodies{
   val code: Int = 0x10 + 0x05
 }
 
-case class GetBlockBodies(hashes: Seq[ByteString])extends Message {
+case class GetBlockBodies(hashes: Seq[ByteString]) extends Message {
   override def code: Int = GetBlockBodies.code
 
   override def toString: String = {
@@ -410,7 +412,7 @@ object Transactions {
   implicit val rlpEndDec = new RLPEncoder[Transactions] with RLPDecoder[Transactions] {
     override def encode(obj: Transactions): RLPEncodeable = {
       import obj._
-      RLPList(txs.map(Transaction.rlpEndDec.encode):_*)
+      RLPList(txs.map(Transaction.rlpEndDec.encode): _*)
     }
 
     override def decode(rlp: RLPEncodeable): Transactions = rlp match {
@@ -452,17 +454,18 @@ object Transaction {
 }
 
 //ETH yellow paper section 4.3
-case class Transaction(nonce: BigInt,
-                       gasPrice: BigInt,
-                       gasLimit: BigInt,
-                       receivingAddress: ByteString,
-                       value: BigInt,
-                       payload: Either[ContractInit, TransactionData],
-                       //yellow paper appendix F
-                       pointSign: Byte, //v - 27 or 28 according to yellow paper, but it is 37 and 38 in ETH
-                       signatureRandom: ByteString, //r
-                       signature: ByteString //s
-                      ) {
+case class Transaction(
+  nonce: BigInt,
+  gasPrice: BigInt,
+  gasLimit: BigInt,
+  receivingAddress: ByteString,
+  value: BigInt,
+  payload: Either[ContractInit, TransactionData],
+  //yellow paper appendix F
+  pointSign: Byte, //v - 27 or 28 according to yellow paper, but it is 37 and 38 in ETH
+  signatureRandom: ByteString, //r
+  signature: ByteString /*s*/) {
+
   override def toString: String = {
     s"""Transaction {
        |nonce: $nonce
