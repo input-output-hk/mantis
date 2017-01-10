@@ -574,7 +574,7 @@ class MerklePatriciaTreeSuite extends FunSuite
   }
 
   /* Performance test */
-  test("Performance test (From: https://github.com/ethereum/wiki/wiki/Benchmarks)"){
+  ignore("Performance test (From: https://github.com/ethereum/wiki/wiki/Benchmarks)"){
     val debug = false
     val Rounds = 1000
     val Symmetric = true
@@ -585,9 +585,9 @@ class MerklePatriciaTreeSuite extends FunSuite
 
     val trieResult = (0 until Rounds).foldLeft(emptyTrie){ case (recTrie, i) =>
       seed = hashFn(seed)
-      val mykey = seed.take(32)
-      if(!Symmetric) recTrie.put(mykey, mykey)
+      if(!Symmetric) recTrie.put(seed, seed)
       else{
+        val mykey = seed
         seed = hashFn(seed)
         val myval = if((seed(0) & 0xFF) % 2 == 1) Array[Byte](seed.last) else seed
         recTrie.put(mykey, myval)
