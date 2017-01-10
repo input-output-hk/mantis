@@ -64,11 +64,11 @@ object Hello {
 }
 
 case class Hello(
-  p2pVersion: Long,
-  clientId: String,
-  capabilities: Seq[Capability],
-  listenPort: Long,
-  nodeId: ByteString)
+    p2pVersion: Long,
+    clientId: String,
+    capabilities: Seq[Capability],
+    listenPort: Long,
+    nodeId: ByteString)
   extends Message {
 
   override val code: Int = Hello.code
@@ -343,21 +343,21 @@ object BlockHeader {
 }
 
 case class BlockHeader(
-  parentHash: ByteString,
-  ommersHash: ByteString,
-  beneficiary: ByteString,
-  stateRoot: ByteString,
-  transactionsRoot: ByteString,
-  receiptsRoot: ByteString,
-  logsBloom: ByteString,
-  difficulty: BigInt,
-  number: BigInt,
-  gasLimit: BigInt,
-  gasUsed: BigInt,
-  unixTimestamp: Long,
-  extraData: ByteString,
-  mixHash: ByteString,
-  nonce: ByteString) {
+    parentHash: ByteString,
+    ommersHash: ByteString,
+    beneficiary: ByteString,
+    stateRoot: ByteString,
+    transactionsRoot: ByteString,
+    receiptsRoot: ByteString,
+    logsBloom: ByteString,
+    difficulty: BigInt,
+    number: BigInt,
+    gasLimit: BigInt,
+    gasUsed: BigInt,
+    unixTimestamp: Long,
+    extraData: ByteString,
+    mixHash: ByteString,
+    nonce: ByteString) {
 
   override def toString: String = {
     s"""BlockHeader {
@@ -455,16 +455,16 @@ object Transaction {
 
 //ETH yellow paper section 4.3
 case class Transaction(
-  nonce: BigInt,
-  gasPrice: BigInt,
-  gasLimit: BigInt,
-  receivingAddress: ByteString,
-  value: BigInt,
-  payload: Either[ContractInit, TransactionData],
-  //yellow paper appendix F
-  pointSign: Byte, //v - 27 or 28 according to yellow paper, but it is 37 and 38 in ETH
-  signatureRandom: ByteString, //r
-  signature: ByteString /*s*/) {
+    nonce: BigInt,
+    gasPrice: BigInt,
+    gasLimit: BigInt,
+    receivingAddress: ByteString,
+    value: BigInt,
+    payload: Either[ContractInit, TransactionData],
+    //yellow paper appendix F
+    pointSign: Byte, //v - 27 or 28 according to yellow paper, but it is 37 and 38 in ETH
+    signatureRandom: ByteString, //r
+    signature: ByteString /*s*/) {
 
   override def toString: String = {
     s"""Transaction {
