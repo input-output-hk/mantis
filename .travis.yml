@@ -8,6 +8,7 @@ branches:
     - master
     - feature/crypto
     - feature/rlpRefactor
+    - feature/spongycastleUpgrade
 script:
     - sbt test
 

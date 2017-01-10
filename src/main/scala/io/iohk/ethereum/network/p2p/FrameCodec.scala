@@ -20,17 +20,17 @@ case class Header(bodySize: Int, protocol: Int, contextId: Option[Int], totalFra
 
 class FrameCodec(private val secrets: Secrets) {
 
-  private val blockSize = secrets.aes.length * 8
+  private val emptyIV = new Array[Byte](16)
 
   private val enc: StreamCipher = {
     val cipher = new SICBlockCipher(new AESFastEngine)
-    cipher.init(true, new ParametersWithIV(new KeyParameter(secrets.aes), new Array[Byte](blockSize / 8)))
+    cipher.init(true, new ParametersWithIV(new KeyParameter(secrets.aes), emptyIV))
     cipher
   }
 
   private val dec: StreamCipher = {
     val cipher = new SICBlockCipher(new AESFastEngine)
-    cipher.init(false, new ParametersWithIV(new KeyParameter(secrets.aes), new Array[Byte](blockSize / 8)))
+    cipher.init(false, new ParametersWithIV(new KeyParameter(secrets.aes), emptyIV))
     cipher
   }
 
