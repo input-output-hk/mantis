@@ -54,11 +54,11 @@ object MerklePatriciaTrie {
     }
 
   private def getChild(branchNode: BranchNode, pos: Int, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Option[Node] =
-    branchNode.children(pos) match {
-      case Some(Right(node)) => Some(node)
-      case Some(Left(hash)) => Some(MerklePatriciaTrie.getNode(hash, dataSource))
-      case None => None
+    branchNode.children(pos) map {
+      case Right(node) => node
+      case Left(hash) => MerklePatriciaTrie.getNode(hash, dataSource)
     }
+
 
   implicit val defaultByteArraySerializable = new ByteArraySerializable[Array[Byte]] {
     override def toBytes(input: Array[Byte]): Array[Byte] = input
@@ -119,10 +119,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
   import MerklePatriciaTrie._
 
   private lazy val EmptyTrieHash = hashFn(encodeRLP(Array.emptyByteArray))
-  lazy val getRootHash = rootHash match {
-    case Some(root) => root
-    case None => EmptyTrieHash
-  }
+  lazy val getRootHash = rootHash.getOrElse(EmptyTrieHash)
 
   /**
     * This function obtains the value asociated with the key passed, if there exists one.
@@ -132,12 +129,10 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     * @throws MPTException if there is any inconsistency in how the trie is build.
     */
   def get(key: K): Option[V] = {
-    rootHash match {
-      case Some(rootId) =>
-        val keyNibbles = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
-        val rootNode = getNode(rootId, dataSource)
-        get(rootNode, keyNibbles).map(bytes => vSerializer.fromBytes(bytes))
-      case None => None
+    rootHash flatMap { rootId =>
+      val keyNibbles = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
+      val rootNode = getNode(rootId, dataSource)
+      get(rootNode, keyNibbles).map(bytes => vSerializer.fromBytes(bytes))
     }
   }
 
@@ -150,7 +145,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     * @throws MPTException if there is any inconsistency in how the trie is build.
     */
   def put(key: K, value: V): MerklePatriciaTrie[K, V] = {
-    val keyNibbles = HexPrefix.bytesToNibbles(bytes = kSerializer.toBytes(key))
+    val keyNibbles = HexPrefix.bytesToNibbles(kSerializer.toBytes(key))
     rootHash match {
       case Some(rootId) =>
         val root = getNode(rootId, dataSource)
