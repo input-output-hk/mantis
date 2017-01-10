@@ -37,9 +37,10 @@ object MerklePatriciaTrie {
   private def updateNodesInStorage(previousRootHash: Array[Byte], newRootHash: Array[Byte], newRoot: Option[Node],
                                    toRemove: Seq[Node], toUpdate: Seq[Node], dataSource: DataSource, hashFn: HashFn): DataSource = {
     val rootCapped = newRoot.map(_.capped(hashFn)).getOrElse(Array.emptyByteArray)
-    val toBeRemoved = toRemove.filter{node =>
+    val toBeRemoved = toRemove.filter { node =>
       val nCapped = node.capped(hashFn)
-      nCapped.length == 32 || (node.hash(hashFn) sameElements previousRootHash) }.map(_.hash(hashFn))
+      nCapped.length == 32 || (node.hash(hashFn) sameElements previousRootHash)
+    }.map(_.hash(hashFn))
     val toBeUpdated = toUpdate.filter { n =>
       val nCapped = n.capped(hashFn)
       nCapped.length == 32 || (nCapped sameElements rootCapped)
@@ -146,8 +147,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     */
   def put(key: K, value: V): MerklePatriciaTrie[K, V] = {
     val keyNibbles = HexPrefix.bytesToNibbles(kSerializer.toBytes(key))
-    rootHash match {
-      case Some(rootId) =>
+    rootHash map { rootId =>
         val root = getNode(rootId, dataSource)
         val NodeInsertResult(newRoot, nodesToRemoveFromStorage, nodesToUpdateInStorage) = put(root, keyNibbles, vSerializer.toBytes(value))
         val newRootHash = newRoot.hash(hashFn)
@@ -159,13 +159,13 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
           toUpdate = nodesToUpdateInStorage,
           dataSource = dataSource,
           hashFn = hashFn)
-        new MerklePatriciaTrie(Some(newRootHash), newSource, hashFn)
-      case None =>
-        val newRoot = LeafNode(keyNibbles, vSerializer.toBytes(value))
-        val newRootHash = newRoot.hash(hashFn)
-        new MerklePatriciaTrie(Some(newRootHash),
-          updateNodesInStorage(getRootHash, newRootHash, Some(newRoot), Seq(), Seq(newRoot), dataSource, hashFn),
-          hashFn)
+        new MerklePatriciaTrie(Some(newRootHash), newSource, hashFn)(kSerializer, vSerializer)
+    } getOrElse {
+      val newRoot = LeafNode(keyNibbles, vSerializer.toBytes(value))
+      val newRootHash = newRoot.hash(hashFn)
+      new MerklePatriciaTrie(Some(newRootHash),
+        updateNodesInStorage(getRootHash, newRootHash, Some(newRoot), Seq(), Seq(newRoot), dataSource, hashFn),
+        hashFn)
     }
   }
 
@@ -327,26 +327,26 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
           // Non empty key, we need to insert the value in the correct branch node's child
           val searchKeyHead: Int = searchKey(0)
           val searchKeyRemaining = searchKey.tail
-          children(searchKeyHead) match {
-            case Some(_) =>
-              // The associated child is not empty, we recursively insert in that child
-              val NodeInsertResult(changedChild, toDeleteFromStorage, toUpdateInStorage) =
-                put(getChild(branchNode, searchKeyHead, dataSource).get, searchKeyRemaining, value)
-              val newBranchNode = branchNode.updateChild(searchKeyHead, changedChild, hashFn)
-              NodeInsertResult(
-                newNode = newBranchNode,
-                toDeleteFromStorage = node +: toDeleteFromStorage,
-                toUpdateInStorage = newBranchNode +: toUpdateInStorage
-              )
-            case None =>
-              // The associated child is empty, we just replace it with a leaf
-              val newLeafNode = LeafNode(searchKeyRemaining, value)
-              val newBranchNode = branchNode.updateChild(searchKeyHead, newLeafNode, hashFn)
-              NodeInsertResult(
-                newNode = newBranchNode,
-                toDeleteFromStorage = Seq(node),
-                toUpdateInStorage = Seq(newLeafNode, newBranchNode)
-              )
+          if (children(searchKeyHead).isDefined) {
+            // The associated child is not empty, we recursively insert in that child
+            val NodeInsertResult(changedChild, toDeleteFromStorage, toUpdateInStorage) =
+            put(getChild(branchNode, searchKeyHead, dataSource).get, searchKeyRemaining, value)
+            val newBranchNode = branchNode.updateChild(searchKeyHead, changedChild, hashFn)
+            NodeInsertResult(
+              newNode = newBranchNode,
+              toDeleteFromStorage = node +: toDeleteFromStorage,
+              toUpdateInStorage = newBranchNode +: toUpdateInStorage
+            )
+          }
+          else {
+            // The associated child is empty, we just replace it with a leaf
+            val newLeafNode = LeafNode(searchKeyRemaining, value)
+            val newBranchNode = branchNode.updateChild(searchKeyHead, newLeafNode, hashFn)
+            NodeInsertResult(
+              newNode = newBranchNode,
+              toDeleteFromStorage = Seq(node),
+              toUpdateInStorage = Seq(newLeafNode, newBranchNode)
+            )
           }
         }
     }
@@ -430,8 +430,8 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     *   - Branch node where there is only a single entry;
     *   - Extension node followed by anything other than a Branch node.
     *
-    * @param node that may be in an invalid state.
-    * @param dataSource to obtain the nodes referenced in the node that may be in an invalid state.
+    * @param node         that may be in an invalid state.
+    * @param dataSource   to obtain the nodes referenced in the node that may be in an invalid state.
     * @param notStoredYet to obtain the nodes referenced in the node that may be in an invalid state,
     *                     if they were not yet inserted into the dataSource.
     * @param hashFn
@@ -441,8 +441,9 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
   @tailrec
   private def fix(node: Node, dataSource: DataSource, notStoredYet: Seq[Node], hashFn: HashFn): Node = node match {
     case BranchNode(children, optStoredValue) =>
-      val usedIndexes = children.indices.foldLeft[Seq[Int]](Seq.empty) { (acc, i) =>
-        if (children(i).isDefined) i +: acc else acc
+      val usedIndexes = children.indices.foldLeft[Seq[Int]](Seq.empty) {
+        (acc, i) =>
+          if (children(i).isDefined) i +: acc else acc
       }
       (usedIndexes, optStoredValue) match {
         case (Nil, None) => throw MPTException("Branch with no subvalues")
