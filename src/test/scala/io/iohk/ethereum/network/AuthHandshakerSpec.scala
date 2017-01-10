@@ -21,9 +21,9 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
     new ECPublicKeyParameters(curve.getCurve.decodePoint(Hex.decode("0404753378699da7678151e9a0605aa0b07ba4f31764b624c90d497d0c78b56f8fe47cd78e1eef35022d1241c7d2ee42eac74a9036f3ed0b8027ce484b556e789e")), curve),
     new ECPrivateKeyParameters(new BigInteger("92053546780651665949308997856114509339625788837073204328320628931366416758609"), curve))
 
-  val remoteNonce = ByteString(Array.fill[Byte](AuthHandshaker.nonceSize)(9.toByte))
+  val remoteNonce = ByteString(Array.fill[Byte](AuthHandshaker.NonceSize)(9.toByte))
 
-  val remoteNodeId = nodeIdFromPublicKey(remoteNodeKey.getPublic)
+  val remoteNodeId = remoteNodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
   val remoteUri = new URI(s"enode://${Hex.toHexString(remoteNodeId)}@127.0.0.1:30303")
 
   val nodeKey = new AsymmetricCipherKeyPair(
@@ -34,7 +34,7 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
     new ECPublicKeyParameters(curve.getCurve.decodePoint(Hex.decode("04ead31caeaf59d1299991c16910f68cd61216a67e397111429d2800f58e849940fc0bf8c8f1df05c7de40cd21a2b0bed9d0c3c184034f9d5fd54c4476ddd8d6ed")), curve),
     new ECPrivateKeyParameters(new BigInteger("47209959662887443680833530073996538660770112643177512357678065781331682025297"), curve))
 
-  val nonce = ByteString(Array.fill[Byte](AuthHandshaker.nonceSize)(1.toByte))
+  val nonce = ByteString(Array.fill[Byte](AuthHandshaker.NonceSize)(1.toByte))
 
   "AuthHandshaker" should "create init packet" in {
     val authHandshaker = AuthHandshaker(nodeKey, nonce, ephemeralKey)
@@ -54,7 +54,7 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
       nonce = remoteNonce,
       knownPeer = false)
 
-    val encodedResponse = response.encode()
+    val encodedResponse = response.encoded
     val encryptedResponse = ECIESCoder.encrypt(nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ, encodedResponse.toArray)
 
     val AuthHandshakeSuccess(secrets: Secrets) = authHandshaker.handleResponseMessage(ByteString(encryptedResponse))

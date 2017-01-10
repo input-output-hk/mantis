@@ -18,10 +18,8 @@ object AuthResponseMessage {
 
 case class AuthResponseMessage(ephemeralPublicKey: ECPoint, nonce: ByteString, knownPeer: Boolean) {
 
-  def encode(): ByteString = {
-    ByteString(
-      ephemeralPublicKey.getEncoded(false).drop(1) ++
-      nonce ++
-      Array(if (knownPeer) 1.toByte else 0.toByte))
-  }
+  lazy val encoded: ByteString = ByteString(
+    ephemeralPublicKey.getEncoded(false).drop(1) ++
+    nonce ++
+    Array(if (knownPeer) 1.toByte else 0.toByte))
 }

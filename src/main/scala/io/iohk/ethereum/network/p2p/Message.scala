@@ -1,28 +1,26 @@
 package io.iohk.ethereum.network.p2p
 
-import scala.util.Try
 import akka.util.ByteString
+import io.iohk.ethereum.rlp
+import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{RLPList, decode => rlpDecode, _}
 import org.spongycastle.util.encoders.Hex
 
 object Message {
 
-  def decode(`type`: Int, payload: Array[Byte]): Try[Message] = {
-    `type` match {
-      case Hello.code => Try(rlpDecode(payload)(Hello.rlpEndDec))
-      case Disconnect.code => Try(rlpDecode(payload)(Disconnect.rlpEndDec))
-      case Ping.code => Try(rlpDecode(payload)(Ping.rlpEndDec))
-      case Pong.code => Try(rlpDecode(payload)(Pong.rlpEndDec))
-      case Status.code => Try(rlpDecode(payload)(Status.rlpEndDec))
-      case Transactions.code => Try(rlpDecode(payload)(Transactions.rlpEndDec))
-      case NewBlockHashes.code => Try(rlpDecode(payload)(NewBlockHashes.rlpEndDec))
-      case GetBlockHeaders.code => Try(rlpDecode(payload)(GetBlockHeaders.rlpEndDec))
-      case BlockHeaders.code => Try(rlpDecode(payload)(BlockHeaders.rlpEndDec))
-      case GetBlockBodies.code => Try(rlpDecode(payload)(GetBlockBodies.rlpEndDec))
-      case BlockBodies.code => Try(rlpDecode(payload)(BlockBodies.rlpEndDec))
-      case _ => Try(throw new RuntimeException(s"Unknown message type: ${`type`}"))
-    }
+  def decode(`type`: Int, payload: Array[Byte]): Message = `type` match {
+    case Hello.code => rlp.decode(payload)(Hello.rlpEndDec)
+    case Disconnect.code => rlp.decode(payload)(Disconnect.rlpEndDec)
+    case Ping.code => rlp.decode(payload)(Ping.rlpEndDec)
+    case Pong.code => rlp.decode(payload)(Pong.rlpEndDec)
+    case Status.code => rlp.decode(payload)(Status.rlpEndDec)
+    case Transactions.code => rlp.decode(payload)(Transactions.rlpEndDec)
+    case NewBlockHashes.code => rlp.decode(payload)(NewBlockHashes.rlpEndDec)
+    case GetBlockHeaders.code => rlp.decode(payload)(GetBlockHeaders.rlpEndDec)
+    case BlockHeaders.code => rlp.decode(payload)(BlockHeaders.rlpEndDec)
+    case GetBlockBodies.code => rlp.decode(payload)(GetBlockBodies.rlpEndDec)
+    case BlockBodies.code => rlp.decode(payload)(BlockBodies.rlpEndDec)
+    case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
   }
 }
 

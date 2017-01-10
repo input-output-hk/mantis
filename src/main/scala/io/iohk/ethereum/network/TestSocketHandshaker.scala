@@ -3,8 +3,10 @@ package io.iohk.ethereum.network
 import java.io.{OutputStream, InputStream}
 import java.net.{URI, Socket}
 
+import org.spongycastle.crypto.params.ECPublicKeyParameters
+
 import scala.annotation.tailrec
-import scala.util.{Failure, Success}
+import scala.util.{Try, Failure, Success}
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
@@ -16,7 +18,7 @@ import scorex.core.network.AuthHandshakeSuccess
 object TestSocketHandshaker {
 
   val nodeKey = generateKeyPair()
-  val nodeId = nodeIdFromPublicKey(nodeKey.getPublic)
+  val nodeId = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
 
   def main(args: Array[String]): Unit = {
     val remoteUri = new URI(args(0))
@@ -80,7 +82,7 @@ object TestSocketHandshaker {
     val n = inp.read(buff)
     if (n > 0) {
       val frames = frameCodec.readFrames(ByteString(buff))
-      val decodedFrames = frames.map(f => Message.decode(f.`type`, f.payload))
+      val decodedFrames = frames.map(f => Try(Message.decode(f.`type`, f.payload)))
       val messages = decodedFrames.collect { case Success(msg) => msg }
 
       decodedFrames

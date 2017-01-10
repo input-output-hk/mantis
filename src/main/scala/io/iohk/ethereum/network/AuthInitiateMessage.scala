@@ -2,7 +2,6 @@ package io.iohk.ethereum.network
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.math.ec.ECPoint
 
 object AuthInitiateMessage {
@@ -24,11 +23,12 @@ case class AuthInitiateMessage(
     nonce: ByteString,
     knownPeer: Boolean) {
 
-  def encode(): ByteString = {
-    signature.encode() ++
-      ephemeralPublicHash ++
-      ECIESPublicKeyEncoder.getEncoded(new ECPublicKeyParameters(publicKey, curve)).drop(1) ++
-      nonce ++
-      ByteString(if (knownPeer) 1.toByte else 0.toByte)
+  lazy val encoded: ByteString = {
+    signature.encoded ++
+    ephemeralPublicHash ++
+    publicKey.getEncoded(false).drop(1) ++
+    nonce ++
+    ByteString(if (knownPeer) 1.toByte else 0.toByte)
   }
+
 }

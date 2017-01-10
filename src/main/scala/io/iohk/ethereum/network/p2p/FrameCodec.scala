@@ -4,14 +4,15 @@ import java.io.IOException
 
 import akka.util.ByteString
 import io.iohk.ethereum.network.Secrets
+import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{decode, encode}
-import io.iohk.ethereum.rlp._
 import org.spongycastle.crypto.StreamCipher
 import org.spongycastle.crypto.digests.KeccakDigest
 import org.spongycastle.crypto.engines.AESFastEngine
 import org.spongycastle.crypto.modes.SICBlockCipher
 import org.spongycastle.crypto.params.{KeyParameter, ParametersWithIV}
+
+import scala.annotation.tailrec
 
 case class Frame(header: Header, `type`: Int, payload: Array[Byte])
 
@@ -40,36 +41,39 @@ class FrameCodec(private val secrets: Secrets) {
   def readFrames(data: ByteString): Seq[Frame] = {
     unprocessedData ++= data
 
-    def readRecursive(): Seq[Frame] = {
+    @tailrec
+    def readRecursive(framesSoFar: Seq[Frame] = Nil): Seq[Frame] = {
       if (headerOpt.isEmpty) tryReadHeader()
 
-      headerOpt map { header =>
-        val padding = (16 - (header.bodySize % 16)) % 16
-        val macSize = 16
-        val totalSizeToRead = header.bodySize + padding + macSize
+      headerOpt match {
+        case Some(header) =>
+          val padding = (16 - (header.bodySize % 16)) % 16
+          val macSize = 16
+          val totalSizeToRead = header.bodySize + padding + macSize
 
-        if (unprocessedData.length >= totalSizeToRead) {
-          val buffer = unprocessedData.take(totalSizeToRead).toArray
+          if (unprocessedData.length >= totalSizeToRead) {
+            val buffer = unprocessedData.take(totalSizeToRead).toArray
 
-          val frameSize = totalSizeToRead - macSize
-          secrets.ingressMac.update(buffer, 0, frameSize)
-          dec.processBytes(buffer, 0, frameSize, buffer, 0)
+            val frameSize = totalSizeToRead - macSize
+            secrets.ingressMac.update(buffer, 0, frameSize)
+            dec.processBytes(buffer, 0, frameSize, buffer, 0)
 
-          val `type` = decode[Int](buffer)
+            val `type` = rlp.decode[Int](buffer)
 
-          val pos = nextElementIndex(buffer, 0)
-          val payload = buffer.drop(pos).take(header.bodySize - pos)
-          val size = header.bodySize - pos
-          val macBuffer = new Array[Byte](secrets.ingressMac.getDigestSize)
+            val pos = rlp.nextElementIndex(buffer, 0)
+            val payload = buffer.drop(pos).take(header.bodySize - pos)
+            val macBuffer = new Array[Byte](secrets.ingressMac.getDigestSize)
 
-          doSum(secrets.ingressMac, macBuffer)
-          updateMac(secrets.ingressMac, macBuffer, 0, buffer, frameSize, egress = false)
+            doSum(secrets.ingressMac, macBuffer)
+            updateMac(secrets.ingressMac, macBuffer, 0, buffer, frameSize, egress = false)
 
-          headerOpt = None
-          unprocessedData = unprocessedData.drop(totalSizeToRead)
-          Seq(Frame(header, `type`, payload)) ++ readRecursive()
-        } else Nil
-      } getOrElse Nil
+            headerOpt = None
+            unprocessedData = unprocessedData.drop(totalSizeToRead)
+            readRecursive(framesSoFar ++ Seq(Frame(header, `type`, payload)))
+          } else framesSoFar
+
+        case None => framesSoFar
+      }
     }
 
     readRecursive()
@@ -87,7 +91,7 @@ class FrameCodec(private val secrets: Secrets) {
       bodySize = (bodySize << 8) + (headBuffer(1) & 0xFF)
       bodySize = (bodySize << 8) + (headBuffer(2) & 0xFF)
 
-      val rlpList = decode[Seq[Int]](headBuffer.drop(3))(seqEncDec[Int]).lift
+      val rlpList = rlp.decode[Seq[Int]](headBuffer.drop(3))(seqEncDec[Int]).lift
       val protocol = rlpList(0).get
       val contextId = rlpList(1)
       val totalFrameSize = rlpList(2)
@@ -101,7 +105,7 @@ class FrameCodec(private val secrets: Secrets) {
     var out: ByteString = ByteString("")
 
     val headBuffer = new Array[Byte](32)
-    val ptype = encode(`type`)
+    val ptype = rlp.encode(`type`)
 
     val totalSize: Int = payload.length + ptype.length
     headBuffer(0) = (totalSize >> 16).toByte
@@ -109,11 +113,11 @@ class FrameCodec(private val secrets: Secrets) {
     headBuffer(2) = totalSize.toByte
 
     var headerDataElems: Seq[Array[Byte]] = Nil
-    headerDataElems :+= encode(0)
-    contextId.foreach { cid => headerDataElems :+= encode(cid) }
-    totalFrameSize foreach { tfs => headerDataElems :+= encode(tfs) }
+    headerDataElems :+= rlp.encode(0)
+    contextId.foreach { cid => headerDataElems :+= rlp.encode(cid) }
+    totalFrameSize foreach { tfs => headerDataElems :+= rlp.encode(tfs) }
 
-    val headerData = encode(headerDataElems)(seqEncDec[Array[Byte]])
+    val headerData = rlp.encode(headerDataElems)(seqEncDec[Array[Byte]])
     System.arraycopy(headerData, 0, headBuffer, 3, headerData.length)
 
     enc.processBytes(headBuffer, 0, 16, headBuffer, 0)
