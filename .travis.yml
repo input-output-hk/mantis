@@ -8,6 +8,7 @@ branches:
     - master
     - feature/crypto
     - feature/rlpRefactor
+    - feature/messageVersioning
 script:
     - sbt test
 

@@ -1,13 +1,28 @@
-package io.iohk.ethereum.network.p2p
+package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPEncoder, RLPList}
-import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp._
+import org.spongycastle.util.encoders.Hex
 
-package object CommonMessages {
+object WireProtocol {
+
+  object Capability {
+    implicit val rlpEncDec = new RLPEncoder[Capability] with RLPDecoder[Capability] {
+      override def encode(obj: Capability): RLPEncodeable = {
+        RLPList(obj.name, obj.version)
+      }
+
+      override def decode(rlp: RLPEncodeable): Capability = rlp match {
+        case RLPList(name, version) => Capability(name, version)
+        case _ => throw new RuntimeException("Cannot decode Capability")
+      }
+    }
+  }
+
+  case class Capability(name: String, version: Byte)
+
   object Hello {
 
     implicit val rlpEndDec = new RLPEncoder[Hello] with RLPDecoder[Hello] {
@@ -48,21 +63,6 @@ package object CommonMessages {
          |}""".stripMargin
     }
   }
-
-  object Capability {
-    implicit val rlpEncDec = new RLPEncoder[Capability] with RLPDecoder[Capability] {
-      override def encode(obj: Capability): RLPEncodeable = {
-        RLPList(obj.name, obj.version)
-      }
-
-      override def decode(rlp: RLPEncodeable): Capability = rlp match {
-        case RLPList(name, version) => Capability(name, version)
-        case _ => throw new RuntimeException("Cannot decode Capability")
-      }
-    }
-  }
-
-  case class Capability(name: String, version: Byte)
 
   object Disconnect {
     implicit val rlpEndDec = new RLPEncoder[Disconnect] with RLPDecoder[Disconnect] {
