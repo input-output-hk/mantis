@@ -1,13 +1,13 @@
 package io.iohk.ethereum.network
 
-import java.net.URI
+import java.net.{InetSocketAddress, URI}
 import java.util.UUID
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorRef, OneForOneStrategy, Props}
+import akka.actor._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
-class PeerManagerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor {
+class PeerManagerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLogging {
 
   import PeerManagerActor._
 
@@ -17,20 +17,27 @@ class PeerManagerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor {
     }
 
   override def receive = {
-    case HandlePeerConnection(connection) =>
-      val peer = context.actorOf(PeerActor.props(UUID.randomUUID.toString, nodeKey))
+    case HandlePeerConnection(connection, remoteAddress) =>
+      val peer = createPeer()
+      log.info("Peer {} handling incoming peer connection from {}", peer.path.name, remoteAddress)
       peer ! PeerActor.HandleConnection(connection)
 
     case ConnectToPeer(uri) =>
-      val peer = context.actorOf(PeerActor.props(UUID.randomUUID.toString, nodeKey))
-      peer ! PeerActor.ConnectTo(uri)
+      createPeer() ! PeerActor.ConnectTo(uri)
   }
 
+  def createPeer() = {
+    val id = UUID.randomUUID.toString
+    context.actorOf(PeerActor.props(nodeKey), id)
+  }
 }
 
 object PeerManagerActor {
   def props(nodeKey: AsymmetricCipherKeyPair) = Props(new PeerManagerActor(nodeKey))
 
-  case class HandlePeerConnection(connection: ActorRef)
+  case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
   case class ConnectToPeer(uri: URI)
+
+  case object GetPeers
+  case class Peer(id: String, ref: ActorRef, address: InetSocketAddress)
 }

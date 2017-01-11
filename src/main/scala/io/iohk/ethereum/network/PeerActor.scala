@@ -1,107 +1,80 @@
 package io.iohk.ethereum.network
 
-import java.net.{InetSocketAddress, URI}
+import java.net.URI
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.io.Tcp._
-import akka.io.{IO, Tcp}
+import scala.concurrent.duration._
+
+import akka.actor._
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.{Capability, FrameCodec, Hello, Message}
-import io.iohk.ethereum.rlp
+import io.iohk.ethereum.network.RLPxConnectionHandler.MessageReceived
+import io.iohk.ethereum.network.p2p._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 
-// TODO: handle write (and other?) errors
-class PeerActor(id: String, nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLogging {
+class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLogging {
 
   import PeerActor._
-  import context.system
+  import context.{dispatcher, system}
+
+  val nodeId = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
+
+  val peerId = self.path.name
+
+  // supervisor strategy
+  // watch rlpx conn
 
   override def receive = waitingForInitialCommand
 
   def waitingForInitialCommand: Receive = {
     case HandleConnection(connection) =>
-      connection ! Register(self)
-      val handshaker = AuthHandshaker(nodeKey)
-      context become new AuthHandshakeHandler(connection, handshaker).waitingForInit
+      val rlpxConnectionActor = context.actorOf(Props(new RLPxConnectionHandler(nodeKey)), "rlpx-connection")
+      rlpxConnectionActor ! RLPxConnectionHandler.HandleConnection(connection)
+      context become waitingForConnectionResult(rlpxConnectionActor)
 
     case ConnectTo(uri) =>
-      IO(Tcp) ! Connect(new InetSocketAddress(uri.getHost, uri.getPort))
-      context become waitingForConnectionResult(uri)
+      val rlpxConnectionActor = context.actorOf(Props(new RLPxConnectionHandler(nodeKey)), "rlpx-connection")
+      rlpxConnectionActor ! RLPxConnectionHandler.ConnectTo(uri)
+      context become waitingForConnectionResult(rlpxConnectionActor)
   }
 
-  def waitingForConnectionResult(uri: URI): Receive = {
-    case Connected(remote, local) =>
-      val connection = sender()
-      connection ! Register(self)
-      val (initPacket, handshaker) = AuthHandshaker(nodeKey).initiate(uri)
-      connection ! Write(initPacket)
-      context become new AuthHandshakeHandler(connection, handshaker).waitingForResponse
+  def waitingForConnectionResult(rlpxConnection: ActorRef): Receive = {
+    case RLPxConnectionHandler.ConnectionEstablished =>
+      val hello = Hello(
+        p2pVersion = 4,
+        clientId = "etc-client",
+        capabilities = Seq(Capability("eth", 62.toByte)),
+        listenPort = 3333,
+        nodeId = ByteString(nodeId))
+      rlpxConnection ! RLPxConnectionHandler.SendMessage(hello)
+      val timeout = system.scheduler.scheduleOnce(3.seconds, self, ProtocolHandshakeTimeout)
+      context become waitingForHello(rlpxConnection, timeout)
 
-    case CommandFailed(_: Connect) =>
-      log.warning("Connection failed to peer {}", uri)
+    case RLPxConnectionHandler.ConnectionFailed(reason) =>
       context stop self
   }
 
-  class AuthHandshakeHandler(connection: ActorRef, handshaker: AuthHandshaker) {
-
-    def waitingForInit: Receive = {
-      case Received(data) =>
-        val (responsePacket, result) = handshaker.handleInitialMessage(data)
-        connection ! Write(responsePacket)
-        handleAuthHandshakeResult(result)
-    }
-
-    def waitingForResponse: Receive = {
-      case Received(data) =>
-        val result = handshaker.handleResponseMessage(data)
-        handleAuthHandshakeResult(result)
-    }
-
-    def handleAuthHandshakeResult(result: AuthHandshakeResult) = result match {
-      case AuthHandshakeSuccess(secrets) =>
-        val frameCodec = new FrameCodec(secrets)
-        val hello = Hello(
-          p2pVersion = 4,
-          clientId = "etc-client",
-          capabilities = Seq(Capability("eth", 62.toByte)),
-          listenPort = 3333,
-          nodeId = ByteString(nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId))
-        val encoded = rlp.encode(hello)
-        val frame = frameCodec.writeFrame(hello.code, ByteString(encoded))
-        connection ! Write(frame)
-        context become new ProtocolHandshakeHandler(connection, null).waitingForResponse
-
-      case AuthHandshakeError =>
-        log.warning("Failed to handshake with peer")
-        context stop self
-    }
-
+  def waitingForHello(rlpxConnection: ActorRef, timeout: Cancellable): Receive = {
+    case MessageReceived(hello: Hello) =>
+      log.info("Protocol handshake finished with peer {}", peerId)
+      timeout.cancel()
+      // check protocols
+      context become handshaked(rlpxConnection)
   }
 
-  class ProtocolHandshakeHandler(connection: ActorRef, frameCodec: FrameCodec) {
+  def handshaked(rlpxConnection: ActorRef): Receive = {
+    case RLPxConnectionHandler.MessageReceived(message) =>
+      // notify subscribers ?
 
-    // TODO: add timeout
-
-    def waitingForResponse: Receive = {
-      case Received(data) =>
-        val frames = frameCodec.readFrames(data)
-        // TODO: handle multi-frame messages?
-        val messages = frames.map(f => Message.decode(f.`type`, f.payload))
-        val helloOpt = messages.collect { case h: Hello => h }.headOption
-        helloOpt foreach { hello =>
-          // compare versions etc etc
-          // context become ... ?
-        }
-    }
-
+    case Ping() =>
+      rlpxConnection ! Pong()
   }
-
 }
 
 object PeerActor {
-  def props(id: String, nodeKey: AsymmetricCipherKeyPair) = Props(new PeerActor(id, nodeKey))
+  def props(nodeKey: AsymmetricCipherKeyPair) = Props(new PeerActor(nodeKey))
 
   case class HandleConnection(connection: ActorRef)
   case class ConnectTo(uri: URI)
+
+  private case object ProtocolHandshakeTimeout
 }

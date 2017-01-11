@@ -6,6 +6,8 @@ import org.spongycastle.math.ec.ECPoint
 
 object AuthInitiateMessage {
 
+  val encodedLength = 65+32+64+32+1
+
   def decode(input: Array[Byte]) = {
     AuthInitiateMessage(
       signature = ECDSASignature.decode(input.take(65)),

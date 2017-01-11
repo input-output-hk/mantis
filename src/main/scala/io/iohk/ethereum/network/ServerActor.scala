@@ -8,11 +8,14 @@ import akka.io.{IO, Tcp}
 
 class ServerActor(peerManager: ActorRef) extends Actor with ActorLogging {
 
+  import ServerActor._
   import context.system
 
-  IO(Tcp) ! Bind(self, new InetSocketAddress("127.0.0.1", 8080))
-
-  override def receive: Receive = waitingForBindingResult
+  override def receive: Receive = {
+    case StartServer(address) =>
+      IO(Tcp) ! Bind(self, address)
+      context become waitingForBindingResult
+  }
 
   def waitingForBindingResult: Receive = {
     case Bound(localAddress) =>
@@ -27,11 +30,12 @@ class ServerActor(peerManager: ActorRef) extends Actor with ActorLogging {
   def listening: Receive = {
     case Connected(remoteAddress, localAddress) =>
       val connection = sender()
-      peerManager ! PeerManagerActor.HandlePeerConnection(connection)
+      peerManager ! PeerManagerActor.HandlePeerConnection(connection, remoteAddress)
   }
-
 }
 
 object ServerActor {
   def props(peerManager: ActorRef) = Props(new ServerActor(peerManager))
+
+  case class StartServer(address: InetSocketAddress)
 }
