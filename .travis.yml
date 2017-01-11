@@ -3,12 +3,6 @@ jdk:
   - oraclejdk8
 scala:
    - 2.11.8
-branches:
-  only:
-    - master
-    - feature/crypto
-    - feature/rlpRefactor
-    - phase/2/txHashValidation
 script:
     - sbt clean coverage test
 after_success:
