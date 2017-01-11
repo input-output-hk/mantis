@@ -15,12 +15,12 @@ import org.spongycastle.math.ec.ECPoint
 import scorex.core.network
 import scorex.core.network._
 
-class Secrets(
-    val aes: Array[Byte],
-    val mac: Array[Byte],
-    val token: Array[Byte],
-    val egressMac: KeccakDigest,
-    val ingressMac: KeccakDigest)
+case class Secrets(
+    aes: Array[Byte],
+    mac: Array[Byte],
+    token: Array[Byte],
+    egressMac: KeccakDigest,
+    ingressMac: KeccakDigest)
   extends scorex.core.network.Secrets
 
 object AuthHandshaker {
