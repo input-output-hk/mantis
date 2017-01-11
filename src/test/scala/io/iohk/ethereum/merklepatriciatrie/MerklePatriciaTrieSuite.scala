@@ -368,7 +368,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     assert(obtainedAfterDelete.isEmpty)
   }
 
-  test("IODB test - Insert of the first 5000 numbers hashed and then remove half of them"){
+  ignore("IODB test - Insert of the first 5000 numbers hashed and then remove half of them"){
     //create temporary dir
     val dir = File.createTempFile("iodb", "iodb")
     dir.delete()
@@ -388,7 +388,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     assert(Hex.toHexString(trieAfterDeleteNoEffect.getRootHash) == "b0bfbf4d2d6f3c9863c27f41a087208131f775edd9de2cb66242d1e0981aa94c")
   }
 
-  test("IODB Test - PatriciaTrie insert and get") {
+  ignore("IODB Test - PatriciaTrie insert and get") {
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
       //create temporary dir
       val dir = File.createTempFile("iodb", "iodb")
@@ -407,7 +407,7 @@ class MerklePatriciaTreeSuite extends FunSuite
     }
   }
 
-  test("IODB Test - PatriciaTrie delete") {
+  ignore("IODB Test - PatriciaTrie delete") {
     forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[Int])) { keyList: List[Int] =>
       //create temporary dir
       val dirWithDelete = File.createTempFile("iodb", "iodb1")
