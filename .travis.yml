@@ -6,6 +6,7 @@ scala:
 branches:
   only:
     - master
+    - /phase\/.*/
 script:
     - sbt clean coverage test
 after_success:
