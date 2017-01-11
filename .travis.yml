@@ -10,5 +10,6 @@ branches:
     - feature/rlpRefactor
     - phase/2/txHashValidation
 script:
-    - sbt test
-
+    - sbt clean coverage test
+after_success:
+    - sbt coverageReport coveralls
