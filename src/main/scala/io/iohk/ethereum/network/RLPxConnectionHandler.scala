@@ -94,7 +94,8 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
     }
 
   def processFrame(frame: Frame): Unit = {
-    Try(Message.decode(frame.`type`, frame.payload)) match {
+    // TODO: protocolVersion?
+    Try(Message.decode(frame.`type`, frame.payload, Message.PV61)) match {
       case Success(message) => context.parent ! MessageReceived(message)
       case Failure(ex) => log.error(ex, "Cannot decode message from peer {}", peerId)
     }

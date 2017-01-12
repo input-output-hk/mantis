@@ -2,6 +2,7 @@ package io.iohk.ethereum.network
 
 import java.net.URI
 
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Ping, Pong, Capability, Hello}
 import io.iohk.ethereum.rlp.RLPEncoder
 
 import scala.concurrent.duration._
@@ -64,9 +65,9 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
 
   def waitingForHello(rlpxConnection: ActorRef, timeout: Cancellable): Receive = handleTerminated orElse {
     case MessageReceived(hello: Hello) =>
-      log.info("Protocol handshake finished with peer {}", peerId)
+      log.info("Protocol handshake finished with peer {} ({})", peerId, hello)
       timeout.cancel()
-      // TODO: check protocols?
+      // TODO: check which protocol to use
       context become new HandshakedHandler(rlpxConnection).receive
   }
 
@@ -74,10 +75,10 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
 
     def receive: Receive = handleTerminated orElse {
       case RLPxConnectionHandler.MessageReceived(message) => handleMessage(message)
-      case SendMessage(message) => sendMessage(message)
+      case s: SendMessage[_] => sendMessage(s.message)(s.enc)
     }
 
-    def sendMessage(message: Message): Unit = {
+    def sendMessage[M <: Message : RLPEncoder](message: M): Unit = {
       rlpxConnection ! RLPxConnectionHandler.SendMessage(message)
     }
 
