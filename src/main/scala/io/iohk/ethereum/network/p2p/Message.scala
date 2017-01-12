@@ -13,6 +13,7 @@ import org.spongycastle.crypto.digests.{KeccakDigest, SHA3Digest}
 import io.iohk.ethereum.rlp.{encode => rlpEncode}
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.crypto.signers.ECDSASigner
+import org.spongycastle.math.ec.ECPoint
 import org.spongycastle.util.encoders.Hex
 
 object Message {
@@ -475,25 +476,24 @@ case class Transaction(
     signatureRandom: ByteString, //r
     signature: ByteString /*s*/) {
 
-  val signer:ECDSASigner = new ECDSASigner()
-
-
   val bytesToSign: Array[Byte] = crypto.sha3(rlpEncode(RLPList(nonce, gasPrice, gasLimit,
     receivingAddress.toArray[Byte], value, payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte]))))
 
-  val senderPublicKey: Option[Array[Byte]] = ECDSASignature.recoverPubBytes(
+  val recoveredSenderPublicKey: Option[Array[Byte]] = ECDSASignature.recoverPubBytes(
     new BigInteger(1, signatureRandom.toArray[Byte]),
     new BigInteger(1, signature.toArray[Byte]),
     ECDSASignature.recIdFromSignatureV(pointSign),
     bytesToSign
   )
 
-  val senderAddress: Option[Array[Byte]] = senderPublicKey.map(key => crypto.sha3(key).slice(12, 31))
+  val recoveredSenderAddress: Option[Array[Byte]] = recoveredSenderPublicKey.map(key => crypto.sha3(key).slice(12, 32))
 
-  val isSignatureValid: Boolean = senderPublicKey.exists { key =>
-    signer.init(false, new ECPublicKeyParameters(curve.getCurve.decodePoint(key), crypto.curve))
+  def isSignatureValid(publicKey: ECPoint): Boolean = {
+    val signer:ECDSASigner = new ECDSASigner()
+    signer.init(false, new ECPublicKeyParameters(publicKey, crypto.curve))
     signer.verifySignature(bytesToSign, new BigInteger(1, signatureRandom.toArray[Byte]), new BigInteger(1, signature.toArray[Byte]))
   }
+
 
   override def toString: String = {
     s"""Transaction {
@@ -504,11 +504,11 @@ case class Transaction(
        |value: $value wei
        |payload: ${payload.fold(init => s"ContractInit [${Hex.toHexString(init.byteString.toArray[Byte])}]", data => s"TransactionData [${Hex.toHexString(data.byteString.toArray[Byte])}]")}
        |pointSign: $pointSign
-       |signatureRandom: $signatureRandom
-       |signature: $signature
+       |signatureRandom: ${Hex.toHexString(signatureRandom.toArray[Byte])}
+       |signature: ${Hex.toHexString(signature.toArray[Byte])}
        |bytesToSign: ${Hex.toHexString(bytesToSign)}
-       |senderAddress: ${senderAddress.map(Hex.toHexString)}
-       |isSignatureValid $isSignatureValid
+       |recoveredSenderPublicKey: ${recoveredSenderPublicKey.map(Hex.toHexString)}
+       |recoveredSenderAddress: ${recoveredSenderAddress.map(Hex.toHexString)}
        |}""".stripMargin
   }
 }
