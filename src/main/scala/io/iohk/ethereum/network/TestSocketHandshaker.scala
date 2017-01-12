@@ -16,7 +16,6 @@ import io.iohk.ethereum.network.p2p.Message.PV63
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello}
 import io.iohk.ethereum.rlp.{encode => rlpEncode}
 import io.iohk.ethereum.rlp._
-import scorex.core.network.AuthHandshakeSuccess
 
 object TestSocketHandshaker {
 
