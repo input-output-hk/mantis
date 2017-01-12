@@ -20,24 +20,31 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
 
   val peerId = self.path.name
 
-  // supervisor strategy
-  // watch rlpx conn
-
   override def receive = waitingForInitialCommand
 
   def waitingForInitialCommand: Receive = {
     case HandleConnection(connection) =>
-      val rlpxConnectionActor = context.actorOf(Props(new RLPxConnectionHandler(nodeKey)), "rlpx-connection")
-      rlpxConnectionActor ! RLPxConnectionHandler.HandleConnection(connection)
-      context become waitingForConnectionResult(rlpxConnectionActor)
+      val rlpxConnection = createRlpxConnection()
+      rlpxConnection ! RLPxConnectionHandler.HandleConnection(connection)
+      context become waitingForConnectionResult(rlpxConnection)
 
     case ConnectTo(uri) =>
-      val rlpxConnectionActor = context.actorOf(Props(new RLPxConnectionHandler(nodeKey)), "rlpx-connection")
-      rlpxConnectionActor ! RLPxConnectionHandler.ConnectTo(uri)
-      context become waitingForConnectionResult(rlpxConnectionActor)
+      val rlpxConnection = createRlpxConnection()
+      rlpxConnection ! RLPxConnectionHandler.ConnectTo(uri)
+      context become waitingForConnectionResult(rlpxConnection)
   }
 
-  def waitingForConnectionResult(rlpxConnection: ActorRef): Receive = {
+  def createRlpxConnection() = {
+    val rlpxConnection = context.actorOf(Props(new RLPxConnectionHandler(nodeKey)), "rlpx-connection")
+    context watch rlpxConnection
+    rlpxConnection
+  }
+
+  def handleTerminated: Receive = {
+    case _: Terminated => context stop self
+  }
+
+  def waitingForConnectionResult(rlpxConnection: ActorRef): Receive = handleTerminated orElse {
     case RLPxConnectionHandler.ConnectionEstablished =>
       val hello = Hello(
         p2pVersion = 4,
@@ -49,11 +56,11 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
       val timeout = system.scheduler.scheduleOnce(3.seconds, self, ProtocolHandshakeTimeout)
       context become waitingForHello(rlpxConnection, timeout)
 
-    case RLPxConnectionHandler.ConnectionFailed(reason) =>
+    case RLPxConnectionHandler.ConnectionFailed =>
       context stop self
   }
 
-  def waitingForHello(rlpxConnection: ActorRef, timeout: Cancellable): Receive = {
+  def waitingForHello(rlpxConnection: ActorRef, timeout: Cancellable): Receive = handleTerminated orElse {
     case MessageReceived(hello: Hello) =>
       log.info("Protocol handshake finished with peer {}", peerId)
       timeout.cancel()
@@ -61,7 +68,7 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
       context become handshaked(rlpxConnection)
   }
 
-  def handshaked(rlpxConnection: ActorRef): Receive = {
+  def handshaked(rlpxConnection: ActorRef): Receive = handleTerminated orElse {
     case RLPxConnectionHandler.MessageReceived(message) =>
       // notify subscribers ?
 

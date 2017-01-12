@@ -52,7 +52,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
       context become waitingForAuthHandshakeResponse(connection, handshaker, timeout)
 
     case CommandFailed(_: Connect) =>
-      log.warning("Connection failed to peer {}", uri)
+      log.warning("Connection failed to {}", uri)
       context stop self
   }
 
@@ -80,6 +80,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
   def processHandshakeResult(result: AuthHandshakeResult, remainingData: ByteString, connection: ActorRef): Unit =
     result match {
       case AuthHandshakeSuccess(secrets) =>
+        log.warning("Auth handshake with peer {} succeeded", peerId)
         context.parent ! ConnectionEstablished
         val frameCodec = new FrameCodec(secrets)
         val framesSoFar = frameCodec.readFrames(remainingData)
@@ -87,15 +88,14 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
         context become connected(connection, frameCodec)
 
       case AuthHandshakeError =>
-        context.parent ! ConnectionFailed(null)
+        context.parent ! ConnectionFailed
         log.warning("Auth handshake with peer {} failed", peerId)
         context stop self
     }
 
   def processFrame(frame: Frame): Unit = {
     Try(Message.decode(frame.`type`, frame.payload)) match {
-      case Success(message) =>
-        context.parent ! MessageReceived(message)
+      case Success(message) => context.parent ! MessageReceived(message)
       case Failure(ex) => log.error(ex, "Cannot decode message from peer {}", peerId)
     }
   }
@@ -128,8 +128,7 @@ object RLPxConnectionHandler {
   case class HandleConnection(connection: ActorRef)
 
   case object ConnectionEstablished
-  case class ConnectionFailed(reason: ConnectionFailReason)
-  sealed trait ConnectionFailReason
+  case object ConnectionFailed
 
   case class MessageReceived(message: Message)
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
