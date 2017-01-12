@@ -2,6 +2,8 @@ package io.iohk.ethereum.network
 
 import java.net.URI
 
+import io.iohk.ethereum.rlp.RLPEncoder
+
 import scala.concurrent.duration._
 
 import akka.actor._
@@ -64,17 +66,28 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
     case MessageReceived(hello: Hello) =>
       log.info("Protocol handshake finished with peer {}", peerId)
       timeout.cancel()
-      // check protocols
-      context become handshaked(rlpxConnection)
+      // TODO: check protocols?
+      context become new HandshakedHandler(rlpxConnection).receive
   }
 
-  def handshaked(rlpxConnection: ActorRef): Receive = handleTerminated orElse {
-    case RLPxConnectionHandler.MessageReceived(message) =>
-      // notify subscribers ?
+  class HandshakedHandler(rlpxConnection: ActorRef) {
 
-    case Ping() =>
-      rlpxConnection ! Pong()
+    def receive: Receive = handleTerminated orElse {
+      case RLPxConnectionHandler.MessageReceived(message) => handleMessage(message)
+      case SendMessage(message) => sendMessage(message)
+    }
+
+    def sendMessage(message: Message): Unit = {
+      rlpxConnection ! RLPxConnectionHandler.SendMessage(message)
+    }
+
+    def handleMessage(message: Message): Unit = message match {
+      case Ping() => sendMessage(Pong())
+      case _ =>
+    }
+
   }
+
 }
 
 object PeerActor {
@@ -82,6 +95,8 @@ object PeerActor {
 
   case class HandleConnection(connection: ActorRef)
   case class ConnectTo(uri: URI)
+
+  case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
 
   private case object ProtocolHandshakeTimeout
 }
