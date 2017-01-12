@@ -21,7 +21,7 @@ object PV62 {
       }
     }
 
-    val code: Int = 0x10 + 0x01
+    val code: Int = Message.SubProtocolOffset + 0x01
   }
 
   case class NewBlockHashes(hashes: Seq[BlockHash]) extends Message {
@@ -49,7 +49,7 @@ object PV62 {
       }
     }
 
-    val code: Int = 0x10 + 0x03
+    val code: Int = Message.SubProtocolOffset + 0x03
   }
 
   object BlockBodies {
@@ -65,7 +65,7 @@ object PV62 {
       }
     }
 
-    val code: Int = 0x10 + 0x06
+    val code: Int = Message.SubProtocolOffset + 0x06
   }
 
   case class BlockBodies(bodies: Seq[BlockBody]) extends Message {
@@ -158,7 +158,7 @@ object PV62 {
       }
     }
 
-    val code: Int = 0x10 + 0x04
+    val code: Int = Message.SubProtocolOffset + 0x04
   }
 
   case class BlockHeaders(headers: Seq[BlockHeader]) extends Message {
@@ -263,7 +263,7 @@ object PV62 {
       }
     }
 
-    val code: Int = 0x10 + 0x05
+    val code: Int = Message.SubProtocolOffset + 0x05
   }
 
   case class GetBlockBodies(hashes: Seq[ByteString]) extends Message {

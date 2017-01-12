@@ -20,7 +20,7 @@ object PV61 {
       }
     }
 
-    val code: Int = 0x10 + 0x01
+    val code: Int = Message.SubProtocolOffset + 0x01
   }
 
   case class NewBlockHashes(hashes: Seq[ByteString]) extends Message {
