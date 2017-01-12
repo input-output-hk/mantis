@@ -1,9 +1,14 @@
 package io.iohk.ethereum.network.p2p
 
+import java.math.BigInteger
+
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.utils.ByteUtils._
+import org.spongycastle.crypto.digests.{KeccakDigest, SHA3Digest}
 import org.spongycastle.util.encoders.Hex
 
 object Message {
@@ -466,6 +471,33 @@ case class Transaction(
     signatureRandom: ByteString, //r
     signature: ByteString /*s*/) {
 
+  val digest: SHA3Digest = new SHA3Digest()
+
+  val bytesToSign: Array[Byte] =
+
+//  {
+//    bigIntegerToBytes(nonce.bigInteger, 32) ++
+//      bigIntegerToBytes(gasPrice.bigInteger, 32) ++
+//      bigIntegerToBytes(gasLimit.bigInteger, 32) ++
+//      receivingAddress.toArray[Byte] ++
+//      bigIntegerToBytes(value.bigInteger, 32) ++
+//      payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte])
+//  }
+
+  val senderPublicKey: Option[Array[Byte]] = ECDSASignature.recoverPubBytes(
+    new BigInteger(1, signatureRandom.toArray[Byte]),
+    new BigInteger(1, signature.toArray[Byte]),
+    ECDSASignature.recIdFromSignatureV(pointSign),
+    bytesToSign
+  )
+
+  val senderAddress: Option[Array[Byte]] = senderPublicKey.map { arr =>
+    digest.update(arr, 0, arr.length)
+    val result: Array[Byte] = new Array[Byte](digest.getDigestSize)
+    digest.doFinal(result, 0)
+    result.slice(12, digest.getDigestSize)
+  }
+
   override def toString: String = {
     s"""Transaction {
        |nonce: $nonce
@@ -475,8 +507,9 @@ case class Transaction(
        |value: $value wei
        |payload: ${payload.fold(init => s"ContractInit [${Hex.toHexString(init.byteString.toArray[Byte])}]", data => s"TransactionData [${Hex.toHexString(data.byteString.toArray[Byte])}]")}
        |pointSign: $pointSign
-       |signatureRandom: ${Hex.toHexString(signatureRandom.toArray[Byte])}
-       |signature: ${Hex.toHexString(signature.toArray[Byte])}
+       |signatureRandom: $signatureRandom
+       |signature: $signature
+       |senderAddress: ${senderAddress.map(Hex.toHexString)}
        |}""".stripMargin
   }
 }
