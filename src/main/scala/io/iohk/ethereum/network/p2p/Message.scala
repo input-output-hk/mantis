@@ -27,6 +27,7 @@ object Message {
     case (_, Transactions.code) => rlp.decode(payload)(Transactions.rlpEndDec)
 
     case (PV61, pv61.NewBlockHashes.code) => rlp.decode(payload)(pv61.NewBlockHashes.rlpEndDec)
+    case (PV61, pv61.BlockHashesFromNumber.code) => rlp.decode(payload)(pv61.BlockHashesFromNumber.rlpEndDec)
 
     case (PV62 | PV63, pv62.NewBlockHashes.code) => rlp.decode(payload)(pv62.NewBlockHashes.rlpEndDec)
     case (PV62 | PV63, pv62.GetBlockHeaders.code) => rlp.decode(payload)(pv62.GetBlockHeaders.rlpEndDec)

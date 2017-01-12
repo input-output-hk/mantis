@@ -27,4 +27,25 @@ object PV61 {
     override def code: Int = NewBlockHashes.code
   }
 
+  object BlockHashesFromNumber {
+
+    implicit val rlpEndDec = new RLPEncoder[BlockHashesFromNumber] with RLPDecoder[BlockHashesFromNumber] {
+      override def encode(obj: BlockHashesFromNumber): RLPEncodeable = {
+        import obj._
+        RLPList(number, maxBlocks)
+      }
+
+      override def decode(rlp: RLPEncodeable): BlockHashesFromNumber = rlp match {
+        case RLPList(number, maxBlocks) => BlockHashesFromNumber(number, maxBlocks)
+        case _ => throw new RuntimeException("Cannot decode BlockHashesFromNumber")
+      }
+    }
+
+    val code: Int = Message.SubProtocolOffset + 0x08
+  }
+
+  case class BlockHashesFromNumber(number: BigInt, maxBlocks: BigInt) extends Message {
+    override def code: Int = BlockHashesFromNumber.code
+  }
+
 }
