@@ -14,24 +14,28 @@ import scorex.core.network.AuthHandshakeSuccess
 class AuthHandshakerSpec extends FlatSpec with Matchers {
 
   val remoteNodeKey = new AsymmetricCipherKeyPair(
-    new ECPublicKeyParameters(curve.getCurve.decodePoint(Hex.decode("0491376c89ba75cc51fd6b63af01083e6cc11f5635620527e254a03374738e1eb344b2221470a4638e670a97a06f3b91c4f517ccc325561148b106407671d5c46d")), curve),
+    new ECPublicKeyParameters(curve.getCurve.decodePoint(
+      Hex.decode("0491376c89ba75cc51fd6b63af01083e6cc11f5635620527e254a03374738e1eb344b2221470a4638e670a97a06f3b91c4f517ccc325561148b106407671d5c46d")), curve),
     new ECPrivateKeyParameters(new BigInteger("105751695959748236927330749967459856049816015502376529986938855740081063876828"), curve))
 
   val remoteEphemeralKey = new AsymmetricCipherKeyPair(
-    new ECPublicKeyParameters(curve.getCurve.decodePoint(Hex.decode("0404753378699da7678151e9a0605aa0b07ba4f31764b624c90d497d0c78b56f8fe47cd78e1eef35022d1241c7d2ee42eac74a9036f3ed0b8027ce484b556e789e")), curve),
+    new ECPublicKeyParameters(curve.getCurve.decodePoint(
+      Hex.decode("0404753378699da7678151e9a0605aa0b07ba4f31764b624c90d497d0c78b56f8fe47cd78e1eef35022d1241c7d2ee42eac74a9036f3ed0b8027ce484b556e789e")), curve),
     new ECPrivateKeyParameters(new BigInteger("92053546780651665949308997856114509339625788837073204328320628931366416758609"), curve))
 
   val remoteNonce = ByteString(Array.fill[Byte](AuthHandshaker.NonceSize)(9.toByte))
 
-  val remoteNodeId = remoteNodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
+  val remoteNodeId: Array[Byte] = remoteNodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
   val remoteUri = new URI(s"enode://${Hex.toHexString(remoteNodeId)}@127.0.0.1:30303")
 
   val nodeKey = new AsymmetricCipherKeyPair(
-    new ECPublicKeyParameters(curve.getCurve.decodePoint(Hex.decode("045a57761ca5e81288f32b4136e5a8f8d816a0b992b6dfea75312d2dd7618ee8f7e113aaa732dd77f901a7af43275280b985b9f539615733cdf7fbe06636813d4b")), curve),
+    new ECPublicKeyParameters(curve.getCurve.decodePoint(
+      Hex.decode("045a57761ca5e81288f32b4136e5a8f8d816a0b992b6dfea75312d2dd7618ee8f7e113aaa732dd77f901a7af43275280b985b9f539615733cdf7fbe06636813d4b")), curve),
     new ECPrivateKeyParameters(new BigInteger("51209471710014748445103304012335548896378228839026325233666834803269084805514"), curve))
 
   val ephemeralKey = new AsymmetricCipherKeyPair(
-    new ECPublicKeyParameters(curve.getCurve.decodePoint(Hex.decode("04ead31caeaf59d1299991c16910f68cd61216a67e397111429d2800f58e849940fc0bf8c8f1df05c7de40cd21a2b0bed9d0c3c184034f9d5fd54c4476ddd8d6ed")), curve),
+    new ECPublicKeyParameters(curve.getCurve.decodePoint(
+      Hex.decode("04ead31caeaf59d1299991c16910f68cd61216a67e397111429d2800f58e849940fc0bf8c8f1df05c7de40cd21a2b0bed9d0c3c184034f9d5fd54c4476ddd8d6ed")), curve),
     new ECPrivateKeyParameters(new BigInteger("47209959662887443680833530073996538660770112643177512357678065781331682025297"), curve))
 
   val nonce = ByteString(Array.fill[Byte](AuthHandshaker.NonceSize)(1.toByte))

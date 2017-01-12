@@ -67,7 +67,7 @@ class FrameCodec(private val secrets: Secrets) {
             val `type` = rlp.decode[Int](buffer)
 
             val pos = rlp.nextElementIndex(buffer, 0)
-            val payload = buffer.drop(pos).take(header.bodySize - pos)
+            val payload = buffer.slice(pos, header.bodySize)
             val macBuffer = new Array[Byte](secrets.ingressMac.getDigestSize)
 
             doSum(secrets.ingressMac, macBuffer)
@@ -133,7 +133,7 @@ class FrameCodec(private val secrets: Secrets) {
     val buff: Array[Byte] = new Array[Byte](256)
     out ++= ByteString(headBuffer)
 
-    enc.processBytes(ptype.toArray, 0, ptype.length, buff, 0)
+    enc.processBytes(ptype, 0, ptype.length, buff, 0)
     out ++= ByteString(buff.take(ptype.length))
     secrets.egressMac.update(buff, 0, ptype.length)
 
@@ -173,7 +173,7 @@ class FrameCodec(private val secrets: Secrets) {
 
   private def makeMacCipher: AESFastEngine = {
     val macc = new AESFastEngine
-    macc.init(true, new KeyParameter(secrets.mac.toArray))
+    macc.init(true, new KeyParameter(secrets.mac))
     macc
   }
 

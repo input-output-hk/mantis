@@ -8,12 +8,12 @@ object AuthResponseMessage {
 
   private val PublicKeyLength = 64
   private val NonceLength = 32
-  val encodedLength = PublicKeyLength + NonceLength + 1
+  val encodedLength: Int = PublicKeyLength + NonceLength + 1
 
   def decode(input: Array[Byte]): AuthResponseMessage = {
     AuthResponseMessage(
       ephemeralPublicKey = curve.getCurve.decodePoint(Array(4.toByte) ++ input.take(PublicKeyLength)),
-      nonce = ByteString(input.drop(PublicKeyLength).take(NonceLength)),
+      nonce = ByteString(input.slice(PublicKeyLength, PublicKeyLength + NonceLength)),
       knownPeer = input(PublicKeyLength + NonceLength) == 1)
   }
 }

@@ -173,7 +173,7 @@ private[rlp] object RLP {
       case 2 => ((bytes(0) & 0xFF) << 8) + (bytes(1) & 0xFF)
       case 3 => ((bytes(0) & 0xFF) << 16) + ((bytes(1) & 0xFF) << 8) + (bytes(2) & 0xFF)
       case Integer.BYTES => ((bytes(0) & 0xFF) << 24) + ((bytes(1) & 0xFF) << 16) + ((bytes(2) & 0xFF) << 8) + (bytes(3) & 0xFF)
-      case _ => throw new RLPException("Bytes don't represent an int")
+      case _ => throw RLPException("Bytes don't represent an int")
     }
   }
 
@@ -195,7 +195,7 @@ private[rlp] object RLP {
       (binaryLength.length + offset + SizeThreshold - 1).toByte +: binaryLength
     }
     else if (length < MaxItemLength && length <= 0xFF) Array((1 + offset + SizeThreshold - 1).toByte, length.toByte)
-    else throw new RLPException("Input too long")
+    else throw RLPException("Input too long")
   }
 
   /**
@@ -207,7 +207,7 @@ private[rlp] object RLP {
     * @see [[io.iohk.ethereum.rlp.ItemBounds]]
     */
   private[rlp] def getItemBounds(data: Array[Byte], pos: Int): ItemBounds = {
-    if (data.isEmpty) throw new RLPException("Empty Data")
+    if (data.isEmpty) throw RLPException("Empty Data")
     else {
       val prefix: Int = data(pos) & 0xFF
       if (prefix == OffsetShortItem) {
@@ -237,7 +237,7 @@ private[rlp] object RLP {
   }
 
   private def decodeWithPos(data: Array[Byte], pos: Int): (RLPEncodeable, Int) =
-    if (data.isEmpty) throw new RLPException("data is too short")
+    if (data.isEmpty) throw RLPException("data is too short")
     else {
       getItemBounds(data, pos) match {
         case ItemBounds(start, end, false, isEmpty) =>

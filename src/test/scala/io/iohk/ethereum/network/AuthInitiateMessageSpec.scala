@@ -24,7 +24,12 @@ class AuthInitiateMessageSpec extends FlatSpec with Matchers {
 
     val signature = ECDSASignature(new BigInteger("123"), new BigInteger("456"), 0)
 
-    val msg = AuthInitiateMessage(signature, ByteString(Array.fill(32)(0.toByte)), keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ, ByteString(nonce), false)
+    val msg = AuthInitiateMessage(
+      signature,
+      ByteString(Array.fill(32)(0.toByte)),
+      keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ,
+      ByteString(nonce),
+      knownPeer = false)
 
     AuthInitiateMessage.decode(msg.encoded.toArray) shouldBe msg
   }
@@ -38,7 +43,8 @@ class AuthInitiateMessageSpec extends FlatSpec with Matchers {
         s = new BigInteger("27900842753040147848386185004093503271309114686926362065982995477587410195214"),
         v = 27),
       ephemeralPublicHash = ByteString(Hex.decode("F30BAC135324F493AEEAF4C9B48DF0F1F9A28A3DEDF9B1D85AF45A27F7B6F054")),
-      publicKey = curve.getCurve.decodePoint(Hex.decode("046F8A80D14311C39F35F516FA664DEAAAA13E85B2F7493F37F6144D86991EC012937307647BD3B9A82ABE2974E1407241D54947BBB39763A4CAC9F77166AD92A0")),
+      publicKey = curve.getCurve.decodePoint(
+        Hex.decode("046F8A80D14311C39F35F516FA664DEAAAA13E85B2F7493F37F6144D86991EC012937307647BD3B9A82ABE2974E1407241D54947BBB39763A4CAC9F77166AD92A0")),
       nonce = ByteString(Hex.decode("CAE0187FD4EB042EB7A47EEDDA185CFEB59DEA550418D1D036B76E03A5BF74AC")),
       knownPeer = false)
 

@@ -324,7 +324,7 @@ class RLPSuite extends FunSuite
 
   test("Byte Array Encoding") {
     val byteArr = "ce73660a06626c1b3fda7b18ef7ba3ce17b6bf604f9541d3c6c654b7ae88b239407f659c78f419025d785727ed017b6add21952d7e12007373e321dbc31824ba"
-    val byteArray = Hex.decode(byteArr)
+    val byteArray: Array[Byte] = Hex.decode(byteArr)
     val expected = "b840" + byteArr
 
     val data = encode(byteArray)
@@ -544,7 +544,7 @@ class RLPSuite extends FunSuite
     assert(result.isSuccess)
   }
 
-  implicit def emptySeqEncDec = new RLPEncoder[Seq[Any]] with RLPDecoder[Seq[Any]] {
+  implicit def emptySeqEncDec: RLPEncoder[Seq[Any]] with RLPDecoder[Seq[Any]] = new RLPEncoder[Seq[Any]] with RLPDecoder[Seq[Any]] {
     override def encode(obj: Seq[Any]): RLPEncodeable = RLPList(Seq(): _*)
 
     override def decode(rlp: RLPEncodeable): Seq[Any] = rlp match {
