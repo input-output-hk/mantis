@@ -134,34 +134,6 @@ case class BlockBodies(bodies: Seq[BlockBody]) extends Message {
   val code: Int = BlockBodies.code
 }
 
-object BlockBody {
-  implicit val rlpEndDec = new RLPEncoder[BlockBody] with RLPDecoder[BlockBody] {
-    override def encode(obj: BlockBody): RLPEncodeable = {
-      import obj._
-      RLPList(
-        RLPList(transactionList.map(Transaction.rlpEndDec.encode): _*),
-        RLPList(uncleNodesList.map(BlockHeader.rlpEndDec.encode): _*))
-    }
-
-    override def decode(rlp: RLPEncodeable): BlockBody = rlp match {
-      case RLPList((transactions: RLPList), (uncles: RLPList)) =>
-        BlockBody(
-          transactions.items.map(Transaction.rlpEndDec.decode),
-          uncles.items.map(BlockHeader.rlpEndDec.decode))
-      case _ => throw new RuntimeException("Cannot decode BlockBody")
-    }
-  }
-}
-
-case class BlockBody(transactionList: Seq[Transaction], uncleNodesList: Seq[BlockHeader]) {
-  override def toString: String =
-    s"""BlockBody{
-       |transactionList: $transactionList
-       |uncleNodesList: $uncleNodesList
-       |}
-    """.stripMargin
-}
-
 object Status {
   implicit val rlpEndDec = new RLPEncoder[Status] with RLPDecoder[Status] {
     override def encode(obj: Status): RLPEncodeable = {
@@ -296,90 +268,6 @@ case class BlockHeaders(headers: Seq[BlockHeader]) extends Message {
   override def code: Int = BlockHeaders.code
 }
 
-object BlockHeader {
-  implicit val rlpEndDec = new RLPEncoder[BlockHeader] with RLPDecoder[BlockHeader] {
-    override def encode(obj: BlockHeader): RLPEncodeable = {
-      import obj._
-      RLPList(
-        parentHash.toArray[Byte],
-        ommersHash.toArray[Byte],
-        beneficiary.toArray[Byte],
-        stateRoot.toArray[Byte],
-        transactionsRoot.toArray[Byte],
-        receiptsRoot.toArray[Byte],
-        logsBloom.toArray[Byte],
-        difficulty,
-        number,
-        gasLimit,
-        gasUsed,
-        unixTimestamp,
-        extraData.toArray[Byte],
-        mixHash.toArray[Byte],
-        nonce.toArray[Byte])
-    }
-
-    override def decode(rlp: RLPEncodeable): BlockHeader = rlp match {
-      case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot, logsBloom,
-      difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce) =>
-        BlockHeader(ByteString(parentHash: Array[Byte]),
-          ByteString(ommersHash: Array[Byte]),
-          ByteString(beneficiary: Array[Byte]),
-          ByteString(stateRoot: Array[Byte]),
-          ByteString(transactionsRoot: Array[Byte]),
-          ByteString(receiptsRoot: Array[Byte]),
-          ByteString(logsBloom: Array[Byte]),
-          difficulty,
-          number,
-          gasLimit,
-          gasUsed,
-          unixTimestamp,
-          ByteString(extraData: Array[Byte]),
-          ByteString(mixHash: Array[Byte]),
-          ByteString(nonce: Array[Byte]))
-
-      case _ => throw new RuntimeException("Cannot decode BlockHeaders")
-    }
-  }
-}
-
-case class BlockHeader(
-    parentHash: ByteString,
-    ommersHash: ByteString,
-    beneficiary: ByteString,
-    stateRoot: ByteString,
-    transactionsRoot: ByteString,
-    receiptsRoot: ByteString,
-    logsBloom: ByteString,
-    difficulty: BigInt,
-    number: BigInt,
-    gasLimit: BigInt,
-    gasUsed: BigInt,
-    unixTimestamp: Long,
-    extraData: ByteString,
-    mixHash: ByteString,
-    nonce: ByteString) {
-
-  override def toString: String = {
-    s"""BlockHeader {
-       |parentHash: ${Hex.toHexString(parentHash.toArray[Byte])}
-       |ommersHash: ${Hex.toHexString(ommersHash.toArray[Byte])}
-       |beneficiary: ${Hex.toHexString(beneficiary.toArray[Byte])}
-       |stateRoot: ${Hex.toHexString(stateRoot.toArray[Byte])}
-       |transactionsRoot: ${Hex.toHexString(transactionsRoot.toArray[Byte])}
-       |receiptsRoot: ${Hex.toHexString(receiptsRoot.toArray[Byte])}
-       |logsBloom: ${Hex.toHexString(logsBloom.toArray[Byte])}
-       |difficulty: $difficulty,
-       |number: $number,
-       |gasLimit: $gasLimit,
-       |gasUsed: $gasUsed,
-       |unixTimestamp: $unixTimestamp,
-       |extraData: ${Hex.toHexString(extraData.toArray[Byte])}
-       |mixHash: ${Hex.toHexString(mixHash.toArray[Byte])}
-       |nonce: ${Hex.toHexString(nonce.toArray[Byte])}
-       |}""".stripMargin
-  }
-}
-
 object GetBlockBodies {
   implicit val rlpEndDec = new RLPEncoder[GetBlockBodies] with RLPDecoder[GetBlockBodies] {
     override def encode(obj: GetBlockBodies): RLPEncodeable = {
@@ -426,59 +314,6 @@ object Transactions {
 
 case class Transactions(txs: Seq[Transaction]) extends Message {
   override def code: Int = Transactions.code
-}
-
-object Transaction {
-  implicit val rlpEndDec = new RLPEncoder[Transaction] with RLPDecoder[Transaction] {
-    override def encode(obj: Transaction): RLPEncodeable = {
-      import obj._
-      RLPList(nonce, gasPrice, gasLimit, receivingAddress.toArray[Byte], value,
-        payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte]),
-        pointSign, signatureRandom.toArray[Byte], signature.toArray[Byte])
-    }
-
-    override def decode(rlp: RLPEncodeable): Transaction = rlp match {
-      case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value, payload, pointSign, signatureRandom, signature)
-        if receivingAddress.bytes.nonEmpty =>
-        Transaction(nonce, gasPrice, gasLimit, ByteString(receivingAddress: Array[Byte]), value, Right(TransactionData(ByteString(payload: Array[Byte]))),
-          pointSign, ByteString(signatureRandom: Array[Byte]), ByteString(signature: Array[Byte]))
-
-      case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value, payload, pointSign, signatureRandom, signature)
-        if receivingAddress.bytes.isEmpty =>
-        Transaction(nonce, gasPrice, gasLimit, ByteString(), value, Left(ContractInit(ByteString(payload: Array[Byte]))),
-          pointSign, ByteString(signatureRandom: Array[Byte]), ByteString(signature: Array[Byte]))
-
-      case _ => throw new RuntimeException("Cannot decode Transaction")
-    }
-  }
-}
-
-//ETH yellow paper section 4.3
-case class Transaction(
-    nonce: BigInt,
-    gasPrice: BigInt,
-    gasLimit: BigInt,
-    receivingAddress: ByteString,
-    value: BigInt,
-    payload: Either[ContractInit, TransactionData],
-    //yellow paper appendix F
-    pointSign: Byte, //v - 27 or 28 according to yellow paper, but it is 37 and 38 in ETH
-    signatureRandom: ByteString, //r
-    signature: ByteString /*s*/) {
-
-  override def toString: String = {
-    s"""Transaction {
-       |nonce: $nonce
-       |gasPrice: $gasPrice
-       |gasLimit: $gasLimit
-       |receivingAddress: ${Hex.toHexString(receivingAddress.toArray[Byte])}
-       |value: $value wei
-       |payload: ${payload.fold(init => s"ContractInit [${Hex.toHexString(init.byteString.toArray[Byte])}]", data => s"TransactionData [${Hex.toHexString(data.byteString.toArray[Byte])}]")}
-       |pointSign: $pointSign
-       |signatureRandom: ${Hex.toHexString(signatureRandom.toArray[Byte])}
-       |signature: ${Hex.toHexString(signature.toArray[Byte])}
-       |}""".stripMargin
-  }
 }
 
 case class ContractInit(byteString: ByteString)

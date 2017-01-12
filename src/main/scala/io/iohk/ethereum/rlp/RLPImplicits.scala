@@ -104,13 +104,14 @@ object RLPImplicits {
     override def decode(rlp: RLPEncodeable): ByteString = ByteString(byteArrayEncDec.decode(rlp))
   }
 
-  implicit def seqEncDec[T]()(implicit enc: RLPEncoder[T], dec: RLPDecoder[T]) = new RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] {
-    override def encode(obj: Seq[T]): RLPEncodeable = RLPList(obj.map(enc.encode): _*)
+  implicit def seqEncDec[T]()(implicit enc: RLPEncoder[T], dec: RLPDecoder[T]): RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] =
+    new RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] {
+      override def encode(obj: Seq[T]): RLPEncodeable = RLPList(obj.map(enc.encode): _*)
 
-    override def decode(rlp: RLPEncodeable): Seq[T] = rlp match {
-      case l: RLPList => l.items.map(dec.decode)
-      case _ => throw new RLPException("src is not a Seq")
-    }
+      override def decode(rlp: RLPEncodeable): Seq[T] = rlp match {
+        case l: RLPList => l.items.map(dec.decode)
+        case _ => throw new RLPException("src is not a Seq")
+      }
   }
 
   implicit def toEncodeable[T](value: T)(implicit enc: RLPEncoder[T]): RLPEncodeable = enc.encode(value)

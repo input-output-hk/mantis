@@ -137,27 +137,37 @@ class FrameCodec(private val secrets: Secrets) {
     out ++= ByteString(buff.take(ptype.length))
     secrets.egressMac.update(buff, 0, ptype.length)
 
-    var i = 0
-    while (i < payload.length) {
-      val bytes = payload.drop(i).take(256).toArray
-      enc.processBytes(bytes, 0, bytes.length, bytes, 0)
-      secrets.egressMac.update(bytes, 0, bytes.length)
-      out ++= bytes
-      i += bytes.length
-    }
-    val padding: Int = 16 - (totalSize % 16)
-    val pad: Array[Byte] = new Array[Byte](16)
-    if (padding < 16) {
-      enc.processBytes(pad, 0, padding, buff, 0)
-      secrets.egressMac.update(buff, 0, padding)
-      out ++= buff.take(padding)
-    }
+    out ++= processPayloadAndAddPadding(payload, totalSize, buff)
 
     val macBuffer: Array[Byte] = new Array[Byte](secrets.egressMac.getDigestSize)
     doSum(secrets.egressMac, macBuffer)
     updateMac(secrets.egressMac, macBuffer, 0, macBuffer, 0, egress = true)
     out ++= macBuffer.take(16)
 
+    out
+  }
+
+  private def processPayloadAndAddPadding(payload: ByteString, totalSize: Int, buff: Array[Byte]): ByteString = {
+    val PayloadProcessLimit = 256
+    val PaddingMaximumSize = 16
+
+    var out: ByteString = ByteString("")
+
+    var i = 0
+    while (i < payload.length) {
+      val bytes = payload.drop(i).take(PayloadProcessLimit).toArray
+      enc.processBytes(bytes, 0, bytes.length, bytes, 0)
+      secrets.egressMac.update(bytes, 0, bytes.length)
+      out ++= bytes
+      i += bytes.length
+    }
+    val padding: Int = 16 - (totalSize % 16)
+    val pad: Array[Byte] = new Array[Byte](PaddingMaximumSize)
+    if (padding < 16) {
+      enc.processBytes(pad, 0, padding, buff, 0)
+      secrets.egressMac.update(buff, 0, padding)
+      out ++= buff.take(padding)
+    }
     out
   }
 

@@ -52,7 +52,7 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
         val derivedKey = fillKDFunction(ECIESCoder.KeySize / 8 + ECIESCoder.KeySize / 8)
         val (firstPart, secondPart) = derivedKey.splitAt(ECIESCoder.KeySize / 8)
 
-        if (IV != null)
+        if (Option(IV).isDefined)
           cphr.init(true, new ParametersWithIV(new KeyParameter(firstPart.toArray), IV))
         else
           cphr.init(true, new KeyParameter(firstPart.toArray))
@@ -111,7 +111,7 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
         val derivedKey: ByteString = fillKDFunction(ECIESCoder.KeySize / 8 + ECIESCoder.KeySize / 8)
         val (firstPart, secondPart) = derivedKey.splitAt(ECIESCoder.KeySize / 8)
 
-        if (IV != null)
+        if (Option(IV).isDefined)
           cphr.init(false, new ParametersWithIV(new KeyParameter(firstPart.toArray), IV))
         else
           cphr.init(false, new KeyParameter(firstPart.toArray))

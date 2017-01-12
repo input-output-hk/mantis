@@ -172,7 +172,7 @@ private[rlp] object RLP {
       case 1 => bytes(0) & 0xFF
       case 2 => ((bytes(0) & 0xFF) << 8) + (bytes(1) & 0xFF)
       case 3 => ((bytes(0) & 0xFF) << 16) + ((bytes(1) & 0xFF) << 8) + (bytes(2) & 0xFF)
-      case 4 => ((bytes(0) & 0xFF) << 24) + ((bytes(1) & 0xFF) << 16) + ((bytes(2) & 0xFF) << 8) + (bytes(3) & 0xFF)
+      case Integer.BYTES => ((bytes(0) & 0xFF) << 24) + ((bytes(1) & 0xFF) << 16) + ((bytes(2) & 0xFF) << 8) + (bytes(3) & 0xFF)
       case _ => throw new RLPException("Bytes don't represent an int")
     }
   }
@@ -183,7 +183,7 @@ private[rlp] object RLP {
     * @param value - int value to convert
     * @return value with leading byte that are zeroes striped
     */
-  private def intToBytesNoLeadZeroes(value: Int): Array[Byte] = ByteBuffer.allocate(4).putInt(value).array().dropWhile(_ == (0: Byte))
+  private def intToBytesNoLeadZeroes(value: Int): Array[Byte] = ByteBuffer.allocate(Integer.BYTES).putInt(value).array().dropWhile(_ == (0: Byte))
 
   /**
     * Integer limitation goes up to 2&#94;31-1 so length can never be bigger than MAX_ITEM_LENGTH
