@@ -20,6 +20,8 @@ package object rlp {
 
   def encode[T](input: T)(implicit enc: RLPEncoder[T]): Array[Byte] = RLP.encode(enc.encode(input))
 
+  def encode(input: RLPEncodeable): Array[Byte] = RLP.encode(input)
+
   def decode[T](data: Array[Byte])(implicit dec: RLPDecoder[T]): T = dec.decode(RLP.rawDecode(data))
 
   /**

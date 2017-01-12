@@ -3,12 +3,16 @@ package io.iohk.ethereum.network.p2p
 import java.math.BigInteger
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.rlp
+import io.iohk.ethereum
+import io.iohk.ethereum.crypto.{ECDSASignature, curve}
+import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.utils.ByteUtils._
 import org.spongycastle.crypto.digests.{KeccakDigest, SHA3Digest}
+import io.iohk.ethereum.rlp.{encode => rlpEncode}
+import org.spongycastle.crypto.params.ECPublicKeyParameters
+import org.spongycastle.crypto.signers.ECDSASigner
 import org.spongycastle.util.encoders.Hex
 
 object Message {
@@ -471,18 +475,11 @@ case class Transaction(
     signatureRandom: ByteString, //r
     signature: ByteString /*s*/) {
 
-  val digest: SHA3Digest = new SHA3Digest()
+  val signer:ECDSASigner = new ECDSASigner()
 
-  val bytesToSign: Array[Byte] =
 
-//  {
-//    bigIntegerToBytes(nonce.bigInteger, 32) ++
-//      bigIntegerToBytes(gasPrice.bigInteger, 32) ++
-//      bigIntegerToBytes(gasLimit.bigInteger, 32) ++
-//      receivingAddress.toArray[Byte] ++
-//      bigIntegerToBytes(value.bigInteger, 32) ++
-//      payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte])
-//  }
+  val bytesToSign: Array[Byte] = crypto.sha3(rlpEncode(RLPList(nonce, gasPrice, gasLimit,
+    receivingAddress.toArray[Byte], value, payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte]))))
 
   val senderPublicKey: Option[Array[Byte]] = ECDSASignature.recoverPubBytes(
     new BigInteger(1, signatureRandom.toArray[Byte]),
@@ -491,11 +488,11 @@ case class Transaction(
     bytesToSign
   )
 
-  val senderAddress: Option[Array[Byte]] = senderPublicKey.map { arr =>
-    digest.update(arr, 0, arr.length)
-    val result: Array[Byte] = new Array[Byte](digest.getDigestSize)
-    digest.doFinal(result, 0)
-    result.slice(12, digest.getDigestSize)
+  val senderAddress: Option[Array[Byte]] = senderPublicKey.map(key => crypto.sha3(key).slice(12, 31))
+
+  val isSignatureValid: Boolean = senderPublicKey.exists { key =>
+    signer.init(false, new ECPublicKeyParameters(curve.getCurve.decodePoint(key), crypto.curve))
+    signer.verifySignature(bytesToSign, new BigInteger(1, signatureRandom.toArray[Byte]), new BigInteger(1, signature.toArray[Byte]))
   }
 
   override def toString: String = {
@@ -509,7 +506,9 @@ case class Transaction(
        |pointSign: $pointSign
        |signatureRandom: $signatureRandom
        |signature: $signature
+       |bytesToSign: ${Hex.toHexString(bytesToSign)}
        |senderAddress: ${senderAddress.map(Hex.toHexString)}
+       |isSignatureValid $isSignatureValid
        |}""".stripMargin
   }
 }
