@@ -479,20 +479,14 @@ case class Transaction(
   val bytesToSign: Array[Byte] = crypto.sha3(rlpEncode(RLPList(nonce, gasPrice, gasLimit,
     receivingAddress.toArray[Byte], value, payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte]))))
 
-  val recoveredSenderPublicKey: Option[Array[Byte]] = ECDSASignature.recoverPubBytes(
+  val recoveredPublicKey: Option[Array[Byte]] = ECDSASignature.recoverPubBytes(
     new BigInteger(1, signatureRandom.toArray[Byte]),
     new BigInteger(1, signature.toArray[Byte]),
     ECDSASignature.recIdFromSignatureV(pointSign),
     bytesToSign
   )
 
-  val recoveredSenderAddress: Option[Array[Byte]] = recoveredSenderPublicKey.map(key => crypto.sha3(key).slice(12, 32))
-
-  def isSignatureValid(publicKey: ECPoint): Boolean = {
-    val signer:ECDSASigner = new ECDSASigner()
-    signer.init(false, new ECPublicKeyParameters(publicKey, crypto.curve))
-    signer.verifySignature(bytesToSign, new BigInteger(1, signatureRandom.toArray[Byte]), new BigInteger(1, signature.toArray[Byte]))
-  }
+  val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(12, 32))
 
 
   override def toString: String = {
@@ -507,8 +501,8 @@ case class Transaction(
        |signatureRandom: ${Hex.toHexString(signatureRandom.toArray[Byte])}
        |signature: ${Hex.toHexString(signature.toArray[Byte])}
        |bytesToSign: ${Hex.toHexString(bytesToSign)}
-       |recoveredSenderPublicKey: ${recoveredSenderPublicKey.map(Hex.toHexString)}
-       |recoveredSenderAddress: ${recoveredSenderAddress.map(Hex.toHexString)}
+       |recoveredPublicKey: ${recoveredPublicKey.map(Hex.toHexString)}
+       |recoveredAddress: ${recoveredAddress.map(Hex.toHexString)}
        |}""".stripMargin
   }
 }
