@@ -75,18 +75,8 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
         (secondPart, ByteString(encrypted: _*))
     }
 
-    val kdfPartForMac: Array[Byte] = if (hashMacKey) {
-      val hashBuff = new Array[Byte](hash.getDigestSize)
-      hash.reset()
-      hash.update(derivedKeySecondPart.toArray, 0, derivedKeySecondPart.length)
-      hash.doFinal(hashBuff, 0)
-      hashBuff
-    } else {
-      derivedKeySecondPart.toArray
-    }
-
     // calculate mac
-    mac.init(new KeyParameter(kdfPartForMac))
+    mac.init(new KeyParameter(getKdfForMac(derivedKeySecondPart)))
     mac.update(IV, 0, IV.length)
     mac.update(cryptogram.toArray, 0, cryptogram.length)
 
@@ -133,34 +123,32 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
         (secondPart, ByteString(decrypted: _*))
     }
 
-    val kdfPartForMac: Array[Byte] = if (hashMacKey) {
-      val hashBuff = new Array[Byte](hash.getDigestSize)
-      hash.reset()
-      hash.update(derivedKeySecondPart.toArray, 0, derivedKeySecondPart.length)
-      hash.doFinal(hashBuff, 0)
-      hashBuff
-    } else {
-      derivedKeySecondPart.toArray
-    }
-
-    // Verify the MAC.
     val end = inOff + inLen
     val messageAuthenticationCode = Arrays.copyOfRange(cryptogram, end - mac.getMacSize, end)
     val messageAuthenticationCodeCalculated = new Array[Byte](messageAuthenticationCode.length)
 
-    mac.init(new KeyParameter(kdfPartForMac))
+    mac.init(new KeyParameter(getKdfForMac(derivedKeySecondPart)))
     mac.update(IV, 0, IV.length)
     mac.update(cryptogram, inOff + encodedPublicKey.length, inLen - encodedPublicKey.length - messageAuthenticationCodeCalculated.length)
 
     if (macData.isDefined)
       mac.update(macData.get, 0, macData.get.length)
-
     mac.doFinal(messageAuthenticationCodeCalculated, 0)
 
     if (!Arrays.constantTimeAreEqual(messageAuthenticationCode, messageAuthenticationCodeCalculated))
       throw new InvalidCipherTextException("Invalid MAC.")
 
     plainText.toArray
+  }
+
+  private def getKdfForMac(derivedKeySecondPart: ByteString) = if (hashMacKey) {
+    val hashBuff = new Array[Byte](hash.getDigestSize)
+    hash.reset()
+    hash.update(derivedKeySecondPart.toArray, 0, derivedKeySecondPart.length)
+    hash.doFinal(hashBuff, 0)
+    hashBuff
+  } else {
+    derivedKeySecondPart.toArray
   }
 
   @throws[InvalidCipherTextException]
