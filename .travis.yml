@@ -6,7 +6,10 @@ scala:
 branches:
   only:
     - master
-    - /phase\/.*/
+    - feature/crypto
+    - feature/rlpRefactor
+    - phase/2/txHashValidation
+    - feature/coverage
 script:
     - sbt clean coverage test
 after_success:
