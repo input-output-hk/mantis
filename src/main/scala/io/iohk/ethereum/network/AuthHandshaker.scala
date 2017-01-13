@@ -12,8 +12,10 @@ import org.spongycastle.crypto.digests.{KeccakDigest, SHA256Digest}
 import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
 import org.spongycastle.crypto.signers.{HMacDSAKCalculator, ECDSASigner}
 import org.spongycastle.math.ec.ECPoint
-import scorex.core.network
-import scorex.core.network._
+
+sealed trait AuthHandshakeResult
+case object AuthHandshakeError extends AuthHandshakeResult
+case class AuthHandshakeSuccess(secrets: Secrets) extends AuthHandshakeResult
 
 class Secrets(
     val aes: Array[Byte],
@@ -21,7 +23,6 @@ class Secrets(
     val token: Array[Byte],
     val egressMac: KeccakDigest,
     val ingressMac: KeccakDigest)
-  extends scorex.core.network.Secrets
 
 object AuthHandshaker {
 
@@ -45,12 +46,11 @@ case class AuthHandshaker(
     initiateMessageOpt: Option[AuthInitiateMessage] = None,
     initiatePacketOpt: Option[ByteString] = None,
     responseMessageOpt: Option[AuthResponseMessage] = None,
-    responsePacketOpt: Option[ByteString] = None)
-  extends scorex.core.network.AuthHandshaker {
+    responsePacketOpt: Option[ByteString] = None) {
 
   import AuthHandshaker._
 
-  override def initiate(uri: URI): (ByteString, network.AuthHandshaker) = {
+  def initiate(uri: URI): (ByteString, AuthHandshaker) = {
     val remotePubKey = publicKeyFromNodeId(uri.getUserInfo)
     val message = createAuthInitiateMessage(remotePubKey)
     val encryptedPacket = ByteString(ECIESCoder.encrypt(remotePubKey, message.encoded.toArray, None))
@@ -58,7 +58,7 @@ case class AuthHandshaker(
     (encryptedPacket, copy(isInitiator = true, initiateMessageOpt = Some(message), initiatePacketOpt = Some(encryptedPacket)))
   }
 
-  override def handleResponseMessage(data: ByteString): AuthHandshakeResult = {
+  def handleResponseMessage(data: ByteString): AuthHandshakeResult = {
     val plaintext = ECIESCoder.decrypt(nodeKey.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD, data.toArray)
     val message = AuthResponseMessage.decode(plaintext)
 
@@ -67,7 +67,7 @@ case class AuthHandshaker(
       responsePacketOpt = Some(data)).finalizeHandshake()
   }
 
-  override def handleInitialMessage(data: ByteString): (ByteString, AuthHandshakeResult) = {
+  def handleInitialMessage(data: ByteString): (ByteString, AuthHandshakeResult) = {
     val plaintext = ECIESCoder.decrypt(nodeKey.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD, data.toArray)
     val message = AuthInitiateMessage.decode(plaintext)
 

@@ -10,10 +10,13 @@ import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.p2p._
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockBodies, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.Message.PV63
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello}
 import io.iohk.ethereum.rlp.{encode => rlpEncode}
 import io.iohk.ethereum.rlp._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import scorex.core.network.AuthHandshakeSuccess
 
 object TestSocketHandshaker {
 
@@ -42,7 +45,7 @@ object TestSocketHandshaker {
     println("Received auth handshake response packet")
 
     val result = authHandshaker.handleResponseMessage(ByteString(responsePacket))
-    val secrets = result.asInstanceOf[AuthHandshakeSuccess].secrets.asInstanceOf[Secrets]
+    val secrets = result.asInstanceOf[AuthHandshakeSuccess].secrets
     println(s"Auth handshake result: $result")
 
     val frameCodec = new FrameCodec(secrets)
@@ -50,7 +53,7 @@ object TestSocketHandshaker {
     val helloMsg = Hello(
       p2pVersion = P2PVersion,
       clientId = "etc-client",
-      capabilities = Seq(Capability("eth", 63.toByte)),
+      capabilities = Seq(Capability("eth", PV63.toByte)),
       listenPort = ListenPort,
       nodeId = ByteString(nodeId))
 
@@ -89,7 +92,7 @@ object TestSocketHandshaker {
     val n = inp.read(buff)
     if (n > 0) {
       val frames = frameCodec.readFrames(ByteString(buff))
-      val decodedFrames = frames.map(f => Try(Message.decode(f.`type`, f.payload)))
+      val decodedFrames = frames.map(f => Try(Message.decode(f.`type`, f.payload, PV63)))
       val messages = decodedFrames.collect { case Success(msg) => msg }
 
       decodedFrames

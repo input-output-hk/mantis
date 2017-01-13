@@ -9,7 +9,6 @@ import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
-import scorex.core.network.AuthHandshakeSuccess
 
 trait SecureChannelSetup {
 
