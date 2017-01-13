@@ -5,12 +5,13 @@ object HexPrefix {
     * Pack nibbles to binary
     *
     * @param nibbles sequence
+    * @param isLeaf boolean used to encode whether or not the data being encoded corresponds to a LeafNode or an ExtensionNode
     * @return hex-encoded byte array
     *
     */
-  def encode(nibbles: Array[Byte], t: Boolean): Array[Byte] = {
+  def encode(nibbles: Array[Byte], isLeaf: Boolean): Array[Byte] = {
     val hasOddLength = nibbles.length % 2 == 1
-    val firstByteFlag: Byte = (2*(if(t) 1 else 0) + (if(hasOddLength) 1 else 0)).toByte
+    val firstByteFlag: Byte = (2*(if(isLeaf) 1 else 0) + (if(hasOddLength) 1 else 0)).toByte
     val lengthFlag = if(hasOddLength) 1 else 2
 
     val nibblesWithFlag = new Array[Byte](nibbles.length + lengthFlag)
@@ -24,7 +25,8 @@ object HexPrefix {
     * Unpack a binary string to its nibbles equivalent
     *
     * @param src of binary data
-    * @return array of nibbles in byte-format
+    * @return array of nibbles in byte-format and
+    *         boolean used to encode whether or not the data being decoded corresponds to a LeafNode or an ExtensionNode
     *
     */
   def decode(src: Array[Byte]): (Array[Byte], Boolean) = {
@@ -39,7 +41,7 @@ object HexPrefix {
   }
 
   /**
-    * Transforms a binary array to hexadecimal format
+    * Transforms an array of 8bit values to the corresponding array of 4bit values (hexadecimal format)
     *
     * @param bytes byte[]
     * @return array with each individual nibble
@@ -51,7 +53,7 @@ object HexPrefix {
   }
 
   /**
-    * Transforms an array in hexadecimal format to a byte array
+    * Transforms an array of 4bit values (hexadecimal format) to the corresponding array of 8bit values
     *
     * @param nibbles byte[]
     * @return array with bytes combining pairs of nibbles

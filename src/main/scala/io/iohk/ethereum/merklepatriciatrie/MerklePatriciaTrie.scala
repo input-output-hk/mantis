@@ -72,9 +72,9 @@ object MerklePatriciaTrie {
     */
   private[merklepatriciatrie] implicit val nodeEncDec = new RLPDecoder[Node] with RLPEncoder[Node] {
     override def encode(obj: Node): RLPEncodeable = obj match {
-      case leaf: LeafNode => RLPList(HexPrefix.encode(nibbles = leaf.key, t = true), leaf.value)
+      case leaf: LeafNode => RLPList(HexPrefix.encode(nibbles = leaf.key, isLeaf = true), leaf.value)
       case extension: ExtensionNode =>
-        RLPList(HexPrefix.encode(nibbles = extension.sharedKey, t = false), extension.next match {
+        RLPList(HexPrefix.encode(nibbles = extension.sharedKey, isLeaf = false), extension.next match {
           case Right(node) => this.encode(node)
           case Left(bytes) => bytes
         })
