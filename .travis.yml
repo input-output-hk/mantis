@@ -9,8 +9,6 @@ branches:
     - feature/crypto
     - feature/rlpRefactor
     - phase/2/txHashValidation
-    - feature/messageVersioning
-    - feature/spongycastleUpgrade
 script:
     - sbt test
 
