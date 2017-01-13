@@ -61,6 +61,6 @@ object HexPrefix {
     */
   def nibblesToBytes(nibbles: Array[Byte]): Array[Byte] = {
     require(nibbles.length % 2 == 0)
-    (0 until nibbles.length/2).map(i => (16*nibbles(2*i) + nibbles(2*i + 1)).toByte).toArray
+    nibbles.grouped(2).map{case Array(n1,n2) => (16*n1 + n2).toByte}.toArray
   }
 }
