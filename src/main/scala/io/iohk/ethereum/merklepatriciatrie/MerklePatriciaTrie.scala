@@ -24,15 +24,13 @@ object MerklePatriciaTrie {
   : MerklePatriciaTrie[K, V] = new MerklePatriciaTrie[K, V](Some(rootHash), source, hashFn)(kSerializer, vSerializer)
 
   private def getNode(nodeId: Array[Byte], source: DataSource)(implicit nodeDec: RLPDecoder[Node]): Node = {
-    val nodeEncoded = tryGetNode(nodeId, source)
+    val nodeEncoded =
+      if (nodeId.length < 32) nodeId
+      else source.get(nodeId).getOrElse(throw MPTException("Node not found, trie is inconsistent"))
     decodeRLP[Node](nodeEncoded)
   }
 
-  private def tryGetNode(key: Array[Byte], source: DataSource): Array[Byte] =
-    if (key.length < 32) key
-    else source.get(key).getOrElse(throw MPTException("Node not found, trie is inconsistent"))
-
-  private def matchingLength(bytes1: Array[Byte], bytes2: Array[Byte]): Int = bytes1.zip(bytes2).takeWhile(t => t._1 == t._2).length
+  private def matchingLength(a: Array[Byte], b: Array[Byte]): Int = a.zip(b).takeWhile(t => t._1 == t._2).length
 
   private def updateNodesInStorage(previousRootHash: Array[Byte], newRootHash: Array[Byte], newRoot: Option[Node],
                                    toRemove: Seq[Node], toUpdate: Seq[Node], dataSource: DataSource, hashFn: HashFn): DataSource = {
@@ -82,7 +80,7 @@ object MerklePatriciaTrie {
         val toEncode: Seq[RLPEncodeable] = branch.children.map {
           case Some(Right(node)) => this.encode(node)
           case Some(Left(bytes)) => RLPValue(bytes)
-          case _ => RLPValue(Array.emptyByteArray)
+          case None => RLPValue(Array.emptyByteArray)
         } :+ RLPValue(branch.terminator.getOrElse(Array.emptyByteArray))
         RLPList(toEncode: _*)
     }
