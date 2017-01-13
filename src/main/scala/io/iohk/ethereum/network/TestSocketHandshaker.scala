@@ -13,7 +13,6 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.rlp.{encode => rlpEncode}
 import io.iohk.ethereum.rlp._
-import scorex.core.network.AuthHandshakeSuccess
 
 object TestSocketHandshaker {
 
