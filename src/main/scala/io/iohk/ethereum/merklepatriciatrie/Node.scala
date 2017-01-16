@@ -10,7 +10,7 @@ private[merklepatriciatrie] sealed trait Node {
 
   import MerklePatriciaTrie._
 
-  val hashFn: HashFn
+  protected val hashFn: HashFn
 
   lazy val encode: Array[Byte] = encodeRLP[Node](this)
 

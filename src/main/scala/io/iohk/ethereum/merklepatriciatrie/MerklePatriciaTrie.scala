@@ -457,7 +457,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
         case (index :: Nil, None) =>
           val temporalExtNode = ExtensionNode(Array[Byte](index.toByte), children(index).get, hashFn)
           fix(temporalExtNode, dataSource, notStoredYet)
-        case (Nil, Some(value)) => LeafNode(Array.emptyByteArray, value, node.hashFn)
+        case (Nil, Some(value)) => LeafNode(Array.emptyByteArray, value, hashFn)
         case _ => node
       }
     case extensionNode@ExtensionNode(sharedKey, _, _) =>
