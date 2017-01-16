@@ -1,19 +1,21 @@
 package io.iohk.ethereum.network
 
-import java.io.{OutputStream, InputStream}
-import java.net.{URI, Socket}
+import java.io.{InputStream, OutputStream}
+import java.net.{Socket, URI}
 
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 
 import scala.annotation.tailrec
-import scala.util.{Try, Failure, Success}
-
+import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.p2p._
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockBodies, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.Message.PV63
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello}
 import io.iohk.ethereum.rlp.{encode => rlpEncode}
 import io.iohk.ethereum.rlp._
-import scorex.core.network.AuthHandshakeSuccess
 
 object TestSocketHandshaker {
 
@@ -45,7 +47,7 @@ object TestSocketHandshaker {
     val helloMsg = Hello(
       p2pVersion = 4,
       clientId = "etc-client",
-      capabilities = Seq(Capability("eth", 63.toByte)),
+      capabilities = Seq(Capability("eth", PV63.toByte)),
       listenPort = 3333,
       nodeId = ByteString(nodeId))
 
@@ -82,7 +84,7 @@ object TestSocketHandshaker {
     val n = inp.read(buff)
     if (n > 0) {
       val frames = frameCodec.readFrames(ByteString(buff))
-      val decodedFrames = frames.map(f => Try(Message.decode(f.`type`, f.payload)))
+      val decodedFrames = frames.map(f => Try(Message.decode(f.`type`, f.payload, PV63)))
       val messages = decodedFrames.collect { case Success(msg) => msg }
 
       decodedFrames

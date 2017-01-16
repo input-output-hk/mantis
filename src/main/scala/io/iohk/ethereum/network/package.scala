@@ -6,7 +6,7 @@ import org.spongycastle.util.encoders.Hex
 
 package object network {
 
-  implicit class ECPublicKeyParametersNodeId(pubKey: ECPublicKeyParameters) {
+  implicit class ECPublicKeyParametersNodeId(val pubKey: ECPublicKeyParameters) extends AnyVal {
     def toNodeId =
       pubKey.asInstanceOf[ECPublicKeyParameters].getQ
       .getEncoded(false)

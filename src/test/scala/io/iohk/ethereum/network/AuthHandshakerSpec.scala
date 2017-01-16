@@ -9,7 +9,6 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
-import scorex.core.network.AuthHandshakeSuccess
 
 class AuthHandshakerSpec extends FlatSpec with Matchers {
 
