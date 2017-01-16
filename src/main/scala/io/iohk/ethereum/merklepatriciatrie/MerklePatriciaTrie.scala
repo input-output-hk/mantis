@@ -365,7 +365,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     // We want to delete Branch node value
     case (BranchNode(children, _, _), true) =>
       // We need to remove old node and fix it because we removed the value
-      val fixedNode = fix(BranchNode(children, None, hashFn), dataSource, Seq(), hashFn)
+      val fixedNode = fix(BranchNode(children, None, hashFn), dataSource, Seq())
       NodeRemoveResult(hasChanged = true, maybeNewChild = Some(fixedNode), toDeleteFromStorage = Seq(node), toUpdateInStorage = Seq(fixedNode))
     case (branchNode@BranchNode(children, optStoredValue, _), false) =>
       // We might be trying to remove a node that's inside one of the 16 mapped nibbles
@@ -380,7 +380,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
             } getOrElse {
               BranchNode(children.updated(searchKeyHead, None), optStoredValue, hashFn)
             }
-            val fixedNode = fix(nodeToFix, dataSource, nodesToUpdateInStorage, hashFn)
+            val fixedNode = fix(nodeToFix, dataSource, nodesToUpdateInStorage)
             NodeRemoveResult(
               hasChanged = true,
               maybeNewChild = Some(fixedNode),
@@ -413,7 +413,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
             // If we changed the child, we need to fix this extension node
             maybeNewChild map { newChild =>
               val toFix = ExtensionNode(sharedKey, newChild, hashFn)
-              val fixedNode = fix(toFix, dataSource, nodesToUpdateInStorage, hashFn)
+              val fixedNode = fix(toFix, dataSource, nodesToUpdateInStorage)
               NodeRemoveResult(
                 hasChanged = true,
                 maybeNewChild = Some(fixedNode),
@@ -442,12 +442,11 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     * @param dataSource   to obtain the nodes referenced in the node that may be in an invalid state.
     * @param notStoredYet to obtain the nodes referenced in the node that may be in an invalid state,
     *                     if they were not yet inserted into the dataSource.
-    * @param hashFn
     * @return fixed node.
     * @throws MPTException if there is any inconsistency in how the trie is build.
     */
   @tailrec
-  private def fix(node: Node, dataSource: DataSource, notStoredYet: Seq[Node], hashFn: HashFn): Node = node match {
+  private def fix(node: Node, dataSource: DataSource, notStoredYet: Seq[Node]): Node = node match {
     case BranchNode(children, optStoredValue, _) =>
       val usedIndexes = children.indices.foldLeft[Seq[Int]](Seq.empty) {
         (acc, i) =>
@@ -457,7 +456,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
         case (Nil, None) => throw MPTException("Branch with no subvalues")
         case (index :: Nil, None) =>
           val temporalExtNode = ExtensionNode(Array[Byte](index.toByte), children(index).get, hashFn)
-          fix(temporalExtNode, dataSource, notStoredYet, hashFn)
+          fix(temporalExtNode, dataSource, notStoredYet)
         case (Nil, Some(value)) => LeafNode(Array.emptyByteArray, value, hashFn)
         case _ => node
       }
