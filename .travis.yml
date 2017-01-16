@@ -4,11 +4,9 @@ jdk:
 scala:
    - 2.11.8
 branches:
-  only:
-    - master
-    - feature/crypto
-    - feature/rlpRefactor
-    - phase/2/txHashValidation
+   except:
+    - legacy
+
 script:
     - sbt test
 
