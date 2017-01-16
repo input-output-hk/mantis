@@ -36,7 +36,7 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
                         mac: Mac,
                         hash: Digest,
                         cipher: Option[BufferedBlockCipher],
-                        IV: Array[Byte],
+                        IV: Option[Array[Byte]],
                         prvSrc: Either[ECPrivateKeyParameters, ECKeyPairGenerator],
                         pubSrc: Either[ECPublicKeyParameters, ECIESPublicKeyParser],
                         hashMacKey: Boolean = true) {
@@ -52,10 +52,10 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
         val derivedKey = fillKDFunction(ECIESCoder.KeySize / 8 + ECIESCoder.KeySize / 8)
         val (firstPart, secondPart) = derivedKey.splitAt(ECIESCoder.KeySize / 8)
 
-        if (IV != null)
-          cphr.init(true, new ParametersWithIV(new KeyParameter(firstPart.toArray), IV))
-        else
-          cphr.init(true, new KeyParameter(firstPart.toArray))
+        IV match {
+          case Some(iv) => cphr.init(true, new ParametersWithIV(new KeyParameter(firstPart.toArray), iv))
+          case None => cphr.init(true, new KeyParameter(firstPart.toArray))
+        }
 
         val encrypted = new Array[Byte](cphr.getOutputSize(inLen))
         val len = cphr.processBytes(plainText, inOff, inLen, encrypted, 0)
@@ -77,7 +77,7 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
 
     // calculate mac
     mac.init(new KeyParameter(getKdfForMac(derivedKeySecondPart)))
-    mac.update(IV, 0, IV.length)
+    IV.foreach(iv => mac.update(iv, 0, iv.length))
     mac.update(cryptogram.toArray, 0, cryptogram.length)
 
     macData.foreach(data => mac.update(data, 0, data.length))
@@ -101,10 +101,10 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
         val derivedKey: ByteString = fillKDFunction(ECIESCoder.KeySize / 8 + ECIESCoder.KeySize / 8)
         val (firstPart, secondPart) = derivedKey.splitAt(ECIESCoder.KeySize / 8)
 
-        if (IV != null)
-          cphr.init(false, new ParametersWithIV(new KeyParameter(firstPart.toArray), IV))
-        else
-          cphr.init(false, new KeyParameter(firstPart.toArray))
+        IV match {
+          case Some(iv) => cphr.init(false, new ParametersWithIV(new KeyParameter(firstPart.toArray), iv))
+          case None => cphr.init(false, new KeyParameter(firstPart.toArray))
+        }
 
         val decrypted = new Array[Byte](cphr.getOutputSize(inLen - encodedPublicKey.length - mac.getMacSize))
         val len = cphr.processBytes(cryptogram, inOff + encodedPublicKey.length, inLen - encodedPublicKey.length - mac.getMacSize, decrypted, 0)
@@ -128,7 +128,7 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
     val messageAuthenticationCodeCalculated = new Array[Byte](messageAuthenticationCode.length)
 
     mac.init(new KeyParameter(getKdfForMac(derivedKeySecondPart)))
-    mac.update(IV, 0, IV.length)
+    IV.foreach(iv => mac.update(iv, 0, iv.length))
     mac.update(cryptogram, inOff + encodedPublicKey.length, inLen - encodedPublicKey.length - messageAuthenticationCodeCalculated.length)
 
     if (macData.isDefined)
