@@ -1,10 +1,10 @@
 package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
+import io.iohk.ethereum.network.p2p.Message.PV63
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello, Ping, Pong}
 import io.iohk.ethereum.rlp
 import org.scalatest.{FlatSpec, Matchers}
-
-import scala.util.Success
 
 class FrameCodecSpec extends FlatSpec with Matchers {
 
@@ -17,7 +17,7 @@ class FrameCodecSpec extends FlatSpec with Matchers {
 
     val readFrames = remoteFrameCodec.readFrames(data)
     val firstFrame = readFrames.head
-    val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload)
+    val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload, PV63)
 
     readMessage shouldBe Ping()
   }
@@ -31,7 +31,7 @@ class FrameCodecSpec extends FlatSpec with Matchers {
 
     val readFrames = remoteFrameCodec.readFrames(data)
     val firstFrame = readFrames.head
-    val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload)
+    val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload, PV63)
 
     readMessage shouldBe msg
   }
@@ -43,12 +43,12 @@ class FrameCodecSpec extends FlatSpec with Matchers {
     val ping = Ping()
     val pingData = frameCodec.writeFrame(ping.code, ByteString(rlp.encode(ping)))
     val pingReadFrames = remoteFrameCodec.readFrames(pingData)
-    val pingReadMessage = Message.decode(pingReadFrames.head.`type`, pingReadFrames.head.payload)
+    val pingReadMessage = Message.decode(pingReadFrames.head.`type`, pingReadFrames.head.payload, PV63)
 
     val pong = Pong()
     val pongData = remoteFrameCodec.writeFrame(pong.code, ByteString(rlp.encode(pong)))
     val pongReadFrames = frameCodec.readFrames(pongData)
-    val pongReadMessage = Message.decode(pongReadFrames.head.`type`, pongReadFrames.head.payload)
+    val pongReadMessage = Message.decode(pongReadFrames.head.`type`, pongReadFrames.head.payload, PV63)
 
     pingReadMessage shouldBe ping
     pongReadMessage shouldBe pong
