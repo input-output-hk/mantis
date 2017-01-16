@@ -1,6 +1,6 @@
-package io.iohk.ethereum.merklepatriciatrie
+package io.iohk.ethereum.mpt
 
-import io.iohk.ethereum.merklepatriciatrie.MerklePatriciaTrie.HashFn
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.HashFn
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => decodeRLP, encode => encodeRLP, _}
 
@@ -21,7 +21,7 @@ object MerklePatriciaTrie {
   type HashFn = Array[Byte] => Array[Byte]
 
   private val PairSize: Byte = 2
-  private[merklepatriciatrie] val ListSize: Byte = 17
+  private[mpt] val ListSize: Byte = 17
 
   def apply[K, V](source: DataSource, hashFn: HashFn)
                  (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V])
@@ -66,7 +66,7 @@ object MerklePatriciaTrie {
       case Left(hash) => MerklePatriciaTrie.getNode(hash, dataSource)
     }
 
-  private[merklepatriciatrie] implicit val nodeEnc = new RLPEncoder[Node] {
+  private[mpt] implicit val nodeEnc = new RLPEncoder[Node] {
     override def encode(obj: Node): RLPEncodeable = obj match {
       case leaf: LeafNode => RLPList(HexPrefix.encode(nibbles = leaf.key, isLeaf = true), leaf.value)
       case extension: ExtensionNode =>
@@ -101,7 +101,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
   /**
     * Implicits
     */
-  private[merklepatriciatrie] implicit val nodeDec = new RLPDecoder[Node] {
+  private[mpt] implicit val nodeDec = new RLPDecoder[Node] {
     override def decode(rlp: RLPEncodeable): Node = rlp match {
       case RLPList(items@_*) if items.size == MerklePatriciaTrie.ListSize =>
         val parsedChildren: Seq[Option[Either[Array[Byte], Node]]] = items.init.map {

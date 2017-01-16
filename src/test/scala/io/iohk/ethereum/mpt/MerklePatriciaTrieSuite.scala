@@ -1,11 +1,11 @@
-package io.iohk.ethereum.merklepatriciatrie
+package io.iohk.ethereum.mpt
 
 import java.io.File
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.sha3
-import io.iohk.ethereum.merklepatriciatrie.MerklePatriciaTrie.defaultByteArraySerializable
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => encodeRLP, decode => decodeRLP}
 import io.iohk.iodb.LSMStore

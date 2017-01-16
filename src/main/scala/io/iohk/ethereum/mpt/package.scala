@@ -1,6 +1,6 @@
 package io.iohk.ethereum
 
-package object merklepatriciatrie {
+package object mpt {
   trait ByteArraySerializable[T] {
     def toBytes(input: T): Array[Byte]
 

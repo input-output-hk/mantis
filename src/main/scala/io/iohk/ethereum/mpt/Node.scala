@@ -1,12 +1,12 @@
-package io.iohk.ethereum.merklepatriciatrie
+package io.iohk.ethereum.mpt
 
-import io.iohk.ethereum.merklepatriciatrie.MerklePatriciaTrie.HashFn
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.HashFn
 import io.iohk.ethereum.rlp.{encode => encodeRLP}
 
 /**
   * Trie elements
   */
-private[merklepatriciatrie] sealed trait Node {
+private[mpt] sealed trait Node {
 
   import MerklePatriciaTrie._
 
@@ -22,11 +22,11 @@ private[merklepatriciatrie] sealed trait Node {
   }
 }
 
-private[merklepatriciatrie] case class LeafNode(key: Array[Byte], value: Array[Byte], hashFn: HashFn) extends Node
+private[mpt] case class LeafNode(key: Array[Byte], value: Array[Byte], hashFn: HashFn) extends Node
 
-private[merklepatriciatrie] case class ExtensionNode(sharedKey: Array[Byte], next: Either[Array[Byte], Node], hashFn: HashFn) extends Node
+private[mpt] case class ExtensionNode(sharedKey: Array[Byte], next: Either[Array[Byte], Node], hashFn: HashFn) extends Node
 
-private[merklepatriciatrie] object ExtensionNode {
+private[mpt] object ExtensionNode {
   /**
     * This function creates a new ExtensionNode with next parameter as its node pointer
     *
@@ -41,7 +41,7 @@ private[merklepatriciatrie] object ExtensionNode {
   }
 }
 
-private[merklepatriciatrie] case class BranchNode(children: Seq[Option[Either[Array[Byte], Node]]], terminator: Option[Array[Byte]], hashFn: HashFn) extends Node {
+private[mpt] case class BranchNode(children: Seq[Option[Either[Array[Byte], Node]]], terminator: Option[Array[Byte]], hashFn: HashFn) extends Node {
   /**
     * This function creates a new BranchNode by updating one of the children of the self node.
     *
@@ -56,7 +56,7 @@ private[merklepatriciatrie] case class BranchNode(children: Seq[Option[Either[Ar
   }
 }
 
-private[merklepatriciatrie] object BranchNode {
+private[mpt] object BranchNode {
   private val emptyChildren: Seq[Option[Either[Array[Byte], Node]]] = Array.fill(MerklePatriciaTrie.ListSize - 1)(None)
 
   /**
