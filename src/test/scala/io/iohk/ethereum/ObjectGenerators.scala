@@ -1,7 +1,7 @@
 package io.iohk.ethereum
 
 import java.math.BigInteger
-import org.scalacheck.{Arbitrary, Gen, _}
+import org.scalacheck.{Arbitrary, Gen}
 
 trait ObjectGenerators {
 
