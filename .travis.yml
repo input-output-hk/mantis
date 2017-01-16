@@ -6,8 +6,7 @@ scala:
 branches:
   only:
     - master
-    - feature/crypto
-    - feature/rlpRefactor
+    - feature/publicKeyRecovery
     - phase/2/txHashValidation
 script:
     - sbt test
