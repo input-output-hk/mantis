@@ -1,8 +1,8 @@
-package io.iohk.ethereum.network
+package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.network.p2p.{Transaction, TransactionData}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.{Transaction, TransactionData}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.math.ec.ECPoint
 import org.spongycastle.util.encoders.Hex

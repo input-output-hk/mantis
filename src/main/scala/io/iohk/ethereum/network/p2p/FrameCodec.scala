@@ -20,17 +20,17 @@ case class Header(bodySize: Int, protocol: Int, contextId: Option[Int], totalFra
 
 class FrameCodec(private val secrets: Secrets) {
 
-  private val blockSize = secrets.aes.length * 8
+  private val allZerosIV = Array.fill[Byte](16)(0)
 
   private val enc: StreamCipher = {
     val cipher = new SICBlockCipher(new AESFastEngine)
-    cipher.init(true, new ParametersWithIV(new KeyParameter(secrets.aes), new Array[Byte](blockSize / 8)))
+    cipher.init(true, new ParametersWithIV(new KeyParameter(secrets.aes), allZerosIV))
     cipher
   }
 
   private val dec: StreamCipher = {
     val cipher = new SICBlockCipher(new AESFastEngine)
-    cipher.init(false, new ParametersWithIV(new KeyParameter(secrets.aes), new Array[Byte](blockSize / 8)))
+    cipher.init(false, new ParametersWithIV(new KeyParameter(secrets.aes), allZerosIV))
     cipher
   }
 
@@ -38,6 +38,12 @@ class FrameCodec(private val secrets: Secrets) {
 
   private var headerOpt: Option[Header] = None
 
+  /**
+    * Note, this method is not reentrant.
+    *
+    * @param data
+    * @return
+    */
   def readFrames(data: ByteString): Seq[Frame] = {
     unprocessedData ++= data
 
