@@ -1,6 +1,7 @@
 package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -358,6 +359,8 @@ case class BlockHeader(
     extraData: ByteString,
     mixHash: ByteString,
     nonce: ByteString) {
+
+  lazy val hash: Array[Byte] = sha3(encode[BlockHeader](this))
 
   override def toString: String = {
     s"""BlockHeader {
