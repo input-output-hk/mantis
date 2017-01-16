@@ -23,17 +23,17 @@ class FrameCodec(private val secrets: Secrets) {
   val HeaderLength = 32
   val MacSize = 16
 
-  private val blockSize = secrets.aes.length * 8
+  private val allZerosIV = Array.fill[Byte](16)(0)
 
   private val enc: StreamCipher = {
     val cipher = new SICBlockCipher(new AESFastEngine)
-    cipher.init(true, new ParametersWithIV(new KeyParameter(secrets.aes), new Array[Byte](blockSize / 8)))
+    cipher.init(true, new ParametersWithIV(new KeyParameter(secrets.aes), allZerosIV))
     cipher
   }
 
   private val dec: StreamCipher = {
     val cipher = new SICBlockCipher(new AESFastEngine)
-    cipher.init(false, new ParametersWithIV(new KeyParameter(secrets.aes), new Array[Byte](blockSize / 8)))
+    cipher.init(false, new ParametersWithIV(new KeyParameter(secrets.aes), allZerosIV))
     cipher
   }
 
