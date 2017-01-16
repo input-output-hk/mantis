@@ -8,6 +8,7 @@ branches:
     - master
     - feature/crypto
     - feature/rlpRefactor
+    - phase/2/txHashValidation
 script:
     - sbt test
 
