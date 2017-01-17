@@ -4,13 +4,12 @@ import java.net.{URI, InetSocketAddress}
 
 import scala.concurrent.duration._
 
-import akka.actor.{Cancellable, ActorLogging, ActorRef, Actor}
+import akka.actor._
 import akka.io.{Tcp, IO}
 import akka.io.Tcp._
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECIESCoder
-import io.iohk.ethereum.network.p2p.{Message, Frame, FrameCodec}
-import io.iohk.ethereum.rlp
+import io.iohk.ethereum.network.p2p.{MessageCodec, Message, FrameCodec}
 import io.iohk.ethereum.rlp.RLPEncoder
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
@@ -57,7 +56,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
   }
 
   def waitingForAuthHandshakeInit(connection: ActorRef, handshaker: AuthHandshaker, timeout: Cancellable): Receive =
-    handleTimeout orElse {
+    handleTimeout orElse handleConnectionClosed orElse {
       case Received(data) =>
         timeout.cancel()
         val packetLength = AuthInitiateMessage.encodedLength + ECIESCoder.getOverhead
@@ -68,7 +67,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
     }
 
   def waitingForAuthHandshakeResponse(connection: ActorRef, handshaker: AuthHandshaker, timeout: Cancellable): Receive =
-    handleWriteFailed orElse handleTimeout orElse {
+    handleWriteFailed orElse handleTimeout orElse handleConnectionClosed orElse {
       case Received(data) =>
         timeout.cancel()
         val packetLength = AuthResponseMessage.encodedLength + ECIESCoder.getOverhead
@@ -82,10 +81,10 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
       case AuthHandshakeSuccess(secrets) =>
         log.warning("Auth handshake with peer {} succeeded", peerId)
         context.parent ! ConnectionEstablished
-        val frameCodec = new FrameCodec(secrets)
-        val framesSoFar = frameCodec.readFrames(remainingData)
-        framesSoFar foreach processFrame
-        context become connected(connection, frameCodec)
+        val messageCodec = new MessageCodec(new FrameCodec(secrets))
+        val messagesSoFar = messageCodec.readMessages(remainingData)
+        messagesSoFar foreach processMessage
+        context become connected(connection, messageCodec)
 
       case AuthHandshakeError =>
         context.parent ! ConnectionFailed
@@ -93,9 +92,8 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
         context stop self
     }
 
-  def processFrame(frame: Frame): Unit = {
-    // TODO: protocolVersion?
-    Try(Message.decode(frame.`type`, frame.payload, Message.PV61)) match {
+  def processMessage(messageTry: Try[Message]): Unit = {
+    messageTry match {
       case Success(message) => context.parent ! MessageReceived(message)
       case Failure(ex) => log.error(ex, "Cannot decode message from peer {}", peerId)
     }
@@ -113,18 +111,26 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
       context stop self
   }
 
-  def connected(connection: ActorRef, frameCodec: FrameCodec): Receive = handleWriteFailed orElse {
-    case sm: SendMessage[_] =>
-      val frame = frameCodec.writeFrame(sm.message.code, ByteString(rlp.encode(sm.message)(sm.enc)))
-      connection ! Write(frame)
-
-    case Received(data) =>
-      val frames = frameCodec.readFrames(data)
-      frames foreach processFrame
+  def handleConnectionClosed: Receive = {
+    case _: ConnectionClosed =>
+      context stop self
   }
+
+  def connected(connection: ActorRef, messageCodec: MessageCodec): Receive =
+    handleWriteFailed orElse handleConnectionClosed orElse {
+      case sm: SendMessage[_] =>
+        val out = messageCodec.encodeMessage(sm.message)(sm.enc)
+        connection ! Write(out)
+
+      case Received(data) =>
+        val messages = messageCodec.readMessages(data)
+        messages foreach processMessage
+    }
 }
 
 object RLPxConnectionHandler {
+  def props(nodeKey: AsymmetricCipherKeyPair) = Props(new RLPxConnectionHandler(nodeKey))
+
   case class ConnectTo(uri: URI)
   case class HandleConnection(connection: ActorRef)
 

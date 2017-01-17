@@ -15,12 +15,14 @@ object App {
     val actorSystem = ActorSystem("etc-client_system")
 
     val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeKey))
-    val server = actorSystem.actorOf(ServerActor.props(peerManager))
+    val server = actorSystem.actorOf(ServerActor.props(nodeKey, peerManager))
 
     server ! ServerActor.StartServer(new InetSocketAddress("127.0.0.1", 9076))
 
-    val peerUri = new URI(args(0))
-    peerManager ! PeerManagerActor.ConnectToPeer(peerUri)
+    if (args.length > 0) {
+      val peerUri = new URI(args(0))
+      peerManager ! PeerManagerActor.ConnectToPeer(peerUri)
+    }
   }
 
 }

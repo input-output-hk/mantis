@@ -2,7 +2,7 @@ package io.iohk.ethereum.network
 
 import java.net.URI
 
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Ping, Pong, Capability, Hello}
+import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.rlp.RLPEncoder
 
 import scala.concurrent.duration._
@@ -38,7 +38,7 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
   }
 
   def createRlpxConnection() = {
-    val rlpxConnection = context.actorOf(Props(new RLPxConnectionHandler(nodeKey)), "rlpx-connection")
+    val rlpxConnection = context.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
     context watch rlpxConnection
     rlpxConnection
   }
@@ -83,8 +83,15 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
     }
 
     def handleMessage(message: Message): Unit = message match {
-      case Ping() => sendMessage(Pong())
-      case _ =>
+      case Ping() =>
+        sendMessage(Pong())
+
+      case d: Disconnect =>
+        log.info("Received {} from peer {}. Closing connection", d, peerId)
+        context stop self
+
+      case msg =>
+        log.info("Received message {} from {}", msg, peerId)
     }
 
   }

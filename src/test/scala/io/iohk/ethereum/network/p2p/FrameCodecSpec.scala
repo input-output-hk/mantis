@@ -13,11 +13,13 @@ class FrameCodecSpec extends FlatSpec with Matchers {
     val remoteFrameCodec = new FrameCodec(remoteSecrets)
 
     val msg = Ping()
-    val data = frameCodec.writeFrame(msg.code, ByteString(rlp.encode(msg)))
+    val encoded = ByteString(rlp.encode(msg))
+    val frame = Frame(Header(encoded.length, 0, None, Some(encoded.length)), msg.code, encoded)
+    val data = frameCodec.writeFrames(Seq(frame))
 
     val readFrames = remoteFrameCodec.readFrames(data)
     val firstFrame = readFrames.head
-    val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload, PV63)
+    val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload.toArray, PV63)
 
     readMessage shouldBe Ping()
   }
@@ -27,11 +29,13 @@ class FrameCodecSpec extends FlatSpec with Matchers {
     val remoteFrameCodec = new FrameCodec(remoteSecrets)
 
     val msg = Hello(1, "test-client", Seq(Capability("foo", 1)), 3000, ByteString("123456"))
-    val data = frameCodec.writeFrame(msg.code, ByteString(rlp.encode(msg)))
+    val encoded = ByteString(rlp.encode(msg))
+    val frame = Frame(Header(encoded.length, 0, None, Some(encoded.length)), msg.code, encoded)
+    val data = frameCodec.writeFrames(Seq(frame))
 
     val readFrames = remoteFrameCodec.readFrames(data)
     val firstFrame = readFrames.head
-    val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload, PV63)
+    val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload.toArray, PV63)
 
     readMessage shouldBe msg
   }
@@ -41,14 +45,18 @@ class FrameCodecSpec extends FlatSpec with Matchers {
     val remoteFrameCodec = new FrameCodec(remoteSecrets)
 
     val ping = Ping()
-    val pingData = frameCodec.writeFrame(ping.code, ByteString(rlp.encode(ping)))
+    val pingEncoded = ByteString(rlp.encode(ping))
+    val pingFrame = Frame(Header(pingEncoded.length, 0, None, Some(pingEncoded.length)), ping.code, pingEncoded)
+    val pingData = frameCodec.writeFrames(Seq(pingFrame))
     val pingReadFrames = remoteFrameCodec.readFrames(pingData)
-    val pingReadMessage = Message.decode(pingReadFrames.head.`type`, pingReadFrames.head.payload, PV63)
+    val pingReadMessage = Message.decode(pingReadFrames.head.`type`, pingReadFrames.head.payload.toArray, PV63)
 
     val pong = Pong()
-    val pongData = remoteFrameCodec.writeFrame(pong.code, ByteString(rlp.encode(pong)))
+    val pongEncoded = ByteString(rlp.encode(pong))
+    val pongFrame = Frame(Header(pongEncoded.length, 0, None, Some(pongEncoded.length)), pong.code, pongEncoded)
+    val pongData = remoteFrameCodec.writeFrames(Seq(pongFrame))
     val pongReadFrames = frameCodec.readFrames(pongData)
-    val pongReadMessage = Message.decode(pongReadFrames.head.`type`, pongReadFrames.head.payload, PV63)
+    val pongReadMessage = Message.decode(pongReadFrames.head.`type`, pongReadFrames.head.payload.toArray, PV63)
 
     pingReadMessage shouldBe ping
     pongReadMessage shouldBe pong

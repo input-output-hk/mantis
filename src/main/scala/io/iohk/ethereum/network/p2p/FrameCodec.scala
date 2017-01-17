@@ -14,9 +14,9 @@ import org.spongycastle.crypto.params.{KeyParameter, ParametersWithIV}
 
 import scala.annotation.tailrec
 
-case class Frame(header: Header, `type`: Int, payload: Array[Byte])
+case class Frame(header: Header, `type`: Int, payload: ByteString)
 
-case class Header(bodySize: Int, protocol: Int, contextId: Option[Int], totalFrameSize: Option[Int])
+case class Header(bodySize: Int, protocol: Int, contextId: Option[Int], totalPacketSize: Option[Int])
 
 class FrameCodec(private val secrets: Secrets) {
 
@@ -75,7 +75,7 @@ class FrameCodec(private val secrets: Secrets) {
 
             headerOpt = None
             unprocessedData = unprocessedData.drop(totalSizeToRead)
-            readRecursive(framesSoFar ++ Seq(Frame(header, `type`, payload)))
+            readRecursive(framesSoFar ++ Seq(Frame(header, `type`, ByteString(payload))))
           } else framesSoFar
 
         case None => framesSoFar
@@ -100,65 +100,83 @@ class FrameCodec(private val secrets: Secrets) {
       val rlpList = rlp.decode[Seq[Int]](headBuffer.drop(3))(seqEncDec[Int]).lift
       val protocol = rlpList(0).get
       val contextId = rlpList(1)
-      val totalFrameSize = rlpList(2)
+      val totalPacketSize = rlpList(2)
 
       unprocessedData = unprocessedData.drop(32)
-      headerOpt = Some(Header(bodySize, protocol, contextId, totalFrameSize))
+      headerOpt = Some(Header(bodySize, protocol, contextId, totalPacketSize))
     }
   }
 
-  def writeFrame(`type`: Int, payload: ByteString, contextId: Option[Int] = None, totalFrameSize: Option[Int] = None): ByteString = {
-    var out: ByteString = ByteString("")
+  def writeFrames(frames: Seq[Frame]): ByteString = {
+    val bytes = frames.zipWithIndex flatMap { case (frame, index) =>
+      val firstFrame = index == 0
+      val lastFrame = index == frames.size - 1
 
-    val headBuffer = new Array[Byte](32)
-    val ptype = rlp.encode(`type`)
+      var out: ByteString = ByteString("")
 
-    val totalSize: Int = payload.length + ptype.length
-    headBuffer(0) = (totalSize >> 16).toByte
-    headBuffer(1) = (totalSize >> 8).toByte
-    headBuffer(2) = totalSize.toByte
+      val headBuffer = new Array[Byte](32)
+      val ptype = rlp.encode(frame.`type`)
 
-    var headerDataElems: Seq[Array[Byte]] = Nil
-    headerDataElems :+= rlp.encode(0)
-    contextId.foreach { cid => headerDataElems :+= rlp.encode(cid) }
-    totalFrameSize foreach { tfs => headerDataElems :+= rlp.encode(tfs) }
+      val totalSize =
+        if (firstFrame) frame.payload.length + ptype.length
+        else frame.payload.length
 
-    val headerData = rlp.encode(headerDataElems)(seqEncDec[Array[Byte]])
-    System.arraycopy(headerData, 0, headBuffer, 3, headerData.length)
+      headBuffer(0) = (totalSize >> 16).toByte
+      headBuffer(1) = (totalSize >> 8).toByte
+      headBuffer(2) = totalSize.toByte
 
-    enc.processBytes(headBuffer, 0, 16, headBuffer, 0)
+      var headerDataElems: Seq[Array[Byte]] = Nil
+      headerDataElems :+= rlp.encode(frame.header.protocol)
+      frame.header.contextId.foreach { cid => headerDataElems :+= rlp.encode(cid) }
+      frame.header.totalPacketSize foreach { tfs => headerDataElems :+= rlp.encode(tfs) }
 
-    updateMac(secrets.egressMac, headBuffer, 0, headBuffer, 16, egress = true)
+      val headerData = rlp.encode(headerDataElems)(seqEncDec[Array[Byte]])
+      System.arraycopy(headerData, 0, headBuffer, 3, headerData.length)
 
-    val buff: Array[Byte] = new Array[Byte](256)
-    out ++= ByteString(headBuffer)
+      enc.processBytes(headBuffer, 0, 16, headBuffer, 0)
 
-    enc.processBytes(ptype.toArray, 0, ptype.length, buff, 0)
-    out ++= ByteString(buff.take(ptype.length))
-    secrets.egressMac.update(buff, 0, ptype.length)
+      updateMac(secrets.egressMac, headBuffer, 0, headBuffer, 16, egress = true)
 
-    var i = 0
-    while (i < payload.length) {
-      val bytes = payload.drop(i).take(256).toArray
-      enc.processBytes(bytes, 0, bytes.length, bytes, 0)
-      secrets.egressMac.update(bytes, 0, bytes.length)
-      out ++= bytes
-      i += bytes.length
+      val buff: Array[Byte] = new Array[Byte](256)
+      out ++= ByteString(headBuffer)
+
+      if (firstFrame) {
+        // packet-type only in first frame
+        enc.processBytes(ptype.toArray, 0, ptype.length, buff, 0)
+        out ++= ByteString(buff.take(ptype.length))
+        secrets.egressMac.update(buff, 0, ptype.length)
+      }
+
+      var i = 0
+      while (i < frame.payload.length) {
+        val bytes = frame.payload.drop(i).take(256).toArray
+        enc.processBytes(bytes, 0, bytes.length, bytes, 0)
+        secrets.egressMac.update(bytes, 0, bytes.length)
+        out ++= bytes
+        i += bytes.length
+      }
+
+      if (lastFrame) {
+        // padding
+        val padding: Int = 16 - (totalSize % 16)
+        val pad: Array[Byte] = new Array[Byte](16)
+        if (padding < 16) {
+          enc.processBytes(pad, 0, padding, buff, 0)
+          secrets.egressMac.update(buff, 0, padding)
+          out ++= buff.take(padding)
+        }
+
+        // frame mac
+        val macBuffer: Array[Byte] = new Array[Byte](secrets.egressMac.getDigestSize)
+        doSum(secrets.egressMac, macBuffer)
+        updateMac(secrets.egressMac, macBuffer, 0, macBuffer, 0, egress = true)
+        out ++= macBuffer.take(16)
+      }
+
+      out
     }
-    val padding: Int = 16 - (totalSize % 16)
-    val pad: Array[Byte] = new Array[Byte](16)
-    if (padding < 16) {
-      enc.processBytes(pad, 0, padding, buff, 0)
-      secrets.egressMac.update(buff, 0, padding)
-      out ++= buff.take(padding)
-    }
 
-    val macBuffer: Array[Byte] = new Array[Byte](secrets.egressMac.getDigestSize)
-    doSum(secrets.egressMac, macBuffer)
-    updateMac(secrets.egressMac, macBuffer, 0, macBuffer, 0, egress = true)
-    out ++= macBuffer.take(16)
-
-    out
+    ByteString(bytes.toArray)
   }
 
   private def makeMacCipher: AESFastEngine = {
