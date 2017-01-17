@@ -103,7 +103,8 @@ object CommonMessages {
          |gasLimit: $gasLimit
          |receivingAddress: ${Hex.toHexString(receivingAddress.toArray[Byte])}
          |value: $value wei
-         |payload: ${payload.fold(init => s"ContractInit [${Hex.toHexString(init.byteString.toArray[Byte])}]", data => s"TransactionData [${Hex.toHexString(data.byteString.toArray[Byte])}]")}
+         |payload: ${payload.fold(init => s"ContractInit [${Hex.toHexString(init.byteString.toArray[Byte])}]",
+                                  data => s"TransactionData [${Hex.toHexString(data.byteString.toArray[Byte])}]")}
          |pointSign: $pointSign
          |signatureRandom: ${Hex.toHexString(signatureRandom.toArray[Byte])}
          |signature: ${Hex.toHexString(signature.toArray[Byte])}

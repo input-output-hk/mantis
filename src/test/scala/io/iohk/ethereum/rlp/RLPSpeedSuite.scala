@@ -59,7 +59,7 @@ class RLPSpeedSuite extends FunSuite
   }
 
 
-  lazy val txGen = for {
+  lazy val txGen: Gen[Transaction] = for {
     nonce: Int <- intGen
     gasprice <- intGen
     startgas <- intGen
@@ -80,7 +80,7 @@ class RLPSpeedSuite extends FunSuite
     r = r,
     s = s)
 
-  lazy val blockHeaderGen = for {
+  lazy val blockHeaderGen: Gen[BlockHeader] = for {
     prevhash <- byteArrayOfNItemsGen(32)
     unclesHash <- byteArrayOfNItemsGen(32)
     coinbase <- byteArrayOfNItemsGen(20)
@@ -113,7 +113,7 @@ class RLPSpeedSuite extends FunSuite
     mixhash = mixhash,
     nonce = nonce)
 
-  lazy val blockGen = for {
+  lazy val blockGen: Gen[Block] = for {
     header <- blockHeaderGen
     transactions <- Gen.listOfN(10, txGen)
     uncles <- blockHeaderGen

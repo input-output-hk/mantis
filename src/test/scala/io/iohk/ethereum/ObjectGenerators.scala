@@ -5,12 +5,12 @@ import org.scalacheck.{Arbitrary, Gen}
 
 trait ObjectGenerators {
 
-  lazy val intGen = Gen.choose(Int.MinValue, Int.MaxValue)
+  lazy val intGen: Gen[Int] = Gen.choose(Int.MinValue, Int.MaxValue)
 
-  lazy val bigIntGen = byteArrayOfNItemsGen(32).map(b=>new BigInteger(1, b))
+  lazy val bigIntGen: Gen[BigInt] = byteArrayOfNItemsGen(32).map(b=>new BigInteger(1, b))
 
-  lazy val anyArrayGen = Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte]).map(_.toArray)
+  lazy val anyArrayGen: Gen[Array[Byte]] = Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte]).map(_.toArray)
 
-  def byteArrayOfNItemsGen(n: Int) = Gen.listOfN(n, Arbitrary.arbitrary[Byte]).map(_.toArray)
+  def byteArrayOfNItemsGen(n: Int): Gen[Array[Byte]] = Gen.listOfN(n, Arbitrary.arbitrary[Byte]).map(_.toArray)
 
 }
