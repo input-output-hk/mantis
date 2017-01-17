@@ -69,7 +69,7 @@ object TestSocketHandshaker {
           //ask for block further in chain to get some transactions
           sendMessage(GetBlockHeaders(Left(BlockNumber), maxHeaders = MaxHeaders, skip = 0, reverse = 0), frameCodec, out)
         case m: BlockHeaders =>
-          sendMessage(GetBlockBodies(m.headers.map(_.parentHash)), frameCodec, out) //ask for block bodies for headers
+          sendMessage(GetBlockBodies(m.headers.map(h => ByteString(h.hash))), frameCodec, out) //ask for block bodies for headers
       }
     }
   }

@@ -9,6 +9,9 @@ branches:
     - feature/crypto
     - feature/rlpRefactor
     - phase/2/txHashValidation
+    - feature/messageVersioning
+    - feature/coverage
 script:
-    - sbt test
-
+    - sbt clean coverage test
+after_success:
+    - sbt coverageReport coveralls
