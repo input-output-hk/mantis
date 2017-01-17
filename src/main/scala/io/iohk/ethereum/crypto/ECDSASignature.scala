@@ -11,6 +11,8 @@ import org.spongycastle.util.BigIntegers._
 
 object ECDSASignature {
 
+  val encodedLength = 32+32+1
+
   def decode(input: Array[Byte]) = {
     val r = input.take(32)
     val s = input.slice(32, 32 + 32)
