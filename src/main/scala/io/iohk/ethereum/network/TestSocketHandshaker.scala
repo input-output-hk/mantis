@@ -37,16 +37,13 @@ object TestSocketHandshaker {
     val inp = sock.getInputStream
     val out = sock.getOutputStream
 
-    println("Sending auth handshake initiate packet")
     out.write(initiatePacket.toArray)
 
     val responsePacket = new Array[Byte](AuthResponseMessage.encodedLength + ECIESCoder.getOverhead)
     inp.read(responsePacket)
-    println("Received auth handshake response packet")
 
     val result = authHandshaker.handleResponseMessage(ByteString(responsePacket))
     val secrets = result.asInstanceOf[AuthHandshakeSuccess].secrets
-    println(s"Auth handshake result: $result")
 
     val frameCodec = new FrameCodec(secrets)
 
@@ -59,9 +56,7 @@ object TestSocketHandshaker {
 
     sendMessage(helloMsg, frameCodec, out)
 
-    println("Waiting for Hello")
     val remoteHello = readAtLeastOneMessage(frameCodec, inp).head.asInstanceOf[Hello]
-    println(s"Received Hello: $remoteHello")
 
     while (true) {
       val msgs = readAtLeastOneMessage(frameCodec, inp)
