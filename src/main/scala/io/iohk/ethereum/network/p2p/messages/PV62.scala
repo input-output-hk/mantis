@@ -1,6 +1,7 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.sha3
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages._
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -21,7 +22,7 @@ object PV62 {
       }
     }
 
-    val code: Int = 0x10 + 0x01
+    val code: Int = Message.SubProtocolOffset + 0x01
   }
 
   case class NewBlockHashes(hashes: Seq[BlockHash]) extends Message {
@@ -49,7 +50,7 @@ object PV62 {
       }
     }
 
-    val code: Int = 0x10 + 0x03
+    val code: Int = Message.SubProtocolOffset + 0x03
   }
 
   object BlockBodies {
@@ -65,7 +66,7 @@ object PV62 {
       }
     }
 
-    val code: Int = 0x10 + 0x06
+    val code: Int = Message.SubProtocolOffset + 0x06
   }
 
   case class BlockBodies(bodies: Seq[BlockBody]) extends Message {
@@ -158,7 +159,7 @@ object PV62 {
       }
     }
 
-    val code: Int = 0x10 + 0x04
+    val code: Int = Message.SubProtocolOffset + 0x04
   }
 
   case class BlockHeaders(headers: Seq[BlockHeader]) extends Message {
@@ -228,6 +229,8 @@ object PV62 {
     mixHash: ByteString,
     nonce: ByteString) {
 
+    lazy val hash: Array[Byte] = sha3(encode[BlockHeader](this))
+
     override def toString: String = {
       s"""BlockHeader {
          |parentHash: ${Hex.toHexString(parentHash.toArray[Byte])}
@@ -263,7 +266,7 @@ object PV62 {
       }
     }
 
-    val code: Int = 0x10 + 0x05
+    val code: Int = Message.SubProtocolOffset + 0x05
   }
 
   case class GetBlockBodies(hashes: Seq[ByteString]) extends Message {

@@ -20,7 +20,7 @@ object PV63 {
       }
     }
 
-    val code: Int = 0x10 + 0x0d
+    val code: Int = Message.SubProtocolOffset + 0x0d
   }
 
   case class GetNodeData(hashes: Seq[ByteString]) extends Message {
