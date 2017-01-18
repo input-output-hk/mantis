@@ -110,7 +110,10 @@ object CommonMessages {
       bytesToSign
     )
 
-    val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(12, 32))
+    val FirstByteOfAddress = 12
+    val LastByteOfAddress = 32
+
+    val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
 
 
     override def toString: String = {
