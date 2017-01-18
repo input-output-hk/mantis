@@ -58,7 +58,7 @@ class RLPxConnectionHandler(nodeInfo: NodeInfo)
     handleTimeout orElse handleConnectionClosed orElse {
       case Received(data) =>
         timeout.cancel()
-        val packetLength = AuthInitiateMessage.encodedLength + ECIESCoder.getOverhead
+        val packetLength = AuthInitiateMessage.EncodedLength + ECIESCoder.OverheadSize
         val (handshakeData, remainingData) = data.splitAt(packetLength)
         val (responsePacket, result) = handshaker.handleInitialMessage(handshakeData)
         connection ! Write(responsePacket)
@@ -69,7 +69,7 @@ class RLPxConnectionHandler(nodeInfo: NodeInfo)
     handleWriteFailed orElse handleTimeout orElse handleConnectionClosed orElse {
       case Received(data) =>
         timeout.cancel()
-        val packetLength = AuthResponseMessage.encodedLength + ECIESCoder.getOverhead
+        val packetLength = AuthResponseMessage.EncodedLength + ECIESCoder.OverheadSize
         val (handshakeData, remainingData) = data.splitAt(packetLength)
         val result = handshaker.handleResponseMessage(handshakeData)
         processHandshakeResult(result, remainingData, connection)

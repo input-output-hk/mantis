@@ -8,7 +8,9 @@ object AuthResponseMessage {
 
   private val PublicKeyLength = 64
   private val NonceLength = 32
-  val encodedLength: Int = PublicKeyLength + NonceLength + 1
+  private val KnownPeerLength = 1
+
+  val EncodedLength: Int = PublicKeyLength + NonceLength + KnownPeerLength
 
   def decode(input: Array[Byte]): AuthResponseMessage = {
     AuthResponseMessage(

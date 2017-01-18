@@ -39,7 +39,7 @@ object TestSocketHandshaker {
 
     out.write(initiatePacket.toArray)
 
-    val responsePacket = new Array[Byte](AuthResponseMessage.encodedLength + ECIESCoder.getOverhead)
+    val responsePacket = new Array[Byte](AuthResponseMessage.EncodedLength + ECIESCoder.OverheadSize)
     inp.read(responsePacket)
 
     val result = authHandshaker.handleResponseMessage(ByteString(responsePacket))
