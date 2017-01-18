@@ -18,6 +18,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
   import context.{dispatcher, system}
 
   val P2pVersion = 4
+  val EthProtocolVersion = 63.toByte
 
   val peerId = self.path.name
 
@@ -50,7 +51,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
       val hello = Hello(
         p2pVersion = P2pVersion,
         clientId = "etc-client",
-        capabilities = Seq(Capability("eth", 63.toByte)),
+        capabilities = Seq(Capability("eth", EthProtocolVersion)),
         listenPort = nodeInfo.listenAddress.getPort,
         nodeId = ByteString(nodeInfo.nodeId))
       rlpxConnection ! RLPxConnectionHandler.SendMessage(hello)
@@ -65,8 +66,14 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     case MessageReceived(hello: Hello) =>
       log.info("Protocol handshake finished with peer {} ({})", peerId, hello)
       timeout.cancel()
-      // TODO: check which protocol to use
-      context become new HandshakedHandler(rlpxConnection).receive
+
+      if (hello.capabilities.contains(Capability("eth", EthProtocolVersion))) {
+        context become new HandshakedHandler(rlpxConnection).receive
+      } else {
+        rlpxConnection ! SendMessage(Disconnect(Disconnect.Reasons.IncompatibleP2pProtocolVersion))
+        context.system.scheduler.scheduleOnce(5.seconds, self, PoisonPill)
+        log.info("Connected peer does not support eth {} protocol. Disconnecting.", EthProtocolVersion)
+      }
   }
 
   class HandshakedHandler(rlpxConnection: ActorRef) {

@@ -2,6 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
@@ -77,6 +78,21 @@ object WireProtocol {
       }
     }
 
+    object Reasons {
+      val DisconnectRequested = 0x00
+      val TcpSubsystemError = 0x01
+      val UselessPeer = 0x03
+      val TooManyPeers = 0x04
+      val AlreadyConnected = 0x05
+      val IncompatibleP2pProtocolVersion = 0x06
+      val NullNodeIdentityReceived = 0x07
+      val ClientQuitting = 0x08
+      val UnexpectedIdentity = 0x09
+      val IdentityTheSame = 0xa
+      val TimeoutOnReceivingAMessage = 0x0b
+      val Other = 0x10
+    }
+
     val code = 0x01
   }
 
@@ -86,19 +102,19 @@ object WireProtocol {
     override def toString: String = {
 
       val message = reason match {
-        case 0x00 => "Disconnect requested"
-        case 0x01 => "TCP sub-system error"
-        case 0x03 => "Useless peer"
-        case 0x04 => "Too many peers"
-        case 0x05 => "Already connected"
-        case 0x06 => "Incompatible P2P protocol version"
-        case 0x07 => "Null node identity received - this is automatically invalid"
-        case 0x08 => "Client quitting"
-        case 0x09 => "Unexpected identity"
-        case 0x0a => "Identity is the same as this node"
-        case 0x0b => "Timeout on receiving a message"
-        case 0x10 => "Some other reason specific to a subprotocol"
-        case _ => s"unknown code $code"
+        case Reasons.DisconnectRequested => "Disconnect requested"
+        case Reasons.TcpSubsystemError => "TCP sub-system error"
+        case Reasons.UselessPeer => "Useless peer"
+        case Reasons.TooManyPeers => "Too many peers"
+        case Reasons.AlreadyConnected => "Already connected"
+        case Reasons.IncompatibleP2pProtocolVersion => "Incompatible P2P protocol version"
+        case Reasons.NullNodeIdentityReceived => "Null node identity received - this is automatically invalid"
+        case Reasons.ClientQuitting => "Client quitting"
+        case Reasons.UnexpectedIdentity => "Unexpected identity"
+        case Reasons.IdentityTheSame => "Identity is the same as this node"
+        case Reasons.TimeoutOnReceivingAMessage => "Timeout on receiving a message"
+        case Reasons.Other => "Some other reason specific to a subprotocol"
+        case other => s"unknown reason code: $other"
       }
 
       s"Disconnect($message)"
