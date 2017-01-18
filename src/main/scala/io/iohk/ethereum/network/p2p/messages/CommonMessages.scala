@@ -113,8 +113,7 @@ object CommonMessages {
     val FirstByteOfAddress = 12
     val LastByteOfAddress = 32
 
-    val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
-
+    lazy val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
 
     override def toString: String = {
       s"""Transaction {
