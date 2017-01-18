@@ -16,7 +16,7 @@ class PeerManagerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with Acto
       case _ => Stop
     }
 
-  override def receive = {
+  override def receive: Receive = {
     case HandlePeerConnection(connection, remoteAddress) =>
       val peer = createPeer()
       log.info("Peer {} handling incoming peer connection from {}", peer.path.name, remoteAddress)
@@ -26,14 +26,15 @@ class PeerManagerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with Acto
       createPeer() ! PeerActor.ConnectTo(uri)
   }
 
-  def createPeer() = {
+  def createPeer(): ActorRef = {
     val id = UUID.randomUUID.toString
     context.actorOf(PeerActor.props(nodeKey), id)
   }
 }
 
 object PeerManagerActor {
-  def props(nodeKey: AsymmetricCipherKeyPair) = Props(new PeerManagerActor(nodeKey))
+  def props(nodeKey: AsymmetricCipherKeyPair): Props =
+    Props(new PeerManagerActor(nodeKey))
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
   case class ConnectToPeer(uri: URI)

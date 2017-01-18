@@ -19,11 +19,13 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
   import PeerActor._
   import context.{dispatcher, system}
 
+  val P2pVersion = 4
+
   val nodeId = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
 
   val peerId = self.path.name
 
-  override def receive = waitingForInitialCommand
+  override def receive: Receive = waitingForInitialCommand
 
   def waitingForInitialCommand: Receive = {
     case HandleConnection(connection) =>
@@ -50,7 +52,7 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
   def waitingForConnectionResult(rlpxConnection: ActorRef): Receive = handleTerminated orElse {
     case RLPxConnectionHandler.ConnectionEstablished =>
       val hello = Hello(
-        p2pVersion = 4,
+        p2pVersion = P2pVersion,
         clientId = "etc-client",
         capabilities = Seq(Capability("eth", 62.toByte)),
         listenPort = 3333,
@@ -99,7 +101,8 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
 }
 
 object PeerActor {
-  def props(nodeKey: AsymmetricCipherKeyPair) = Props(new PeerActor(nodeKey))
+  def props(nodeKey: AsymmetricCipherKeyPair): Props =
+    Props(new PeerActor(nodeKey))
 
   case class HandleConnection(connection: ActorRef)
   case class ConnectTo(uri: URI)
