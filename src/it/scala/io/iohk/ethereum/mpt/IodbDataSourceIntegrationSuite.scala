@@ -20,12 +20,6 @@ class IodbDataSourceIntegrationSuite extends FunSuite
     }
   }
 
-  def removeMultiple(dataSource: DataSource, toDelete: Seq[Array[Byte]]): DataSource = {
-    toDelete.foldLeft(dataSource){ case (recDB, key) =>
-      recDB.update(DefaultRootHash, Seq(key), Seq())
-    }
-  }
-
   test("IodbDataSource insert"){
     forAll(seqByteArrayOfNItemsGen(KeySize)) { unFilteredKeyList: Seq[Array[Byte]] =>
       //create temporary dir
