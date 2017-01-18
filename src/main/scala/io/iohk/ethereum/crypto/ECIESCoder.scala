@@ -29,11 +29,11 @@ object ECIESCoder {
     is.read(IV)
     val cipherBody = new Array[Byte](is.available)
     is.read(cipherBody)
-    decrypt(ephem, privKey, IV, cipherBody, macData)
+    decrypt(ephem, privKey, Some(IV), cipherBody, macData)
   }
 
   @throws[InvalidCipherTextException]
-  def decrypt(ephem: ECPoint, prv: BigInteger, IV: Array[Byte], cipher: Array[Byte], macData: Option[Array[Byte]]): Array[Byte] = {
+  def decrypt(ephem: ECPoint, prv: BigInteger, IV: Option[Array[Byte]], cipher: Array[Byte], macData: Option[Array[Byte]]): Array[Byte] = {
     val aesFastEngine = new AESFastEngine
 
     val iesEngine = new EthereumIESEngine(
@@ -68,7 +68,7 @@ object ECIESCoder {
       mac = new HMac(new SHA1Digest),
       hash = new SHA1Digest,
       cipher = None,
-      IV = new Array[Byte](0),
+      IV = Some(new Array[Byte](0)),
       prvSrc = Left(new ECPrivateKeyParameters(privKey, curve)),
       pubSrc = Right(new ECIESPublicKeyParser(curve)),
       hashMacKey = false)
@@ -90,7 +90,7 @@ object ECIESCoder {
     val prv = ephemPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD
     val pub = ephemPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ
 
-    val iesEngine = makeIESEngine(isEncrypt = true, toPub, prv, IV)
+    val iesEngine = makeIESEngine(isEncrypt = true, toPub, prv, Some(IV))
 
     val keygenParams = new ECKeyGenerationParameters(curve, random)
     val generator = new ECKeyPairGenerator
@@ -126,7 +126,7 @@ object ECIESCoder {
       mac = new HMac(new SHA1Digest),
       hash = new SHA1Digest,
       cipher = None,
-      IV = new Array[Byte](0),
+      IV = Some(new Array[Byte](0)),
       prvSrc = Right(eGen),
       pubSrc = Left(new ECPublicKeyParameters(pub, curve)),
       hashMacKey = false)
@@ -134,7 +134,7 @@ object ECIESCoder {
     iesEngine.processBlock(plaintext, 0, plaintext.length, forEncryption = true)
   }
 
-  private def makeIESEngine(isEncrypt: Boolean, pub: ECPoint, prv: BigInteger, IV: Array[Byte]) = {
+  private def makeIESEngine(isEncrypt: Boolean, pub: ECPoint, prv: BigInteger, IV: Option[Array[Byte]]) = {
     val aesFastEngine = new AESFastEngine
 
     val iesEngine = new EthereumIESEngine(

@@ -1,9 +1,13 @@
 package io.iohk.ethereum.network.p2p.messages
 
+import java.math.BigInteger
+
 import akka.util.ByteString
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
 import org.spongycastle.util.encoders.Hex
 
 object CommonMessages {
@@ -96,6 +100,21 @@ object CommonMessages {
     signatureRandom: ByteString, //r
     signature: ByteString /*s*/) {
 
+    val bytesToSign: Array[Byte] = crypto.sha3(rlpEncode(RLPList(nonce, gasPrice, gasLimit,
+      receivingAddress.toArray[Byte], value, payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte]))))
+
+    val recoveredPublicKey: Option[Array[Byte]] = ECDSASignature.recoverPubBytes(
+      new BigInteger(1, signatureRandom.toArray[Byte]),
+      new BigInteger(1, signature.toArray[Byte]),
+      ECDSASignature.recIdFromSignatureV(pointSign),
+      bytesToSign
+    )
+
+    val FirstByteOfAddress = 12
+    val LastByteOfAddress = 32
+
+    lazy val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
+
     override def toString: String = {
       s"""Transaction {
          |nonce: $nonce
@@ -103,10 +122,14 @@ object CommonMessages {
          |gasLimit: $gasLimit
          |receivingAddress: ${Hex.toHexString(receivingAddress.toArray[Byte])}
          |value: $value wei
-         |payload: ${payload.fold(init => s"ContractInit [${Hex.toHexString(init.byteString.toArray[Byte])}]", data => s"TransactionData [${Hex.toHexString(data.byteString.toArray[Byte])}]")}
+         |payload: ${payload.fold(init => s"ContractInit [${Hex.toHexString(init.byteString.toArray[Byte])}]",
+                                  data => s"TransactionData [${Hex.toHexString(data.byteString.toArray[Byte])}]")}
          |pointSign: $pointSign
          |signatureRandom: ${Hex.toHexString(signatureRandom.toArray[Byte])}
          |signature: ${Hex.toHexString(signature.toArray[Byte])}
+         |bytesToSign: ${Hex.toHexString(bytesToSign)}
+         |recoveredPublicKey: ${recoveredPublicKey.map(Hex.toHexString)}
+         |recoveredAddress: ${recoveredAddress.map(Hex.toHexString)}
          |}""".stripMargin
     }
   }

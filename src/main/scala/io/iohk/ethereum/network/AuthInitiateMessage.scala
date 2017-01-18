@@ -5,14 +5,19 @@ import io.iohk.ethereum.crypto._
 import org.spongycastle.math.ec.ECPoint
 
 object AuthInitiateMessage {
+  val SignatureSize = 65
 
-  def decode(input: Array[Byte]) = {
+  def decode(input: Array[Byte]): AuthInitiateMessage = {
+    val publicKeyIndex = SignatureSize + 32
+    val nonceIndex = publicKeyIndex + 64
+    val knownPeerIndex = nonceIndex + 32
+
     AuthInitiateMessage(
-      signature = ECDSASignature.decode(input.take(65)),
-      ephemeralPublicHash = ByteString(input.slice(65, 65 + 32)),
-      publicKey = curve.getCurve.decodePoint(Array(4.toByte) ++ input.slice(97, 97 + 64)),
-      nonce = ByteString(input.slice(161, 161 + 32)),
-      knownPeer = input(193) == 1)
+      signature = ECDSASignature.decode(input.take(SignatureSize)),
+      ephemeralPublicHash = ByteString(input.slice(SignatureSize, publicKeyIndex)),
+      publicKey = curve.getCurve.decodePoint(Array(4.toByte) ++ input.slice(publicKeyIndex, nonceIndex)),
+      nonce = ByteString(input.slice(nonceIndex, knownPeerIndex)),
+      knownPeer = input(knownPeerIndex) == 1)
   }
 }
 
