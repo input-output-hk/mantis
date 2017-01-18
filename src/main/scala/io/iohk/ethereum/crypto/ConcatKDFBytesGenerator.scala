@@ -25,7 +25,7 @@ class ConcatKDFBytesGenerator(digest: Digest) {
 
     val counterStart: Long = 1
     val hashBuf = new Array[Byte](digestSize)
-    val counterValue = new Array[Byte](4)
+    val counterValue = new Array[Byte](Integer.BYTES)
 
     digest.reset()
 

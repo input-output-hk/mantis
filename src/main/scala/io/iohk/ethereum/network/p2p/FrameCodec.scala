@@ -20,6 +20,9 @@ case class Header(bodySize: Int, protocol: Int, contextId: Option[Int], totalPac
 
 class FrameCodec(private val secrets: Secrets) {
 
+  val HeaderLength = 32
+  val MacSize = 16
+
   private val allZerosIV = Array.fill[Byte](16)(0)
 
   private val enc: StreamCipher = {
@@ -54,20 +57,19 @@ class FrameCodec(private val secrets: Secrets) {
       headerOpt match {
         case Some(header) =>
           val padding = (16 - (header.bodySize % 16)) % 16
-          val macSize = 16
-          val totalSizeToRead = header.bodySize + padding + macSize
+          val totalSizeToRead = header.bodySize + padding + MacSize
 
           if (unprocessedData.length >= totalSizeToRead) {
             val buffer = unprocessedData.take(totalSizeToRead).toArray
 
-            val frameSize = totalSizeToRead - macSize
+            val frameSize = totalSizeToRead - MacSize
             secrets.ingressMac.update(buffer, 0, frameSize)
             dec.processBytes(buffer, 0, frameSize, buffer, 0)
 
             val `type` = rlp.decode[Int](buffer)
 
             val pos = rlp.nextElementIndex(buffer, 0)
-            val payload = buffer.drop(pos).take(header.bodySize - pos)
+            val payload = buffer.slice(pos, header.bodySize)
             val macBuffer = new Array[Byte](secrets.ingressMac.getDigestSize)
 
             doSum(secrets.ingressMac, macBuffer)
@@ -86,8 +88,8 @@ class FrameCodec(private val secrets: Secrets) {
   }
 
   private def tryReadHeader(): Unit = {
-    if (unprocessedData.size >= 32) {
-      val headBuffer = unprocessedData.take(32).toArray
+    if (unprocessedData.size >= HeaderLength) {
+      val headBuffer = unprocessedData.take(HeaderLength).toArray
 
       updateMac(secrets.ingressMac, headBuffer, 0, headBuffer, 16, egress = false)
 
@@ -102,7 +104,7 @@ class FrameCodec(private val secrets: Secrets) {
       val contextId = rlpList(1)
       val totalPacketSize = rlpList(2)
 
-      unprocessedData = unprocessedData.drop(32)
+      unprocessedData = unprocessedData.drop(HeaderLength)
       headerOpt = Some(Header(bodySize, protocol, contextId, totalPacketSize))
     }
   }
@@ -114,7 +116,7 @@ class FrameCodec(private val secrets: Secrets) {
 
       var out: ByteString = ByteString("")
 
-      val headBuffer = new Array[Byte](32)
+      val headBuffer = new Array[Byte](HeaderLength)
       val ptype = rlp.encode(frame.`type`)
 
       val totalSize =

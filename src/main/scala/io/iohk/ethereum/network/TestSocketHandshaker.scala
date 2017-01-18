@@ -16,13 +16,19 @@ import io.iohk.ethereum.network.p2p.Message.PV63
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello}
 import io.iohk.ethereum.rlp.{encode => rlpEncode}
 import io.iohk.ethereum.rlp._
+import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 object TestSocketHandshaker {
 
-  val nodeKey = generateKeyPair()
-  val nodeId = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
+  val nodeKey: AsymmetricCipherKeyPair = generateKeyPair()
+  val nodeId: Array[Byte] = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
 
   def main(args: Array[String]): Unit = {
+    val P2PVersion: Int = 4
+    val ListenPort: Int = 3333
+    val MaxHeaders = 20
+    val BlockNumber = 5000
+
     val remoteUri = new URI(args(0))
 
     val (initiatePacket, authHandshaker) = AuthHandshaker(nodeKey).initiate(remoteUri)
@@ -45,10 +51,10 @@ object TestSocketHandshaker {
     val frameCodec = new FrameCodec(secrets)
 
     val helloMsg = Hello(
-      p2pVersion = 4,
+      p2pVersion = P2PVersion,
       clientId = "etc-client",
       capabilities = Seq(Capability("eth", PV63.toByte)),
-      listenPort = 3333,
+      listenPort = ListenPort,
       nodeId = ByteString(nodeId))
 
     sendMessage(helloMsg, frameCodec, out)
@@ -64,14 +70,16 @@ object TestSocketHandshaker {
       msgs.collect {
         case m: Status =>
           sendMessage(m, frameCodec, out) //send same status message
-          sendMessage(GetBlockHeaders(Left(5000), maxHeaders = 20, skip = 0, reverse = 0), frameCodec, out) //ask for block further in chain to get some transactions
+
+          //ask for block further in chain to get some transactions
+          sendMessage(GetBlockHeaders(Left(BlockNumber), maxHeaders = MaxHeaders, skip = 0, reverse = 0), frameCodec, out)
         case m: BlockHeaders =>
           sendMessage(GetBlockBodies(m.headers.map(h => ByteString(h.hash))), frameCodec, out) //ask for block bodies for headers
       }
     }
   }
 
-  def sendMessage[M <: Message : RLPEncoder](message: M, frameCodec: FrameCodec, out: OutputStream) = {
+  def sendMessage[M <: Message : RLPEncoder](message: M, frameCodec: FrameCodec, out: OutputStream): Unit = {
     val encoded = rlpEncode(message)
     val frame = Frame(Header(encoded.length, 0, None, None), message.code, ByteString(encoded))
     val output = frameCodec.writeFrames(Seq(frame))

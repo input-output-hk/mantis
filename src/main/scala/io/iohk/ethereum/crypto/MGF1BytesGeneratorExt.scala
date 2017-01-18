@@ -11,7 +11,7 @@ import org.spongycastle.crypto.Digest
 class MGF1BytesGeneratorExt(digest: Digest) {
   val digestSize: Int = digest.getDigestSize
 
-  private def ItoOSP(i: Int, sp: Array[Byte]) {
+  private def itoOSP(i: Int, sp: Array[Byte]) {
     sp(0) = (i >>> 24).toByte
     sp(1) = (i >>> 16).toByte
     sp(2) = (i >>> 8).toByte
@@ -22,12 +22,12 @@ class MGF1BytesGeneratorExt(digest: Digest) {
 
     val counterStart = 1
     val hashBuf = new Array[Byte](digestSize)
-    val counterValue = new Array[Byte](4)
+    val counterValue = new Array[Byte](Integer.BYTES)
 
     digest.reset()
 
     (0 until (outputLength / digestSize + 1)).map { i =>
-      ItoOSP(counterStart + i, counterValue)
+      itoOSP(counterStart + i, counterValue)
       digest.update(seed, 0, seed.length)
       digest.update(counterValue, 0, counterValue.length)
       digest.doFinal(hashBuf, 0)

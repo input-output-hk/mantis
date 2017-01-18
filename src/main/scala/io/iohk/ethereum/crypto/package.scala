@@ -4,14 +4,15 @@ import java.security.SecureRandom
 
 import fr.cryptohash.Keccak256
 import org.spongycastle.asn1.sec.SECNamedCurves
+import org.spongycastle.asn1.x9.X9ECParameters
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.generators.ECKeyPairGenerator
-import org.spongycastle.crypto.params.{ECKeyGenerationParameters, ECDomainParameters}
+import org.spongycastle.crypto.params.{ECDomainParameters, ECKeyGenerationParameters}
 
 package object crypto {
 
-  val curveParams = SECNamedCurves.getByName("secp256k1")
-  val curve = new ECDomainParameters(curveParams.getCurve, curveParams.getG, curveParams.getN, curveParams.getH)
+  val curveParams: X9ECParameters = SECNamedCurves.getByName("secp256k1")
+  val curve: ECDomainParameters = new ECDomainParameters(curveParams.getCurve, curveParams.getG, curveParams.getN, curveParams.getH)
 
   def sha3(input: Array[Byte], start: Int, length: Int): Array[Byte] = {
     val digest = new Keccak256

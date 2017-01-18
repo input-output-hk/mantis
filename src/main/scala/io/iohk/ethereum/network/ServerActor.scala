@@ -23,7 +23,10 @@ class ServerActor(nodeKey: AsymmetricCipherKeyPair, peerManager: ActorRef) exten
   def waitingForBindingResult: Receive = {
     case Bound(localAddress) =>
       log.info("Listening on {}", localAddress)
-      log.info("Node address: enode://{}@{}:{}", Hex.toHexString(nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId), localAddress.getAddress.getHostAddress, localAddress.getPort)
+      log.info("Node address: enode://{}@{}:{}",
+        Hex.toHexString(nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId),
+        localAddress.getAddress.getHostAddress,
+        localAddress.getPort)
       context become listening
 
     case CommandFailed(b: Bind) =>
@@ -39,7 +42,8 @@ class ServerActor(nodeKey: AsymmetricCipherKeyPair, peerManager: ActorRef) exten
 }
 
 object ServerActor {
-  def props(nodeKey: AsymmetricCipherKeyPair, peerManager: ActorRef) = Props(new ServerActor(nodeKey, peerManager))
+  def props(nodeKey: AsymmetricCipherKeyPair, peerManager: ActorRef): Props =
+    Props(new ServerActor(nodeKey, peerManager))
 
   case class StartServer(address: InetSocketAddress)
 }

@@ -37,7 +37,7 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
       context become waitingForConnectionResult(rlpxConnection)
   }
 
-  def createRlpxConnection() = {
+  def createRlpxConnection(): ActorRef = {
     val rlpxConnection = context.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
     context watch rlpxConnection
     rlpxConnection

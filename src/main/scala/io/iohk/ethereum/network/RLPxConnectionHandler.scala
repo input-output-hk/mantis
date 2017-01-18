@@ -27,7 +27,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
 
   val peerId = context.parent.path.name
 
-  override def receive = waitingForCommand
+  override def receive: Receive = waitingForCommand
 
   def waitingForCommand: Receive = {
     case ConnectTo(uri) =>
@@ -129,7 +129,8 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
 }
 
 object RLPxConnectionHandler {
-  def props(nodeKey: AsymmetricCipherKeyPair) = Props(new RLPxConnectionHandler(nodeKey))
+  def props(nodeKey: AsymmetricCipherKeyPair): Props =
+    Props(new RLPxConnectionHandler(nodeKey))
 
   case class ConnectTo(uri: URI)
   case class HandleConnection(connection: ActorRef)
