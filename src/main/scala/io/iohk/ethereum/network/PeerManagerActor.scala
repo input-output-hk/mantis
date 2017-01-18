@@ -7,7 +7,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
-class PeerManagerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLogging {
+class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
   import PeerManagerActor._
 
@@ -28,13 +28,13 @@ class PeerManagerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with Acto
 
   def createPeer(): ActorRef = {
     val id = UUID.randomUUID.toString
-    context.actorOf(PeerActor.props(nodeKey), id)
+    context.actorOf(PeerActor.props(nodeInfo), id)
   }
 }
 
 object PeerManagerActor {
-  def props(nodeKey: AsymmetricCipherKeyPair): Props =
-    Props(new PeerManagerActor(nodeKey))
+  def props(nodeInfo: NodeInfo): Props =
+    Props(new PeerManagerActor(nodeInfo))
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
   case class ConnectToPeer(uri: URI)

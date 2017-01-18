@@ -11,7 +11,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECIESCoder
 import io.iohk.ethereum.network.p2p.{MessageCodec, Message, FrameCodec}
 import io.iohk.ethereum.rlp.RLPEncoder
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 import scala.util.{Failure, Success, Try}
 
@@ -19,7 +18,7 @@ import scala.util.{Failure, Success, Try}
   * This actors takes care of initiating a secure connection (auth handshake) between peers.
   * Once such connection is established it allows to send/receive frames (messages) over it.
   */
-class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
+class RLPxConnectionHandler(nodeInfo: NodeInfo)
   extends Actor with ActorLogging {
 
   import RLPxConnectionHandler._
@@ -36,7 +35,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
 
     case HandleConnection(connection) =>
       connection ! Register(self)
-      val handshaker = AuthHandshaker(nodeKey)
+      val handshaker = AuthHandshaker(nodeInfo.key)
       val timeout = system.scheduler.scheduleOnce(3.seconds, self, AuthHandshakeTimeout)
       context become waitingForAuthHandshakeInit(connection, handshaker, timeout)
   }
@@ -45,7 +44,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
     case Connected(remote, local) =>
       val connection = sender()
       connection ! Register(self)
-      val (initPacket, handshaker) = AuthHandshaker(nodeKey).initiate(uri)
+      val (initPacket, handshaker) = AuthHandshaker(nodeInfo.key).initiate(uri)
       connection ! Write(initPacket)
       val timeout = system.scheduler.scheduleOnce(3.seconds, self, AuthHandshakeTimeout)
       context become waitingForAuthHandshakeResponse(connection, handshaker, timeout)
@@ -129,8 +128,8 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
 }
 
 object RLPxConnectionHandler {
-  def props(nodeKey: AsymmetricCipherKeyPair): Props =
-    Props(new RLPxConnectionHandler(nodeKey))
+  def props(nodeInfo: NodeInfo): Props =
+    Props(new RLPxConnectionHandler(nodeInfo))
 
   case class ConnectTo(uri: URI)
   case class HandleConnection(connection: ActorRef)

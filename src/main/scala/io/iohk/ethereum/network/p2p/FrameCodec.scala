@@ -114,7 +114,7 @@ class FrameCodec(private val secrets: Secrets) {
       val firstFrame = index == 0
       val lastFrame = index == frames.size - 1
 
-      var out: ByteString = ByteString("")
+      var out: ByteString = ByteString()
 
       val headBuffer = new Array[Byte](HeaderLength)
       val ptype = rlp.encode(frame.`type`)
@@ -134,9 +134,7 @@ class FrameCodec(private val secrets: Secrets) {
 
       val headerData = rlp.encode(headerDataElems)(seqEncDec[Array[Byte]])
       System.arraycopy(headerData, 0, headBuffer, 3, headerData.length)
-
       enc.processBytes(headBuffer, 0, 16, headBuffer, 0)
-
       updateMac(secrets.egressMac, headBuffer, 0, headBuffer, 16, egress = true)
 
       val buff: Array[Byte] = new Array[Byte](256)
@@ -149,36 +147,49 @@ class FrameCodec(private val secrets: Secrets) {
         secrets.egressMac.update(buff, 0, ptype.length)
       }
 
-      var i = 0
-      while (i < frame.payload.length) {
-        val bytes = frame.payload.drop(i).take(256).toArray
-        enc.processBytes(bytes, 0, bytes.length, bytes, 0)
-        secrets.egressMac.update(bytes, 0, bytes.length)
-        out ++= bytes
-        i += bytes.length
-      }
+      out ++= processFramePayload(frame.payload)
 
       if (lastFrame) {
-        // padding
-        val padding: Int = 16 - (totalSize % 16)
-        val pad: Array[Byte] = new Array[Byte](16)
-        if (padding < 16) {
-          enc.processBytes(pad, 0, padding, buff, 0)
-          secrets.egressMac.update(buff, 0, padding)
-          out ++= buff.take(padding)
-        }
-
-        // frame mac
-        val macBuffer: Array[Byte] = new Array[Byte](secrets.egressMac.getDigestSize)
-        doSum(secrets.egressMac, macBuffer)
-        updateMac(secrets.egressMac, macBuffer, 0, macBuffer, 0, egress = true)
-        out ++= macBuffer.take(16)
+        // padding and mac only in last frame
+        out ++= processFramePadding(totalSize)
+        out ++= processFrameMac()
       }
 
       out
     }
 
     ByteString(bytes.toArray)
+  }
+
+  private def processFramePayload(payload: ByteString): ByteString = {
+    var i = 0
+    var out = ByteString()
+    while (i < payload.length) {
+      val bytes = payload.drop(i).take(256).toArray
+      enc.processBytes(bytes, 0, bytes.length, bytes, 0)
+      secrets.egressMac.update(bytes, 0, bytes.length)
+      out ++= bytes
+      i += bytes.length
+    }
+    out
+  }
+
+  private def processFramePadding(totalSize: Int): ByteString = {
+    val padding = 16 - (totalSize % 16)
+    if (padding < 16) {
+      val pad = new Array[Byte](16)
+      val buff = new Array[Byte](16)
+      enc.processBytes(pad, 0, padding, buff, 0)
+      secrets.egressMac.update(buff, 0, padding)
+      ByteString(buff.take(padding))
+    } else ByteString()
+  }
+
+  private def processFrameMac(): ByteString = {
+    val macBuffer = new Array[Byte](secrets.egressMac.getDigestSize)
+    doSum(secrets.egressMac, macBuffer)
+    updateMac(secrets.egressMac, macBuffer, 0, macBuffer, 0, egress = true)
+    ByteString(macBuffer.take(16))
   }
 
   private def makeMacCipher: AESFastEngine = {

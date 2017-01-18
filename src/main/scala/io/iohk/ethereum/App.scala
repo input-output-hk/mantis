@@ -4,20 +4,24 @@ import java.net.{InetSocketAddress, URI}
 
 import akka.actor.ActorSystem
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.network.{ServerActor, PeerManagerActor}
+import io.iohk.ethereum.network.{NodeInfo, ServerActor, PeerManagerActor}
 
 object App {
 
   val nodeKey = generateKeyPair()
 
   def main(args: Array[String]): Unit = {
+    val listenHostname = "127.0.0.1"
+    val listenPort = 9076
+    val listenAddress = new InetSocketAddress(listenHostname, listenPort)
+    val nodeInfo = NodeInfo(nodeKey, listenAddress)
 
     val actorSystem = ActorSystem("etc-client_system")
 
-    val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeKey))
-    val server = actorSystem.actorOf(ServerActor.props(nodeKey, peerManager))
+    val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeInfo))
+    val server = actorSystem.actorOf(ServerActor.props(nodeInfo, peerManager))
 
-    server ! ServerActor.StartServer(new InetSocketAddress("127.0.0.1", 9076))
+    server ! ServerActor.StartServer(listenAddress)
 
     if (args.length > 0) {
       val peerUri = new URI(args(0))

@@ -10,9 +10,10 @@ import org.spongycastle.math.ec.{ECAlgorithms, ECPoint, ECCurve}
 import org.spongycastle.util.BigIntegers._
 
 object ECDSASignature {
-  val encodedLength = RAndSLength + RAndSLength + 1
 
   val RAndSLength = 32
+
+  val encodedLength = 2 * RAndSLength + 1
 
   def decode(input: Array[Byte]): ECDSASignature = {
     val SIndex = 32

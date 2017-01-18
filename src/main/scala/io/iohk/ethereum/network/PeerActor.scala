@@ -11,17 +11,13 @@ import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.network.RLPxConnectionHandler.MessageReceived
 import io.iohk.ethereum.network.p2p._
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.ECPublicKeyParameters
 
-class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLogging {
+class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
   import PeerActor._
   import context.{dispatcher, system}
 
   val P2pVersion = 4
-
-  val nodeId = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
 
   val peerId = self.path.name
 
@@ -40,7 +36,7 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
   }
 
   def createRlpxConnection(): ActorRef = {
-    val rlpxConnection = context.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
+    val rlpxConnection = context.actorOf(RLPxConnectionHandler.props(nodeInfo), "rlpx-connection")
     context watch rlpxConnection
     rlpxConnection
   }
@@ -54,9 +50,9 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
       val hello = Hello(
         p2pVersion = P2pVersion,
         clientId = "etc-client",
-        capabilities = Seq(Capability("eth", 62.toByte)),
-        listenPort = 3333,
-        nodeId = ByteString(nodeId))
+        capabilities = Seq(Capability("eth", 63.toByte)),
+        listenPort = nodeInfo.listenAddress.getPort,
+        nodeId = ByteString(nodeInfo.nodeId))
       rlpxConnection ! RLPxConnectionHandler.SendMessage(hello)
       val timeout = system.scheduler.scheduleOnce(3.seconds, self, ProtocolHandshakeTimeout)
       context become waitingForHello(rlpxConnection, timeout)
@@ -101,8 +97,8 @@ class PeerActor(nodeKey: AsymmetricCipherKeyPair) extends Actor with ActorLoggin
 }
 
 object PeerActor {
-  def props(nodeKey: AsymmetricCipherKeyPair): Props =
-    Props(new PeerActor(nodeKey))
+  def props(nodeInfo: NodeInfo): Props =
+    Props(new PeerActor(nodeInfo))
 
   case class HandleConnection(connection: ActorRef)
   case class ConnectTo(uri: URI)

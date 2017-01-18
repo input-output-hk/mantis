@@ -9,7 +9,7 @@ import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
 
-class ServerActor(nodeKey: AsymmetricCipherKeyPair, peerManager: ActorRef) extends Actor with ActorLogging {
+class ServerActor(nodeInfo: NodeInfo, peerManager: ActorRef) extends Actor with ActorLogging {
 
   import ServerActor._
   import context.system
@@ -24,7 +24,7 @@ class ServerActor(nodeKey: AsymmetricCipherKeyPair, peerManager: ActorRef) exten
     case Bound(localAddress) =>
       log.info("Listening on {}", localAddress)
       log.info("Node address: enode://{}@{}:{}",
-        Hex.toHexString(nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId),
+        Hex.toHexString(nodeInfo.key.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId),
         localAddress.getAddress.getHostAddress,
         localAddress.getPort)
       context become listening
@@ -42,8 +42,8 @@ class ServerActor(nodeKey: AsymmetricCipherKeyPair, peerManager: ActorRef) exten
 }
 
 object ServerActor {
-  def props(nodeKey: AsymmetricCipherKeyPair, peerManager: ActorRef): Props =
-    Props(new ServerActor(nodeKey, peerManager))
+  def props(nodeInfo: NodeInfo, peerManager: ActorRef): Props =
+    Props(new ServerActor(nodeInfo, peerManager))
 
   case class StartServer(address: InetSocketAddress)
 }
