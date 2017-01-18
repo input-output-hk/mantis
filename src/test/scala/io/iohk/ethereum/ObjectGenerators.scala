@@ -13,6 +13,8 @@ trait ObjectGenerators {
 
   def byteArrayOfNItemsGen(n: Int): Gen[Array[Byte]] = Gen.listOfN(n, Arbitrary.arbitrary[Byte]).map(_.toArray)
 
+  def seqByteArrayOfNItemsGen(n: Int): Gen[Seq[Array[Byte]]] = Gen.listOf(byteArrayOfNItemsGen(n))
+
   def hexPrefixDecodeParametersGen(): Gen[(Array[Byte], Boolean)] = for {
     aByteList <- Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte])
     t <- Arbitrary.arbitrary[Boolean]
