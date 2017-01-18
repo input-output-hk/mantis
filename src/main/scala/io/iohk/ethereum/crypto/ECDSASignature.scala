@@ -10,11 +10,15 @@ import org.spongycastle.math.ec.{ECAlgorithms, ECPoint, ECCurve}
 import org.spongycastle.util.BigIntegers._
 
 object ECDSASignature {
+  val RAndSLength = 32
 
-  def decode(input: Array[Byte]) = {
-    val r = input.take(32)
-    val s = input.slice(32, 32 + 32)
-    val v = input(64) + 27
+  def decode(input: Array[Byte]): ECDSASignature = {
+    val SIndex = 32
+    val VIndex = 64
+
+    val r = input.take(RAndSLength)
+    val s = input.slice(SIndex, SIndex + RAndSLength)
+    val v = input(VIndex) + 27
     ECDSASignature(new BigInteger(1, r), new BigInteger(1, s), v.toByte)
   }
 
@@ -59,7 +63,7 @@ object ECDSASignature {
     recIdOpt.map(recId => (recId + 27).toByte)
   }
 
-  def canonicalise(s: BigInteger) = {
+  def canonicalise(s: BigInteger): BigInteger = {
     val halfCurveOrder = curveParams.getN.shiftRight(1)
     if (s.compareTo(halfCurveOrder) > 0) curve.getN.subtract(s)
     else s
@@ -70,9 +74,10 @@ object ECDSASignature {
 case class ECDSASignature(r: BigInteger, s: BigInteger, v: Byte) {
 
   lazy val encoded: ByteString = {
+    import ECDSASignature.RAndSLength
     ByteString(
-      asUnsignedByteArray(r).reverse.padTo(32, 0.toByte).reverse ++
-      asUnsignedByteArray(s).reverse.padTo(32, 0.toByte).reverse ++
+      asUnsignedByteArray(r).reverse.padTo(RAndSLength, 0.toByte).reverse ++
+      asUnsignedByteArray(s).reverse.padTo(RAndSLength, 0.toByte).reverse ++
       Array(ECDSASignature.recIdFromSignatureV(v)))
   }
 

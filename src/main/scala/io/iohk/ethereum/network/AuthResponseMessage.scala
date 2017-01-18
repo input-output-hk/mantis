@@ -6,13 +6,15 @@ import org.spongycastle.math.ec.ECPoint
 
 object AuthResponseMessage {
 
-  val encodedLength = 64+32+1
+  private val PublicKeyLength = 64
+  private val NonceLength = 32
+  val encodedLength: Int = PublicKeyLength + NonceLength + 1
 
   def decode(input: Array[Byte]): AuthResponseMessage = {
     AuthResponseMessage(
-      ephemeralPublicKey = curve.getCurve.decodePoint(Array(4.toByte) ++ input.take(64)),
-      nonce = ByteString(input.drop(64).take(32)),
-      knownPeer = input(96) == 1)
+      ephemeralPublicKey = curve.getCurve.decodePoint(Array(4.toByte) ++ input.take(PublicKeyLength)),
+      nonce = ByteString(input.slice(PublicKeyLength, PublicKeyLength + NonceLength)),
+      knownPeer = input(PublicKeyLength + NonceLength) == 1)
   }
 }
 

@@ -1,6 +1,7 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.sha3
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages._
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -227,6 +228,8 @@ object PV62 {
     extraData: ByteString,
     mixHash: ByteString,
     nonce: ByteString) {
+
+    lazy val hash: Array[Byte] = sha3(encode[BlockHeader](this))
 
     override def toString: String = {
       s"""BlockHeader {
