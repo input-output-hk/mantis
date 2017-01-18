@@ -235,131 +235,147 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
       }
   }
 
-  private def put(node: Node, searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = {
-    node match {
-      case LeafNode(existingKey, storedValue, _) =>
-        matchingLength(existingKey, searchKey) match {
-          case ml if ml == existingKey.length && ml == searchKey.length =>
-            // We are trying to insert a leaf node that has the same key as this one but different value so we need to
-            // replace it
-            val newLeafNode = LeafNode(existingKey, value, hashFn)
-            NodeInsertResult(
-              newNode = newLeafNode,
-              toDeleteFromStorage = Seq(node),
-              toUpdateInStorage = Seq(newLeafNode)
-            )
-          case 0 =>
-            // There is no common prefix between the node which means that we need to replace this leaf node
-            val (temporalBranchNode, maybeNewLeaf) =
-              if (existingKey.isEmpty) // This node has no key so it should be stored as branch's value
-                BranchNode.withValueOnly(storedValue, hashFn) -> None
-              else {
-                // The leaf should be put inside one of new branch nibbles
-                val newLeafNode = LeafNode(existingKey.tail, storedValue, hashFn)
-                BranchNode.withSingleChild(existingKey(0), newLeafNode, None, hashFn) -> Some(newLeafNode)
-              }
-            val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(temporalBranchNode, searchKey, value)
-            NodeInsertResult(
-              newNode = newBranchNode,
-              toDeleteFromStorage = node +: toDeleteFromStorage,
-              toUpdateInStorage = maybeNewLeaf.toList ++ toUpdateInStorage
-            )
-          case ml =>
-            // Partially shared prefix, we replace the leaf with an extension and a branch node
-            val (searchKeyPrefix, searchKeySuffix) = searchKey.splitAt(ml)
-            val temporalNode =
-              if (ml == existingKey.length) BranchNode.withValueOnly(storedValue, hashFn)
-              else LeafNode(existingKey.drop(ml), storedValue, hashFn)
-            val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(temporalNode, searchKeySuffix, value)
-            val newExtNode = ExtensionNode(searchKeyPrefix, newBranchNode, hashFn)
-            NodeInsertResult(
-              newNode = newExtNode,
-              toDeleteFromStorage = node +: toDeleteFromStorage,
-              toUpdateInStorage = newExtNode +: toUpdateInStorage
-            )
-        }
-      case extensionNode@ExtensionNode(sharedKey, next, _) =>
-        matchingLength(sharedKey, searchKey) match {
-          case 0 =>
-            // There is no common prefix with the node which means we have to replace it for a branch node
-            val sharedKeyHead = sharedKey(0)
-            val (temporalBranchNode, maybeNewLeaf) = {
-              // Direct extension, we just replace the extension with a branch
-              if (sharedKey.length == 1) BranchNode.withSingleChild(sharedKeyHead, next, None, hashFn) -> None
-              else {
-                // The new branch node will have an extension that replaces current one
-                val newExtNode = ExtensionNode(sharedKey.tail, next, hashFn)
-                BranchNode.withSingleChild(sharedKeyHead, newExtNode, None, hashFn) -> Some(newExtNode)
-              }
-            }
-            val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(temporalBranchNode, searchKey, value)
-            NodeInsertResult(
-              newNode = newBranchNode,
-              toDeleteFromStorage = node +: toDeleteFromStorage,
-              toUpdateInStorage = maybeNewLeaf.toList ++ toUpdateInStorage
-            )
-          case ml if ml == sharedKey.length =>
-            // Current extension node's key is a prefix of the one being inserted, so we insert recursively on the extension's child
-            val NodeInsertResult(newChild: BranchNode, toDeleteFromStorage, toUpdateInStorage) =
-              put(getNextNode(extensionNode, dataSource), searchKey.drop(ml), value)
-            val newExtNode = ExtensionNode(sharedKey, newChild, hashFn)
-            NodeInsertResult(
-              newNode = newExtNode,
-              toDeleteFromStorage = node +: toDeleteFromStorage,
-              toUpdateInStorage = newExtNode +: toUpdateInStorage
-            )
-          case ml =>
-            // Partially shared prefix, we have to replace the node with an extension with the shared prefix
-            val (sharedKeyPrefix, sharedKeySuffix) = sharedKey.splitAt(ml)
-            val temporalExtensionNode = ExtensionNode(sharedKeySuffix, next, hashFn)
-            val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(temporalExtensionNode, searchKey.drop(ml), value)
-            val newExtNode = ExtensionNode(sharedKeyPrefix, newBranchNode, hashFn)
-            NodeInsertResult(
-              newNode = newExtNode,
-              toDeleteFromStorage = node +: toDeleteFromStorage,
-              toUpdateInStorage = newExtNode +: toUpdateInStorage
-            )
-        }
-      case branchNode@BranchNode(children, _, _) =>
-        if (searchKey.isEmpty) {
-          // The key is empty, the branch node should now be a terminator node with the new value asociated with it
-          val newBranchNode = BranchNode(children, Some(value), hashFn)
-          NodeInsertResult(
-            newNode = newBranchNode,
-            toDeleteFromStorage = Seq(node),
-            toUpdateInStorage = Seq(newBranchNode)
-          )
-        }
-        else {
-          // Non empty key, we need to insert the value in the correct branch node's child
-          val searchKeyHead: Int = searchKey(0)
-          val searchKeyRemaining = searchKey.tail
-          if (children(searchKeyHead).isDefined) {
-            // The associated child is not empty, we recursively insert in that child
-            val NodeInsertResult(changedChild, toDeleteFromStorage, toUpdateInStorage) =
-            put(getChild(branchNode, searchKeyHead, dataSource).get, searchKeyRemaining, value)
-            val newBranchNode = branchNode.updateChild(searchKeyHead, changedChild, hashFn)
-            NodeInsertResult(
-              newNode = newBranchNode,
-              toDeleteFromStorage = node +: toDeleteFromStorage,
-              toUpdateInStorage = newBranchNode +: toUpdateInStorage
-            )
-          }
+  private def put(node: Node, searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = node match {
+    case leafNode: LeafNode => putInLeafNode(leafNode, searchKey, value)
+    case extensionNode: ExtensionNode => putInExtensionNode(extensionNode, searchKey, value)
+    case branchNode: BranchNode => putInBranchNode(branchNode, searchKey, value)
+  }
+
+  private def putInLeafNode(node: LeafNode, searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = {
+    val LeafNode(existingKey, storedValue, _) = node
+    matchingLength(existingKey, searchKey) match {
+      case ml if ml == existingKey.length && ml == searchKey.length =>
+        // We are trying to insert a leaf node that has the same key as this one but different value so we need to
+        // replace it
+        val newLeafNode = LeafNode(existingKey, value, hashFn)
+        NodeInsertResult(
+          newNode = newLeafNode,
+          toDeleteFromStorage = Seq(node),
+          toUpdateInStorage = Seq(newLeafNode)
+        )
+      case 0 =>
+        // There is no common prefix between the node which means that we need to replace this leaf node
+        val (temporalBranchNode, maybeNewLeaf) =
+          if (existingKey.isEmpty) // This node has no key so it should be stored as branch's value
+            BranchNode.withValueOnly(storedValue, hashFn) -> None
           else {
-            // The associated child is empty, we just replace it with a leaf
-            val newLeafNode = LeafNode(searchKeyRemaining, value, hashFn)
-            val newBranchNode = branchNode.updateChild(searchKeyHead, newLeafNode, hashFn)
-            NodeInsertResult(
-              newNode = newBranchNode,
-              toDeleteFromStorage = Seq(node),
-              toUpdateInStorage = Seq(newLeafNode, newBranchNode)
-            )
+            // The leaf should be put inside one of new branch nibbles
+            val newLeafNode = LeafNode(existingKey.tail, storedValue, hashFn)
+            BranchNode.withSingleChild(existingKey(0), newLeafNode, None, hashFn) -> Some(newLeafNode)
           }
-        }
+        val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(temporalBranchNode, searchKey, value)
+        NodeInsertResult(
+          newNode = newBranchNode,
+          toDeleteFromStorage = node +: toDeleteFromStorage,
+          toUpdateInStorage = maybeNewLeaf.toList ++ toUpdateInStorage
+        )
+      case ml =>
+        // Partially shared prefix, we replace the leaf with an extension and a branch node
+        val (searchKeyPrefix, searchKeySuffix) = searchKey.splitAt(ml)
+        val temporalNode =
+          if (ml == existingKey.length) BranchNode.withValueOnly(storedValue, hashFn)
+          else LeafNode(existingKey.drop(ml), storedValue, hashFn)
+        val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(temporalNode, searchKeySuffix, value)
+        val newExtNode = ExtensionNode(searchKeyPrefix, newBranchNode, hashFn)
+        NodeInsertResult(
+          newNode = newExtNode,
+          toDeleteFromStorage = node +: toDeleteFromStorage,
+          toUpdateInStorage = newExtNode +: toUpdateInStorage
+        )
     }
   }
 
-  private def remove(node: Node, searchKey: Array[Byte]): NodeRemoveResult = (node, searchKey.isEmpty) match {
+  private def putInExtensionNode(extensionNode: ExtensionNode, searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = {
+    val ExtensionNode(sharedKey, next, _) = extensionNode
+    matchingLength(sharedKey, searchKey) match {
+      case 0 =>
+        // There is no common prefix with the node which means we have to replace it for a branch node
+        val sharedKeyHead = sharedKey(0)
+        val (temporalBranchNode, maybeNewLeaf) = {
+          // Direct extension, we just replace the extension with a branch
+          if (sharedKey.length == 1) BranchNode.withSingleChild(sharedKeyHead, next, None, hashFn) -> None
+          else {
+            // The new branch node will have an extension that replaces current one
+            val newExtNode = ExtensionNode(sharedKey.tail, next, hashFn)
+            BranchNode.withSingleChild(sharedKeyHead, newExtNode, None, hashFn) -> Some(newExtNode)
+          }
+        }
+        val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(temporalBranchNode, searchKey, value)
+        NodeInsertResult(
+          newNode = newBranchNode,
+          toDeleteFromStorage = extensionNode +: toDeleteFromStorage,
+          toUpdateInStorage = maybeNewLeaf.toList ++ toUpdateInStorage
+        )
+      case ml if ml == sharedKey.length =>
+        // Current extension node's key is a prefix of the one being inserted, so we insert recursively on the extension's child
+        val NodeInsertResult(newChild: BranchNode, toDeleteFromStorage, toUpdateInStorage) =
+          put(getNextNode(extensionNode, dataSource), searchKey.drop(ml), value)
+        val newExtNode = ExtensionNode(sharedKey, newChild, hashFn)
+        NodeInsertResult(
+          newNode = newExtNode,
+          toDeleteFromStorage = extensionNode +: toDeleteFromStorage,
+          toUpdateInStorage = newExtNode +: toUpdateInStorage
+        )
+      case ml =>
+        // Partially shared prefix, we have to replace the node with an extension with the shared prefix
+        val (sharedKeyPrefix, sharedKeySuffix) = sharedKey.splitAt(ml)
+        val temporalExtensionNode = ExtensionNode(sharedKeySuffix, next, hashFn)
+        val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(temporalExtensionNode, searchKey.drop(ml), value)
+        val newExtNode = ExtensionNode(sharedKeyPrefix, newBranchNode, hashFn)
+        NodeInsertResult(
+          newNode = newExtNode,
+          toDeleteFromStorage = extensionNode +: toDeleteFromStorage,
+          toUpdateInStorage = newExtNode +: toUpdateInStorage
+        )
+    }
+  }
+
+  private def putInBranchNode(branchNode: BranchNode, searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = {
+    val BranchNode(children, _, _) = branchNode
+    if (searchKey.isEmpty) {
+      // The key is empty, the branch node should now be a terminator node with the new value asociated with it
+      val newBranchNode = BranchNode(children, Some(value), hashFn)
+      NodeInsertResult(
+        newNode = newBranchNode,
+        toDeleteFromStorage = Seq(branchNode),
+        toUpdateInStorage = Seq(newBranchNode)
+      )
+    }
+    else {
+      // Non empty key, we need to insert the value in the correct branch node's child
+      val searchKeyHead: Int = searchKey(0)
+      val searchKeyRemaining = searchKey.tail
+      if (children(searchKeyHead).isDefined) {
+        // The associated child is not empty, we recursively insert in that child
+        val NodeInsertResult(changedChild, toDeleteFromStorage, toUpdateInStorage) =
+          put(getChild(branchNode, searchKeyHead, dataSource).get, searchKeyRemaining, value)
+        val newBranchNode = branchNode.updateChild(searchKeyHead, changedChild, hashFn)
+        NodeInsertResult(
+          newNode = newBranchNode,
+          toDeleteFromStorage = branchNode +: toDeleteFromStorage,
+          toUpdateInStorage = newBranchNode +: toUpdateInStorage
+        )
+      }
+      else {
+        // The associated child is empty, we just replace it with a leaf
+        val newLeafNode = LeafNode(searchKeyRemaining, value, hashFn)
+        val newBranchNode = branchNode.updateChild(searchKeyHead, newLeafNode, hashFn)
+        NodeInsertResult(
+          newNode = newBranchNode,
+          toDeleteFromStorage = Seq(branchNode),
+          toUpdateInStorage = Seq(newLeafNode, newBranchNode)
+        )
+      }
+    }
+  }
+
+  private def remove(node: Node, searchKey: Array[Byte]): NodeRemoveResult = node match {
+    case leafNode: LeafNode => removeFromLeafNode(leafNode, searchKey)
+    case extensionNode: ExtensionNode => removeFromExtensionNode(extensionNode, searchKey)
+    case branchNode: BranchNode => removeFromBranchNode(branchNode, searchKey)
+  }
+
+  private def removeFromBranchNode(node: BranchNode, searchKey: Array[Byte]): NodeRemoveResult = (node, searchKey.isEmpty) match {
     // They key matches a branch node but it's value doesn't match the key
     case (BranchNode(_, None, _), true) => NodeRemoveResult(hasChanged = false, newNode = None)
     // We want to delete Branch node value
@@ -398,39 +414,45 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
         // Child not found in this branch node, so key is not present
         NodeRemoveResult(hasChanged = false, newNode = None)
       }
-    case (LeafNode(existingKey, _, _), _) =>
-      if (existingKey sameElements searchKey) {
-        // We found the node to delete
-        NodeRemoveResult(hasChanged = true, newNode = None, toDeleteFromStorage = Seq(node))
-      }
-      else NodeRemoveResult(hasChanged = false, newNode = None)
-    case (extensionNode@ExtensionNode(sharedKey, _, _), _) =>
-      val cp = matchingLength(sharedKey, searchKey)
-      if (cp == sharedKey.length) {
-        // A child node of this extension is removed, so move forward
-        remove(getNextNode(extensionNode, dataSource), searchKey.drop(cp)) match {
-          case NodeRemoveResult(true, maybeNewChild, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
-            // If we changed the child, we need to fix this extension node
-            maybeNewChild map { newChild =>
-              val toFix = ExtensionNode(sharedKey, newChild, hashFn)
-              val fixedNode = fix(toFix, dataSource, nodesToUpdateInStorage)
-              NodeRemoveResult(
-                hasChanged = true,
-                newNode = Some(fixedNode),
-                toDeleteFromStorage = node +: nodesToRemoveFromStorage,
-                toUpdateInStorage = fixedNode +: nodesToUpdateInStorage)
-            } getOrElse {
-              throw MPTException("A trie with newRoot extension should have at least 2 values stored")
-            }
-          case NodeRemoveResult(false, _, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
+  }
+
+  private def removeFromLeafNode(leafNode: LeafNode, searchKey: Array[Byte]): NodeRemoveResult = {
+    val LeafNode(existingKey, _, _) = leafNode
+    if (existingKey sameElements searchKey) {
+      // We found the node to delete
+      NodeRemoveResult(hasChanged = true, newNode = None, toDeleteFromStorage = Seq(leafNode))
+    }
+    else NodeRemoveResult(hasChanged = false, newNode = None)
+  }
+
+  private def removeFromExtensionNode(extensionNode: ExtensionNode, searchKey: Array[Byte]): NodeRemoveResult = {
+    val ExtensionNode(sharedKey, _, _) = extensionNode
+    val cp = matchingLength(sharedKey, searchKey)
+    if (cp == sharedKey.length) {
+      // A child node of this extension is removed, so move forward
+      remove(getNextNode(extensionNode, dataSource), searchKey.drop(cp)) match {
+        case NodeRemoveResult(true, maybeNewChild, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
+          // If we changed the child, we need to fix this extension node
+          maybeNewChild map { newChild =>
+            val toFix = ExtensionNode(sharedKey, newChild, hashFn)
+            val fixedNode = fix(toFix, dataSource, nodesToUpdateInStorage)
             NodeRemoveResult(
-              hasChanged = false,
-              newNode = None,
-              toDeleteFromStorage = nodesToRemoveFromStorage,
-              toUpdateInStorage = nodesToUpdateInStorage)
-        }
+              hasChanged = true,
+              newNode = Some(fixedNode),
+              toDeleteFromStorage = extensionNode +: nodesToRemoveFromStorage,
+              toUpdateInStorage = fixedNode +: nodesToUpdateInStorage)
+          } getOrElse {
+            throw MPTException("A trie with newRoot extension should have at least 2 values stored")
+          }
+        case NodeRemoveResult(false, _, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
+          NodeRemoveResult(
+            hasChanged = false,
+            newNode = None,
+            toDeleteFromStorage = nodesToRemoveFromStorage,
+            toUpdateInStorage = nodesToUpdateInStorage)
       }
-      else NodeRemoveResult(hasChanged = false, newNode = Some(node))
+    }
+    else NodeRemoveResult(hasChanged = false, newNode = Some(extensionNode))
   }
 
   /**

@@ -23,25 +23,25 @@ class HexPrefixSuite extends FunSuite
   test("testCompactEncodeOddCompact"){
     val test: Array[Byte] = Array[Byte](1, 2, 3, 4, 5)
     val expectedData: Array[Byte] = Array[Byte](0x11, 0x23, 0x45)
-    assert(expectedData sameElements HexPrefix.encode(test, false))
+    assert(expectedData sameElements HexPrefix.encode(test, isLeaf = false))
   }
 
   test("testCompactEncodeEvenCompact"){
     val test: Array[Byte] = Array[Byte](0, 1, 2, 3, 4, 5)
     val expectedData: Array[Byte] = Array[Byte](0x00, 0x01, 0x23, 0x45)
-    assert(expectedData sameElements HexPrefix.encode(test, false))
+    assert(expectedData sameElements HexPrefix.encode(test, isLeaf = false))
   }
 
   test("testCompactEncodeEvenTerminated"){
     val test: Array[Byte] = Array[Byte](0, 15, 1, 12, 11, 8)
     val expectedData: Array[Byte] = Array[Byte](0x20, 0x0f, 0x1c, 0xb8.toByte)
-    assert(expectedData sameElements HexPrefix.encode(test, true))
+    assert(expectedData sameElements HexPrefix.encode(test, isLeaf = true))
   }
 
   test("testCompactEncodeOddTerminated"){
     val test: Array[Byte] = Array[Byte](15, 1, 12, 11, 8)
     val expectedData: Array[Byte] = Array[Byte](0x3f, 0x1c, 0xb8.toByte)
-    assert(expectedData sameElements HexPrefix.encode(test, true))
+    assert(expectedData sameElements HexPrefix.encode(test, isLeaf = true))
   }
 
   test("testCompactDecodeOddCompact"){
