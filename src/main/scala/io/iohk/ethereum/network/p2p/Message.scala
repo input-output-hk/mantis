@@ -36,6 +36,9 @@ object Message {
     case (PV62 | PV63, pv62.BlockBodies.code) => rlp.decode(payload)(pv62.BlockBodies.rlpEndDec)
 
     case (PV63, pv63.GetNodeData.code) => rlp.decode(payload)(pv63.GetNodeData.rlpEndDec)
+    case (PV63, pv63.NodeData.code) => rlp.decode(payload)(pv63.NodeData.rlpEndDec)
+    case (PV63, pv63.GetReceipts.code) => rlp.decode(payload)(pv63.GetReceipts.rlpEndDec)
+    case (PV63, pv63.Receipts.code) => rlp.decode(payload)(pv63.Receipts.rlpEndDec)
 
     case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
   }

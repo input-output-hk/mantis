@@ -229,7 +229,7 @@ object PV62 {
     mixHash: ByteString,
     nonce: ByteString) {
 
-    lazy val hash: Array[Byte] = sha3(encode[BlockHeader](this))
+    lazy val hash: ByteString = ByteString(sha3(encode[BlockHeader](this)))
 
     override def toString: String = {
       s"""BlockHeader {
