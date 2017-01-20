@@ -11,14 +11,22 @@ object DataWord {
   val MaxLength = 32
 
   def apply(value: ByteString): DataWord = {
-    require(value.length <= MaxLength, s"Input byte array  cannot be longer than $MaxLength: ${value.length}")
+    require(value.length <= MaxLength, s"Input byte array cannot be longer than $MaxLength: ${value.length}")
     DataWord(value.foldLeft(BigInt(0)) { (n, b) => (n << 8) + (b & 0xff) })
+  }
+
+  private def apply(n: BigInt): DataWord = {
+    if (n < 0) {
+      new DataWord(n % MaxWord + MaxWord)
+    } else {
+      new DataWord(n % MaxWord)
+    }
   }
 
 }
 
 // TODO: Change internal representation of a DataWord to a ByteString.
-case class DataWord private (n: BigInt) extends ScalaNumericConversions {
+class DataWord private (private val n: BigInt) extends ScalaNumericConversions {
 
   import DataWord._
 
@@ -26,37 +34,21 @@ case class DataWord private (n: BigInt) extends ScalaNumericConversions {
 
   lazy val value: ByteString = ByteString(n.toByteArray)
 
-  def &(that: DataWord): DataWord = {
-    DataWord(this.n & that.n)
-  }
+  def &(that: DataWord): DataWord = DataWord(this.n & that.n)
 
-  def |(that: DataWord): DataWord = {
-    DataWord(this.n | that.n)
-  }
+  def |(that: DataWord): DataWord = DataWord(this.n | that.n)
 
-  def ^(that: DataWord): DataWord = {
-    DataWord(this.n ^ that.n)
-  }
+  def ^(that: DataWord): DataWord = DataWord(this.n ^ that.n)
 
-  def unary_-(): DataWord = {
-    DataWord(-this.n)
-  }
+  def unary_-(): DataWord = DataWord(-this.n)
 
-  def +(that: DataWord): DataWord = {
-    DataWord(this.n + that.n)
-  }
+  def +(that: DataWord): DataWord = DataWord(this.n + that.n)
 
-  def -(that: DataWord): DataWord = {
-    DataWord(this.n - that.n)
-  }
+  def -(that: DataWord): DataWord = DataWord(this.n - that.n)
 
-  def *(that: DataWord): DataWord = {
-    DataWord(this.n * that.n)
-  }
+  def *(that: DataWord): DataWord = DataWord(this.n * that.n)
 
-  def /(that: DataWord): DataWord = {
-    DataWord(this.n / that.n)
-  }
+  def /(that: DataWord): DataWord = DataWord(this.n / that.n)
 
   def doubleValue(): Double = longValue().toDouble
 
