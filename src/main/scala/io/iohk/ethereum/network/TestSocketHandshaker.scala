@@ -80,14 +80,22 @@ object TestSocketHandshaker {
         //ask for block further in chain to get some transactions
         sendMessage(GetBlockHeaders(Left(BlockNumber), maxHeaders = MaxHeaders, skip = 0, reverse = 0), frameCodec, out)
       case m: BlockHeaders =>
-        println(m)
+        //println(m)
         sendMessage(GetBlockBodies(m.headers.map(h => h.hash)), frameCodec, out) //ask for block bodies for headers
         sendMessage(GetReceipts(m.headers.map(h => h.hash)), frameCodec, out) //ask for recipts
-        sendMessage(GetNodeData(Seq(m.headers.map(h => h.hash).head)), frameCodec, out) //ask for node
+        sendMessage(GetNodeData(Seq(
+          ByteString(Hex.decode("d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544"))
+          , ByteString(Hex.decode("90dcaf88c40c7bbc95a912cbdde67c175767b31173df9ee4b0d733bfdd511c43"))
+          , ByteString(Hex.decode("e45a9e85cab1b6eb18b30df2c6acc448bbac6a30d81646823b31223e16e5063e"))
+          , ByteString(Hex.decode("59bbb3d53d72247af6b96b293057b1bd4b3e33e16a43bb987ac5b39b66c0df88"))
+          , ByteString(Hex.decode("b78ebd8ecd7e4d4cb0be97a2970b991b4a9e02aa83863b0724f8ce744f853fc5"))
+          , ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
+        )), frameCodec, out) //ask for node
+
       case m: BlockBodies =>
-        println(m)
+        //println(m)
       case m: Receipts =>
-        println(m)
+        //println(m)
       case m: NodeData =>
         println(m)
       case m: Disconnect =>

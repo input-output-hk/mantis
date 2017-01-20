@@ -24,6 +24,8 @@ package object rlp {
 
   def decode[T](data: Array[Byte])(implicit dec: RLPDecoder[T]): T = dec.decode(RLP.rawDecode(data))
 
+  def rawDecode(input: Array[Byte]): RLPEncodeable = RLP.rawDecode(input)
+
   /**
     * This function calculates the next element item based on a previous element starting position. It's meant to be
     * used while decoding a stream of RLPEncoded Items.
