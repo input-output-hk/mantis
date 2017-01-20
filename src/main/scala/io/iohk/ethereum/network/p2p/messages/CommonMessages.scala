@@ -63,6 +63,9 @@ object CommonMessages {
   }
 
   object Transaction {
+    val HashLength = 32
+    val AddressLength = 20
+
     implicit val rlpEndDec = new RLPEncoder[Transaction] with RLPDecoder[Transaction] {
       override def encode(obj: Transaction): RLPEncodeable = {
         import obj._
@@ -100,6 +103,8 @@ object CommonMessages {
     signatureRandom: ByteString, //r
     signature: ByteString /*s*/) {
 
+    import Transaction._
+
     val bytesToSign: Array[Byte] = crypto.sha3(rlpEncode(RLPList(nonce, gasPrice, gasLimit,
       receivingAddress.toArray[Byte], value, payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte]))))
 
@@ -114,6 +119,18 @@ object CommonMessages {
     val LastByteOfAddress = 32
 
     lazy val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
+
+    private def byteLength(b: BigInt): Int = (b.bitLength / 8.0).ceil.toInt
+
+    lazy val isValid: Boolean =
+      byteLength(nonce) <= HashLength &&
+        (receivingAddress.isEmpty || receivingAddress.length == AddressLength) &&
+        byteLength(gasLimit) <= HashLength &&
+        byteLength(gasPrice) <= HashLength &&
+        byteLength(value) <= HashLength &&
+        signatureRandom.length <= HashLength &&
+        signature.length <= HashLength &&
+        recoveredAddress.isDefined && recoveredAddress.get.length == AddressLength //TODO: Should we remove this check?
 
     override def toString: String = {
       s"""Transaction {

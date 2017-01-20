@@ -11,7 +11,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockBodies, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockBodies, GetBlockHeaders, BlockBodies}
 import io.iohk.ethereum.network.p2p.Message.PV63
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello}
 import io.iohk.ethereum.rlp.{encode => rlpEncode}
@@ -27,7 +27,7 @@ object TestSocketHandshaker {
     val P2PVersion: Int = 4
     val ListenPort: Int = 3333
     val MaxHeaders = 20
-    val BlockNumber = 5000
+    val BlockNumber = 21
 
     val remoteUri = new URI(args(0))
 
@@ -58,6 +58,11 @@ object TestSocketHandshaker {
 
     val remoteHello = readAtLeastOneMessage(frameCodec, inp).head.asInstanceOf[Hello]
 
+    processMessages(frameCodec, inp, out, BlockNumber, MaxHeaders)
+  }
+
+  def processMessages(frameCodec: FrameCodec, inp: InputStream, out: OutputStream,
+                      BlockNumber: Int, MaxHeaders: Int): Unit = {
     while (true) {
       val msgs = readAtLeastOneMessage(frameCodec, inp)
       msgs.foreach { m => println("\n Received message: " + m) }
@@ -70,6 +75,10 @@ object TestSocketHandshaker {
           sendMessage(GetBlockHeaders(Left(BlockNumber), maxHeaders = MaxHeaders, skip = 0, reverse = 0), frameCodec, out)
         case m: BlockHeaders =>
           sendMessage(GetBlockBodies(m.headers.map(h => ByteString(h.hash))), frameCodec, out) //ask for block bodies for headers
+        case m: BlockBodies =>
+          m.bodies.foreach(body => body.transactionList.foreach{ tx =>
+            assert(tx.isValid)
+          })
       }
     }
   }
