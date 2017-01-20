@@ -26,10 +26,8 @@ case object ADD extends OpCode(0x01, 2, 1) {
   def execute(state: ProgramState): ProgramState = {
     val (a, stack1) = state.stack.pop
     val (b, stack2) = stack1.pop
-
-    val res = DataWord(a.value + b.value)
+    val res = a + b
     val stack3 = stack2.push(res)
-
     state.copy(stack = stack3, pc = state.pc + 1)
   }
 }
