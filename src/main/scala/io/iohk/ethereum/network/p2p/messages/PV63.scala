@@ -1,11 +1,14 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.mpt.HexPrefix.{encode => hpEncode, decode => hpDecode}
+import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, nibblesToBytes}
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
+
+import scala.util.Try
 
 object PV63 {
 
@@ -45,15 +48,11 @@ object PV63 {
 
       override def decode(rlp: RLPEncodeable): NodeData = rlp match {
         case rlpList: RLPList =>
-          NodeData(rlpList.items.map{e =>
-            try {
+          NodeData(rlpList.items.map { e =>
+            Try {
               val v = rawDecode(e: Array[Byte])
-              Node.rlpEndDec.decode(v)
-            }catch {
-              case e:RLPException =>
-                println(e)
-                throw new Exception
-            }
+              Left(Node.rlpEndDec.decode(v))
+            }.getOrElse(Right(ByteString(e:Array[Byte])))
           })
         case _ => throw new RuntimeException("Cannot decode NodeData")
       }
@@ -62,11 +61,11 @@ object PV63 {
     val code: Int = Message.SubProtocolOffset + 0x0e
   }
 
-  case class NodeData(values: Seq[MptNode]) extends Message {
+  case class NodeData(values: Seq[Either[MptNode, ByteString]]) extends Message {
     override def code: Int = NodeData.code
 
     override def toString: String = {
-      val v = values.map(_.toString)
+      val v = values.map(v => v.fold(_.toString, b => s"BytString(${Hex.toHexString(b.toArray[Byte])})"))
 
       s"""NodeData{
          |values: $v
@@ -87,8 +86,8 @@ object PV63 {
           MptBranch(rlpList.items.take(16).map(byteStringEncDec.decode), byteStringEncDec.decode(rlpList.items(16)))
         case RLPList(hpEncoded, value) =>
           hpDecode(hpEncoded) match {
-            case (hexPrefix, true) => MptLeaf(ByteString(hexPrefix), byteStringEncDec.decode(value))
-            case (hexPrefix, false) => MptExtension(ByteString(hexPrefix), byteStringEncDec.decode(value))
+            case (decoded, true) => MptLeaf(ByteString(nibblesToBytes(decoded)), byteStringEncDec.decode(value))
+            case (decoded, false) => MptExtension(ByteString(nibblesToBytes(decoded)), byteStringEncDec.decode(value))
           }
         case _ =>
           println(rlp)
@@ -119,12 +118,12 @@ object PV63 {
     }
   }
 
-  case class MptLeaf(hexPrefix: ByteString, value: ByteString) extends MptNode {
+  case class MptLeaf(hpEncoded: ByteString, value: ByteString) extends MptNode {
     override def toString: String = {
       val account = Account.rlpEndDec.decode(rawDecode(value.toArray[Byte]))
 
       s"""MptLeaf{
-         |hexPrefix: ${Hex.toHexString(hexPrefix.toArray[Byte])}
+         |hexPrefix: ${Hex.toHexString(hpEncoded.toArray[Byte])}
          |value: ${Hex.toHexString(value.toArray[Byte])}
          |rlpDecoded: $account
          |}

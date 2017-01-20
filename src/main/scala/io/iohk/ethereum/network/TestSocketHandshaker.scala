@@ -87,11 +87,12 @@ object TestSocketHandshaker {
           ByteString(Hex.decode("d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544"))
           , ByteString(Hex.decode("90dcaf88c40c7bbc95a912cbdde67c175767b31173df9ee4b0d733bfdd511c43"))
           , ByteString(Hex.decode("e45a9e85cab1b6eb18b30df2c6acc448bbac6a30d81646823b31223e16e5063e"))
-          , ByteString(Hex.decode("59bbb3d53d72247af6b96b293057b1bd4b3e33e16a43bb987ac5b39b66c0df88"))
-          , ByteString(Hex.decode("b78ebd8ecd7e4d4cb0be97a2970b991b4a9e02aa83863b0724f8ce744f853fc5"))
-          , ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
+          , ByteString(Hex.decode("7527bb8c0749ec0984759716c16ff8a822b76e79910291599a0870c7b30b39f5"))
+          , ByteString(Hex.decode("dfdada666852c407899255feb93a7483aa91d77a9e536d2233a264c4db714474"))
         )), frameCodec, out) //ask for node
 
+        //56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421
+        //c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470
       case m: BlockBodies =>
         //println(m)
       case m: Receipts =>
