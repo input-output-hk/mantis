@@ -8,19 +8,17 @@ object DataWord {
 
   val MaxLength = 32
 
-  // TODO: Change internal representation of a DataWord to a ByteString. Code below makes 3 obsolete allocations of arrays.
-  private def apply(n: BigInt): DataWord = {
-    DataWord(ByteString((n).toByteArray))
+  def apply(value: ByteString): DataWord = {
+    require(value.length <= MaxLength, s"Input byte array  cannot be longer than $MaxLength: ${value.length}")
+    DataWord(value.foldLeft(BigInt(0)) { (n, b) => (n << 8) + (b & 0xff) })
   }
 
 }
 
-case class DataWord(value: ByteString) extends ScalaNumericConversions {
-  import DataWord._
+// TODO: Change internal representation of a DataWord to a ByteString.
+case class DataWord private (n: BigInt) extends ScalaNumericConversions {
 
-  require(value.length <= MaxLength, s"Input byte array  cannot be longer than $MaxLength: ${value.length}")
-
-  private val n: BigInt = value.foldLeft(BigInt(0)) { (n, b) => (n << 8) + (b & 0xff) }
+  lazy val  value: ByteString = ByteString(n.toByteArray)
 
   def &(that: DataWord): DataWord = {
     DataWord(this.n & that.n)
@@ -64,6 +62,6 @@ case class DataWord(value: ByteString) extends ScalaNumericConversions {
 
   def isWhole(): Boolean = true
 
-  def underlying(): AnyRef = n
+  def underlying(): AnyRef = value
 
 }
