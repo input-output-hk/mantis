@@ -1,6 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+
 import scala.math.ScalaNumericConversions
 
 
@@ -15,7 +16,7 @@ object DataWord {
     DataWord(value.foldLeft(BigInt(0)) { (n, b) => (n << 8) + (b & 0xff) })
   }
 
-  private def apply(n: BigInt): DataWord = {
+  def apply(n: BigInt): DataWord = {
     if (n < 0) {
       new DataWord(n % MaxWord + MaxWord)
     } else {
@@ -61,5 +62,12 @@ class DataWord private (private val n: BigInt) extends ScalaNumericConversions {
   def isWhole(): Boolean = true
 
   def underlying(): AnyRef = value
+
+  override def equals(o: Any): Boolean = o match {
+    case dw: DataWord => n == dw.n
+    case other => n == other
+  }
+
+  override def hashCode(): Int = n.hashCode()
 
 }
