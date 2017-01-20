@@ -6,6 +6,8 @@ import scala.math.ScalaNumericConversions
 
 object DataWord {
 
+  val MaxWord = BigInt(2).pow(256) - 1
+
   val MaxLength = 32
 
   def apply(value: ByteString): DataWord = {
@@ -18,7 +20,11 @@ object DataWord {
 // TODO: Change internal representation of a DataWord to a ByteString.
 case class DataWord private (n: BigInt) extends ScalaNumericConversions {
 
-  lazy val  value: ByteString = ByteString(n.toByteArray)
+  import DataWord._
+
+  require(n >= 0 && n <= MaxWord, s"Invalid word value: $n")
+
+  lazy val value: ByteString = ByteString(n.toByteArray)
 
   def &(that: DataWord): DataWord = {
     DataWord(this.n & that.n)
