@@ -1,9 +1,8 @@
-package io.iohk.ethereum.network.p2p
+package io.iohk.ethereum.network.rlpx
 
 import java.io.IOException
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.Secrets
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.spongycastle.crypto.StreamCipher

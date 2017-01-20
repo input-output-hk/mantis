@@ -1,14 +1,15 @@
-package io.iohk.ethereum.network.p2p
+package io.iohk.ethereum.network.rlpx
 
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.util.ByteString
+import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPEncoder
 
 import scala.util.Try
 
-class MessageCodec(frameCodec: FrameCodec) {
+class MessageCodec(frameCodec: FrameCodec, protocolVersion: Int) {
 
   val MaxFramePayloadSize: Int = Int.MaxValue // no framing
 
@@ -16,8 +17,7 @@ class MessageCodec(frameCodec: FrameCodec) {
 
   def readMessages(data: ByteString): Seq[Try[Message]] = {
     val frames = frameCodec.readFrames(data)
-    // TODO: protocolVersion?
-    frames map { frame => Try(Message.decode(frame.`type`, frame.payload.toArray, Message.PV61)) }
+    frames map { frame => Try(Message.decode(frame.`type`, frame.payload.toArray, protocolVersion)) }
   }
 
   def encodeMessage[M <: Message : RLPEncoder](message: M): ByteString = {

@@ -5,6 +5,7 @@ import java.net.URI
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.network.rlpx.{AuthResponseMessage, Secrets, AuthHandshaker}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair

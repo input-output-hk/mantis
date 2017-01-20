@@ -3,13 +3,14 @@ package io.iohk.ethereum.network
 import java.net.URI
 
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
 
 import scala.concurrent.duration._
 
 import akka.actor._
 import akka.util.ByteString
-import io.iohk.ethereum.network.RLPxConnectionHandler.MessageReceived
+import RLPxConnectionHandler.MessageReceived
 import io.iohk.ethereum.network.p2p._
 
 class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
@@ -18,7 +19,6 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
   import context.{dispatcher, system}
 
   val P2pVersion = 4
-  val EthProtocolVersion = 63.toByte
 
   val peerId = self.path.name
 
@@ -51,7 +51,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
       val hello = Hello(
         p2pVersion = P2pVersion,
         clientId = "etc-client",
-        capabilities = Seq(Capability("eth", EthProtocolVersion)),
+        capabilities = Seq(Capability("eth", Message.PV63.toByte)),
         listenPort = nodeInfo.listenAddress.getPort,
         nodeId = ByteString(nodeInfo.nodeId))
       rlpxConnection ! RLPxConnectionHandler.SendMessage(hello)
@@ -63,16 +63,20 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
   }
 
   def waitingForHello(rlpxConnection: ActorRef, timeout: Cancellable): Receive = handleTerminated orElse {
+    case MessageReceived(d: Disconnect) =>
+      log.info("Received {} from peer {}. Closing connection", d, peerId)
+      context stop self
+
     case MessageReceived(hello: Hello) =>
       log.info("Protocol handshake finished with peer {} ({})", peerId, hello)
       timeout.cancel()
 
-      if (hello.capabilities.contains(Capability("eth", EthProtocolVersion))) {
+      if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
         context become new HandshakedHandler(rlpxConnection).receive
       } else {
+        log.info("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
         rlpxConnection ! SendMessage(Disconnect(Disconnect.Reasons.IncompatibleP2pProtocolVersion))
         context.system.scheduler.scheduleOnce(5.seconds, self, PoisonPill)
-        log.info("Connected peer does not support eth {} protocol. Disconnecting.", EthProtocolVersion)
       }
   }
 

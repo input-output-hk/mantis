@@ -3,6 +3,7 @@ package io.iohk.ethereum.network
 import java.io.{InputStream, OutputStream}
 import java.net.{Socket, URI}
 
+import io.iohk.ethereum.network.rlpx._
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 
 import scala.annotation.tailrec

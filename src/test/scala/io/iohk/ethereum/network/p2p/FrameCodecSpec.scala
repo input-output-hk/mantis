@@ -3,6 +3,7 @@ package io.iohk.ethereum.network.p2p
 import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.Message.PV63
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello, Ping, Pong}
+import io.iohk.ethereum.network.rlpx.{Header, Frame, FrameCodec}
 import io.iohk.ethereum.rlp
 import org.scalatest.{FlatSpec, Matchers}
 

@@ -1,4 +1,4 @@
-package io.iohk.ethereum.network
+package io.iohk.ethereum.network.rlpx
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
