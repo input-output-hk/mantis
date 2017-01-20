@@ -26,8 +26,7 @@ object Message {
     case (_, Status.code) => rlp.decode(payload)(Status.rlpEndDec)
     case (_, Transactions.code) => rlp.decode(payload)(Transactions.rlpEndDec)
 
-    case (PV61, pv61.NewBlockHashes.code) => rlp.decode(payload)(pv61.NewBlockHashes.rlpEndDec)
-    case (PV61, pv61.BlockHashesFromNumber.code) => rlp.decode(payload)(pv61.BlockHashesFromNumber.rlpEndDec)
+    case (PV61, t) => handlePV61(t, payload)
 
     case (PV62 | PV63, pv62.NewBlockHashes.code) => rlp.decode(payload)(pv62.NewBlockHashes.rlpEndDec)
     case (PV62 | PV63, pv62.GetBlockHeaders.code) => rlp.decode(payload)(pv62.GetBlockHeaders.rlpEndDec)
@@ -35,12 +34,21 @@ object Message {
     case (PV62 | PV63, pv62.GetBlockBodies.code) => rlp.decode(payload)(pv62.GetBlockBodies.rlpEndDec)
     case (PV62 | PV63, pv62.BlockBodies.code) => rlp.decode(payload)(pv62.BlockBodies.rlpEndDec)
 
-    case (PV63, pv63.GetNodeData.code) => rlp.decode(payload)(pv63.GetNodeData.rlpEndDec)
-    case (PV63, pv63.NodeData.code) => rlp.decode(payload)(pv63.NodeData.rlpEndDec)
-    case (PV63, pv63.GetReceipts.code) => rlp.decode(payload)(pv63.GetReceipts.rlpEndDec)
-    case (PV63, pv63.Receipts.code) => rlp.decode(payload)(pv63.Receipts.rlpEndDec)
+    case (PV63, t) => handlePV63(t, payload)
 
     case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
+  }
+
+  private def handlePV61(`type`: Int, payload: Array[Byte]): Message = `type` match {
+    case pv61.NewBlockHashes.code => rlp.decode(payload)(pv61.NewBlockHashes.rlpEndDec)
+    case pv61.BlockHashesFromNumber.code => rlp.decode(payload)(pv61.BlockHashesFromNumber.rlpEndDec)
+  }
+
+  private def handlePV63(`type`: Int, payload: Array[Byte]): Message = `type` match {
+    case pv63.GetNodeData.code => rlp.decode(payload)(pv63.GetNodeData.rlpEndDec)
+    case pv63.NodeData.code => rlp.decode(payload)(pv63.NodeData.rlpEndDec)
+    case pv63.GetReceipts.code => rlp.decode(payload)(pv63.GetReceipts.rlpEndDec)
+    case pv63.Receipts.code => rlp.decode(payload)(pv63.Receipts.rlpEndDec)
   }
 }
 

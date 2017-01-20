@@ -18,6 +18,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.rlp.{encode => rlpEncode}
 import io.iohk.ethereum.rlp._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.spongycastle.util.encoders.Hex
 
 object TestSocketHandshaker {
 
@@ -91,6 +92,7 @@ object TestSocketHandshaker {
         println(m)
       case m: Disconnect =>
         println(m)
+        System.exit(0)
     }
   }
 
