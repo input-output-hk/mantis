@@ -1,6 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+
 import scala.math.ScalaNumericConversions
 
 
