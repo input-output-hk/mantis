@@ -96,6 +96,11 @@ class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
       bigIntToDataWord(1) / bigIntToDataWord(0)
     }
   }
-}
 
-// too long arr
+  test("Passing too long ByteString should throw an exception") {
+    assertThrows[IllegalArgumentException] {
+      DataWord(ByteString(Array.fill(MaxLength + 1)(1.toByte)))
+    }
+  }
+
+}
