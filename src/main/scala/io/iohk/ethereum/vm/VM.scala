@@ -2,12 +2,11 @@ package io.iohk.ethereum.vm
 
 import scala.annotation.tailrec
 
-class VM(program: Program) {
+object VM {
 
-
-  def execute(): ProgramResult = {
-    execute(ProgramState(program))
-    ProgramResult()
+  def execute(program: Program): ProgramResult = {
+    val finalState = execute(ProgramState(program))
+    ProgramResult(finalState.returnData, finalState.storage)
   }
 
   @tailrec

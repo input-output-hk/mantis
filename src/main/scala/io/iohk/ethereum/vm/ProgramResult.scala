@@ -1,5 +1,5 @@
 package io.iohk.ethereum.vm
 
-case class ProgramResult() {
+import akka.util.ByteString
 
-}
+case class ProgramResult(returnData: ByteString, storage: Storage)

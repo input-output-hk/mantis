@@ -5,8 +5,19 @@ object OpCode {
 
   val opcodes: List[OpCode] = List(
     STOP,
-    ADD
-  )
+    ADD,
+    DIV,
+    PUSH1,
+    PUSH2,
+    PUSH3,
+    PUSH4,
+    PUSH5,
+    PUSH6,
+    PUSH7,
+    PUSH8,
+    PUSH9,
+    PUSH10
+   )
 
   val byteToOpCode: Map[Byte, OpCode] =
     opcodes.map(op => op.code -> op).toMap
@@ -60,6 +71,8 @@ case object DIV extends OpCode(0x04, 2, 1) {
     }
   }
 }
+
+
 
 case object PUSH1  extends OpCode(0x60, 0, 1) with PushOp
 case object PUSH2  extends OpCode(0x61, 0, 1) with PushOp
