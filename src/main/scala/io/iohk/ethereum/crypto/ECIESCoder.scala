@@ -16,7 +16,11 @@ import org.spongycastle.crypto.{BufferedBlockCipher, InvalidCipherTextException}
 import org.spongycastle.math.ec.ECPoint
 
 object ECIESCoder {
+
   val KeySize = 128
+  val PublicKeyOverheadSize = 65
+  val MacOverheadSize = 32
+  val OverheadSize = PublicKeyOverheadSize + KeySize / 8 + MacOverheadSize
 
   @throws[IOException]
   @throws[InvalidCipherTextException]
@@ -147,11 +151,6 @@ object ECIESCoder {
       pubSrc = Left(new ECPublicKeyParameters(pub, curve)))
 
     iesEngine
-  }
-
-  def getOverhead: Int = {
-    // 256 bit EC public key, IV, 256 bit MAC
-    65 + KeySize / 8 + 32
   }
 
 }

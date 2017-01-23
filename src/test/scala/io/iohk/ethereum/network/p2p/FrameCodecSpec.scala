@@ -3,6 +3,7 @@ package io.iohk.ethereum.network.p2p
 import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.Message.PV63
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello, Ping, Pong}
+import io.iohk.ethereum.network.rlpx.{Header, Frame, FrameCodec}
 import io.iohk.ethereum.rlp
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -12,12 +13,14 @@ class FrameCodecSpec extends FlatSpec with Matchers {
     val frameCodec = new FrameCodec(secrets)
     val remoteFrameCodec = new FrameCodec(remoteSecrets)
 
-    val msg: Ping = Ping()
-    val data: ByteString = frameCodec.writeFrame(msg.code, ByteString(rlp.encode(msg)))
+    val msg = Ping()
+    val encoded = ByteString(rlp.encode(msg))
+    val frame = Frame(Header(encoded.length, 0, None, Some(encoded.length)), msg.code, encoded)
+    val data = frameCodec.writeFrames(Seq(frame))
 
-    val readFrames: Seq[Frame] = remoteFrameCodec.readFrames(data)
-    val firstFrame: Frame = readFrames.head
-    val readMessage: Message = Message.decode(firstFrame.`type`, firstFrame.payload, PV63)
+    val readFrames = remoteFrameCodec.readFrames(data)
+    val firstFrame = readFrames.head
+    val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload.toArray, PV63)
 
     readMessage shouldBe Ping()
   }
@@ -26,12 +29,14 @@ class FrameCodecSpec extends FlatSpec with Matchers {
     val frameCodec = new FrameCodec(secrets)
     val remoteFrameCodec = new FrameCodec(remoteSecrets)
 
-    val msg: Hello = Hello(1, "test-client", Seq(Capability("foo", 1)), 3000, ByteString("123456"))
-    val data: ByteString = frameCodec.writeFrame(msg.code, ByteString(rlp.encode(msg)))
+    val msg = Hello(1, "test-client", Seq(Capability("foo", 1)), 3000, ByteString("123456"))
+    val encoded = ByteString(rlp.encode(msg))
+    val frame = Frame(Header(encoded.length, 0, None, Some(encoded.length)), msg.code, encoded)
+    val data = frameCodec.writeFrames(Seq(frame))
 
-    val readFrames: Seq[Frame] = remoteFrameCodec.readFrames(data)
-    val firstFrame: Frame = readFrames.head
-    val readMessage: Message = Message.decode(firstFrame.`type`, firstFrame.payload, PV63)
+    val readFrames = remoteFrameCodec.readFrames(data)
+    val firstFrame = readFrames.head
+    val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload.toArray, PV63)
 
     readMessage shouldBe msg
   }
@@ -41,14 +46,18 @@ class FrameCodecSpec extends FlatSpec with Matchers {
     val remoteFrameCodec = new FrameCodec(remoteSecrets)
 
     val ping = Ping()
-    val pingData: ByteString = frameCodec.writeFrame(ping.code, ByteString(rlp.encode(ping)))
-    val pingReadFrames: Seq[Frame] = remoteFrameCodec.readFrames(pingData)
-    val pingReadMessage: Message = Message.decode(pingReadFrames.head.`type`, pingReadFrames.head.payload, PV63)
+    val pingEncoded = ByteString(rlp.encode(ping))
+    val pingFrame = Frame(Header(pingEncoded.length, 0, None, Some(pingEncoded.length)), ping.code, pingEncoded)
+    val pingData = frameCodec.writeFrames(Seq(pingFrame))
+    val pingReadFrames = remoteFrameCodec.readFrames(pingData)
+    val pingReadMessage = Message.decode(pingReadFrames.head.`type`, pingReadFrames.head.payload.toArray, PV63)
 
     val pong = Pong()
-    val pongData: ByteString = remoteFrameCodec.writeFrame(pong.code, ByteString(rlp.encode(pong)))
-    val pongReadFrames: Seq[Frame] = frameCodec.readFrames(pongData)
-    val pongReadMessage: Message = Message.decode(pongReadFrames.head.`type`, pongReadFrames.head.payload, PV63)
+    val pongEncoded = ByteString(rlp.encode(pong))
+    val pongFrame = Frame(Header(pongEncoded.length, 0, None, Some(pongEncoded.length)), pong.code, pongEncoded)
+    val pongData = remoteFrameCodec.writeFrames(Seq(pongFrame))
+    val pongReadFrames = frameCodec.readFrames(pongData)
+    val pongReadMessage = Message.decode(pongReadFrames.head.`type`, pongReadFrames.head.payload.toArray, PV63)
 
     pingReadMessage shouldBe ping
     pongReadMessage shouldBe pong
