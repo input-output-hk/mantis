@@ -5,6 +5,7 @@ import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.network.rlpx.{AuthInitiateMessage, AuthHandshaker}
 import io.iohk.ethereum.utils.ByteUtils
 import org.scalatest.{Matchers, FlatSpec}
 import org.spongycastle.crypto.generators.ECKeyPairGenerator
