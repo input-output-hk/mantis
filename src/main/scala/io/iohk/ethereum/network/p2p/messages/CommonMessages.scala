@@ -116,11 +116,11 @@ object CommonMessages {
     )
 
     val FirstByteOfAddress = 12
-    val LastByteOfAddress = 32
+    val LastByteOfAddress = 12 + AddressLength
 
     lazy val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
 
-    private def byteLength(b: BigInt): Int = (b.bitLength / 8.0).ceil.toInt
+    private def byteLength(b: BigInt): Int = b.toByteArray.length
 
     lazy val isValid: Boolean =
       byteLength(nonce) <= HashLength &&
@@ -130,7 +130,7 @@ object CommonMessages {
         byteLength(value) <= HashLength &&
         signatureRandom.length <= HashLength &&
         signature.length <= HashLength &&
-        recoveredAddress.isDefined && recoveredAddress.get.length == AddressLength //TODO: Should we remove this check?
+        recoveredAddress.isDefined && recoveredAddress.get.length == AddressLength
 
     override def toString: String = {
       s"""Transaction {
