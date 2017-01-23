@@ -48,38 +48,40 @@ class TransactionSpec extends FlatSpec with Matchers {
     validTransaction.isValid shouldBe true
   }
 
+  private val longByteArray = (0 to 32).map(_ => 1.toByte).toArray //Of length 33
+
   it should "report as invalid a tx with long nonce" in {
-    val invalidNonce = (0 to 32).map(i => 1.toByte).toArray
+    val invalidNonce = longByteArray
     validTransaction.copy(nonce = BigInt(invalidNonce)).isValid shouldBe false
   }
 
   it should "report as invalid a tx with long receiving address" in {
-    val invalidAddress = (0 to 32).map(i => 1.toByte).toArray
+    val invalidAddress = longByteArray
     validTransaction.copy(receivingAddress = ByteString(invalidAddress)).isValid shouldBe false
   }
 
   it should "report as invalid a tx with long gas limit" in {
-    val invalidGasLimit = (0 to 32).map(i => 1.toByte).toArray
+    val invalidGasLimit = longByteArray
     validTransaction.copy(gasLimit = BigInt(invalidGasLimit)).isValid shouldBe false
   }
 
   it should "report as invalid a tx with long gas price" in {
-    val invalidGasPrice = (0 to 32).map(i => 1.toByte).toArray
+    val invalidGasPrice = longByteArray
     validTransaction.copy(gasPrice = BigInt(invalidGasPrice)).isValid shouldBe false
   }
 
   it should "report as invalid a tx with long value" in {
-    val invalidValue = (0 to 32).map(i => 1.toByte).toArray
+    val invalidValue = longByteArray
     validTransaction.copy(value = BigInt(invalidValue)).isValid shouldBe false
   }
 
   it should "report as invalid a tx with long signature" in {
-    val invalidSignature = (0 to 32).map(i => 1.toByte).toArray
+    val invalidSignature = longByteArray
     validTransaction.copy(signature = ByteString(invalidSignature)).isValid shouldBe false
   }
 
   it should "report as invalid a tx with long signature random" in {
-    val invalidSignatureRandom = (0 to 32).map(i => 1.toByte).toArray
+    val invalidSignatureRandom = longByteArray
     validTransaction.copy(signatureRandom = ByteString(invalidSignatureRandom)).isValid shouldBe false
   }
 }
