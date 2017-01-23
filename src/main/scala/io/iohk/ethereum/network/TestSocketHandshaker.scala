@@ -84,11 +84,14 @@ object TestSocketHandshaker {
         sendMessage(GetBlockBodies(m.headers.map(h => h.hash)), frameCodec, out) //ask for block bodies for headers
         sendMessage(GetReceipts(m.headers.map(h => h.hash)), frameCodec, out) //ask for recipts
         sendMessage(GetNodeData(Seq(
-          ByteString(Hex.decode("d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544"))
-          , ByteString(Hex.decode("90dcaf88c40c7bbc95a912cbdde67c175767b31173df9ee4b0d733bfdd511c43"))
-          , ByteString(Hex.decode("e45a9e85cab1b6eb18b30df2c6acc448bbac6a30d81646823b31223e16e5063e"))
-          , ByteString(Hex.decode("7527bb8c0749ec0984759716c16ff8a822b76e79910291599a0870c7b30b39f5"))
-          , ByteString(Hex.decode("dfdada666852c407899255feb93a7483aa91d77a9e536d2233a264c4db714474"))
+          ByteString(Hex.decode("f663ab60bcb54c370a395ed536170ad56bb47a43a98a35714492da1d91a7586a"))
+          , ByteString(Hex.decode("a80395922d90e246a65fd437cddef786a6dd6a0f37cc8f8a4a7cdc01305b4913"))
+          , ByteString(Hex.decode("559b4a1c93496e4d88529953043cd43a4ba68679eeee44c16bcb5ab3799b9596"))
+          , ByteString(Hex.decode("b78aa4fcbc4cdf0b591cce9645015b70188e7872ce7ff51df85f13fa131ecae1"))
+          , ByteString(Hex.decode("25dc4fb29b5fb8e200a8e7f5fafc8935d24ff2c95dbd295c816cae270e3275ea"))
+          , ByteString(Hex.decode("3b73af51043d31c63c3d01a97ab1e3e75167886dbf0d69c54d9429e4f2fc99b4"))
+          , ByteString(Hex.decode("49b27a71dabf6df0f381cd32cf6851f71391e849f6bd9d20eaea0259c4a69f18"))
+
         )), frameCodec, out) //ask for node
 
         //56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421

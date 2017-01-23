@@ -85,9 +85,9 @@ object PV63 {
         case rlpList: RLPList if rlpList.items.length == 17 =>
           MptBranch(rlpList.items.take(16).map(byteStringEncDec.decode), byteStringEncDec.decode(rlpList.items(16)))
         case RLPList(hpEncoded, value) =>
-          hpDecode(hpEncoded) match {
-            case (decoded, true) => MptLeaf(ByteString(nibblesToBytes(decoded)), byteStringEncDec.decode(value))
-            case (decoded, false) => MptExtension(ByteString(nibblesToBytes(decoded)), byteStringEncDec.decode(value))
+          hpDecode(hpEncoded:Array[Byte]) match {
+            case (decoded, true) => MptLeaf(ByteString(decoded), byteStringEncDec.decode(value))
+            case (decoded, false) => MptExtension(ByteString(decoded), byteStringEncDec.decode(value))
           }
         case _ =>
           println(rlp)
@@ -111,19 +111,25 @@ object PV63 {
   case class MptExtension(hexPrefix: ByteString, child: ByteString) extends MptNode { //todo do they exists in messages?
     override def toString: String = {
       s"""MptExtension{
-         |hexPrefix: ${Hex.toHexString(hexPrefix.toArray[Byte])}
+         |key nimbles: $hexPrefix
+         |key nimbles length: ${hexPrefix.length}
+         |key bytes: ${Hex.toHexString(nibblesToBytes(hexPrefix.toArray[Byte]))}
+         |key byte length: ${nibblesToBytes(hexPrefix.toArray[Byte]).length}
          |child: ${Hex.toHexString(child.toArray[Byte])}
          |}
        """.stripMargin
     }
   }
 
-  case class MptLeaf(hpEncoded: ByteString, value: ByteString) extends MptNode {
+  case class MptLeaf(hexPrefix: ByteString, value: ByteString) extends MptNode {
     override def toString: String = {
       val account = Account.rlpEndDec.decode(rawDecode(value.toArray[Byte]))
 
       s"""MptLeaf{
-         |hexPrefix: ${Hex.toHexString(hpEncoded.toArray[Byte])}
+         |key nimbles: $hexPrefix
+         |key nimbles length: ${hexPrefix.length}
+         |key bytes: ${Hex.toHexString(nibblesToBytes(hexPrefix.toArray[Byte]))}
+         |key byte length: ${nibblesToBytes(hexPrefix.toArray[Byte]).length}
          |value: ${Hex.toHexString(value.toArray[Byte])}
          |rlpDecoded: $account
          |}
