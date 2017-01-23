@@ -15,3 +15,11 @@ case class InvalidProgramPosition(pc: Int) extends ProgramError {
 case class DivisionByZero(pc: Int) extends ProgramError {
   val msg: String = s"Division by zero at position: $pc"
 }
+
+case class StackOverflow(pc: Int) extends ProgramError {
+  val msg: String = s"Stack overflow at position: $pc"
+}
+
+case class StackUnderflow(pc: Int) extends ProgramError {
+  val msg: String = s"Stack underflow at position: $pc"
+}

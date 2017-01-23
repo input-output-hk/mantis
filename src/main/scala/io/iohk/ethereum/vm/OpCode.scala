@@ -66,7 +66,7 @@ case object ADD extends OpCode(0x01, 2, 1) {
   def execute(state: ProgramState): ProgramState = {
     val (Seq(a, b), updatedStack) = state.stack.pop(2)
     val res = a + b
-    state.copy(stack = updatedStack.push(res), pc = state.pc + 1)
+    state.copy(stack = updatedStack.push(res)).verify.step()
   }
 }
 
@@ -76,9 +76,9 @@ case object DIV extends OpCode(0x04, 2, 1) {
 
     if (b != 0) {
       val res = a / b
-      state.copy(stack = updatedStack.push(res), pc = state.pc + 1)
+      state.copy(stack = updatedStack.push(res)).verify.step()
     } else {
-      state.copy(halt = true, error = Some(DivisionByZero(state.pc)))
+      state.copy(halt = true, error = Some(DivisionByZero(state.pc))).verify
     }
   }
 }
@@ -89,7 +89,7 @@ case object CALLDATALOAD extends OpCode(0x34, 1, 1) {
     //TODO: handle invalid offset
     val data = DataWord(state.program.getCallData(offset.intValue))
     val stack2 = stack1.push(data)
-    state.copy(stack = stack2, pc = state.pc + 1)
+    state.copy(stack = stack2).verify.step()
   }
 }
 
@@ -99,7 +99,7 @@ case object MSTORE extends OpCode(0x52, 2, 0) {
     //TODO: handle invalid address
     val updatedMem = state.memory.save(addr.intValue, value)
 
-    state.copy(stack = updateStack, memory = updatedMem, pc = state.pc + 1)
+    state.copy(stack = updateStack, memory = updatedMem).verify.step()
   }
 }
 
@@ -110,7 +110,7 @@ case object SSTORE extends OpCode(0x55, 2, 0) {
     //TODO: handle invalid address
     val updatedStorage = state.storage.save(addr.intValue, value)
 
-    state.copy(stack = updateStack, storage = updatedStorage, pc = state.pc + 1)
+    state.copy(stack = updateStack, storage = updatedStorage).verify.step()
   }
 }
 
@@ -119,7 +119,7 @@ case object JUMPI extends OpCode(0x57, 2, 0) {
     val (Seq(pos, cond), updatedStack) = state.stack.pop(2)
     val nextPos = if (cond != 0) pos.intValue else state.pc + 1
 
-    state.copy(stack = updatedStack, pc = nextPos)
+    state.copy(stack = updatedStack).verify.goto(nextPos)
   }
 }
 

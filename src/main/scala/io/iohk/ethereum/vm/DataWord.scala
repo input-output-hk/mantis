@@ -17,8 +17,13 @@ object DataWord {
     DataWord(value.foldLeft(BigInt(0)){(n, b) => (n << 8) + (b & 0xff)})
   }
 
-  private def apply(n: BigInt): DataWord = {
+  def apply(n: BigInt): DataWord = {
     new DataWord(fixBigInt(n))
+  }
+
+  def apply[N: Integral](n: N): DataWord = {
+    val num = implicitly[Integral[N]]
+    apply(BigInt(num.toLong(n)))
   }
 
   def fixBigInt(n: BigInt): BigInt = {
