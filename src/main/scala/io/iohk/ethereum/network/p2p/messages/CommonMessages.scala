@@ -64,6 +64,9 @@ object CommonMessages {
 
   object Transaction {
     val HashLength = 32
+    val NonceLength = 32
+    val GasLength = 32
+    val ValueLength = 32
     val AddressLength = 20
 
     implicit val rlpEndDec = new RLPEncoder[Transaction] with RLPDecoder[Transaction] {
@@ -120,16 +123,16 @@ object CommonMessages {
 
     lazy val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
 
-    lazy val isValid: Boolean = {
+    lazy val syntacticValidity: Boolean = {
       def byteLength(b: BigInt): Int = b.toByteArray.length
 
-      byteLength(nonce) <= HashLength &&
+      byteLength(nonce) <= NonceLength &&
         (receivingAddress.isEmpty || receivingAddress.length == AddressLength) &&
-        byteLength(gasLimit) <= HashLength &&
-        byteLength(gasPrice) <= HashLength &&
-        byteLength(value) <= HashLength &&
-        signatureRandom.length <= HashLength &&
-        signature.length <= HashLength &&
+        byteLength(gasLimit) <= GasLength &&
+        byteLength(gasPrice) <= GasLength &&
+        byteLength(value) <= ValueLength &&
+        signatureRandom.length <= ECDSASignature.RLength &&
+        signature.length <= ECDSASignature.SLength &&
         recoveredAddress.isDefined && recoveredAddress.get.length == AddressLength
     }
 

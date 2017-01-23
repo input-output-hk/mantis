@@ -78,7 +78,7 @@ object TestSocketHandshaker {
           sendMessage(GetBlockBodies(m.headers.map(h => ByteString(h.hash))), frameCodec, out) //ask for block bodies for headers
         case m: BlockBodies =>
           m.bodies.foreach(body => body.transactionList.foreach{ tx =>
-            assert(tx.isValid)
+            assert(tx.syntacticValidity)
           })
       }
     }

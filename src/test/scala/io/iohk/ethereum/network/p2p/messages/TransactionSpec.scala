@@ -45,43 +45,43 @@ class TransactionSpec extends FlatSpec with Matchers {
   }
 
   it should "report as valid the validTransaction" in {
-    validTransaction.isValid shouldBe true
+    validTransaction.syntacticValidity shouldBe true
   }
 
   private val longByteArray = (0 to 32).map(_ => 1.toByte).toArray //Of length 33
 
   it should "report as invalid a tx with long nonce" in {
     val invalidNonce = longByteArray
-    validTransaction.copy(nonce = BigInt(invalidNonce)).isValid shouldBe false
+    validTransaction.copy(nonce = BigInt(invalidNonce)).syntacticValidity shouldBe false
   }
 
   it should "report as invalid a tx with long receiving address" in {
     val invalidAddress = longByteArray
-    validTransaction.copy(receivingAddress = ByteString(invalidAddress)).isValid shouldBe false
+    validTransaction.copy(receivingAddress = ByteString(invalidAddress)).syntacticValidity shouldBe false
   }
 
   it should "report as invalid a tx with long gas limit" in {
     val invalidGasLimit = longByteArray
-    validTransaction.copy(gasLimit = BigInt(invalidGasLimit)).isValid shouldBe false
+    validTransaction.copy(gasLimit = BigInt(invalidGasLimit)).syntacticValidity shouldBe false
   }
 
   it should "report as invalid a tx with long gas price" in {
     val invalidGasPrice = longByteArray
-    validTransaction.copy(gasPrice = BigInt(invalidGasPrice)).isValid shouldBe false
+    validTransaction.copy(gasPrice = BigInt(invalidGasPrice)).syntacticValidity shouldBe false
   }
 
   it should "report as invalid a tx with long value" in {
     val invalidValue = longByteArray
-    validTransaction.copy(value = BigInt(invalidValue)).isValid shouldBe false
+    validTransaction.copy(value = BigInt(invalidValue)).syntacticValidity shouldBe false
   }
 
   it should "report as invalid a tx with long signature" in {
     val invalidSignature = longByteArray
-    validTransaction.copy(signature = ByteString(invalidSignature)).isValid shouldBe false
+    validTransaction.copy(signature = ByteString(invalidSignature)).syntacticValidity shouldBe false
   }
 
   it should "report as invalid a tx with long signature random" in {
     val invalidSignatureRandom = longByteArray
-    validTransaction.copy(signatureRandom = ByteString(invalidSignatureRandom)).isValid shouldBe false
+    validTransaction.copy(signatureRandom = ByteString(invalidSignatureRandom)).syntacticValidity shouldBe false
   }
 }
