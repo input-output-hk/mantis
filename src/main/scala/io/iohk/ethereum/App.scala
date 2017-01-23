@@ -5,14 +5,18 @@ import java.net.{InetSocketAddress, URI}
 import akka.actor.ActorSystem
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.{NodeInfo, ServerActor, PeerManagerActor}
+import com.typesafe.config.ConfigFactory
+import scala.collection.JavaConversions._
 
 object App {
 
   val nodeKey = generateKeyPair()
 
   def main(args: Array[String]): Unit = {
-    val listenHostname = "127.0.0.1"
-    val listenPort = 9076
+    val config = ConfigFactory.load()
+
+    val listenHostname = config.getConfig("serverAddress").getString("IP")
+    val listenPort = config.getConfig("serverAddress").getInt("Port")
     val listenAddress = new InetSocketAddress(listenHostname, listenPort)
     val nodeInfo = NodeInfo(nodeKey, listenAddress)
 
@@ -23,9 +27,11 @@ object App {
 
     server ! ServerActor.StartServer(listenAddress)
 
-    if (args.length > 0) {
-      val peerUri = new URI(args(0))
-      peerManager ! PeerManagerActor.ConnectToPeer(peerUri)
+    val bootstrapNodes: List[URI] = config.getConfig("discovery").getStringList("bootstrapNodes").toList.map{ item =>
+      new URI(item)
+    }
+    bootstrapNodes.foreach{node =>
+      peerManager ! PeerManagerActor.ConnectToPeer(node)
     }
   }
 }
