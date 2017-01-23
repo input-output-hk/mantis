@@ -3,7 +3,6 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, nibblesToBytes}
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
@@ -52,7 +51,7 @@ object PV63 {
             Try {
               val v = rawDecode(e: Array[Byte])
               Left(Node.rlpEndDec.decode(v))
-            }.getOrElse(Right(ByteString(e:Array[Byte])))
+            }.getOrElse(Right(ByteString(e:Array[Byte]))) //todo add check instead of Try
           })
         case _ => throw new RuntimeException("Cannot decode NodeData")
       }
@@ -86,11 +85,10 @@ object PV63 {
           MptBranch(rlpList.items.take(16).map(byteStringEncDec.decode), byteStringEncDec.decode(rlpList.items(16)))
         case RLPList(hpEncoded, value) =>
           hpDecode(hpEncoded:Array[Byte]) match {
-            case (decoded, true) => MptLeaf(ByteString(decoded), byteStringEncDec.decode(value))
+            case (decoded, true) => MptLeaf(ByteString(decoded), Account.rlpEndDec.decode(rawDecode(value)))
             case (decoded, false) => MptExtension(ByteString(decoded), byteStringEncDec.decode(value))
           }
         case _ =>
-          println(rlp)
           throw new RuntimeException("Cannot decode NodeData")
       }
     }
@@ -108,30 +106,23 @@ object PV63 {
     }
   }
 
-  case class MptExtension(hexPrefix: ByteString, child: ByteString) extends MptNode { //todo do they exists in messages?
+  case class MptExtension(keyNibbles: ByteString, childHash: ByteString) extends MptNode { //todo do they exists in messages?
     override def toString: String = {
       s"""MptExtension{
-         |key nimbles: $hexPrefix
-         |key nimbles length: ${hexPrefix.length}
-         |key bytes: ${Hex.toHexString(nibblesToBytes(hexPrefix.toArray[Byte]))}
-         |key byte length: ${nibblesToBytes(hexPrefix.toArray[Byte]).length}
-         |child: ${Hex.toHexString(child.toArray[Byte])}
+         |key nibbles: $keyNibbles
+         |key nibbles length: ${keyNibbles.length}
+         |childHash: ${Hex.toHexString(childHash.toArray[Byte])}
          |}
        """.stripMargin
     }
   }
 
-  case class MptLeaf(hexPrefix: ByteString, value: ByteString) extends MptNode {
+  case class MptLeaf(keyNibbles: ByteString, value: Account) extends MptNode {
     override def toString: String = {
-      val account = Account.rlpEndDec.decode(rawDecode(value.toArray[Byte]))
-
       s"""MptLeaf{
-         |key nimbles: $hexPrefix
-         |key nimbles length: ${hexPrefix.length}
-         |key bytes: ${Hex.toHexString(nibblesToBytes(hexPrefix.toArray[Byte]))}
-         |key byte length: ${nibblesToBytes(hexPrefix.toArray[Byte]).length}
-         |value: ${Hex.toHexString(value.toArray[Byte])}
-         |rlpDecoded: $account
+         |key nibbles: $keyNibbles
+         |key nibbles length: ${keyNibbles.length}
+         |value: $value
          |}
        """.stripMargin
     }
