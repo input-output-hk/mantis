@@ -120,9 +120,9 @@ object CommonMessages {
 
     lazy val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
 
-    private def byteLength(b: BigInt): Int = b.toByteArray.length
+    lazy val isValid: Boolean = {
+      def byteLength(b: BigInt): Int = b.toByteArray.length
 
-    lazy val isValid: Boolean =
       byteLength(nonce) <= HashLength &&
         (receivingAddress.isEmpty || receivingAddress.length == AddressLength) &&
         byteLength(gasLimit) <= HashLength &&
@@ -131,6 +131,7 @@ object CommonMessages {
         signatureRandom.length <= HashLength &&
         signature.length <= HashLength &&
         recoveredAddress.isDefined && recoveredAddress.get.length == AddressLength
+    }
 
     override def toString: String = {
       s"""Transaction {
