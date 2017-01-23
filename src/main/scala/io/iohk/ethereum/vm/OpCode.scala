@@ -7,6 +7,11 @@ object OpCode {
     STOP,
     ADD,
     DIV,
+    CALLDATALOAD,
+    MSTORE,
+    SSTORE,
+    JUMPI,
+    JUMPDEST,
     PUSH1,
     PUSH2,
     PUSH3,
@@ -16,7 +21,13 @@ object OpCode {
     PUSH7,
     PUSH8,
     PUSH9,
-    PUSH10
+    PUSH10,
+    //...
+    PUSH28,
+    PUSH29,
+    PUSH30,
+    PUSH31,
+    PUSH32
    )
 
   val byteToOpCode: Map[Byte, OpCode] =
@@ -129,4 +140,9 @@ case object PUSH7  extends OpCode(0x66, 0, 1) with PushOp
 case object PUSH8  extends OpCode(0x67, 0, 1) with PushOp
 case object PUSH9  extends OpCode(0x68, 0, 1) with PushOp
 case object PUSH10 extends OpCode(0x69, 0, 1) with PushOp
+case object PUSH28 extends OpCode(0x7b, 0, 1) with PushOp
+case object PUSH29 extends OpCode(0x7c, 0, 1) with PushOp
+case object PUSH30 extends OpCode(0x7d, 0, 1) with PushOp
+case object PUSH31 extends OpCode(0x7e, 0, 1) with PushOp
+case object PUSH32 extends OpCode(0x7f, 0, 1) with PushOp
 

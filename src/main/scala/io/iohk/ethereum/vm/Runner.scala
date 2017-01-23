@@ -8,10 +8,13 @@ object Runner {
     val code = loadCode(hexString)
     println(printCode(code))
 
-    val result = VM.execute(new Program(code))
-    println("Program return:\n" + result.returnData)
-    println("Program storage:\n" + result.storage)
+//    val result = VM.execute(new Program(code, ByteString.empty))
+//    println("Program return:\n" + result.returnData)
+//    println("Program storage:\n" + result.storage)
   }
+
+  def show(hexString: String): String =
+    printCode(loadCode(hexString))
 
   private def loadCode(hexString: String): ByteString =
     ByteString(hexString.grouped(2).map(Integer.parseInt(_, 16).toByte).toArray)
