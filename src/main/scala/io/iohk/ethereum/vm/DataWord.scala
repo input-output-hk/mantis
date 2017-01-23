@@ -12,6 +12,8 @@ object DataWord {
 
   val MaxWord: BigInt = BigInt(2).pow(MaxLength * 8) - 1
 
+  val Zeros: ByteString = ByteString(Array.fill[Byte](32)(0))
+
   def apply(value: ByteString): DataWord = {
     require(value.length <= MaxLength, s"Input byte array cannot be longer than $MaxLength: ${value.length}")
     DataWord(value.foldLeft(BigInt(0)){(n, b) => (n << 8) + (b & 0xff)})
@@ -44,7 +46,18 @@ class DataWord private (private val n: BigInt) extends ScalaNumericConversions {
   import DataWord._
 
   // TODO: Consider changing internal representation of a DataWord to a ByteString.
-  val value: ByteString = ByteString(n.toByteArray.dropWhile(_ == 0))
+  /** Converts internal representation of a ByteString back to ByteString.
+   *  Output ByteString is padded with 0's from the left side up to MaxLength bytes of length
+   */
+  val value: ByteString = {
+    val bs: ByteString = ByteString(n.toByteArray)
+    val padLength: Int = MaxLength - bs.length
+    if (padLength > 0) {
+      Zeros.take(padLength) ++ bs
+    } else {
+      bs
+    }
+  }
 
   require(n >= 0 && n <= MaxWord, s"Invalid word value: $n")
 
