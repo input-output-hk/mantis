@@ -3,10 +3,6 @@ package io.iohk.ethereum.network
 import java.io.{InputStream, OutputStream}
 import java.net.{Socket, URI}
 
-import io.iohk.ethereum.network.rlpx._
-import org.slf4j.LoggerFactory
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
@@ -16,13 +12,14 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockBodies, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.Message.PV63
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello}
+import io.iohk.ethereum.network.rlpx._
 import io.iohk.ethereum.rlp.{encode => rlpEncode}
 import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.utils.Logger
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.spongycastle.crypto.params.ECPublicKeyParameters
 
-object TestSocketHandshaker {
-
-  val log = LoggerFactory.getLogger(this.getClass)
+object TestSocketHandshaker extends Logger {
 
   val nodeKey: AsymmetricCipherKeyPair = generateKeyPair()
   val nodeId: Array[Byte] = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId

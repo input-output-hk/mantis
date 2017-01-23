@@ -7,20 +7,19 @@ import java.security.MessageDigest
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.sha3
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
+import io.iohk.ethereum.utils.Logger
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-import org.slf4j.LoggerFactory
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.Random
 
 class MerklePatriciaTreeIntegrationSuite extends FunSuite
   with PropertyChecks
-  with ObjectGenerators {
-
-  val log = LoggerFactory.getLogger(this.getClass)
+  with ObjectGenerators
+  with Logger {
 
   val hashFn = (input: Array[Byte]) => sha3(input)
 

@@ -1,10 +1,10 @@
 package io.iohk.ethereum.rlp
 
 import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.utils.Logger
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import org.slf4j.LoggerFactory
 
 import scala.language.implicitConversions
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -17,9 +17,8 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 class RLPSpeedSuite extends FunSuite
   with PropertyChecks
   with GeneratorDrivenPropertyChecks
-  with ObjectGenerators {
-
-  val log = LoggerFactory.getLogger(this.getClass)
+  with ObjectGenerators
+  with Logger {
 
   val rounds = 10000
 

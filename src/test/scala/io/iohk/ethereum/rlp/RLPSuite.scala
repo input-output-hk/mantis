@@ -1,22 +1,20 @@
 package io.iohk.ethereum.rlp
 
 import akka.util.ByteString
+import io.iohk.ethereum.utils.Logger
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
-import org.slf4j.LoggerFactory
 import org.spongycastle.util.encoders.Hex
 import scala.language.implicitConversions
 import RLPImplicits._
-
 
 import scala.util.Try
 
 class RLPSuite extends FunSuite
   with PropertyChecks
-  with GeneratorDrivenPropertyChecks {
-
-  val log = LoggerFactory.getLogger(this.getClass)
+  with GeneratorDrivenPropertyChecks
+  with Logger {
 
   test("nextElementIndex of empty data"){
     val maybeIndex = Try{nextElementIndex(Array.emptyByteArray, 0)}
