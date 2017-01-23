@@ -4,6 +4,7 @@ import java.io.{InputStream, OutputStream}
 import java.net.{Socket, URI}
 
 import io.iohk.ethereum.network.rlpx._
+import org.slf4j.LoggerFactory
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 
 import scala.annotation.tailrec
@@ -20,6 +21,8 @@ import io.iohk.ethereum.rlp._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 object TestSocketHandshaker {
+
+  val log = LoggerFactory.getLogger(this.getClass)
 
   val nodeKey: AsymmetricCipherKeyPair = generateKeyPair()
   val nodeId: Array[Byte] = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
@@ -61,7 +64,7 @@ object TestSocketHandshaker {
 
     while (true) {
       val msgs = readAtLeastOneMessage(frameCodec, inp)
-      msgs.foreach { m => println("\n Received message: " + m) }
+      msgs.foreach { m => log.info("\n Received message: " + m) }
 
       msgs.collect {
         case m: Status =>
@@ -79,7 +82,7 @@ object TestSocketHandshaker {
     val encoded = rlpEncode(message)
     val frame = Frame(Header(encoded.length, 0, None, None), message.code, ByteString(encoded))
     val output = frameCodec.writeFrames(Seq(frame))
-    println(s"\n Sending message: $message")
+    log.info(s"\n Sending message: $message")
     out.write(output.toArray)
   }
 
@@ -94,7 +97,7 @@ object TestSocketHandshaker {
 
       decodedFrames
         .collect { case Failure(ex) => ex }
-        .foreach { ex => println(s"Unable to decode frame: $ex") }
+        .foreach { ex => log.info(s"Unable to decode frame: $ex") }
 
       if (messages.nonEmpty) messages
       else readAtLeastOneMessage(frameCodec, inp)

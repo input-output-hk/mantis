@@ -4,15 +4,14 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 
-import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.sha3
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
-import io.iohk.ethereum.rlp.{decode => decodeRLP, encode => encodeRLP}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
+import org.slf4j.LoggerFactory
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.Random
@@ -20,6 +19,9 @@ import scala.util.Random
 class MerklePatriciaTreeIntegrationSuite extends FunSuite
   with PropertyChecks
   with ObjectGenerators {
+
+  val log = LoggerFactory.getLogger(this.getClass)
+
   val hashFn = (input: Array[Byte]) => sha3(input)
 
   val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](EphemDataSource(), hashFn)
@@ -179,7 +181,6 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   /* Performance test */
   test("Performance test (From: https://github.com/ethereum/wiki/wiki/Benchmarks)"){
-    val debug = false
     val Rounds = 1000
     val Symmetric = true
 
@@ -198,10 +199,10 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
       }
     }
     val rootHash = Hex.toHexString(trieResult.getRootHash)
-    if(debug){
-      println("Time taken(ms): " + (System.currentTimeMillis - start))
-      println("Root hash obtained: " + rootHash)
-    }
+
+    log.debug("Time taken(ms): " + (System.currentTimeMillis - start))
+    log.debug("Root hash obtained: " + rootHash)
+
     if(Symmetric) assert(rootHash.take(4) == "36f6" && rootHash.drop(rootHash.length-4) == "93a3")
     else assert(rootHash.take(4) == "da8a" && rootHash.drop(rootHash.length-4) == "0ca4")
   }

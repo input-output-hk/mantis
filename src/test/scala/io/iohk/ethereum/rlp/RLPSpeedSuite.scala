@@ -4,6 +4,7 @@ import io.iohk.ethereum.ObjectGenerators
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import org.slf4j.LoggerFactory
 
 import scala.language.implicitConversions
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -18,6 +19,8 @@ class RLPSpeedSuite extends FunSuite
   with GeneratorDrivenPropertyChecks
   with ObjectGenerators {
 
+  val log = LoggerFactory.getLogger(this.getClass)
+
   val rounds = 10000
 
   test("Main") {
@@ -25,23 +28,23 @@ class RLPSpeedSuite extends FunSuite
     val block = blockGen.sample.get
     val serializedBlock = doTestSerialize[Block](block, rounds)(Block.encDec)
     val elapsedBlockSerialization = (System.currentTimeMillis() - startBlockSerialization) / 1000f
-    System.out.println(s"Block serializations / sec: (${rounds.toFloat / elapsedBlockSerialization})")
+    log.info(s"Block serializations / sec: (${rounds.toFloat / elapsedBlockSerialization})")
 
     val blockDeserializationStart: Long = System.currentTimeMillis
     val deserializedBlock: Block = doTestDeserialize(serializedBlock, rounds)(Block.encDec)
     val elapsedBlockDeserialization = (System.currentTimeMillis() - blockDeserializationStart) / 1000f
-    System.out.println(s"Block deserializations / sec: (${rounds.toFloat / elapsedBlockDeserialization})")
+    log.info(s"Block deserializations / sec: (${rounds.toFloat / elapsedBlockDeserialization})")
 
     val serializationTxStart: Long = System.currentTimeMillis
     val tx = txGen.sample.get
     val serializedTx = doTestSerialize(tx, rounds)(Transaction.encDec)
     val elapsedTxSerialization = (System.currentTimeMillis() - serializationTxStart) / 1000f
-    System.out.println(s"TX serializations / sec: (${rounds.toFloat / elapsedTxSerialization})")
+    log.info(s"TX serializations / sec: (${rounds.toFloat / elapsedTxSerialization})")
 
     val txDeserializationStart: Long = System.currentTimeMillis
     val deserializedTx: Transaction = doTestDeserialize(serializedTx, rounds)(Transaction.encDec)
     val elapsedTxDeserialization = (System.currentTimeMillis() - txDeserializationStart) / 1000f
-    System.out.println(s"TX deserializations / sec: (${rounds.toFloat / elapsedTxDeserialization})")
+    log.info(s"TX deserializations / sec: (${rounds.toFloat / elapsedTxDeserialization})")
   }
 
   def doTestSerialize[T](toSerialize: T, rounds: Int)(implicit enc: RLPEncoder[T]): Array[Byte] = {
