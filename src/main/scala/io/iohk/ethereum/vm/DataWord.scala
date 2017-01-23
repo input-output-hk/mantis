@@ -7,12 +7,11 @@ import scala.math.ScalaNumericConversions
 
 object DataWord {
 
-  // TODO: Should be configurable
   val MaxLength = 32
 
   val MaxWord: BigInt = BigInt(2).pow(MaxLength * 8) - 1
 
-  val Zeros: ByteString = ByteString(Array.fill[Byte](32)(0))
+  val Zeros: ByteString = ByteString(Array.fill[Byte](MaxLength)(0))
 
   def apply(value: ByteString): DataWord = {
     require(value.length <= MaxLength, s"Input byte array cannot be longer than $MaxLength: ${value.length}")

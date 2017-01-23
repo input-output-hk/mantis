@@ -1,9 +1,13 @@
 package io.iohk.ethereum.vm
 
 sealed trait ProgramError
-
 case class  InvalidOpCode(code: Byte) extends ProgramError
 case object InvalidProgramPosition extends ProgramError
 case object DivisionByZero extends ProgramError
-case object StackOverflow extends ProgramError
-case object StackUnderflow extends ProgramError
+
+sealed trait StackError extends ProgramError
+case object StackOverflow extends StackError
+case object StackUnderflow extends StackError
+
+sealed trait MemoryError extends ProgramError
+case object InvalidAddress extends MemoryError
