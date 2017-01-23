@@ -5,7 +5,6 @@ import java.net.InetSocketAddress
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.io.Tcp.{Bind, Bound, CommandFailed, Connected}
 import akka.io.{IO, Tcp}
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
 

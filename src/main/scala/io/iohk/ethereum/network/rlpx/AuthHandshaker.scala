@@ -35,6 +35,9 @@ object AuthHandshaker {
   val NonceSize = 32
   val MacSize = 256
   val SecretSize = 32
+  val MinPadding = 100
+  val MaxPadding = 300
+  val Version = 4
 
   def apply(nodeKey: AsymmetricCipherKeyPair): AuthHandshaker = {
     val nonce = secureRandomBytes(NonceSize)
@@ -51,10 +54,6 @@ case class AuthHandshaker(
     responsePacketOpt: Option[ByteString] = None) {
 
   import AuthHandshaker._
-
-  private val MinPadding = 100
-  private val MaxPadding = 300
-  private val Version = 4
 
   def initiate(uri: URI): (ByteString, AuthHandshaker) = {
     val remotePubKey = publicKeyFromNodeId(uri.getUserInfo)

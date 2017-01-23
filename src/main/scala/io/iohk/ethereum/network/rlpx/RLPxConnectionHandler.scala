@@ -17,6 +17,13 @@ import scala.util.{Failure, Success, Try}
 /**
   * This actors takes care of initiating a secure connection (auth handshake) between peers.
   * Once such connection is established it allows to send/receive frames (messages) over it.
+  *
+  * The actor can be in one of four states:
+  * 1. when created it waits for initial command (either handle incoming connection or connect usin g uri)
+  * 2. when new connection is requested the actor waits for the result (waitingForConnectionResult)
+  * 3. once underlying connection is established it either waits for handshake init message or for response message
+  *    (depending on who initiated the connection)
+  * 4. once handshake is done (and secure connection established) actor can send/receive messages (`handshaked` state)
   */
 class RLPxConnectionHandler(nodeInfo: NodeInfo)
   extends Actor with ActorLogging {
@@ -53,7 +60,7 @@ class RLPxConnectionHandler(nodeInfo: NodeInfo)
       context become new ConnectedHandler(connection).waitingForAuthHandshakeResponse(handshaker, timeout)
 
     case CommandFailed(_: Connect) =>
-      log.warning("Connection failed to {}", uri)
+      log.warning("Connection to {} failed", uri)
       context stop self
   }
 
@@ -99,10 +106,16 @@ class RLPxConnectionHandler(nodeInfo: NodeInfo)
           }
       }
 
+    def handleTimeout: Receive = {
+      case AuthHandshakeTimeout =>
+        log.info("Auth handshake timeout")
+        context stop self
+    }
+
     def processHandshakeResult(result: AuthHandshakeResult, remainingData: ByteString): Unit =
       result match {
         case AuthHandshakeSuccess(secrets) =>
-          log.warning("Auth handshake with peer {} succeeded", peerId)
+          log.warning("Auth handshake succeeded")
           context.parent ! ConnectionEstablished
           val messageCodec = new MessageCodec(new FrameCodec(secrets), ProtocolVersion)
           val messagesSoFar = messageCodec.readMessages(remainingData)
@@ -110,34 +123,17 @@ class RLPxConnectionHandler(nodeInfo: NodeInfo)
           context become handshaked(messageCodec)
 
         case AuthHandshakeError =>
+          log.warning("Auth handshake failed")
           context.parent ! ConnectionFailed
-          log.warning("Auth handshake with peer {} failed", peerId)
           context stop self
       }
 
-    def processMessage(messageTry: Try[Message]): Unit = {
-      messageTry match {
-        case Success(message) => context.parent ! MessageReceived(message)
-        case Failure(ex) => log.error(ex, "Cannot decode message from peer {}", peerId)
-      }
-    }
+    def processMessage(messageTry: Try[Message]): Unit = messageTry match {
+      case Success(message) =>
+        context.parent ! MessageReceived(message)
 
-    def handleTimeout: Receive = {
-      case AuthHandshakeTimeout =>
-        log.info("Timeout during auth handshake with peer {}", peerId)
-        context stop self
-    }
-
-    def handleWriteFailed: Receive = {
-      case CommandFailed(_: Write) =>
-        log.warning("Write failed to peer {}", peerId)
-        context stop self
-    }
-
-    def handleConnectionClosed: Receive = {
-      case _: ConnectionClosed =>
-        log.info("Peer {} connection closed", peerId)
-        context stop self
+      case Failure(ex) =>
+        log.error(ex, "Cannot decode message")
     }
 
     def handshaked(messageCodec: MessageCodec): Receive =
@@ -150,6 +146,18 @@ class RLPxConnectionHandler(nodeInfo: NodeInfo)
           val messages = messageCodec.readMessages(data)
           messages foreach processMessage
       }
+
+    def handleWriteFailed: Receive = {
+      case CommandFailed(_: Write) =>
+        log.warning("Write failed")
+        context stop self
+    }
+
+    def handleConnectionClosed: Receive = {
+      case _: ConnectionClosed =>
+        log.info("Connection closed")
+        context stop self
+    }
   }
 }
 

@@ -33,8 +33,7 @@ object WireProtocol {
       }
 
       override def decode(rlp: RLPEncodeable): Hello = rlp match {
-        // TODO: this list can contain more elements and it should be ignored
-        case RLPList(p2pVersion, clientId, (capabilities: RLPList), listenPort, nodeId) =>
+        case RLPList(p2pVersion, clientId, (capabilities: RLPList), listenPort, nodeId, _*) =>
           Hello(p2pVersion, clientId, capabilities.items.map(Capability.rlpEncDec.decode),
             listenPort, ByteString(nodeId: Array[Byte]))
         case _ => throw new RuntimeException("Cannot decode Hello")

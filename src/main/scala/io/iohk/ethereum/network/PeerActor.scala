@@ -1,10 +1,13 @@
 package io.iohk.ethereum.network
 
+import java.math.BigInteger
 import java.net.URI
 
+import io.iohk.ethereum.network.p2p.messages.CommonMessages
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
+import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
 
@@ -13,6 +16,12 @@ import akka.util.ByteString
 import RLPxConnectionHandler.MessageReceived
 import io.iohk.ethereum.network.p2p._
 
+/**
+  * Peer actor is responsible for initiating and handling high-level connection with peer.
+  * It creates child RLPxConnectionActor for handling underlying RLPx communication.
+  * Once RLPx connection is established it proceeds with protocol handshake (i.e `Hello` exchange).
+  * Once that's done it can send/receive messages with peer (HandshakedHandler.receive).
+  */
 class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
   import PeerActor._
@@ -42,12 +51,9 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     rlpxConnection
   }
 
-  def handleTerminated: Receive = {
-    case _: Terminated => context stop self
-  }
-
   def waitingForConnectionResult(rlpxConnection: ActorRef): Receive = handleTerminated orElse {
     case RLPxConnectionHandler.ConnectionEstablished =>
+      log.info("RLPx connection established, sending Hello")
       val hello = Hello(
         p2pVersion = P2pVersion,
         clientId = "etc-client",
@@ -59,31 +65,47 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
       context become waitingForHello(rlpxConnection, timeout)
 
     case RLPxConnectionHandler.ConnectionFailed =>
+      log.info("Cannot establish RLPx connection")
       context stop self
   }
 
   def waitingForHello(rlpxConnection: ActorRef, timeout: Cancellable): Receive = handleTerminated orElse {
     case MessageReceived(d: Disconnect) =>
-      log.info("Received {} from peer {}. Closing connection", d, peerId)
+      log.info("Received {}. Closing connection", d)
       context stop self
 
     case MessageReceived(hello: Hello) =>
-      log.info("Protocol handshake finished with peer {} ({})", peerId, hello)
+      log.info("Received {}. Protocol handshake finished", hello)
       timeout.cancel()
 
       if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
+
+        rlpxConnection ! RLPxConnectionHandler.SendMessage(
+          CommonMessages.Status(
+            protocolVersion = Message.PV63,
+            networkId = 1,
+            totalDifficulty = new BigInteger("17179869184"),
+            bestHash = ByteString(Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3")),
+            genesisHash = ByteString(Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"))))
+
         context become new HandshakedHandler(rlpxConnection).receive
       } else {
-        log.info("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
+        log.info("Peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
         rlpxConnection ! SendMessage(Disconnect(Disconnect.Reasons.IncompatibleP2pProtocolVersion))
         context.system.scheduler.scheduleOnce(5.seconds, self, PoisonPill)
       }
   }
 
+  def handleTerminated: Receive = {
+    case _: Terminated =>
+      log.info("RLPx connection actor terminated")
+      context stop self
+  }
+
   class HandshakedHandler(rlpxConnection: ActorRef) {
 
     def receive: Receive = handleTerminated orElse {
-      case RLPxConnectionHandler.MessageReceived(message) => handleMessage(message)
+      case RLPxConnectionHandler.MessageReceived(message) => processMessage(message)
       case s: SendMessage[_] => sendMessage(s.message)(s.enc)
     }
 
@@ -91,20 +113,19 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
       rlpxConnection ! RLPxConnectionHandler.SendMessage(message)
     }
 
-    def handleMessage(message: Message): Unit = message match {
+    def processMessage(message: Message): Unit = message match {
       case Ping() =>
         sendMessage(Pong())
 
       case d: Disconnect =>
-        log.info("Received {} from peer {}. Closing connection", d, peerId)
+        log.info("Received {}. Closing connection", d)
         context stop self
 
       case msg =>
-        log.info("Received message {} from {}", msg, peerId)
+        log.info("Received message: {}", msg)
     }
 
   }
-
 }
 
 object PeerActor {

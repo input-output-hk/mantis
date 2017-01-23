@@ -28,5 +28,4 @@ object App {
       peerManager ! PeerManagerActor.ConnectToPeer(peerUri)
     }
   }
-
 }

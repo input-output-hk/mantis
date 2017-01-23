@@ -15,8 +15,7 @@ object AuthInitiateMessageV4 {
     }
 
     override def decode(rlp: RLPEncodeable): AuthInitiateMessageV4 = rlp match {
-      // TODO: this list can contain more elements and it should be ignored
-      case RLPList(signatureBytes, publicKeyBytes, nonce, version) =>
+      case RLPList(signatureBytes, publicKeyBytes, nonce, version, _*) =>
         val signature = ECDSASignature.decode(signatureBytes)
         val publicKey = curve.getCurve.decodePoint(Array[Byte](0x04) ++ (publicKeyBytes: Array[Byte]))
         AuthInitiateMessageV4(signature, publicKey, ByteString(nonce: Array[Byte]), version)

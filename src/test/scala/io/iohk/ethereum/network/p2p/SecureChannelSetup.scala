@@ -5,7 +5,7 @@ import java.net.URI
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network._
-import io.iohk.ethereum.network.rlpx.{Secrets, AuthHandshaker}
+import io.iohk.ethereum.network.rlpx.{AuthHandshakeSuccess, Secrets, AuthHandshaker}
 import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
@@ -27,8 +27,8 @@ trait SecureChannelSetup {
   val remoteHandshaker = AuthHandshaker(remoteNodeKey, remoteNonce, remoteEphemeralKey)
 
   val (initPacket, handshakerInitiated) = handshaker.initiate(remoteUri)
-  val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets)) = remoteHandshaker.handleInitialMessage(initPacket)
-  val AuthHandshakeSuccess(secrets: Secrets) = handshakerInitiated.handleResponseMessage(responsePacket)
+  val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets)) = remoteHandshaker.handleInitialMessageV4(initPacket)
+  val AuthHandshakeSuccess(secrets: Secrets) = handshakerInitiated.handleResponseMessageV4(responsePacket)
 
   def randomNonce(): ByteString = ByteString(ByteUtils.secureRandomBytes(AuthHandshaker.NonceSize))
 

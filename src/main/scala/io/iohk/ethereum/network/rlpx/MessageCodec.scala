@@ -28,7 +28,9 @@ class MessageCodec(frameCodec: FrameCodec, protocolVersion: Int) {
     val frames = (0 until numFrames) map { frameNo =>
       val payload = encoded.drop(frameNo * MaxFramePayloadSize).take(MaxFramePayloadSize)
       val totalPacketSize = if (frameNo == 0) Some(encoded.length) else None
-      val header = Header(payload.length, 0, Some(contextId), totalPacketSize)
+      val header =
+        if (numFrames > 1) Header(payload.length, 0, Some(contextId), totalPacketSize)
+        else Header(payload.length, 0, None, None)
       Frame(header, message.code, ByteString(payload))
     }
 

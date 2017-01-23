@@ -5,7 +5,6 @@ import java.util.UUID
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
@@ -38,7 +37,4 @@ object PeerManagerActor {
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
   case class ConnectToPeer(uri: URI)
-
-  case object GetPeers
-  case class Peer(id: String, ref: ActorRef, address: InetSocketAddress)
 }
