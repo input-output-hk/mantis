@@ -10,14 +10,17 @@ import org.spongycastle.math.ec.{ECAlgorithms, ECPoint, ECCurve}
 import org.spongycastle.util.BigIntegers._
 
 object ECDSASignature {
-  val RAndSLength = 32
+
+  val SLength = 32
+  val RLength = 32
+  val EncodedLength = RLength + SLength + 1
 
   def decode(input: Array[Byte]): ECDSASignature = {
     val SIndex = 32
     val VIndex = 64
 
-    val r = input.take(RAndSLength)
-    val s = input.slice(SIndex, SIndex + RAndSLength)
+    val r = input.take(RLength)
+    val s = input.slice(SIndex, SIndex + SLength)
     val v = input(VIndex) + 27
     ECDSASignature(new BigInteger(1, r), new BigInteger(1, s), v.toByte)
   }
@@ -74,10 +77,10 @@ object ECDSASignature {
 case class ECDSASignature(r: BigInteger, s: BigInteger, v: Byte) {
 
   lazy val encoded: ByteString = {
-    import ECDSASignature.RAndSLength
+    import ECDSASignature.{RLength, SLength}
     ByteString(
-      asUnsignedByteArray(r).reverse.padTo(RAndSLength, 0.toByte).reverse ++
-      asUnsignedByteArray(s).reverse.padTo(RAndSLength, 0.toByte).reverse ++
+      asUnsignedByteArray(r).reverse.padTo(RLength, 0.toByte).reverse ++
+      asUnsignedByteArray(s).reverse.padTo(SLength, 0.toByte).reverse ++
       Array(ECDSASignature.recIdFromSignatureV(v)))
   }
 
