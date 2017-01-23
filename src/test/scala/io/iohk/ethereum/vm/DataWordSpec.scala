@@ -22,6 +22,10 @@ class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
 
   val specialCases = Table(("n1", "n2"), pairs: _*)
 
+  /** For each operation (op) tests check a following property:
+      For two BigInts (n1, n2):
+      DataWord(n1) op DataWord(n2) == DataWord(n1 op n2)
+   */
   test("&") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       assert((bigIntToDataWord(n1) & bigIntToDataWord(n2)) == bigIntToDataWord(fixBigInt(n1) & fixBigInt(n2)))
