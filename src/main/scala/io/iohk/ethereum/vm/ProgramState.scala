@@ -6,7 +6,7 @@ case class ProgramState(
   program: Program,
   stack: Stack = Stack(),
   memory: Memory = Memory(),
-  storage: Storage = new Storage,
+  storage: Storage = Storage(),
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
   halt: Boolean = false,

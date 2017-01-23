@@ -12,7 +12,7 @@ case class Stack(underlying: Vector[DataWord] = Vector()) {
   def pop(n: Int): (Seq[DataWord], Stack) = {
     //TODO: empty stack handling
     val (updated, popped) = underlying.splitAt(underlying.length - n)
-    (popped, Stack(updated))
+    (popped.reverse, Stack(updated))
   }
 
   def push(word: DataWord): Stack =

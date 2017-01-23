@@ -53,7 +53,7 @@ case object STOP extends OpCode(0, 0, 0) {
 
 case object ADD extends OpCode(0x01, 2, 1) {
   def execute(state: ProgramState): ProgramState = {
-    val (Seq(b, a), updatedStack) = state.stack.pop(2)
+    val (Seq(a, b), updatedStack) = state.stack.pop(2)
     val res = a + b
     state.copy(stack = updatedStack.push(res), pc = state.pc + 1)
   }
@@ -61,7 +61,7 @@ case object ADD extends OpCode(0x01, 2, 1) {
 
 case object DIV extends OpCode(0x04, 2, 1) {
   def execute(state: ProgramState): ProgramState = {
-    val (Seq(b, a), updatedStack) = state.stack.pop(2)
+    val (Seq(a, b), updatedStack) = state.stack.pop(2)
 
     if (b != 0) {
       val res = a / b
@@ -72,7 +72,52 @@ case object DIV extends OpCode(0x04, 2, 1) {
   }
 }
 
+case object CALLDATALOAD extends OpCode(0x34, 1, 1) {
+  def execute(state: ProgramState): ProgramState = {
+    val (offset, stack1) = state.stack.pop
+    //TODO: handle invalid offset
+    val data = DataWord(state.program.getCallData(offset.intValue))
+    val stack2 = stack1.push(data)
+    state.copy(stack = stack2, pc = state.pc + 1)
+  }
+}
 
+case object MSTORE extends OpCode(0x52, 2, 0) {
+  def execute(state: ProgramState): ProgramState = {
+    val (Seq(addr, value), updateStack) = state.stack.pop(2)
+    //TODO: handle invalid address
+    val updatedMem = state.memory.save(addr.intValue, value)
+
+    state.copy(stack = updateStack, memory = updatedMem, pc = state.pc + 1)
+  }
+}
+
+
+case object SSTORE extends OpCode(0x55, 2, 0) {
+  def execute(state: ProgramState): ProgramState = {
+    val (Seq(addr, value), updateStack) = state.stack.pop(2)
+    //TODO: handle invalid address
+    val updatedStorage = state.storage.save(addr.intValue, value)
+
+    state.copy(stack = updateStack, storage = updatedStorage, pc = state.pc + 1)
+  }
+}
+
+case object JUMPI extends OpCode(0x57, 2, 0) {
+  def execute(state: ProgramState): ProgramState = {
+    val (Seq(pos, cond), updatedStack) = state.stack.pop(2)
+    val nextPos = if (cond != 0) pos.intValue else state.pc + 1
+
+    state.copy(stack = updatedStack, pc = nextPos)
+  }
+}
+
+case object JUMPDEST extends OpCode(0x5b, 0, 0) {
+  def execute(state: ProgramState): ProgramState = {
+    //TODO: what is it for, really?
+    state.copy(pc = state.pc + 1)
+  }
+}
 
 case object PUSH1  extends OpCode(0x60, 0, 1) with PushOp
 case object PUSH2  extends OpCode(0x61, 0, 1) with PushOp
