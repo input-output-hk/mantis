@@ -2,6 +2,8 @@ package io.iohk.ethereum
 
 import akka.util.ByteString
 import java.math.BigInteger
+
+import io.iohk.ethereum.vm.DataWord
 import org.scalacheck.{Arbitrary, Gen}
 
 trait ObjectGenerators {
@@ -18,6 +20,8 @@ trait ObjectGenerators {
   //     ByteString(byteArray)
   //   }
   // }
+
+  def dataWordGen: Gen[DataWord] = bigIntGen.map(DataWord(_))
 
   def byteArrayOfNItemsGen(n: Int): Gen[Array[Byte]] = Gen.listOfN(n, Arbitrary.arbitrary[Byte]).map(_.toArray)
 
