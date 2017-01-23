@@ -39,16 +39,15 @@ object DataWord {
 
 }
 
-/** Stores byte arrays of at most MaxLength size and adds a few convenience methods
-    Internally, a ByteString is converted to a BigInt which implements all required
-    methods. **/
+/** Stores 256 bit words and adds a few convenience methods on them.
+ *  Internally a word is stored as a BigInt. */
 class DataWord private (private val n: BigInt) extends ScalaNumericConversions {
 
   import DataWord._
 
   // TODO: Consider changing internal representation of a DataWord to a ByteString.
-  /** Converts a BigInt back to a ByteString.
-   *  Output ByteString is padded with 0's from the left side up to MaxLength bytes of length
+  /** Converts a BigInt to a ByteString.
+   *  Output ByteString is padded with 0's from the left side up to MaxLength bytes.
    */
   lazy val value: ByteString = {
     val bs: ByteString = ByteString(n.toByteArray)
