@@ -32,4 +32,9 @@ object ByteUtils {
     arr
   }
 
+  def bigEndianToShort(bs: Array[Byte]): Short = {
+    val n = bs(0) << 8
+    (n | bs(1) & 0xFF).toShort
+  }
+
 }
