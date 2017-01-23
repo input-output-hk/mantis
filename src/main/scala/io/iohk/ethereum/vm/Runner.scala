@@ -8,7 +8,7 @@ object Runner {
     val code = loadCode(hexString)
     println(printCode(code))
 
-    val result = VM.execute(new Program(code))
+    val result = VM.execute(new Program(code, ???))
     println("Program return:\n" + result.returnData)
     println("Program storage:\n" + result.storage)
   }
