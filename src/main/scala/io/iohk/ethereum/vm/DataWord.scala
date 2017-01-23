@@ -17,7 +17,7 @@ object DataWord {
     DataWord(value.foldLeft(BigInt(0)){(n, b) => (n << 8) + (b & 0xff)})
   }
 
-  private def apply(n: BigInt): DataWord = {
+  def apply(n: BigInt): DataWord = {
     new DataWord(fixBigInt(n))
   }
 
