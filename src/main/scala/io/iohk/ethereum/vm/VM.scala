@@ -28,7 +28,7 @@ object VM {
     state.program.getByte(state.pc).right.flatMap { byte =>
       OpCode.byteToOpCode.get(byte) match {
         case Some(opcode) => Right(opcode)
-        case None => Left(InvalidOpCode(byte, state.pc))
+        case None => Left(InvalidOpCode(byte))
       }
     }
 }

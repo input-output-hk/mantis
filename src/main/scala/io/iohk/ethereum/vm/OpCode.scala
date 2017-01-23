@@ -1,5 +1,7 @@
 package io.iohk.ethereum.vm
 
+import cats.syntax.either._
+
 // scalastyle:off magic.number
 object OpCode {
 
@@ -7,6 +9,11 @@ object OpCode {
     STOP,
     ADD,
     DIV,
+    CALLDATALOAD,
+    MSTORE,
+    SSTORE,
+    JUMPI,
+    JUMPDEST,
     PUSH1,
     PUSH2,
     PUSH3,
@@ -16,7 +23,13 @@ object OpCode {
     PUSH7,
     PUSH8,
     PUSH9,
-    PUSH10
+    PUSH10,
+    //...
+    PUSH28,
+    PUSH29,
+    PUSH30,
+    PUSH31,
+    PUSH32
    )
 
   val byteToOpCode: Map[Byte, OpCode] =
@@ -40,8 +53,12 @@ sealed trait PushOp {
     val n = code - PUSH1.code + 1
     val bytes = state.program.getBytes(state.pc + 1, n)
     val word = DataWord(bytes)
-    val stack = state.stack.push(word)
-    state.copy(stack = stack, pc = state.pc + n + 1)
+
+    val updatedState = for {
+      stack <- state.stack.push(word)
+    } yield state.withStack(stack).step(n + 1)
+
+    updatedState.valueOr(state.withError)
   }
 }
 
@@ -53,69 +70,87 @@ case object STOP extends OpCode(0, 0, 0) {
 
 case object ADD extends OpCode(0x01, 2, 1) {
   def execute(state: ProgramState): ProgramState = {
-    val (Seq(a, b), updatedStack) = state.stack.pop(2)
-    val res = a + b
-    state.copy(stack = updatedStack.push(res), pc = state.pc + 1)
+    val updatedState = for {
+      popped <- state.stack.pop(2)
+      (Seq(a, b), stack1) = popped
+      res = a + b
+      stack2 <- stack1.push(res)
+    } yield state.withStack(stack2).step()
+
+    updatedState.valueOr(state.withError)
   }
 }
 
 case object DIV extends OpCode(0x04, 2, 1) {
   def execute(state: ProgramState): ProgramState = {
-    val (Seq(a, b), updatedStack) = state.stack.pop(2)
+    val updatedState = for {
+      popped <- state.stack.pop(2)
+      (Seq(a, b), stack1) = popped
+      res <- if (b != 0) (a / b).asRight else DivisionByZero.asLeft
+      stack2 <- stack1.push(res)
+    } yield state.withStack(stack2).step()
 
-    if (b != 0) {
-      val res = a / b
-      state.copy(stack = updatedStack.push(res), pc = state.pc + 1)
-    } else {
-      state.copy(halt = true, error = Some(DivisionByZero(state.pc)))
-    }
+    updatedState.valueOr(state.withError)
   }
 }
 
 case object CALLDATALOAD extends OpCode(0x34, 1, 1) {
   def execute(state: ProgramState): ProgramState = {
-    val (offset, stack1) = state.stack.pop
-    //TODO: handle invalid offset
-    val data = DataWord(state.program.getCallData(offset.intValue))
-    val stack2 = stack1.push(data)
-    state.copy(stack = stack2, pc = state.pc + 1)
+    val updatedState = for {
+      popped <- state.stack.pop
+      (offset, stack1) = popped
+      //TODO: handle invalid offset
+      data = DataWord(state.program.getCallData(offset.intValue))
+      stack2 <- stack1.push(data)
+    } yield state.withStack(stack2).step()
+
+    updatedState.valueOr(state.withError)
   }
 }
 
 case object MSTORE extends OpCode(0x52, 2, 0) {
   def execute(state: ProgramState): ProgramState = {
-    val (Seq(addr, value), updateStack) = state.stack.pop(2)
-    //TODO: handle invalid address
-    val updatedMem = state.memory.save(addr.intValue, value)
+    val updatedState = for {
+      popped <- state.stack.pop(2)
+      (Seq(addr, value), stack1) = popped
+      //TODO: handle invalid address
+      updatedMem = state.memory.save(addr.intValue, value)
+    } yield state.withStack(stack1).withMemory(updatedMem).step()
 
-    state.copy(stack = updateStack, memory = updatedMem, pc = state.pc + 1)
+    updatedState.valueOr(state.withError)
   }
 }
 
 
 case object SSTORE extends OpCode(0x55, 2, 0) {
   def execute(state: ProgramState): ProgramState = {
-    val (Seq(addr, value), updateStack) = state.stack.pop(2)
-    //TODO: handle invalid address
-    val updatedStorage = state.storage.save(addr.intValue, value)
+    val updatedState = for {
+      popped <- state.stack.pop(2)
+      (Seq(addr, value), stack1) = popped
+      //TODO: handle invalid address
+      updatedStorage = state.storage.save(addr.intValue, value)
+    } yield state.withStack(stack1).withStorage(updatedStorage).step()
 
-    state.copy(stack = updateStack, storage = updatedStorage, pc = state.pc + 1)
+    updatedState.valueOr(state.withError)
   }
 }
 
 case object JUMPI extends OpCode(0x57, 2, 0) {
   def execute(state: ProgramState): ProgramState = {
-    val (Seq(pos, cond), updatedStack) = state.stack.pop(2)
-    val nextPos = if (cond != 0) pos.intValue else state.pc + 1
+    val updatedState = for {
+      popped <- state.stack.pop(2)
+      (Seq(pos, cond), stack1) = popped
+      nextPos = if (cond != 0) pos.intValue else state.pc + 1
+    } yield state.withStack(stack1).step()
 
-    state.copy(stack = updatedStack, pc = nextPos)
+    updatedState.valueOr(state.withError)
   }
 }
 
 case object JUMPDEST extends OpCode(0x5b, 0, 0) {
   def execute(state: ProgramState): ProgramState = {
     //TODO: what is it for, really?
-    state.copy(pc = state.pc + 1)
+    state.step()
   }
 }
 
@@ -129,4 +164,9 @@ case object PUSH7  extends OpCode(0x66, 0, 1) with PushOp
 case object PUSH8  extends OpCode(0x67, 0, 1) with PushOp
 case object PUSH9  extends OpCode(0x68, 0, 1) with PushOp
 case object PUSH10 extends OpCode(0x69, 0, 1) with PushOp
+case object PUSH28 extends OpCode(0x7b, 0, 1) with PushOp
+case object PUSH29 extends OpCode(0x7c, 0, 1) with PushOp
+case object PUSH30 extends OpCode(0x7d, 0, 1) with PushOp
+case object PUSH31 extends OpCode(0x7e, 0, 1) with PushOp
+case object PUSH32 extends OpCode(0x7f, 0, 1) with PushOp
 
