@@ -2,39 +2,40 @@ package io.iohk.ethereum.vm
 
 object Stack {
   val MaxSize = 1024
-
-  val Empty: Stack = new Stack(Vector())
-
-  def populated(elems: DataWord*): Stack =
-    new Stack(elems.toVector, overflown = elems.size > MaxSize)
 }
 
-class Stack private(underlying: Vector[DataWord], val underflown: Boolean = false, val overflown: Boolean = false) {
+case class Stack(underlying: Vector[DataWord] = Vector()) {
 
-  def pop: (DataWord, Stack) = underlying.lastOption match {
+  def pop: Either[ProgramError, (DataWord, Stack)] = underlying.lastOption match {
     case Some(word) =>
       val updated = underlying.dropRight(1)
-      (word, new Stack(updated))
+      Right(word, new Stack(updated))
 
     case None =>
-      (DataWord(0), new Stack(underlying, underflown = true))
+      Left(StackUnderflow)
   }
 
-  def pop(n: Int): (Seq[DataWord], Stack) = {
+  def pop(n: Int): Either[ProgramError, (Seq[DataWord], Stack)] = {
     val (updated, popped) = underlying.splitAt(underlying.length - n)
     if (popped.length >= n)
-      (popped.reverse, new Stack(updated))
+      Right(popped.reverse, new Stack(updated))
     else
-      (popped.reverse.padTo(n, DataWord(0)), new Stack(updated, underflown = true))
+      Left(StackUnderflow)
   }
 
-  def push(word: DataWord): Stack = {
+  def push(word: DataWord): Either[ProgramError, Stack] = {
     val updated = underlying :+ word
-    new Stack(updated, overflown = updated.length > Stack.MaxSize)
+    if (updated.length > Stack.MaxSize)
+      Right(Stack(updated))
+    else
+      Left(StackOverflow)
   }
 
-  def push(words: Seq[DataWord]): Stack = {
+  def push(words: Seq[DataWord]): Either[ProgramError, Stack]  = {
     val updated = underlying ++ words
-    new Stack(updated, overflown = updated.length > Stack.MaxSize)
+    if (updated.length > Stack.MaxSize)
+      Right(Stack(updated))
+    else
+      Left(StackOverflow)
   }
 }

@@ -4,7 +4,7 @@ import akka.util.ByteString
 
 case class ProgramState(
   program: Program,
-  stack: Stack = Stack.Empty,
+  stack: Stack = Stack(),
   memory: Memory = Memory(),
   storage: Storage = Storage(),
   pc: Int = 0,
@@ -13,19 +13,22 @@ case class ProgramState(
   error: Option[ProgramError] = None
 ) {
 
-  def verify: ProgramState = {
-    if (stack.underflown)
-      copy(error = Some(StackUnderflow(pc)), halt = true)
-    else if (stack.overflown)
-      copy(error = Some(StackOverflow(pc)), halt = true)
-    else
-      this
-  }
-
   def step(i: Int = 1): ProgramState =
     copy(pc = pc + i)
 
   def goto(i: Int): ProgramState =
     copy(pc = i)
+
+  def withStack(stack: Stack): ProgramState =
+    copy(stack = stack)
+
+  def withMemory(memory: Memory): ProgramState =
+    copy(memory = memory)
+
+  def withStorage(storage: Storage): ProgramState =
+    copy(storage = storage)
+
+  def withError(error: ProgramError): ProgramState =
+    copy(error = Some(error), halt = true)
 }
 
