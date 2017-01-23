@@ -21,6 +21,11 @@ object DataWord {
     new DataWord(fixBigInt(n))
   }
 
+  def apply[N: Integral](n: N): DataWord = {
+    val num = implicitly[Integral[N]]
+    apply(BigInt(num.toLong(n)))
+  }
+
   def fixBigInt(n: BigInt): BigInt = {
     if (n == -MaxWord) {
       0

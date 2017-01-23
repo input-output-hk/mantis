@@ -2,13 +2,15 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 
+import cats.syntax.either._
+
 
 class Program(code: ByteString, callData: ByteString) {
 
   def getByte(pc: Int): Either[ProgramError, Byte] =
     code.lift(pc) match {
-      case Some(byte) => Right(byte)
-      case None => Left(InvalidProgramPosition(pc))
+      case Some(byte) => byte.asRight
+      case None => InvalidProgramPosition.asLeft
     }
 
   def getBytes(pc: Int, n: Int): ByteString = {
