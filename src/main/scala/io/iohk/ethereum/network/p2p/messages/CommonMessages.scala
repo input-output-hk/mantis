@@ -63,7 +63,6 @@ object CommonMessages {
   }
 
   object Transaction {
-    val HashLength = 32
     val NonceLength = 32
     val GasLength = 32
     val ValueLength = 32

@@ -2,6 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{Transaction, TransactionData}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.math.ec.ECPoint
@@ -48,40 +49,38 @@ class TransactionSpec extends FlatSpec with Matchers {
     validTransaction.syntacticValidity shouldBe true
   }
 
-  private val longByteArray = (0 to 32).map(_ => 1.toByte).toArray //Of length 33
-
   it should "report as invalid a tx with long nonce" in {
-    val invalidNonce = longByteArray
+    val invalidNonce = (0 until Transaction.NonceLength + 1).map(_ => 1.toByte).toArray
     validTransaction.copy(nonce = BigInt(invalidNonce)).syntacticValidity shouldBe false
   }
 
   it should "report as invalid a tx with long receiving address" in {
-    val invalidAddress = longByteArray
+    val invalidAddress = (0 until Transaction.AddressLength + 1).map(_ => 1.toByte).toArray
     validTransaction.copy(receivingAddress = ByteString(invalidAddress)).syntacticValidity shouldBe false
   }
 
   it should "report as invalid a tx with long gas limit" in {
-    val invalidGasLimit = longByteArray
+    val invalidGasLimit = (0 until Transaction.GasLength + 1).map(_ => 1.toByte).toArray
     validTransaction.copy(gasLimit = BigInt(invalidGasLimit)).syntacticValidity shouldBe false
   }
 
   it should "report as invalid a tx with long gas price" in {
-    val invalidGasPrice = longByteArray
+    val invalidGasPrice = (0 until Transaction.GasLength + 1).map(_ => 1.toByte).toArray
     validTransaction.copy(gasPrice = BigInt(invalidGasPrice)).syntacticValidity shouldBe false
   }
 
   it should "report as invalid a tx with long value" in {
-    val invalidValue = longByteArray
+    val invalidValue = (0 until Transaction.ValueLength + 1).map(_ => 1.toByte).toArray
     validTransaction.copy(value = BigInt(invalidValue)).syntacticValidity shouldBe false
   }
 
   it should "report as invalid a tx with long signature" in {
-    val invalidSignature = longByteArray
+    val invalidSignature = (0 until ECDSASignature.SLength + 1).map(_ => 1.toByte).toArray
     validTransaction.copy(signature = ByteString(invalidSignature)).syntacticValidity shouldBe false
   }
 
   it should "report as invalid a tx with long signature random" in {
-    val invalidSignatureRandom = longByteArray
+    val invalidSignatureRandom = (0 until ECDSASignature.RLength + 1).map(_ => 1.toByte).toArray
     validTransaction.copy(signatureRandom = ByteString(invalidSignatureRandom)).syntacticValidity shouldBe false
   }
 }
