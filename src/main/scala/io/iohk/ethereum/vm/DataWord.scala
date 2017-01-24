@@ -89,14 +89,14 @@ class DataWord private (private val n: BigInt) extends ScalaNumericConversions {
 
   def underlying(): AnyRef = value
 
-  override def hashCode(): Int = n.hashCode()
-
-  override def equals(that: Any): Boolean =
+  override def equals(that: Any): Boolean = {
     that match {
-      case that: DataWord =>
-        that.isInstanceOf[DataWord] && this.hashCode == that.hashCode
+      case that: DataWord => this.n.equals(that.n)
       case _ => false
     }
+  }
+
+  override def hashCode(): Int = n.hashCode()
 
   override def toString(): String = {
     s"[$value, BigInt($n)]"
