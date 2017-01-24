@@ -432,10 +432,10 @@ sealed trait LogOp {
 }
 
 case object LOG0 extends OpCode(0xa0) with LogOp
-case object LOG1 extends OpCode(0xa0) with LogOp
-case object LOG2 extends OpCode(0xa0) with LogOp
-case object LOG3 extends OpCode(0xa0) with LogOp
-case object LOG4 extends OpCode(0xa0) with LogOp
+case object LOG1 extends OpCode(0xa1) with LogOp
+case object LOG2 extends OpCode(0xa2) with LogOp
+case object LOG3 extends OpCode(0xa3) with LogOp
+case object LOG4 extends OpCode(0xa4) with LogOp
 
 
 case object RETURN extends OpCode(0xf3) {
