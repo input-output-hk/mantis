@@ -12,6 +12,7 @@ object OpCode {
     MUL,
     SUB,
     DIV,
+    LT,
     EQ,
     ISZERO,
     AND,
@@ -23,6 +24,7 @@ object OpCode {
     POP,
     MLOAD,
     MSTORE,
+    SLOAD,
     SSTORE,
     JUMP,
     JUMPI,
@@ -91,6 +93,11 @@ object OpCode {
     SWAP14,
     SWAP15,
     SWAP16,
+    LOG0,
+    LOG1,
+    LOG2,
+    LOG3,
+    LOG4,
     RETURN
   )
 
@@ -157,9 +164,11 @@ case object DIV extends OpCode(0x04) {
   }
 }
 
-case object EQ extends BinaryOp(0x14, (a, b) => DataWord(if (a == b) 1 else 0))
+case object LT extends BinaryOp(0x10, (a, b) => DataWord(a < b))
 
-case object ISZERO extends UnaryOp(0x15, a => DataWord(if (a == 0) 1 else 0))
+case object EQ extends BinaryOp(0x14, (a, b) => DataWord(a == b))
+
+case object ISZERO extends UnaryOp(0x15, a => DataWord(a == 0))
 
 case object AND extends BinaryOp(0x16, _ & _)
 
@@ -237,6 +246,20 @@ case object MSTORE extends OpCode(0x52) {
       //TODO: handle invalid address
       updatedMem = state.memory.store(addr.intValue, value)
     } yield state.withStack(stack1).withMemory(updatedMem).step()
+
+    updatedState.valueOr(state.withError)
+  }
+}
+
+case object SLOAD extends OpCode(0x54) {
+  def execute(state: ProgramState): ProgramState = {
+    val updatedState = for {
+      popped <- state.stack.pop
+      (addr, stack1) = popped
+      //TODO: handle invalid address
+      value = state.storage.load(addr.intValue)
+      stack2 <- stack1.push(value)
+    } yield state.withStack(stack2).step()
 
     updatedState.valueOr(state.withError)
   }
@@ -369,7 +392,7 @@ sealed trait SwapOp {
   def code: Byte
 
   def execute(state: ProgramState): ProgramState = {
-    val i = code - DUP1.code
+    val i = code - SWAP1.code
     val updatedState = state.stack.dup(i).map(state.withStack(_).step())
     updatedState.valueOr(state.withError)
   }
@@ -391,6 +414,29 @@ case object SWAP13 extends OpCode(0x9c) with SwapOp
 case object SWAP14 extends OpCode(0x9d) with SwapOp
 case object SWAP15 extends OpCode(0x9e) with SwapOp
 case object SWAP16 extends OpCode(0x9f) with SwapOp
+
+
+sealed trait LogOp {
+  def code: Byte
+
+  def execute(state: ProgramState): ProgramState = {
+    val i = code - LOG1.code + 2
+    val updatedState = for {
+      popped <- state.stack.pop(i)
+      (_, stack1) = popped
+      //TODO: implement logging
+    } yield state.withStack(stack1).step()
+
+    updatedState.valueOr(state.withError)
+  }
+}
+
+case object LOG0 extends OpCode(0xa0) with LogOp
+case object LOG1 extends OpCode(0xa0) with LogOp
+case object LOG2 extends OpCode(0xa0) with LogOp
+case object LOG3 extends OpCode(0xa0) with LogOp
+case object LOG4 extends OpCode(0xa0) with LogOp
+
 
 case object RETURN extends OpCode(0xf3) {
   def execute(state: ProgramState): ProgramState = {
