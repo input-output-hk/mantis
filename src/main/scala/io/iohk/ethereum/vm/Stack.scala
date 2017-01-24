@@ -53,4 +53,17 @@ case class Stack(underlying: Vector[DataWord] = Vector()) {
     else
       Stack(underlying :+ underlying(j)).asRight
   }
+
+  def swap(i: Int): Either[StackError, Stack] = {
+    val j = underlying.length - i - 1
+
+    if (j < 0)
+      StackUnderflow.asLeft
+    else {
+      val a = underlying.last
+      val b = underlying(j)
+      val updated = underlying.updated(j, a).init :+ b
+      Stack(updated).asRight
+    }
+  }
 }
