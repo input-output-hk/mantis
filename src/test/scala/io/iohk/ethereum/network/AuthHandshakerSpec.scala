@@ -5,6 +5,7 @@ import java.net.URI
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.network.rlpx.{AuthHandshakeSuccess, AuthResponseMessage, Secrets, AuthHandshaker}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
@@ -39,17 +40,7 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
 
   val nonce = ByteString(Array.fill[Byte](AuthHandshaker.NonceSize)(1.toByte))
 
-  "AuthHandshaker" should "create init packet" in {
-    val authHandshaker = AuthHandshaker(nodeKey, nonce, ephemeralKey)
-    val (initPacket, _) = authHandshaker.initiate(remoteUri)
-    val decryptedPacket = ECIESCoder.decrypt(remoteNodeKey.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD, initPacket.toArray)
-
-    val expectedDecryptedPacket = Hex.decode("246ab22d722132310385be6cc3f539b0ed1409148edd6546cc714567047ca29c4335b9e3ce9de9622fb374e5439e40cfe97484ec2630d4ac1e7ac097a5dcb5dd010f188d07681e8d98a17ce549645ff4ca1aa6a85b09e50666d31cec8fea1462635a57761ca5e81288f32b4136e5a8f8d816a0b992b6dfea75312d2dd7618ee8f7e113aaa732dd77f901a7af43275280b985b9f539615733cdf7fbe06636813d4b010101010101010101010101010101010101010101010101010101010101010100")
-
-    decryptedPacket shouldBe expectedDecryptedPacket
-  }
-
-  it should "handle init response" in {
+  "AuthHandshaker" should "handle init response" in {
     val (_, authHandshaker) = AuthHandshaker(nodeKey, nonce, ephemeralKey).initiate(remoteUri)
 
     val response = AuthResponseMessage(
@@ -62,8 +53,8 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
 
     val AuthHandshakeSuccess(secrets: Secrets) = authHandshaker.handleResponseMessage(ByteString(encryptedResponse))
 
-    val expectedMacSecret =  Hex.decode("50a782c6fedf88b829a6e5798da721dcbf5b46c117704e2ada985d5235ac192c")
-    val expectedSharedToken =  Hex.decode("b1960fa5d529ee89f8032c8aeb0e4fda2bbf4d7eff0c5695173e27f382d8f5bb")
+    val expectedMacSecret = Hex.decode("50a782c6fedf88b829a6e5798da721dcbf5b46c117704e2ada985d5235ac192c")
+    val expectedSharedToken = Hex.decode("b1960fa5d529ee89f8032c8aeb0e4fda2bbf4d7eff0c5695173e27f382d8f5bb")
     val expectedAesSecret = Hex.decode("55e7896a728e74650b3da1e4011823983551d1b5a5bfaf166627da9bea25a562")
 
     secrets.mac shouldBe expectedMacSecret
@@ -76,8 +67,8 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
     val remoteHandshaker = AuthHandshaker(remoteNodeKey, remoteNonce, remoteEphemeralKey)
 
     val (initPacket, thisHandshakerInitiated) = thisHandshaker.initiate(remoteUri)
-    val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets)) = remoteHandshaker.handleInitialMessage(initPacket)
-    val AuthHandshakeSuccess(thisSecrets: Secrets) = thisHandshakerInitiated.handleResponseMessage(responsePacket)
+    val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets)) = remoteHandshaker.handleInitialMessageV4(initPacket)
+    val AuthHandshakeSuccess(thisSecrets: Secrets) = thisHandshakerInitiated.handleResponseMessageV4(responsePacket)
 
     remoteSecrets.token shouldBe thisSecrets.token
     remoteSecrets.aes shouldBe thisSecrets.aes

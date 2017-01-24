@@ -3,8 +3,6 @@ package io.iohk.ethereum.network
 import java.io.{InputStream, OutputStream}
 import java.net.{Socket, URI}
 
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
@@ -15,12 +13,16 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, Ge
 import io.iohk.ethereum.network.p2p.Message.PV63
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello}
+import io.iohk.ethereum.network.rlpx._
 import io.iohk.ethereum.rlp.{encode => rlpEncode}
 import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.utils.Logger
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
+import org.spongycastle.crypto.params.ECPublicKeyParameters
 
-object TestSocketHandshaker {
+object TestSocketHandshaker extends Logger {
 
   val nodeKey: AsymmetricCipherKeyPair = generateKeyPair()
   val nodeId: Array[Byte] = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
@@ -39,11 +41,12 @@ object TestSocketHandshaker {
 
     out.write(initiatePacket.toArray)
 
-    val responsePacket = new Array[Byte](AuthResponseMessage.encodedLength + ECIESCoder.getOverhead)
+    val responsePacket = new Array[Byte](AuthResponseMessage.EncodedLength + ECIESCoder.OverheadSize)
     inp.read(responsePacket)
 
     val result = authHandshaker.handleResponseMessage(ByteString(responsePacket))
     val secrets = result.asInstanceOf[AuthHandshakeSuccess].secrets
+
     val frameCodec = new FrameCodec(secrets)
 
     val helloMsg = Hello(
@@ -54,15 +57,11 @@ object TestSocketHandshaker {
       nodeId = ByteString(nodeId))
 
     sendMessage(helloMsg, frameCodec, out)
+
     val remoteHello = readAtLeastOneMessage(frameCodec, inp).head.asInstanceOf[Hello]
 
     while (true) {
-      val msgs = readAtLeastOneMessage(frameCodec, inp)
-      msgs.foreach { m =>
-        //println("\n Received message: " + m)
-      }
-
-      handleMessage(msgs,frameCodec, out)
+      handleMessage(readAtLeastOneMessage(frameCodec, inp), frameCodec, out)
     }
   }
 
@@ -80,7 +79,7 @@ object TestSocketHandshaker {
         //ask for block further in chain to get some transactions
         sendMessage(GetBlockHeaders(Left(BlockNumber), maxHeaders = MaxHeaders, skip = 0, reverse = 0), frameCodec, out)
       case m: BlockHeaders =>
-        //println(m)
+        //log.info(m.toString)
         sendMessage(GetBlockBodies(m.headers.map(h => h.hash)), frameCodec, out) //ask for block bodies for headers
         sendMessage(GetReceipts(m.headers.map(h => h.hash)), frameCodec, out) //ask for recipts
         sendMessage(GetNodeData(Seq(
@@ -89,22 +88,25 @@ object TestSocketHandshaker {
           , ByteString(Hex.decode("8ccbec7896a8cc26429830406d14080a7234ea14336370bf850526e614b1b8ed"))
       )), frameCodec, out) //ask for node
       case m: BlockBodies =>
-        //println(m)
+        //log.info(m.toString)
       case m: Receipts =>
-        //println(m)
+        //log.info(m.toString)
       case m: NodeData =>
-        println(m)
+        log.info(m.toString)
       case m: Disconnect =>
-        println(m)
+        log.info(m.toString)
         System.exit(0)
+      case m =>
+        log.info(m.toString)
     }
   }
 
   def sendMessage[M <: Message : RLPEncoder](message: M, frameCodec: FrameCodec, out: OutputStream): Unit = {
     val encoded = rlpEncode(message)
-    val frame = frameCodec.writeFrame(message.code, ByteString(encoded))
-    println(s"\n Sending message: $message")
-    out.write(frame.toArray)
+    val frame = Frame(Header(encoded.length, 0, None, None), message.code, ByteString(encoded))
+    val output = frameCodec.writeFrames(Seq(frame))
+    log.info(s"\n Sending message: $message")
+    out.write(output.toArray)
   }
 
   @tailrec
@@ -113,12 +115,12 @@ object TestSocketHandshaker {
     val n = inp.read(buff)
     if (n > 0) {
       val frames = frameCodec.readFrames(ByteString(buff))
-      val decodedFrames = frames.map(f => Try(Message.decode(f.`type`, f.payload, PV63)))
+      val decodedFrames = frames.map(f => Try(Message.decode(f.`type`, f.payload.toArray, PV63)))
       val messages = decodedFrames.collect { case Success(msg) => msg }
 
       decodedFrames
         .collect { case Failure(ex) => ex }
-        .foreach { ex => println(s"Unable to decode frame: $ex") }
+        .foreach { ex => log.info(s"Unable to decode frame: $ex") }
 
       if (messages.nonEmpty) messages
       else readAtLeastOneMessage(frameCodec, inp)
