@@ -1,7 +1,7 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, nibblesToBytes}
+import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode, nibblesToBytes}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
@@ -42,7 +42,11 @@ object PV63 {
     implicit val rlpEndDec = new RLPEncoder[NodeData] with RLPDecoder[NodeData] {
       override def encode(obj: NodeData): RLPEncodeable = {
         import obj._
-        RLPList() //todo implement
+
+        RLPList(values.map {
+          case Left(node) => RLPValue(MptNode.rlpEndDec.encode(node))
+          case Right(byteValue) => RLPValue(byteValue.toArray[Byte])
+        }: _*)
       }
 
       override def decode(rlp: RLPEncodeable): NodeData = rlp match {
@@ -50,8 +54,8 @@ object PV63 {
           NodeData(rlpList.items.map { e =>
             Try {
               val v = rawDecode(e: Array[Byte])
-              Left(Node.rlpEndDec.decode(v))
-            }.getOrElse(Right(ByteString(e:Array[Byte]))) //todo add check instead of Try
+              Left(MptNode.rlpEndDec.decode(v))
+            }.getOrElse(Right(ByteString(e:Array[Byte])))
           })
         case _ => throw new RuntimeException("Cannot decode NodeData")
       }
@@ -73,11 +77,20 @@ object PV63 {
     }
   }
 
-  object Node {
+  object MptNode {
     implicit val rlpEndDec = new RLPEncoder[MptNode] with RLPDecoder[MptNode] {
       override def encode(obj: MptNode): RLPEncodeable = {
-        import obj._
-        RLPList() //todo add implementation
+        obj match {
+          case n: MptLeaf =>
+            import n._
+            RLPList(hpEncode(keyNibbles.toArray[Byte], isLeaf = true), Account.rlpEndDec.encode(value))
+          case n: MptExtension =>
+            import n._
+            RLPList(hpEncode(keyNibbles.toArray[Byte], isLeaf = false), childHash)
+          case n: MptBranch =>
+            import n._
+            RLPList(childHashes :+ terminator)
+        }
       }
 
       override def decode(rlp: RLPEncodeable): MptNode = rlp match {
@@ -132,7 +145,7 @@ object PV63 {
     implicit val rlpEndDec = new RLPEncoder[Account] with RLPDecoder[Account] {
       override def encode(obj: Account): RLPEncodeable = {
         import obj._
-        RLPList() // todo add implementation
+        RLPList(nonce, balance, byteStringEncDec.encode(storageRoot), byteStringEncDec.encode(codeHash))
       }
 
       override def decode(rlp: RLPEncodeable): Account = rlp match {
