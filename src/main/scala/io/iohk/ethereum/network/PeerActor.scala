@@ -103,7 +103,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
       rlpxConnection ! RLPxConnectionHandler.SendMessage(
         GetBlockHeaders(Left(DaoBlockNumber), maxHeaders = 1, skip = 0, reverse = 0)
       )
-      val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForStatusInterval, self, NoDaoHeaderReceived)
+      val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForStatusInterval, self, DaoHeaderReceiveTimeout)
       context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
     case StatusReceiveTimeout =>
       log.warning("Timeout while waiting status")
@@ -128,7 +128,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     case MessageReceived(d: Disconnect) =>
       log.info("Received {} from peer. Closing connection", d)
       disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
-    case NoDaoHeaderReceived =>
+    case DaoHeaderReceiveTimeout =>
       // FIXME We need to do some checking related to our blockchain. If we haven't arrived to the DAO block we might
       // take advantage of this peer and grab as much blocks as we can until DAO.
       // ATM we will only check by DaoBlockTotalDifficulty
@@ -143,7 +143,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
   }
 
   private def disconnectFromPeer(rlpxConnection: ActorRef, reason: Int): Unit = {
-    rlpxConnection ! SendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage))
+    rlpxConnection ! RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage))
     context.system.scheduler.scheduleOnce(5.seconds, self, PoisonPill)
   }
 
@@ -204,7 +204,7 @@ object PeerActor {
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
 
-  private case object NoDaoHeaderReceived
+  private case object DaoHeaderReceiveTimeout
 
   private case object ProtocolHandshakeTimeout
 
