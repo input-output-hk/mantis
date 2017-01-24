@@ -26,6 +26,9 @@ object DataWord {
     new DataWord(fixBigInt(n))
   }
 
+  def apply(b: Boolean): DataWord =
+    apply(if (b) 1 else 0)
+
   def apply[N: Integral](n: N): DataWord = {
     val num = implicitly[Integral[N]]
     apply(BigInt(num.toLong(n)))
@@ -49,7 +52,7 @@ object DataWord {
 
 /** Stores 256 bit words and adds a few convenience methods on them.
  *  Internally a word is stored as a BigInt. */
-class DataWord private (private val n: BigInt) extends ScalaNumericConversions {
+class DataWord private (private val n: BigInt) extends ScalaNumericConversions with Ordered[DataWord] {
 
   import DataWord._
 
@@ -76,6 +79,8 @@ class DataWord private (private val n: BigInt) extends ScalaNumericConversions {
   def ^(that: DataWord): DataWord = DataWord(this.n ^ that.n)
 
   def unary_-(): DataWord = DataWord(-this.n)
+
+  def unary_~(): DataWord = DataWord(~n)
 
   def +(that: DataWord): DataWord = DataWord(this.n + that.n)
 
@@ -110,4 +115,5 @@ class DataWord private (private val n: BigInt) extends ScalaNumericConversions {
     s"[$value, BigInt($n)]"
   }
 
+  def compare(that: DataWord): Int = this.n.compare(that.n)
 }
