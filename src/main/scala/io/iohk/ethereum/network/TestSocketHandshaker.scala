@@ -57,12 +57,7 @@ object TestSocketHandshaker {
     val remoteHello = readAtLeastOneMessage(frameCodec, inp).head.asInstanceOf[Hello]
 
     while (true) {
-      val msgs = readAtLeastOneMessage(frameCodec, inp)
-      msgs.foreach { m =>
-        //println("\n Received message: " + m)
-      }
-
-      handleMessage(msgs,frameCodec, out)
+      handleMessage(readAtLeastOneMessage(frameCodec, inp),frameCodec, out)
     }
   }
 
@@ -93,6 +88,8 @@ object TestSocketHandshaker {
       case m: Disconnect =>
         println(m)
         System.exit(0)
+      case m =>
+        println("\n Received message: " + m)
     }
   }
 
