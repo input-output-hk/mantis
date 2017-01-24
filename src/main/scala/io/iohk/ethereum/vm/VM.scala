@@ -1,11 +1,12 @@
 package io.iohk.ethereum.vm
 
+import cats.syntax.either._
 import scala.annotation.tailrec
 
 object VM {
 
-  def execute(program: Program): ProgramResult = {
-    val finalState = execute(ProgramState(program))
+  def execute(invoke: ProgramInvoke): ProgramResult = {
+    val finalState = execute(ProgramState(invoke))
     ProgramResult(finalState.returnData, finalState.storage)
   }
 
@@ -14,21 +15,21 @@ object VM {
     getOpCode(state) match {
       case Right(opcode) =>
         val newState = opcode.execute(state)
-        if (newState.halt)
+        if (newState.halted)
           newState
         else
           execute(newState)
 
       case Left(error) =>
-        state.copy(halt = true, error = Some(error))
+        state.withError(error).halt
     }
   }
 
   private def getOpCode(state: ProgramState): Either[ProgramError, OpCode] =
     state.program.getByte(state.pc).right.flatMap { byte =>
       OpCode.byteToOpCode.get(byte) match {
-        case Some(opcode) => Right(opcode)
-        case None => Left(InvalidOpCode(byte))
+        case Some(opcode) => opcode.asRight
+        case None => InvalidOpCode(byte).asLeft
       }
     }
 }

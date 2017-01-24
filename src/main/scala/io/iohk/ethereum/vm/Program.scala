@@ -19,9 +19,4 @@ class Program(code: ByteString, callData: ByteString) {
 
     code.slice(pc, pc + n)
   }
-
-  def getCallData(offset: Int): ByteString = {
-    require(offset < callData.length, "Invalid call data offset")
-    callData.slice(offset, offset + 32)
-  }
 }

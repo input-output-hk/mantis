@@ -9,7 +9,9 @@ object OpCode {
     STOP,
     ADD,
     DIV,
+    CALLVALUE,
     CALLDATALOAD,
+    EXTCODECOPY,
     MSTORE,
     SSTORE,
     JUMPI,
@@ -61,7 +63,8 @@ object OpCode {
     DUP13,
     DUP14,
     DUP15,
-    DUP16
+    DUP16,
+    RETURN
    )
 
   val byteToOpCode: Map[Byte, OpCode] =
@@ -80,7 +83,7 @@ sealed abstract class OpCode(val code: Byte) {
 
 case object STOP extends OpCode(0x00) {
   def execute(state: ProgramState): ProgramState =
-    state.copy(halt = true)
+    state.halt
 }
 
 case object ADD extends OpCode(0x01) {
@@ -109,18 +112,29 @@ case object DIV extends OpCode(0x04) {
   }
 }
 
-case object CALLDATALOAD extends OpCode(0x34) {
+case object CALLVALUE extends OpCode(0x34) {
+  def execute(state: ProgramState): ProgramState =
+    state.stack.push(DataWord(state.invoke.callValue))
+      .map(state.withStack(_).step())
+      .valueOr(state.withError)
+}
+
+case object CALLDATALOAD extends OpCode(0x35) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop
       (offset, stack1) = popped
       //TODO: handle invalid offset
-      data = DataWord(state.program.getCallData(offset.intValue))
+      data = DataWord(state.invoke.getCallData(offset.intValue))
       stack2 <- stack1.push(data)
     } yield state.withStack(stack2).step()
 
     updatedState.valueOr(state.withError)
   }
+}
+
+case object EXTCODECOPY extends OpCode(0x39) {
+  def execute(state: ProgramState): ProgramState = ???
 }
 
 case object MSTORE extends OpCode(0x52) {
@@ -246,3 +260,17 @@ case object DUP13 extends OpCode(0x8c) with DupOp
 case object DUP14 extends OpCode(0x8d) with DupOp
 case object DUP15 extends OpCode(0x8e) with DupOp
 case object DUP16 extends OpCode(0x8f) with DupOp
+
+
+case object RETURN extends OpCode(0xf3) {
+  def execute(state: ProgramState): ProgramState = {
+    val updatedState = for {
+      popped <- state.stack.pop(2)
+      (Seq(offset, size), stack1) = popped
+      //FIXME: use Memory functions with proper error handling
+      ret = state.memory.buffer.slice(offset.intValue, size.intValue)
+    } yield state.withStack(stack1).withReturnData(ret).halt
+
+    updatedState.valueOr(state.withError)
+  }
+}
