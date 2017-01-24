@@ -80,10 +80,10 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
   def waitingForHello(rlpxConnection: ActorRef, timeout: Cancellable): Receive = handleTerminated orElse {
     case MessageReceived(d: Disconnect) =>
-      log.info("Received {} from peer {}. Closing connection", d, peerId)
+      log.info("Received {}. Closing connection", d)
       context stop self
     case MessageReceived(hello: Hello) =>
-      log.info("Protocol handshake finished with peer {} ({})", peerId, hello)
+      log.info("Protocol handshake finished with peer ({})", hello)
       timeout.cancel()
       if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
         rlpxConnection ! RLPxConnectionHandler.SendMessage(ourStatus) // atm we will send the same message
@@ -99,17 +99,17 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     handlePing(rlpxConnection) orElse {
     case MessageReceived(status: Status) =>
       timeout.cancel()
-      log.info("Peer {} returned status ({})", peerId, status)
+      log.info("Peer returned status ({})", status)
       rlpxConnection ! RLPxConnectionHandler.SendMessage(
         GetBlockHeaders(Left(DaoBlockNumber), maxHeaders = 1, skip = 0, reverse = 0)
       )
       val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForStatusInterval, self, NoDaoHeaderReceived)
       context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
     case StatusReceiveTimeout =>
-      log.warning("Timeout while waiting for peer {} status", peerId)
+      log.warning("Timeout while waiting status")
       disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
     case MessageReceived(d: Disconnect) =>
-      log.info("Received {} from peer {}. Closing connection", d, peerId)
+      log.info("Received {}. Closing connection", d)
       context stop self
   }
 
@@ -117,27 +117,27 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     handlePing(rlpxConnection) orElse {
     case MessageReceived(msg@BlockHeaders(blockHeader +: Nil)) if blockHeader.number == DaoBlockNumber =>
       timeout.cancel()
-      log.info("DAO Fork header received from peer {} - {}", peerId, Hex.toHexString(blockHeader.hash))
+      log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.hash))
       if (daoForkValidator.validate(msg).isEmpty) {
-        log.warning("Peer {} is running the ETC chain", peerId)
+        log.warning("Peer is running the ETC chain")
         context become new HandshakedHandler(rlpxConnection).receive
       } else {
-        log.warning("Peer {} is not running the ETC fork, disconnecting", peerId)
+        log.warning("Peer is not running the ETC fork, disconnecting")
         disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
       }
     case MessageReceived(d: Disconnect) =>
-      log.info("Received {} from peer {}. Closing connection", d, peerId)
+      log.info("Received {} from peer. Closing connection", d)
       disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
     case NoDaoHeaderReceived =>
       // FIXME We need to do some checking related to our blockchain. If we haven't arrived to the DAO block we might
       // take advantage of this peer and grab as much blocks as we can until DAO.
       // ATM we will only check by DaoBlockTotalDifficulty
       if (status.totalDifficulty < DaoBlockTotalDifficulty) {
-        log.info("Peer {} probably hasn't arrived to DAO yet, so we will wait")
+        log.info("Peer probably hasn't arrived to DAO yet")
         context become new HandshakedHandler(rlpxConnection).receive
       }
       else {
-        log.info("Peer {} probably hasn't arrived to DAO yet, so we will wait")
+        log.info("Peer probably has arrived to DAO, so we will disconnect")
         disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
       }
   }
