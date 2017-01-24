@@ -1,20 +1,10 @@
 pragma solidity ^0.4.2;
 
 contract Fibonacci {
-    uint fib = 0;
 
-    function getStoredFib() constant returns (uint) {
-        return fib;
-    }
-
-    function getNewFib(uint n) returns (uint) {
-        fib = calcFib(n);
-        return fib;
-    }
-
-    function calcFib(uint n) private returns (uint) {
+    function calcFib(uint n) returns (uint) {
         if (n < 0)
-          throw;
+            throw;
         else if (n == 0)
             return 0;
         else if (n == 1)
@@ -22,4 +12,5 @@ contract Fibonacci {
         else
             return calcFib(n - 1) + calcFib(n - 2);
     }
+
 }
