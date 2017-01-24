@@ -3,3 +3,4 @@ target/
 dist/*
 project/boot/
 project/plugins/project/
+*.log
