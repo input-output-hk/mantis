@@ -43,7 +43,6 @@ class DataWord private (private val n: BigInt) {
 
   import DataWord._
 
-  // TODO: Consider changing internal representation of a DataWord to a ByteString.
   /** Converts a BigInt to a ByteString.
    *  Output ByteString is padded with 0's from the left side up to MaxLength bytes.
    */
