@@ -39,4 +39,3 @@ case class ProgramState(
   def halt: ProgramState =
     copy(halted = true)
 }
-
