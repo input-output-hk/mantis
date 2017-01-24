@@ -15,8 +15,8 @@ object App {
   def main(args: Array[String]): Unit = {
     val config = ConfigFactory.load()
 
-    val listenHostname = config.getConfig("serverAddress").getString("IP")
-    val listenPort = config.getConfig("serverAddress").getInt("Port")
+    val listenHostname = config.getConfig("serverAddress").getString("interface")
+    val listenPort = config.getConfig("serverAddress").getInt("port")
     val listenAddress = new InetSocketAddress(listenHostname, listenPort)
     val nodeInfo = NodeInfo(nodeKey, listenAddress)
 
