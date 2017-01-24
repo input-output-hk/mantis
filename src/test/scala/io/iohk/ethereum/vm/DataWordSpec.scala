@@ -9,11 +9,8 @@ import io.iohk.ethereum.vm.DataWord._
 
 class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
 
-  def bigIntToDataWord(n: BigInt): DataWord = {
-    DataWord(ByteString(fixBigInt(n).toByteArray.takeRight(MaxLength)))
-  }
 
-  val specialNumbers = Array(BigInt(-1), BigInt(0), BigInt(1), MaxWord, -MaxWord, -MaxWord + 1)
+  val specialNumbers = Array(BigInt(-1), BigInt(0), BigInt(1), MaxWord.toBigInt, -MaxWord.toBigInt, -MaxWord.toBigInt + 1)
 
   val pairs: Array[(BigInt, BigInt)] = specialNumbers
     .combinations(2)
@@ -28,76 +25,94 @@ class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
    */
   test("&") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
-      assert((bigIntToDataWord(n1) & bigIntToDataWord(n2)) == bigIntToDataWord(fixBigInt(n1) & fixBigInt(n2)))
+      assert((DataWord(n1) & DataWord(n2)) == DataWord(n1 & n2))
     }
     forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
-      assert((bigIntToDataWord(n1) & bigIntToDataWord(n2)) == bigIntToDataWord(fixBigInt(n1) & fixBigInt(n2)))
+      assert((DataWord(n1) & DataWord(n2)) == DataWord(n1 & n2))
     }
   }
 
   test("|") {
    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
-      assert((bigIntToDataWord(n1) | bigIntToDataWord(n2)) == bigIntToDataWord(fixBigInt(n1) | fixBigInt(n2)))
+      assert((DataWord(n1) | DataWord(n2)) == DataWord(n1 | n2))
     }
     forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
-      assert((bigIntToDataWord(n1) | bigIntToDataWord(n2)) == bigIntToDataWord(fixBigInt(n1) | fixBigInt(n2)))
+      assert((DataWord(n1) | DataWord(n2)) == DataWord(n1 | n2))
     }
   }
 
   test("^") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
-      assert((bigIntToDataWord(n1) ^ bigIntToDataWord(n2)) == bigIntToDataWord(fixBigInt(n1) ^ fixBigInt(n2)))
+      assert((DataWord(n1) ^ DataWord(n2)) == DataWord(n1 ^ n2))
     }
     forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
-      assert((bigIntToDataWord(n1) ^ bigIntToDataWord(n2)) == bigIntToDataWord(fixBigInt(n1) ^ fixBigInt(n2)))
+      assert((DataWord(n1) ^ DataWord(n2)) == DataWord(n1 ^ n2))
+    }
+  }
+
+  test("~") {
+    forAll(bigIntGen) { n: BigInt =>
+      assert(~DataWord(n) == DataWord(~n))
+    }
+    forAll(Table("n", specialNumbers: _*)) { n: BigInt =>
+      assert(~DataWord(n) == DataWord(~n))
     }
   }
 
   test("negation") {
     forAll(bigIntGen) {(n: BigInt) =>
-      assert(-bigIntToDataWord(n) == bigIntToDataWord(-n))
+      assert(-DataWord(n) == DataWord(-n))
     }
     forAll(Table(("n"), specialNumbers: _*)) {(n: BigInt) =>
-      assert(-bigIntToDataWord(n) == bigIntToDataWord(-n))
+      assert(-DataWord(n) == DataWord(-n))
     }
-    assert(-bigIntToDataWord(BigInt(1)) == bigIntToDataWord(BigInt(-1)))
+    assert(-DataWord(BigInt(1)) == DataWord(BigInt(-1)))
   }
 
   test("+") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
-      assert(bigIntToDataWord(n1) + bigIntToDataWord(n2) == bigIntToDataWord(n1 + n2))
+      assert(DataWord(n1) + DataWord(n2) == DataWord(n1 + n2))
     }
     forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
-      assert(bigIntToDataWord(n1) + bigIntToDataWord(n2) == bigIntToDataWord(n1 + n2))
+      assert(DataWord(n1) + DataWord(n2) == DataWord(n1 + n2))
     }
   }
 
   test("-") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
-      assert(bigIntToDataWord(n1) - bigIntToDataWord(n2) == bigIntToDataWord(n1 - n2))
+      assert(DataWord(n1) - DataWord(n2) == DataWord(n1 - n2))
     }
     forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
-      assert(bigIntToDataWord(n1) - bigIntToDataWord(n2) == bigIntToDataWord(n1 - n2))
+      assert(DataWord(n1) - DataWord(n2) == DataWord(n1 - n2))
     }
   }
 
   test("*") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
-      assert(bigIntToDataWord(n1) * bigIntToDataWord(n2) == bigIntToDataWord(n1 * n2))
+      assert(DataWord(n1) * DataWord(n2) == DataWord(n1 * n2))
     }
     forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
-      assert(bigIntToDataWord(n1) * bigIntToDataWord(n2) == bigIntToDataWord(n1 * n2))
+      assert(DataWord(n1) * DataWord(n2) == DataWord(n1 * n2))
     }
   }
 
   test("/") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       whenever(n2 != 0) {
-        assert(bigIntToDataWord(n1) / bigIntToDataWord(n2) == bigIntToDataWord(n1 / n2))
+        assert(DataWord(n1) / DataWord(n2) == DataWord(n1 / n2))
       }
     }
     assertThrows[ArithmeticException] {
-      bigIntToDataWord(1) / bigIntToDataWord(0)
+      DataWord(1) / DataWord(0)
+    }
+  }
+
+  test("intValue") {
+    forAll(bigIntGen) { n: BigInt =>
+      assert(DataWord(n).intValue == n.intValue)
+    }
+    forAll(Table("n", specialNumbers: _*)) { n: BigInt =>
+      assert(DataWord(n).intValue == n.intValue)
     }
   }
 

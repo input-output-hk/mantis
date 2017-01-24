@@ -7,9 +7,11 @@ object DataWord {
 
   val MaxLength = 32
 
-  val MaxWord: BigInt = BigInt(2).pow(MaxLength * 8) - 1
+  private val Modulus: BigInt = BigInt(2).pow(MaxLength * 8)
 
-  val Zeros: ByteString = ByteString(Array.fill[Byte](MaxLength)(0))
+  val MaxWord = DataWord(Modulus - 1)
+
+  private val Zeros: ByteString = ByteString(Array.fill[Byte](MaxLength)(0))
 
   def apply(value: ByteString): DataWord = {
     require(value.length <= MaxLength, s"Input byte array cannot be longer than $MaxLength: ${value.length}")
@@ -25,13 +27,13 @@ object DataWord {
     apply(BigInt(num.toLong(n)))
   }
 
-  def fixBigInt(n: BigInt): BigInt = {
-    if (n == -MaxWord) {
+  private def fixBigInt(n: BigInt): BigInt = {
+    if (n == -Modulus) {
       0
     } else if (n < 0) {
-      n % MaxWord + MaxWord
+      n % Modulus + Modulus
     } else {
-      n % MaxWord
+      n % Modulus
     }
   }
 
@@ -46,7 +48,7 @@ class DataWord private (private val n: BigInt) {
   /** Converts a BigInt to a ByteString.
    *  Output ByteString is padded with 0's from the left side up to MaxLength bytes.
    */
-  lazy val value: ByteString = {
+  lazy val bytes: ByteString = {
     val bs: ByteString = ByteString(n.toByteArray)
     val padLength: Int = MaxLength - bs.length
     if (padLength > 0) {
@@ -56,7 +58,7 @@ class DataWord private (private val n: BigInt) {
     }
   }
 
-  require(n >= 0 && n <= MaxWord, s"Invalid word value: $n")
+  require(n >= 0 && n < Modulus, s"Invalid word value: $n")
 
   def &(that: DataWord): DataWord = DataWord(this.n & that.n)
 
@@ -64,7 +66,9 @@ class DataWord private (private val n: BigInt) {
 
   def ^(that: DataWord): DataWord = DataWord(this.n ^ that.n)
 
-  def unary_-(): DataWord = DataWord(-this.n)
+  def unary_~ : DataWord = DataWord(~n)
+
+  def unary_- : DataWord = DataWord(-n)
 
   def +(that: DataWord): DataWord = DataWord(this.n + that.n)
 
@@ -74,17 +78,19 @@ class DataWord private (private val n: BigInt) {
 
   def /(that: DataWord): DataWord = DataWord(this.n / that.n)
 
+  def intValue: Int = n.intValue
+
   override def equals(that: Any): Boolean = {
     that match {
       case that: DataWord => this.n.equals(that.n)
-      case _ => false
+      case other => other == n
     }
   }
 
-  override def hashCode(): Int = n.hashCode()
+  override def hashCode: Int = n.hashCode()
 
-  override def toString(): String = {
-    s"[$value, BigInt($n)]"
-  }
+  override def toString: String =
+    f"DataWord(0x$n%02x)" //would be even better to add a leading zero if odd number of digits
 
+  def toBigInt: BigInt = n
 }
