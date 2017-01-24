@@ -3,6 +3,7 @@ package io.iohk.ethereum.network
 import java.io.{InputStream, OutputStream}
 import java.net.{Socket, URI}
 
+import io.iohk.ethereum.network.rlpx._
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 
 import scala.annotation.tailrec
@@ -39,7 +40,7 @@ object TestSocketHandshaker {
 
     out.write(initiatePacket.toArray)
 
-    val responsePacket = new Array[Byte](AuthResponseMessage.encodedLength + ECIESCoder.getOverhead)
+    val responsePacket = new Array[Byte](AuthResponseMessage.EncodedLength + ECIESCoder.OverheadSize)
     inp.read(responsePacket)
 
     val result = authHandshaker.handleResponseMessage(ByteString(responsePacket))
@@ -95,9 +96,10 @@ object TestSocketHandshaker {
 
   def sendMessage[M <: Message : RLPEncoder](message: M, frameCodec: FrameCodec, out: OutputStream): Unit = {
     val encoded = rlpEncode(message)
-    val frame = frameCodec.writeFrame(message.code, ByteString(encoded))
+    val frame = Frame(Header(encoded.length, 0, None, None), message.code, ByteString(encoded))
+    val output = frameCodec.writeFrames(Seq(frame))
     println(s"\n Sending message: $message")
-    out.write(frame.toArray)
+    out.write(output.toArray)
   }
 
   @tailrec
@@ -106,7 +108,7 @@ object TestSocketHandshaker {
     val n = inp.read(buff)
     if (n > 0) {
       val frames = frameCodec.readFrames(ByteString(buff))
-      val decodedFrames = frames.map(f => Try(Message.decode(f.`type`, f.payload, PV63)))
+      val decodedFrames = frames.map(f => Try(Message.decode(f.`type`, f.payload.toArray, PV63)))
       val messages = decodedFrames.collect { case Success(msg) => msg }
 
       decodedFrames
