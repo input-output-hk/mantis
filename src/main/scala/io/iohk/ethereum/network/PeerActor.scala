@@ -122,7 +122,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
         log.warning("Peer is not running the ETC fork, disconnecting")
         disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
       }
-    case DaoHeaderReceiveTimeout =>
+    case MessageReceived(BlockHeaders(Nil)) =>
       // FIXME We need to do some checking related to our blockchain. If we haven't arrived to the DAO block we might
       // take advantage of this peer and grab as much blocks as we can until DAO.
       // ATM we will only check by DaoBlockTotalDifficulty
@@ -130,10 +130,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
         log.info("Peer probably hasn't arrived to DAO yet")
         context become new HandshakedHandler(rlpxConnection).receive
       }
-      else {
-        log.info("Peer probably has arrived to DAO, so we will disconnect")
-        disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
-      }
+    case DaoHeaderReceiveTimeout => disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
   }
 
   private def disconnectFromPeer(rlpxConnection: ActorRef, reason: Int): Unit = {
