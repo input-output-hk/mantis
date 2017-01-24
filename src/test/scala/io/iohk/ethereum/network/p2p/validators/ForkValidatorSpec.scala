@@ -7,7 +7,7 @@ import org.spongycastle.util.encoders.Hex
 
 class ForkValidatorSpec extends FlatSpec with Matchers {
 
-  val daoForkValidator = ForkValidator(1920000, Hex.decode("94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f"))
+  val daoForkValidator = ForkValidator(1920000, ByteString(Hex.decode("94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f")))
 
   "DaoForkValidator" should "determine if it's ETH fork" in {
     assert(Hex.toHexString(daoForkHeader.hash) == "4985f5ca3d2afbec36529aa96f74de3cc10a2a4a6c44f2157a57d2c6059a11bb")

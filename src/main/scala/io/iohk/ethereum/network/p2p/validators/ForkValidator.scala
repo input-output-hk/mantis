@@ -1,5 +1,6 @@
 package io.iohk.ethereum.network.p2p.validators
 
+import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeader, BlockHeaders}
 import org.spongycastle.util.encoders.Hex
 
@@ -12,7 +13,7 @@ import org.spongycastle.util.encoders.Hex
   * @param blockNumber BlockNumber to check
   * @param blockHash Hash of the block whose number is `blockNumber`
   */
-case class ForkValidator(blockNumber: BigInt, blockHash: Array[Byte]) extends MessageValidator[BlockHeaders, ForkValidatorError] {
+case class ForkValidator(blockNumber: BigInt, blockHash: ByteString) extends MessageValidator[BlockHeaders, ForkValidatorError] {
 
   /**
     * Validates the header

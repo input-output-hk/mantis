@@ -38,7 +38,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
   //FIXME move this to props
   lazy val DaoBlockNumber = 1920000
   lazy val DaoBlockTotalDifficulty = BigInt("39490964433395682584")
-  lazy val daoForkValidator = ForkValidator(DaoBlockNumber, Hex.decode("94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f"))
+  lazy val daoForkValidator = ForkValidator(DaoBlockNumber, ByteString(Hex.decode("94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f")))
 
   override def receive: Receive = waitingForInitialCommand
 
