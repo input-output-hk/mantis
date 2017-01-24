@@ -5,6 +5,7 @@ import io.iohk.ethereum.ObjectGenerators
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 import io.iohk.ethereum.vm.DataWord._
+import org.scalatest.compatible.Assertion
 
 
 class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
@@ -113,6 +114,29 @@ class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
     }
     forAll(Table("n", specialNumbers: _*)) { n: BigInt =>
       assert(DataWord(n).intValue == n.intValue)
+    }
+  }
+
+  test("comparison") {
+    type CFDW = (DataWord, DataWord) => Boolean
+    type CFBI = (BigInt, BigInt) => Boolean
+    case class Cmp(dw: CFDW, bi: CFBI)
+
+    val cmpFuncDataWord = Seq[CFDW](_ > _, _ >= _, _ < _, _ <= _)
+    val cmpFuncBigInt   = Seq[CFBI](_ > _, _ >= _, _ < _, _ <= _)
+    val comparators = cmpFuncDataWord.zip(cmpFuncBigInt).map(Cmp.tupled)
+
+    val dataWordGen = bigIntGen.map(DataWord(_))
+
+    forAll(Table("comparators", comparators: _*)) { cmp =>
+      forAll(dataWordGen, dataWordGen) { (a, b) =>
+         assert(cmp.dw(a, b) == cmp.bi(a.toBigInt, b.toBigInt))
+      }
+
+      forAll(specialCases) { (x, y) =>
+        val (a, b) = (DataWord(x), DataWord(y))
+        assert(cmp.dw(a, b) == cmp.bi(a.toBigInt, b.toBigInt))
+      }
     }
   }
 

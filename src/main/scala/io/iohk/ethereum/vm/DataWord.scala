@@ -44,7 +44,7 @@ object DataWord {
 
 /** Stores 256 bit words and adds a few convenience methods on them.
  *  Internally a word is stored as a BigInt. */
-class DataWord private (private val n: BigInt) {
+class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
 
   import DataWord._
 
@@ -80,6 +80,8 @@ class DataWord private (private val n: BigInt) {
   def *(that: DataWord): DataWord = DataWord(this.n * that.n)
 
   def /(that: DataWord): DataWord = DataWord(this.n / that.n)
+
+  def compare(that: DataWord): Int = this.n.compare(that.n)
 
   def intValue: Int = n.intValue
 
