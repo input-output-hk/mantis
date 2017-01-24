@@ -3,9 +3,6 @@ package io.iohk.ethereum.network
 import java.io.{InputStream, OutputStream}
 import java.net.{Socket, URI}
 
-import io.iohk.ethereum.network.rlpx._
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
@@ -15,11 +12,14 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockBodies, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.Message.PV63
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello}
+import io.iohk.ethereum.network.rlpx._
 import io.iohk.ethereum.rlp.{encode => rlpEncode}
 import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.utils.Logger
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.spongycastle.crypto.params.ECPublicKeyParameters
 
-object TestSocketHandshaker {
+object TestSocketHandshaker extends Logger {
 
   val nodeKey: AsymmetricCipherKeyPair = generateKeyPair()
   val nodeId: Array[Byte] = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
@@ -61,7 +61,7 @@ object TestSocketHandshaker {
 
     while (true) {
       val msgs = readAtLeastOneMessage(frameCodec, inp)
-      msgs.foreach { m => println("\n Received message: " + m) }
+      msgs.foreach { m => log.info("\n Received message: " + m) }
 
       msgs.collect {
         case m: Status =>
@@ -79,7 +79,7 @@ object TestSocketHandshaker {
     val encoded = rlpEncode(message)
     val frame = Frame(Header(encoded.length, 0, None, None), message.code, ByteString(encoded))
     val output = frameCodec.writeFrames(Seq(frame))
-    println(s"\n Sending message: $message")
+    log.info(s"\n Sending message: $message")
     out.write(output.toArray)
   }
 
@@ -94,7 +94,7 @@ object TestSocketHandshaker {
 
       decodedFrames
         .collect { case Failure(ex) => ex }
-        .foreach { ex => println(s"Unable to decode frame: $ex") }
+        .foreach { ex => log.info(s"Unable to decode frame: $ex") }
 
       if (messages.nonEmpty) messages
       else readAtLeastOneMessage(frameCodec, inp)
