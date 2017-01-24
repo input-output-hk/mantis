@@ -10,7 +10,7 @@ class NodeDataSpec extends FlatSpec with Matchers {
   val emptyEvmHash: ByteString = ByteString(Hex.decode(""))
   val emptyStorageRoot: ByteString = ByteString(Hex.decode(""))
 
-  val account = Account(12, 2000, emptyStorageRoot, emptyEvmHash)
+  val account = Account(nonce = 12, balance = 2000, emptyStorageRoot, emptyEvmHash)
   val leafNode = MptLeaf(ByteString(Hex.decode("")), account)
   val branchNode = MptBranch(Seq(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null), ByteString())
   val extensionNode = MptExtension(ByteString(Hex.decode("")), ByteString(Hex.decode("")))
