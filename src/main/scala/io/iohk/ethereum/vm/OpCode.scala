@@ -1,6 +1,7 @@
 package io.iohk.ethereum.vm
 
 import cats.syntax.either._
+import io.iohk.ethereum.crypto.sha3
 
 // scalastyle:off magic.number
 object OpCode {
@@ -12,7 +13,10 @@ object OpCode {
     SUB,
     DIV,
     EQ,
+    ISZERO,
     AND,
+    NOT,
+    SHA3,
     CALLVALUE,
     CALLDATALOAD,
     EXTCODECOPY,
@@ -121,6 +125,19 @@ sealed abstract class BinaryOp(code: Byte, f: (DataWord, DataWord) => DataWord) 
   }
 }
 
+sealed abstract class UnaryOp(code: Byte, f: DataWord => DataWord) extends OpCode(code) {
+  def execute(state: ProgramState): ProgramState = {
+    val updatedState = for {
+      popped <- state.stack.pop
+      (a, stack1) = popped
+      res = f(a)
+      stack2 <- stack1.push(res)
+    } yield state.withStack(stack2).step()
+
+    updatedState.valueOr(state.withError)
+  }
+}
+
 case object ADD extends BinaryOp(0x01, _ + _)
 
 case object MUL extends BinaryOp(0x02, _ * _)
@@ -142,7 +159,27 @@ case object DIV extends OpCode(0x04) {
 
 case object EQ extends BinaryOp(0x14, (a, b) => DataWord(if (a == b) 1 else 0))
 
+case object ISZERO extends UnaryOp(0x15, a => DataWord(if (a == 0) 1 else 0))
+
 case object AND extends BinaryOp(0x16, _ & _)
+
+case object NOT extends UnaryOp(0x19, ~_)
+
+case object SHA3 extends OpCode(0x20) {
+  def execute(state: ProgramState): ProgramState = {
+    val updatedState = for {
+      popped <- state.stack.pop(2)
+      (Seq(offset, size), stack1) = popped
+      //FIXME: use Memory functions with proper error handling
+      input = state.memory.buffer.slice(offset.intValue, size.intValue)
+      hash = sha3(input.toArray)
+      ret = DataWord(hash)
+      stack2 <- stack1.push(ret)
+    } yield state.withStack(stack2).step()
+
+    updatedState.valueOr(state.withError)
+  }
+}
 
 case object CALLVALUE extends OpCode(0x34) {
   def execute(state: ProgramState): ProgramState =

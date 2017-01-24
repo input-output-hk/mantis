@@ -77,6 +77,8 @@ class DataWord private (private val n: BigInt) extends ScalaNumericConversions {
 
   def unary_-(): DataWord = DataWord(-this.n)
 
+  def unary_~(): DataWord = DataWord(~n)
+
   def +(that: DataWord): DataWord = DataWord(this.n + that.n)
 
   def -(that: DataWord): DataWord = DataWord(this.n - that.n)
