@@ -7,12 +7,11 @@ import scala.math.ScalaNumericConversions
 
 object DataWord {
 
-  // TODO: Should be configurable
   val MaxLength = 32
 
   val MaxWord: BigInt = BigInt(2).pow(MaxLength * 8) - 1
 
-  val Zeros: ByteString = ByteString(Array.fill[Byte](32)(0))
+  val Zeros: ByteString = ByteString(Array.fill[Byte](MaxLength)(0))
 
   def apply(value: ByteString): DataWord = {
     require(value.length <= MaxLength, s"Input byte array cannot be longer than $MaxLength: ${value.length}")
@@ -40,16 +39,17 @@ object DataWord {
 
 }
 
-/** Stores byte arrays of at most MaxLength size and adds a few convenience methods **/
+/** Stores 256 bit words and adds a few convenience methods on them.
+ *  Internally a word is stored as a BigInt. */
 class DataWord private (private val n: BigInt) extends ScalaNumericConversions {
 
   import DataWord._
 
   // TODO: Consider changing internal representation of a DataWord to a ByteString.
-  /** Converts internal representation of a ByteString back to ByteString.
-   *  Output ByteString is padded with 0's from the left side up to MaxLength bytes of length
+  /** Converts a BigInt to a ByteString.
+   *  Output ByteString is padded with 0's from the left side up to MaxLength bytes.
    */
-  val value: ByteString = {
+  lazy val value: ByteString = {
     val bs: ByteString = ByteString(n.toByteArray)
     val padLength: Int = MaxLength - bs.length
     if (padLength > 0) {
@@ -99,7 +99,7 @@ class DataWord private (private val n: BigInt) extends ScalaNumericConversions {
     }
 
   override def toString(): String = {
-    s"[$value, l: ${value.length}, BigInt($n)]"
+    s"[$value, BigInt($n)]"
   }
 
 }

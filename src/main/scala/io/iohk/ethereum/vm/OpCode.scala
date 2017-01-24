@@ -114,7 +114,7 @@ case object MSTORE extends OpCode(0x52, 2, 0) {
       popped <- state.stack.pop(2)
       (Seq(addr, value), stack1) = popped
       //TODO: handle invalid address
-      updatedMem = state.memory.save(addr.intValue, value)
+      updatedMem = state.memory.store(addr.intValue, value)
     } yield state.withStack(stack1).withMemory(updatedMem).step()
 
     updatedState.valueOr(state.withError)
@@ -169,4 +169,3 @@ case object PUSH29 extends OpCode(0x7c, 0, 1) with PushOp
 case object PUSH30 extends OpCode(0x7d, 0, 1) with PushOp
 case object PUSH31 extends OpCode(0x7e, 0, 1) with PushOp
 case object PUSH32 extends OpCode(0x7f, 0, 1) with PushOp
-
