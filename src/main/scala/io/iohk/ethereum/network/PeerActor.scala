@@ -78,10 +78,8 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
       context stop self
   }
 
-  def waitingForHello(rlpxConnection: ActorRef, timeout: Cancellable): Receive = handleTerminated orElse {
-    case MessageReceived(d: Disconnect) =>
-      log.info("Received {}. Closing connection", d)
-      context stop self
+  def waitingForHello(rlpxConnection: ActorRef, timeout: Cancellable): Receive = handleTerminated orElse
+    handleDisconnectMsg orElse {
     case MessageReceived(hello: Hello) =>
       log.info("Protocol handshake finished with peer ({})", hello)
       timeout.cancel()
@@ -96,7 +94,8 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
   }
 
   def waitingForNodeStatus(rlpxConnection: ActorRef, timeout: Cancellable): Receive = handleTerminated orElse
-    handlePing(rlpxConnection) orElse {
+    handleDisconnectMsg orElse
+    handlePingMsg(rlpxConnection) orElse {
     case MessageReceived(status: Status) =>
       timeout.cancel()
       log.info("Peer returned status ({})", status)
@@ -108,13 +107,11 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     case StatusReceiveTimeout =>
       log.warning("Timeout while waiting status")
       disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
-    case MessageReceived(d: Disconnect) =>
-      log.info("Received {}. Closing connection", d)
-      context stop self
   }
 
   def waitingForChainForkCheck(rlpxConnection: ActorRef, status: Status, timeout: Cancellable): Receive = handleTerminated orElse
-    handlePing(rlpxConnection) orElse {
+    handleDisconnectMsg orElse
+    handlePingMsg(rlpxConnection) orElse {
     case MessageReceived(msg@BlockHeaders(blockHeader +: Nil)) if blockHeader.number == DaoBlockNumber =>
       timeout.cancel()
       log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.hash))
@@ -125,9 +122,6 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
         log.warning("Peer is not running the ETC fork, disconnecting")
         disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
       }
-    case MessageReceived(d: Disconnect) =>
-      log.info("Received {} from peer. Closing connection", d)
-      disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
     case DaoHeaderReceiveTimeout =>
       // FIXME We need to do some checking related to our blockchain. If we haven't arrived to the DAO block we might
       // take advantage of this peer and grab as much blocks as we can until DAO.
@@ -163,8 +157,14 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
       context stop self
   }
 
-  def handlePing(rlpxConnection: ActorRef): Receive = {
+  def handlePingMsg(rlpxConnection: ActorRef): Receive = {
     case MessageReceived(ping: Ping) => rlpxConnection ! RLPxConnectionHandler.SendMessage(Pong())
+  }
+
+  def handleDisconnectMsg : Receive = {
+    case MessageReceived(d: Disconnect) =>
+      log.info("Received {} from peer. Closing connection", d)
+      context stop self
   }
 
   class HandshakedHandler(rlpxConnection: ActorRef) {
