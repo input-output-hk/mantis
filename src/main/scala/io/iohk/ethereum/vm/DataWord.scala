@@ -2,8 +2,6 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 
-import scala.math.ScalaNumericConversions
-
 
 object DataWord {
 
@@ -41,7 +39,7 @@ object DataWord {
 
 /** Stores 256 bit words and adds a few convenience methods on them.
  *  Internally a word is stored as a BigInt. */
-class DataWord private (private val n: BigInt) extends ScalaNumericConversions {
+class DataWord private (private val n: BigInt) {
 
   import DataWord._
 
@@ -76,18 +74,6 @@ class DataWord private (private val n: BigInt) extends ScalaNumericConversions {
   def *(that: DataWord): DataWord = DataWord(this.n * that.n)
 
   def /(that: DataWord): DataWord = DataWord(this.n / that.n)
-
-  def doubleValue(): Double = longValue().toDouble
-
-  def floatValue(): Float = longValue().toFloat
-
-  def intValue(): Int = value.foldLeft(0) { (n, b) => (n << 8) + (b & 0xff) }
-
-  def longValue(): Long = value.foldLeft(0l) { (n, b) => (n << 8) + (b & 0xff) }
-
-  def isWhole(): Boolean = true
-
-  def underlying(): AnyRef = value
 
   override def equals(that: Any): Boolean = {
     that match {
