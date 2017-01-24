@@ -1,5 +1,6 @@
 package io.iohk.ethereum.vm
 
+import akka.util.ByteString
 import cats.syntax.either._
 import io.iohk.ethereum.crypto.sha3
 
@@ -182,7 +183,7 @@ case object SHA3 extends OpCode(0x20) {
       //FIXME: use Memory functions with proper error handling
       input = state.memory.buffer.slice(offset.intValue, size.intValue)
       hash = sha3(input.toArray)
-      ret = DataWord(hash)
+      ret = DataWord(ByteString(hash))
       stack2 <- stack1.push(ret)
     } yield state.withStack(stack2).step()
 

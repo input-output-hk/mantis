@@ -10,15 +10,15 @@ import cats.syntax.either._
  */
 case class Memory(buffer: ByteString = ByteString(), error: Option[MemoryError] = None) {
 
-  import DataWord.{MaxLength, Zeros}
+  import DataWord.MaxLength
 
-  def store(addr: Int, dw: DataWord): Memory = storeByteBuffer(addr, dw.value)
+  def store(addr: Int, dw: DataWord): Memory = storeByteBuffer(addr, dw.bytes)
 
   def store(addr: Int, value: Byte): Memory = storeByteBuffer(addr, ByteString(value))
 
   def load(addr: Int): DataWord = {
     if (addr < 0) {
-      DataWord(Zeros)
+      DataWord(0)
     } else {
       DataWord(buffer.drop(addr).take(MaxLength))
     }

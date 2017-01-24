@@ -22,6 +22,9 @@ object DataWord {
     new DataWord(fixBigInt(n))
   }
 
+  def apply(b: Boolean): DataWord =
+    apply(if (b) 1 else 0)
+
   def apply[N: Integral](n: N): DataWord = {
     val num = implicitly[Integral[N]]
     apply(BigInt(num.toLong(n)))
