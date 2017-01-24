@@ -10,13 +10,11 @@ class Program(code: ByteString) {
   def getByte(pc: Int): Either[ProgramError, Byte] =
     code.lift(pc) match {
       case Some(byte) => byte.asRight
-      case None => InvalidProgramPosition.asLeft
+      case None => InvalidCodePosition.asLeft
     }
 
-  def getBytes(pc: Int, n: Int): ByteString = {
-    // An exception should never be thrown as long the function is applied by valid opcodes
-    require(n > 0 && n <= 32, "Invalid number of bytes to retrieve from code")
-
-    code.slice(pc, pc + n)
+  def getBytes(from: Int, size: Int): Either[ProgramError, ByteString] = {
+    val slice = code.slice(from, from + size)
+    if (slice.size == size) slice.asRight else InvalidCodeRange(from, size).asLeft
   }
 }

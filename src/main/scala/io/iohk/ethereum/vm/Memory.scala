@@ -16,6 +16,9 @@ case class Memory(buffer: ByteString = ByteString(), error: Option[MemoryError] 
 
   def store(addr: Int, value: Byte): Memory = storeByteBuffer(addr, ByteString(value))
 
+  def storeBytes(addr: Int, bytes: ByteString): Memory =
+    storeByteBuffer(addr, bytes)
+
   def load(addr: Int): DataWord = {
     if (addr < 0) {
       DataWord(0)

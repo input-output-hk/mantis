@@ -21,6 +21,7 @@ object OpCode {
     SHA3,
     CALLVALUE,
     CALLDATALOAD,
+    CODECOPY,
     EXTCODECOPY,
     POP,
     MLOAD,
@@ -212,7 +213,20 @@ case object CALLDATALOAD extends OpCode(0x35) {
   }
 }
 
-case object EXTCODECOPY extends OpCode(0x39) {
+case object CODECOPY extends OpCode(0x39) {
+  def execute(state: ProgramState): ProgramState = {
+    val updatedState = for {
+      popped <- state.stack.pop(3)
+      (Seq(memOffset, codeOffset, size), stack1) = popped
+      bytes <- state.program.getBytes(codeOffset.intValue, size.intValue)
+      mem1 = state.memory.storeBytes(memOffset.intValue, bytes)
+    } yield state.withStack(stack1).withMemory(mem1).step()
+
+    updatedState.valueOr(state.withError)
+  }
+}
+
+case object EXTCODECOPY extends OpCode(0x3c) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(4)
@@ -325,10 +339,10 @@ sealed trait PushOp {
 
   def execute(state: ProgramState): ProgramState = {
     val n = code - PUSH1.code + 1
-    val bytes = state.program.getBytes(state.pc + 1, n)
-    val word = DataWord(bytes)
 
     val updatedState = for {
+      bytes <- state.program.getBytes(state.pc + 1, n)
+      word = DataWord(bytes)
       stack <- state.stack.push(word)
     } yield state.withStack(stack).step(n + 1)
 

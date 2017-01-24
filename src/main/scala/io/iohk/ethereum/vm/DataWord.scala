@@ -83,7 +83,10 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
 
   def compare(that: DataWord): Int = this.n.compare(that.n)
 
-  def intValue: Int = n.intValue
+  /**
+    * @return an Int with MSB=0, thus a value in range [0, Int.MaxValue]
+    */
+  def intValue: Int = n.intValue & Int.MaxValue
 
   override def equals(that: Any): Boolean = {
     that match {
