@@ -8,12 +8,16 @@ object OpCode {
   val opcodes: List[OpCode] = List(
     STOP,
     ADD,
+    MUL,
+    SUB,
     DIV,
     EQ,
     AND,
     CALLVALUE,
     CALLDATALOAD,
     EXTCODECOPY,
+    POP,
+    MLOAD,
     MSTORE,
     SSTORE,
     JUMP,
@@ -104,18 +108,24 @@ case object STOP extends OpCode(0x00) {
     state.halt
 }
 
-case object ADD extends OpCode(0x01) {
+sealed abstract class BinaryOp(code: Byte, f: (DataWord, DataWord) => DataWord) extends OpCode(code) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
       (Seq(a, b), stack1) = popped
-      res = a + b
+      res = f(a, b)
       stack2 <- stack1.push(res)
     } yield state.withStack(stack2).step()
 
     updatedState.valueOr(state.withError)
   }
 }
+
+case object ADD extends BinaryOp(0x01, _ + _)
+
+case object MUL extends BinaryOp(0x02, _ * _)
+
+case object SUB extends BinaryOp(0x03, _ - _)
 
 case object DIV extends OpCode(0x04) {
   def execute(state: ProgramState): ProgramState = {
@@ -130,31 +140,9 @@ case object DIV extends OpCode(0x04) {
   }
 }
 
-case object EQ extends OpCode(0x14) {
-  def execute(state: ProgramState): ProgramState = {
-    val updatedState = for {
-      popped <- state.stack.pop(2)
-      (Seq(a, b), stack1) = popped
-      res = if (a == b) 1 else 0
-      stack2 <- stack1.push(DataWord(res))
-    } yield state.withStack(stack2).step()
+case object EQ extends BinaryOp(0x14, (a, b) => DataWord(if (a == b) 1 else 0))
 
-    updatedState.valueOr(state.withError)
-  }
-}
-
-case object AND extends OpCode(0x16) {
-  def execute(state: ProgramState): ProgramState = {
-    val updatedState = for {
-      popped <- state.stack.pop(2)
-      (Seq(a, b), stack1) = popped
-      res = a & b
-      stack2 <- stack1.push(res)
-    } yield state.withStack(stack2).step()
-
-    updatedState.valueOr(state.withError)
-  }
-}
+case object AND extends BinaryOp(0x16, _ & _)
 
 case object CALLVALUE extends OpCode(0x34) {
   def execute(state: ProgramState): ProgramState =
@@ -179,6 +167,29 @@ case object CALLDATALOAD extends OpCode(0x35) {
 
 case object EXTCODECOPY extends OpCode(0x39) {
   def execute(state: ProgramState): ProgramState = ???
+}
+
+case object POP extends OpCode(0x50) {
+  def execute(state: ProgramState): ProgramState = {
+    state.stack.pop
+      .map { case (_, stack) => state.withStack(stack).step() }
+      .valueOr(state.withError)
+  }
+}
+
+case object MLOAD extends OpCode(0x51) {
+  def execute(state: ProgramState): ProgramState = {
+    val updatedState = for {
+      popped <- state.stack.pop
+      (addr, stack1) = popped
+
+      //FIXME: handle errors
+      word = state.memory.load(addr.intValue)
+      stack2 <- stack1.push(word)
+    } yield state.withStack(stack2).step()
+
+    updatedState.valueOr(state.withError)
+  }
 }
 
 case object MSTORE extends OpCode(0x52) {
