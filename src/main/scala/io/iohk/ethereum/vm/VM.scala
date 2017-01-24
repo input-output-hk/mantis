@@ -7,7 +7,7 @@ object VM {
 
   def execute(invoke: ProgramInvoke): ProgramResult = {
     val finalState = execute(ProgramState(invoke))
-    ProgramResult(finalState.returnData, finalState.storage)
+    ProgramResult(finalState.returnData, finalState.storage, finalState.error)
   }
 
   @tailrec

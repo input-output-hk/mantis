@@ -212,7 +212,16 @@ case object CALLDATALOAD extends OpCode(0x35) {
 }
 
 case object EXTCODECOPY extends OpCode(0x39) {
-  def execute(state: ProgramState): ProgramState = ???
+  def execute(state: ProgramState): ProgramState = {
+    val updatedState = for {
+      popped <- state.stack.pop(4)
+      (Seq(address, memOffset, codeOffset, size), stack1) = popped
+      //TODO: copy the code
+      mem1 = (0 until size.intValue).foldLeft(state.memory)((mem, i) => mem.store(i, 0.toByte))
+    } yield state.withStack(stack1).withMemory(mem1).step()
+
+    updatedState.valueOr(state.withError)
+  }
 }
 
 case object POP extends OpCode(0x50) {

@@ -5,7 +5,7 @@ import akka.util.ByteString
 import cats.syntax.either._
 
 
-class Program(code: ByteString, callData: ByteString) {
+class Program(code: ByteString) {
 
   def getByte(pc: Int): Either[ProgramError, Byte] =
     code.lift(pc) match {
