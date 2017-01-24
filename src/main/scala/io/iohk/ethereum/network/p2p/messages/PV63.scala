@@ -110,6 +110,8 @@ object PV63 {
   trait MptNode
 
   case class MptBranch(childHashes: Seq[ByteString], terminator: ByteString) extends MptNode {
+    require(childHashes.length == 16, "MptBranch childHashes length have to be 16")
+
     override def toString: String = {
       s"""MptBranch{
          |childHashes: ${childHashes.map(e => Hex.toHexString(e.toArray[Byte])).mkString("(", ",\n", ")")}
