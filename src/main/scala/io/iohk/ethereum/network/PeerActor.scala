@@ -102,7 +102,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
       rlpxConnection ! RLPxConnectionHandler.SendMessage(
         GetBlockHeaders(Left(DaoBlockNumber), maxHeaders = 1, skip = 0, reverse = 0)
       )
-      val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForStatusInterval, self, DaoHeaderReceiveTimeout)
+      val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForChainCheck, self, DaoHeaderReceiveTimeout)
       context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
     case StatusReceiveTimeout =>
       log.warning("Timeout while waiting status")
