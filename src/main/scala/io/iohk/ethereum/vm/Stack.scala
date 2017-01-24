@@ -29,7 +29,7 @@ case class Stack(underlying: Vector[DataWord] = Vector()) {
 
   def push(word: DataWord): Either[StackError, Stack] = {
     val updated = underlying :+ word
-    if (updated.length > Stack.MaxSize)
+    if (updated.length <= Stack.MaxSize)
       Stack(updated).asRight
     else
       StackOverflow.asLeft
