@@ -2,11 +2,16 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 
+object ProgramState {
+  def apply(invoke: ProgramInvoke): ProgramState =
+    ProgramState(invoke = invoke, storage = invoke.storage)
+}
+
 case class ProgramState(
   invoke: ProgramInvoke,
   stack: Stack = Stack(),
   memory: Memory = Memory(),
-  storage: Storage = Storage(),
+  storage: Storage,
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
   halted: Boolean = false,

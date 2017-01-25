@@ -5,20 +5,20 @@ import scala.annotation.tailrec
 
 object VM {
 
-  def execute(invoke: ProgramInvoke): ProgramResult = {
-    val finalState = execute(ProgramState(invoke))
+  def run(invoke: ProgramInvoke): ProgramResult = {
+    val finalState = run(ProgramState(invoke))
     ProgramResult(finalState.returnData, finalState.storage, finalState.error)
   }
 
   @tailrec
-  private def execute(state: ProgramState): ProgramState = {
+  private def run(state: ProgramState): ProgramState = {
     getOpCode(state) match {
       case Right(opcode) =>
         val newState = opcode.execute(state)
         if (newState.halted)
           newState
         else
-          execute(newState)
+          run(newState)
 
       case Left(error) =>
         state.withError(error).halt

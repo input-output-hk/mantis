@@ -470,7 +470,7 @@ case object RETURN extends OpCode(0xf3) {
       popped <- state.stack.pop(2)
       (Seq(offset, size), stack1) = popped
       //FIXME: use Memory functions with proper error handling
-      ret = state.memory.buffer.slice(offset.intValue, size.intValue)
+      ret = state.memory.buffer.slice(offset.intValue, offset.intValue + size.intValue)
     } yield state.withStack(stack1).withReturnData(ret).halt
 
     updatedState.valueOr(state.withError)
