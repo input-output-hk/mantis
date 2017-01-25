@@ -13,25 +13,62 @@ object OpCode {
     MUL,
     SUB,
     DIV,
+    //SDIV,
+    //MOD,
+    //SMOD,
+    //ADDMOD,
+    //MULMOD,
     EXP,
+    //SIGNEXTEND,
+
     LT,
+    //GT,
+    //SLT,
+    //SGT,
     EQ,
     ISZERO,
     AND,
+    //OR,
+    //XOR,
     NOT,
+    //BYTE,
+
     SHA3,
+
+    //ADDRESS,
+    //BALANCE,
+    //ORIGIN,
+    //CALLER,
     CALLVALUE,
     CALLDATALOAD,
+    //CALLDATASIZE,
+    //CALLDATACOPY,
+    //CODESIZE,
     CODECOPY,
+    //GASPRICE,
+    //EXTCODESIZE,
     EXTCODECOPY,
+
+    //BLOCKHASH,
+    //COINBASE,
+    //TIMESTAMP,
+    //NUMBER,
+    //DIFFICULTY,
+    //GASLIMIT,
+
     POP,
     MLOAD,
     MSTORE,
+    //MSTORE8,
     SLOAD,
     SSTORE,
     JUMP,
     JUMPI,
+    //PC,
+    //MSIZE,
+    //GAS,
     JUMPDEST,
+
     PUSH1,
     PUSH2,
     PUSH3,
@@ -64,6 +101,7 @@ object OpCode {
     PUSH30,
     PUSH31,
     PUSH32,
+
     DUP1,
     DUP2,
     DUP3,
@@ -80,6 +118,7 @@ object OpCode {
     DUP14,
     DUP15,
     DUP16,
+
     SWAP1,
     SWAP2,
     SWAP3,
@@ -96,12 +135,19 @@ object OpCode {
     SWAP14,
     SWAP15,
     SWAP16,
+
     LOG0,
     LOG1,
     LOG2,
     LOG3,
     LOG4,
+
+    //CREATE,
+    //CALL,
+    //CALLCODE,
     RETURN
+    //DELEGATECALL,
+    //SUICIDE
   )
 
   val byteToOpCode: Map[Byte, OpCode] =
