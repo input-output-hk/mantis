@@ -87,7 +87,7 @@ object PV63 {
     implicit val rlpEndDec = new RLPEncoder[TransactionLog] with RLPDecoder[TransactionLog] {
       override def encode(obj: TransactionLog): RLPEncodeable = {
         import obj._
-        RLPList(loggerAddress, RLPList(logTopics.map(rlpEncode[ByteString]): _*), data)
+        RLPList(rlpEncode[ByteString](loggerAddress), RLPList(logTopics.map(rlpEncode[ByteString]): _*), rlpEncode[ByteString](data))
       }
 
       override def decode(rlp: RLPEncodeable): TransactionLog = rlp match {
@@ -113,7 +113,8 @@ object PV63 {
     implicit val rlpEndDec = new RLPEncoder[Receipt] with RLPDecoder[Receipt] {
       override def encode(obj: Receipt): RLPEncodeable = {
         import obj._
-        RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, RLPList(logs.map(rlpEncode[TransactionLog]): _*))
+        RLPList(rlpEncode[ByteString](postTransactionStateHash), cumulativeGasUsed,
+          rlpEncode[ByteString](logsBloomFilter), RLPList(logs.map(rlpEncode[TransactionLog]): _*))
       }
 
       override def decode(rlp: RLPEncodeable): Receipt = rlp match {
