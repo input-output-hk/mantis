@@ -5,7 +5,6 @@ import io.iohk.ethereum.ObjectGenerators
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 import io.iohk.ethereum.vm.DataWord._
-import org.scalatest.compatible.Assertion
 
 
 class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
@@ -21,8 +20,8 @@ class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
   val specialCases = Table(("n1", "n2"), pairs: _*)
 
   /** For each operation (op) tests check a following property:
-      For two BigInts (n1, n2):
-      DataWord(n1) op DataWord(n2) == DataWord(n1 op n2)
+   For two BigInts (n1, n2):
+   DataWord(n1) op DataWord(n2) == DataWord(n1 op n2)
    */
   test("&") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
@@ -109,12 +108,7 @@ class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
   }
 
   test("intValue") {
-    forAll(bigIntGen) { n: BigInt =>
-      assert(DataWord(n).intValue == n.intValue)
-    }
-    forAll(Table("n", specialNumbers: _*)) { n: BigInt =>
-      assert(DataWord(n).intValue == n.intValue)
-    }
+    assert(specialNumbers.map(DataWord(_).intValue).toSeq == Seq(2147483647, 0, 1, 2147483647, 1, 2))
   }
 
   test("comparison") {
