@@ -18,7 +18,7 @@ case class Memory(underlying: ByteString = ByteString()) {
 
   def store(addr: DataWord, bs: ByteString): Memory = {
     val idx: Int = addr.intValue
-    val newBs: ByteString = if (idx + bs.length <= underlying.length) {
+    val newUnderlying: ByteString = if (idx + bs.length <= underlying.length) {
       // a new buffer fits into an old buffer
       val (prepending, following) = underlying.splitAt(idx)
       prepending ++ bs ++ following.drop(bs.length)
@@ -27,18 +27,31 @@ case class Memory(underlying: ByteString = ByteString()) {
       underlying.take(idx) ++ bs
     } else {
       // there is a gap (possibly empty) between an old buffer and a new buffer
-      val zeros = ByteString(Array.fill[Byte](idx - underlying.length)(0))
-      underlying ++ zeros ++bs
+      underlying ++ zeros((idx - underlying.length)) ++ bs
     }
-    Memory(newBs)
+    Memory(newUnderlying)
   }
 
-  // TODO: copy
+  def load (addr: DataWord): (DataWord, Memory) = {
+    load(addr, DataWord.MaxWord) match {
+      case (bs, memory) => DataWord(bs) -> memory
+    }
+  }
 
-  def load (addr: DataWord): DataWord = DataWord(underlying.drop(addr.intValue).take(DataWord.MaxLength))
-
-  def load (offset: DataWord, size: DataWord): ByteString = underlying.drop(offset.intValue).take(size.intValue)
+  def load (addr: DataWord, size: DataWord): (ByteString, Memory) = {
+    val start: Int = addr.intValue
+    val end: Int = start + size.intValue
+    val newUnderlying = if (end <= underlying.size)
+      underlying
+    else
+      underlying ++ zeros(end - underlying.size)
+    newUnderlying.slice(start, end) -> Memory(newUnderlying)
+  }
 
   def size: Int = underlying.size
+
+  private def zeros(size: Int): ByteString = {
+    ByteString(Array.fill[Byte](size)(0))
+  }
 
 }

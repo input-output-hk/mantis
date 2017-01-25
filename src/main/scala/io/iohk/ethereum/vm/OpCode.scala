@@ -231,11 +231,11 @@ case object SHA3 extends OpCode(0x20) {
       popped <- state.stack.pop(2)
       (Seq(offset, size), stack1: Stack) = popped
       //FIXME: use Memory functions with proper error handling
-      input = state.memory.load(offset, size)
+      (input, mem1) = state.memory.load(offset, size)
       hash = sha3(input.toArray)
       ret = DataWord(ByteString(hash))
       stack2 <- stack1.push(ret)
-    } yield state.withStack(stack2).step()
+    } yield state.withStack(stack2).withMemory(mem1).step()
 
     updatedState.valueOr(state.withError)
   }
@@ -282,8 +282,8 @@ case object EXTCODECOPY extends OpCode(0x3c) {
     val updatedState = for {
       popped <- state.stack.pop(4)
       (Seq(address, memOffset, codeOffset, size), stack1) = popped
-      //TODO: copy the code
-      mem1 = state.memory.store(address, state.memory.load(memOffset, size))
+      codeCopy: ByteString = ??? //TODO: program.getCode(address).drop(codeOffset)
+      mem1 = state.memory.store(memOffset, codeCopy)
     } yield state.withStack(stack1).withMemory(mem1).step()
 
     updatedState.valueOr(state.withError)
@@ -303,11 +303,9 @@ case object MLOAD extends OpCode(0x51) {
     val updatedState = for {
       popped <- state.stack.pop
       (addr, stack1) = popped
-
-      //FIXME: handle errors
-      word = state.memory.load(addr)
+      (word, mem1) = state.memory.load(addr)
       stack2 <- stack1.push(word)
-    } yield state.withStack(stack2).step()
+    } yield state.withStack(stack2).withMemory(mem1).step()
 
     updatedState.valueOr(state.withError)
   }
@@ -517,8 +515,8 @@ case object RETURN extends OpCode(0xf3) {
     val updatedState = for {
       popped <- state.stack.pop(2)
       (Seq(offset, size), stack1) = popped
-      ret = state.memory.load(offset, size)
-    } yield state.withStack(stack1).withReturnData(ret).halt
+      (ret, mem1) = state.memory.load(offset, size)
+    } yield state.withStack(stack1).withReturnData(ret).withMemory(mem1).halt
 
     updatedState.valueOr(state.withError)
   }
