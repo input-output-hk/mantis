@@ -204,9 +204,11 @@ case object CALLDATALOAD extends OpCode(0x35) {
     val updatedState = for {
       popped <- state.stack.pop
       (offset, stack1) = popped
-      //TODO: handle invalid offset
-      data = DataWord(state.invoke.getCallData(offset.intValue))
-      stack2 <- stack1.push(data)
+
+      i = offset.intValue
+      data = state.invoke.callData.slice(i, i + 32).padTo(32, 0)
+
+      stack2 <- stack1.push(DataWord(data))
     } yield state.withStack(stack2).step()
 
     updatedState.valueOr(state.withError)
@@ -416,8 +418,8 @@ sealed trait SwapOp {
   def code: Byte
 
   def execute(state: ProgramState): ProgramState = {
-    val i = code - SWAP1.code
-    val updatedState = state.stack.dup(i).map(state.withStack(_).step())
+    val i = code - SWAP1.code + 1
+    val updatedState = state.stack.swap(i).map(state.withStack(_).step())
     updatedState.valueOr(state.withError)
   }
 }
