@@ -1,4 +1,3 @@
-
 val commonSettings = Seq(
   name := "etc-client",
   version := "0.1",
@@ -28,3 +27,5 @@ val root = project.in(file("."))
     .settings(commonSettings: _*)
     .settings(libraryDependencies ++= dep)
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
+
+scalacOptions := Seq("-unchecked", "-deprecation")
