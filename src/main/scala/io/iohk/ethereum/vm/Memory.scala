@@ -8,62 +8,37 @@ import cats.syntax.either._
  https://solidity.readthedocs.io/en/latest/frequently-asked-questions.html#what-is-the-memory-keyword-what-does-it-do
  https://github.com/ethereum/go-ethereum/blob/master/core/vm/memory.go
  */
-case class Memory(buffer: ByteString = ByteString(), error: Option[MemoryError] = None) {
+case class Memory(underlying: ByteString = ByteString()) {
 
-  import DataWord.MaxLength
+  def store(addr: DataWord, b: Byte): Memory = store(addr, ByteString(b))
 
-  def store(addr: Int, dw: DataWord): Memory = storeByteBuffer(addr, dw.bytes)
+  def store(addr: DataWord, dw: DataWord): Memory = store(addr, dw.bytes)
 
-  def store(addr: Int, value: Byte): Memory = storeByteBuffer(addr, ByteString(value))
+  def store(addr: DataWord, bytes: Array[Byte]): Memory = store(addr, ByteString(bytes))
 
-  def storeBytes(addr: Int, bytes: ByteString): Memory =
-    storeByteBuffer(addr, bytes)
-
-  def load(addr: Int): DataWord = {
-    if (addr < 0) {
-      DataWord(0)
+  def store(addr: DataWord, bs: ByteString): Memory = {
+    val idx: Int = addr.intValue
+    val newBs: ByteString = if (idx + bs.length <= underlying.length) {
+      // a new buffer fits into an old buffer
+      val (prepending, following) = underlying.splitAt(idx)
+      prepending ++ bs ++ following.drop(bs.length)
+    } else if (idx <= underlying.length) {
+      // a new buffer partially fits into an old buffer
+      underlying.take(idx) ++ bs
     } else {
-      DataWord(buffer.drop(addr).take(MaxLength))
+      // there is a gap (possibly empty) between an old buffer and a new buffer
+      val zeros = ByteString(Array.fill[Byte](idx - underlying.length)(0))
+      underlying ++ zeros ++bs
     }
+    Memory(newBs)
   }
 
-  def size(): Int = buffer.size
+  // TODO: copy
 
-  def withBuffer(buffer: ByteString): Memory = copy(buffer = buffer)
+  def load (addr: DataWord): DataWord = DataWord(underlying.drop(addr.intValue).take(DataWord.MaxLength))
 
-  def withError(error: MemoryError): Memory = copy(error = Some(error))
+  def load (offset: DataWord, size: DataWord): ByteString = underlying.drop(offset.intValue).take(size.intValue)
 
-  private def storeByteBuffer(addr: Int, value: ByteString): Memory = {
-    val updatedState = for {
-      _ <- error.toLeft(buffer)
-      newBuf <- newBuffer(addr, value)
-    } yield {
-      this.withBuffer(newBuf)
-    }
-    updatedState.valueOr(this.withError)
-  }
-
-  private def newBuffer(addr: Int, value: ByteString): Either[MemoryError, ByteString] = {
-    if (addr < 0) {
-      InvalidAddress.asLeft
-    } else {
-      // new buffer fits into old buffer
-      val newBuffer = if (addr + value.length <= buffer.length) {
-        val (prepending, following) = buffer.splitAt(addr)
-        prepending ++ value ++ following.drop(value.length)
-        // new buffer partially fits into old buffer
-      } else if (addr <= buffer.length) {
-        buffer.take(addr) ++ value
-        // there is a gap (possibly empty) between old buffer and new buffer
-      } else {
-        buffer ++ zeros(addr - buffer.length) ++ value
-      }
-      newBuffer.asRight
-    }
-  }
-
-  private def zeros(length: Int): ByteString = {
-    ByteString(Array.fill[Byte](length)(0))
-  }
+  def size: Int = underlying.size
 
 }

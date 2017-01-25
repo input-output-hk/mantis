@@ -183,9 +183,9 @@ case object SHA3 extends OpCode(0x20) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
-      (Seq(offset, size), stack1) = popped
+      (Seq(offset, size), stack1: Stack) = popped
       //FIXME: use Memory functions with proper error handling
-      input = state.memory.buffer.slice(offset.intValue, size.intValue)
+      input = state.memory.load(offset, size)
       hash = sha3(input.toArray)
       ret = DataWord(ByteString(hash))
       stack2 <- stack1.push(ret)
@@ -224,7 +224,7 @@ case object CODECOPY extends OpCode(0x39) {
       popped <- state.stack.pop(3)
       (Seq(memOffset, codeOffset, size), stack1) = popped
       bytes <- state.program.getBytes(codeOffset.intValue, size.intValue)
-      mem1 = state.memory.storeBytes(memOffset.intValue, bytes)
+      mem1 = state.memory.store(memOffset, bytes)
     } yield state.withStack(stack1).withMemory(mem1).step()
 
     updatedState.valueOr(state.withError)
@@ -237,7 +237,7 @@ case object EXTCODECOPY extends OpCode(0x3c) {
       popped <- state.stack.pop(4)
       (Seq(address, memOffset, codeOffset, size), stack1) = popped
       //TODO: copy the code
-      mem1 = (0 until size.intValue).foldLeft(state.memory)((mem, i) => mem.store(i, 0.toByte))
+      mem1 = state.memory.store(address, state.memory.load(memOffset, size))
     } yield state.withStack(stack1).withMemory(mem1).step()
 
     updatedState.valueOr(state.withError)
@@ -259,7 +259,7 @@ case object MLOAD extends OpCode(0x51) {
       (addr, stack1) = popped
 
       //FIXME: handle errors
-      word = state.memory.load(addr.intValue)
+      word = state.memory.load(addr)
       stack2 <- stack1.push(word)
     } yield state.withStack(stack2).step()
 
@@ -272,8 +272,7 @@ case object MSTORE extends OpCode(0x52) {
     val updatedState = for {
       popped <- state.stack.pop(2)
       (Seq(addr, value), stack1) = popped
-      //TODO: handle invalid address
-      updatedMem = state.memory.store(addr.intValue, value)
+      updatedMem = state.memory.store(addr, value)
     } yield state.withStack(stack1).withMemory(updatedMem).step()
 
     updatedState.valueOr(state.withError)
@@ -472,8 +471,7 @@ case object RETURN extends OpCode(0xf3) {
     val updatedState = for {
       popped <- state.stack.pop(2)
       (Seq(offset, size), stack1) = popped
-      //FIXME: use Memory functions with proper error handling
-      ret = state.memory.buffer.slice(offset.intValue, offset.intValue + size.intValue)
+      ret = state.memory.load(offset, size)
     } yield state.withStack(stack1).withReturnData(ret).halt
 
     updatedState.valueOr(state.withError)
