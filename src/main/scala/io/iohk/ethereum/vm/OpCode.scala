@@ -13,6 +13,7 @@ object OpCode {
     MUL,
     SUB,
     DIV,
+    EXP,
     LT,
     EQ,
     ISZERO,
@@ -165,6 +166,8 @@ case object DIV extends OpCode(0x04) {
     updatedState.valueOr(state.withError)
   }
 }
+
+case object EXP extends BinaryOp(0x0a, _ ** _)
 
 case object LT extends BinaryOp(0x10, (a, b) => DataWord(a < b))
 
