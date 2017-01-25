@@ -206,7 +206,7 @@ case object CALLDATALOAD extends OpCode(0x35) {
       (offset, stack1) = popped
 
       i = offset.intValue
-      data = state.invoke.callData.slice(i, i + 32).padTo(32, 0)
+      data = state.invoke.callData.slice(i, i + 32).padTo(32, 0.toByte)
 
       stack2 <- stack1.push(DataWord(data))
     } yield state.withStack(stack2).step()
