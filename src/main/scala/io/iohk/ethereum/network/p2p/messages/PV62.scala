@@ -101,11 +101,6 @@ object PV62 {
     """.stripMargin
   }
 
-
-
-
-
-
   object BlockHash {
     implicit val rlpEndDec = new RLPEncoder[BlockHash] with RLPDecoder[BlockHash] {
       override def encode(obj: BlockHash): RLPEncodeable = {
@@ -167,6 +162,7 @@ object PV62 {
   }
 
   object BlockHeader {
+
     implicit val rlpEndDec = new RLPEncoder[BlockHeader] with RLPDecoder[BlockHeader] {
       override def encode(obj: BlockHeader): RLPEncodeable = {
         import obj._
@@ -228,6 +224,8 @@ object PV62 {
     extraData: ByteString,
     mixHash: ByteString,
     nonce: ByteString) {
+
+    import BlockHeader._
 
     lazy val hash: Array[Byte] = sha3(encode[BlockHeader](this))
 
