@@ -5,15 +5,21 @@ val commonSettings = Seq(
   scalaVersion := "2.11.8"
 )
 
-val dep = Seq(
-  "com.typesafe.akka" %% "akka-actor" % "2.4.16",
-  "org.consensusresearch" %% "scrypto" % "1.2.0-RC3",
-  "com.madgag.spongycastle" % "core" % "1.54.0.0",
-  "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
-  "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
-  "org.scorexfoundation" %% "iodb" % "0.1.1",
-  "org.typelevel" %% "cats" % "0.9.0"
-)
+val dep = {
+  val akkaVersion = "2.4.16"
+
+  Seq(
+    "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+    "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
+    "org.consensusresearch" %% "scrypto" % "1.2.0-RC3",
+    "com.madgag.spongycastle" % "core" % "1.54.0.0",
+    "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
+    "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
+    "org.scorexfoundation" %% "iodb" % "0.1.1",
+    "ch.qos.logback" % "logback-classic" % "1.1.9",
+    "org.typelevel" %% "cats" % "0.9.0"
+  )
+}
 
 val Integration = config("it") extend Test
 
