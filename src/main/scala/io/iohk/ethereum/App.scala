@@ -26,7 +26,7 @@ object App {
     if (args.length > 0) {
       val peerUri = new URI(args(0))
       peerManager ! PeerManagerActor.ConnectToPeer(peerUri)
-      Thread.sleep(2 * 1000)
+      Thread.sleep(5 * 1000)
       peerManager ! PeerManagerActor.StartFastDownload(peerUri)
     }
   }
