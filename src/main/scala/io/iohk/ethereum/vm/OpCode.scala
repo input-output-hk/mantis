@@ -156,13 +156,15 @@ object OpCode {
 
 /**
   * @param code Opcode byte representation
+  * @param delta number of words to be popped from stack
+  * @param alpha number of words to be pushed to stack
   */
-sealed abstract class OpCode(val code: Byte, val pop: Int, val push: Int) {
+sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int) {
   def this(code: Int, pop: Int, push: Int) = this(code.toByte, pop, push)
 
   def execute(state: ProgramState): ProgramState
 
-  val diff = push - pop
+  val diff = alpha - delta
 }
 
 case object STOP extends OpCode(0x00, 0, 0) {
@@ -202,7 +204,7 @@ case object MUL extends BinaryOp(0x02, _ * _)
 
 case object SUB extends BinaryOp(0x03, _ - _)
 
-case object DIV extends OpCode(0x04) {
+case object DIV extends OpCode(0x04, 2, 1) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
@@ -227,7 +229,7 @@ case object AND extends BinaryOp(0x16, _ & _)
 
 case object NOT extends UnaryOp(0x19, ~_)
 
-case object SHA3 extends OpCode(0x20) {
+case object SHA3 extends OpCode(0x20, 2, 1) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
@@ -243,14 +245,14 @@ case object SHA3 extends OpCode(0x20) {
   }
 }
 
-case object CALLVALUE extends OpCode(0x34) {
+case object CALLVALUE extends OpCode(0x34, 0, 1) {
   def execute(state: ProgramState): ProgramState =
     state.stack.push(DataWord(state.invoke.callValue))
       .map(state.withStack(_).step())
       .valueOr(state.withError)
 }
 
-case object CALLDATALOAD extends OpCode(0x35) {
+case object CALLDATALOAD extends OpCode(0x35, 1, 1) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop
@@ -266,7 +268,7 @@ case object CALLDATALOAD extends OpCode(0x35) {
   }
 }
 
-case object CODECOPY extends OpCode(0x39) {
+case object CODECOPY extends OpCode(0x39, 3, 0) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(3)
@@ -279,7 +281,7 @@ case object CODECOPY extends OpCode(0x39) {
   }
 }
 
-case object EXTCODECOPY extends OpCode(0x3c) {
+case object EXTCODECOPY extends OpCode(0x3c, 4, 0) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(4)
@@ -292,7 +294,7 @@ case object EXTCODECOPY extends OpCode(0x3c) {
   }
 }
 
-case object POP extends OpCode(0x50) {
+case object POP extends OpCode(0x50, 1, 0) {
   def execute(state: ProgramState): ProgramState = {
     state.stack.pop
       .map { case (_, stack) => state.withStack(stack).step() }
@@ -300,7 +302,7 @@ case object POP extends OpCode(0x50) {
   }
 }
 
-case object MLOAD extends OpCode(0x51) {
+case object MLOAD extends OpCode(0x51, 1, 1) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop
@@ -313,7 +315,7 @@ case object MLOAD extends OpCode(0x51) {
   }
 }
 
-case object MSTORE extends OpCode(0x52) {
+case object MSTORE extends OpCode(0x52, 2, 0) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
@@ -325,7 +327,7 @@ case object MSTORE extends OpCode(0x52) {
   }
 }
 
-case object SLOAD extends OpCode(0x54) {
+case object SLOAD extends OpCode(0x54, 1, 1) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop
@@ -340,7 +342,7 @@ case object SLOAD extends OpCode(0x54) {
 }
 
 
-case object SSTORE extends OpCode(0x55) {
+case object SSTORE extends OpCode(0x55, 2, 0) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
@@ -354,7 +356,7 @@ case object SSTORE extends OpCode(0x55) {
 }
 
 
-case object JUMP extends OpCode(0x56) {
+case object JUMP extends OpCode(0x56, 1, 0) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop
@@ -365,7 +367,7 @@ case object JUMP extends OpCode(0x56) {
   }
 }
 
-case object JUMPI extends OpCode(0x57) {
+case object JUMPI extends OpCode(0x57, 2, 0) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
@@ -377,7 +379,7 @@ case object JUMPI extends OpCode(0x57) {
   }
 }
 
-case object JUMPDEST extends OpCode(0x5b) {
+case object JUMPDEST extends OpCode(0x5b, 0, 0) {
   def execute(state: ProgramState): ProgramState = {
     //TODO: what is it for, really?
     state.step()
@@ -432,9 +434,10 @@ case object PUSH31 extends PushOp(0x7e)
 case object PUSH32 extends PushOp(0x7f)
 
 
-sealed abstract class DupOp(code: Int) extends OpCode(code.toByte, code - DUP1.code + 1, code - DUP1.code + 2) {
+sealed abstract class DupOp private(code: Int, i: => Int) extends OpCode(code.toByte, i + 1, i + 2) {
+  def this(code: Int) = this(code, code - DUP1.code)
+
   def execute(state: ProgramState): ProgramState = {
-    val i = code - DUP1.code
     val updatedState = state.stack.dup(i).map(state.withStack(_).step())
     updatedState.valueOr(state.withError)
   }
@@ -458,41 +461,39 @@ case object DUP15 extends DupOp(0x8e)
 case object DUP16 extends DupOp(0x8f)
 
 
-sealed trait SwapOp {
-  def code: Byte
+sealed abstract class SwapOp(code: Int, i: => Int) extends OpCode(code.toByte, i + 2, i + 2) {
+  def this(code: Int) = this(code, code - SWAP1.code)
 
   def execute(state: ProgramState): ProgramState = {
-    val i = code - SWAP1.code + 1
-    val updatedState = state.stack.swap(i).map(state.withStack(_).step())
+    val updatedState = state.stack.swap(i + 1).map(state.withStack(_).step())
     updatedState.valueOr(state.withError)
   }
 }
 
-case object SWAP1  extends OpCode(0x90) with SwapOp
-case object SWAP2  extends OpCode(0x91) with SwapOp
-case object SWAP3  extends OpCode(0x92) with SwapOp
-case object SWAP4  extends OpCode(0x93) with SwapOp
-case object SWAP5  extends OpCode(0x94) with SwapOp
-case object SWAP6  extends OpCode(0x95) with SwapOp
-case object SWAP7  extends OpCode(0x96) with SwapOp
-case object SWAP8  extends OpCode(0x97) with SwapOp
-case object SWAP9  extends OpCode(0x98) with SwapOp
-case object SWAP10 extends OpCode(0x99) with SwapOp
-case object SWAP11 extends OpCode(0x9a) with SwapOp
-case object SWAP12 extends OpCode(0x9b) with SwapOp
-case object SWAP13 extends OpCode(0x9c) with SwapOp
-case object SWAP14 extends OpCode(0x9d) with SwapOp
-case object SWAP15 extends OpCode(0x9e) with SwapOp
-case object SWAP16 extends OpCode(0x9f) with SwapOp
+case object SWAP1  extends SwapOp(0x90)
+case object SWAP2  extends SwapOp(0x91)
+case object SWAP3  extends SwapOp(0x92)
+case object SWAP4  extends SwapOp(0x93)
+case object SWAP5  extends SwapOp(0x94)
+case object SWAP6  extends SwapOp(0x95)
+case object SWAP7  extends SwapOp(0x96)
+case object SWAP8  extends SwapOp(0x97)
+case object SWAP9  extends SwapOp(0x98)
+case object SWAP10 extends SwapOp(0x99)
+case object SWAP11 extends SwapOp(0x9a)
+case object SWAP12 extends SwapOp(0x9b)
+case object SWAP13 extends SwapOp(0x9c)
+case object SWAP14 extends SwapOp(0x9d)
+case object SWAP15 extends SwapOp(0x9e)
+case object SWAP16 extends SwapOp(0x9f)
 
 
-sealed trait LogOp {
-  def code: Byte
+sealed abstract class LogOp(code: Int, i: => Int) extends OpCode(code.toByte, i + 2, 0){
+  def this(code: Int) = this(code, code - LOG0.code)
 
   def execute(state: ProgramState): ProgramState = {
-    val i = code - LOG1.code + 2
     val updatedState = for {
-      popped <- state.stack.pop(i)
+      popped <- state.stack.pop(delta)
       (_, stack1) = popped
       //TODO: implement logging
     } yield state.withStack(stack1).step()
@@ -501,14 +502,14 @@ sealed trait LogOp {
   }
 }
 
-case object LOG0 extends OpCode(0xa0) with LogOp
-case object LOG1 extends OpCode(0xa1) with LogOp
-case object LOG2 extends OpCode(0xa2) with LogOp
-case object LOG3 extends OpCode(0xa3) with LogOp
-case object LOG4 extends OpCode(0xa4) with LogOp
+case object LOG0 extends LogOp(0xa0)
+case object LOG1 extends LogOp(0xa1)
+case object LOG2 extends LogOp(0xa2)
+case object LOG3 extends LogOp(0xa3)
+case object LOG4 extends LogOp(0xa4)
 
 
-case object RETURN extends OpCode(0xf3) {
+case object RETURN extends OpCode(0xf3, 2, 0) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)

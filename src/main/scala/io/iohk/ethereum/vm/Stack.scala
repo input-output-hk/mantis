@@ -5,20 +5,17 @@ import cats.syntax.either._
 object Stack {
   val DefaultMaxSize = 1024
 
-  def apply(maxSize: Int = DefaultMaxSize): Stack =
+  def empty(maxSize: Int = DefaultMaxSize): Stack =
     new Stack(Vector(), maxSize)
 }
 
 //TODO: consider a List with head being top of the stack (DUP,SWAP go at most the depth of 16)
 class Stack(underlying: Vector[DataWord], val maxSize: Int) {
 
-  def this(updated: Vector[DataWord]) =
-    this(updated, maxSize)
-
   def pop: Either[StackError, (DataWord, Stack)] = underlying.lastOption match {
     case Some(word) =>
       val updated = underlying.dropRight(1)
-      (word, new Stack(updated)).asRight
+      (word, copy(updated)).asRight
 
     case None =>
       StackUnderflow.asLeft
@@ -27,7 +24,7 @@ class Stack(underlying: Vector[DataWord], val maxSize: Int) {
   def pop(n: Int): Either[StackError, (Seq[DataWord], Stack)] = {
     val (updated, popped) = underlying.splitAt(underlying.length - n)
     if (popped.length >= n)
-      (popped.reverse, new Stack(updated)).asRight
+      (popped.reverse, copy(updated)).asRight
     else
       StackUnderflow.asLeft
   }
@@ -35,7 +32,7 @@ class Stack(underlying: Vector[DataWord], val maxSize: Int) {
   def push(word: DataWord): Either[StackError, Stack] = {
     val updated = underlying :+ word
     if (updated.length <= maxSize)
-      new Stack(updated).asRight
+      copy(updated).asRight
     else
       StackOverflow.asLeft
   }
@@ -43,7 +40,7 @@ class Stack(underlying: Vector[DataWord], val maxSize: Int) {
   def push(words: Seq[DataWord]): Either[StackError, Stack] = {
     val updated = underlying ++ words
     if (updated.length > maxSize)
-      new Stack(updated).asRight
+      copy(updated).asRight
     else
       StackOverflow.asLeft
   }
@@ -56,7 +53,7 @@ class Stack(underlying: Vector[DataWord], val maxSize: Int) {
     else if (underlying.length >= maxSize)
       StackOverflow.asLeft
     else
-      new Stack(underlying :+ underlying(j)).asRight
+      copy(underlying :+ underlying(j)).asRight
   }
 
   def swap(i: Int): Either[StackError, Stack] = {
@@ -68,7 +65,10 @@ class Stack(underlying: Vector[DataWord], val maxSize: Int) {
       val a = underlying.last
       val b = underlying(j)
       val updated = underlying.updated(j, a).init :+ b
-      new Stack(updated).asRight
+      copy(updated).asRight
     }
   }
+
+  private def copy(updated: Vector[DataWord]): Stack =
+    new Stack(updated, maxSize)
 }

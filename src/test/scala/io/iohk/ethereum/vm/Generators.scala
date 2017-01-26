@@ -12,7 +12,7 @@ object Generators extends ObjectGenerators {
   def stackGen(maxSize: Int = testStackMaxSize): Gen[Stack] = {
     val sizeGen = Gen.choose(0, maxSize)
     val listGen = sizeGen.flatMap(Gen.listOfN(_, dataWordGen))
-    val stack = Stack(maxSize)
+    val stack = Stack.empty(maxSize)
     listGen.flatMap(stack.push(_).right.get)
   }
 
