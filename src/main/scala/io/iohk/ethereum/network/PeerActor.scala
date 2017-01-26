@@ -40,6 +40,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
   val connectRetryDelay = 20.seconds
 
   //FIXME move this to props
+  // Doc: https://blog.ethereum.org/2016/07/20/hard-fork-completed/
   lazy val DaoBlockNumber = 1920000
   lazy val DaoBlockTotalDifficulty = BigInt("39490964433395682584")
   lazy val daoForkValidator = ForkValidator(DaoBlockNumber, ByteString(Hex.decode("94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f")))
@@ -144,7 +145,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     handlePingMsg(rlpxConnection) orElse {
     case MessageReceived(msg@BlockHeaders(blockHeader +: Nil)) if blockHeader.number == DaoBlockNumber =>
       timeout.cancel()
-      log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.hash))
+      log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.hash.toArray))
       if (daoForkValidator.validate(msg).isEmpty) {
         log.warning("Peer is running the ETC chain")
         context become new HandshakedHandler(rlpxConnection).receive
