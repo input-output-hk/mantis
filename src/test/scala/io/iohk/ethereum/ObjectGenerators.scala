@@ -21,8 +21,6 @@ trait ObjectGenerators {
   //   }
   // }
 
-  def dataWordGen: Gen[DataWord] = bigIntGen.map(DataWord(_))
-
   def byteArrayOfNItemsGen(n: Int): Gen[Array[Byte]] = Gen.listOfN(n, Arbitrary.arbitrary[Byte]).map(_.toArray)
 
   def seqByteArrayOfNItemsGen(n: Int): Gen[Seq[Array[Byte]]] = Gen.listOf(byteArrayOfNItemsGen(n))

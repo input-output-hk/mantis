@@ -3,12 +3,17 @@ package io.iohk.ethereum.vm
 import cats.syntax.either._
 
 object Stack {
-  val MaxSize = 1024
+  val DefaultMaxSize = 1024
+
+  def apply(maxSize: Int = DefaultMaxSize): Stack =
+    new Stack(Vector(), maxSize)
 }
 
 //TODO: consider a List with head being top of the stack (DUP,SWAP go at most the depth of 16)
-//TODO: change to regular class
-case class Stack(underlying: Vector[DataWord] = Vector()) {
+class Stack(underlying: Vector[DataWord], val maxSize: Int) {
+
+  def this(updated: Vector[DataWord]) =
+    this(updated, maxSize)
 
   def pop: Either[StackError, (DataWord, Stack)] = underlying.lastOption match {
     case Some(word) =>
@@ -29,16 +34,16 @@ case class Stack(underlying: Vector[DataWord] = Vector()) {
 
   def push(word: DataWord): Either[StackError, Stack] = {
     val updated = underlying :+ word
-    if (updated.length <= Stack.MaxSize)
-      Stack(updated).asRight
+    if (updated.length <= maxSize)
+      new Stack(updated).asRight
     else
       StackOverflow.asLeft
   }
 
   def push(words: Seq[DataWord]): Either[StackError, Stack] = {
     val updated = underlying ++ words
-    if (updated.length > Stack.MaxSize)
-      Stack(updated).asRight
+    if (updated.length > maxSize)
+      new Stack(updated).asRight
     else
       StackOverflow.asLeft
   }
@@ -48,10 +53,10 @@ case class Stack(underlying: Vector[DataWord] = Vector()) {
 
     if (j < 0)
       StackUnderflow.asLeft
-    else if (underlying.length >= Stack.MaxSize)
+    else if (underlying.length >= maxSize)
       StackOverflow.asLeft
     else
-      Stack(underlying :+ underlying(j)).asRight
+      new Stack(underlying :+ underlying(j)).asRight
   }
 
   def swap(i: Int): Either[StackError, Stack] = {
@@ -63,7 +68,7 @@ case class Stack(underlying: Vector[DataWord] = Vector()) {
       val a = underlying.last
       val b = underlying(j)
       val updated = underlying.updated(j, a).init :+ b
-      Stack(updated).asRight
+      new Stack(updated).asRight
     }
   }
 }
