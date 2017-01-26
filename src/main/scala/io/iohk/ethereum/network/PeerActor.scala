@@ -108,6 +108,9 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     def receive: Receive = handleTerminated orElse {
       case RLPxConnectionHandler.MessageReceived(message) => processMessage(message)
       case s: SendMessage[_] => sendMessage(s.message)(s.enc)
+      case StartFastSync(hash) =>
+        val fastSync = context.actorOf(FastSyncActor.props(self), "fast-sync")
+        fastSync ! FastSyncActor.StartSync(hash)
     }
 
     def sendMessage[M <: Message : RLPEncoder](message: M): Unit = {
@@ -146,6 +149,8 @@ object PeerActor {
   case class ConnectTo(uri: URI)
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
+
+  case class StartFastSync(blockHash: ByteString)
 
   private case object ProtocolHandshakeTimeout
 }
