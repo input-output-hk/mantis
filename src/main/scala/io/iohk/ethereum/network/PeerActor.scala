@@ -17,6 +17,8 @@ import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData
 
+import scala.collection.immutable.HashSet
+
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
   * It creates child RLPxConnectionActor for handling underlying RLPx communication.
@@ -105,6 +107,8 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
   class HandshakedHandler(rlpxConnection: ActorRef) {
 
+    var tomatoMap = HashSet[ActorRef]()
+
     def receive: Receive = handleTerminated orElse {
       case RLPxConnectionHandler.MessageReceived(message) => processMessage(message)
       case s: SendMessage[_] => sendMessage(s.message)(s.enc)
@@ -115,18 +119,19 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
     def sendMessage[M <: Message : RLPEncoder](message: M): Unit = {
       rlpxConnection ! RLPxConnectionHandler.SendMessage(message)
+      tomatoMap = tomatoMap + sender()
     }
 
     def processMessage(message: Message): Unit = message match {
-      /*TODO delete test code*/
-      case m:GetBlockHeaders =>
-        sendMessage(BlockHeaders(Seq()))
-        sendMessage(GetNodeData(Seq(
-          ByteString(Hex.decode("ac65a995f80381c8b0a2993b08cbee9cfc1cc2d164c33288d99a9c1a02c9e9c3"))
-          , ByteString(Hex.decode("45df225cffcb97928010c49116e7d767e09333da60644b807c512bac27ac8890"))
-          , ByteString(Hex.decode("8ccbec7896a8cc26429830406d14080a7234ea14336370bf850526e614b1b8ed"))
-        )))
-      /**/
+//      /*TODO delete test code*/
+//      case m:GetBlockHeaders =>
+//        sendMessage(BlockHeaders(Seq()))
+//        sendMessage(GetNodeData(Seq(
+//          ByteString(Hex.decode("ac65a995f80381c8b0a2993b08cbee9cfc1cc2d164c33288d99a9c1a02c9e9c3"))
+//          , ByteString(Hex.decode("45df225cffcb97928010c49116e7d767e09333da60644b807c512bac27ac8890"))
+//          , ByteString(Hex.decode("8ccbec7896a8cc26429830406d14080a7234ea14336370bf850526e614b1b8ed"))
+//        )))
+//      /**/
       case Ping() =>
         sendMessage(Pong())
 
@@ -135,6 +140,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
         context stop self
 
       case msg =>
+        tomatoMap.foreach(actor => actor ! msg)
         log.info("Received message: {}", msg)
     }
 
