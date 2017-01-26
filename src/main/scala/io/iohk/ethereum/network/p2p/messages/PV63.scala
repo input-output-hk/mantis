@@ -20,7 +20,7 @@ object PV63 {
       }
 
       override def decode(rlp: RLPEncodeable): GetNodeData = rlp match {
-        case rlpList: RLPList => GetNodeData(rlpList.items.map(byteStringEncDec.decode))
+        case rlpList: RLPList => GetNodeData(rlpList.items.map(rlpDecode[ByteString]))
         case _ => throw new RuntimeException("Cannot decode GetNodeData")
       }
     }
@@ -204,7 +204,7 @@ object PV63 {
       }
 
       override def decode(rlp: RLPEncodeable): GetReceipts = rlp match {
-        case rlpList: RLPList => GetReceipts(rlpList.items.map(byteStringEncDec.decode))
+        case rlpList: RLPList => GetReceipts(rlpList.items.map(rlpDecode[ByteString]))
         case _ => throw new RuntimeException("Cannot decode GetReceipts")
       }
     }
@@ -223,37 +223,44 @@ object PV63 {
     }
   }
 
-  object Receipts {
-    implicit val rlpEndDec = new RLPEncoder[Receipts] with RLPDecoder[Receipts] {
-      override def encode(obj: Receipts): RLPEncodeable = {
+  object TransactionLog {
+    implicit val rlpEndDec = new RLPEncoder[TransactionLog] with RLPDecoder[TransactionLog] {
+      override def encode(obj: TransactionLog): RLPEncodeable = {
         import obj._
-        RLPList(receiptsForBlocks.map(r => RLPList(r.map(Receipt.rlpEndDec.encode): _*)): _*)
+        RLPList(loggerAddress, logTopics, data)
       }
 
-      override def decode(rlp: RLPEncodeable): Receipts = rlp match {
-        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => r.items.map(Receipt.rlpEndDec.decode) })
-        case _ => throw new RuntimeException("Cannot decode Receipts")
+      override def decode(rlp: RLPEncodeable): TransactionLog = rlp match {
+        case RLPList(loggerAddress, logTopics: RLPList, data) =>
+          TransactionLog(rlpDecode[ByteString](loggerAddress), logTopics.items.map(rlpDecode[ByteString]), rlpDecode[ByteString](data))
+        case _ => throw new RuntimeException("Cannot decode TransactionLog")
       }
     }
-
-    val code: Int = Message.SubProtocolOffset + 0x10
   }
 
-  case class Receipts(receiptsForBlocks: Seq[Seq[Receipt]]) extends Message {
-    override def code: Int = Receipts.code
+  case class TransactionLog(loggerAddress: ByteString, logTopics: Seq[ByteString], data: ByteString) {
+    override def toString: String = {
+      s"""TransactionLog{
+         |loggerAddress: ${Hex.toHexString(loggerAddress.toArray[Byte])}
+         |logTopics: ${logTopics.map(e => Hex.toHexString(e.toArray[Byte]))}
+         |data: ${Hex.toHexString(data.toArray[Byte])}
+         |}
+       """.stripMargin
+    }
   }
 
   object Receipt {
     implicit val rlpEndDec = new RLPEncoder[Receipt] with RLPDecoder[Receipt] {
       override def encode(obj: Receipt): RLPEncodeable = {
         import obj._
-        RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, RLPList(logs.map(TransactionLog.rlpEndDec.encode): _*))
+        RLPList(postTransactionStateHash, cumulativeGasUsed,
+          logsBloomFilter, logs)
       }
 
       override def decode(rlp: RLPEncodeable): Receipt = rlp match {
         case RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs: RLPList) =>
-          Receipt(byteStringEncDec.decode(postTransactionStateHash), cumulativeGasUsed,
-            byteStringEncDec.decode(logsBloomFilter), logs.items.map(TransactionLog.rlpEndDec.decode))
+          Receipt(rlpDecode[ByteString](postTransactionStateHash), cumulativeGasUsed,
+            rlpDecode[ByteString](logsBloomFilter), logs.items.map(rlpDecode[TransactionLog]))
         case _ => throw new RuntimeException("Cannot decode Receipt")
       }
     }
@@ -277,30 +284,23 @@ object PV63 {
     }
   }
 
-  object TransactionLog {
-    implicit val rlpEndDec = new RLPEncoder[TransactionLog] with RLPDecoder[TransactionLog] {
-      override def encode(obj: TransactionLog): RLPEncodeable = {
+  object Receipts {
+    implicit val rlpEndDec = new RLPEncoder[Receipts] with RLPDecoder[Receipts] {
+      override def encode(obj: Receipts): RLPEncodeable = {
         import obj._
-        RLPList(loggerAddress, RLPList(logTopics.map(byteStringEncDec.encode): _*), data)
+        RLPList(receiptsForBlocks.map(r => r:RLPList): _*)
       }
 
-      override def decode(rlp: RLPEncodeable): TransactionLog = rlp match {
-        case RLPList(loggerAddress, logTopics: RLPList, data) =>
-          TransactionLog(byteStringEncDec.decode(loggerAddress), logTopics.items.map(e => byteStringEncDec.decode(e)), byteStringEncDec.decode(data))
-        case _ => throw new RuntimeException("Cannot decode TransactionLog")
+      override def decode(rlp: RLPEncodeable): Receipts = rlp match {
+        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => r.items.map(rlpDecode[Receipt]) })
+        case _ => throw new RuntimeException("Cannot decode Receipts")
       }
     }
+
+    val code: Int = Message.SubProtocolOffset + 0x10
   }
 
-  case class TransactionLog(loggerAddress: ByteString, logTopics: Seq[ByteString], data: ByteString) {
-    override def toString: String = {
-      s"""TransactionLog{
-         |loggerAddress: ${Hex.toHexString(loggerAddress.toArray[Byte])}
-         |logTopics: ${logTopics.map(e => Hex.toHexString(e.toArray[Byte]))}
-         |data: ${Hex.toHexString(data.toArray[Byte])}
-         |}
-       """.stripMargin
-    }
+  case class Receipts(receiptsForBlocks: Seq[Seq[Receipt]]) extends Message {
+    override def code: Int = Receipts.code
   }
-
 }
