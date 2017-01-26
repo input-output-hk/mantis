@@ -123,17 +123,13 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     }
 
     def processMessage(message: Message): Unit = message match {
-//      /*TODO delete test code*/
-//      case m:GetBlockHeaders =>
-//        sendMessage(BlockHeaders(Seq()))
-//        sendMessage(GetNodeData(Seq(
-//          ByteString(Hex.decode("ac65a995f80381c8b0a2993b08cbee9cfc1cc2d164c33288d99a9c1a02c9e9c3"))
-//          , ByteString(Hex.decode("45df225cffcb97928010c49116e7d767e09333da60644b807c512bac27ac8890"))
-//          , ByteString(Hex.decode("8ccbec7896a8cc26429830406d14080a7234ea14336370bf850526e614b1b8ed"))
-//        )))
-//      /**/
       case Ping() =>
+        log.info("Received message: {}", message)
         sendMessage(Pong())
+
+      case GetBlockHeaders(Left(number), _, _, _) if number == 1920000 =>
+        log.info("Received message: {}", message)
+        sendMessage(BlockHeaders(Seq())) //stub because we do not have this block yet
 
       case d: Disconnect =>
         log.info("Received {}. Closing connection", d)

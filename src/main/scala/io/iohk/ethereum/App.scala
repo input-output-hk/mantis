@@ -4,7 +4,7 @@ import java.net.{InetSocketAddress, URI}
 
 import akka.actor.ActorSystem
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.network.{NodeInfo, ServerActor, PeerManagerActor}
+import io.iohk.ethereum.network.{NodeInfo, PeerManagerActor, ServerActor}
 
 object App {
 
@@ -26,6 +26,8 @@ object App {
     if (args.length > 0) {
       val peerUri = new URI(args(0))
       peerManager ! PeerManagerActor.ConnectToPeer(peerUri)
+      Thread.sleep(2 * 1000)
+      peerManager ! PeerManagerActor.StartFastDownload(peerUri)
     }
   }
 }

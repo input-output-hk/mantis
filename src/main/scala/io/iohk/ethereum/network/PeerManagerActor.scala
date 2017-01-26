@@ -5,6 +5,10 @@ import java.util.UUID
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.rlp.RLPEncoder
+
+import scala.collection.immutable.HashMap
 
 class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
@@ -15,6 +19,8 @@ class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
       case _ => Stop
     }
 
+  var actorMap = new HashMap[URI, ActorRef]()
+
   override def receive: Receive = {
     case HandlePeerConnection(connection, remoteAddress) =>
       val peer = createPeer()
@@ -22,7 +28,12 @@ class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
       peer ! PeerActor.HandleConnection(connection)
 
     case ConnectToPeer(uri) =>
-      createPeer() ! PeerActor.ConnectTo(uri)
+      val actor = createPeer()
+      actor ! PeerActor.ConnectTo(uri)
+      actorMap = actorMap + (uri -> actor)
+
+    case StartFastDownload(uri) =>
+      actorMap.get(uri).foreach(a => a ! PeerActor.StartFastSync)
   }
 
   def createPeer(): ActorRef = {
@@ -37,4 +48,6 @@ object PeerManagerActor {
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
   case class ConnectToPeer(uri: URI)
+
+  case class StartFastDownload(uri: URI)
 }

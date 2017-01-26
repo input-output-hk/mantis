@@ -141,6 +141,7 @@ class RLPxConnectionHandler(nodeInfo: NodeInfo)
         case sm: SendMessage[_] =>
           val out = messageCodec.encodeMessage(sm.message)(sm.enc)
           connection ! Write(out)
+          log.info("Sent message: {}", sm.message)
 
         case Received(data) =>
           val messages = messageCodec.readMessages(data)
