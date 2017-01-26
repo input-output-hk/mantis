@@ -118,7 +118,7 @@ object CommonMessages {
     )
 
     val FirstByteOfAddress = 12
-    val LastByteOfAddress = 12 + AddressLength
+    val LastByteOfAddress = FirstByteOfAddress + AddressLength
 
     lazy val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
 
