@@ -13,7 +13,7 @@ object App {
   val nodeKey = generateKeyPair()
 
   def main(args: Array[String]): Unit = {
-    val config = ConfigFactory.load()
+    val config = ConfigFactory.load().getConfig("etc-client")
 
     val listenHostname = config.getConfig("server-address").getString("interface")
     val listenPort = config.getConfig("server-address").getInt("port")
