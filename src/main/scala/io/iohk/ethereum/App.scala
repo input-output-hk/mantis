@@ -15,8 +15,8 @@ object App {
   def main(args: Array[String]): Unit = {
     val config = ConfigFactory.load()
 
-    val listenHostname = config.getConfig("serverAddress").getString("interface")
-    val listenPort = config.getConfig("serverAddress").getInt("port")
+    val listenHostname = config.getConfig("server-address").getString("interface")
+    val listenPort = config.getConfig("server-address").getInt("port")
     val listenAddress = new InetSocketAddress(listenHostname, listenPort)
     val nodeInfo = NodeInfo(nodeKey, listenAddress)
 
@@ -27,7 +27,7 @@ object App {
 
     server ! ServerActor.StartServer(listenAddress)
 
-    val bootstrapNodes: List[URI] = config.getConfig("discovery").getStringList("bootstrapNodes").toList.map{ item =>
+    val bootstrapNodes: List[URI] = config.getConfig("discovery").getStringList("bootstrap-nodes").toList.map{ item =>
       new URI(item)
     }
     bootstrapNodes.foreach{node =>
