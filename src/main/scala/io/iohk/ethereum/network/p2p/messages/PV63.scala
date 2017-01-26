@@ -130,8 +130,7 @@ object PV63 {
         case rlpList: RLPList =>
           NodeData(rlpList.items.map { e =>
             Try {
-              val v = rawDecode(e: Array[Byte])
-              Left(MptNode.rlpEndDec.decode(v))
+              Left(rlpDecode[MptNode](e: Array[Byte]))
             }.getOrElse(Right(ByteString(e: Array[Byte])))
           })
         case _ => throw new RuntimeException("Cannot decode NodeData")
