@@ -1,16 +1,17 @@
 package io.iohk.ethereum.vm
 
-case class Storage(underlying: Vector[DataWord] = Vector()) {
-  def save(addr: Int, value: DataWord): Storage = {
-    val extended =
-      if (addr >= underlying.length || underlying.isEmpty)
-        underlying.padTo(addr + 1, DataWord(0))
-      else
-        underlying
-    val updated = extended.updated(addr, value)
-    copy(updated)
-  }
+object Storage {
 
-  def load(addr: Int): DataWord =
-    underlying(addr)
+  val Zero = DataWord(0)
+
+}
+
+class Storage(val underlying: Map[DataWord, DataWord] = Map()) {
+
+  import Storage.Zero
+
+  def store(addr: DataWord, value: DataWord): Storage = new Storage(underlying + (addr -> value))
+
+  def load(addr: DataWord): DataWord = underlying.getOrElse(addr, Zero)
+
 }

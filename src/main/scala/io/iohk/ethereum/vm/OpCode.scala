@@ -328,8 +328,7 @@ case object SLOAD extends OpCode(0x54) {
     val updatedState = for {
       popped <- state.stack.pop
       (addr, stack1) = popped
-      //TODO: handle invalid address
-      value = state.storage.load(addr.intValue)
+      value = state.storage.load(addr)
       stack2 <- stack1.push(value)
     } yield state.withStack(stack2).step()
 
@@ -343,8 +342,7 @@ case object SSTORE extends OpCode(0x55) {
     val updatedState = for {
       popped <- state.stack.pop(2)
       (Seq(addr, value), stack1) = popped
-      //TODO: handle invalid address
-      updatedStorage = state.storage.save(addr.intValue, value)
+      updatedStorage = state.storage.store(addr, value)
     } yield state.withStack(stack1).withStorage(updatedStorage).step()
 
     updatedState.valueOr(state.withError)
