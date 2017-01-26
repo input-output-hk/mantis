@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{encode => rlpEncode}
+import io.iohk.ethereum.rlp.{encode => rlpEncode, decode => rlpDecode}
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
 
@@ -39,13 +39,89 @@ object PV63 {
     }
   }
 
+  object Account {
+    implicit val rlpEndDec = new RLPEncoder[Account] with RLPDecoder[Account] {
+      override def encode(obj: Account): RLPEncodeable = {
+        import obj._
+        RLPList(nonce, balance, byteStringEncDec.encode(storageRoot), byteStringEncDec.encode(codeHash))
+      }
+
+      override def decode(rlp: RLPEncodeable): Account = rlp match {
+        case RLPList(nonce, balance, storageRoot, codeHash) =>
+          Account(nonce, balance, byteStringEncDec.decode(storageRoot), byteStringEncDec.decode(codeHash))
+        case _ => throw new RuntimeException("Cannot decode Account")
+      }
+    }
+  }
+
+  case class Account(nonce: BigInt, balance: BigInt, storageRoot: ByteString, codeHash: ByteString) {
+    override def toString: String = {
+      s"""Account{
+         |nonce: $nonce
+         |balance: $balance wei
+         |storageRoot: ${Hex.toHexString(storageRoot.toArray[Byte])}
+         |codeHash: ${Hex.toHexString(codeHash.toArray[Byte])}
+         |}
+       """.stripMargin
+    }
+  }
+
+  object MptNode {
+    implicit val rlpEndDec = new RLPEncoder[MptNode] with RLPDecoder[MptNode] {
+      override def encode(obj: MptNode): RLPEncodeable = {
+        obj match {
+          case n: MptLeaf =>
+            import n._
+            RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = true)), value.fold(a => rlpEncode[Account](a), b => b: RLPEncodeable))
+          case n: MptExtension =>
+            import n._
+            RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = false)), child.fold(_.hash, _.value): RLPEncodeable)
+          case n: MptBranch =>
+            import n._
+            RLPList(children.map(e => e.fold(_.hash, _.value)).map(e => byteStringEncDec.encode(e)) :+ (terminator: RLPEncodeable): _*)
+        }
+      }
+
+      override def decode(rlp: RLPEncodeable): MptNode = rlp match {
+        case rlpList: RLPList if rlpList.items.length == 17 =>
+          MptBranch(rlpList.items.take(16).map { bytes =>
+            val v = rlpDecode[ByteString](bytes)
+            if (v.nonEmpty && v.length < 32) {
+              Right(MptValue(v))
+            } else {
+              Left(MptHash(v))
+            }
+          }, byteStringEncDec.decode(rlpList.items(16)))
+        case RLPList(hpEncoded, value) =>
+          hpDecode(hpEncoded: Array[Byte]) match {
+            case (decoded, true) =>
+              MptLeaf(ByteString(decoded),
+                Try(Left(rlpDecode[Account](value: Array[Byte])))
+                  .getOrElse(Right(rlpDecode[ByteString](value))))
+            case (decoded, false) =>
+              val v = rlpDecode[ByteString](value)
+              val child = if (v.nonEmpty && v.length < 32)
+                Right(MptValue(v))
+              else
+                Left(MptHash(v))
+
+              MptExtension(ByteString(decoded), child)
+          }
+        case _ =>
+          throw new RuntimeException("Cannot decode NodeData")
+      }
+    }
+  }
+
+  trait MptNode
+
   object NodeData {
     implicit val rlpEndDec = new RLPEncoder[NodeData] with RLPDecoder[NodeData] {
       override def encode(obj: NodeData): RLPEncodeable = {
         import obj._
 
         RLPList(values.map {
-          case Left(node) => RLPValue(rlpEncode(MptNode.rlpEndDec.encode(node)))
+          case Left(node) => RLPValue(rlpEncode[MptNode](node))
           case Right(byteValue) => RLPValue(byteValue.toArray[Byte])
         }: _*)
       }
@@ -78,65 +154,34 @@ object PV63 {
     }
   }
 
-  object MptNode {
-    implicit val rlpEndDec = new RLPEncoder[MptNode] with RLPDecoder[MptNode] {
-      override def encode(obj: MptNode): RLPEncodeable = {
-        obj match {
-          case n: MptLeaf =>
-            import n._
-            RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = true)), rlpEncode(Account.rlpEndDec.encode(value)))
-          case n: MptExtension =>
-            import n._
-            RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = false)), childHash.toArray[Byte])
-          case n: MptBranch =>
-            import n._
-            RLPList((childHashes :+ terminator).map(byteStringEncDec.encode): _*)
-        }
-      }
-
-      override def decode(rlp: RLPEncodeable): MptNode = rlp match {
-        case rlpList: RLPList if rlpList.items.length == 17 =>
-          MptBranch(rlpList.items.take(16).map(byteStringEncDec.decode), byteStringEncDec.decode(rlpList.items(16)))
-        case RLPList(hpEncoded, value) =>
-          hpDecode(hpEncoded: Array[Byte]) match {
-            case (decoded, true) =>
-              MptLeaf(ByteString(decoded), Account.rlpEndDec.decode(rawDecode(value)))
-            case (decoded, false) =>
-              MptExtension(ByteString(decoded), byteStringEncDec.decode(value))
-          }
-        case _ =>
-          throw new RuntimeException("Cannot decode NodeData")
-      }
-    }
-  }
-
-  trait MptNode
-
-  case class MptBranch(childHashes: Seq[ByteString], terminator: ByteString) extends MptNode {
-    require(childHashes.length == 16, "MptBranch childHashes length have to be 16")
+  case class MptBranch(children: Seq[Either[MptHash, MptValue]], terminator: ByteString) extends MptNode {
+    require(children.length == 16, "MptBranch childHashes length have to be 16")
 
     override def toString: String = {
+      val childrenString = children.map { e =>
+        e.fold(a => s"Hash(${Hex.toHexString(a.hash.toArray[Byte])})", b => s"Value(${Hex.toHexString(b.value.toArray[Byte])})")
+      }.mkString("(", ",\n", ")")
+
       s"""MptBranch{
-         |childHashes: ${childHashes.map(e => Hex.toHexString(e.toArray[Byte])).mkString("(", ",\n", ")")}
+         |children: $childrenString
          |terminator: ${Hex.toHexString(terminator.toArray[Byte])}
          |}
        """.stripMargin
     }
   }
 
-  case class MptExtension(keyNibbles: ByteString, childHash: ByteString) extends MptNode {
-    //todo do they exists in messages?
+  case class MptExtension(keyNibbles: ByteString, child: Either[MptHash, MptValue]) extends MptNode {
     override def toString: String = {
       s"""MptExtension{
          |key nibbles: $keyNibbles
          |key nibbles length: ${keyNibbles.length}
-         |childHash: ${Hex.toHexString(childHash.toArray[Byte])}
+         |childHash: ${child.fold(a => s"Hash(${Hex.toHexString(a.hash.toArray[Byte])})", b => s"Value(${Hex.toHexString(b.value.toArray[Byte])})")}
          |}
        """.stripMargin
     }
   }
 
-  case class MptLeaf(keyNibbles: ByteString, value: Account) extends MptNode {
+  case class MptLeaf(keyNibbles: ByteString, value: Either[Account, ByteString]) extends MptNode {
     override def toString: String = {
       s"""MptLeaf{
          |key nibbles: $keyNibbles
@@ -147,32 +192,9 @@ object PV63 {
     }
   }
 
-  object Account {
-    implicit val rlpEndDec = new RLPEncoder[Account] with RLPDecoder[Account] {
-      override def encode(obj: Account): RLPEncodeable = {
-        import obj._
-        RLPList(nonce, balance, byteStringEncDec.encode(storageRoot), byteStringEncDec.encode(codeHash))
-      }
+  case class MptHash(hash: ByteString)
 
-      override def decode(rlp: RLPEncodeable): Account = rlp match {
-        case RLPList(nonce, balance, storageRoot, codeHash) =>
-          Account(nonce, balance, byteStringEncDec.decode(storageRoot), byteStringEncDec.decode(codeHash))
-        case _ => throw new RuntimeException("Cannot decode Account")
-      }
-    }
-  }
-
-  case class Account(nonce: BigInt, balance: BigInt, storageRoot: ByteString, codeHash: ByteString) {
-    override def toString: String = {
-      s"""Account{
-         |nonce: $nonce
-         |balance: $balance wei
-         |storageRoot: ${Hex.toHexString(storageRoot.toArray[Byte])}
-         |codeHash: ${Hex.toHexString(codeHash.toArray[Byte])}
-         |}
-       """.stripMargin
-    }
-  }
+  case class MptValue(value: ByteString)
 
   object GetReceipts {
     implicit val rlpEndDec = new RLPEncoder[GetReceipts] with RLPDecoder[GetReceipts] {

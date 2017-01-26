@@ -20,25 +20,26 @@ class NodeDataSpec extends FlatSpec with Matchers {
 
   val exampleNibbles = ByteString(bytesToNibbles(Hex.decode("ffddaa")))
   val exampleHash = ByteString(sha3(Hex.decode("abcd")))
+  val exampleValue = ByteString(Hex.decode("abcdee"))
 
   val account = Account(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
-  val encodedAccount = RLPList(accountNonce, accountBalance, emptyStorageRoot.toArray[Byte], emptyEvmHash.toArray[Byte])
+  val encodedAccount = RLPList(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
 
-  val leafNode = MptLeaf(exampleNibbles, account)
+  val leafNode = MptLeaf(exampleNibbles, Left(account))
   val encodedLeafNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = true), encode(encodedAccount))
 
   val branchNode = MptBranch(
-    (Seq.fill[ByteString](3)(ByteString.empty) :+ exampleHash) ++
-      (Seq.fill[ByteString](6)(ByteString.empty) :+ exampleHash) ++
-      Seq.fill[ByteString](5)(ByteString.empty), ByteString())
+    (Seq.fill[Either[MptHash, MptValue]](3)(Left(MptHash(ByteString.empty))) :+ Left(MptHash(exampleHash))) ++
+      (Seq.fill[Either[MptHash, MptValue]](6)(Left(MptHash(ByteString.empty))) :+ Left(MptHash(exampleHash))) ++
+      Seq.fill[Either[MptHash, MptValue]](5)(Left(MptHash(ByteString.empty))), ByteString())
 
   val encodedBranchNode = RLPList(
-    (Seq.fill[RLPValue](3)(RLPValue(Array.emptyByteArray)) :+ RLPValue(exampleHash.toArray[Byte])) ++
-      (Seq.fill[RLPValue](6)(RLPValue(Array.emptyByteArray)) :+ RLPValue(exampleHash.toArray[Byte])) ++
-      (Seq.fill[RLPValue](5)(RLPValue(Array.emptyByteArray)) :+ RLPValue(Array.emptyByteArray)): _*)
+    (Seq.fill[RLPValue](3)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
+      (Seq.fill[RLPValue](6)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
+      (Seq.fill[RLPValue](5)(RLPValue(Array.emptyByteArray)) :+ (Array.emptyByteArray: RLPEncodeable)): _*)
 
-  val extensionNode = MptExtension(exampleNibbles, exampleHash)
-  val encodedExtensionNode = RLPList(RLPValue(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false)), RLPValue(exampleHash.toArray[Byte]))
+  val extensionNode = MptExtension(exampleNibbles, Right(MptValue(exampleValue)))
+  val encodedExtensionNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), exampleValue)
 
   val nodeData = NodeData(Seq(
     Left(leafNode),
@@ -48,17 +49,21 @@ class NodeDataSpec extends FlatSpec with Matchers {
     Right(emptyStorageRoot)))
 
   val encodedNodeData = RLPList(
-    RLPValue(encode(encodedLeafNode)),
-    RLPValue(encode(encodedBranchNode)),
-    RLPValue(encode(encodedExtensionNode)),
-    RLPValue(emptyEvmHash.toArray[Byte]),
-    RLPValue(emptyStorageRoot.toArray[Byte]))
+    encode(encodedLeafNode),
+    encode(encodedBranchNode),
+    encode(encodedExtensionNode),
+    emptyEvmHash,
+    emptyStorageRoot)
 
   "NodeData" should "be encoded properly" in {
     encode(nodeData) shouldBe encode(encodedNodeData)
   }
 
-  "NodeData" should "be decoded properly" in {
+  it should "be decoded properly" in {
     msgDecode(NodeData.code, encode(encodedNodeData), constantPV63) shouldBe nodeData
+  }
+
+  it should "be decoded previously encoded value" in {
+    msgDecode(NodeData.code, encode(nodeData), constantPV63) shouldBe nodeData
   }
 }
