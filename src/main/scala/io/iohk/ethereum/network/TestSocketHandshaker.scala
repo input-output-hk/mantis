@@ -3,23 +3,26 @@ package io.iohk.ethereum.network
 import java.io.{InputStream, OutputStream}
 import java.net.{Socket, URI}
 
-import io.iohk.ethereum.network.rlpx._
-import org.spongycastle.crypto.params.ECPublicKeyParameters
-
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockBodies, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.Message.PV63
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
+import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello}
+import io.iohk.ethereum.network.rlpx._
 import io.iohk.ethereum.rlp.{encode => rlpEncode}
 import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.utils.Logger
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.spongycastle.util.encoders.Hex
+import org.spongycastle.crypto.params.ECPublicKeyParameters
 
-object TestSocketHandshaker {
+object TestSocketHandshaker extends Logger {
 
   val nodeKey: AsymmetricCipherKeyPair = generateKeyPair()
   val nodeId: Array[Byte] = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
@@ -27,8 +30,6 @@ object TestSocketHandshaker {
   def main(args: Array[String]): Unit = {
     val P2PVersion: Int = 4
     val ListenPort: Int = 3333
-    val MaxHeaders = 20
-    val BlockNumber = 5000
 
     val remoteUri = new URI(args(0))
 
@@ -60,18 +61,39 @@ object TestSocketHandshaker {
     val remoteHello = readAtLeastOneMessage(frameCodec, inp).head.asInstanceOf[Hello]
 
     while (true) {
-      val msgs = readAtLeastOneMessage(frameCodec, inp)
-      msgs.foreach { m => println("\n Received message: " + m) }
+      handleMessage(readAtLeastOneMessage(frameCodec, inp),frameCodec, out)
+    }
+  }
 
-      msgs.collect {
-        case m: Status =>
-          sendMessage(m, frameCodec, out) //send same status message
+  private def handleMessage(msgs: Seq[Message], frameCodec: FrameCodec, out: OutputStream) = {
+    val MaxHeaders = 1
+    val BlockNumber = 1382228
+    val firstBlockAfterDaoFork = 1920000
 
-          //ask for block further in chain to get some transactions
-          sendMessage(GetBlockHeaders(Left(BlockNumber), maxHeaders = MaxHeaders, skip = 0, reverse = 0), frameCodec, out)
-        case m: BlockHeaders =>
-          sendMessage(GetBlockBodies(m.headers.map(h => ByteString(h.hash))), frameCodec, out) //ask for block bodies for headers
-      }
+    msgs.collect {
+      case _: Ping => sendMessage(Pong(), frameCodec, out)
+      case m: GetBlockHeaders if m.block.fold(a => a.equals(BigInt(firstBlockAfterDaoFork)), _ => false) =>
+        sendMessage(BlockHeaders(Seq.empty), frameCodec, out)
+      case m: Status =>
+        sendMessage(m.copy(bestHash = m.genesisHash), frameCodec, out) //send same status message
+        //ask for block further in chain to get some transactions
+        sendMessage(GetBlockHeaders(Left(BlockNumber), maxHeaders = MaxHeaders, skip = 0, reverse = 0), frameCodec, out)
+      case m: BlockHeaders =>
+        log.info(m.toString)
+        sendMessage(GetBlockBodies(m.headers.map(h => h.hash)), frameCodec, out) //ask for block bodies for headers
+        sendMessage(GetReceipts(m.headers.map(h => h.hash)), frameCodec, out) //ask for recipts
+        sendMessage(GetNodeData(Seq(m.headers.map(h => h.hash).head)), frameCodec, out) //ask for node
+      case m: BlockBodies =>
+        log.info(m.toString)
+      case m: Receipts =>
+        log.info(m.toString)
+      case m: NodeData =>
+        log.info(m.toString)
+      case m: Disconnect =>
+        log.info(m.toString)
+        System.exit(0)
+      case m =>
+        log.info("\n Received message: " + m)
     }
   }
 
@@ -79,7 +101,7 @@ object TestSocketHandshaker {
     val encoded = rlpEncode(message)
     val frame = Frame(Header(encoded.length, 0, None, None), message.code, ByteString(encoded))
     val output = frameCodec.writeFrames(Seq(frame))
-    println(s"\n Sending message: $message")
+    log.info(s"\n Sending message: $message")
     out.write(output.toArray)
   }
 
@@ -94,7 +116,7 @@ object TestSocketHandshaker {
 
       decodedFrames
         .collect { case Failure(ex) => ex }
-        .foreach { ex => println(s"Unable to decode frame: $ex") }
+        .foreach { ex => log.info(s"Unable to decode frame: $ex") }
 
       if (messages.nonEmpty) messages
       else readAtLeastOneMessage(frameCodec, inp)

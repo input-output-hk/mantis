@@ -114,7 +114,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     handlePingMsg(rlpxConnection) orElse {
     case MessageReceived(msg@BlockHeaders(blockHeader +: Nil)) if blockHeader.number == DaoBlockNumber =>
       timeout.cancel()
-      log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.hash))
+      log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.hash.toArray))
       if (daoForkValidator.validate(msg).isEmpty) {
         log.warning("Peer is running the ETC chain")
         context become new HandshakedHandler(rlpxConnection).receive

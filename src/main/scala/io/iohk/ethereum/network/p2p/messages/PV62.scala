@@ -162,7 +162,6 @@ object PV62 {
   }
 
   object BlockHeader {
-
     implicit val rlpEndDec = new RLPEncoder[BlockHeader] with RLPDecoder[BlockHeader] {
       override def encode(obj: BlockHeader): RLPEncodeable = {
         import obj._
@@ -225,9 +224,7 @@ object PV62 {
     mixHash: ByteString,
     nonce: ByteString) {
 
-    import BlockHeader._
-
-    lazy val hash: Array[Byte] = sha3(encode[BlockHeader](this))
+    lazy val hash: ByteString = ByteString(sha3(encode[BlockHeader](this)))
 
     override def toString: String = {
       s"""BlockHeader {
