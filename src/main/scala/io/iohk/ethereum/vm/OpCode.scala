@@ -157,18 +157,20 @@ object OpCode {
 /**
   * @param code Opcode byte representation
   */
-sealed abstract class OpCode(val code: Byte) {
-  def this(code: Int) = this(code.toByte)
+sealed abstract class OpCode(val code: Byte, val pop: Int, val push: Int) {
+  def this(code: Int, pop: Int, push: Int) = this(code.toByte, pop, push)
 
   def execute(state: ProgramState): ProgramState
+
+  val diff = push - pop
 }
 
-case object STOP extends OpCode(0x00) {
+case object STOP extends OpCode(0x00, 0, 0) {
   def execute(state: ProgramState): ProgramState =
     state.halt
 }
 
-sealed abstract class BinaryOp(code: Byte, f: (DataWord, DataWord) => DataWord) extends OpCode(code) {
+sealed abstract class BinaryOp(code: Byte, f: (DataWord, DataWord) => DataWord) extends OpCode(code, 2, 1) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
@@ -181,7 +183,7 @@ sealed abstract class BinaryOp(code: Byte, f: (DataWord, DataWord) => DataWord) 
   }
 }
 
-sealed abstract class UnaryOp(code: Byte, f: DataWord => DataWord) extends OpCode(code) {
+sealed abstract class UnaryOp(code: Byte, f: DataWord => DataWord) extends OpCode(code, 1, 1) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop
@@ -382,9 +384,7 @@ case object JUMPDEST extends OpCode(0x5b) {
   }
 }
 
-sealed trait PushOp {
-  def code: Byte
-
+sealed abstract class PushOp(code: Int) extends OpCode(code.toByte, 0, 1) {
   def execute(state: ProgramState): ProgramState = {
     val n = code - PUSH1.code + 1
 
@@ -398,43 +398,41 @@ sealed trait PushOp {
   }
 }
 
-case object PUSH1  extends OpCode(0x60) with PushOp
-case object PUSH2  extends OpCode(0x61) with PushOp
-case object PUSH3  extends OpCode(0x62) with PushOp
-case object PUSH4  extends OpCode(0x63) with PushOp
-case object PUSH5  extends OpCode(0x64) with PushOp
-case object PUSH6  extends OpCode(0x65) with PushOp
-case object PUSH7  extends OpCode(0x66) with PushOp
-case object PUSH8  extends OpCode(0x67) with PushOp
-case object PUSH9  extends OpCode(0x68) with PushOp
-case object PUSH10 extends OpCode(0x69) with PushOp
-case object PUSH11 extends OpCode(0x6a) with PushOp
-case object PUSH12 extends OpCode(0x6b) with PushOp
-case object PUSH13 extends OpCode(0x6c) with PushOp
-case object PUSH14 extends OpCode(0x6d) with PushOp
-case object PUSH15 extends OpCode(0x6e) with PushOp
-case object PUSH16 extends OpCode(0x6f) with PushOp
-case object PUSH17 extends OpCode(0x70) with PushOp
-case object PUSH18 extends OpCode(0x71) with PushOp
-case object PUSH19 extends OpCode(0x72) with PushOp
-case object PUSH20 extends OpCode(0x73) with PushOp
-case object PUSH21 extends OpCode(0x74) with PushOp
-case object PUSH22 extends OpCode(0x75) with PushOp
-case object PUSH23 extends OpCode(0x76) with PushOp
-case object PUSH24 extends OpCode(0x77) with PushOp
-case object PUSH25 extends OpCode(0x78) with PushOp
-case object PUSH26 extends OpCode(0x79) with PushOp
-case object PUSH27 extends OpCode(0x7a) with PushOp
-case object PUSH28 extends OpCode(0x7b) with PushOp
-case object PUSH29 extends OpCode(0x7c) with PushOp
-case object PUSH30 extends OpCode(0x7d) with PushOp
-case object PUSH31 extends OpCode(0x7e) with PushOp
-case object PUSH32 extends OpCode(0x7f) with PushOp
+case object PUSH1  extends PushOp(0x60)
+case object PUSH2  extends PushOp(0x61)
+case object PUSH3  extends PushOp(0x62)
+case object PUSH4  extends PushOp(0x63)
+case object PUSH5  extends PushOp(0x64)
+case object PUSH6  extends PushOp(0x65)
+case object PUSH7  extends PushOp(0x66)
+case object PUSH8  extends PushOp(0x67)
+case object PUSH9  extends PushOp(0x68)
+case object PUSH10 extends PushOp(0x69)
+case object PUSH11 extends PushOp(0x6a)
+case object PUSH12 extends PushOp(0x6b)
+case object PUSH13 extends PushOp(0x6c)
+case object PUSH14 extends PushOp(0x6d)
+case object PUSH15 extends PushOp(0x6e)
+case object PUSH16 extends PushOp(0x6f)
+case object PUSH17 extends PushOp(0x70)
+case object PUSH18 extends PushOp(0x71)
+case object PUSH19 extends PushOp(0x72)
+case object PUSH20 extends PushOp(0x73)
+case object PUSH21 extends PushOp(0x74)
+case object PUSH22 extends PushOp(0x75)
+case object PUSH23 extends PushOp(0x76)
+case object PUSH24 extends PushOp(0x77)
+case object PUSH25 extends PushOp(0x78)
+case object PUSH26 extends PushOp(0x79)
+case object PUSH27 extends PushOp(0x7a)
+case object PUSH28 extends PushOp(0x7b)
+case object PUSH29 extends PushOp(0x7c)
+case object PUSH30 extends PushOp(0x7d)
+case object PUSH31 extends PushOp(0x7e)
+case object PUSH32 extends PushOp(0x7f)
 
 
-sealed trait DupOp {
-  def code: Byte
-
+sealed abstract class DupOp(code: Int) extends OpCode(code.toByte, code - DUP1.code + 1, code - DUP1.code + 2) {
   def execute(state: ProgramState): ProgramState = {
     val i = code - DUP1.code
     val updatedState = state.stack.dup(i).map(state.withStack(_).step())
@@ -442,22 +440,22 @@ sealed trait DupOp {
   }
 }
 
-case object DUP1  extends OpCode(0x80) with DupOp
-case object DUP2  extends OpCode(0x81) with DupOp
-case object DUP3  extends OpCode(0x82) with DupOp
-case object DUP4  extends OpCode(0x83) with DupOp
-case object DUP5  extends OpCode(0x84) with DupOp
-case object DUP6  extends OpCode(0x85) with DupOp
-case object DUP7  extends OpCode(0x86) with DupOp
-case object DUP8  extends OpCode(0x87) with DupOp
-case object DUP9  extends OpCode(0x88) with DupOp
-case object DUP10 extends OpCode(0x89) with DupOp
-case object DUP11 extends OpCode(0x8a) with DupOp
-case object DUP12 extends OpCode(0x8b) with DupOp
-case object DUP13 extends OpCode(0x8c) with DupOp
-case object DUP14 extends OpCode(0x8d) with DupOp
-case object DUP15 extends OpCode(0x8e) with DupOp
-case object DUP16 extends OpCode(0x8f) with DupOp
+case object DUP1  extends DupOp(0x80)
+case object DUP2  extends DupOp(0x81)
+case object DUP3  extends DupOp(0x82)
+case object DUP4  extends DupOp(0x83)
+case object DUP5  extends DupOp(0x84)
+case object DUP6  extends DupOp(0x85)
+case object DUP7  extends DupOp(0x86)
+case object DUP8  extends DupOp(0x87)
+case object DUP9  extends DupOp(0x88)
+case object DUP10 extends DupOp(0x89)
+case object DUP11 extends DupOp(0x8a)
+case object DUP12 extends DupOp(0x8b)
+case object DUP13 extends DupOp(0x8c)
+case object DUP14 extends DupOp(0x8d)
+case object DUP15 extends DupOp(0x8e)
+case object DUP16 extends DupOp(0x8f)
 
 
 sealed trait SwapOp {
