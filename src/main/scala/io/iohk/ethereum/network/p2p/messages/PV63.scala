@@ -3,7 +3,7 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{decode => rlpDecode, encodeToRlp => rlpEncode}
+import io.iohk.ethereum.rlp.{decode => rlpDecode}
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
 
@@ -87,7 +87,7 @@ object PV63 {
     implicit val rlpEndDec = new RLPEncoder[TransactionLog] with RLPDecoder[TransactionLog] {
       override def encode(obj: TransactionLog): RLPEncodeable = {
         import obj._
-        RLPList(rlpEncode[ByteString](loggerAddress), RLPList(logTopics.map(rlpEncode[ByteString]): _*), rlpEncode[ByteString](data))
+        RLPList(loggerAddress, logTopics, data)
       }
 
       override def decode(rlp: RLPEncodeable): TransactionLog = rlp match {
@@ -113,8 +113,8 @@ object PV63 {
     implicit val rlpEndDec = new RLPEncoder[Receipt] with RLPDecoder[Receipt] {
       override def encode(obj: Receipt): RLPEncodeable = {
         import obj._
-        RLPList(rlpEncode[ByteString](postTransactionStateHash), cumulativeGasUsed,
-          rlpEncode[ByteString](logsBloomFilter), RLPList(logs.map(rlpEncode[TransactionLog]): _*))
+        RLPList(postTransactionStateHash, cumulativeGasUsed,
+          logsBloomFilter, logs)
       }
 
       override def decode(rlp: RLPEncodeable): Receipt = rlp match {
@@ -148,7 +148,7 @@ object PV63 {
     implicit val rlpEndDec = new RLPEncoder[Receipts] with RLPDecoder[Receipts] {
       override def encode(obj: Receipts): RLPEncodeable = {
         import obj._
-        RLPList(receiptsForBlocks.map(r => RLPList(r.map{rlpEncode[Receipt]}: _*)): _*)
+        RLPList(receiptsForBlocks.map(r => r:RLPList): _*)
       }
 
       override def decode(rlp: RLPEncodeable): Receipts = rlp match {

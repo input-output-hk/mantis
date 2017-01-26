@@ -35,10 +35,10 @@ class ReceiptsSpec extends FlatSpec with Matchers {
   val encodedReceipts =
     RLPList(RLPList(
       RLPList(
-        encodeToRlp[ByteString](exampleHash),
+        exampleHash,
         cumulativeGas,
-        encodeToRlp[ByteString](exampleLogsBloom),
-        RLPList(RLPList(encodeToRlp[ByteString](loggerAddress), RLPList(logTopics.map(encodeToRlp[ByteString]): _*), encodeToRlp[ByteString](logData)))
+        exampleLogsBloom,
+        RLPList(RLPList(loggerAddress, logTopics, logData))
       )))
 
   "Receipts" should "encode receipts" in {
