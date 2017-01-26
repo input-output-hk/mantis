@@ -23,8 +23,6 @@ class MemorySpec extends FunSuite with PropertyChecks with ObjectGenerators {
       ByteString((start until size).map(_.toByte).toArray)
   }
 
-  //special cases: empty memory, empty arr, 0 index
-
   import Arbitrary._
   import Gen._
 
@@ -69,72 +67,36 @@ class MemorySpec extends FunSuite with PropertyChecks with ObjectGenerators {
     }
   }
 
-  //test("Load a DataWord") {
-    // forAll(choose(0, 100), choose(0, 200)) {
-    //   (initialMemorySize, idx) =>
-    //   // We need this additional check.
-    //   // Otherwise ScalaCheck generates negative numbers during shrinking
-    //   whenever(initialMemorySize >= 0 && idx >= 0) {
-    //     println(">>> " + initialMemorySize + " " + idx)
-    //     val initialMemory = new Memory(nonNegativeInts(initialMemorySize))
-    //     val addr = DataWord(idx)
-    //     val (dw, memory) = initialMemory.load(addr)
-    //     val expectedMemorySize = math.max(initialMemorySize, idx + DataWord.MaxLength)
-    //     assert(memory.size == expectedMemorySize)
-    //     assert(memory.underlying == nonNegativeInts(initialMemorySize) ++ zeros(expectedMemorySize - initialMemorySize))
-    //     if (idx > initialMemorySize)
-    //       assert(dw == DataWord(0))
-    //     else
-    //       assert(dw == DataWord(nonNegativeInts(math.min(initialMemorySize - idx, DataWord.MaxLength), idx) ++ zeros(DataWord.MaxLength - initialMemorySize + idx)))
-    //   }
-    // }
-    // val initialMemorySize = 58
-    // val idx = 1
-    // val initialMemory = new Memory(nonNegativeInts(initialMemorySize))
-    // val addr = DataWord(idx)
-    // val (dw, memory) = initialMemory.load(addr)
-    // val expectedMemorySize = math.max(initialMemorySize, idx + DataWord.MaxLength)
-    // assert(memory.size == expectedMemorySize)
-    // assert(memory.underlying == nonNegativeInts(initialMemorySize) ++ zeros(expectedMemorySize - initialMemorySize))
-    // println(dw.bytes)
-    // println(DataWord(nonNegativeInts(math.min(initialMemorySize - idx, DataWord.MaxLength), idx) ++ zeros(DataWord.MaxLength - initialMemorySize + idx)).bytes)
-    // assert(dw == DataWord(nonNegativeInts(math.min(initialMemorySize - idx, DataWord.MaxLength), idx) ++ zeros(DataWord.MaxLength - initialMemorySize + idx)))
-    //}
+  test("Load a DataWord") {
+    forAll(choose(0, 100), choose(0, 200)) {
+      (initialMemorySize, idx) =>
+      // We need this additional check.
+      // Otherwise ScalaCheck generates negative numbers during shrinking
+      whenever(initialMemorySize >= 0 && idx >= 0) {
+        val initialMemory = new Memory(nonNegativeInts(initialMemorySize))
+        val addr = DataWord(idx)
+        val (dw, memory) = initialMemory.load(addr)
+        val expectedMemorySize = math.max(initialMemorySize, idx + DataWord.MaxLength)
+        assert(memory.size == expectedMemorySize)
+        assert(memory.underlying == nonNegativeInts(initialMemorySize) ++ zeros(expectedMemorySize - initialMemorySize))
+      }
+    }
+  }
 
-  // test("Load a DataWord") {
-
-    // forAll(choose(0, 100), choose(0, 200), choose(0, 100)) {
-    //   (initialMemorySize, idx, size) =>
-    //   // We need this additional check.
-    //   // Otherwise ScalaCheck generates negative numbers during shrinking
-    //   whenever(initialMemorySize >= 0 && idx >= 0 && size >= 0) {
-    //     val initialMemory = new Memory(nonNegativeInts(initialMemorySize))
-    //     val (bs, memory) = initialMemory.load(DataWord(idx), DataWord(size))
-    //     val expectedMemorySize = math.max(initialMemorySize, idx + size)
-    //     println(">>> BS: " + bs)
-    //     println(">>> MEM: " + memory.underlying)
-    //     assert(memory.size == expectedMemorySize)
-    //     assert(memory.underlying == nonNegativeInts(initialMemorySize) ++ zeros(expectedMemorySize - initialMemorySize))
-    //     assert(bs.size == size)
-    //     assert(bs == nonNegativeInts(math.min(initialMemorySize - idx, size), idx) ++ zeros(math.min(size - initialMemorySize + idx, size)))
-    //   }
-    // }
-
-
-    // val initialMemorySize = 0; val idx = 0; val size = 0
-    // val initialMemorySize = 0; val idx = 2; val size = 0
-     //val initialMemorySize = 35; val idx = 0; val size = 0
-    // val initialMemorySize = 6; val idx = 1; val size = 1
-  //   val initialMemory = new Memory(nonNegativeInts(initialMemorySize))
-  //   val (bs, memory) = initialMemory.load(DataWord(idx), DataWord(size))
-  //   val expectedMemorySize = math.max(initialMemorySize, idx + size)
-  //   println(">>> BS: " + bs)
-  //   println(">>> MEM: " + memory.underlying)
-  //   assert(memory.size == expectedMemorySize)
-  //   assert(memory.underlying == nonNegativeInts(initialMemorySize) ++ zeros(expectedMemorySize - initialMemorySize))
-  //   assert(bs.size == size)
-  //   assert(bs == nonNegativeInts(math.min(initialMemorySize - idx, size + 1), idx) ++ zeros(math.min(size - initialMemorySize + idx, size)))
-  // }
-
+  test("Load a ByteString") {
+    forAll(choose(0, 100), choose(0, 200), choose(0, 100)) {
+      (initialMemorySize, idx, size) =>
+      // We need this additional check.
+      // Otherwise ScalaCheck generates negative numbers during shrinking
+      whenever(initialMemorySize >= 0 && idx >= 0 && size >= 0) {
+        val initialMemory = new Memory(nonNegativeInts(initialMemorySize))
+        val (bs, memory) = initialMemory.load(DataWord(idx), DataWord(size))
+        val expectedMemorySize = math.max(initialMemorySize, idx + size)
+        assert(memory.size == expectedMemorySize)
+        assert(memory.underlying == nonNegativeInts(initialMemorySize) ++ zeros(expectedMemorySize - initialMemorySize))
+        assert(bs.size == size)
+      }
+    }
+  }
 
 }

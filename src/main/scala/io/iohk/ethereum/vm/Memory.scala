@@ -43,7 +43,6 @@ class Memory(val underlying: ByteString = ByteString()) {
   private def doLoad(addr: DataWord, size: Int): (ByteString, Memory) = {
     val start: Int = addr.intValue
     val end: Int = start + size
-    println(s">>> START: $start END: $end")
     val newUnderlying = if (end <= underlying.size)
       underlying
     else
