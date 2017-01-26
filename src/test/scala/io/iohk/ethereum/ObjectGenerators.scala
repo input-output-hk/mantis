@@ -1,6 +1,5 @@
 package io.iohk.ethereum
 
-import akka.util.ByteString
 import java.math.BigInteger
 
 import io.iohk.ethereum.vm.DataWord
@@ -12,16 +11,9 @@ trait ObjectGenerators {
 
   def bigIntGen: Gen[BigInt] = byteArrayOfNItemsGen(32).map(b => new BigInteger(1, b))
 
-  // def byteStringGen(minSize: Int = 0, maxSize: Int = 32): Gen[ByteString] = {
-  //   for {
-  //     size <- Gen.choose(minSize, maxSize)
-  //     byteArray <- byteArrayOfNItemsGen(size)
-  //   } yield {
-  //     ByteString(byteArray)
-  //   }
-  // }
-
   def dataWordGen: Gen[DataWord] = bigIntGen.map(DataWord(_))
+
+  def randomSizeByteArrayGen(minSize: Int, maxSize: Int): Gen[Array[Byte]] = Gen.choose(minSize, maxSize).flatMap(byteArrayOfNItemsGen(_))
 
   def byteArrayOfNItemsGen(n: Int): Gen[Array[Byte]] = Gen.listOfN(n, Arbitrary.arbitrary[Byte]).map(_.toArray)
 
@@ -39,6 +31,5 @@ trait ObjectGenerators {
       aKeyList <- Gen.nonEmptyListOf(Arbitrary.arbitrary[Int]).map(_.distinct)
     } yield aKeyList.zip(aKeyList)
   }
-
 
 }

@@ -8,7 +8,7 @@ import cats.syntax.either._
  https://solidity.readthedocs.io/en/latest/frequently-asked-questions.html#what-is-the-memory-keyword-what-does-it-do
  https://github.com/ethereum/go-ethereum/blob/master/core/vm/memory.go
  */
-case class Memory(underlying: ByteString = ByteString()) {
+class Memory(val underlying: ByteString = ByteString()) {
 
   def store(addr: DataWord, b: Byte): Memory = store(addr, ByteString(b))
 
@@ -27,25 +27,28 @@ case class Memory(underlying: ByteString = ByteString()) {
       underlying.take(idx) ++ bs
     } else {
       // there is a gap (possibly empty) between an old buffer and a new buffer
-      underlying ++ zeros((idx - underlying.length)) ++ bs
+      underlying ++ zeros(idx - underlying.length) ++ bs
     }
-    Memory(newUnderlying)
+    new Memory(newUnderlying)
   }
 
-  def load (addr: DataWord): (DataWord, Memory) = {
-    load(addr, DataWord.MaxWord) match {
+  def load(addr: DataWord): (DataWord, Memory) = {
+    doLoad(addr, DataWord.MaxLength) match {
       case (bs, memory) => DataWord(bs) -> memory
     }
   }
 
-  def load (addr: DataWord, size: DataWord): (ByteString, Memory) = {
+  def load(addr: DataWord, size: DataWord): (ByteString, Memory) = doLoad(addr, size.intValue)
+
+  private def doLoad(addr: DataWord, size: Int): (ByteString, Memory) = {
     val start: Int = addr.intValue
-    val end: Int = start + size.intValue
+    val end: Int = start + size
+    println(s">>> START: $start END: $end")
     val newUnderlying = if (end <= underlying.size)
       underlying
     else
       underlying ++ zeros(end - underlying.size)
-    newUnderlying.slice(start, end) -> Memory(newUnderlying)
+    newUnderlying.slice(start, end) -> new Memory(newUnderlying)
   }
 
   def size: Int = underlying.size

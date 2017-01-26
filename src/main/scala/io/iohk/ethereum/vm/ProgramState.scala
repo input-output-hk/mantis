@@ -10,7 +10,7 @@ object ProgramState {
 case class ProgramState(
   invoke: ProgramInvoke,
   stack: Stack = Stack(),
-  memory: Memory = Memory(),
+  memory: Memory = new Memory(),
   storage: Storage,
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
