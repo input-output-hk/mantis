@@ -41,7 +41,7 @@ object Generators extends ObjectGenerators {
     getStackGen(getDataWordGen(max = maxWord))
 
   def getMemoryGen(maxSize: Int = 0): Gen[Memory] =
-    getByteStringGen(maxSize).map(Memory().store(DataWord(0), _))
+    getByteStringGen(maxSize).map(new Memory().store(DataWord(0), _))
 
   def getProgramStateGen(
     stackGen: Gen[Stack] = getStackGen(),
@@ -54,7 +54,7 @@ object Generators extends ObjectGenerators {
       memory <- memGen
       code <- codeGen
       callData <- callDataGen
-      invoke = ProgramInvoke(new Program(code), callData, ByteString.empty, Storage())
+      invoke = ProgramInvoke(new Program(code), callData, ByteString.empty, new Storage())
     } yield ProgramState(invoke).withStack(stack).withMemory(memory)
 
 }
