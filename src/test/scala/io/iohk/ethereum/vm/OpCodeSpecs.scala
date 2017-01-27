@@ -18,7 +18,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
       withStackVerification(binaryOp, stateIn, stateOut) {
         val Right((Seq(a, b), _)) = stateIn.stack.pop(2)
-        val Right((result, _)) = stateOut.stack.pop(1)
+        val Right((result, _)) = stateOut.stack.pop
         result shouldEqual binaryOp.f(a, b)
 
         val expectedState = stateIn.withStack(stateOut.stack).step()
