@@ -32,13 +32,13 @@ case class Memory(underlying: ByteString = ByteString()) {
     Memory(newUnderlying)
   }
 
-  def load (addr: DataWord): (DataWord, Memory) = {
+  def load(addr: DataWord): (DataWord, Memory) = {
     load(addr, DataWord.MaxWord) match {
       case (bs, memory) => DataWord(bs) -> memory
     }
   }
 
-  def load (addr: DataWord, size: DataWord): (ByteString, Memory) = {
+  def load(addr: DataWord, size: DataWord): (ByteString, Memory) = {
     val start: Int = addr.intValue
     val end: Int = start + size.intValue
     val newUnderlying = if (end <= underlying.size)

@@ -1,38 +1,56 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.vm.Generators.ProgramStateGenBuilder
+import io.iohk.ethereum.vm.Generators._
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
 
 class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
+  def test(op: OpCode)(f: OpCode => Any): Any =
+    test(op.toString)(f(op))
 
-  def testBinaryOp(binaryOp: BinaryOp): Unit = test(binaryOp.toString) {
-    val stateGen = ProgramStateGenBuilder().gen
-    forAll(stateGen) { stateIn =>
+  def ignore(op: OpCode)(f: OpCode => Any): Any =
+    ignore(op.toString)(f(op))
+
+  def testBinaryOp(binaryOp: BinaryOp): Any = test(binaryOp.toString) {
+    forAll(getProgramStateGen()) { stateIn =>
       val stateOut = binaryOp.execute(stateIn)
 
+      withStackVerification(binaryOp, stateIn, stateOut) {
+        val Right((Seq(a, b), _)) = stateIn.stack.pop(2)
+        val Right((result, _)) = stateOut.stack.pop(1)
+        result shouldEqual binaryOp.f(a, b)
 
+        val expectedState = stateIn.withStack(stateOut.stack).step()
+        stateOut shouldEqual expectedState
+      }
     }
   }
 
-  test("STOP") {
-    val stateGen = ProgramStateGenBuilder().gen
+  def withStackVerification(op: OpCode, stateIn: ProgramState, stateOut: ProgramState)(body: => Any): Any = {
+    if (stateIn.stack.size < op.delta)
+      stateOut shouldEqual stateIn.withError(StackUnderflow).halt
+    else if (stateIn.stack.size > stateIn.stack.maxSize - op.alpha)
+      stateOut shouldEqual stateIn.withError(StackOverflow).halt
+    else {
+      val expectedStackSize = stateIn.stack.size - op.delta + op.alpha
+      stateOut.stack.size shouldEqual expectedStackSize
 
-    forAll(stateGen) { stateIn =>
-      val stateOut = STOP.execute(stateIn)
+      body
+    }
+  }
+
+  test(STOP) { op =>
+    forAll(getProgramStateGen()) { stateIn =>
+      val stateOut = op.execute(stateIn)
       stateOut.halted shouldBe true
       stateIn shouldEqual stateOut.copy(halted = stateIn.halted)
     }
   }
 
-  ignore("ADD") {
-    // to be implemented
-  }
+  testBinaryOp(ADD)
 
-  ignore("MUL") {
-    // to be implemented
-  }
+  testBinaryOp(MUL)
 
   ignore("SUB") {
     // to be implemented
@@ -138,8 +156,24 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     // to be implemented
   }
 
-  ignore("CALLDATALOAD") {
-    // to be implemented
+  test(CALLDATALOAD) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(maxWord = DataWord(256)),
+      callDataGen = getByteStringGen(256)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = op.execute(stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val Right((offset, _)) = stateIn.stack.pop
+        val Right((data, _)) = stateOut.stack.pop
+        data shouldEqual stateIn.invoke.callData.slice(offset.intValue, offset.intValue + 32).padTo(32, 0.toByte)
+
+        val expectedState = stateIn.withStack(stateOut.stack).step()
+        stateOut shouldEqual expectedState
+      }
+    }
   }
 
   ignore("CALLDATASIZE") {
@@ -370,68 +404,20 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     // to be implemented
   }
 
-  ignore("DUP1") {
-    // to be implemented
-  }
+  test("DUPi") {
+    val dupTable = Table("DUPi opcodes", OpCode.opcodes.collect { case dup: DupOp => dup }: _*)
 
-  ignore("DUP2") {
-    // to be implemented
-  }
+    forAll(dupTable) { op =>
+      forAll(getProgramStateGen()) { stateIn =>
+        val stateOut = op.execute(stateIn)
 
-  ignore("DUP3") {
-    // to be implemented
-  }
-
-  ignore("DUP4") {
-    // to be implemented
-  }
-
-  ignore("DUP5") {
-    // to be implemented
-  }
-
-  ignore("DUP6") {
-    // to be implemented
-  }
-
-  ignore("DUP7") {
-    // to be implemented
-  }
-
-  ignore("DUP8") {
-    // to be implemented
-  }
-
-  ignore("DUP9") {
-    // to be implemented
-  }
-
-  ignore("DUP10") {
-    // to be implemented
-  }
-
-  ignore("DUP11") {
-    // to be implemented
-  }
-
-  ignore("DUP12") {
-    // to be implemented
-  }
-
-  ignore("DUP13") {
-    // to be implemented
-  }
-
-  ignore("DUP14") {
-    // to be implemented
-  }
-
-  ignore("DUP15") {
-    // to be implemented
-  }
-
-  ignore("DUP16") {
-    // to be implemented
+        withStackVerification(op, stateIn, stateOut) {
+          val Right(expectedStack) = stateIn.stack.dup(op.i)
+          val expectedState = stateIn.withStack(expectedStack).step()
+          stateOut shouldEqual expectedState
+        }
+      }
+    }
   }
 
   ignore("SWAP1") {
@@ -530,8 +516,24 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     // to be implemented
   }
 
-  ignore("RETURN") {
-    // to be implemented
+  test(RETURN) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(maxWord = DataWord(256)),
+      memGen = getMemoryGen(maxSize = 256)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = op.execute(stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val Right((Seq(offset, size), _)) = stateIn.stack.pop(2)
+        val (data, mem1) = stateIn.memory.load(offset, size)
+        mem1.size should be >= (offset + size).intValue
+
+        val expectedState = stateIn.withStack(stateOut.stack).withMemory(mem1).step()
+        stateOut shouldEqual expectedState
+      }
+    }
   }
 
   ignore("DELEGATECALL") {

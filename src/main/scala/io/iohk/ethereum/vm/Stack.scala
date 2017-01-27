@@ -10,7 +10,7 @@ object Stack {
 }
 
 //TODO: consider a List with head being top of the stack (DUP,SWAP go at most the depth of 16)
-class Stack(underlying: Vector[DataWord], val maxSize: Int) {
+class Stack private(private val underlying: Vector[DataWord], val maxSize: Int) {
 
   def pop: Either[StackError, (DataWord, Stack)] = underlying.lastOption match {
     case Some(word) =>
@@ -40,9 +40,9 @@ class Stack(underlying: Vector[DataWord], val maxSize: Int) {
   def push(words: Seq[DataWord]): Either[StackError, Stack] = {
     val updated = underlying ++ words
     if (updated.length > maxSize)
-      copy(updated).asRight
-    else
       StackOverflow.asLeft
+    else
+      copy(updated).asRight
   }
 
   def dup(i: Int): Either[StackError, Stack] = {
@@ -68,6 +68,18 @@ class Stack(underlying: Vector[DataWord], val maxSize: Int) {
       copy(updated).asRight
     }
   }
+
+  def size: Int = underlying.size
+
+  override def equals(that: Any): Boolean = that match {
+    case that: Stack => this.underlying == that.underlying
+    case _ => false
+  }
+
+  override def hashCode(): Int = underlying.hashCode
+
+  override def toString: String =
+    underlying.mkString("Stack(", ",", ")")
 
   private def copy(updated: Vector[DataWord]): Stack =
     new Stack(updated, maxSize)

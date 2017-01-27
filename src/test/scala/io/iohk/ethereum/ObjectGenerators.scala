@@ -1,9 +1,7 @@
 package io.iohk.ethereum
 
-import akka.util.ByteString
 import java.math.BigInteger
 
-import io.iohk.ethereum.vm.DataWord
 import org.scalacheck.{Arbitrary, Gen}
 
 trait ObjectGenerators {

@@ -163,8 +163,6 @@ sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int) {
   def this(code: Int, pop: Int, push: Int) = this(code.toByte, pop, push)
 
   def execute(state: ProgramState): ProgramState
-
-  val diff = alpha - delta
 }
 
 case object STOP extends OpCode(0x00, 0, 0) {
@@ -172,7 +170,7 @@ case object STOP extends OpCode(0x00, 0, 0) {
     state.halt
 }
 
-sealed abstract class BinaryOp(code: Byte, f: (DataWord, DataWord) => DataWord) extends OpCode(code, 2, 1) {
+sealed abstract class BinaryOp(code: Int)(val f: (DataWord, DataWord) => DataWord) extends OpCode(code.toByte, 2, 1) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
@@ -185,7 +183,7 @@ sealed abstract class BinaryOp(code: Byte, f: (DataWord, DataWord) => DataWord) 
   }
 }
 
-sealed abstract class UnaryOp(code: Byte, f: DataWord => DataWord) extends OpCode(code, 1, 1) {
+sealed abstract class UnaryOp(code: Int)(val f: DataWord => DataWord) extends OpCode(code.toByte, 1, 1) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop
@@ -198,43 +196,31 @@ sealed abstract class UnaryOp(code: Byte, f: DataWord => DataWord) extends OpCod
   }
 }
 
-case object ADD extends BinaryOp(0x01, _ + _)
+case object ADD extends BinaryOp(0x01)(_ + _)
 
-case object MUL extends BinaryOp(0x02, _ * _)
+case object MUL extends BinaryOp(0x02)(_ * _)
 
-case object SUB extends BinaryOp(0x03, _ - _)
+case object SUB extends BinaryOp(0x03)(_ - _)
 
-case object DIV extends OpCode(0x04, 2, 1) {
-  def execute(state: ProgramState): ProgramState = {
-    val updatedState = for {
-      popped <- state.stack.pop(2)
-      (Seq(a, b), stack1) = popped
-      res <- if (b != 0) (a / b).asRight else DivisionByZero.asLeft
-      stack2 <- stack1.push(res)
-    } yield state.withStack(stack2).step()
+case object DIV extends BinaryOp(0x04)((a, b) => if (b != 0) a / b else DataWord(0))
 
-    updatedState.valueOr(state.withError)
-  }
-}
+case object EXP extends BinaryOp(0x0a)(_ ** _)
 
-case object EXP extends BinaryOp(0x0a, _ ** _)
+case object LT extends BinaryOp(0x10)((a, b) => DataWord(a < b))
 
-case object LT extends BinaryOp(0x10, (a, b) => DataWord(a < b))
+case object EQ extends BinaryOp(0x14)((a, b) => DataWord(a == b))
 
-case object EQ extends BinaryOp(0x14, (a, b) => DataWord(a == b))
+case object ISZERO extends UnaryOp(0x15)(a => DataWord(a == 0))
 
-case object ISZERO extends UnaryOp(0x15, a => DataWord(a == 0))
+case object AND extends BinaryOp(0x16)(_ & _)
 
-case object AND extends BinaryOp(0x16, _ & _)
-
-case object NOT extends UnaryOp(0x19, ~_)
+case object NOT extends UnaryOp(0x19)(~_)
 
 case object SHA3 extends OpCode(0x20, 2, 1) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
       (Seq(offset, size), stack1: Stack) = popped
-      //FIXME: use Memory functions with proper error handling
       (input, mem1) = state.memory.load(offset, size)
       hash = sha3(input.toArray)
       ret = DataWord(ByteString(hash))
@@ -387,8 +373,10 @@ case object JUMPDEST extends OpCode(0x5b, 0, 0) {
 }
 
 sealed abstract class PushOp(code: Int) extends OpCode(code.toByte, 0, 1) {
+  val i: Int = code - 0x60
+
   def execute(state: ProgramState): ProgramState = {
-    val n = code - PUSH1.code + 1
+    val n = i + 1
 
     val updatedState = for {
       bytes <- state.program.getBytes(state.pc + 1, n)
@@ -434,8 +422,8 @@ case object PUSH31 extends PushOp(0x7e)
 case object PUSH32 extends PushOp(0x7f)
 
 
-sealed abstract class DupOp private(code: Int, i: => Int) extends OpCode(code.toByte, i + 1, i + 2) {
-  def this(code: Int) = this(code, code - DUP1.code)
+sealed abstract class DupOp private(code: Int, val i: Int) extends OpCode(code.toByte, i + 1, i + 2) {
+  def this(code: Int) = this(code, code - 0x80)
 
   def execute(state: ProgramState): ProgramState = {
     val updatedState = state.stack.dup(i).map(state.withStack(_).step())
@@ -461,8 +449,8 @@ case object DUP15 extends DupOp(0x8e)
 case object DUP16 extends DupOp(0x8f)
 
 
-sealed abstract class SwapOp(code: Int, i: => Int) extends OpCode(code.toByte, i + 2, i + 2) {
-  def this(code: Int) = this(code, code - SWAP1.code)
+sealed abstract class SwapOp(code: Int, val i: Int) extends OpCode(code.toByte, i + 2, i + 2) {
+  def this(code: Int) = this(code, code - 0x90)
 
   def execute(state: ProgramState): ProgramState = {
     val updatedState = state.stack.swap(i + 1).map(state.withStack(_).step())
@@ -488,8 +476,8 @@ case object SWAP15 extends SwapOp(0x9e)
 case object SWAP16 extends SwapOp(0x9f)
 
 
-sealed abstract class LogOp(code: Int, i: => Int) extends OpCode(code.toByte, i + 2, 0){
-  def this(code: Int) = this(code, code - LOG0.code)
+sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code.toByte, i + 2, 0){
+  def this(code: Int) = this(code, code - 0xa0)
 
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
