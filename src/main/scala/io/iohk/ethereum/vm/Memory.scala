@@ -51,7 +51,7 @@ class Memory(val underlying: ByteString = ByteString()) {
   /** Returns a ByteString of a given size starting at the given address of the Memory.
    * Underlying byte array is expanded and filled with 0's if addr + size exceeds size
    * of the memory.
-   * This method may throw OOM
+   * This method may throw OOM.
    */
   private def doLoad(addr: DataWord, size: Int): (ByteString, Memory) = {
     val start: Int = addr.intValue
@@ -65,8 +65,6 @@ class Memory(val underlying: ByteString = ByteString()) {
 
   def size: Int = underlying.size
 
-  private def zeros(size: Int): ByteString = {
-    ByteString(Array.fill[Byte](size)(0))
-  }
+  private def zeros(size: Int): ByteString = ByteString(Array.fill[Byte](size)(0))
 
 }
