@@ -16,14 +16,14 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
   }
 
   override def receive: Receive = handleTerminated orElse {
-    case StartSync(hash) =>
-      peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(hash), blocksPerMessage, 0, reverse = false))
+    case StartSync(startBlockHash, targetBlockHash) =>
+      peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(startBlockHash), blocksPerMessage, 0, reverse = false))
   }
 }
 
 object FastSyncActor {
   def props(peerActor: ActorRef): Props = Props(new FastSyncActor(peerActor))
 
-  case class StartSync(blockHash: ByteString)
+  case class StartSync(startBlockHash: ByteString, targetBlockHash: ByteString)
 
 }
