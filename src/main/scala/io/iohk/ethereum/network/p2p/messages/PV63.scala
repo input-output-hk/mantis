@@ -4,11 +4,9 @@ import akka.util.ByteString
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{encode => rlpEncode, decode => rlpDecode}
+import io.iohk.ethereum.rlp.{decode => rlpDecode}
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
-
-import scala.util.Try
 
 object PV63 {
 
@@ -74,7 +72,7 @@ object PV63 {
         obj match {
           case n: MptLeaf =>
             import n._
-            RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = true)), value.fold(a => rlpEncode[Account](a), b => b: RLPEncodeable))
+            RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = true)), value)
           case n: MptExtension =>
             import n._
             RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = false)), child.fold(_.hash, _.value): RLPEncodeable)
@@ -97,9 +95,7 @@ object PV63 {
         case RLPList(hpEncoded, value) =>
           hpDecode(hpEncoded: Array[Byte]) match {
             case (decoded, true) =>
-              MptLeaf(ByteString(decoded),
-                Try(Left(rlpDecode[Account](value: Array[Byte])))
-                  .getOrElse(Right(rlpDecode[ByteString](value))))
+              MptLeaf(ByteString(decoded), rlpDecode[ByteString](value))
             case (decoded, false) =>
               val v = rlpDecode[ByteString](value)
               val child = if (v.nonEmpty && v.length < 32)
@@ -121,19 +117,13 @@ object PV63 {
     implicit val rlpEndDec = new RLPEncoder[NodeData] with RLPDecoder[NodeData] {
       override def encode(obj: NodeData): RLPEncodeable = {
         import obj._
-
-        RLPList(values.map {
-          case Left(node) => RLPValue(rlpEncode[MptNode](node))
-          case Right(byteValue) => RLPValue(byteValue.toArray[Byte])
-        }: _*)
+        values
       }
 
       override def decode(rlp: RLPEncodeable): NodeData = rlp match {
         case rlpList: RLPList =>
           NodeData(rlpList.items.map { e =>
-            Try {
-              Left(rlpDecode[MptNode](e: Array[Byte]))
-            }.getOrElse(Right(ByteString(e: Array[Byte])))
+            ByteString(e: Array[Byte])
           })
         case _ => throw new RuntimeException("Cannot decode NodeData")
       }
@@ -142,14 +132,14 @@ object PV63 {
     val code: Int = Message.SubProtocolOffset + 0x0e
   }
 
-  case class NodeData(values: Seq[Either[MptNode, ByteString]]) extends Message {
+  case class NodeData(values: Seq[ByteString]) extends Message {
     override def code: Int = NodeData.code
 
-    override def toString: String = {
-      val v = values.map(v => v.fold(_.toString, b => s"BytString(${Hex.toHexString(b.toArray[Byte])})"))
+    def getMptNode(index: Int): MptNode = rlpDecode[MptNode](values(index).toArray[Byte])
 
+    override def toString: String = {
       s"""NodeData{
-         |values: $v
+         |values: ${values.map(b => Hex.toHexString(b.toArray[Byte]))}
          |}
        """.stripMargin
     }
@@ -182,7 +172,10 @@ object PV63 {
     }
   }
 
-  case class MptLeaf(keyNibbles: ByteString, value: Either[Account, ByteString]) extends MptNode {
+  case class MptLeaf(keyNibbles: ByteString, value: ByteString) extends MptNode {
+
+    def getAccount: Account = rlpDecode[Account](value.toArray[Byte])
+
     override def toString: String = {
       s"""MptLeaf{
          |key nibbles: $keyNibbles
