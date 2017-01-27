@@ -6,8 +6,6 @@ import java.util.UUID
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.rlp.RLPEncoder
 import org.spongycastle.util.encoders.Hex
 
 import scala.collection.immutable.HashMap
@@ -21,7 +19,7 @@ class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
       case _ => Stop
     }
 
-  var actor: ActorRef = _
+  var actorsMap: HashMap[URI, ActorRef] = HashMap()
 
   override def receive: Receive = {
     case HandlePeerConnection(connection, remoteAddress) =>
@@ -32,14 +30,15 @@ class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     case ConnectToPeer(uri) =>
       val actor = createPeer()
       actor ! PeerActor.ConnectTo(uri)
-      this.actor = actor
+      actorsMap += (uri -> actor)
 
     case StartFastDownload(uri) =>
-
-      actor ! PeerActor.StartFastSync(
-        startBlockHash = ByteString(Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3")), //genesis block
-        targetBlockHash = ByteString(Hex.decode("ca2b65cf841b7acc2548977ad69a3e118940d0934cdbf2d3645c44bdf5023465"))
-      )
+      actorsMap.get(uri).foreach { a =>
+        a ! PeerActor.StartFastSync(
+          startBlockHash = ByteString(Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3")), //genesis block
+          targetBlockHash = ByteString(Hex.decode("ca2b65cf841b7acc2548977ad69a3e118940d0934cdbf2d3645c44bdf5023465"))
+        )
+      }
   }
 
   def createPeer(): ActorRef = {
@@ -53,7 +52,9 @@ object PeerManagerActor {
     Props(new PeerManagerActor(nodeInfo))
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
+
   case class ConnectToPeer(uri: URI)
 
   case class StartFastDownload(uri: URI)
+
 }

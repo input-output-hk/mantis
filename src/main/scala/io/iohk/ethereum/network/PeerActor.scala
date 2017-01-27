@@ -74,11 +74,11 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
   def waitingForHello(rlpxConnection: ActorRef, timeout: Cancellable): Receive = handleTerminated orElse {
     case MessageReceived(d: Disconnect) =>
-      log.info("Received {}. Closing connection", d)
+      //log.info("Received {}. Closing connection", d)
       context stop self
 
     case MessageReceived(hello: Hello) =>
-      log.info("Received {}. Protocol handshake finished", hello)
+      //log.info("Received {}. Protocol handshake finished", hello)
       timeout.cancel()
 
       if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
@@ -101,7 +101,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
   def handleTerminated: Receive = {
     case _: Terminated =>
-      log.info("RLPx connection actor terminated")
+      //log.info("RLPx connection actor terminated")
       context stop self
   }
 
@@ -124,7 +124,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
     def processMessage(message: Message): Unit = message match {
       case Ping() =>
-        log.info("Received message: {}", message)
+        //log.info("Received message: {}", message)
         sendMessage(Pong())
 
       case GetBlockHeaders(Left(number), _, _, _) if number == 1920000 =>
@@ -132,12 +132,12 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
         sendMessage(BlockHeaders(Seq())) //stub because we do not have this block yet
 
       case d: Disconnect =>
-        log.info("Received {}. Closing connection", d)
+        //log.info("Received {}. Closing connection", d)
         context stop self
 
       case msg =>
         tomatoMap.foreach(actor => actor ! msg)
-        log.info("Received message: {}", msg)
+        //log.info("Received message: {}", msg)
     }
 
   }
