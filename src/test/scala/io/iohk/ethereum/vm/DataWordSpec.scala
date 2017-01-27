@@ -9,7 +9,6 @@ import io.iohk.ethereum.vm.DataWord._
 
 class DataWordSpec extends FunSuite with PropertyChecks {
 
-
   val specialNumbers = Array(BigInt(-1), BigInt(0), BigInt(1), MaxWord.toBigInt, -MaxWord.toBigInt, -MaxWord.toBigInt + 1)
 
   val pairs: Array[(BigInt, BigInt)] = specialNumbers
@@ -138,6 +137,14 @@ class DataWordSpec extends FunSuite with PropertyChecks {
     assertThrows[IllegalArgumentException] {
       DataWord(ByteString(Array.fill(MaxLength + 1)(1.toByte)))
     }
+  }
+
+  test("DataWord converted to a byte array should always have length 32 bytes") {
+    forAll(bigIntGen) { n =>
+      assert(DataWord(n).bytes.size == 32)
+    }
+    // regression
+    assert(DataWord(BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935")).bytes.size == 32)
   }
 
 }

@@ -46,7 +46,7 @@ object Runner {
 
     val program = new Program(code)
 
-    val result = VM.run(ProgramInvoke(program, callData, ByteString(), Storage()))
+    val result = VM.run(ProgramInvoke(program, callData, ByteString(), new Storage()))
 
     println(result)
 
@@ -74,7 +74,7 @@ object Runner {
     val program = new Program(code)
     val callValue = ByteString.empty
 
-    val invokeCreate = ProgramInvoke(program, callData = ByteString.empty, callValue, Storage())
+    val invokeCreate = ProgramInvoke(program, callData = ByteString.empty, callValue, new Storage())
     val resultCreate = VM.run(invokeCreate)
     printResult("CONTRACT CREATE", resultCreate)
 
@@ -102,7 +102,7 @@ object Runner {
     println("\n\n" + header)
     println("-" * header.length)
     println(s"Program return:\n  ${showBytes(result.returnData)} $dec")
-    println("Program storage:\n  " + result.storage.underlying.map(dw => showBytes(dw.bytes)).mkString("\n  "))
+    println("Program storage:\n  " + result.storage.underlying.map{case (k, v) => showBytes(k.bytes) + ": " + showBytes(v.bytes)}.mkString("\n  "))
     println("Program error:  \n  " + result.error)
   }
 
