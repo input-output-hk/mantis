@@ -67,6 +67,8 @@ object PV63 {
   }
 
   object MptNode {
+    val BranchNodeChildLength = 16
+
     implicit val rlpEndDec = new RLPEncoder[MptNode] with RLPDecoder[MptNode] {
       override def encode(obj: MptNode): RLPEncodeable = {
         obj match {
@@ -83,8 +85,8 @@ object PV63 {
       }
 
       override def decode(rlp: RLPEncodeable): MptNode = rlp match {
-        case rlpList: RLPList if rlpList.items.length == 17 =>
-          MptBranch(rlpList.items.take(16).map { bytes =>
+        case rlpList: RLPList if rlpList.items.length == BranchNodeChildLength + 1 =>
+          MptBranch(rlpList.items.take(BranchNodeChildLength).map { bytes =>
             val v = rlpDecode[ByteString](bytes)
             if (v.nonEmpty && v.length < 32) {
               Right(MptValue(v))
@@ -113,7 +115,7 @@ object PV63 {
     }
   }
 
-  trait MptNode
+  sealed trait MptNode
 
   object NodeData {
     implicit val rlpEndDec = new RLPEncoder[NodeData] with RLPDecoder[NodeData] {
