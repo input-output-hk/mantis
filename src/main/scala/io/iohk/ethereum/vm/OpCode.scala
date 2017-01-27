@@ -5,6 +5,7 @@ import cats.syntax.either._
 import io.iohk.ethereum.crypto.sha3
 
 // scalastyle:off magic.number
+// scalastyle:off number.of.types
 object OpCode {
 
   val opcodes: List[OpCode] = List(
