@@ -3,6 +3,14 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import cats.syntax.either._
 
+object Memory {
+
+  def empty: Memory = new Memory(ByteString())
+
+  private def zeros(size: Int): ByteString = ByteString(Array.fill[Byte](size)(0))
+
+}
+
 /**
  * Volatile memory with 256 bit address space.
  * Every mutating operation on a Memory returns a new updated copy of it.
@@ -11,7 +19,9 @@ import cats.syntax.either._
  * https://solidity.readthedocs.io/en/latest/frequently-asked-questions.html#what-is-the-memory-keyword-what-does-it-do
  * https://github.com/ethereum/go-ethereum/blob/master/core/vm/memory.go
  */
-class Memory(val underlying: ByteString = ByteString()) {
+class Memory(private[vm] val underlying: ByteString) {
+
+  import Memory.zeros
 
   def store(addr: DataWord, b: Byte): Memory = store(addr, ByteString(b))
 
@@ -65,6 +75,15 @@ class Memory(val underlying: ByteString = ByteString()) {
 
   def size: Int = underlying.size
 
-  private def zeros(size: Int): ByteString = ByteString(Array.fill[Byte](size)(0))
+  override def equals(that: Any): Boolean = {
+    that match {
+      case that: Memory => this.underlying.equals(that.underlying)
+      case other => false
+    }
+  }
+
+  override def hashCode: Int = underlying.hashCode()
+
+  override def toString: String = underlying.toString.replace("ByteString", this.getClass.getSimpleName)
 
 }

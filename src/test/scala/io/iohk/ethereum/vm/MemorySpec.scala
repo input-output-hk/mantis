@@ -30,7 +30,7 @@ class MemorySpec extends FunSuite with PropertyChecks with ObjectGenerators {
     forAll(choose(10, 100), arbitrary[Byte], choose(0, 200)) {
       (initialMemorySize, b, idx) =>
       // We need this additional check.
-      // Otherwise ScalaCheck generates negative numbers during shrinking
+      // Otherwise ScalaCheck generates negative numbers during shrinking.
       whenever(initialMemorySize >= 0 && idx >= 0) {
         val memory = new Memory(zeros(initialMemorySize)).store(DataWord(idx), b)
         val expectedSize = math.max(initialMemorySize, idx + 1)

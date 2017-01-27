@@ -41,7 +41,7 @@ object Generators extends ObjectGenerators {
     getStackGen(getDataWordGen(max = maxWord))
 
   def getMemoryGen(maxSize: Int = 0): Gen[Memory] =
-    getByteStringGen(maxSize).map(new Memory().store(DataWord(0), _))
+    getByteStringGen(maxSize).map(Memory.empty.store(DataWord(0), _))
 
   def getProgramStateGen(
     stackGen: Gen[Stack] = getStackGen(),
