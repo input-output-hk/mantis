@@ -1,60 +1,97 @@
+* Each not implemented opcode needs a code handling it in `OpCode.scala`.
+* Program needs access to data of a current block, account, transaction and contract cache.
+
 # Not implemented
 
 ## 0s: Stop and Arithmetic Operations
 
-### 0x05    SDIV        Signed integer
-### 0x06    MOD         Modulo
-### 0x07    SMOD        Signed modulo
-### 0x08    ADDMOD      Modulo
-### 0x09    MULMOD      Modulo
-### 0x0b    SIGNEXTEND  Extend length of two's complement signed integer
+#### 0x05    SDIV        Signed integer
+
+Add `DataWord.sdiv(that: DataWord): DataWord` method.
+
+#### 0x06    MOD         Modulo
+
+Add `DataWord.mod(that: DataWord): DataWord` method.
+
+#### 0x07    SMOD        Signed modulo
+
+Add `DataWord.smod(that: DataWord): DataWord` method.
+
+#### 0x08    ADDMOD      Modulo
+
+Add `DataWord.addMod(that: DataWord, modulo: DataWord): DataWord` method.
+
+#### 0x09    MULMOD      Modulo
+
+Add `DataWord.mulMod(that: DataWord, modulo: DataWord): DataWord` method.
+
+#### 0x0b    SIGNEXTEND  Extend length of two's complement signed integer
+
+Add `DataWord.signExtend(that: DataWord, modulo: DataWord): DataWord` method.
 
 ## 10s: Comparison & Bitwise Logic Operations
 
-### 0x11    GT      Greater-than comparison
-### 0x12    SLT     Signed less-than comparison
-### 0x13    SGT     Signed greater-than comparison
-### 0x17    OR      Bitwise OR operation
-### 0x18    XOR     Bitwise XOR operation
-### 0x1a    BYTE    Retrieve single byte from word
+#### 0x11    GT      Greater-than comparison
+
+Already implemented in `DataWord`.
+
+#### 0x12    SLT     Signed less-than comparison
+
+Add `DataWord.slt(that: DataWord, modulo: DataWord): DataWord` method.
+
+#### 0x13    SGT     Signed greater-than comparison
+
+Add `DataWord.sgt(that: DataWord, modulo: DataWord): DataWord` method.
+
+#### 0x17    OR      Bitwise OR operation
+
+Already implemented in `DataWord`.
+
+#### 0x18    XOR     Bitwise XOR operation
+
+Already implemented in `DataWord`.
+
+#### 0x1a    BYTE    Retrieve single byte from word
+
+Add `DataWord.getByte(idx: Int): Byte` method.
 
 ## 30s: Environmental Information
 
-### 0x30    ADDRESS         Get address of currently executing account
-### 0x31    BALANCE         Get balance of the given account
-### 0x32    ORIGIN          Get execution origination address
-### 0x33    CALLER          Get caller address. This is the address of the account that is directly responsible for this execution
-### 0x36    CALLDATASIZE    Get size of input data in current environment
-### 0x37    CALLDATACOPY    Copy input data in current environment to memory This pertains to the input data passed with the message call instruction or transaction
-### 0x38    CODESIZE        Get size of code running in current environment
-### 0x3a    GASPRICE        Get price of gas in current environment
-### 0x3b    EXTCODESIZE     Get size of an account's code
-### 0x3c    EXTCODECOPY     Copy an account's code to memory
+#### 0x30    ADDRESS         Get address of currently executing account
+#### 0x31    BALANCE         Get balance of the given account
+#### 0x32    ORIGIN          Get execution origination address
+#### 0x33    CALLER          Get caller address. This is the address of the account that is directly responsible for this execution
+#### 0x36    CALLDATASIZE    Get size of input data in current environment
+#### 0x37    CALLDATACOPY    Copy input data in current environment to memory This pertains to the input data passed with the message call instruction or transaction
+#### 0x38    CODESIZE        Get size of code running in current environment
+#### 0x3a    GASPRICE        Get price of gas in current environment
+#### 0x3b    EXTCODESIZE     Get size of an account's code
+#### 0x3c    EXTCODECOPY     Copy an account's code to memory
 
 ## 40s: Block Information
 
-### 0x40    BLOCKHASH   Get the hash of one of the 256 most recent complete blocks
-### 0x41    COINBASE    Get the block's beneficiary address
-### 0x42    TIMESTAMP   Get the block's timestamp
-### 0x43    NUMBER      Get the block's number
-### 0x44    DIFFICULTY  Get the block's difficulty
-### 0x45    GASLIMIT    Get the block's gas limit
+#### 0x40    BLOCKHASH   Get the hash of one of the 256 most recent complete blocks
+#### 0x41    COINBASE    Get the block's beneficiary address
+#### 0x42    TIMESTAMP   Get the block's timestamp
+#### 0x43    NUMBER      Get the block's number
+#### 0x44    DIFFICULTY  Get the block's difficulty
+#### 0x45    GASLIMIT    Get the block's gas limit
 
 ## 50s Stack, Memory, Storage and Flow Operations
 
-### 0x53    MSTORE8     Save byte to memory
-### 0x58    PC          Get the value of the program counter prior to the increment
-### 0x59    MSIZE       Get the size of active memory in bytes
-### 0x5a    GAS         Get the amount of available gas, including the corresponding reduction
+#### 0x53    MSTORE8     Save byte to memory
+#### 0x58    PC          Get the value of the program counter prior to the increment
+#### 0x59    MSIZE       Get the size of active memory in bytes
+#### 0x5a    GAS         Get the amount of available gas, including the corresponding reduction
 
 ## f0s: System operations
 
-### 0xf0    CREATE          Create a new account with associated code
-### 0xf1    CALL            Message-call into an account
-### 0xf2    CALLCODE        Message-call into this account with alternative account's code
-### 0xf4    DELEGATECALL    Message-call into this account with an alternative account's code, but persisting the current values for `sender` and `value`
-### Halt Execution, Mark for deletion
-### 0xff    SUICIDE     Halt execution and register account for later deletion
+#### 0xf0    CREATE          Create a new account with associated code
+#### 0xf1    CALL            Message-call into an account
+#### 0xf2    CALLCODE        Message-call into this account with alternative account's code
+#### 0xf4    DELEGATECALL    Message-call into this account with an alternative account's code, but persisting the current values for `sender` and `value`
+#### Halt Execution, Mark for deletion
+#### 0xff    SUICIDE     Halt execution and register account for later deletion
 
 # Implemented
 
