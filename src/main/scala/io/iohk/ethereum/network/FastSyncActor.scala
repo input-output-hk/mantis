@@ -1,26 +1,18 @@
 package io.iohk.ethereum.network
 
-import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.util.ByteString
-import io.iohk.ethereum.network.FastSyncActor.{ByteValueHash, MptNodeHash, PartialDownloadDone, StartSync}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
+import io.iohk.ethereum.network.FastSyncActor._
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.PV63._
-
-import scala.util.{Try, Failure => TryFailure, Success => TrySuccess}
+import org.spongycastle.util.encoders.Hex
 
 class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
-  val blocksPerMessage = 10 //TODO move to conf
-
-//  var currentBlockHeaders: Option[BlockHeaders] = None
-//  var currentBlockBodies: Option[BlockBodies] = None
-//  var currentReceipts: Option[Receipts] = None
-//
-//  var currentNodeHash: Option[Seq[ByteString]] = None
-//
-//  var requestedNodes: Option[Seq[Either[MptNodeHash, ByteValueHash]]] = None
-//  var mptNodes: Map[ByteString, Either[MptNode, ByteString]] = Map()
+  val BlocksPerMessage = 10
+  //TODO move to conf
+  val EmptyAccountStorageHash = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
+  val EmptyAccountEvmCodeHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
 
   def handleTerminated: Receive = {
     case _: Terminated =>
@@ -28,63 +20,73 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       context stop self
   }
 
-  def waitForTargetBlockHeader(startBlockHash: ByteString, targetBlockHash: ByteString): Receive = handleTerminated orElse {
-        case m: BlockHeaders =>
-    //      currentBlockHeaders = Some(m)
-    //      peerActor ! PeerActor.SendMessage(GetBlockBodies(m.headers.map(_.blockHash)))
-    //      peerActor ! PeerActor.SendMessage(GetReceipts(m.headers.map(_.blockHash)))
-  }
 
   override def receive: Receive = handleTerminated orElse {
     case StartSync(startBlockHash, targetBlockHash) =>
-      //peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(startBlockHash), blocksPerMessage, 0, reverse = false))
       peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(targetBlockHash), 1, 0, reverse = false))
-      //currentNodeHash = Some(Seq(targetBlockHash))
+      context become waitForTargetBlockHeader(startBlockHash, targetBlockHash)
+  }
 
-//    case m: BlockHeaders =>
-//      currentBlockHeaders = Some(m)
-//      peerActor ! PeerActor.SendMessage(GetBlockBodies(m.headers.map(_.blockHash)))
-//      peerActor ! PeerActor.SendMessage(GetReceipts(m.headers.map(_.blockHash)))
-//
-//    case m: BlockBodies =>
-//      currentBlockBodies = Some(m)
-//      self ! PartialDownloadDone
-//
-//    case m: Receipts =>
-//      currentReceipts = Some(m)
-//      self ! PartialDownloadDone
-//
-//    case PartialDownloadDone =>
-//      (currentBlockHeaders, currentBlockBodies, currentReceipts) match {
-//        case (Some(headers), Some(bodies), Some(receipts)) =>
-//          log.info("got complete info \n{}\n{}\n{}", headers, bodies, receipts)
-//
-//        case _ =>
-//      }
-//
-//    case m: NodeData =>
+  def waitForTargetBlockHeader(startBlockHash: ByteString, targetBlockHash: ByteString): Receive = handleTerminated orElse {
+    case BlockHeaders(blockHeader :: Nil) =>
+      peerActor ! PeerActor.SendMessage(GetNodeData(Seq(blockHeader.stateRoot)))
+      peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(startBlockHash), BlocksPerMessage, 0, reverse = false))
+      context become processMessages(ProcessingState(startBlockHash, targetBlockHash,
+        requestedNodes = Seq(MptNodeHash(blockHeader.stateRoot))))
+  }
 
-    //      m.mptNodes.zipWithIndex.map{
-    //        case (TrySuccess(mptNode), idx) =>
-    //        case (TryFailure(mptNode), idx) =>
-    //      }
+  def processMessages(state: ProcessingState): Receive = handleTerminated orElse {
+    case m: BlockHeaders =>
+    case m: BlockBodies if m.bodies.length == state.requestedBlockBodies.length =>
+    case m: Receipts if m.receiptsForBlocks.length == state.requestedReceipts.length =>
+
+    case m: NodeData if m.values.length == state.requestedNodes.length =>
+      state.requestedNodes.zipWithIndex.foreach {
+        case (MptNodeHash(hash), idx) =>
+          handleMptNode(hash, m.getMptNode(idx), state)
+
+        case (EvmCodeHash(hash), idx) =>
+          val evmCode = m.values(idx)
+          val msg =
+            s"""got EVM code: ${Hex.toHexString(evmCode.toArray[Byte])}
+               |for hash: ${Hex.toHexString(hash.toArray[Byte])}
+             """.stripMargin
+          log.info(msg)
+        case (StorageRootHash(hash), idx) =>
+          val rootNode = m.getMptNode(idx)
+          val msg =
+            s"""got root node for contract storage: $rootNode
+               |for hash: ${Hex.toHexString(hash.toArray[Byte])}
+             """.stripMargin
+          log.info(msg)
+      }
+    case m =>
+      log.info("Got unexpected message {}", m)
+      log.info("Requested nodes {}, requested blockBodies {}, requested receipts {}",
+        state.requestedNodes, state.requestedBlockBodies, state.requestedReceipts)
+  }
+
+  private def handleMptNode(hash: ByteString, mptNode: MptNode, state: ProcessingState) = {
+    mptNode match {
+      case n: MptLeaf =>
+        log.info("Got leaf node: {}", n)
+        n.getAccount.codeHash
+        n.getAccount.storageRoot
 
 
-    //      val v: Seq[(ByteString, ByteString)] = m.mptNodes.zip(currentNodeHash.get).map { case (value, hash) => hash -> value }
-    //      mptNodes ++ Map[ByteString, ByteString](v: _*)
-    //      m.values.collect { case mptNode => mptNode }.map {
-    //        case n: MptLeaf =>
-    //
-    //        case n: MptBranch =>
-    //          val hashes = n.children.collect { case Left(MptHash(hash)) => hash }
-    //          currentNodeHash = Some(hashes)
-    //          peerActor ! PeerActor.SendMessage(GetNodeData(hashes))
-    //        case n: MptExtension =>
-    //          n.child.fold({ a =>
-    //            currentNodeHash = Some(Seq(a.hash))
-    //            peerActor ! PeerActor.SendMessage(GetNodeData(Seq(a.hash)))
-    //          }, _)
-    //      }
+      case n: MptBranch =>
+        val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }
+        peerActor ! PeerActor.SendMessage(GetNodeData(hashes))
+        context become processMessages(state.copy(requestedNodes = hashes.map(MptNodeHash)))
+      case n: MptExtension =>
+        n.child.fold(
+          { hash =>
+
+            peerActor ! PeerActor.SendMessage(GetNodeData(Seq(hash.hash)))
+          }, { value =>
+
+          })
+    }
   }
 }
 
@@ -95,8 +97,19 @@ object FastSyncActor {
 
   case object PartialDownloadDone
 
-  private case class MptNodeHash(v: ByteString)
+  private trait HashType
 
-  private case class ByteValueHash(v: ByteString)
+  private case class MptNodeHash(v: ByteString) extends HashType
+
+  private case class EvmCodeHash(v: ByteString) extends HashType
+
+  private case class StorageRootHash(v: ByteString) extends HashType
+
+  private case class ProcessingState(
+    startBlockHash: ByteString,
+    targetBlockHash: ByteString,
+    requestedNodes: Seq[HashType] = Seq.empty,
+    requestedBlockBodies: Seq[ByteString] = Seq.empty,
+    requestedReceipts: Seq[ByteString] = Seq.empty)
 
 }
