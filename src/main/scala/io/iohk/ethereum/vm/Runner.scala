@@ -71,14 +71,14 @@ object Runner {
     val code = loadCode(fibonacciHex4)
     println(printCode(code))
 
-    val program = new Program(code)
+    val program = Program(code)
     val callValue = ByteString.empty
 
-    val invokeCreate = ProgramInvoke(program, callData = ByteString.empty, callValue, new Storage())
+    val invokeCreate = ProgramInvoke(program, callData = ByteString.empty, callValue, Storage.Empty)
     val resultCreate = VM.run(invokeCreate)
     printResult("CONTRACT CREATE", resultCreate)
 
-    val contract = new Program(resultCreate.returnData)
+    val contract = Program(resultCreate.returnData)
 
     val resultAfterIter = (1 to 10).foldLeft(resultCreate){ (previousResult, i) =>
       val invokeStored = ProgramInvoke(contract, callData = loadCode(getStoredFibHex), callValue, previousResult.storage)
@@ -102,7 +102,7 @@ object Runner {
     println("\n\n" + header)
     println("-" * header.length)
     println(s"Program return:\n  ${showBytes(result.returnData)} $dec")
-    println("Program storage:\n  " + result.storage.underlying.map{case (k, v) => showBytes(k.bytes) + ": " + showBytes(v.bytes)}.mkString("\n  "))
+    println("Program storage:\n  " + result.storage.toMap.toList.sortBy(_._1).map(kv => showBytes(kv._2.bytes)).mkString("\n  "))
     println("Program error:  \n  " + result.error)
   }
 

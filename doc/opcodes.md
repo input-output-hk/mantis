@@ -175,10 +175,6 @@ Needs more investigation.
 
 Needs more investigation.
 
-#### 0xf3   RETURN  Halt Execution, Mark for deletion
-
-Needs more investigation.
-
 #### 0xf4    DELEGATECALL    Message-call into this account with an alternative account's code, but persisting the current values for `sender` and `value`
 
 Needs more investigation.
@@ -272,3 +268,4 @@ Needs more investigation.
 * SWAP14
 * SWAP15
 * SWAP16
+* RETURN
