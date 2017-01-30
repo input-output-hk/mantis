@@ -376,13 +376,9 @@ sealed abstract class PushOp(code: Int) extends OpCode(code.toByte, 0, 1) {
 
   def execute(state: ProgramState): ProgramState = {
     val n = i + 1
-
-    val updatedState = for {
-      bytes <- state.program.getBytes(state.pc + 1, n)
-      word = DataWord(bytes)
-      stack <- state.stack.push(word)
-    } yield state.withStack(stack).step(n + 1)
-
+    val bytes = state.program.getBytes(state.pc + 1, n)
+    val word = DataWord(bytes)
+    val updatedState = state.stack.push(word).map(state.withStack(_).step(n + 1))
     updatedState.valueOr(state.withError)
   }
 }

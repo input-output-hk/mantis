@@ -11,7 +11,7 @@ object Generators extends ObjectGenerators {
   def getListGen[T](minSize: Int, maxSize: Int, genT: Gen[T]): Gen[List[T]] =
     Gen.choose(minSize, maxSize).flatMap(size => Gen.listOfN(size, genT))
 
-  def getByteStringGen(maxSize: Int, minSize: Int = 0): Gen[ByteString] =
+  def getByteStringGen(minSize: Int, maxSize: Int): Gen[ByteString] =
     getListGen(minSize, maxSize, Arbitrary.arbitrary[Byte]).map(l => ByteString(l.toArray))
 
   def getBigIntGen(min: BigInt = -BigInt(2).pow(255), max: BigInt = BigInt(2).pow(255) - 1): Gen[BigInt] = {
@@ -19,6 +19,7 @@ object Generators extends ObjectGenerators {
     val nBytes = nBits / 8 + (if (nBits % 8 > 0) 1 else 0) - 1
     for {
       byte <- Arbitrary.arbitrary[Byte]
+      // FIXME this is stupid, just use modulo
       head = if (min >= 0) byte & 0x7f else if (max < 0) byte | 0x80 else byte
       tail <- getByteStringGen(nBytes, nBytes)
       bigInt = BigInt(head.toByte +: tail.toArray)
@@ -34,27 +35,33 @@ object Generators extends ObjectGenerators {
       size <- Gen.choose(0, maxSize)
       list <- Gen.listOfN(size, dataWordGen)
       stack = Stack.empty(maxSize)
-      _ = println(s"stack: $size, $maxSize")
     } yield stack.push(list).right.get
 
   def getStackGen(maxWord: DataWord): Gen[Stack] =
     getStackGen(getDataWordGen(max = maxWord))
 
   def getMemoryGen(maxSize: Int = 0): Gen[Memory] =
-    getByteStringGen(maxSize).map(Memory.empty.store(DataWord(0), _))
+    getByteStringGen(0, maxSize).map(Memory.empty.store(DataWord(0), _))
+
+  def getStorageGen(maxSize: Int = 0): Gen[Storage] =
+    getListGen(0, maxSize, getDataWordGen()).map(Storage.fromSeq)
 
   def getProgramStateGen(
     stackGen: Gen[Stack] = getStackGen(),
     memGen: Gen[Memory] = getMemoryGen(),
-    codeGen: Gen[ByteString] = getByteStringGen(0),
-    callDataGen: Gen[ByteString] = getByteStringGen(0)
+    storageGen: Gen[Storage] = getStorageGen(),
+    codeGen: Gen[ByteString] = getByteStringGen(0, 0),
+    callDataGen: Gen[ByteString] = getByteStringGen(0, 0),
+    callValueGen: Gen[ByteString] = getByteStringGen(0, 32)
   ) : Gen[ProgramState] =
     for {
       stack <- stackGen
       memory <- memGen
+      storage <- storageGen
       code <- codeGen
       callData <- callDataGen
-      invoke = ProgramInvoke(new Program(code), callData, ByteString.empty, new Storage())
+      callValue <- callValueGen
+      invoke = ProgramInvoke(Program(code), callData, callValue, storage)
     } yield ProgramState(invoke).withStack(stack).withMemory(memory)
 
 }

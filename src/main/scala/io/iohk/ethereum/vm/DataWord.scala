@@ -11,6 +11,8 @@ object DataWord {
 
   val MaxWord = DataWord(Modulus - 1)
 
+  val Zero = DataWord(0)
+
   private val Zeros: ByteString = ByteString(Array.fill[Byte](MaxLength)(0))
 
   def apply(value: ByteString): DataWord = {
