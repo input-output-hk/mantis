@@ -61,6 +61,7 @@ class RLPxConnectionHandler(nodeInfo: NodeInfo)
 
     case CommandFailed(_: Connect) =>
       log.warning("Connection to {} failed", uri)
+      context.parent ! ConnectionFailed
       context stop self
   }
 
@@ -109,6 +110,7 @@ class RLPxConnectionHandler(nodeInfo: NodeInfo)
     def handleTimeout: Receive = {
       case AuthHandshakeTimeout =>
         log.info("Auth handshake timeout")
+        context.parent ! ConnectionFailed
         context stop self
     }
 

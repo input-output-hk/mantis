@@ -10,4 +10,5 @@ project/plugins/project/
 # intellij scala worksheet
 *.sc
 
-*.log
+etc-client.log
+

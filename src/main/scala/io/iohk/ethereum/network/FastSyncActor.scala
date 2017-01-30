@@ -39,7 +39,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
     case StartSync(startBlockHash, targetBlockHash) =>
       //peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(startBlockHash), blocksPerMessage, 0, reverse = false))
       peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(targetBlockHash), 1, 0, reverse = false))
-      currentNodeHash = Some(Seq(targetBlockHash))
+      //currentNodeHash = Some(Seq(targetBlockHash))
 
 //    case m: BlockHeaders =>
 //      currentBlockHeaders = Some(m)

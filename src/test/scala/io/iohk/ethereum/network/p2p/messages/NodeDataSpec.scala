@@ -64,9 +64,9 @@ class NodeDataSpec extends FlatSpec with Matchers {
 
     result match {
       case m: NodeData =>
-        m.getMptNode(m.values(0)) shouldBe leafNode
-        m.getMptNode(m.values(1)) shouldBe branchNode
-        m.getMptNode(m.values(2)) shouldBe extensionNode
+        m.getMptNode(0) shouldBe leafNode
+        m.getMptNode(1) shouldBe branchNode
+        m.getMptNode(2) shouldBe extensionNode
       case _ => fail("wrong type")
     }
 
