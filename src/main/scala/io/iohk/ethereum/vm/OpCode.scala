@@ -224,7 +224,7 @@ case object SHA3 extends OpCode(0x20, 2, 1) {
       (Seq(offset, size), stack1: Stack) = popped
       (input, mem1) = state.memory.load(offset, size)
       hash = sha3(input.toArray)
-      ret = DataWord(ByteString(hash))
+      ret = DataWord(hash)
       stack2 <- stack1.push(ret)
     } yield state.withStack(stack2).withMemory(mem1).step()
 
@@ -260,7 +260,7 @@ case object CODECOPY extends OpCode(0x39, 3, 0) {
     val updatedState = for {
       popped <- state.stack.pop(3)
       (Seq(memOffset, codeOffset, size), stack1) = popped
-      bytes <- state.program.getBytes(codeOffset.intValue, size.intValue)
+      bytes = state.program.getBytes(codeOffset.intValue, size.intValue)
       mem1 = state.memory.store(memOffset, bytes)
     } yield state.withStack(stack1).withMemory(mem1).step()
 

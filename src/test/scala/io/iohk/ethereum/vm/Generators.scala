@@ -15,15 +15,12 @@ object Generators extends ObjectGenerators {
     getListGen(minSize, maxSize, Arbitrary.arbitrary[Byte]).map(l => ByteString(l.toArray))
 
   def getBigIntGen(min: BigInt = -BigInt(2).pow(255), max: BigInt = BigInt(2).pow(255) - 1): Gen[BigInt] = {
-    val nBits = math.max(min.bitLength, max.bitCount)
-    val nBytes = nBits / 8 + (if (nBits % 8 > 0) 1 else 0) - 1
+    val mod = max - min
+    val nBytes = mod.bitLength / 8 + 1
     for {
       byte <- Arbitrary.arbitrary[Byte]
-      // FIXME this is stupid, just use modulo
-      head = if (min >= 0) byte & 0x7f else if (max < 0) byte | 0x80 else byte
-      tail <- getByteStringGen(nBytes, nBytes)
-      bigInt = BigInt(head.toByte +: tail.toArray)
-      if bigInt >= min && bigInt <= max
+      bytes <- getByteStringGen(nBytes, nBytes)
+      bigInt = BigInt(bytes.toArray).abs % mod + min
     } yield bigInt
   }
 

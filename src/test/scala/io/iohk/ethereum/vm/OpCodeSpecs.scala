@@ -29,6 +29,10 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
       val expectedStackSize = stateIn.stack.size - op.delta + op.alpha
       stateOut.stack.size shouldEqual expectedStackSize
 
+      val Right((_, stack1)) = stateIn.stack.pop(op.delta)
+      val Right((_, stack2)) = stateOut.stack.pop(op.alpha)
+      stack1 shouldEqual stack2
+
       body
     }
   }
@@ -134,7 +138,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
         val Right((Seq(offset, size), _)) = stateIn.stack.pop(2)
         val (data, mem1) = stateIn.memory.load(offset, size)
         val Right((result, _)) = stateOut.stack.pop
-        result shouldEqual sha3(data.toArray)
+        result shouldEqual DataWord(sha3(data.toArray))
 
         val expectedState = stateIn.withStack(stateOut.stack).withMemory(mem1).step()
         stateOut shouldEqual expectedState
@@ -211,13 +215,13 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
       codeGen = getByteStringGen(0, 256)
     )
 
-    forAll(getProgramStateGen()) { stateIn =>
+    forAll(stateGen) { stateIn =>
       val stateOut = op.execute(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((Seq(memOffset, codeOffset, size), _)) = stateIn.stack.pop(3)
         val code = stateIn.program.getBytes(codeOffset.intValue, size.intValue)
-        val storedInMem = stateOut.memory.load(memOffset, size)
+        val (storedInMem, _) = stateOut.memory.load(memOffset, size)
         code shouldEqual storedInMem
 
         val expectedState = stateIn.withStack(stateOut.stack).withMemory(stateOut.memory).step()
@@ -267,7 +271,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
       val stateOut = op.execute(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
-        stateOut shouldEqual stateIn.step()
+        stateOut shouldEqual stateIn.withStack(stateOut.stack).step()
       }
     }
   }
@@ -278,13 +282,13 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
       memGen = getMemoryGen(256)
     )
 
-    forAll(getProgramStateGen()) { stateIn =>
+    forAll(stateGen) { stateIn =>
       val stateOut = op.execute(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((addr, _)) = stateIn.stack.pop
         val Right((result, _)) = stateOut.stack.pop
-        val data = stateIn.memory.load(addr)
+        val (data, _) = stateIn.memory.load(addr)
         result shouldEqual data
 
         stateOut shouldEqual stateIn.withStack(stateOut.stack).withMemory(stateOut.memory).step()
@@ -298,12 +302,12 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
       memGen = getMemoryGen(256)
     )
 
-    forAll(getProgramStateGen()) { stateIn =>
+    forAll(stateGen) { stateIn =>
       val stateOut = op.execute(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((Seq(addr, value), _)) = stateIn.stack.pop(2)
-        val data = stateIn.memory.load(addr)
+        val (data, _) = stateOut.memory.load(addr)
         value shouldEqual data
 
         stateOut shouldEqual stateIn.withStack(stateOut.stack).withMemory(stateOut.memory).step()
@@ -335,8 +339,23 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     }
   }
 
-  ignore(SSTORE) { op =>
-    // to be implemented
+  test(SSTORE) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(DataWord(256)),
+      storageGen = getStorageGen(256)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = op.execute(stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val Right((Seq(addr, value), _)) = stateIn.stack.pop(2)
+        val data = stateOut.storage.load(addr)
+        data shouldEqual value
+
+        stateOut shouldEqual stateIn.withStack(stateOut.stack).withStorage(stateOut.storage).step()
+      }
+    }
   }
 
   test(JUMP) { op =>
@@ -356,13 +375,13 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
       stackGen = getStackGen(maxWord = DataWord(2))
     )
 
-    forAll(getProgramStateGen()) { stateIn =>
+    forAll(stateGen) { stateIn =>
       val stateOut = op.execute(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((Seq(pos, cond), _)) = stateIn.stack.pop(2)
         val expectedState =
-          if (cond == 0)
+          if (cond != 0)
             stateIn.withStack(stateOut.stack).goto(pos.intValue)
           else
             stateIn.withStack(stateOut.stack).step()
