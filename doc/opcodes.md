@@ -150,9 +150,11 @@ Whole functionality related to burning gas / calculating available gas etc. need
 
 #### 0x5b    JUMPDEST    Mark a valid destination for jumps
 
+It's a no-op so we may regard it as implemented, however jumping to a location that is not marked with `JUMPDEST` should result in an error. This is a low-priority feature.
+
 ## a0s: Logging Operations
 
-Not implemented.
+Logging is not implemented.
 
 #### 0xa0    LOG0    Append log record with no topics
 #### 0xa1    LOG1    Append log record with one topic
@@ -184,3 +186,89 @@ Needs more investigation.
 #### 0xff    SUICIDE     Halt execution and register account for later deletion
 
 Needs more investigation.
+
+# Already implemented opcodes
+
+* STOP
+* ADD
+* MUL
+* SUB
+* DIV
+* EXP
+* LT
+* EQ
+* ISZERO
+* AND
+* NOT
+* SHA3
+* POP
+* MLOAD
+* MSTORE
+* SLOAD
+* SSTORE
+* JUMP
+* JUMPI
+* PUSH1
+* PUSH2
+* PUSH3
+* PUSH4
+* PUSH5
+* PUSH6
+* PUSH7
+* PUSH8
+* PUSH9
+* PUSH10
+* PUSH11
+* PUSH12
+* PUSH13
+* PUSH14
+* PUSH15
+* PUSH16
+* PUSH17
+* PUSH18
+* PUSH19
+* PUSH20
+* PUSH21
+* PUSH22
+* PUSH23
+* PUSH24
+* PUSH25
+* PUSH26
+* PUSH27
+* PUSH28
+* PUSH29
+* PUSH30
+* PUSH31
+* PUSH32
+* DUP1
+* DUP2
+* DUP3
+* DUP4
+* DUP5
+* DUP6
+* DUP7
+* DUP8
+* DUP9
+* DUP10
+* DUP11
+* DUP12
+* DUP13
+* DUP14
+* DUP15
+* DUP16
+* SWAP1
+* SWAP2
+* SWAP3
+* SWAP4
+* SWAP5
+* SWAP6
+* SWAP7
+* SWAP8
+* SWAP9
+* SWAP10
+* SWAP11
+* SWAP12
+* SWAP13
+* SWAP14
+* SWAP15
+* SWAP16
