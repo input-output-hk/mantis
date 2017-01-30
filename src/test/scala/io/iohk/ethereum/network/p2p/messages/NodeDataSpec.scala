@@ -2,9 +2,9 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.mpt.HexPrefix.{encode => hpEncode, bytesToNibbles}
+import io.iohk.ethereum.mpt.HexPrefix.{bytesToNibbles, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.Message.{PV63 => constantPV63, decode => msgDecode}
-import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.network.p2p.messages.PV63.{MptNode, _}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.scalatest.{FlatSpec, Matchers}
@@ -25,7 +25,7 @@ class NodeDataSpec extends FlatSpec with Matchers {
   val account = Account(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
   val encodedAccount = RLPList(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
 
-  val leafNode = MptLeaf(exampleNibbles, Left(account))
+  val leafNode = MptLeaf(exampleNibbles, ByteString(encode(account)))
   val encodedLeafNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = true), encode(encodedAccount))
 
   val branchNode = MptBranch(
@@ -42,11 +42,11 @@ class NodeDataSpec extends FlatSpec with Matchers {
   val encodedExtensionNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), exampleValue)
 
   val nodeData = NodeData(Seq(
-    Left(leafNode),
-    Left(branchNode),
-    Left(extensionNode),
-    Right(emptyEvmHash),
-    Right(emptyStorageRoot)))
+    ByteString(encode[MptNode](leafNode)),
+    ByteString(encode[MptNode](branchNode)),
+    ByteString(encode[MptNode](extensionNode)),
+    emptyEvmHash,
+    emptyStorageRoot))
 
   val encodedNodeData = RLPList(
     encode(encodedLeafNode),
@@ -60,7 +60,17 @@ class NodeDataSpec extends FlatSpec with Matchers {
   }
 
   it should "be decoded properly" in {
-    msgDecode(NodeData.code, encode(encodedNodeData), constantPV63) shouldBe nodeData
+    val result = msgDecode(NodeData.code, encode(encodedNodeData), constantPV63)
+
+    result match {
+      case m: NodeData =>
+        m.getMptNode(m.values(0)) shouldBe leafNode
+        m.getMptNode(m.values(1)) shouldBe branchNode
+        m.getMptNode(m.values(2)) shouldBe extensionNode
+      case _ => fail("wrong type")
+    }
+
+    result shouldBe nodeData
   }
 
   it should "be decoded previously encoded value" in {

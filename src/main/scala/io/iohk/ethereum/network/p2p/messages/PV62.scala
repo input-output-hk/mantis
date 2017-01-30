@@ -101,11 +101,6 @@ object PV62 {
     """.stripMargin
   }
 
-
-
-
-
-
   object BlockHash {
     implicit val rlpEndDec = new RLPEncoder[BlockHash] with RLPDecoder[BlockHash] {
       override def encode(obj: BlockHash): RLPEncodeable = {

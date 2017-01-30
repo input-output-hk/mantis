@@ -1,10 +1,12 @@
 package io.iohk.ethereum.network
 
+import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.util.ByteString
 import io.iohk.ethereum.network.FastSyncActor.{PartialDownloadDone, StartSync}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import scala.util.{Try, Success => TrySuccess, Failure => TryFailure}
 
 class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
@@ -51,21 +53,27 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       }
 
     case m: NodeData =>
-      val v: Seq[(ByteString, Either[MptNode, ByteString])] = m.values.zip(currentNodeHash.get).map { case (value, hash) => hash -> value }
-      mptNodes ++ Map[ByteString, Either[MptNode, ByteString]](v: _*)
-      m.values.collect { case Left(mptNode) => mptNode }.map {
-        case n: MptLeaf =>
+//      m.mptNodes.zipWithIndex.map{
+//        case (TrySuccess(mptNode), idx) =>
+//        case (TryFailure(mptNode), idx) =>
+//      }
 
-        case n: MptBranch =>
-          val hashes = n.children.collect { case Left(MptHash(hash)) => hash }
-          currentNodeHash = Some(hashes)
-          peerActor ! PeerActor.SendMessage(GetNodeData(hashes))
-        case n: MptExtension =>
-          n.child.fold({ a =>
-            currentNodeHash = Some(Seq(a.hash))
-            peerActor ! PeerActor.SendMessage(GetNodeData(Seq(a.hash)))
-          }, _)
-      }
+
+//      val v: Seq[(ByteString, ByteString)] = m.mptNodes.zip(currentNodeHash.get).map { case (value, hash) => hash -> value }
+//      mptNodes ++ Map[ByteString, ByteString](v: _*)
+//      m.values.collect { case mptNode => mptNode }.map {
+//        case n: MptLeaf =>
+//
+//        case n: MptBranch =>
+//          val hashes = n.children.collect { case Left(MptHash(hash)) => hash }
+//          currentNodeHash = Some(hashes)
+//          peerActor ! PeerActor.SendMessage(GetNodeData(hashes))
+//        case n: MptExtension =>
+//          n.child.fold({ a =>
+//            currentNodeHash = Some(Seq(a.hash))
+//            peerActor ! PeerActor.SendMessage(GetNodeData(Seq(a.hash)))
+//          }, _)
+//      }
   }
 }
 
