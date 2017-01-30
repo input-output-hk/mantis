@@ -104,7 +104,7 @@ object RLPImplicits {
     override def decode(rlp: RLPEncodeable): ByteString = ByteString(byteArrayEncDec.decode(rlp))
   }
 
-  implicit def byteStringFromEncodeable(b: ByteString)(implicit enc: RLPEncoder[ByteString]): RLPEncodeable = enc.encode(b)
+  implicit def byteStringToEncodeable(b: ByteString)(implicit enc: RLPEncoder[ByteString]): RLPEncodeable = enc.encode(b)
 
   implicit def seqEncDec[T]()(implicit enc: RLPEncoder[T], dec: RLPDecoder[T]): RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] =
     new RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] {
