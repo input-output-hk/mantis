@@ -20,9 +20,9 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       context stop self
   }
 
-
   override def receive: Receive = handleTerminated orElse {
     case StartSync(startBlockHash, targetBlockHash) =>
+      peerActor ! PeerActor.Subscribe(Set(NodeData.code, Receipts.code, BlockBodies.code, BlockHeaders.code))
       peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(targetBlockHash), 1, 0, reverse = false))
       context become waitForTargetBlockHeader(startBlockHash, targetBlockHash)
   }
@@ -73,18 +73,18 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         n.getAccount.codeHash
         n.getAccount.storageRoot
 
-
       case n: MptBranch =>
         val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }
         peerActor ! PeerActor.SendMessage(GetNodeData(hashes))
         context become processMessages(state.copy(requestedNodes = hashes.map(MptNodeHash)))
+
       case n: MptExtension =>
         n.child.fold(
           { hash =>
-
             peerActor ! PeerActor.SendMessage(GetNodeData(Seq(hash.hash)))
+            context become processMessages(state.copy(requestedNodes = Seq(MptNodeHash(hash.hash))))
           }, { value =>
-
+            log.info("Got value in extension node: ", Hex.toHexString(value.value.toArray[Byte]))
           })
     }
   }
