@@ -3,7 +3,7 @@ package io.iohk.ethereum.network
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.util.ByteString
 import io.iohk.ethereum.network.FastSyncActor._
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import org.spongycastle.util.encoders.Hex
 
@@ -36,9 +36,19 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
   }
 
   def processMessages(state: ProcessingState): Receive = handleTerminated orElse {
-    case m: BlockHeaders =>
-    case m: BlockBodies if m.bodies.length == state.requestedBlockBodies.length =>
-    case m: Receipts if m.receiptsForBlocks.length == state.requestedReceipts.length =>
+    case BlockHeaders(headers) =>
+      val blockHashes = headers.map(_.blockHash)
+      peerActor ! PeerActor.SendMessage(GetBlockBodies(blockHashes))
+      peerActor ! PeerActor.SendMessage(GetReceipts(blockHashes))
+      context become processMessages(state.copy(blockHeaders = headers))
+
+    case BlockBodies(bodies) if bodies.length == state.blockHeaders.length =>
+      self ! PartialDownloadDone
+      context become processMessages(state.copy(blockBodies = bodies))
+
+    case Receipts(receipts: Seq[Seq[Receipt]]) if receipts.length == state.blockHeaders.length =>
+      self ! PartialDownloadDone
+      context become processMessages(state.copy(blockReceipts = receipts))
 
     case m: NodeData if m.values.length == state.requestedNodes.length =>
       state.requestedNodes.zipWithIndex.foreach {
@@ -60,10 +70,28 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
              """.stripMargin
           log.info(msg)
       }
+
+    case PartialDownloadDone =>
+      handlePartialDownload(state)
+
+
     case m =>
       log.info("Got unexpected message {}", m)
-      log.info("Requested nodes {}, requested blockBodies {}, requested receipts {}",
-        state.requestedNodes, state.requestedBlockBodies, state.requestedReceipts)
+      log.info("Requested nodes {}, blockHeaders {}",
+        state.requestedNodes, state.blockHeaders)
+  }
+
+  private def handlePartialDownload(state: ProcessingState) = {
+    state match {
+      case ProcessingState(_, _, _, headers, receipts, bodies) if (receipts.nonEmpty && bodies.nonEmpty) =>
+        log.info("Got complete blocks")
+        log.info("headers: {}", headers)
+        log.info("receipts: {}", receipts)
+        log.info("bodies: {}", bodies)
+        peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(headers.last.blockHash), BlocksPerMessage, skip = 1, reverse = false))
+        context become processMessages(state.copy(blockHeaders = Seq.empty, blockReceipts = Seq.empty, blockBodies = Seq.empty))
+      case _ =>
+    }
   }
 
   private def handleMptNode(hash: ByteString, mptNode: MptNode, state: ProcessingState) = {
@@ -109,7 +137,8 @@ object FastSyncActor {
     startBlockHash: ByteString,
     targetBlockHash: ByteString,
     requestedNodes: Seq[HashType] = Seq.empty,
-    requestedBlockBodies: Seq[ByteString] = Seq.empty,
-    requestedReceipts: Seq[ByteString] = Seq.empty)
+    blockHeaders: Seq[BlockHeader] = Seq.empty,
+    blockReceipts: Seq[Seq[Receipt]] = Seq.empty,
+    blockBodies: Seq[BlockBody] = Seq.empty)
 
 }
