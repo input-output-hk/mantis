@@ -5,8 +5,10 @@
  * Current block
  * State MPT (storing accounts). It's already implemented but not populated with data.
  * Contract cache (storing code of accounts). Contract cache is not implemented.
-* Implement functionality related to burning gas / calculating available gas etc. need to be implemented.
-* Implement logging and storing logged data in a transaction
+* Other missing pieces:
+ * Functionality related to burning gas / calculating available gas etc.
+ * Logging and storing logged data in a transaction.
+ * Do more research on `f0s: System operations opcodes`.
 
 # Not implemented opcodes.
 
@@ -66,13 +68,7 @@ Add `DataWord.getByte(idx: Int): Byte` method.
 
 #### 0x30    ADDRESS         Get address of currently executing account
 
-TODO
-
 Stored in the transaction.
-
-1. from transaction signature - when a contract is created
-2. contract address - receiving address of transaction
-3. address of subcontract being executed by another contract
 
 #### 0x31    BALANCE         Get balance of the given account
 
@@ -85,11 +81,6 @@ Stored in the transaction.
 #### 0x33    CALLER          Get caller address. This is the address of the account that is directly responsible for this execution
 
 Stored in the transaction.
-
-TODO
-
-1. transaction.from
-2. address of contract which invoked subcontract
 
 #### 0x36    CALLDATASIZE    Get size of input data in current environment
 
@@ -157,10 +148,11 @@ Already implemented in `Memory`.
 
 Whole functionality related to burning gas / calculating available gas etc. need to be implemented.
 
-
 #### 0x5b    JUMPDEST    Mark a valid destination for jumps
 
 ## a0s: Logging Operations
+
+Not implemented.
 
 #### 0xa0    LOG0    Append log record with no topics
 #### 0xa1    LOG1    Append log record with one topic
@@ -181,10 +173,11 @@ Needs more investigation.
 
 Needs more investigation.
 
-#### 0xf4    DELEGATECALL    Message-call into this account with an alternative account's code, but persisting the current values for `sender` and `value`
+#### 0xf3   RETURN  Halt Execution, Mark for deletion
 
 Needs more investigation.
-#### Halt RETURN Execution, Mark for deletion
+
+#### 0xf4    DELEGATECALL    Message-call into this account with an alternative account's code, but persisting the current values for `sender` and `value`
 
 Needs more investigation.
 
