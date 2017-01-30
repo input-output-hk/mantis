@@ -13,6 +13,7 @@ import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.MessageReceived
 import io.iohk.ethereum.rlp.RLPEncoder
+import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
@@ -24,20 +25,23 @@ import scala.concurrent.duration._
   * and `Status` exchange).
   * Once that's done it can send/receive messages with peer (HandshakedHandler.receive).
   */
-class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
+class PeerActor(
+    nodeInfo: NodeInfo,
+    createRlpxConnectionFn: ActorContext => ActorRef)
+  extends Actor with ActorLogging {
 
   import PeerActor._
+  import Config.Peer._
   import context.{dispatcher, system}
 
   val P2pVersion = 4
 
   val peerId = self.path.name
 
+  val disconnectPoisonPillTimeout = 5.seconds
+
   val waitForStatusInterval = 30.seconds
   val waitForChainCheck = 15.seconds
-
-  val connectMaxRetries = 3
-  val connectRetryDelay = 20.seconds
 
   //FIXME move this to props
   // Doc: https://blog.ethereum.org/2016/07/20/hard-fork-completed/
@@ -62,7 +66,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
   }
 
   def createRlpxConnection(remoteAddress: InetSocketAddress, uriOpt: Option[URI]): RLPxConnection = {
-    val ref = context.actorOf(RLPxConnectionHandler.props(nodeInfo), "rlpx-connection")
+    val ref = createRlpxConnectionFn(context)
     context watch ref
     RLPxConnection(ref, remoteAddress, uriOpt)
   }
@@ -170,7 +174,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
   private def disconnectFromPeer(rlpxConnection: RLPxConnection, reason: Int): Unit = {
     rlpxConnection.sendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage))
-    system.scheduler.scheduleOnce(5.seconds, self, PoisonPill)
+    system.scheduler.scheduleOnce(disconnectPoisonPillTimeout, self, PoisonPill)
     context unwatch rlpxConnection.ref
     context become disconnected
   }
@@ -241,8 +245,8 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 }
 
 object PeerActor {
-  def props(nodeInfo: NodeInfo): Props =
-    Props(new PeerActor(nodeInfo))
+  def props(nodeInfo: NodeInfo, createRlpxConnectionFn: ActorContext => ActorRef): Props =
+    Props(new PeerActor(nodeInfo, createRlpxConnectionFn))
 
   case class RLPxConnection(ref: ActorRef, remoteAddress: InetSocketAddress, uriOpt: Option[URI]) {
     def sendMessage[M <: Message : RLPEncoder](message: M): Unit = {

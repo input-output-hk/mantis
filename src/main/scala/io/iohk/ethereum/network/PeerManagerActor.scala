@@ -1,10 +1,10 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
-import java.util.UUID
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 
 class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
@@ -37,8 +37,8 @@ class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
   }
 
   def createPeer(addr: InetSocketAddress): Peer = {
-    val id = UUID.randomUUID.toString
-    val ref = context.actorOf(PeerActor.props(nodeInfo), id)
+    val id = addr.toString.filterNot(_ == '/')
+    val ref = context.actorOf(PeerActor.props(nodeInfo, _.actorOf(RLPxConnectionHandler.props(nodeInfo), "rlpx-connection")), id)
     context watch ref
     val peer = Peer(id, addr, ref)
     peers += id -> peer
