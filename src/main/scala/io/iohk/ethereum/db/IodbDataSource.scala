@@ -1,4 +1,4 @@
-package io.iohk.ethereum.mpt
+package io.iohk.ethereum.db
 
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLong
@@ -11,8 +11,8 @@ class IodbDataSource(lSMStore: LSMStore) extends DataSource {
 
   override def get(key: Array[Byte]): Option[Array[Byte]] = lSMStore.get(ByteArrayWrapper(key)).map(v => v.data)
 
-  override def update(rootHash: Array[Byte], toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource = {
-    lSMStore.update(ByteArrayWrapper(storageVersionGen(rootHash)), toRemove.map(key => ByteArrayWrapper(key)), asStorables(toUpdate))
+  override def update(version: Array[Byte], toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource = {
+    lSMStore.update(ByteArrayWrapper(storageVersionGen(version)), toRemove.map(key => ByteArrayWrapper(key)), asStorables(toUpdate))
     new IodbDataSource(lSMStore)
   }
 

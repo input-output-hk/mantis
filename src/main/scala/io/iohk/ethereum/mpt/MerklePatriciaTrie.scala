@@ -1,5 +1,6 @@
 package io.iohk.ethereum.mpt
 
+import io.iohk.ethereum.db.DataSource
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.HashFn
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => decodeRLP, encode => encodeRLP, _}

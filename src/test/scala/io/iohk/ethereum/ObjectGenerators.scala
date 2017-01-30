@@ -1,6 +1,9 @@
 package io.iohk.ethereum
 
 import java.math.BigInteger
+
+import akka.util.ByteString
+import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
 import org.scalacheck.{Arbitrary, Gen}
 
 trait ObjectGenerators {
@@ -23,5 +26,18 @@ trait ObjectGenerators {
   def keyValueListGen(): Gen[List[(Int, Int)]] = for {
     aKeyList <- Gen.nonEmptyListOf(Arbitrary.arbitrary[Int]).map(_.distinct)
   } yield aKeyList.zip(aKeyList)
+
+  def receiptGen(): Gen[Receipt] = for {
+    postTransactionStateHash <- anyArrayGen
+    cumulativeGasUsed <- bigIntGen
+    logsBloomFilter <- anyArrayGen
+  } yield Receipt(
+    postTransactionStateHash = ByteString(postTransactionStateHash),
+    cumulativeGasUsed = cumulativeGasUsed,
+    logsBloomFilter = ByteString(logsBloomFilter),
+    logs = Seq()
+  )
+
+  def receiptsGen(n: Int): Gen[Seq[Seq[Receipt]]] = Gen.listOfN(n, Gen.listOf(receiptGen()))
 
 }

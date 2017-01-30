@@ -1,4 +1,4 @@
-package io.iohk.ethereum.mpt
+package io.iohk.ethereum.db
 
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks

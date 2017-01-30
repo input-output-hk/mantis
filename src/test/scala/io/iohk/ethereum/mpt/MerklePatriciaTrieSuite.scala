@@ -6,6 +6,7 @@ import java.security.MessageDigest
 
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.db.{EphemDataSource, IodbDataSource}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.rlp.{decode => decodeRLP, encode => encodeRLP}
 import io.iohk.iodb.LSMStore
@@ -301,7 +302,7 @@ class MerklePatriciaTrieSuite extends FunSuite
     val key4: Array[Byte] = Hex.decode("123500")
     val trie = EmptyTrie.put(key1, key1).put(key2, key2).put(key3, key3).put(key4, key4)
     val wrongSource = EphemDataSource().update(
-      rootHash = Array.emptyByteArray,
+      version = Array.emptyByteArray,
       toRemove = Seq(),
       toUpdate = Seq(trie.getRootHash -> trie.dataSource.get(trie.getRootHash).get)
     )

@@ -4,9 +4,10 @@ import akka.util.ByteString
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{decode => rlpDecode}
+import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.crypto.sha3
 
 object PV63 {
 
@@ -111,7 +112,11 @@ object PV63 {
     }
   }
 
-  sealed trait MptNode
+  sealed trait MptNode {
+    lazy val encoded: Array[Byte] = rlpEncode(this)
+
+    lazy val hash: Array[Byte] = sha3(encoded)
+  }
 
   object NodeData {
     implicit val rlpEndDec = new RLPEncoder[NodeData] with RLPDecoder[NodeData] {
