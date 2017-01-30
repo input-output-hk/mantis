@@ -138,7 +138,7 @@ object PV63 {
     override def code: Int = NodeData.code
 
     @throws[RLPException]
-    def getMptNode(v: ByteString): MptNode = rlpDecode[MptNode](v.toArray[Byte])
+    def getMptNode(idx: Int): MptNode = rlpDecode[MptNode](values(idx).toArray[Byte])
 
     override def toString: String = {
       s"""NodeData{
