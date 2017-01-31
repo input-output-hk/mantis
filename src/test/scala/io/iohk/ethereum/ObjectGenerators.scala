@@ -4,16 +4,19 @@ import java.math.BigInteger
 
 import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.vm.DataWord
 import org.scalacheck.{Arbitrary, Gen}
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 
 trait ObjectGenerators {
 
-  lazy val intGen: Gen[Int] = Gen.choose(Int.MinValue, Int.MaxValue)
+  def intGen: Gen[Int] = Gen.choose(Int.MinValue, Int.MaxValue)
 
-  lazy val bigIntGen: Gen[BigInt] = byteArrayOfNItemsGen(32).map(b=>new BigInteger(1, b))
+  def bigIntGen: Gen[BigInt] = byteArrayOfNItemsGen(32).map(b => new BigInteger(1, b))
 
-  lazy val anyArrayGen: Gen[Array[Byte]] = Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte]).map(_.toArray)
+  def dataWordGen: Gen[DataWord] = bigIntGen.map(DataWord(_))
+
+  def randomSizeByteArrayGen(minSize: Int, maxSize: Int): Gen[Array[Byte]] = Gen.choose(minSize, maxSize).flatMap(byteArrayOfNItemsGen(_))
 
   def byteArrayOfNItemsGen(n: Int): Gen[Array[Byte]] = Gen.listOfN(n, Arbitrary.arbitrary[Byte]).map(_.toArray)
 
@@ -21,19 +24,23 @@ trait ObjectGenerators {
 
   def seqByteArrayOfNItemsGen(n: Int): Gen[Seq[Array[Byte]]] = Gen.listOf(byteArrayOfNItemsGen(n))
 
-  def hexPrefixDecodeParametersGen(): Gen[(Array[Byte], Boolean)] = for {
-    aByteList <- Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte])
-    t <- Arbitrary.arbitrary[Boolean]
-  } yield (aByteList.toArray, t)
+  def hexPrefixDecodeParametersGen(): Gen[(Array[Byte], Boolean)] = {
+    for {
+      aByteList <- Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte])
+      t <- Arbitrary.arbitrary[Boolean]
+    } yield (aByteList.toArray, t)
+  }
 
-  def keyValueListGen(): Gen[List[(Int, Int)]] = for {
-    aKeyList <- Gen.nonEmptyListOf(Arbitrary.arbitrary[Int]).map(_.distinct)
-  } yield aKeyList.zip(aKeyList)
+  def keyValueListGen(): Gen[List[(Int, Int)]] = {
+    for {
+      aKeyList <- Gen.nonEmptyListOf(Arbitrary.arbitrary[Int]).map(_.distinct)
+    } yield aKeyList.zip(aKeyList)
+  }
 
   def receiptGen(): Gen[Receipt] = for {
-    postTransactionStateHash <- anyArrayGen
+    postTransactionStateHash <- byteArrayOfNItemsGen(32)
     cumulativeGasUsed <- bigIntGen
-    logsBloomFilter <- anyArrayGen
+    logsBloomFilter <- byteArrayOfNItemsGen(256)
   } yield Receipt(
     postTransactionStateHash = ByteString(postTransactionStateHash),
     cumulativeGasUsed = cumulativeGasUsed,
