@@ -15,8 +15,7 @@ val dep = {
     "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
     "org.scorexfoundation" %% "iodb" % "0.1.1",
-    "ch.qos.logback" % "logback-classic" % "1.1.9",
-    "org.typelevel" %% "cats" % "0.9.0"
+    "ch.qos.logback" % "logback-classic" % "1.1.9"
   )
 }
 
