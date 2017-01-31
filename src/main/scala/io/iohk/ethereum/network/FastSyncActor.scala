@@ -7,14 +7,18 @@ import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import org.spongycastle.util.encoders.Hex
+import scala.concurrent.duration._
 
 class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
+  import context.{dispatcher, system}
+
   val BlocksPerMessage = 10
   val NodesPerRequest = 10
+  val NodeRequestsInterval: FiniteDuration = 3.seconds
   //TODO move to conf
-  val EmptyAccountStorageHash = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
-  val EmptyAccountEvmCodeHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+  val EmptyAccountStorageHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+  val EmptyAccountEvmCodeHash = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 
   def handleTerminated: Receive = {
     case _: Terminated =>
@@ -76,9 +80,6 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
   private def handleMptDownload(state: ProcessingState): Receive = {
     case MessageReceived(m: NodeData) if m.values.length == state.requestedNodes.length =>
-      //remove hashes from state as nodes received
-      context become processMessages(state.copy(requestedNodes = Seq.empty))
-
       state.requestedNodes.zipWithIndex.foreach {
         case (MptNodeHash(hash), idx) =>
           handleMptNode(hash, m.getMptNode(idx), state)
@@ -98,6 +99,9 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
                  """.stripMargin
           log.info(msg)
       }
+      //remove hashes from state as nodes received
+      context become processMessages(state.copy(requestedNodes = Seq.empty))
+      self ! FetchNodes
 
     case RequestNodes(hashes) =>
       context become processMessages(state.copy(nodesQueue = hashes ++ state.nodesQueue))
@@ -114,8 +118,10 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         val (forRequest, forQueue) = (nonMptHashes ++ mptHashes).splitAt(NodesPerRequest)
         context become processMessages(state.copy(requestedNodes = forRequest, nodesQueue = forQueue))
         peerActor ! PeerActor.SendMessage(GetNodeData(forRequest.map(_.v)))
-        system.
-        self ! FetchNodes
+        log.info("Requested nodes: {}", forRequest)
+        system.scheduler.scheduleOnce(NodeRequestsInterval) {
+          self ! FetchNodes
+        }
       }
   }
 
@@ -125,12 +131,20 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         log.info("Got leaf node: {}", n)
         val evm = n.getAccount.codeHash
         val storage = n.getAccount.storageRoot
-        self ! RequestNodes(Seq(EvmCodeHash(evm), StorageRootHash(storage)))
+
+        if (evm != EmptyAccountEvmCodeHash) {
+          self ! RequestNodes(Seq(EvmCodeHash(evm)))
+        }
+
+        if (storage != EmptyAccountStorageHash) {
+          self ! RequestNodes(Seq(StorageRootHash(storage)))
+        }
+
       //TODO insert node
 
       case n: MptBranch =>
         log.info("Got branch node: {}", n)
-        val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }
+        val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
         self ! RequestNodes(hashes.map(MptNodeHash))
       //TODO insert node
 
@@ -158,11 +172,17 @@ object FastSyncActor {
     val v: ByteString
   }
 
-  private case class MptNodeHash(v: ByteString) extends HashType
+  private case class MptNodeHash(v: ByteString) extends HashType {
+    override def toString: String = s"MptNodeHash(${Hex.toHexString(v.toArray[Byte])})"
+  }
 
-  private case class EvmCodeHash(v: ByteString) extends HashType
+  private case class EvmCodeHash(v: ByteString) extends HashType {
+    override def toString: String = s"EvmCodeHash(${Hex.toHexString(v.toArray[Byte])})"
+  }
 
-  private case class StorageRootHash(v: ByteString) extends HashType
+  private case class StorageRootHash(v: ByteString) extends HashType {
+    override def toString: String = s"StorageRootHash(${Hex.toHexString(v.toArray[Byte])})"
+  }
 
   private case class RequestNodes(hashes: Seq[HashType])
 
