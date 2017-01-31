@@ -34,7 +34,7 @@ object App {
     bootstrapNodes.foreach{node =>
       peerManager ! PeerManagerActor.ConnectToPeer(node)
       Thread.sleep(5 * 1000)
-      peerManager ! PeerManagerActor.StartFastDownload(peerUri)
+      peerManager ! PeerManagerActor.StartFastDownload(node)
     }
   }
 }
