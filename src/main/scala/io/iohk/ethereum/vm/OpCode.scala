@@ -1,8 +1,8 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import cats.syntax.either._
 import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.utils.EitherExtensions._
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types

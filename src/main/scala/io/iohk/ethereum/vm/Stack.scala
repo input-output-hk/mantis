@@ -1,6 +1,6 @@
 package io.iohk.ethereum.vm
 
-import cats.syntax.either._
+import io.iohk.ethereum.utils.EitherExtensions._
 
 object Stack {
   val DefaultMaxSize = 1024

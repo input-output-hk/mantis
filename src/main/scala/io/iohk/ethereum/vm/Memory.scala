@@ -1,7 +1,6 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import cats.syntax.either._
 
 object Memory {
 
