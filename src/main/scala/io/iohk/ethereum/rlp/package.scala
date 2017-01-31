@@ -1,5 +1,7 @@
 package io.iohk.ethereum
 
+import org.spongycastle.util.encoders.Hex
+
 package object rlp {
 
   case class RLPException(message: String) extends RuntimeException(message)
@@ -8,7 +10,9 @@ package object rlp {
 
   case class RLPList(items: RLPEncodeable*) extends RLPEncodeable
 
-  case class RLPValue(bytes: Array[Byte]) extends RLPEncodeable
+  case class RLPValue(bytes: Array[Byte]) extends RLPEncodeable {
+    override def toString: String = s"RLPValue(${Hex.toHexString(bytes)})"
+  }
 
   trait RLPEncoder[T] {
     def encode(obj: T): RLPEncodeable
@@ -25,6 +29,8 @@ package object rlp {
   def decode[T](data: Array[Byte])(implicit dec: RLPDecoder[T]): T = dec.decode(RLP.rawDecode(data))
 
   def decode[T](data: RLPEncodeable)(implicit dec: RLPDecoder[T]): T = dec.decode(data)
+
+  def rawDecode(input: Array[Byte]): RLPEncodeable = RLP.rawDecode(input)
 
   /**
     * This function calculates the next element item based on a previous element starting position. It's meant to be

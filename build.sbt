@@ -11,6 +11,7 @@ val dep = {
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
+    "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
     "org.consensusresearch" %% "scrypto" % "1.2.0-RC3",
     "com.madgag.spongycastle" % "core" % "1.54.0.0",
     "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
