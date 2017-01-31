@@ -11,6 +11,7 @@ import org.spongycastle.util.encoders.Hex
 class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
   val BlocksPerMessage = 10
+  val NodesPerRequest = 10
   //TODO move to conf
   val EmptyAccountStorageHash = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
   val EmptyAccountEvmCodeHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
@@ -76,9 +77,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
   private def handleMptDownload(state: ProcessingState): Receive = {
     case MessageReceived(m: NodeData) if m.values.length == state.requestedNodes.length =>
       //remove hashes from state as nodes received
-      context become processMessages(state.copy(
-        requestedNodes = Seq.empty,
-        nodesQueue = state.nodesQueue.filterNot(state.requestedNodes.contains)))
+      context become processMessages(state.copy(requestedNodes = Seq.empty))
 
       state.requestedNodes.zipWithIndex.foreach {
         case (MptNodeHash(hash), idx) =>
@@ -101,17 +100,23 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       }
 
     case RequestNodes(hashes) =>
-      val queue = state.nodesQueue ++ hashes
+      context become processMessages(state.copy(nodesQueue = hashes ++ state.nodesQueue))
+      self ! FetchNodes
 
-      val (nonMptHashes, mptHashes) = queue.partition {
-        case EvmCodeHash(_) => true
-        case StorageRootHash(_) => true
-        case MptNodeHash(_) => false
+    case FetchNodes =>
+      if (state.requestedNodes.isEmpty) {
+        val (nonMptHashes, mptHashes) = state.nodesQueue.partition {
+          case EvmCodeHash(_) => true
+          case StorageRootHash(_) => true
+          case MptNodeHash(_) => false
+        }
+
+        val (forRequest, forQueue) = (nonMptHashes ++ mptHashes).splitAt(NodesPerRequest)
+        context become processMessages(state.copy(requestedNodes = forRequest, nodesQueue = forQueue))
+        peerActor ! PeerActor.SendMessage(GetNodeData(forRequest.map(_.v)))
+        system.
+        self ! FetchNodes
       }
-
-
-
-    //peerActor ! PeerActor.SendMessage(GetNodeData(Seq(nodeHash)))
   }
 
   private def handleMptNode(hash: ByteString, mptNode: MptNode, state: ProcessingState) = {
@@ -149,7 +154,9 @@ object FastSyncActor {
 
   case object PartialDownloadDone
 
-  private trait HashType
+  private trait HashType {
+    val v: ByteString
+  }
 
   private case class MptNodeHash(v: ByteString) extends HashType
 
@@ -158,6 +165,8 @@ object FastSyncActor {
   private case class StorageRootHash(v: ByteString) extends HashType
 
   private case class RequestNodes(hashes: Seq[HashType])
+
+  private case object FetchNodes
 
   private case class ProcessingState(
     startBlockHash: ByteString,
