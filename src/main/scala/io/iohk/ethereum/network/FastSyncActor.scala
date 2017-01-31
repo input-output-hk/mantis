@@ -36,7 +36,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         requestedNodes = Seq(MptNodeHash(blockHeaders.head.stateRoot))))
   }
 
-  def processMessages(state: ProcessingState): Receive = handleTerminated orElse {
+  def processMessages(state: ProcessingState): Receive = handleTerminated orElse handleMptDownload(state) orElse {
     case MessageReceived(BlockHeaders(headers)) =>
       val blockHashes = headers.map(_.blockHash)
       peerActor ! PeerActor.SendMessage(GetBlockBodies(blockHashes))
@@ -51,27 +51,6 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       self ! PartialDownloadDone
       context become processMessages(state.copy(blockReceipts = receipts))
 
-    case MessageReceived(m: NodeData) if m.values.length == state.requestedNodes.length =>
-      state.requestedNodes.zipWithIndex.foreach {
-        case (MptNodeHash(hash), idx) =>
-          handleMptNode(hash, m.getMptNode(idx), state)
-
-        case (EvmCodeHash(hash), idx) =>
-          val evmCode = m.values(idx)
-          val msg =
-            s"""got EVM code: ${Hex.toHexString(evmCode.toArray[Byte])}
-               |for hash: ${Hex.toHexString(hash.toArray[Byte])}
-             """.stripMargin
-          log.info(msg)
-        case (StorageRootHash(hash), idx) =>
-          val rootNode = m.getMptNode(idx)
-          val msg =
-            s"""got root node for contract storage: $rootNode
-               |for hash: ${Hex.toHexString(hash.toArray[Byte])}
-             """.stripMargin
-          log.info(msg)
-      }
-
     case PartialDownloadDone =>
       handlePartialDownload(state)
 
@@ -83,15 +62,56 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
   private def handlePartialDownload(state: ProcessingState) = {
     state match {
-      case ProcessingState(_, _, _, headers, receipts, bodies) if receipts.nonEmpty && bodies.nonEmpty =>
+      case ProcessingState(_, _, _, _, headers, receipts, bodies) if receipts.nonEmpty && bodies.nonEmpty =>
         log.info("Got complete blocks")
         log.info("headers: {}", headers)
         log.info("receipts: {}", receipts)
         log.info("bodies: {}", bodies)
-        peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(headers.last.blockHash), BlocksPerMessage, skip = 1, reverse = false))
+        peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(headers.last.number + 1), BlocksPerMessage, skip = 0, reverse = false))
         context become processMessages(state.copy(blockHeaders = Seq.empty, blockReceipts = Seq.empty, blockBodies = Seq.empty))
       case _ =>
     }
+  }
+
+  private def handleMptDownload(state: ProcessingState): Receive = {
+    case MessageReceived(m: NodeData) if m.values.length == state.requestedNodes.length =>
+      //remove hashes from state as nodes received
+      context become processMessages(state.copy(
+        requestedNodes = Seq.empty,
+        nodesQueue = state.nodesQueue.filterNot(state.requestedNodes.contains)))
+
+      state.requestedNodes.zipWithIndex.foreach {
+        case (MptNodeHash(hash), idx) =>
+          handleMptNode(hash, m.getMptNode(idx), state)
+
+        case (EvmCodeHash(hash), idx) =>
+          val evmCode = m.values(idx)
+          val msg =
+            s"""got EVM code: ${Hex.toHexString(evmCode.toArray[Byte])}
+               |for hash: ${Hex.toHexString(hash.toArray[Byte])}
+                 """.stripMargin
+          log.info(msg)
+        case (StorageRootHash(hash), idx) =>
+          val rootNode = m.getMptNode(idx)
+          val msg =
+            s"""got root node for contract storage: $rootNode
+               |for hash: ${Hex.toHexString(hash.toArray[Byte])}
+                 """.stripMargin
+          log.info(msg)
+      }
+
+    case RequestNodes(hashes) =>
+      val queue = state.nodesQueue ++ hashes
+
+      val (nonMptHashes, mptHashes) = queue.partition {
+        case EvmCodeHash(_) => true
+        case StorageRootHash(_) => true
+        case MptNodeHash(_) => false
+      }
+
+
+
+    //peerActor ! PeerActor.SendMessage(GetNodeData(Seq(nodeHash)))
   }
 
   private def handleMptNode(hash: ByteString, mptNode: MptNode, state: ProcessingState) = {
@@ -100,23 +120,24 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         log.info("Got leaf node: {}", n)
         val evm = n.getAccount.codeHash
         val storage = n.getAccount.storageRoot
-
-        peerActor ! PeerActor.SendMessage(GetNodeData(Seq(evm, storage)))
-        context become processMessages(state.copy(requestedNodes = Seq(EvmCodeHash(evm), StorageRootHash(storage))))
+        self ! RequestNodes(Seq(EvmCodeHash(evm), StorageRootHash(storage)))
+      //TODO insert node
 
       case n: MptBranch =>
+        log.info("Got branch node: {}", n)
         val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }
-        peerActor ! PeerActor.SendMessage(GetNodeData(hashes))
-        context become processMessages(state.copy(requestedNodes = hashes.map(MptNodeHash)))
+        self ! RequestNodes(hashes.map(MptNodeHash))
+      //TODO insert node
 
       case n: MptExtension =>
+        log.info("Got extension node: {}", n)
         n.child.fold(
-          { hash =>
-            peerActor ! PeerActor.SendMessage(GetNodeData(Seq(hash.hash)))
-            context become processMessages(state.copy(requestedNodes = Seq(MptNodeHash(hash.hash))))
-          }, { value =>
-            log.info("Got value in extension node: ", Hex.toHexString(value.value.toArray[Byte]))
+          { case MptHash(nodeHash) =>
+            self ! RequestNodes(Seq(MptNodeHash(nodeHash)))
+          }, { case MptValue(value) =>
+            log.info("Got value in extension node: ", Hex.toHexString(value.toArray[Byte]))
           })
+      //TODO insert node
     }
   }
 }
@@ -136,10 +157,13 @@ object FastSyncActor {
 
   private case class StorageRootHash(v: ByteString) extends HashType
 
+  private case class RequestNodes(hashes: Seq[HashType])
+
   private case class ProcessingState(
     startBlockHash: ByteString,
     targetBlockHash: ByteString,
     requestedNodes: Seq[HashType] = Seq.empty,
+    nodesQueue: Seq[HashType] = Seq.empty,
     blockHeaders: Seq[BlockHeader] = Seq.empty,
     blockReceipts: Seq[Seq[Receipt]] = Seq.empty,
     blockBodies: Seq[BlockBody] = Seq.empty)
