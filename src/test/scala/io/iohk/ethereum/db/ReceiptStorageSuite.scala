@@ -8,11 +8,10 @@ import org.scalatest.prop.PropertyChecks
 
 import scala.util.Random
 
-class ReceiptStorageSuite extends FunSuite with PropertyChecks with ObjectGenerators{
-  val receiptsMaxLimit = 100
+class ReceiptStorageSuite extends FunSuite with PropertyChecks with ObjectGenerators {
 
   test("ReceiptStorage insert") {
-    forAll(Gen.listOf(randomSizeByteArrayGen(0, receiptsMaxLimit))){ blockByteArrayHashes =>
+    forAll(Gen.listOf(byteArrayOfNItemsGen(32))){ blockByteArrayHashes =>
       val blockHashes = blockByteArrayHashes.distinct
       val receipts = receiptsGen(blockHashes.length).sample.get
       val blockHashesReceiptsPair = receipts.zip(blockHashes)
@@ -31,7 +30,7 @@ class ReceiptStorageSuite extends FunSuite with PropertyChecks with ObjectGenera
   }
 
   test("ReceiptStorage delete") {
-    forAll(Gen.listOf(randomSizeByteArrayGen(0, receiptsMaxLimit))){ blockByteArrayHashes =>
+    forAll(Gen.listOf(byteArrayOfNItemsGen(32))){ blockByteArrayHashes =>
       val blockHashes = blockByteArrayHashes.distinct
       val receipts = receiptsGen(blockHashes.length).sample.get
       val blockHashesReceiptsPair = receipts.zip(blockHashes)
