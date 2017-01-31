@@ -11,6 +11,8 @@ object DataWord {
 
   val MaxWord = DataWord(Modulus - 1)
 
+  val Zero = DataWord(0)
+
   private val Zeros: ByteString = ByteString(Array.fill[Byte](MaxLength)(0))
 
   def apply(value: ByteString): DataWord = {
@@ -18,9 +20,11 @@ object DataWord {
     DataWord(value.foldLeft(BigInt(0)){(n, b) => (n << 8) + (b & 0xff)})
   }
 
-  def apply(n: BigInt): DataWord = {
+  def apply(array: Array[Byte]): DataWord =
+    DataWord(ByteString(array))
+
+  def apply(n: BigInt): DataWord =
     new DataWord(fixBigInt(n))
-  }
 
   def apply(b: Boolean): DataWord =
     apply(if (b) 1 else 0)
