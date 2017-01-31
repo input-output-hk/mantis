@@ -462,13 +462,13 @@ class RLPSuite extends FunSuite
 
 
   test("SimpleBlock encoding") {
-    val tx0 = TestTransaction(1, "cat")
-    val tx1 = TestTransaction(2, "dog")
+    val tx0 = TestSimpleTransaction(1, "cat")
+    val tx1 = TestSimpleTransaction(2, "dog")
 
-    val block = TestBlock(127, -127: Short, "horse", 1000, Seq(tx0, tx1), Seq(1, 2))
-    val data = encode(block)(TestBlock.encDec)
-    val dataObtained = decode[TestBlock](data)
-    val obtained: TestBlock = dataObtained
+    val block = TestSimpleBlock(127, -127: Short, "horse", 1000, Seq(tx0, tx1), Seq(1, 2))
+    val data = encode(block)(TestSimpleBlock.encDec)
+    val dataObtained = decode[TestSimpleBlock](data)
+    val obtained: TestSimpleBlock = dataObtained
     assert(block equals obtained)
   }
 
@@ -618,36 +618,36 @@ class RLPSuite extends FunSuite
   )
 
   //FIXME this is used to test nested objects encoding. We can think of replacing this with eth real implementation
-  case class TestTransaction(id: Int, name: String)
+  private case class TestSimpleTransaction(id: Int, name: String)
 
-  object TestTransaction {
-    implicit val encDec = new RLPEncoder[TestTransaction] with RLPDecoder[TestTransaction] {
-      override def encode(obj: TestTransaction): RLPEncodeable = {
+  private object TestSimpleTransaction {
+    implicit val encDec = new RLPEncoder[TestSimpleTransaction] with RLPDecoder[TestSimpleTransaction] {
+      override def encode(obj: TestSimpleTransaction): RLPEncodeable = {
         import obj._
         RLPList(id, name)
       }
 
-      override def decode(rlp: RLPEncodeable): TestTransaction = rlp match {
-        case RLPList(id, name) => TestTransaction(id, name)
+      override def decode(rlp: RLPEncodeable): TestSimpleTransaction = rlp match {
+        case RLPList(id, name) => TestSimpleTransaction(id, name)
         case _ => throw new RuntimeException("Invalid Simple Transaction")
       }
     }
 
-    implicit def fromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[TestTransaction]): TestTransaction = dec.decode(rlp)
+    implicit def fromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[TestSimpleTransaction]): TestSimpleTransaction = dec.decode(rlp)
   }
 
-  case class TestBlock(id: Byte, parentId: Short, owner: String, nonce: Int, txs: Seq[TestTransaction], unclesIds: Seq[Int])
+  private case class TestSimpleBlock(id: Byte, parentId: Short, owner: String, nonce: Int, txs: Seq[TestSimpleTransaction], unclesIds: Seq[Int])
 
-  object TestBlock {
-    implicit val encDec = new RLPEncoder[TestBlock] with RLPDecoder[TestBlock] {
-      override def encode(obj: TestBlock): RLPEncodeable = {
+  private object TestSimpleBlock {
+    implicit val encDec = new RLPEncoder[TestSimpleBlock] with RLPDecoder[TestSimpleBlock] {
+      override def encode(obj: TestSimpleBlock): RLPEncodeable = {
         import obj._
-        RLPList(id, parentId, owner, nonce, RLPList(txs.map(TestTransaction.encDec.encode): _*), RLPList(unclesIds.map(id => id: RLPEncodeable): _*))
+        RLPList(id, parentId, owner, nonce, RLPList(txs.map(TestSimpleTransaction.encDec.encode): _*), RLPList(unclesIds.map(id => id: RLPEncodeable): _*))
       }
 
-      override def decode(rlp: RLPEncodeable): TestBlock = rlp match {
+      override def decode(rlp: RLPEncodeable): TestSimpleBlock = rlp match {
         case RLPList(id, parentId, owner, nonce, (txs: RLPList), (unclesIds: RLPList)) =>
-          TestBlock(id, parentId, owner, nonce, txs.items.map(TestTransaction.encDec.decode), unclesIds.items.map(intEncDec.decode))
+          TestSimpleBlock(id, parentId, owner, nonce, txs.items.map(TestSimpleTransaction.encDec.decode), unclesIds.items.map(intEncDec.decode))
         case _ => throw new Exception("Can't transform RLPEncodeable to block")
       }
     }
