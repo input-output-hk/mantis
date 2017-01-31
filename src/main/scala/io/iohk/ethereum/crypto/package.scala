@@ -20,16 +20,9 @@ package object crypto {
     digest.digest
   }
 
-  def sha3(input1: Array[Byte], input2: Array[Byte]): Array[Byte] = {
+  def sha3(input: Array[Byte] *): Array[Byte] = {
     val digest: Keccak256 = new Keccak256
-    digest.update(input1, 0, input1.length)
-    digest.update(input2, 0, input2.length)
-    digest.digest
-  }
-
-  def sha3(input: Array[Byte]): Array[Byte] = {
-    val digest: Keccak256 = new Keccak256
-    digest.update(input)
+    input.foreach(i => digest.update(i))
     digest.digest
   }
 

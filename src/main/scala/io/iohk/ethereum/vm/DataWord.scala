@@ -48,7 +48,7 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
    *  Output ByteString is padded with 0's from the left side up to MaxLength bytes.
    */
   lazy val bytes: ByteString = {
-    val bs: ByteString = ByteString(n.toByteArray).takeRight(32)
+    val bs: ByteString = ByteString(n.toByteArray).takeRight(MaxLength)
     val padLength: Int = MaxLength - bs.length
     if (padLength > 0)
       Zeros.take(padLength) ++ bs
