@@ -3,6 +3,7 @@ package io.iohk.ethereum.network
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.util.ByteString
 import io.iohk.ethereum.network.FastSyncActor._
+import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import org.spongycastle.util.encoders.Hex
@@ -28,29 +29,29 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
   }
 
   def waitForTargetBlockHeader(startBlockHash: ByteString, targetBlockHash: ByteString): Receive = handleTerminated orElse {
-    case BlockHeaders(blockHeader :: Nil) =>
-      peerActor ! PeerActor.SendMessage(GetNodeData(Seq(blockHeader.stateRoot)))
+    case MessageReceived(BlockHeaders(blockHeaders)) =>
+      peerActor ! PeerActor.SendMessage(GetNodeData(Seq(blockHeaders.head.stateRoot)))
       peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(startBlockHash), BlocksPerMessage, 0, reverse = false))
       context become processMessages(ProcessingState(startBlockHash, targetBlockHash,
-        requestedNodes = Seq(MptNodeHash(blockHeader.stateRoot))))
+        requestedNodes = Seq(MptNodeHash(blockHeaders.head.stateRoot))))
   }
 
   def processMessages(state: ProcessingState): Receive = handleTerminated orElse {
-    case BlockHeaders(headers) =>
+    case MessageReceived(BlockHeaders(headers)) =>
       val blockHashes = headers.map(_.blockHash)
       peerActor ! PeerActor.SendMessage(GetBlockBodies(blockHashes))
       peerActor ! PeerActor.SendMessage(GetReceipts(blockHashes))
       context become processMessages(state.copy(blockHeaders = headers))
 
-    case BlockBodies(bodies) if bodies.length == state.blockHeaders.length =>
+    case MessageReceived(BlockBodies(bodies)) if bodies.length == state.blockHeaders.length =>
       self ! PartialDownloadDone
       context become processMessages(state.copy(blockBodies = bodies))
 
-    case Receipts(receipts: Seq[Seq[Receipt]]) if receipts.length == state.blockHeaders.length =>
+    case MessageReceived(Receipts(receipts: Seq[Seq[Receipt]])) if receipts.length == state.blockHeaders.length =>
       self ! PartialDownloadDone
       context become processMessages(state.copy(blockReceipts = receipts))
 
-    case m: NodeData if m.values.length == state.requestedNodes.length =>
+    case MessageReceived(m: NodeData) if m.values.length == state.requestedNodes.length =>
       state.requestedNodes.zipWithIndex.foreach {
         case (MptNodeHash(hash), idx) =>
           handleMptNode(hash, m.getMptNode(idx), state)
@@ -74,8 +75,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
     case PartialDownloadDone =>
       handlePartialDownload(state)
 
-
-    case m =>
+    case MessageReceived(m) =>
       log.info("Got unexpected message {}", m)
       log.info("Requested nodes {}, blockHeaders {}",
         state.requestedNodes, state.blockHeaders)
@@ -83,7 +83,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
   private def handlePartialDownload(state: ProcessingState) = {
     state match {
-      case ProcessingState(_, _, _, headers, receipts, bodies) if (receipts.nonEmpty && bodies.nonEmpty) =>
+      case ProcessingState(_, _, _, headers, receipts, bodies) if receipts.nonEmpty && bodies.nonEmpty =>
         log.info("Got complete blocks")
         log.info("headers: {}", headers)
         log.info("receipts: {}", receipts)
@@ -98,8 +98,11 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
     mptNode match {
       case n: MptLeaf =>
         log.info("Got leaf node: {}", n)
-        n.getAccount.codeHash
-        n.getAccount.storageRoot
+        val evm = n.getAccount.codeHash
+        val storage = n.getAccount.storageRoot
+
+        peerActor ! PeerActor.SendMessage(GetNodeData(Seq(evm, storage)))
+        context become processMessages(state.copy(requestedNodes = Seq(EvmCodeHash(evm), StorageRootHash(storage))))
 
       case n: MptBranch =>
         val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }

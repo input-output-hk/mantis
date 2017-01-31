@@ -1,6 +1,7 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
+import java.util.UUID
 
 import akka.actor._
 import akka.util.ByteString
@@ -15,8 +16,6 @@ import io.iohk.ethereum.rlp.RLPEncoder
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
-
-import scala.collection.immutable.HashSet
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
@@ -149,14 +148,16 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse handlePeerChainCheck(rlpxConnection) orElse {
     case RLPxConnectionHandler.MessageReceived(msg@BlockHeaders(blockHeader +: Nil)) if blockHeader.number == DaoBlockNumber =>
       timeout.cancel()
-      log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.blockHash.toArray))
-      if (daoForkValidator.validate(msg).isEmpty) {
-        log.warning("Peer is running the ETC chain")
-        context become new HandshakedHandler(rlpxConnection).receive
-      } else {
-        log.warning("Peer is not running the ETC fork, disconnecting")
-        disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
-      }
+      context become new HandshakedHandler(rlpxConnection).receive
+      //todo uncomment
+//      log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.blockHash.toArray))
+//      if (daoForkValidator.validate(msg).isEmpty) {
+//        log.warning("Peer is running the ETC chain")
+//        context become new HandshakedHandler(rlpxConnection).receive
+//      } else {
+//        log.warning("Peer is not running the ETC fork, disconnecting")
+//        disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
+//      }
 
     case RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)) =>
       // FIXME We need to do some checking related to our blockchain. If we haven't arrived to the DAO block we might
@@ -250,6 +251,11 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
       case GetStatus =>
         sender() ! StatusResponse(Handshaked)
+
+      case StartFastSync(startHash, targetHash) =>
+        val fastSyncActor = context.actorOf(FastSyncActor.props(self), UUID.randomUUID().toString)
+        context watch fastSyncActor
+        fastSyncActor ! FastSyncActor.StartSync(startHash, targetHash)
     }
 
     def notifySubscribers(message: Message): Unit = {
