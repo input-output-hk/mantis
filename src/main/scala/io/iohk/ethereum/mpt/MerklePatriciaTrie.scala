@@ -52,7 +52,7 @@ object MerklePatriciaTrie {
       val nCapped = n.capped
       nCapped.length == 32 || (nCapped sameElements rootCapped)
     }.map(node => node.hash -> node.encode)
-    dataSource.update(newRootHash, toBeRemoved, toBeUpdated)
+    dataSource.update(toBeRemoved, toBeUpdated)
   }
 
   private def getNextNode(extensionNode: ExtensionNode, dataSource: DataSource)(implicit nodeDec: RLPDecoder[Node]): Node =

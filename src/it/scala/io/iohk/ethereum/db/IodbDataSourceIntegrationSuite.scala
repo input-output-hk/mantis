@@ -12,11 +12,10 @@ class IodbDataSourceIntegrationSuite extends FunSuite
 
   val KeySize: Int = 32
   val KeyNumberLimit: Int = 40
-  val DefaultRootHash: Array[Byte] = Array.emptyByteArray
 
   def putMultiple(dataSource: DataSource, toInsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
     toInsert.foldLeft(dataSource){ case (recDB, keyValuePair) =>
-      recDB.update(DefaultRootHash, Seq(), Seq(keyValuePair))
+      recDB.update(Seq(), Seq(keyValuePair))
     }
   }
 

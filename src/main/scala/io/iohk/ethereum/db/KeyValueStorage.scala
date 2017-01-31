@@ -14,7 +14,6 @@ class KeyValueStorage[K, V](val dataSource: DataSource,
   def update(toRemove: Seq[K], toUpdate: Seq[(K, V)]): KeyValueStorage[K, V] =
     new KeyValueStorage[K, V](
       dataSource.update(
-        version = Array.emptyByteArray,
         toRemove = toRemove.map(keySerializer),
         toUpdate = toUpdate.map { case (k, v) => keySerializer(k) -> valueSerializer(v) }
       ),

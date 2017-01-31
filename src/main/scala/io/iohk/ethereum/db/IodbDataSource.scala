@@ -11,8 +11,8 @@ class IodbDataSource(lSMStore: LSMStore) extends DataSource {
 
   override def get(key: Array[Byte]): Option[Array[Byte]] = lSMStore.get(ByteArrayWrapper(key)).map(v => v.data)
 
-  override def update(version: Array[Byte], toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource = {
-    lSMStore.update(ByteArrayWrapper(storageVersionGen(version)), toRemove.map(key => ByteArrayWrapper(key)), asStorables(toUpdate))
+  override def update(toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource = {
+    lSMStore.update(ByteArrayWrapper(storageVersionGen()), toRemove.map(key => ByteArrayWrapper(key)), asStorables(toUpdate))
     new IodbDataSource(lSMStore)
   }
 
@@ -24,7 +24,7 @@ class IodbDataSource(lSMStore: LSMStore) extends DataSource {
 object IodbDataSource {
   private val updateCounter = new AtomicLong(System.currentTimeMillis())
 
-  private def storageVersionGen(rootHash: Array[Byte]): Array[Byte] = {
-    rootHash ++ ByteBuffer.allocate(java.lang.Long.SIZE / java.lang.Byte.SIZE).putLong(updateCounter.incrementAndGet()).array()
+  private def storageVersionGen(): Array[Byte] = {
+    ByteBuffer.allocate(java.lang.Long.SIZE / java.lang.Byte.SIZE).putLong(updateCounter.incrementAndGet()).array()
   }
 }
