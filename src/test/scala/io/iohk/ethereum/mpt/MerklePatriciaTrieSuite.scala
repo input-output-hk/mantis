@@ -1,13 +1,13 @@
 package io.iohk.ethereum.mpt
 
+import java.io.File
 import java.nio.ByteBuffer
-import java.nio.file.Files
 import java.security.MessageDigest
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.sha3
-import io.iohk.ethereum.db.dataSource.{EphemDataSource, IodbDataSource}
+import io.iohk.ethereum.db.dataSource.{EphemDataSource}
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import org.scalacheck.{Arbitrary, Gen}
@@ -349,26 +349,6 @@ class MerklePatriciaTrieSuite extends FunSuite
     val trieWithBranch = EmptyTrie.put(key1, key1).put(key2, key2)
     val trieAfterDelete = trieWithBranch.remove(Hex.decode("11a0"))
     assert(trieAfterDelete.getRootHash sameElements trieWithBranch.getRootHash)
-  }
-
-  /* IODB tests */
-  test("Simple test with IODB as Source") {
-    //open new store
-    val nodeStorage = IodbDataSource(
-      path = Files.createTempDirectory("MPT").getFileName.toString,
-      keySize = 33,
-      recreate = true
-    )
-    val emptyTrie = MerklePatriciaTrie[Int, Int](new NodeStorage(nodeStorage), hashFn)
-    val trieWithOneElement = emptyTrie.put(1, 5)
-    val obtained = trieWithOneElement.get(1)
-    assert(obtained.isDefined)
-    assert(obtained.get == 5)
-    val trieAfterDelete = trieWithOneElement.remove(1)
-    val obtainedAfterDelete = trieAfterDelete.get(1)
-    assert(obtainedAfterDelete.isEmpty)
-
-    nodeStorage.destroy()
   }
 
   /* EthereumJ tests */
