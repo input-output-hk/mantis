@@ -146,7 +146,7 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
   def waitingForChainForkCheck(rlpxConnection: RLPxConnection, status: msg.Status, timeout: Cancellable): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse {
+    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse handlePeerChainCheck(rlpxConnection) orElse {
     case RLPxConnectionHandler.MessageReceived(msg@BlockHeaders(blockHeader +: Nil)) if blockHeader.number == DaoBlockNumber =>
       timeout.cancel()
       log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.blockHash.toArray))
@@ -230,10 +230,17 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
       messageSubscribers = messageSubscribers.filterNot(_.ref == sender())
   }
 
+  def handlePeerChainCheck(rlpxConnection: RLPxConnection): Receive = {
+    case RLPxConnectionHandler.MessageReceived(message@GetBlockHeaders(Left(number), _, _, _)) if number == 1920000 =>
+      log.info("Received message: {}", message)
+      rlpxConnection.sendMessage(BlockHeaders(Seq())) //stub because we do not have this block yet
+  }
+
   class HandshakedHandler(rlpxConnection: RLPxConnection) {
 
     def receive: Receive =
-      handleSubscriptions orElse handleTerminated(rlpxConnection) orElse {
+      handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
+        handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
         notifySubscribers(message)
         processMessage(message)
@@ -252,13 +259,6 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     }
 
     def processMessage(message: Message): Unit = message match {
-      case Ping() =>
-        rlpxConnection.sendMessage(Pong())
-
-      case GetBlockHeaders(Left(number), _, _, _) if number == 1920000 =>
-        log.info("Received message: {}", message)
-        rlpxConnection.sendMessage(BlockHeaders(Seq())) //stub because we do not have this block yet
-
       case d: Disconnect =>
         log.info("Received {}. Closing connection", d)
         context stop self
