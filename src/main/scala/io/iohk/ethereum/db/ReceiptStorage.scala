@@ -5,7 +5,8 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 
 object ReceiptStorage {
-  type ReceiptStorage = KeyValueStorage[Array[Byte], Seq[Receipt]]
+  type BlockHash = Array[Byte]
+  type ReceiptStorage = KeyValueStorage[BlockHash, Seq[Receipt]]
 
   def apply(dataSource: DataSource): ReceiptStorage = new ReceiptStorage(
     dataSource = dataSource,
