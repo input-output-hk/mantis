@@ -168,7 +168,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((data, _)) = stateOut.stack.pop
-        data shouldEqual DataWord(stateIn.invoke.callValue)
+        data shouldEqual DataWord(stateIn.context.callValue)
 
         val expectedState = stateIn.withStack(stateOut.stack).step()
         stateOut shouldEqual expectedState
@@ -188,7 +188,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
       withStackVerification(op, stateIn, stateOut) {
         val Right((offset, _)) = stateIn.stack.pop
         val Right((data, _)) = stateOut.stack.pop
-        data shouldEqual DataWord(stateIn.invoke.callData.slice(offset.intValue, offset.intValue + 32).padTo(32, 0.toByte))
+        data shouldEqual DataWord(stateIn.context.callData.slice(offset.intValue, offset.intValue + 32).padTo(32, 0.toByte))
 
         val expectedState = stateIn.withStack(stateOut.stack).step()
         stateOut shouldEqual expectedState
