@@ -9,9 +9,10 @@ import org.spongycastle.util.encoders.Hex
 
 class TransactionSpec extends FlatSpec with Matchers {
 
-  val rawPublicKey: Array[Byte] = Hex.decode("044c3eb5e19c71d8245eaaaba21ef8f94a70e9250848d10ade086f893a7a33a06d7063590e9e6ca88f918d7704840d903298fe802b6047fa7f6d09603eba690c39")
+  val rawPublicKey: Array[Byte] =
+    Hex.decode("044c3eb5e19c71d8245eaaaba21ef8f94a70e9250848d10ade086f893a7a33a06d7063590e9e6ca88f918d7704840d903298fe802b6047fa7f6d09603eba690c39")
   val publicKey: ECPoint = crypto.curve.getCurve.decodePoint(rawPublicKey)
-  val address: Array[Byte] =crypto.sha3(rawPublicKey).slice(12, 32)
+  val address: Array[Byte] = crypto.sha3(rawPublicKey).slice(12, 32)
 
   val validTransaction = Transaction(
     nonce = 172320,
