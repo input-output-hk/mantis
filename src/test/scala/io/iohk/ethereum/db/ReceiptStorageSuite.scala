@@ -18,12 +18,12 @@ class ReceiptStorageSuite extends FunSuite with PropertyChecks with ObjectGenera
       val initialReceiptStorage = ReceiptStorage(EphemDataSource())
       val receiptStorage = blockHashesReceiptsPair.foldLeft(initialReceiptStorage){
         case (recReceiptStorage, (receiptList, blockHash)) =>
-          recReceiptStorage.update(Seq(), Seq(blockHash -> receiptList))
+          recReceiptStorage.put(blockHash, receiptList)
       }
 
       blockHashesReceiptsPair.foreach{case (rs, bh) =>
         val obtainedReceipts: Option[Seq[Receipt]] = receiptStorage.get(bh)
-        assert(obtainedReceipts.isDefined && (obtainedReceipts.get equals rs))
+        assert(obtainedReceipts.contains(rs))
       }
     }
   }
@@ -38,7 +38,7 @@ class ReceiptStorageSuite extends FunSuite with PropertyChecks with ObjectGenera
       val initialReceiptStorage = ReceiptStorage(EphemDataSource())
       val receiptStorage = blockHashesReceiptsPair.foldLeft(initialReceiptStorage){
         case (recReceiptStorage, (receiptList, blockHash)) =>
-          recReceiptStorage.update(Seq(), Seq(blockHash -> receiptList))
+          recReceiptStorage.put(blockHash, receiptList)
       }
 
       //Receipts are deleted
@@ -46,7 +46,7 @@ class ReceiptStorageSuite extends FunSuite with PropertyChecks with ObjectGenera
         .splitAt(Gen.choose(0, blockHashesReceiptsPair.size).sample.get)
       val receiptStorageAfterDelete = toDelete.foldLeft(receiptStorage){
         case (recReceiptStorage, (_, blockHash)) =>
-          recReceiptStorage.update(Seq(blockHash), Seq())
+          recReceiptStorage.remove(blockHash)
       }
 
       toLeave.foreach{case (rs, bh) =>

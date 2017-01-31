@@ -45,7 +45,7 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
 
       //Delete of ints
       val keyValueStorage = toDelete.foldLeft(initialKeyValueStorage){ case (recKeyValueStorage, i) =>
-        recKeyValueStorage.update(Seq(i), Seq())
+        recKeyValueStorage.remove(i)
       }
 
       toDelete.foreach{ i =>
