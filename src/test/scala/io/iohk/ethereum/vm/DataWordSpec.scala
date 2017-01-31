@@ -106,6 +106,15 @@ class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
     }
   }
 
+  test("**") {
+    val TestModulus: BigInt = BigInt(2).pow(MaxLength * 8)
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      whenever(n2 != 0) {
+        assert(DataWord(n1) ** DataWord(n2) == DataWord(n1.modPow(n2, TestModulus)))
+      }
+    }
+  }
+
   test("intValue") {
     assert(specialNumbers.map(DataWord(_).intValue).toSeq == Seq(2147483647, 0, 1, 2147483647, 1, 2))
   }
