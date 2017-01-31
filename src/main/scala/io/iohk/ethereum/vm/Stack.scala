@@ -71,6 +71,8 @@ class Stack private(private val underlying: Vector[DataWord], val maxSize: Int) 
 
   def size: Int = underlying.size
 
+  def toSeq: Seq[DataWord] = underlying.reverse
+
   override def equals(that: Any): Boolean = that match {
     case that: Stack => this.underlying == that.underlying
     case _ => false
@@ -79,7 +81,7 @@ class Stack private(private val underlying: Vector[DataWord], val maxSize: Int) 
   override def hashCode(): Int = underlying.hashCode
 
   override def toString: String =
-    underlying.mkString("Stack(", ",", ")")
+    underlying.reverse.mkString("Stack(", ",", ")")
 
   private def copy(updated: Vector[DataWord]): Stack =
     new Stack(updated, maxSize)
