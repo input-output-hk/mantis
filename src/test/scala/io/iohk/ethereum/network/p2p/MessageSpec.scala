@@ -34,28 +34,28 @@ class MessageSpec extends FlatSpec with Matchers {
     decode(PV61.NewBlockHashes.code, NewBlockHashesPV61bytes, Message.PV61) shouldBe newBlockHashesPV61
   }
 
-  "Message" should "decode message redefined in newer version of protocol" in {
+  it should "decode message redefined in newer version of protocol" in {
     decode(PV62.NewBlockHashes.code, NewBlockHashesPV62bytes, Message.PV62) shouldBe newBlockHashesPV62
     decode(PV62.NewBlockHashes.code, NewBlockHashesPV62bytes, Message.PV63) shouldBe newBlockHashesPV62
   }
 
-  "Message" should "decode message available only in older version of protocol" in {
+  it should "decode message available only in older version of protocol" in {
     decode(PV61.BlockHashesFromNumber.code, BlockHashesFromNumberBytes, Message.PV61) shouldBe blockHashesFromNumber
   }
 
-  "Message" should "not decode message from older version of protocol as newer version" in {
+  it should "not decode message from older version of protocol as newer version" in {
     assertThrows[RuntimeException] {
       decode(PV62.NewBlockHashes.code, NewBlockHashesPV61bytes, Message.PV62)
     }
   }
 
-  "Message" should "not decode message not existing in given protocol" in {
+  it should "not decode message not existing in given protocol" in {
     assertThrows[RuntimeException] {
       decode(CommonMessages.Transactions.code, BlockHashesFromNumberBytes, Message.PV62)
     }
   }
 
-  "Message" should "decode wire protocol message for all versions of protocol" in {
+  it should "decode wire protocol message for all versions of protocol" in {
     decode(WireProtocol.Hello.code, helloBytes, Message.PV61) shouldBe hello
     decode(WireProtocol.Hello.code, helloBytes, Message.PV62) shouldBe hello
     decode(WireProtocol.Hello.code, helloBytes, Message.PV63) shouldBe hello
