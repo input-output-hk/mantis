@@ -16,6 +16,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
   val BlocksPerMessage = 10
   val NodesPerRequest = 10
   val NodeRequestsInterval: FiniteDuration = 3.seconds
+  val GenesisBlockNumber = 0
   //TODO move to conf
   val EmptyAccountStorageHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
   val EmptyAccountEvmCodeHash = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
@@ -27,17 +28,18 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
   }
 
   override def receive: Receive = handleTerminated orElse {
-    case StartSync(startBlockHash, targetBlockHash) =>
+    case StartSync(targetBlockHash) =>
       peerActor ! PeerActor.Subscribe(Set(NodeData.code, Receipts.code, BlockBodies.code, BlockHeaders.code))
       peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(targetBlockHash), 1, 0, reverse = false))
-      context become waitForTargetBlockHeader(startBlockHash, targetBlockHash)
+      context become waitForTargetBlockHeader(targetBlockHash)
   }
 
-  def waitForTargetBlockHeader(startBlockHash: ByteString, targetBlockHash: ByteString): Receive = handleTerminated orElse {
-    case MessageReceived(BlockHeaders(blockHeaders)) =>
+  def waitForTargetBlockHeader(targetBlockHash: ByteString): Receive = handleTerminated orElse {
+    case MessageReceived(BlockHeaders(blockHeaders)) if blockHeaders.nonEmpty =>
       peerActor ! PeerActor.SendMessage(GetNodeData(Seq(blockHeaders.head.stateRoot)))
-      peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(startBlockHash), BlocksPerMessage, 0, reverse = false))
-      context become processMessages(ProcessingState(startBlockHash, targetBlockHash,
+      peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(GenesisBlockNumber), BlocksPerMessage, 0, reverse = false))
+      context become processMessages(ProcessingState(targetBlockHash,
+        targetBlockNumber = Some(blockHeaders.head.number),
         requestedNodes = Seq(StateMptNodeHash(blockHeaders.head.stateRoot))))
   }
 
@@ -67,12 +69,20 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
   private def handlePartialDownload(state: ProcessingState) = {
     state match {
-      case ProcessingState(_, _, _, _, headers, receipts, bodies) if receipts.nonEmpty && bodies.nonEmpty =>
+      case ProcessingState(_, Some(targetBlockNumber), _, _, headers, receipts, bodies) if receipts.nonEmpty && bodies.nonEmpty =>
         log.info("Got complete blocks")
         log.info("headers: {}", headers)
         log.info("receipts: {}", receipts)
         log.info("bodies: {}", bodies)
-        peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(headers.last.number + 1), BlocksPerMessage, skip = 0, reverse = false))
+
+        val nextBlockNumber = headers.last.number + 1
+
+        if(nextBlockNumber + BlocksPerMessage < targetBlockNumber) {
+          peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(nextBlockNumber), BlocksPerMessage, skip = 0, reverse = false))
+        } else {
+          peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(nextBlockNumber), BlocksPerMessage, skip = 0, reverse = false))
+        }
+
         context become processMessages(state.copy(blockHeaders = Seq.empty, blockReceipts = Seq.empty, blockBodies = Seq.empty))
         //TODO insert all elements
       case _ =>
@@ -192,7 +202,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 object FastSyncActor {
   def props(peerActor: ActorRef): Props = Props(new FastSyncActor(peerActor))
 
-  case class StartSync(startBlockHash: ByteString, targetBlockHash: ByteString)
+  case class StartSync(targetBlockHash: ByteString)
 
   case object PartialDownloadDone
 
@@ -221,8 +231,8 @@ object FastSyncActor {
   private case object FetchNodes
 
   private case class ProcessingState(
-    startBlockHash: ByteString,
     targetBlockHash: ByteString,
+    targetBlockNumber: Option[BigInt] = None,
     requestedNodes: Seq[HashType] = Seq.empty,
     nodesQueue: Seq[HashType] = Seq.empty,
     blockHeaders: Seq[BlockHeader] = Seq.empty,

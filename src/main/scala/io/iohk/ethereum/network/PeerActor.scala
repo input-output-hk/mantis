@@ -254,10 +254,10 @@ class PeerActor(
       case GetStatus =>
         sender() ! StatusResponse(Handshaked)
 
-      case StartFastSync(startHash, targetHash) =>
+      case StartFastSync(targetHash) =>
         val fastSyncActor = context.actorOf(FastSyncActor.props(self), UUID.randomUUID().toString)
         context watch fastSyncActor
-        fastSyncActor ! FastSyncActor.StartSync(startHash, targetHash)
+        fastSyncActor ! FastSyncActor.StartSync(targetHash)
     }
 
     def notifySubscribers(message: Message): Unit = {
@@ -295,7 +295,7 @@ object PeerActor {
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
 
-  case class StartFastSync(startBlockHash: ByteString, targetBlockHash: ByteString)
+  case class StartFastSync(targetBlockHash: ByteString)
 
   private case object DaoHeaderReceiveTimeout
 

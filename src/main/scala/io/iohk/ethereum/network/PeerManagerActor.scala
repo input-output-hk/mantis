@@ -37,13 +37,8 @@ class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     case Terminated(ref) =>
       peers -= ref.path.name
 
-    case StartFastDownload(uri) =>
-      peers.values.headOption.foreach { p =>
-        p.ref ! PeerActor.StartFastSync(
-          startBlockHash = ByteString(Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3")), //genesis block
-          targetBlockHash = ByteString(Hex.decode("ca2b65cf841b7acc2548977ad69a3e118940d0934cdbf2d3645c44bdf5023465"))
-        )
-      }
+    case StartFastDownload(uri,targetHash) =>
+      peers.get(keyForURI(uri)).foreach { p => p.ref ! PeerActor.StartFastSync(targetHash)}
   }
 
   def createPeer(addr: InetSocketAddress): Peer = {
@@ -55,6 +50,9 @@ class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     peer
   }
 
+  private def keyForURI(uri: URI): String = {
+    new InetSocketAddress(uri.getHost, uri.getPort).toString.filterNot(_ == '/')
+  }
 }
 
 object PeerManagerActor {
@@ -65,8 +63,7 @@ object PeerManagerActor {
 
   case class ConnectToPeer(uri: URI)
 
-  case class StartFastDownload(uri: URI)
-
+  case class StartFastDownload(uri: URI, targetBlockHash: ByteString)
 
   case class Peer(id: String, remoteAddress: InetSocketAddress, ref: ActorRef)
   case class PeerCreated(peer: Peer)

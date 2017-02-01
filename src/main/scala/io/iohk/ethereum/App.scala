@@ -3,9 +3,11 @@ package io.iohk.ethereum
 import java.net.{InetSocketAddress, URI}
 
 import akka.actor.ActorSystem
+import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.{NodeInfo, PeerManagerActor, ServerActor}
 import io.iohk.ethereum.utils.Config
+import org.spongycastle.util.encoders.Hex
 
 object App {
 
@@ -25,8 +27,9 @@ object App {
     val bootstrapNodes = Config.Discovery.bootstrapNodes.map(new URI(_))
     bootstrapNodes.foreach { node =>
       peerManager ! PeerManagerActor.ConnectToPeer(node)
+      //TODO change to CLI command?
       Thread.sleep(5 * 1000)
-      peerManager ! PeerManagerActor.StartFastDownload(node)
+      peerManager ! PeerManagerActor.StartFastDownload(node, ByteString(Hex.decode("ca2b65cf841b7acc2548977ad69a3e118940d0934cdbf2d3645c44bdf5023465")))
     }
   }
 }
