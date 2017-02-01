@@ -462,43 +462,14 @@ class RLPSuite extends FunSuite
 
 
   test("SimpleBlock encoding") {
-    val tx0 = SimpleTransaction(1, "cat")
-    val tx1 = SimpleTransaction(2, "dog")
+    val tx0 = TestSimpleTransaction(1, "cat")
+    val tx1 = TestSimpleTransaction(2, "dog")
 
-    val block = SimpleBlock(127, -127: Short, "horse", 1000, Seq(tx0, tx1), Seq(1, 2))
-    val data = encode(block)(SimpleBlock.encDec)
-    val dataObtained = decode[SimpleBlock](data)
-    val obtained: SimpleBlock = dataObtained
+    val block = TestSimpleBlock(127, -127: Short, "horse", 1000, Seq(tx0, tx1), Seq(1, 2))
+    val data = encode(block)(TestSimpleBlock.encDec)
+    val dataObtained = decode[TestSimpleBlock](data)
+    val obtained: TestSimpleBlock = dataObtained
     assert(block equals obtained)
-  }
-
-  ignore("Performance decode") {
-    val blockRaw: String = "f8cbf8c7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347940000000000000000000000000000000000000000a02f4399b08efe68945c1cf90ffe85bbe3ce978959da753f9e649f034015b8817da00000000000000000000000000000000000000000000000000000000000000000834000008080830f4240808080a004994f67dc55b09e814ab7ffc8df3686b4afb2bb53e60eae97ef043fe03fb829c0c0"
-    val payload: Array[Byte] = Hex.decode(blockRaw)
-    val ITERATIONS: Int = 10000000
-    log.info("Starting " + ITERATIONS + " decoding iterations...")
-    val start1: Long = System.currentTimeMillis
-    (1 to ITERATIONS).foreach { _ => RLP.rawDecode(payload); Unit }
-    val end1: Long = System.currentTimeMillis
-    log.info("Result decode()\t: " + (end1 - start1) + "ms")
-  }
-
-  test("Ping message encoded using EthereumJ implementation") {
-    val decoded = decode[PingMessage](
-      Hex.decode("ee04d38c38352e36352e31392e32333182765f82765fd38c38352e36352e31392e32333182765f82765f845855366e")
-    )(PingMessage.encDec)
-    val parsed: PingMessage = decoded
-
-    assert(parsed.version == 4)
-    assert(new String(parsed.from.address) == "85.65.19.231")
-    assert(parsed.from.tcpPort == 30303)
-    assert(parsed.from.udpPort == 30303)
-
-    assert(new String(parsed.to.address) == "85.65.19.231")
-    assert(parsed.to.tcpPort == 30303)
-    assert(parsed.to.udpPort == 30303)
-
-    assert(parsed.expiration == 1481979502)
   }
 
   test("Partial Data Parse Test") {
@@ -525,24 +496,6 @@ class RLPSuite extends FunSuite
     val thirdItemIndex = nextElementIndex(data, secondItemIndex)
     val decoded3 = decode[Seq[String]](data.drop(thirdItemIndex))
     assert(decoded3 equals Seq("cat", "Lorem ipsum dolor sit amet, consectetur adipisicing elit"))
-  }
-
-  test("Multiple objects partial decode") {
-    val multiplePingEncoded =
-      Hex.decode("ee04d38c38352e36352e31392e32333182765f82765fd38c38352e36352e31392e32333182765f82765f845855366e") ++
-        Hex.decode("ee04d38c38352e36352e31392e32333182765f82765fd38c38352e36352e31392e32333182765f82765f845855366e") ++
-        Hex.decode("ee04d38c38352e36352e31392e32333182765f82765fd38c38352e36352e31392e32333182765f82765f845855366e")
-
-    val result = Try {
-      val decoded = decode[PingMessage](multiplePingEncoded)(PingMessage.encDec)
-
-      val secondItemIndex = nextElementIndex(multiplePingEncoded, 0)
-      val decoded2 = decode[PingMessage](multiplePingEncoded.drop(secondItemIndex))(PingMessage.encDec)
-
-      val thirdItemIndex = nextElementIndex(multiplePingEncoded, secondItemIndex)
-      val decoded3 = decode[PingMessage](multiplePingEncoded.drop(thirdItemIndex))(PingMessage.encDec)
-    }
-    assert(result.isSuccess)
   }
 
   implicit def emptySeqEncDec: RLPEncoder[Seq[Any]] with RLPDecoder[Seq[Any]] = new RLPEncoder[Seq[Any]] with RLPDecoder[Seq[Any]] {
@@ -664,78 +617,40 @@ class RLPSuite extends FunSuite
       -> "a1010000000000000000000000000000000000000000000000000000000000000000"
   )
 
-  case class SimpleTransaction(id: Int, name: String)
+  //FIXME this is used to test nested objects encoding. We can think of replacing this with eth real implementation
+  private case class TestSimpleTransaction(id: Int, name: String)
 
-  object SimpleTransaction {
-    implicit val encDec = new RLPEncoder[SimpleTransaction] with RLPDecoder[SimpleTransaction] {
-      override def encode(obj: SimpleTransaction): RLPEncodeable = {
+  private object TestSimpleTransaction {
+    implicit val encDec = new RLPEncoder[TestSimpleTransaction] with RLPDecoder[TestSimpleTransaction] {
+      override def encode(obj: TestSimpleTransaction): RLPEncodeable = {
         import obj._
         RLPList(id, name)
       }
 
-      override def decode(rlp: RLPEncodeable): SimpleTransaction = rlp match {
-        case RLPList(id, name) => SimpleTransaction(id, name)
+      override def decode(rlp: RLPEncodeable): TestSimpleTransaction = rlp match {
+        case RLPList(id, name) => TestSimpleTransaction(id, name)
         case _ => throw new RuntimeException("Invalid Simple Transaction")
       }
     }
 
-    implicit def fromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[SimpleTransaction]): SimpleTransaction = dec.decode(rlp)
+    implicit def fromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[TestSimpleTransaction]): TestSimpleTransaction = dec.decode(rlp)
   }
 
-  case class SimpleBlock(id: Byte, parentId: Short, owner: String, nonce: Int, txs: Seq[SimpleTransaction], unclesIds: Seq[Int])
+  private case class TestSimpleBlock(id: Byte, parentId: Short, owner: String, nonce: Int, txs: Seq[TestSimpleTransaction], unclesIds: Seq[Int])
 
-  object SimpleBlock {
-    implicit val encDec = new RLPEncoder[SimpleBlock] with RLPDecoder[SimpleBlock] {
-      override def encode(obj: SimpleBlock): RLPEncodeable = {
+  private object TestSimpleBlock {
+    implicit val encDec = new RLPEncoder[TestSimpleBlock] with RLPDecoder[TestSimpleBlock] {
+      override def encode(obj: TestSimpleBlock): RLPEncodeable = {
         import obj._
-        RLPList(id, parentId, owner, nonce, RLPList(txs.map(SimpleTransaction.encDec.encode): _*), RLPList(unclesIds.map(id => id: RLPEncodeable): _*))
+        RLPList(id, parentId, owner, nonce, RLPList(txs.map(TestSimpleTransaction.encDec.encode): _*), RLPList(unclesIds.map(id => id: RLPEncodeable): _*))
       }
 
-      override def decode(rlp: RLPEncodeable): SimpleBlock = rlp match {
+      override def decode(rlp: RLPEncodeable): TestSimpleBlock = rlp match {
         case RLPList(id, parentId, owner, nonce, (txs: RLPList), (unclesIds: RLPList)) =>
-          SimpleBlock(id, parentId, owner, nonce, txs.items.map(SimpleTransaction.encDec.decode), unclesIds.items.map(intEncDec.decode))
+          TestSimpleBlock(id, parentId, owner, nonce, txs.items.map(TestSimpleTransaction.encDec.decode), unclesIds.items.map(intEncDec.decode))
         case _ => throw new Exception("Can't transform RLPEncodeable to block")
       }
     }
   }
-
-  // FIXME this a port from EthereumJ Ping message in order to check parsing, once we define the this entities in
-  // our codebase, this should be removed
-  case class Endpoint(address: Array[Byte], tcpPort: Long, udpPort: Long)
-
-  case class PingMessage(version: Int, from: Endpoint, to: Endpoint, expiration: Long)
-
-  object Endpoint {
-    implicit val encDec = new RLPEncoder[Endpoint] with RLPDecoder[Endpoint] {
-      override def encode(obj: Endpoint): RLPEncodeable = {
-        import obj._
-        RLPList(address, tcpPort, udpPort)
-      }
-
-      override def decode(rlp: RLPEncodeable): Endpoint = rlp match {
-        case l: RLPList => Endpoint(l.items.head, l.items(1), l.items(2))
-        case _ => throw new RuntimeException("Invalid Endpoint")
-      }
-    }
-
-    implicit def endpointFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Endpoint]): Endpoint = dec.decode(rlp)
-  }
-
-  object PingMessage {
-
-    implicit val encDec = new RLPEncoder[PingMessage] with RLPDecoder[PingMessage] {
-      override def encode(obj: PingMessage): RLPEncodeable = {
-        import obj._
-        RLPList(version, from, to, expiration)
-      }
-
-      override def decode(rlp: RLPEncodeable): PingMessage = rlp match {
-        case l: RLPList => PingMessage(l.items.head, l.items(1), l.items(2), l.items(3))
-        case _ => throw new RuntimeException("Not a Ping Message")
-      }
-    }
-
-  }
-
 }
 

@@ -68,6 +68,9 @@ object CommonMessages {
     val ValueLength = 32
     val AddressLength = 20
 
+    val FirstByteOfAddress = 12
+    val LastByteOfAddress = FirstByteOfAddress + AddressLength
+
     implicit val rlpEndDec = new RLPEncoder[Transaction] with RLPDecoder[Transaction] {
       override def encode(obj: Transaction): RLPEncodeable = {
         import obj._
@@ -107,18 +110,15 @@ object CommonMessages {
 
     import Transaction._
 
-    val bytesToSign: Array[Byte] = crypto.sha3(rlpEncode(RLPList(nonce, gasPrice, gasLimit,
+    lazy val bytesToSign: Array[Byte] = crypto.sha3(rlpEncode(RLPList(nonce, gasPrice, gasLimit,
       receivingAddress.toArray[Byte], value, payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte]))))
 
-    val recoveredPublicKey: Option[Array[Byte]] = ECDSASignature.recoverPubBytes(
+    lazy val recoveredPublicKey: Option[Array[Byte]] = ECDSASignature.recoverPubBytes(
       new BigInteger(1, signatureRandom.toArray[Byte]),
       new BigInteger(1, signature.toArray[Byte]),
       ECDSASignature.recIdFromSignatureV(pointSign),
       bytesToSign
     )
-
-    val FirstByteOfAddress = 12
-    val LastByteOfAddress = FirstByteOfAddress + AddressLength
 
     lazy val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
 

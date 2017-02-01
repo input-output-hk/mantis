@@ -1,13 +1,17 @@
 package io.iohk.ethereum.rlp
 
+import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.{Transaction, TransactionData}
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeader
+import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.utils.Logger
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
+import org.spongycastle.util.encoders.Hex
 
 import scala.language.implicitConversions
-import io.iohk.ethereum.rlp.RLPImplicits._
 
 /**
   * Tests based on
@@ -25,25 +29,36 @@ class RLPSpeedSuite extends FunSuite
   test("Main") {
     val startBlockSerialization: Long = System.currentTimeMillis
     val block = blockGen.sample.get
-    val serializedBlock = doTestSerialize[Block](block, rounds)(Block.encDec)
+    val serializedBlock = doTestSerialize[TestBlock](block, rounds)(TestBlock.encDec)
     val elapsedBlockSerialization = (System.currentTimeMillis() - startBlockSerialization) / 1000f
     log.info(s"Block serializations / sec: (${rounds.toFloat / elapsedBlockSerialization})")
 
     val blockDeserializationStart: Long = System.currentTimeMillis
-    val deserializedBlock: Block = doTestDeserialize(serializedBlock, rounds)(Block.encDec)
+    val deserializedBlock: TestBlock = doTestDeserialize(serializedBlock, rounds)(TestBlock.encDec)
     val elapsedBlockDeserialization = (System.currentTimeMillis() - blockDeserializationStart) / 1000f
     log.info(s"Block deserializations / sec: (${rounds.toFloat / elapsedBlockDeserialization})")
 
     val serializationTxStart: Long = System.currentTimeMillis
-    val tx = txGen.sample.get
-    val serializedTx = doTestSerialize(tx, rounds)(Transaction.encDec)
+    val tx = validTransaction
+    val serializedTx = doTestSerialize(tx, rounds)(Transaction.rlpEndDec)
     val elapsedTxSerialization = (System.currentTimeMillis() - serializationTxStart) / 1000f
     log.info(s"TX serializations / sec: (${rounds.toFloat / elapsedTxSerialization})")
 
     val txDeserializationStart: Long = System.currentTimeMillis
-    val deserializedTx: Transaction = doTestDeserialize(serializedTx, rounds)(Transaction.encDec)
+    val deserializedTx: Transaction = doTestDeserialize(serializedTx, rounds)(Transaction.rlpEndDec)
     val elapsedTxDeserialization = (System.currentTimeMillis() - txDeserializationStart) / 1000f
     log.info(s"TX deserializations / sec: (${rounds.toFloat / elapsedTxDeserialization})")
+  }
+
+  test("Performance decode") {
+    val blockRaw: String = "f8cbf8c7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347940000000000000000000000000000000000000000a02f4399b08efe68945c1cf90ffe85bbe3ce978959da753f9e649f034015b8817da00000000000000000000000000000000000000000000000000000000000000000834000008080830f4240808080a004994f67dc55b09e814ab7ffc8df3686b4afb2bb53e60eae97ef043fe03fb829c0c0"
+    val payload: Array[Byte] = Hex.decode(blockRaw)
+    val ITERATIONS: Int = 10000000
+    log.info("Starting " + ITERATIONS + " decoding iterations...")
+    val start1: Long = System.currentTimeMillis
+    (1 to ITERATIONS).foreach { _ => RLP.rawDecode(payload); Unit }
+    val end1: Long = System.currentTimeMillis
+    log.info("Result decode()\t: " + (end1 - start1) + "ms")
   }
 
   def doTestSerialize[T](toSerialize: T, rounds: Int)(implicit enc: RLPEncoder[T]): Array[Byte] = {
@@ -60,143 +75,72 @@ class RLPSpeedSuite extends FunSuite
     decode[T](serialized)
   }
 
-
-  lazy val txGen: Gen[Transaction] = for {
-    nonce: Int <- intGen
-    gasprice <- intGen
-    startgas <- intGen
-    to <- byteArrayOfNItemsGen(20)
-    value <- intGen
-    data <- byteArrayOfNItemsGen(32)
-    v <- intGen
-    r <- bigIntGen
-    s <- bigIntGen
-  } yield Transaction(
-    nonce = nonce,
-    gasprice = gasprice,
-    startgas = startgas,
-    to = to,
-    value = value,
-    data = data,
-    v = 27,
-    r = r,
-    s = s)
+  val validTransaction = Transaction(
+    nonce = 172320,
+    gasPrice = BigInt("50000000000"),
+    gasLimit = 90000,
+    receivingAddress = ByteString(Hex.decode("1c51bf013add0857c5d9cf2f71a7f15ca93d4816")),
+    value = BigInt("1049756850000000000"),
+    payload = Right(TransactionData(ByteString())),
+    pointSign = 28,
+    signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),
+    signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0"))
+  )
 
   lazy val blockHeaderGen: Gen[BlockHeader] = for {
-    prevhash <- byteArrayOfNItemsGen(32)
-    unclesHash <- byteArrayOfNItemsGen(32)
-    coinbase <- byteArrayOfNItemsGen(20)
-    stateRoot <- byteArrayOfNItemsGen(32)
-    txListRoot <- byteArrayOfNItemsGen(32)
-    receiptsRoot <- byteArrayOfNItemsGen(32)
-    bloom <- bigIntGen
-    difficulty <- intGen
-    number <- intGen
-    gasLimit <- intGen
-    gasUsed <- intGen
-    timestamp <- intGen
-    extraData <- byteArrayOfNItemsGen(8)
-    mixhash <- byteArrayOfNItemsGen(8)
-    nonce <- byteArrayOfNItemsGen(8)
+    parentHash <- byteArrayOfNItemsGen(32).map(ByteString(_))
+    ommersHash <- byteArrayOfNItemsGen(32).map(ByteString(_))
+    beneficiary <- byteArrayOfNItemsGen(20).map(ByteString(_))
+    stateRoot <- byteArrayOfNItemsGen(32).map(ByteString(_))
+    transactionsRoot <- byteArrayOfNItemsGen(32).map(ByteString(_))
+    receiptsRoot <- byteArrayOfNItemsGen(32).map(ByteString(_))
+    logsBloom <- byteArrayOfNItemsGen(50).map(ByteString(_))
+    difficulty <- bigIntGen
+    number <- bigIntGen
+    gasLimit <- bigIntGen
+    gasUsed <- bigIntGen
+    unixTimestamp <- intGen
+    extraData <- byteArrayOfNItemsGen(8).map(ByteString(_))
+    mixHash <- byteArrayOfNItemsGen(8).map(ByteString(_))
+    nonce <- byteArrayOfNItemsGen(8).map(ByteString(_))
   } yield BlockHeader(
-    prevhash = prevhash,
-    unclesHash = unclesHash,
-    coinbase = coinbase,
+    parentHash = parentHash,
+    ommersHash = ommersHash,
+    beneficiary = beneficiary,
     stateRoot = stateRoot,
-    txListRoot = txListRoot,
+    transactionsRoot = transactionsRoot,
     receiptsRoot = receiptsRoot,
-    bloom = bloom,
+    logsBloom = logsBloom,
     difficulty = difficulty,
     number = number,
     gasLimit = gasLimit,
     gasUsed = gasUsed,
-    timestamp = timestamp,
+    unixTimestamp = unixTimestamp,
     extraData = extraData,
-    mixhash = mixhash,
+    mixHash = mixHash,
     nonce = nonce)
 
-  lazy val blockGen: Gen[Block] = for {
+  lazy val blockGen: Gen[TestBlock] = for {
     header <- blockHeaderGen
-    transactions <- Gen.listOfN(10, txGen)
     uncles <- blockHeaderGen
-  } yield Block(header = header, transactions = transactions, uncles = Seq(uncles))
+  } yield TestBlock(header = header, transactions = List.fill(10)(validTransaction), uncles = Seq(uncles))
 }
 
-case class Transaction(nonce: Int, gasprice: Int, startgas: Int, to: Array[Byte], value: Int,
-                       data: Array[Byte], v: Int, r: BigInt, s: BigInt)
+// FIXME Replace with our entity once implemented in our codebase
+case class TestBlock(header: BlockHeader, transactions: Seq[Transaction], uncles: Seq[BlockHeader])
 
-object Transaction {
-
-  implicit val encDec = new RLPEncoder[Transaction] with RLPDecoder[Transaction] {
-    override def encode(obj: Transaction): RLPEncodeable = {
-      import obj._
-      RLPList(nonce, gasprice, startgas, to, value, data, v, r, s)
-    }
-
-    override def decode(rlp: RLPEncodeable): Transaction = rlp match {
-      case RLPList(nonce, gasprice, startgas, to, value, data, v, r, s) =>
-        Transaction(nonce, gasprice, startgas, to, value, data, v, r, s)
-      case _ => throw new RuntimeException("Invalid Transaction")
-    }
-  }
-
-  implicit def transactionFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Transaction]): Transaction = dec.decode(rlp)
-}
-
-case class BlockHeader(prevhash: Array[Byte], unclesHash: Array[Byte], coinbase: Array[Byte], stateRoot: Array[Byte],
-                       txListRoot: Array[Byte], receiptsRoot: Array[Byte], bloom: BigInt,
-                       difficulty: Int, number: Int, gasLimit: Int, gasUsed: Int, timestamp: Int, extraData: Array[Byte],
-                       mixhash: Array[Byte], nonce: Array[Byte])
-
-object BlockHeader {
-  implicit val encDec = new RLPEncoder[BlockHeader] with RLPDecoder[BlockHeader] {
-    override def encode(obj: BlockHeader): RLPEncodeable = {
-      import obj._
-      RLPList(prevhash, unclesHash, coinbase, stateRoot, txListRoot, receiptsRoot, bloom, difficulty, number, gasLimit,
-        gasUsed, timestamp, extraData, mixhash, nonce)
-    }
-
-    override def decode(rlp: RLPEncodeable): BlockHeader = rlp match {
-      case RLPList(prevhash, unclesHash, coinbase, stateRoot, txListRoot, receiptsRoot, bloom, difficulty, number, gasLimit,
-      gasUsed, timestamp, extraData, mixhash, nonce) =>
-        BlockHeader(
-          prevhash = prevhash,
-          unclesHash = unclesHash,
-          coinbase = coinbase,
-          stateRoot = stateRoot,
-          txListRoot = txListRoot,
-          receiptsRoot = receiptsRoot,
-          bloom = bloom,
-          difficulty = difficulty,
-          number = number,
-          gasLimit = gasLimit,
-          gasUsed = gasUsed,
-          timestamp = timestamp,
-          extraData = extraData,
-          mixhash = mixhash,
-          nonce = nonce
-        )
-      case _ => throw new RuntimeException("Invalid BlockHeader encodeable")
-    }
-  }
-
-  implicit def blockHeaderFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[BlockHeader]): BlockHeader = dec.decode(rlp)
-}
-
-case class Block(header: BlockHeader, transactions: Seq[Transaction], uncles: Seq[BlockHeader])
-
-object Block {
-  implicit val encDec = new RLPEncoder[Block] with RLPDecoder[Block] {
-    override def encode(obj: Block): RLPEncodeable = {
+object TestBlock {
+  implicit val encDec = new RLPEncoder[TestBlock] with RLPDecoder[TestBlock] {
+    override def encode(obj: TestBlock): RLPEncodeable = {
       RLPList(obj.header,
         obj.transactions: RLPList,
         obj.uncles: RLPList
       )
     }
 
-    override def decode(rlp: RLPEncodeable): Block = rlp match {
-      case RLPList(header, (txs: RLPList), (uncles: RLPList))  =>
-        Block(header, txs.items.map(item => item: Transaction), uncles.items.map(item => item: BlockHeader))
+    override def decode(rlp: RLPEncodeable): TestBlock = rlp match {
+      case RLPList(header, (txs: RLPList), (uncles: RLPList)) =>
+        TestBlock(BlockHeader.rlpEndDec.decode(header), txs.items.map(Transaction.rlpEndDec.decode), uncles.items.map(BlockHeader.rlpEndDec.decode))
       case _ => throw new RuntimeException("Invalid Block encodeable")
     }
   }
