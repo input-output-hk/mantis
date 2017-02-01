@@ -100,10 +100,10 @@ object CommonMessages {
     signatureRandom: ByteString, //r
     signature: ByteString /*s*/) {
 
-    val bytesToSign: Array[Byte] = crypto.sha3(rlpEncode(RLPList(nonce, gasPrice, gasLimit,
+    lazy val bytesToSign: Array[Byte] = crypto.sha3(rlpEncode(RLPList(nonce, gasPrice, gasLimit,
       receivingAddress.toArray[Byte], value, payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte]))))
 
-    val recoveredPublicKey: Option[Array[Byte]] = ECDSASignature.recoverPubBytes(
+    lazy val recoveredPublicKey: Option[Array[Byte]] = ECDSASignature.recoverPubBytes(
       new BigInteger(1, signatureRandom.toArray[Byte]),
       new BigInteger(1, signature.toArray[Byte]),
       ECDSASignature.recIdFromSignatureV(pointSign),
