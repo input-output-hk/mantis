@@ -18,8 +18,6 @@ class Storage private(private val underlying: Map[DataWord, DataWord] = Map()) {
 
   def toMap: Map[DataWord, DataWord] = underlying
 
-  def size: Int = underlying.keys.map(_.intValue).foldLeft(-1)((max, x) => if (x > max) x else max) + 1
-
   override def equals(that: Any): Boolean =
     that match {
       case that: Storage => this.underlying == that.underlying
