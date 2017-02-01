@@ -3,8 +3,16 @@ package io.iohk.ethereum.vm
 import io.iohk.ethereum.utils.EitherExtensions._
 import scala.annotation.tailrec
 
+/**
+  * Entry point to executing a program.
+  */
 object VM {
 
+  /**
+    * Executes a program
+    * @param context context to be executed
+    * @return result of the execution
+    */
   def run(context: ProgramContext): ProgramResult = {
     val finalState = run(ProgramState(context))
     ProgramResult(finalState.returnData, finalState.storage, finalState.error)

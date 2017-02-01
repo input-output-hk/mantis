@@ -10,9 +10,11 @@ object Storage {
   val Empty: Storage = new Storage()
 }
 
-/** Persistent storage of a transaction. Stores a hashmap of 256 bit keys
- *  mapped to 256 bit values.
- */
+/** Persistent storage of a transaction. May be viewed as a map of 256 bit keys
+  * to 256 bit values.
+  * This is just a representation of storage changes occuring during program execution. The
+  * actual persistence is not this class's resposibility.
+  */
 class Storage private(private val underlying: Map[DataWord, DataWord] = Map()) {
 
   def store(addr: DataWord, value: DataWord): Storage = new Storage(underlying + (addr -> value))

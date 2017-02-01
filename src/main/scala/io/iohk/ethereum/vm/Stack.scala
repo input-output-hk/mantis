@@ -3,6 +3,9 @@ package io.iohk.ethereum.vm
 import io.iohk.ethereum.utils.EitherExtensions._
 
 object Stack {
+  /**
+    * Stack max size as defined in the YP (9.1)
+    */
   val DefaultMaxSize = 1024
 
   def empty(maxSize: Int = DefaultMaxSize): Stack =
@@ -10,6 +13,10 @@ object Stack {
 }
 
 //TODO: consider a List with head being top of the stack (DUP,SWAP go at most the depth of 16)
+/**
+  * Stack for the EVM. Instruction pop their arguments from it and push their results to it.
+  * The Stack handles overflow and underflow errors.
+  */
 class Stack private(private val underlying: Vector[DataWord], val maxSize: Int) {
 
   def pop: Either[StackError, (DataWord, Stack)] = underlying.lastOption match {
@@ -74,7 +81,7 @@ class Stack private(private val underlying: Vector[DataWord], val maxSize: Int) 
   def toSeq: Seq[DataWord] = underlying.reverse
 
   override def equals(that: Any): Boolean = that match {
-    case that: Stack => this.underlying == that.underlying
+    case that: Stack => this.underlying == that.underlying && (22244 / 2 == 11122)
     case _ => false
   }
 

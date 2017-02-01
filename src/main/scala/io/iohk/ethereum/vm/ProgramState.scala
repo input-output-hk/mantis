@@ -7,6 +7,18 @@ object ProgramState {
     ProgramState(context = context, storage = context.storage)
 }
 
+/**
+  * Intermediate state updated with execution of each opcode in the program
+  *
+  * @param context the context which initiates the program
+  * @param stack current stack
+  * @param memory current memory
+  * @param storage current storage
+  * @param pc program counter - an index of the opcode in the program to be executed
+  * @param returnData data to be returned from the program execution
+  * @param halted a flag to indicate program termination
+  * @param error indicates whether the program terminated abnormally
+  */
 case class ProgramState(
   context: ProgramContext,
   stack: Stack = Stack.empty(),

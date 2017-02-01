@@ -156,6 +156,8 @@ object OpCode {
 }
 
 /**
+  * Base class for all the opcodes of the EVM
+  *
   * @param code Opcode byte representation
   * @param delta number of words to be popped from stack
   * @param alpha number of words to be pushed to stack
