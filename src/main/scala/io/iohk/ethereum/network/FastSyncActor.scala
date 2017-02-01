@@ -91,16 +91,12 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         case (EvmCodeHash(hash), idx) =>
           val evmCode = m.values(idx)
           val msg =
-            s"""got EVM code: ${Hex.toHexString(evmCode.toArray[Byte])}
-               |for hash: ${Hex.toHexString(hash.toArray[Byte])}
-                 """.stripMargin
+            s"got EVM code: ${Hex.toHexString(evmCode.toArray[Byte])}"
           log.info(msg)
         case (StorageRootHash(hash), idx) =>
           val rootNode = m.getMptNode(idx)
           val msg =
-            s"""got root node for contract storage: $rootNode
-               |for hash: ${Hex.toHexString(hash.toArray[Byte])}
-                 """.stripMargin
+            s"got root node for contract storage: $rootNode"
           log.info(msg)
           handleContractMptNode(hash, rootNode)
       }
@@ -109,6 +105,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       self ! FetchNodes
 
     case RequestNodes(hashes@_*) =>
+      //prep end nodesQueue to get deep first
       context become processMessages(state.copy(nodesQueue = hashes ++ state.nodesQueue))
       self ! FetchNodes
 
@@ -125,6 +122,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         context become processMessages(state.copy(requestedNodes = forRequest, nodesQueue = forQueue))
         peerActor ! PeerActor.SendMessage(GetNodeData(forRequest.map(_.v)))
         log.info("Requested nodes: {}", forRequest)
+        log.info("nodes queue size: {}", forQueue.length)
         system.scheduler.scheduleOnce(NodeRequestsInterval) {
           self ! FetchNodes
         }

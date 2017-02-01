@@ -152,7 +152,6 @@ class PeerActor(
     handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse handlePeerChainCheck(rlpxConnection) orElse {
     case RLPxConnectionHandler.MessageReceived(msg@BlockHeaders(blockHeader +: Nil)) if blockHeader.number == DaoBlockNumber =>
       timeout.cancel()
-      context become new HandshakedHandler(rlpxConnection).receive
       log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.blockHash.toArray))
       if (daoForkValidator.validate(msg).isEmpty) {
         log.warning("Peer is running the ETC chain")
