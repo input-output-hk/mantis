@@ -158,7 +158,7 @@ class PeerActor(
     import nodeStatus.blockchainStatus._
     msg.Status(
       protocolVersion = Message.PV63,
-      networkId = 1,
+      networkId = Config.Network.networkId,
       totalDifficulty = totalDifficulty,
       bestHash = bestHash,
       genesisHash = Config.Blockchain.genesisHash)
@@ -264,10 +264,10 @@ class PeerActor(
       case RLPxConnectionHandler.MessageReceived(message) =>
         notifySubscribers(message)
         processMessage(message)
-      
+
       case s: SendMessage[_] =>
         rlpxConnection.sendMessage(s.message)(s.enc)
-      
+
       case GetStatus =>
         sender() ! StatusResponse(Handshaked)
     }

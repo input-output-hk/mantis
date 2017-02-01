@@ -17,6 +17,8 @@ object Config {
   object Network {
     private val networkConfig = config.getConfig("network")
 
+    val networkId = networkConfig.getInt("network-id")
+
     object Server {
       private val serverConfig = networkConfig.getConfig("server-address")
 
