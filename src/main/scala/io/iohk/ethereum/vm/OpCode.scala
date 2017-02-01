@@ -234,7 +234,7 @@ case object SHA3 extends OpCode(0x20, 2, 1) {
 
 case object CALLVALUE extends OpCode(0x34, 0, 1) {
   def execute(state: ProgramState): ProgramState =
-    state.stack.push(DataWord(state.invoke.callValue))
+    state.stack.push(DataWord(state.context.callValue))
       .map(state.withStack(_).step())
       .valueOr(state.withError)
 }
@@ -246,7 +246,7 @@ case object CALLDATALOAD extends OpCode(0x35, 1, 1) {
       (offset, stack1) = popped
 
       i = offset.intValue
-      data = state.invoke.callData.slice(i, i + 32).padTo(32, 0.toByte)
+      data = state.context.callData.slice(i, i + 32).padTo(32, 0.toByte)
 
       stack2 <- stack1.push(DataWord(data))
     } yield state.withStack(stack2).step()

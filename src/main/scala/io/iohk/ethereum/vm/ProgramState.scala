@@ -3,12 +3,12 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 
 object ProgramState {
-  def apply(invoke: ProgramInvoke): ProgramState =
-    ProgramState(invoke = invoke, storage = invoke.storage)
+  def apply(context: ProgramContext): ProgramState =
+    ProgramState(context = context, storage = context.storage)
 }
 
 case class ProgramState(
-  invoke: ProgramInvoke,
+  context: ProgramContext,
   stack: Stack = Stack.empty(),
   memory: Memory = Memory.empty,
   storage: Storage,
@@ -18,7 +18,7 @@ case class ProgramState(
   error: Option[ProgramError] = None
 ) {
 
-  def program: Program = invoke.program
+  def program: Program = context.program
 
   def step(i: Int = 1): ProgramState =
     copy(pc = pc + i)

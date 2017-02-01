@@ -3,6 +3,9 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 
 // scalastyle:off line.size.limit
+/**
+  * This object is for experiments only. It will be removed ultimately.
+  */
 object Runner {
 
   private def loadCode(hexString: String): ByteString =
@@ -45,26 +48,26 @@ object Runner {
     val program = Program(code)
     val callValue = ByteString.empty
 
-    val invokeCreate = ProgramInvoke(program, callData = ByteString.empty, callValue, Storage.Empty)
-    val resultCreate = VM.run(invokeCreate)
+    val contextCreate = ProgramContext(program, callData = ByteString.empty, callValue, Storage.Empty)
+    val resultCreate = VM.run(contextCreate)
     printResult("CONTRACT CREATE", resultCreate)
 
     val contract = Program(resultCreate.returnData)
 
     val resultAfterIter = (1 to 10).foldLeft(resultCreate){ (previousResult, i) =>
-      val invokeStored = ProgramInvoke(contract, callData = loadCode(getStoredFibHex), callValue, previousResult.storage)
-      val resultStored = VM.run(invokeStored)
+      val contextStored = ProgramContext(contract, callData = loadCode(getStoredFibHex), callValue, previousResult.storage)
+      val resultStored = VM.run(contextStored)
       printResult(s"getStoredFib()  [$getStoredFibHex]", resultStored)
 
-      val invokeNew = ProgramInvoke(contract, callData = loadCode(getNewFibHex(i)), callValue, resultStored.storage)
-      val resultNew = VM.run(invokeNew)
+      val contextNew = ProgramContext(contract, callData = loadCode(getNewFibHex(i)), callValue, resultStored.storage)
+      val resultNew = VM.run(contextNew)
       printResult(s"getNewFib($i)  [${getNewFibHex(i)}]", resultNew)
 
       resultNew
     }
 
-    val invokeFinal = ProgramInvoke(contract, callData = loadCode(getStoredFibHex), callValue, resultAfterIter.storage)
-    val resultFinal = VM.run(invokeFinal)
+    val contextFinal = ProgramContext(contract, callData = loadCode(getStoredFibHex), callValue, resultAfterIter.storage)
+    val resultFinal = VM.run(contextFinal)
     printResult(s"getStoredFib()  [$getStoredFibHex]", resultFinal)
   }
 

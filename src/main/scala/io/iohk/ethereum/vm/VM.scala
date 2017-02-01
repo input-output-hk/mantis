@@ -5,8 +5,8 @@ import scala.annotation.tailrec
 
 object VM {
 
-  def run(invoke: ProgramInvoke): ProgramResult = {
-    val finalState = run(ProgramState(invoke))
+  def run(context: ProgramContext): ProgramResult = {
+    val finalState = run(ProgramState(context))
     ProgramResult(finalState.returnData, finalState.storage, finalState.error)
   }
 

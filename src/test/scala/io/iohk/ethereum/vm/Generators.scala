@@ -58,7 +58,7 @@ object Generators extends ObjectGenerators {
       code <- codeGen
       callData <- callDataGen
       callValue <- callValueGen
-      invoke = ProgramInvoke(Program(code), callData, callValue, storage)
-    } yield ProgramState(invoke).withStack(stack).withMemory(memory)
+      context = ProgramContext(Program(code), callData, callValue, storage)
+    } yield ProgramState(context).withStack(stack).withMemory(memory)
 
 }
