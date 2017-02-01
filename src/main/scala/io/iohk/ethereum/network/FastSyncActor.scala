@@ -13,11 +13,12 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
   import context.{dispatcher, system}
 
+  //TODO move to conf
   val BlocksPerMessage = 10
   val NodesPerRequest = 10
   val NodeRequestsInterval: FiniteDuration = 3.seconds
+
   val GenesisBlockNumber = 0
-  //TODO move to conf
   val EmptyAccountStorageHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
   val EmptyAccountEvmCodeHash = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 
@@ -29,6 +30,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
   override def receive: Receive = handleTerminated orElse {
     case StartSync(targetBlockHash) =>
+      //TODO check DB if it is not empty delete everything
       peerActor ! PeerActor.Subscribe(Set(NodeData.code, Receipts.code, BlockBodies.code, BlockHeaders.code))
       peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(targetBlockHash), 1, 0, reverse = false))
       context become waitForTargetBlockHeader(targetBlockHash)
