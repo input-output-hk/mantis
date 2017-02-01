@@ -42,7 +42,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockHeaders]])
 
     //when
-    peer.reply(MessageReceived(BlockHeaders(Seq(new_headers))))
+    //peer.reply(MessageReceived(BlockHeaders(Seq(new_headers))))
 
     //then
 
