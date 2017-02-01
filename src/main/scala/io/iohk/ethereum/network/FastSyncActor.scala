@@ -38,7 +38,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       peerActor ! PeerActor.SendMessage(GetNodeData(Seq(blockHeaders.head.stateRoot)))
       peerActor ! PeerActor.SendMessage(GetBlockHeaders(Right(startBlockHash), BlocksPerMessage, 0, reverse = false))
       context become processMessages(ProcessingState(startBlockHash, targetBlockHash,
-        requestedNodes = Seq(MptNodeHash(blockHeaders.head.stateRoot))))
+        requestedNodes = Seq(StateMptNodeHash(blockHeaders.head.stateRoot))))
   }
 
   def processMessages(state: ProcessingState): Receive = handleTerminated orElse handleMptDownload(state) orElse {
@@ -74,6 +74,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         log.info("bodies: {}", bodies)
         peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(headers.last.number + 1), BlocksPerMessage, skip = 0, reverse = false))
         context become processMessages(state.copy(blockHeaders = Seq.empty, blockReceipts = Seq.empty, blockBodies = Seq.empty))
+        //TODO insert all elements
       case _ =>
     }
   }
@@ -82,10 +83,10 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
     case MessageReceived(m: NodeData) if m.values.length == state.requestedNodes.length =>
       state.requestedNodes.zipWithIndex.foreach {
         case (StateMptNodeHash(hash), idx) =>
-          handleMptNode(hash, m.getMptNode(idx), state)
+          handleMptNode(hash, m.getMptNode(idx))
 
         case (ContractStorageMptNodeHash(hash), idx) =>
-          handleContractMptNode(hash, m.getMptNode(idx), state)
+          handleContractMptNode(hash, m.getMptNode(idx))
 
         case (EvmCodeHash(hash), idx) =>
           val evmCode = m.values(idx)
@@ -101,7 +102,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
                |for hash: ${Hex.toHexString(hash.toArray[Byte])}
                  """.stripMargin
           log.info(msg)
-          self ! RequestNodes()
+          handleContractMptNode(hash, rootNode)
       }
       //remove hashes from state as nodes received
       context become processMessages(state.copy(requestedNodes = Seq.empty))
@@ -130,31 +131,31 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       }
   }
 
-  private def handleContractMptNode(hash: ByteString, mptNode: MptNode, state: ProcessingState) = {
+  private def handleContractMptNode(hash: ByteString, mptNode: MptNode) = {
     mptNode match {
       case n: MptLeaf =>
-        log.info("Got leaf node: {}", n)
+        log.info("Got contract leaf node: {}", n)
       //TODO insert node
 
       case n: MptBranch =>
-        log.info("Got branch node: {}", n)
+        log.info("Got contract branch node: {}", n)
         val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-        self ! RequestNodes(hashes.map(ContractStorageMptNodeHash))
+        self ! RequestNodes(hashes.map(ContractStorageMptNodeHash): _*)
       //TODO insert node
 
       case n: MptExtension =>
-        log.info("Got extension node: {}", n)
+        log.info("Got contract extension node: {}", n)
         n.child.fold(
           { case MptHash(nodeHash) =>
             self ! RequestNodes(ContractStorageMptNodeHash(nodeHash))
           }, { case MptValue(value) =>
-            log.info("Got value in extension node: ", Hex.toHexString(value.toArray[Byte]))
+            log.info("Got contract value in extension node: ", Hex.toHexString(value.toArray[Byte]))
           })
       //TODO insert node
     }
   }
 
-  private def handleMptNode(hash: ByteString, mptNode: MptNode, state: ProcessingState) = {
+  private def handleMptNode(hash: ByteString, mptNode: MptNode) = {
     mptNode match {
       case n: MptLeaf =>
         log.info("Got leaf node: {}", n)
@@ -174,7 +175,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       case n: MptBranch =>
         log.info("Got branch node: {}", n)
         val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-        self ! RequestNodes(hashes.map(StateMptNodeHash))
+        self ! RequestNodes(hashes.map(StateMptNodeHash): _*)
       //TODO insert node
 
       case n: MptExtension =>

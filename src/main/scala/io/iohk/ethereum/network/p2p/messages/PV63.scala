@@ -183,7 +183,7 @@ object PV63 {
       s"""MptLeaf{
          |key nibbles: $keyNibbles
          |key nibbles length: ${keyNibbles.length}
-         |value: $value
+         |value: ${Hex.toHexString(value.toArray[Byte])}
          |}
        """.stripMargin
     }

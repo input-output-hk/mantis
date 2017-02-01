@@ -149,15 +149,14 @@ class PeerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
     case RLPxConnectionHandler.MessageReceived(msg@BlockHeaders(blockHeader +: Nil)) if blockHeader.number == DaoBlockNumber =>
       timeout.cancel()
       context become new HandshakedHandler(rlpxConnection).receive
-      //todo uncomment
-//      log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.blockHash.toArray))
-//      if (daoForkValidator.validate(msg).isEmpty) {
-//        log.warning("Peer is running the ETC chain")
-//        context become new HandshakedHandler(rlpxConnection).receive
-//      } else {
-//        log.warning("Peer is not running the ETC fork, disconnecting")
-//        disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
-//      }
+      log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.blockHash.toArray))
+      if (daoForkValidator.validate(msg).isEmpty) {
+        log.warning("Peer is running the ETC chain")
+        context become new HandshakedHandler(rlpxConnection).receive
+      } else {
+        log.warning("Peer is not running the ETC fork, disconnecting")
+        disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
+      }
 
     case RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)) =>
       // FIXME We need to do some checking related to our blockchain. If we haven't arrived to the DAO block we might
