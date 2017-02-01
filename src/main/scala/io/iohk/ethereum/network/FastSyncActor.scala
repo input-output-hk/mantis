@@ -81,8 +81,11 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
   private def handleMptDownload(state: ProcessingState): Receive = {
     case MessageReceived(m: NodeData) if m.values.length == state.requestedNodes.length =>
       state.requestedNodes.zipWithIndex.foreach {
-        case (MptNodeHash(hash), idx) =>
+        case (StateMptNodeHash(hash), idx) =>
           handleMptNode(hash, m.getMptNode(idx), state)
+
+        case (ContractStorageMptNodeHash(hash), idx) =>
+          handleContractMptNode(hash, m.getMptNode(idx), state)
 
         case (EvmCodeHash(hash), idx) =>
           val evmCode = m.values(idx)
@@ -98,12 +101,13 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
                |for hash: ${Hex.toHexString(hash.toArray[Byte])}
                  """.stripMargin
           log.info(msg)
+          self ! RequestNodes()
       }
       //remove hashes from state as nodes received
       context become processMessages(state.copy(requestedNodes = Seq.empty))
       self ! FetchNodes
 
-    case RequestNodes(hashes) =>
+    case RequestNodes(hashes@_*) =>
       context become processMessages(state.copy(nodesQueue = hashes ++ state.nodesQueue))
       self ! FetchNodes
 
@@ -112,7 +116,8 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         val (nonMptHashes, mptHashes) = state.nodesQueue.partition {
           case EvmCodeHash(_) => true
           case StorageRootHash(_) => true
-          case MptNodeHash(_) => false
+          case StateMptNodeHash(_) => false
+          case ContractStorageMptNodeHash(_) => false
         }
 
         val (forRequest, forQueue) = (nonMptHashes ++ mptHashes).splitAt(NodesPerRequest)
@@ -125,6 +130,30 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       }
   }
 
+  private def handleContractMptNode(hash: ByteString, mptNode: MptNode, state: ProcessingState) = {
+    mptNode match {
+      case n: MptLeaf =>
+        log.info("Got leaf node: {}", n)
+      //TODO insert node
+
+      case n: MptBranch =>
+        log.info("Got branch node: {}", n)
+        val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
+        self ! RequestNodes(hashes.map(ContractStorageMptNodeHash))
+      //TODO insert node
+
+      case n: MptExtension =>
+        log.info("Got extension node: {}", n)
+        n.child.fold(
+          { case MptHash(nodeHash) =>
+            self ! RequestNodes(ContractStorageMptNodeHash(nodeHash))
+          }, { case MptValue(value) =>
+            log.info("Got value in extension node: ", Hex.toHexString(value.toArray[Byte]))
+          })
+      //TODO insert node
+    }
+  }
+
   private def handleMptNode(hash: ByteString, mptNode: MptNode, state: ProcessingState) = {
     mptNode match {
       case n: MptLeaf =>
@@ -133,11 +162,11 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         val storage = n.getAccount.storageRoot
 
         if (evm != EmptyAccountEvmCodeHash) {
-          self ! RequestNodes(Seq(EvmCodeHash(evm)))
+          self ! RequestNodes(EvmCodeHash(evm))
         }
 
         if (storage != EmptyAccountStorageHash) {
-          self ! RequestNodes(Seq(StorageRootHash(storage)))
+          self ! RequestNodes(StorageRootHash(storage))
         }
 
       //TODO insert node
@@ -145,14 +174,14 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       case n: MptBranch =>
         log.info("Got branch node: {}", n)
         val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-        self ! RequestNodes(hashes.map(MptNodeHash))
+        self ! RequestNodes(hashes.map(StateMptNodeHash))
       //TODO insert node
 
       case n: MptExtension =>
         log.info("Got extension node: {}", n)
         n.child.fold(
           { case MptHash(nodeHash) =>
-            self ! RequestNodes(Seq(MptNodeHash(nodeHash)))
+            self ! RequestNodes(StateMptNodeHash(nodeHash))
           }, { case MptValue(value) =>
             log.info("Got value in extension node: ", Hex.toHexString(value.toArray[Byte]))
           })
@@ -172,8 +201,12 @@ object FastSyncActor {
     val v: ByteString
   }
 
-  private case class MptNodeHash(v: ByteString) extends HashType {
-    override def toString: String = s"MptNodeHash(${Hex.toHexString(v.toArray[Byte])})"
+  private case class StateMptNodeHash(v: ByteString) extends HashType {
+    override def toString: String = s"StateMptNodeHash(${Hex.toHexString(v.toArray[Byte])})"
+  }
+
+  private case class ContractStorageMptNodeHash(v: ByteString) extends HashType {
+    override def toString: String = s"ContractStorageMptNodeHash(${Hex.toHexString(v.toArray[Byte])})"
   }
 
   private case class EvmCodeHash(v: ByteString) extends HashType {
@@ -184,7 +217,7 @@ object FastSyncActor {
     override def toString: String = s"StorageRootHash(${Hex.toHexString(v.toArray[Byte])})"
   }
 
-  private case class RequestNodes(hashes: Seq[HashType])
+  private case class RequestNodes(hashes: HashType*)
 
   private case object FetchNodes
 
