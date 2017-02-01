@@ -11,7 +11,6 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.MessageReceived
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
@@ -49,9 +48,11 @@ class PeerActor(
   lazy val DaoBlockTotalDifficulty = BigInt("39490964433395682584")
   lazy val daoForkValidator = ForkValidator(DaoBlockNumber, ByteString(Hex.decode("94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f")))
 
+  private var messageSubscribers: Seq[Subscriber] = Nil
+
   override def receive: Receive = waitingForInitialCommand
 
-  def waitingForInitialCommand: Receive = {
+  def waitingForInitialCommand: Receive = handleSubscriptions orElse {
     case HandleConnection(connection, remoteAddress) =>
       val rlpxConnection = createRlpxConnection(remoteAddress, None)
       rlpxConnection.ref ! RLPxConnectionHandler.HandleConnection(connection)
@@ -71,7 +72,8 @@ class PeerActor(
     RLPxConnection(ref, remoteAddress, uriOpt)
   }
 
-  def waitingForConnectionResult(rlpxConnection: RLPxConnection, noRetries: Int = 0): Receive = handleTerminated(rlpxConnection) orElse {
+  def waitingForConnectionResult(rlpxConnection: RLPxConnection, noRetries: Int = 0): Receive =
+    handleSubscriptions orElse handleTerminated(rlpxConnection) orElse {
     case RLPxConnectionHandler.ConnectionEstablished =>
       log.info("RLPx connection established, sending Hello")
       val hello = Hello(
@@ -110,9 +112,9 @@ class PeerActor(
     }
   }
 
-  def waitingForHello(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive = handleTerminated(rlpxConnection) orElse
-    handleDisconnectMsg orElse {
-    case MessageReceived(hello: Hello) =>
+  def waitingForHello(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
+    handleSubscriptions orElse handleTerminated(rlpxConnection) orElse handleDisconnectMsg orElse {
+    case RLPxConnectionHandler.MessageReceived(hello: Hello) =>
       log.info("Protocol handshake finished with peer ({})", hello)
       timeout.cancel()
       if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
@@ -127,10 +129,10 @@ class PeerActor(
     case GetStatus => sender() ! StatusResponse(Handshaking)
   }
 
-  def waitingForNodeStatus(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive = handleTerminated(rlpxConnection) orElse
-    handleDisconnectMsg orElse
-    handlePingMsg(rlpxConnection) orElse {
-    case MessageReceived(status: msg.Status) =>
+  def waitingForNodeStatus(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
+    handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
+    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse {
+    case RLPxConnectionHandler.MessageReceived(status: msg.Status) =>
       timeout.cancel()
       log.info("Peer returned status ({})", status)
       rlpxConnection.sendMessage(GetBlockHeaders(Left(DaoBlockNumber), maxHeaders = 1, skip = 0, reverse = 0))
@@ -144,10 +146,10 @@ class PeerActor(
     case GetStatus => sender() ! StatusResponse(Handshaking)
   }
 
-  def waitingForChainForkCheck(rlpxConnection: RLPxConnection, status: msg.Status, timeout: Cancellable): Receive = handleTerminated(rlpxConnection) orElse
-    handleDisconnectMsg orElse
-    handlePingMsg(rlpxConnection) orElse {
-    case MessageReceived(msg@BlockHeaders(blockHeader +: Nil)) if blockHeader.number == DaoBlockNumber =>
+  def waitingForChainForkCheck(rlpxConnection: RLPxConnection, status: msg.Status, timeout: Cancellable): Receive =
+    handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
+    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse {
+    case RLPxConnectionHandler.MessageReceived(msg@BlockHeaders(blockHeader +: Nil)) if blockHeader.number == DaoBlockNumber =>
       timeout.cancel()
       log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.hash.toArray))
       if (daoForkValidator.validate(msg).isEmpty) {
@@ -158,7 +160,7 @@ class PeerActor(
         disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
       }
 
-    case MessageReceived(BlockHeaders(Nil)) =>
+    case RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)) =>
       // FIXME We need to do some checking related to our blockchain. If we haven't arrived to the DAO block we might
       // take advantage of this peer and grab as much blocks as we can until DAO.
       // ATM we will only check by DaoBlockTotalDifficulty
@@ -179,7 +181,7 @@ class PeerActor(
     context become disconnected
   }
 
-  def disconnected: Receive = {
+  def disconnected: Receive = handleSubscriptions orElse {
     case GetStatus => sender() ! StatusResponse(Disconnected)
   }
 
@@ -211,21 +213,44 @@ class PeerActor(
   }
 
   def handlePingMsg(rlpxConnection: RLPxConnection): Receive = {
-    case MessageReceived(ping: Ping) => rlpxConnection.sendMessage(Pong())
+    case RLPxConnectionHandler.MessageReceived(ping: Ping) => rlpxConnection.sendMessage(Pong())
   }
 
   def handleDisconnectMsg : Receive = {
-    case MessageReceived(d: Disconnect) =>
+    case RLPxConnectionHandler.MessageReceived(d: Disconnect) =>
       log.info("Received {}. Closing connection", d)
       context stop self
   }
 
+  def handleSubscriptions: Receive = {
+    case Subscribe(messageCodes) =>
+      val (senderSubscriptions, remainingSubscriptions) = messageSubscribers.partition(_.ref == sender())
+      val allMessageCodes = senderSubscriptions.flatMap(_.messageCodes).toSet ++ messageCodes
+      messageSubscribers = remainingSubscriptions :+ Subscriber(sender(), allMessageCodes)
+
+    case Unsubscribe =>
+      messageSubscribers = messageSubscribers.filterNot(_.ref == sender())
+  }
+
   class HandshakedHandler(rlpxConnection: RLPxConnection) {
 
-    def receive: Receive = handleTerminated(rlpxConnection) orElse {
-      case RLPxConnectionHandler.MessageReceived(message) => processMessage(message)
-      case s: SendMessage[_] => rlpxConnection.sendMessage(s.message)(s.enc)
-      case GetStatus => sender() ! StatusResponse(Handshaked)
+    def receive: Receive =
+      handleSubscriptions orElse handleTerminated(rlpxConnection) orElse {
+      case RLPxConnectionHandler.MessageReceived(message) =>
+        notifySubscribers(message)
+        processMessage(message)
+
+      case s: SendMessage[_] =>
+        rlpxConnection.sendMessage(s.message)(s.enc)
+
+      case GetStatus =>
+        sender() ! StatusResponse(Handshaked)
+    }
+
+    def notifySubscribers(message: Message): Unit = {
+      val subscribers = messageSubscribers.filter(_.messageCodes.contains(message.code))
+      val toNotify = subscribers.map(_.ref).toSet
+      toNotify.foreach { _ ! MessageReceived(message) }
     }
 
     def processMessage(message: Message): Unit = message match {
@@ -280,4 +305,10 @@ object PeerActor {
     case object Disconnected extends Status
   }
 
+  case class Subscribe(messageCodes: Set[Int])
+  case object Unsubscribe
+
+  private case class Subscriber(ref: ActorRef, messageCodes: Set[Int])
+
+  case class MessageReceived(message: Message)
 }
