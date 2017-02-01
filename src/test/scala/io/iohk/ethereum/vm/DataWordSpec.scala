@@ -5,11 +5,9 @@ import io.iohk.ethereum.ObjectGenerators
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 import io.iohk.ethereum.vm.DataWord._
-import org.scalatest.compatible.Assertion
 
 
 class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
-
 
   val specialNumbers = Array(BigInt(-1), BigInt(0), BigInt(1), MaxWord.toBigInt, -MaxWord.toBigInt, -MaxWord.toBigInt + 1)
 
@@ -21,8 +19,8 @@ class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
   val specialCases = Table(("n1", "n2"), pairs: _*)
 
   /** For each operation (op) tests check a following property:
-      For two BigInts (n1, n2):
-      DataWord(n1) op DataWord(n2) == DataWord(n1 op n2)
+   For two BigInts (n1, n2):
+   DataWord(n1) op DataWord(n2) == DataWord(n1 op n2)
    */
   test("&") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
@@ -108,13 +106,17 @@ class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
     }
   }
 
+  test("**") {
+    val TestModulus: BigInt = BigInt(2).pow(MaxLength * 8)
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      whenever(n2 != 0) {
+        assert(DataWord(n1) ** DataWord(n2) == DataWord(n1.modPow(n2, TestModulus)))
+      }
+    }
+  }
+
   test("intValue") {
-    forAll(bigIntGen) { n: BigInt =>
-      assert(DataWord(n).intValue == n.intValue)
-    }
-    forAll(Table("n", specialNumbers: _*)) { n: BigInt =>
-      assert(DataWord(n).intValue == n.intValue)
-    }
+    assert(specialNumbers.map(DataWord(_).intValue).toSeq == Seq(2147483647, 0, 1, 2147483647, 1, 2))
   }
 
   test("comparison") {
@@ -144,6 +146,14 @@ class DataWordSpec extends FunSuite with PropertyChecks with ObjectGenerators {
     assertThrows[IllegalArgumentException] {
       DataWord(ByteString(Array.fill(MaxLength + 1)(1.toByte)))
     }
+  }
+
+  test("DataWord converted to a byte array should always have length 32 bytes") {
+    forAll(bigIntGen) { n =>
+      assert(DataWord(n).bytes.size == 32)
+    }
+    // regression
+    assert(DataWord(BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935")).bytes.size == 32)
   }
 
 }
