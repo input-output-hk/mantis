@@ -2,6 +2,7 @@ package io.iohk.ethereum.utils
 
 import scala.util.{Either, Left, Right}
 
+// To be removed after upgrading Scala to v2.12
 object EitherExtensions {
 
   implicit class RightBiasedEither[A, B](val either: Either[A, B]) extends AnyVal {

@@ -205,7 +205,7 @@ case object MUL extends BinaryOp(0x02)(_ * _)
 
 case object SUB extends BinaryOp(0x03)(_ - _)
 
-case object DIV extends BinaryOp(0x04)((a, b) => if (b != 0) a / b else DataWord(0))
+case object DIV extends BinaryOp(0x04)((a, b) => if (b != 0) a / b else DataWord.Zero)
 
 case object EXP extends BinaryOp(0x0a)(_ ** _)
 
@@ -275,7 +275,7 @@ case object EXTCODECOPY extends OpCode(0x3c, 4, 0) {
     val updatedState = for {
       popped <- state.stack.pop(4)
       (Seq(address, memOffset, codeOffset, size), stack1) = popped
-      codeCopy: ByteString = ??? //TODO: program.getCode(address).drop(codeOffset)
+      codeCopy: ByteString = ByteString()
       mem1 = state.memory.store(memOffset, codeCopy)
     } yield state.withStack(stack1).withMemory(mem1).step()
 
@@ -368,7 +368,6 @@ case object JUMPI extends OpCode(0x57, 2, 0) {
 
 case object JUMPDEST extends OpCode(0x5b, 0, 0) {
   def execute(state: ProgramState): ProgramState = {
-    //TODO: what is it for, really?
     state.step()
   }
 }
@@ -480,9 +479,7 @@ sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code.toByte, i
     val updatedState = for {
       popped <- state.stack.pop(delta)
       (_, stack1) = popped
-      //TODO: implement logging
     } yield state.withStack(stack1).step()
-
     updatedState.valueOr(state.withError)
   }
 }

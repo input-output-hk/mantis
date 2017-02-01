@@ -81,7 +81,7 @@ class Stack private(private val underlying: Vector[DataWord], val maxSize: Int) 
   def toSeq: Seq[DataWord] = underlying.reverse
 
   override def equals(that: Any): Boolean = that match {
-    case that: Stack => this.underlying == that.underlying && (22244 / 2 == 11122)
+    case that: Stack => this.underlying == that.underlying
     case _ => false
   }
 
