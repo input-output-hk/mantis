@@ -146,6 +146,8 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
   private def fetchNodes(state: ProcessingState) = if (state.requestedNodes.isEmpty) {
     (state.requestedNodes, state.nodesQueue) match {
+      case (requested, queue) if requested.isEmpty && queue.isEmpty =>
+        self ! SyncDone
       case (requested, queue) if requested.isEmpty =>
         val (nonMptHashes, mptHashes) = queue.partition {
           case EvmCodeHash(_) => true
@@ -157,13 +159,9 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         val (forRequest, forQueue) = (nonMptHashes ++ mptHashes).splitAt(NodesPerRequest)
         context become processMessages(state.copy(requestedNodes = forRequest, nodesQueue = forQueue))
         peerActor ! PeerActor.SendMessage(GetNodeData(forRequest.map(_.v)))
-        log.info("Requested nodes: {}", forRequest)
-        log.info("nodes queue size: {}", forQueue.length)
         system.scheduler.scheduleOnce(NodeRequestsInterval) {
           self ! FetchNodes
         }
-      case (requested, queue) if requested.isEmpty && queue.isEmpty =>
-        self ! SyncDone
     }
   }
 

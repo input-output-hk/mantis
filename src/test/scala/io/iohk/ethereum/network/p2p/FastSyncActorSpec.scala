@@ -6,9 +6,10 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
+import io.iohk.ethereum.network.FastSyncActor.FastSyncDone
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
+import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.{FastSyncActor, NodeInfo, PeerActor}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -33,13 +34,6 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
   "FastSyncActor" should "recursively process chain" in new TestSetup {
     // before
-    val responseBlockHeaders = Seq(
-      genesisBlockHeader,
-      genesisBlockHeader.copy(number = 1),
-      genesisBlockHeader.copy(number = 2),
-      genesisBlockHeader.copy(number = 3))
-    val blockHashes: Seq[ByteString] = responseBlockHeaders.map(_.blockHash)
-
     fastSync ! FastSyncActor.StartSync(targetBlockHash)
 
     peer.expectMsgClass(classOf[PeerActor.Subscribe])
@@ -56,6 +50,36 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     //then
     peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(blockHashes)))
     peer.expectMsg(PeerActor.SendMessage(GetReceipts(blockHashes)))
+  }
+
+  "FastSyncActor" should "stop when chain and mpt is downloaded" in new TestSetup {
+    // before
+    fastSync ! FastSyncActor.StartSync(targetBlockHash)
+
+    peer.expectMsgClass(classOf[PeerActor.Subscribe])
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockHeaders]])
+
+    peer.reply(MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
+
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockHeaders]])
+
+    peer.reply(MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
+
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockBodies]])
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetReceipts]])
+
+
+    //TODO add assertion on db save for block elements
+
+    //when
+    peer.reply(MessageReceived(BlockBodies(Seq(BlockBody(transactionList = Seq.empty, uncleNodesList = Seq.empty)))))
+    peer.reply(MessageReceived(Receipts(Seq(Seq.empty))))
+    peer.reply(MessageReceived(stateMptLeafWithAccount))
+
+    //then
+    peer.expectMsgClass(classOf[FastSyncDone])
+
   }
 
   trait TestSetup {
@@ -95,6 +119,16 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
       mixHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
       nonce = ByteString(Hex.decode("0000000000000042"))
     )
+
+    val responseBlockHeaders = Seq(
+      genesisBlockHeader,
+      genesisBlockHeader.copy(number = 1),
+      genesisBlockHeader.copy(number = 2),
+      genesisBlockHeader.copy(number = 3))
+    val blockHashes: Seq[ByteString] = responseBlockHeaders.map(_.blockHash)
+
+    val stateMptLeafWithAccount =
+      NodeData(Seq(ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))))
 
     implicit val system = ActorSystem("PeerActorSpec_System")
     val nodeInfo = NodeInfo(crypto.generateKeyPair(), new InetSocketAddress("127.0.0.1", 1))
