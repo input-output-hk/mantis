@@ -63,6 +63,14 @@ object CommonMessages {
   }
 
   object Transaction {
+    val NonceLength = 32
+    val GasLength = 32
+    val ValueLength = 32
+    val AddressLength = 20
+
+    val FirstByteOfAddress = 12
+    val LastByteOfAddress = FirstByteOfAddress + AddressLength
+
     implicit val rlpEndDec = new RLPEncoder[Transaction] with RLPDecoder[Transaction] {
       override def encode(obj: Transaction): RLPEncodeable = {
         import obj._
@@ -100,6 +108,8 @@ object CommonMessages {
     signatureRandom: ByteString, //r
     signature: ByteString /*s*/) {
 
+    import Transaction._
+
     lazy val bytesToSign: Array[Byte] = crypto.sha3(rlpEncode(RLPList(nonce, gasPrice, gasLimit,
       receivingAddress.toArray[Byte], value, payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte]))))
 
@@ -110,10 +120,20 @@ object CommonMessages {
       bytesToSign
     )
 
-    val FirstByteOfAddress = 12
-    val LastByteOfAddress = 32
-
     lazy val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
+
+    lazy val syntacticValidity: Boolean = {
+      def byteLength(b: BigInt): Int = b.toByteArray.length
+
+      byteLength(nonce) <= NonceLength &&
+        (receivingAddress.isEmpty || receivingAddress.length == AddressLength) &&
+        byteLength(gasLimit) <= GasLength &&
+        byteLength(gasPrice) <= GasLength &&
+        byteLength(value) <= ValueLength &&
+        signatureRandom.length <= ECDSASignature.RLength &&
+        signature.length <= ECDSASignature.SLength &&
+        recoveredAddress.isDefined && recoveredAddress.get.length == AddressLength
+    }
 
     override def toString: String = {
       s"""Transaction {
