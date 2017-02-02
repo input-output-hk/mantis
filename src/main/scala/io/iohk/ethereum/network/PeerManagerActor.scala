@@ -4,9 +4,11 @@ import java.net.{InetSocketAddress, URI}
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
+import akka.agent.Agent
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
+import io.iohk.ethereum.utils.NodeStatus
 
-class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
+class PeerManagerActor(nodeStatusHolder: Agent[NodeStatus]) extends Actor with ActorLogging {
 
   import PeerManagerActor._
 
@@ -38,7 +40,7 @@ class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 
   def createPeer(addr: InetSocketAddress): Peer = {
     val id = addr.toString.filterNot(_ == '/')
-    val ref = context.actorOf(PeerActor.props(nodeInfo, _.actorOf(RLPxConnectionHandler.props(nodeInfo), "rlpx-connection")), id)
+    val ref = context.actorOf(PeerActor.props(nodeStatusHolder, _.actorOf(RLPxConnectionHandler.props(nodeStatusHolder().key), "rlpx-connection")), id)
     context watch ref
     val peer = Peer(id, addr, ref)
     peers += id -> peer
@@ -48,8 +50,8 @@ class PeerManagerActor(nodeInfo: NodeInfo) extends Actor with ActorLogging {
 }
 
 object PeerManagerActor {
-  def props(nodeInfo: NodeInfo): Props =
-    Props(new PeerManagerActor(nodeInfo))
+  def props(nodeStatusHolder: Agent[NodeStatus]): Props =
+    Props(new PeerManagerActor(nodeStatusHolder))
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
   case class ConnectToPeer(uri: URI)

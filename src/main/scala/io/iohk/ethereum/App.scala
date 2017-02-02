@@ -1,30 +1,41 @@
 package io.iohk.ethereum
 
-import java.net.{InetSocketAddress, URI}
+import java.net.URI
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import akka.actor.ActorSystem
+import akka.agent._
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.network.{NodeInfo, ServerActor, PeerManagerActor}
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.network.{ServerActor, PeerManagerActor}
+import io.iohk.ethereum.utils.{BlockchainStatus, ServerStatus, NodeStatus, Config}
 
 object App {
+
+  import Config.{Network => NetworkConfig}
 
   val nodeKey = generateKeyPair()
 
   def main(args: Array[String]): Unit = {
-    val listenAddress = new InetSocketAddress(Config.Server.interface, Config.Server.port)
-    val nodeInfo = NodeInfo(nodeKey, listenAddress)
-
     val actorSystem = ActorSystem("etc-client_system")
 
-    val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeInfo))
-    val server = actorSystem.actorOf(ServerActor.props(nodeInfo, peerManager))
+    val nodeStatus =
+      NodeStatus(
+        key = nodeKey,
+        serverStatus = ServerStatus.NotListening,
+        blockchainStatus = BlockchainStatus(Config.Blockchain.genesisDifficulty, Config.Blockchain.genesisHash))
 
-    server ! ServerActor.StartServer(listenAddress)
+    val nodeStatusHolder = Agent(nodeStatus)
 
-    val bootstrapNodes = Config.Discovery.bootstrapNodes.map(new URI(_))
+    val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder), "peer-manager")
+    val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
+
+    server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
+
+    val bootstrapNodes = NetworkConfig.Discovery.bootstrapNodes.map(new URI(_))
     bootstrapNodes.foreach { node =>
       peerManager ! PeerManagerActor.ConnectToPeer(node)
     }
   }
+
 }

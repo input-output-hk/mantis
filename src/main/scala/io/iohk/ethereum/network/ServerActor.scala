@@ -3,12 +3,13 @@ package io.iohk.ethereum.network
 import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.agent.Agent
 import akka.io.Tcp.{Bind, Bound, CommandFailed, Connected}
 import akka.io.{IO, Tcp}
-import org.spongycastle.crypto.params.ECPublicKeyParameters
+import io.iohk.ethereum.utils.{ServerStatus, NodeStatus}
 import org.spongycastle.util.encoders.Hex
 
-class ServerActor(nodeInfo: NodeInfo, peerManager: ActorRef) extends Actor with ActorLogging {
+class ServerActor(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) extends Actor with ActorLogging {
 
   import ServerActor._
   import context.system
@@ -21,11 +22,13 @@ class ServerActor(nodeInfo: NodeInfo, peerManager: ActorRef) extends Actor with 
 
   def waitingForBindingResult: Receive = {
     case Bound(localAddress) =>
+      val nodeStatus = nodeStatusHolder()
       log.info("Listening on {}", localAddress)
       log.info("Node address: enode://{}@{}:{}",
-        Hex.toHexString(nodeInfo.key.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId),
+        Hex.toHexString(nodeStatus.nodeId),
         localAddress.getAddress.getHostAddress,
         localAddress.getPort)
+      nodeStatusHolder.send(_.copy(serverStatus = ServerStatus.Listening(localAddress)))
       context become listening
 
     case CommandFailed(b: Bind) =>
@@ -41,8 +44,8 @@ class ServerActor(nodeInfo: NodeInfo, peerManager: ActorRef) extends Actor with 
 }
 
 object ServerActor {
-  def props(nodeInfo: NodeInfo, peerManager: ActorRef): Props =
-    Props(new ServerActor(nodeInfo, peerManager))
+  def props(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef): Props =
+    Props(new ServerActor(nodeStatusHolder, peerManager))
 
   case class StartServer(address: InetSocketAddress)
 }
