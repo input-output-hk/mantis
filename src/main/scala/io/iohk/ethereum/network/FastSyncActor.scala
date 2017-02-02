@@ -1,12 +1,13 @@
 package io.iohk.ethereum.network
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated}
 import akka.util.ByteString
 import io.iohk.ethereum.network.FastSyncActor._
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import org.spongycastle.util.encoders.Hex
+
 import scala.concurrent.duration._
 
 class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
@@ -70,8 +71,9 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
     case MessageReceived(m) =>
       log.info("Got unexpected message {}", m)
-      log.info("Requested nodes {}, blockHeaders {}",
-        state.requestedNodes, state.blockHeaders)
+      log.info("Requested nodes {}, blockHeaders {}", state.requestedNodes, state.blockHeaders)
+      peerActor ! SyncFailure
+      self ! PoisonPill
   }
 
   private def isFastSyncDone(state: ProcessingState): Boolean =
@@ -230,9 +232,11 @@ object FastSyncActor {
 
   case class StartSync(targetBlockHash: ByteString)
 
-  private case object PartialDownloadDone
+  case object SyncFailure
 
   case class FastSyncDone(fastSyncActor: ActorRef)
+
+  private case object PartialDownloadDone
 
   private trait HashType {
     val v: ByteString

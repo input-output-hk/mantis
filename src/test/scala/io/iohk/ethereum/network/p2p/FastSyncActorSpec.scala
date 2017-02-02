@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.network.FastSyncActor.FastSyncDone
+import io.iohk.ethereum.network.FastSyncActor.{FastSyncDone, SyncFailure}
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
@@ -80,6 +80,31 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     //then
     peer.expectMsgClass(classOf[FastSyncDone])
 
+  }
+
+  "FastSyncActor" should "send failure message when got malformed response" in new TestSetup {
+    // before
+    fastSync ! FastSyncActor.StartSync(targetBlockHash)
+
+    peer.expectMsgClass(classOf[PeerActor.Subscribe])
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockHeaders]])
+
+    peer.reply(MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
+
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockHeaders]])
+
+
+    peer.reply(MessageReceived(BlockHeaders(responseBlockHeaders)))
+
+    peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(blockHashes)))
+    peer.expectMsg(PeerActor.SendMessage(GetReceipts(blockHashes)))
+
+    //when
+    peer.reply(MessageReceived(Receipts(Seq())))
+
+    //then
+    peer.expectMsg(SyncFailure)
   }
 
   trait TestSetup {
