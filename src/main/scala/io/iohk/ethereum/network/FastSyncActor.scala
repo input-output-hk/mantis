@@ -4,10 +4,14 @@ import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.network.FastSyncActor._
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.network.p2p.validators.BlockValidator
+import io.iohk.ethereum.network.p2p.validators.BlockValidator.BlockError
+import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.utils.Config.FastSync
 import org.spongycastle.util.encoders.Hex
 
