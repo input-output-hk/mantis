@@ -1,14 +1,19 @@
 package io.iohk.ethereum.network.p2p
 
-import java.net.{InetSocketAddress, URI}
+import java.net.URI
 
-import akka.actor.{PoisonPill, Terminated, ActorSystem}
-import akka.testkit.{TestProbe, TestActorRef}
+import akka.actor.{ActorSystem, PoisonPill, Terminated}
+import akka.agent.Agent
+import akka.testkit.{TestActorRef, TestProbe}
+import akka.util.ByteString
 import io.iohk.ethereum.crypto
+import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
-import io.iohk.ethereum.network.{NodeInfo, PeerActor}
+import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class PeerActorSpec extends FlatSpec with Matchers {
 
@@ -36,12 +41,11 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgClass(classOf[Terminated])
   }
 
-  it should "try to reconnect on broken rlpx connection" in {
+  it should "try to reconnect on broken rlpx connection" in new NodeStatusSetup {
     implicit val system = ActorSystem("PeerActorSpec_System")
-    val nodeInfo = NodeInfo(crypto.generateKeyPair(), new InetSocketAddress("127.0.0.1", 1))
 
     var rlpxConnection = TestProbe() // var as we actually need new instances
-    val peer = TestActorRef(PeerActor.props(nodeInfo, _ => {
+    val peer = TestActorRef(PeerActor.props(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
       }))
@@ -60,12 +64,23 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
   }
 
-  trait TestSetup {
+  trait NodeStatusSetup {
+    val nodeKey = crypto.generateKeyPair()
+
+    val nodeStatus = NodeStatus(
+      key = nodeKey,
+      serverStatus = ServerStatus.NotListening,
+      blockchainStatus = BlockchainStatus(0, ByteString("123")))
+
+    val nodeStatusHolder = Agent(nodeStatus)
+  }
+
+  trait TestSetup extends NodeStatusSetup {
     implicit val system = ActorSystem("PeerActorSpec_System")
-    val nodeInfo = NodeInfo(crypto.generateKeyPair(), new InetSocketAddress("127.0.0.1", 1))
 
     val rlpxConnection = TestProbe()
-    val peer = TestActorRef(PeerActor.props(nodeInfo, _ => rlpxConnection.ref))
+
+    val peer = TestActorRef(PeerActor.props(nodeStatusHolder, _ => rlpxConnection.ref))
   }
 
 }

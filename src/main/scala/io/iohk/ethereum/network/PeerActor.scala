@@ -4,6 +4,7 @@ import java.net.{InetSocketAddress, URI}
 import java.util.UUID
 
 import akka.actor._
+import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
@@ -13,7 +14,7 @@ import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
 import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
@@ -26,11 +27,11 @@ import scala.concurrent.duration._
   * Once that's done it can send/receive messages with peer (HandshakedHandler.receive).
   */
 class PeerActor(
-    nodeInfo: NodeInfo,
+    nodeStatusHolder: Agent[NodeStatus],
     createRlpxConnectionFn: ActorContext => ActorRef)
   extends Actor with ActorLogging {
 
-  import Config.Peer._
+  import Config.Network.Peer._
   import PeerActor._
   import context.{dispatcher, system}
 
@@ -77,13 +78,7 @@ class PeerActor(
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse {
     case RLPxConnectionHandler.ConnectionEstablished =>
       log.info("RLPx connection established, sending Hello")
-      val hello = Hello(
-        p2pVersion = P2pVersion,
-        clientId = "etc-client",
-        capabilities = Seq(Capability("eth", Message.PV63.toByte)),
-        listenPort = nodeInfo.listenAddress.getPort,
-        nodeId = ByteString(nodeInfo.nodeId))
-      rlpxConnection.sendMessage(hello)
+      rlpxConnection.sendMessage(createHelloMsg())
       val timeout = system.scheduler.scheduleOnce(3.seconds, self, ProtocolHandshakeTimeout)
       context become waitingForHello(rlpxConnection, timeout)
 
@@ -104,6 +99,20 @@ class PeerActor(
     case GetStatus => sender() ! StatusResponse(Connecting)
   }
 
+  private def createHelloMsg(): Hello = {
+    val nodeStatus = nodeStatusHolder()
+    val listenPort = nodeStatus.serverStatus match {
+      case ServerStatus.Listening(address) => address.getPort
+      case ServerStatus.NotListening => 0
+    }
+    Hello(
+      p2pVersion = P2pVersion,
+      clientId = Config.clientId,
+      capabilities = Seq(Capability("eth", Message.PV63.toByte)),
+      listenPort = listenPort,
+      nodeId = ByteString(nodeStatus.nodeId))
+  }
+
   private def scheduleConnectRetry(uri: URI, noRetries: Int): Unit = {
     log.info("Scheduling connection retry in {}", connectRetryDelay)
     system.scheduler.scheduleOnce(connectRetryDelay, self, RetryConnectionTimeout)
@@ -114,12 +123,13 @@ class PeerActor(
   }
 
   def waitingForHello(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
-    handleSubscriptions orElse handleTerminated(rlpxConnection) orElse handleDisconnectMsg orElse {
+    handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
+    handleDisconnectMsg orElse {
     case RLPxConnectionHandler.MessageReceived(hello: Hello) =>
       log.info("Protocol handshake finished with peer ({})", hello)
       timeout.cancel()
       if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
-        rlpxConnection.sendMessage(ourStatus) // atm we will send the same message
+        rlpxConnection.sendMessage(createStatusMsg())
         val statusTimeout = system.scheduler.scheduleOnce(waitForStatusInterval, self, StatusReceiveTimeout)
         context become waitingForNodeStatus(rlpxConnection, statusTimeout)
       } else {
@@ -127,7 +137,21 @@ class PeerActor(
         disconnectFromPeer(rlpxConnection, Disconnect.Reasons.IncompatibleP2pProtocolVersion)
       }
 
+    case ProtocolHandshakeTimeout =>
+      log.warning("Timeout while waiting for Hello")
+      disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
+
     case GetStatus => sender() ! StatusResponse(Handshaking)
+  }
+
+  private def createStatusMsg(): msg.Status = {
+    val nodeStatus = nodeStatusHolder()
+    msg.Status(
+      protocolVersion = Message.PV63,
+      networkId = Config.Network.networkId,
+      totalDifficulty = nodeStatus.blockchainStatus.totalDifficulty,
+      bestHash = nodeStatus.blockchainStatus.bestHash,
+      genesisHash = Config.Blockchain.genesisHash)
   }
 
   def waitingForNodeStatus(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
@@ -176,7 +200,7 @@ class PeerActor(
   }
 
   private def disconnectFromPeer(rlpxConnection: RLPxConnection, reason: Int): Unit = {
-    rlpxConnection.sendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage))
+    rlpxConnection.sendMessage(Disconnect(reason))
     system.scheduler.scheduleOnce(disconnectPoisonPillTimeout, self, PoisonPill)
     context unwatch rlpxConnection.ref
     context become disconnected
@@ -184,16 +208,6 @@ class PeerActor(
 
   def disconnected: Receive = handleSubscriptions orElse {
     case GetStatus => sender() ! StatusResponse(Disconnected)
-  }
-
-  // FIXME This is a temporal function until we start keeping our status
-  private def ourStatus: msg.Status = {
-    val totalDifficulty = 34351349760L
-    msg.Status(
-      protocolVersion = Message.PV63, 1, totalDifficulty,
-      ByteString(Hex.decode("88e96d4537bea4d9c05d12549907b32561d3bf31f45aae734cdc119f13406cb6")),
-      ByteString(Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"))
-    )
   }
 
   def handleTerminated(rlpxConnection: RLPxConnection): Receive = {
@@ -280,8 +294,8 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeInfo: NodeInfo, createRlpxConnectionFn: ActorContext => ActorRef): Props =
-    Props(new PeerActor(nodeInfo, createRlpxConnectionFn))
+  def props(nodeStatusHolder: Agent[NodeStatus], createRlpxConnectionFn: ActorContext => ActorRef): Props =
+    Props(new PeerActor(nodeStatusHolder, createRlpxConnectionFn))
 
   case class RLPxConnection(ref: ActorRef, remoteAddress: InetSocketAddress, uriOpt: Option[URI]) {
     def sendMessage[M <: Message : RLPEncoder](message: M): Unit = {
