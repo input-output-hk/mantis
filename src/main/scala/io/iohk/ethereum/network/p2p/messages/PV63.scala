@@ -113,7 +113,7 @@ object PV63 {
   }
 
   sealed trait MptNode {
-    lazy val hash: Array[Byte] = sha3(rlpEncode(this))
+    lazy val hash: ByteString = ByteString(sha3(rlpEncode(this)))
   }
 
   object NodeData {

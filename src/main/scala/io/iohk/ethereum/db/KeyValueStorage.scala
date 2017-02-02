@@ -1,9 +1,14 @@
 package io.iohk.ethereum.db
 
-class KeyValueStorage[K, V](val dataSource: DataSource,
-                            private val keySerializer: K => Array[Byte],
-                            private val valueSerializer: V => Array[Byte],
-                            private val valueDeserializer: Array[Byte] => V) {
+trait KeyValueStorage[K, V] {
+  type T <: KeyValueStorage[K, V]
+
+  val dataSource: DataSource
+  def keySerializer: K => Array[Byte]
+  def valueSerializer: V => Array[Byte]
+  def valueDeserializer: Array[Byte] => V
+
+  def apply(dataSource: DataSource): T
 
   def get(key: K): Option[V] = {
     val serializedKey = keySerializer(key)
@@ -11,18 +16,16 @@ class KeyValueStorage[K, V](val dataSource: DataSource,
     serializedValue.map(valueDeserializer)
   }
 
-  def update(toRemove: Seq[K], toUpdate: Seq[(K, V)]): KeyValueStorage[K, V] =
-    new KeyValueStorage[K, V](
-      dataSource.update(
-        toRemove = toRemove.map(keySerializer),
-        toUpdate = toUpdate.map { case (k, v) => keySerializer(k) -> valueSerializer(v) }
-      ),
-      keySerializer,
-      valueSerializer,
-      valueDeserializer
+  def update(toRemove: Seq[K], toUpdate: Seq[(K, V)]): T = {
+    val newDataSource = dataSource.update(
+      toRemove = toRemove.map(keySerializer),
+      toUpdate = toUpdate.map { case (k, v) => keySerializer(k) -> valueSerializer(v) }
     )
+    apply(newDataSource)
+  }
 
-  def put(key: K, value: V): KeyValueStorage[K, V] = update(Seq(), Seq(key -> value))
+  def put(key: K, value: V): T = update(Seq(), Seq(key -> value))
 
-  def remove(key: K): KeyValueStorage[K, V] = update(Seq(key), Seq())
+  def remove(key: K): T = update(Seq(key), Seq())
+
 }

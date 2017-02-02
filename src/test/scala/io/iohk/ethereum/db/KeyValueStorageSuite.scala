@@ -1,6 +1,8 @@
 package io.iohk.ethereum.db
 
+import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
@@ -12,16 +14,22 @@ import scala.util.Random
 class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGenerators{
   val iterationsNumber = 100
 
+  class IntStorage(val dataSource: DataSource) extends KeyValueStorage[Int, Int] {
+    type T = IntStorage
+
+    override def keySerializer: Int => Array[Byte] = rlpEncode(_)
+    override def valueSerializer: Int => Array[Byte] = rlpEncode(_)
+    override def valueDeserializer: Array[Byte] => Int = rlpDecode[Int]
+
+    def apply(dataSource: DataSource): IntStorage = new IntStorage(dataSource)
+  }
+
+  val initialIntStorage = new IntStorage(EphemDataSource())
+
   test("Insert ints to KeyValueStorage") {
     forAll(Gen.listOfN(iterationsNumber, Gen.listOf(intGen))) { listOfListOfInt =>
-      val initialKeyValueStorage = new KeyValueStorage[Int, Int](
-        dataSource = EphemDataSource(),
-        rlpEncode(_),
-        rlpEncode(_),
-        rlpDecode[Int]
-      )
 
-      val keyValueStorage = listOfListOfInt.foldLeft(initialKeyValueStorage){ case (recKeyValueStorage, intList) =>
+      val keyValueStorage = listOfListOfInt.foldLeft(initialIntStorage){ case (recKeyValueStorage, intList) =>
         recKeyValueStorage.update(Seq(), intList.zip(intList))
       }
 
@@ -34,17 +42,11 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
   test("Delete ints from KeyValueStorage") {
     forAll(Gen.listOf(intGen)) { listOfInt =>
       //Insert of keys
-      val initialKeyValueStorage = new KeyValueStorage[Int, Int](
-        dataSource = EphemDataSource(),
-        rlpEncode(_),
-        rlpEncode(_),
-        rlpDecode[Int]
-      ).update(Seq(), listOfInt.zip(listOfInt))
-
-      val (toDelete, toLeave) = Random.shuffle(listOfInt).splitAt(Gen.choose(0, listOfInt.size).sample.get)
+      val intStorage = initialIntStorage.update(Seq(), listOfInt.zip(listOfInt))
 
       //Delete of ints
-      val keyValueStorage = toDelete.foldLeft(initialKeyValueStorage){ case (recKeyValueStorage, i) =>
+      val (toDelete, toLeave) = Random.shuffle(listOfInt).splitAt(Gen.choose(0, listOfInt.size).sample.get)
+      val keyValueStorage = toDelete.foldLeft(intStorage){ case (recKeyValueStorage, i) =>
         recKeyValueStorage.remove(i)
       }
 

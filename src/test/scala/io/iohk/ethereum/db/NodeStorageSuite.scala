@@ -11,10 +11,10 @@ class NodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
   test("NodeStorage insert") {
     forAll(Gen.listOf(nodeGen)){ unfilteredMptNodes =>
       val mptNodes = unfilteredMptNodes.distinct
-      val initialNodeStorage = NodeStorage(EphemDataSource())
+      val initialNodeStorage = new NodeStorage(EphemDataSource())
       val nodeStorage = mptNodes.foldLeft(initialNodeStorage){
         case (recNodeStorage, node) =>
-          NodeStorage.put(node, recNodeStorage)
+          recNodeStorage.put(node)
       }
 
       mptNodes.foreach{ node =>
@@ -28,10 +28,10 @@ class NodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
       val mptNodes = unfilteredMptNodes.distinct
 
       //Nodes are inserted
-      val initialNodeStorage = NodeStorage(EphemDataSource())
+      val initialNodeStorage = new NodeStorage(EphemDataSource())
       val nodeStorage = mptNodes.foldLeft(initialNodeStorage){
         case (recNodeStorage, node) =>
-          NodeStorage.put(node, recNodeStorage)
+          recNodeStorage.put(node)
       }
 
       //Nodes are deleted

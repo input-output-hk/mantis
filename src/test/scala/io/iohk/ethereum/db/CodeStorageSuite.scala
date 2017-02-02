@@ -1,5 +1,6 @@
 package io.iohk.ethereum.db
 
+import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
@@ -11,10 +12,10 @@ class CodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
   val LimitCodeSize = 100
 
   test("CodeStorage insert") {
-    forAll(Gen.listOf(byteArrayOfNItemsGen(32))){ unfilteredCodeHashes =>
+    forAll(Gen.listOf(byteStringOfLengthNGen(32))){ unfilteredCodeHashes =>
       val codeHashes = unfilteredCodeHashes.distinct
-      val codes = Gen.listOfN(codeHashes.length, randomSizeByteArrayGen(0, LimitCodeSize)).sample.get
-      val initialCodeStorage = CodeStorage(EphemDataSource())
+      val codes = Gen.listOfN(codeHashes.length, randomSizeByteArrayGen(0, LimitCodeSize)).sample.get.map(ByteString(_))
+      val initialCodeStorage = new CodeStorage(EphemDataSource())
       val codeStorage = codeHashes.zip(codes).foldLeft(initialCodeStorage){
         case (recCodeStorage, (codeHash, code)) =>
           recCodeStorage.put(codeHash, code)
@@ -27,12 +28,12 @@ class CodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
   }
 
   test("CodeStorage delete") {
-    forAll(Gen.listOf(byteArrayOfNItemsGen(32))){ unfilteredCodeHashes =>
+    forAll(Gen.listOf(byteStringOfLengthNGen(32))){ unfilteredCodeHashes =>
       val codeHashes = unfilteredCodeHashes.distinct
-      val codes = Gen.listOfN(codeHashes.length, randomSizeByteArrayGen(0, LimitCodeSize)).sample.get
+      val codes = Gen.listOfN(codeHashes.length, randomSizeByteArrayGen(0, LimitCodeSize)).sample.get.map(ByteString(_))
 
       //EVM codes are inserted
-      val initialCodeStorage = CodeStorage(EphemDataSource())
+      val initialCodeStorage = new CodeStorage(EphemDataSource())
       val codeStorage = codeHashes.zip(codes).foldLeft(initialCodeStorage){
         case (recCodeStorage, (codeHash, code)) =>
           recCodeStorage.put(codeHash, code)

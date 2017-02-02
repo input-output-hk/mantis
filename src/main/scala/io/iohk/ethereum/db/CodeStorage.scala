@@ -1,13 +1,13 @@
 package io.iohk.ethereum.db
 
-object CodeStorage {
-  type CodeHash = Array[Byte]
-  type CodeStorage = KeyValueStorage[CodeHash, Array[Byte]]
+import akka.util.ByteString
 
-  def apply(dataSource: DataSource): CodeStorage = new CodeStorage(
-    dataSource = dataSource,
-    keySerializer = identity,
-    valueSerializer = identity,
-    valueDeserializer = identity
-  )
+class CodeStorage(val dataSource: DataSource) extends KeyValueStorage[ByteString, ByteString] {
+  type T = CodeStorage
+
+  override def keySerializer: ByteString => Array[Byte] = _.toArray
+  override def valueSerializer: ByteString => Array[Byte] = _.toArray
+  override def valueDeserializer: Array[Byte] => ByteString = ByteString(_)
+
+  def apply(dataSource: DataSource): CodeStorage = new CodeStorage(dataSource)
 }
