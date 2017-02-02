@@ -28,7 +28,7 @@ object App {
     bootstrapNodes.foreach { node =>
       peerManager ! PeerManagerActor.ConnectToPeer(node)
       //TODO change to CLI command?
-      Thread.sleep(5 * 1000)
+      Thread.sleep(2 * 1000)
       peerManager ! PeerManagerActor.StartFastDownload(node, ByteString(Hex.decode("ca2b65cf841b7acc2548977ad69a3e118940d0934cdbf2d3645c44bdf5023465")))
     }
   }
