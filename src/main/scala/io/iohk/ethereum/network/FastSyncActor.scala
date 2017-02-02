@@ -167,7 +167,6 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
     }
   }
 
-
   private def handleContractMptNode(hash: ByteString, mptNode: MptNode) = {
     mptNode match {
       case n: MptLeaf =>
@@ -233,7 +232,7 @@ object FastSyncActor {
 
   case class StartSync(targetBlockHash: ByteString)
 
-  case object PartialDownloadDone
+  private case object PartialDownloadDone
 
   case class FastSyncDone(fastSyncActor: ActorRef)
 
