@@ -7,11 +7,11 @@ import org.scalatest.prop.PropertyChecks
 
 import scala.util.Random
 
-class NodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerators {
+class MptNodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerators {
   test("NodeStorage insert") {
     forAll(Gen.listOf(nodeGen)){ unfilteredMptNodes =>
       val mptNodes = unfilteredMptNodes.distinct
-      val initialNodeStorage = new NodeStorage(EphemDataSource())
+      val initialNodeStorage = new MptNodeStorage(EphemDataSource())
       val nodeStorage = mptNodes.foldLeft(initialNodeStorage){
         case (recNodeStorage, node) =>
           recNodeStorage.put(node)
@@ -28,7 +28,7 @@ class NodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
       val mptNodes = unfilteredMptNodes.distinct
 
       //Nodes are inserted
-      val initialNodeStorage = new NodeStorage(EphemDataSource())
+      val initialNodeStorage = new MptNodeStorage(EphemDataSource())
       val nodeStorage = mptNodes.foldLeft(initialNodeStorage){
         case (recNodeStorage, node) =>
           recNodeStorage.put(node)

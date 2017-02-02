@@ -7,6 +7,7 @@ import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 
 class ReceiptStorage(val dataSource: DataSource) extends KeyValueStorage[ByteString, Seq[Receipt]] {
   type T = ReceiptStorage
+  override val namespace: Byte = Namespaces.ReceiptsNamespace
   override def keySerializer: ByteString => Array[Byte] = _.toArray
   override def valueSerializer: Seq[Receipt] => Array[Byte] = rlpEncode(_)(seqEncDec[Receipt])
   override def valueDeserializer: Array[Byte] => Seq[Receipt] = rlpDecode[Seq[Receipt]](_)(seqEncDec[Receipt])

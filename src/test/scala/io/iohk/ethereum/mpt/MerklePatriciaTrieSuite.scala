@@ -6,9 +6,8 @@ import java.security.MessageDigest
 
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.sha3
-import io.iohk.ethereum.db.{EphemDataSource, IodbDataSource}
+import io.iohk.ethereum.db.{EphemDataSource, IodbDataSource, NodeStorage}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
-import io.iohk.ethereum.rlp.{decode => decodeRLP, encode => encodeRLP}
 import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
@@ -22,7 +21,9 @@ class MerklePatriciaTrieSuite extends FunSuite
   with ObjectGenerators {
   val hashFn = (input: Array[Byte]) => sha3(input)
 
-  val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](EphemDataSource(), hashFn)
+  val EmptyEphemNodeStorage: NodeStorage = new NodeStorage(EphemDataSource())
+
+  val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](EmptyEphemNodeStorage, hashFn)
 
   implicit val intByteArraySerializable = new ByteArraySerializable[Int] {
     override def toBytes(input: Int): Array[Byte] = {
@@ -41,7 +42,7 @@ class MerklePatriciaTrieSuite extends FunSuite
   /* Random get, insert and delete tests */
   test("PatriciaTrie insert and get") {
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
-      val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](EphemDataSource(), hashFn)) {
+      val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage, hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       keyValueList.foreach { case (key, value) =>
@@ -55,7 +56,7 @@ class MerklePatriciaTrieSuite extends FunSuite
   test("PatriciaTrie delete") {
     forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[Int])) { keyList: List[Int] =>
       val keyValueList = keyList.distinct.zipWithIndex
-      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](EphemDataSource(), hashFn)) {
+      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage, hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       val (keyValueToDelete, keyValueLeft) = Random.shuffle(keyValueList).splitAt(Gen.choose(0, keyValueList.size).sample.get)
@@ -73,7 +74,7 @@ class MerklePatriciaTrieSuite extends FunSuite
         assert(obtained.isEmpty)
       }
 
-      val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTrie[Int, Int](EphemDataSource(), hashFn)) {
+      val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage, hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       assert(trieAfterDelete.getRootHash sameElements trieWithKeyValueLeft.getRootHash)
@@ -82,12 +83,12 @@ class MerklePatriciaTrieSuite extends FunSuite
 
   test("Trie insert should have the same root independently on the order its pairs are inserted") {
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
-      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](EphemDataSource(), hashFn)) {
+      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage, hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       val keyValueListShuffle = Random.shuffle(keyValueList)
 
-      val trieAfterInsertShuffle = keyValueListShuffle.foldLeft(MerklePatriciaTrie[Int, Int](EphemDataSource(), hashFn)) {
+      val trieAfterInsertShuffle = keyValueListShuffle.foldLeft(MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage, hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
 
@@ -97,13 +98,13 @@ class MerklePatriciaTrieSuite extends FunSuite
 
   /* MerklePatriciaTree API tests for particular cases */
   test("Remove key from an empty tree") {
-    val emptyTrie = MerklePatriciaTrie[Int, Int](EphemDataSource(), hashFn)
+    val emptyTrie = MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage, hashFn)
     val afterDeleteTrie = emptyTrie.remove(1)
     assert(afterDeleteTrie.getRootHash sameElements emptyTrie.getRootHash)
   }
 
   test("Remove a key that does not exist") {
-    val emptyTrie = MerklePatriciaTrie[Int, Int](EphemDataSource(), hashFn)
+    val emptyTrie = MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage, hashFn)
     val trieWithOneElement = emptyTrie.put(1, 5)
     val obtained = trieWithOneElement.get(1)
     assert(obtained.isDefined)
@@ -114,7 +115,7 @@ class MerklePatriciaTrieSuite extends FunSuite
   }
 
   test("Insert only one (key, value) pair to a trie and then deleted") {
-    val emptyTrie = MerklePatriciaTrie[Int, Int](EphemDataSource(), hashFn)
+    val emptyTrie = MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage, hashFn)
     val trieWithOneElement = emptyTrie.put(1, 5)
     val obtained = trieWithOneElement.get(1)
     assert(obtained.isDefined)
@@ -302,10 +303,11 @@ class MerklePatriciaTrieSuite extends FunSuite
     val key4: Array[Byte] = Hex.decode("123500")
     val trie = EmptyTrie.put(key1, key1).put(key2, key2).put(key3, key3).put(key4, key4)
     val wrongSource = EphemDataSource().update(
+      'e'.toByte,
       toRemove = Seq(),
-      toUpdate = Seq(trie.getRootHash -> trie.dataSource.get(trie.getRootHash).get)
+      toUpdate = Seq(trie.getRootHash -> trie.nodeStorage.get(trie.getRootHash).get)
     )
-    val trieWithWrongSource = MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, wrongSource, hashFn)
+    val trieWithWrongSource = MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, new NodeStorage(wrongSource), hashFn)
     val trieAfterDelete = Try {
       trieWithWrongSource.remove(key1)
     }
@@ -356,8 +358,8 @@ class MerklePatriciaTrieSuite extends FunSuite
     dir.mkdir()
 
     //open new store
-    val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = 32))
-    val emptyTrie = MerklePatriciaTrie[Int, Int](dataSource, hashFn)
+    val nodeStorage = new IodbDataSource(new LSMStore(dir = dir, keySize = 33))
+    val emptyTrie = MerklePatriciaTrie[Int, Int](new NodeStorage(nodeStorage), hashFn)
     val trieWithOneElement = emptyTrie.put(1, 5)
     val obtained = trieWithOneElement.get(1)
     assert(obtained.isDefined)

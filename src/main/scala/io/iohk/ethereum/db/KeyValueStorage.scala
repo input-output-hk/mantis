@@ -4,6 +4,7 @@ trait KeyValueStorage[K, V] {
   type T <: KeyValueStorage[K, V]
 
   val dataSource: DataSource
+  val namespace: Byte
   def keySerializer: K => Array[Byte]
   def valueSerializer: V => Array[Byte]
   def valueDeserializer: Array[Byte] => V
@@ -12,12 +13,13 @@ trait KeyValueStorage[K, V] {
 
   def get(key: K): Option[V] = {
     val serializedKey = keySerializer(key)
-    val serializedValue = dataSource.get(serializedKey)
+    val serializedValue = dataSource.get(namespace, serializedKey)
     serializedValue.map(valueDeserializer)
   }
 
   def update(toRemove: Seq[K], toUpdate: Seq[(K, V)]): T = {
     val newDataSource = dataSource.update(
+      namespace = namespace,
       toRemove = toRemove.map(keySerializer),
       toUpdate = toUpdate.map { case (k, v) => keySerializer(k) -> valueSerializer(v) }
     )
@@ -28,4 +30,10 @@ trait KeyValueStorage[K, V] {
 
   def remove(key: K): T = update(Seq(key), Seq())
 
+}
+
+object Namespaces {
+  val ReceiptsNamespace: Byte = 'r'.toByte
+  val NodeNamespace: Byte = 'n'.toByte
+  val CodeNamespace: Byte = 'c'.toByte
 }

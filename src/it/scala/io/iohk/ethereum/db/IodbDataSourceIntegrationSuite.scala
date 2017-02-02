@@ -10,12 +10,13 @@ class IodbDataSourceIntegrationSuite extends FunSuite
   with PropertyChecks
   with ObjectGenerators {
 
-  val KeySize: Int = 32
+  val KeySize: Int = 32 + 1 //Hash size + prefix
   val KeyNumberLimit: Int = 40
+  val OtherNamespace: Byte = 'e'.toByte
 
   def putMultiple(dataSource: DataSource, toInsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
     toInsert.foldLeft(dataSource){ case (recDB, keyValuePair) =>
-      recDB.update(Seq(), Seq(keyValuePair))
+      recDB.update(OtherNamespace, Seq(), Seq(keyValuePair))
     }
   }
 
@@ -32,7 +33,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
         toInsert = keyList.zip(keyList)
       )
       keyList.foreach { key =>
-        val obtained = db.get(key)
+        val obtained = db.get(OtherNamespace, key)
         assert(obtained.isDefined)
         assert(obtained.get sameElements key)
       }
