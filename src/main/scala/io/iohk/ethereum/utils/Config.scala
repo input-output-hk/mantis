@@ -47,6 +47,10 @@ object Config {
 
     val genesisDifficulty = blockchainConfig.getLong("genesis-difficulty")
     val genesisHash = ByteString(Hex.decode(blockchainConfig.getString("genesis-hash")))
+
+    val daoForkBlockNumber = BigInt(blockchainConfig.getString("dao-fork-block-number"))
+    val daoForkBlockTotalDifficulty = BigInt(blockchainConfig.getString("dao-fork-block-total-difficulty"))
+    val daoForkBlockHash = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
   }
 
 }
