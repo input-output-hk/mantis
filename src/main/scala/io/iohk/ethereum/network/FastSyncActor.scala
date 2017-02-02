@@ -100,10 +100,12 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
           self ! SyncDone
         }
 
+        //TODO insert all elements
+
         context become processMessages(state.copy(
           currentBlockNumber = Some(nextCurrentBlockNumber),
           blockHeaders = Seq.empty, blockReceipts = Seq.empty, blockBodies = Seq.empty))
-      //TODO insert all elements
+
       case _ =>
     }
   }
