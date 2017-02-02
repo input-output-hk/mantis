@@ -7,8 +7,8 @@ import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.network.PeerActor.MessageReceived
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeader, BlockHeaders, GetBlockHeaders}
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData, Receipts}
+import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.{FastSyncActor, NodeInfo, PeerActor}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -17,8 +17,10 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
 
   "FastSyncActor" should "subscribe for messages and ask for basic info" in new TestSetup {
+    //when
     fastSync ! FastSyncActor.StartSync(targetBlockHash)
 
+    //then
     peer.expectMsg(PeerActor.Subscribe(Set(NodeData.code, Receipts.code, BlockBodies.code, BlockHeaders.code)))
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockHeaders]])
 
@@ -31,6 +33,13 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
   "FastSyncActor" should "recursively process chain" in new TestSetup {
     // before
+    val responseBlockHeaders = Seq(
+      genesisBlockHeader,
+      genesisBlockHeader.copy(number = 1),
+      genesisBlockHeader.copy(number = 2),
+      genesisBlockHeader.copy(number = 3))
+    val blockHashes: Seq[ByteString] = responseBlockHeaders.map(_.blockHash)
+
     fastSync ! FastSyncActor.StartSync(targetBlockHash)
 
     peer.expectMsgClass(classOf[PeerActor.Subscribe])
@@ -42,10 +51,11 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockHeaders]])
 
     //when
-    //peer.reply(MessageReceived(BlockHeaders(Seq(new_headers))))
+    peer.reply(MessageReceived(BlockHeaders(responseBlockHeaders)))
 
     //then
-
+    peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(blockHashes)))
+    peer.expectMsg(PeerActor.SendMessage(GetReceipts(blockHashes)))
   }
 
   trait TestSetup {
@@ -66,6 +76,24 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
       extraData = ByteString(Hex.decode("61736961312e657468706f6f6c2e6f7267")),
       mixHash = ByteString(Hex.decode("9a983833b7b0e65d4e3bdac935257894f136845435d15619baae13d3e4f60e4c")),
       nonce = ByteString(Hex.decode("f81fcf00002150c8"))
+    )
+
+    val genesisBlockHeader = BlockHeader(
+      parentHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
+      ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
+      beneficiary = ByteString(Hex.decode("0000000000000000000000000000000000000000")),
+      stateRoot = ByteString(Hex.decode("d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544")),
+      transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+      receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+      logsBloom = ByteString(Array.fill[Byte](256)(0)),
+      difficulty = BigInt("0"),
+      number = BigInt("5000"),
+      gasLimit = BigInt("0"),
+      gasUsed = BigInt("0"),
+      unixTimestamp = 0,
+      extraData = ByteString(Hex.decode("11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa")),
+      mixHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
+      nonce = ByteString(Hex.decode("0000000000000042"))
     )
 
     implicit val system = ActorSystem("PeerActorSpec_System")

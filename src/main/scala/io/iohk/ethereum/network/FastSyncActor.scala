@@ -42,6 +42,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(GenesisBlockNumber), BlocksPerMessage, 0, reverse = false))
       context become processMessages(ProcessingState(targetBlockHash,
         targetBlockNumber = Some(blockHeaders.head.number),
+        currentBlockNumber = Some(GenesisBlockNumber),
         requestedNodes = Seq(StateMptNodeHash(blockHeaders.head.stateRoot))))
   }
 
@@ -67,26 +68,39 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       log.info("Got unexpected message {}", m)
       log.info("Requested nodes {}, blockHeaders {}",
         state.requestedNodes, state.blockHeaders)
+
+    case SyncDone => if (isFastSyncDone(state)) {
+      peerActor ! FastSyncDone(fastSyncActor = self)
+    }
   }
 
   private def handlePartialDownload(state: ProcessingState) = {
     state match {
-      case ProcessingState(_, Some(targetBlockNumber), _, _, headers, receipts, bodies) if receipts.nonEmpty && bodies.nonEmpty =>
+      case ProcessingState(_, Some(targetBlockNumber), _, _, _, headers, receipts, bodies)
+        if receipts.nonEmpty && bodies.nonEmpty =>
         log.info("Got complete blocks")
         log.info("headers: {}", headers)
         log.info("receipts: {}", receipts)
         log.info("bodies: {}", bodies)
 
-        val nextBlockNumber = headers.last.number + 1
+        val nextCurrentBlockNumber = headers.last.number
+        val nextBlockNumber = nextCurrentBlockNumber + 1
 
-        if(nextBlockNumber + BlocksPerMessage < targetBlockNumber) {
-          peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(nextBlockNumber), BlocksPerMessage, skip = 0, reverse = false))
-        } else {
-          peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(nextBlockNumber), BlocksPerMessage, skip = 0, reverse = false))
+        if (nextCurrentBlockNumber < targetBlockNumber) {
+          if (nextBlockNumber + BlocksPerMessage < targetBlockNumber) {
+            peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(nextBlockNumber), BlocksPerMessage, skip = 0, reverse = false))
+          } else {
+            peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(nextBlockNumber), targetBlockNumber - nextCurrentBlockNumber, skip = 0, reverse = false))
+          }
+        } else if (nextCurrentBlockNumber == targetBlockNumber) {
+          self ! SyncDone
         }
 
-        context become processMessages(state.copy(blockHeaders = Seq.empty, blockReceipts = Seq.empty, blockBodies = Seq.empty))
-        //TODO insert all elements
+
+        context become processMessages(state.copy(
+          currentBlockNumber = Some(nextCurrentBlockNumber),
+          blockHeaders = Seq.empty, blockReceipts = Seq.empty, blockBodies = Seq.empty))
+      //TODO insert all elements
       case _ =>
     }
   }
@@ -122,7 +136,12 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       self ! FetchNodes
 
     case FetchNodes =>
-      if (state.requestedNodes.isEmpty) {
+      fetchNodes(state)
+  }
+
+  private def fetchNodes(state: ProcessingState) = {
+    (state.requestedNodes, state.nodesQueue) match {
+      case (requested, queue) if requested.isEmpty && queue.nonEmpty =>
         val (nonMptHashes, mptHashes) = state.nodesQueue.partition {
           case EvmCodeHash(_) => true
           case StorageRootHash(_) => true
@@ -138,8 +157,13 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         system.scheduler.scheduleOnce(NodeRequestsInterval) {
           self ! FetchNodes
         }
-      }
+      case (requested, queue) if requested.isEmpty && queue.isEmpty =>
+        self ! SyncDone
+    }
   }
+
+  private def isFastSyncDone(state: ProcessingState): Boolean =
+    state.requestedNodes.isEmpty && state.nodesQueue.isEmpty && state.targetBlockNumber == state.currentBlockNumber
 
   private def handleContractMptNode(hash: ByteString, mptNode: MptNode) = {
     mptNode match {
@@ -206,7 +230,9 @@ object FastSyncActor {
 
   case class StartSync(targetBlockHash: ByteString)
 
-  case object PartialDownloadDone
+  private case object PartialDownloadDone
+
+  case class FastSyncDone(fastSyncActor: ActorRef)
 
   private trait HashType {
     val v: ByteString
@@ -232,9 +258,12 @@ object FastSyncActor {
 
   private case object FetchNodes
 
+  private case object SyncDone
+
   private case class ProcessingState(
     targetBlockHash: ByteString,
     targetBlockNumber: Option[BigInt] = None,
+    currentBlockNumber: Option[BigInt] = None,
     requestedNodes: Seq[HashType] = Seq.empty,
     nodesQueue: Seq[HashType] = Seq.empty,
     blockHeaders: Seq[BlockHeader] = Seq.empty,
