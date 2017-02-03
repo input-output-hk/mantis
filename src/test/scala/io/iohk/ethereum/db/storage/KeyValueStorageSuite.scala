@@ -1,13 +1,12 @@
-package io.iohk.ethereum.db
+package io.iohk.ethereum.db.storage
 
-import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
+import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
-import io.iohk.ethereum.rlp.RLPImplicits._
 
 import scala.util.Random
 
@@ -22,7 +21,7 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
     override def valueSerializer: Int => Array[Byte] = rlpEncode(_)
     override def valueDeserializer: Array[Byte] => Int = rlpDecode[Int]
 
-    def apply(dataSource: DataSource): IntStorage = new IntStorage(dataSource)
+    protected def apply(dataSource: DataSource): IntStorage = new IntStorage(dataSource)
   }
 
   val initialIntStorage = new IntStorage(EphemDataSource())

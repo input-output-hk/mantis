@@ -1,10 +1,9 @@
-package io.iohk.ethereum.db
+package io.iohk.ethereum.db.dataSource
 
+import io.iohk.ethereum.ObjectGenerators
+import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-import io.iohk.ethereum.ObjectGenerators
-
-import org.scalacheck.Gen
 
 import scala.util.Random
 

@@ -6,7 +6,9 @@ import java.security.MessageDigest
 
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.sha3
-import io.iohk.ethereum.db.{EphemDataSource, IodbDataSource, NodeStorage}
+import io.iohk.ethereum.db.dataSource.{EphemDataSource, IodbDataSource}
+import io.iohk.ethereum.db.dataSource.IodbDataSource
+import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.utils.Logger
 import io.iohk.iodb.LSMStore

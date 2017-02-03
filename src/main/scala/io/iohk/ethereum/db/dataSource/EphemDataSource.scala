@@ -1,4 +1,4 @@
-package io.iohk.ethereum.db
+package io.iohk.ethereum.db.dataSource
 
 import akka.util.ByteString
 

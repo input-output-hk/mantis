@@ -6,6 +6,8 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.iodb.LSMStore
 import java.io.File
 
+import io.iohk.ethereum.db.dataSource.{DataSource, IodbDataSource}
+
 class IodbDataSourceIntegrationSuite extends FunSuite
   with PropertyChecks
   with ObjectGenerators {
