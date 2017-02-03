@@ -1,10 +1,6 @@
 package io.iohk.ethereum.network.p2p
 
-import java.net.URI
-
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.PV62.{GetBlockHeaders, BlockHeader, BlockHeaders}
-import org.spongycastle.util.encoders.Hex
+import java.net.{InetSocketAddress, URI}
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -16,11 +12,12 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.PV62.{GetBlockHeaders, BlockHeader, BlockHeaders}
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.utils.{Config, BlockchainStatus, ServerStatus, NodeStatus}
+import org.spongycastle.util.encoders.Hex
 import org.scalatest.{FlatSpec, Matchers}
-
-import scala.util.Random
 
 class PeerActorSpec extends FlatSpec with Matchers {
 
@@ -197,6 +194,18 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(nonEtcForkBlockHeader))))
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.UselessPeer)))
+  }
+
+  it should "disconnect on Hello timeout" in new TestSetup {
+    val connection = TestProbe()
+
+    peer ! PeerActor.HandleConnection(connection.ref, new InetSocketAddress("localhost", 9000))
+
+    rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.HandleConnection])
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Hello) => () }
+
+    rlpxConnection.expectMsg(5.seconds, RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage)))
   }
 
   trait BlockUtils {
