@@ -4,7 +4,7 @@ import akka.util.ByteString
 
 object ProgramState {
   def apply(context: ProgramContext): ProgramState =
-    ProgramState(context = context, storage = context.storage)
+    ProgramState(context = context, gas = context.gas, storage = context.storage)
 }
 
 /**
@@ -21,9 +21,10 @@ object ProgramState {
   */
 case class ProgramState(
   context: ProgramContext,
+  gas: BigInt,
+  storage: Storage,
   stack: Stack = Stack.empty(),
   memory: Memory = Memory.empty,
-  storage: Storage,
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
   halted: Boolean = false,
@@ -31,6 +32,9 @@ case class ProgramState(
 ) {
 
   def program: Program = context.program
+
+  def spendGas(gasUsed: BigInt): ProgramState =
+    copy(gas = gas - gasUsed)
 
   def step(i: Int = 1): ProgramState =
     copy(pc = pc + i)

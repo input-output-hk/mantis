@@ -41,7 +41,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
   test(STOP) { op =>
     forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
       stateOut.halted shouldBe true
       stateIn shouldEqual stateOut.copy(halted = stateIn.halted)
     }
@@ -49,7 +49,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
   test(binaryOps: _*) { binaryOp =>
     forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = binaryOp.execute(stateIn)
+      val stateOut = binaryOp.exec(stateIn)
 
       withStackVerification(binaryOp, stateIn, stateOut) {
         val Right((Seq(a, b), _)) = stateIn.stack.pop(2)
@@ -64,7 +64,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
   test(unaryOps: _*) { op =>
     forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((a, _)) = stateIn.stack.pop
@@ -132,7 +132,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     )
 
     forAll(stateGen) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((Seq(offset, size), _)) = stateIn.stack.pop(2)
@@ -164,7 +164,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
   test(CALLVALUE) { op =>
     forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((data, _)) = stateOut.stack.pop
@@ -183,7 +183,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     )
 
     forAll(stateGen) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((offset, _)) = stateIn.stack.pop
@@ -216,7 +216,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     )
 
     forAll(stateGen) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((Seq(memOffset, codeOffset, size), _)) = stateIn.stack.pop(3)
@@ -268,7 +268,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
   test(POP) { op =>
     forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         stateOut shouldEqual stateIn.withStack(stateOut.stack).step()
@@ -283,7 +283,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     )
 
     forAll(stateGen) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((addr, _)) = stateIn.stack.pop
@@ -303,7 +303,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     )
 
     forAll(stateGen) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((Seq(addr, value), _)) = stateIn.stack.pop(2)
@@ -326,7 +326,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     )
 
     forAll(stateGen) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((addr, _)) = stateIn.stack.pop
@@ -346,7 +346,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     )
 
     forAll(stateGen) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((Seq(addr, value), _)) = stateIn.stack.pop(2)
@@ -360,7 +360,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
   test(JUMP) { op =>
     forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((pos, _)) = stateIn.stack.pop
@@ -376,7 +376,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     )
 
     forAll(stateGen) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((Seq(pos, cond), _)) = stateIn.stack.pop(2)
@@ -405,7 +405,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
   test(JUMPDEST) { op =>
     forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         stateOut shouldEqual stateIn.step()
@@ -417,7 +417,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     val stateGen = getProgramStateGen(codeGen = getByteStringGen(0, 32))
 
     forAll(stateGen) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val bytes = stateIn.program.getBytes(stateIn.pc + 1, op.i + 1)
@@ -430,7 +430,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
   test(dupOps: _*) { op =>
     forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right(expectedStack) = stateIn.stack.dup(op.i)
@@ -442,7 +442,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
   test(swapOps: _*) { op =>
     forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right(expectedStack) = stateIn.stack.swap(op.i + 1)
@@ -475,7 +475,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     )
 
     forAll(stateGen) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = op.exec(stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val Right((Seq(offset, size), _)) = stateIn.stack.pop(2)

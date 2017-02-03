@@ -165,16 +165,32 @@ object OpCode {
 sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int) {
   def this(code: Int, pop: Int, push: Int) = this(code.toByte, pop, push)
 
-  def execute(state: ProgramState): ProgramState
+  def execute(state: ProgramState): ProgramState = {
+    if (state.stack.size < delta)
+      state.withError(StackUnderflow)
+    else if (state.stack.size - delta + alpha > state.stack.maxSize)
+      state.withError(StackOverflow)
+    else {
+      val gas = calcGas(state)
+      if (gas > state.gas)
+        state.withError(OutOfGas)
+      else
+        exec(state).spendGas(gas)
+    }
+  }
+
+  protected def calcGas(state: ProgramState): BigInt
+
+  protected def exec(state: ProgramState): ProgramState
 }
 
 case object STOP extends OpCode(0x00, 0, 0) {
-  def execute(state: ProgramState): ProgramState =
+  def exec(state: ProgramState): ProgramState =
     state.halt
 }
 
 sealed abstract class BinaryOp(code: Int)(val f: (DataWord, DataWord) => DataWord) extends OpCode(code.toByte, 2, 1) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
       (Seq(a, b), stack1) = popped
@@ -187,7 +203,7 @@ sealed abstract class BinaryOp(code: Int)(val f: (DataWord, DataWord) => DataWor
 }
 
 sealed abstract class UnaryOp(code: Int)(val f: DataWord => DataWord) extends OpCode(code.toByte, 1, 1) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop
       (a, stack1) = popped
@@ -220,7 +236,7 @@ case object AND extends BinaryOp(0x16)(_ & _)
 case object NOT extends UnaryOp(0x19)(~_)
 
 case object SHA3 extends OpCode(0x20, 2, 1) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
       (Seq(offset, size), stack1: Stack) = popped
@@ -235,14 +251,14 @@ case object SHA3 extends OpCode(0x20, 2, 1) {
 }
 
 case object CALLVALUE extends OpCode(0x34, 0, 1) {
-  def execute(state: ProgramState): ProgramState =
+  def exec(state: ProgramState): ProgramState =
     state.stack.push(DataWord(state.context.callValue))
       .map(state.withStack(_).step())
       .valueOr(state.withError)
 }
 
 case object CALLDATALOAD extends OpCode(0x35, 1, 1) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop
       (offset, stack1) = popped
@@ -258,7 +274,7 @@ case object CALLDATALOAD extends OpCode(0x35, 1, 1) {
 }
 
 case object CODECOPY extends OpCode(0x39, 3, 0) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(3)
       (Seq(memOffset, codeOffset, size), stack1) = popped
@@ -271,7 +287,7 @@ case object CODECOPY extends OpCode(0x39, 3, 0) {
 }
 
 case object EXTCODECOPY extends OpCode(0x3c, 4, 0) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(4)
       (Seq(address, memOffset, codeOffset, size), stack1) = popped
@@ -284,7 +300,7 @@ case object EXTCODECOPY extends OpCode(0x3c, 4, 0) {
 }
 
 case object POP extends OpCode(0x50, 1, 0) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     state.stack.pop
       .map { case (_, stack) => state.withStack(stack).step() }
       .valueOr(state.withError)
@@ -292,7 +308,7 @@ case object POP extends OpCode(0x50, 1, 0) {
 }
 
 case object MLOAD extends OpCode(0x51, 1, 1) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop
       (addr, stack1) = popped
@@ -305,7 +321,7 @@ case object MLOAD extends OpCode(0x51, 1, 1) {
 }
 
 case object MSTORE extends OpCode(0x52, 2, 0) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
       (Seq(addr, value), stack1) = popped
@@ -317,7 +333,7 @@ case object MSTORE extends OpCode(0x52, 2, 0) {
 }
 
 case object SLOAD extends OpCode(0x54, 1, 1) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop
       (addr, stack1) = popped
@@ -331,7 +347,7 @@ case object SLOAD extends OpCode(0x54, 1, 1) {
 
 
 case object SSTORE extends OpCode(0x55, 2, 0) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
       (Seq(addr, value), stack1) = popped
@@ -344,7 +360,7 @@ case object SSTORE extends OpCode(0x55, 2, 0) {
 
 
 case object JUMP extends OpCode(0x56, 1, 0) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop
       (pos, stack1) = popped
@@ -355,7 +371,7 @@ case object JUMP extends OpCode(0x56, 1, 0) {
 }
 
 case object JUMPI extends OpCode(0x57, 2, 0) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
       (Seq(pos, cond), stack1) = popped
@@ -367,7 +383,7 @@ case object JUMPI extends OpCode(0x57, 2, 0) {
 }
 
 case object JUMPDEST extends OpCode(0x5b, 0, 0) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     state.step()
   }
 }
@@ -375,7 +391,7 @@ case object JUMPDEST extends OpCode(0x5b, 0, 0) {
 sealed abstract class PushOp(code: Int) extends OpCode(code.toByte, 0, 1) {
   val i: Int = code - 0x60
 
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val n = i + 1
     val bytes = state.program.getBytes(state.pc + 1, n)
     val word = DataWord(bytes)
@@ -421,7 +437,7 @@ case object PUSH32 extends PushOp(0x7f)
 sealed abstract class DupOp private(code: Int, val i: Int) extends OpCode(code.toByte, i + 1, i + 2) {
   def this(code: Int) = this(code, code - 0x80)
 
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = state.stack.dup(i).map(state.withStack(_).step())
     updatedState.valueOr(state.withError)
   }
@@ -448,7 +464,7 @@ case object DUP16 extends DupOp(0x8f)
 sealed abstract class SwapOp(code: Int, val i: Int) extends OpCode(code.toByte, i + 2, i + 2) {
   def this(code: Int) = this(code, code - 0x90)
 
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = state.stack.swap(i + 1).map(state.withStack(_).step())
     updatedState.valueOr(state.withError)
   }
@@ -475,7 +491,7 @@ case object SWAP16 extends SwapOp(0x9f)
 sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code.toByte, i + 2, 0){
   def this(code: Int) = this(code, code - 0xa0)
 
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(delta)
       (_, stack1) = popped
@@ -492,7 +508,7 @@ case object LOG4 extends LogOp(0xa4)
 
 
 case object RETURN extends OpCode(0xf3, 2, 0) {
-  def execute(state: ProgramState): ProgramState = {
+  def exec(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
       (Seq(offset, size), stack1) = popped
