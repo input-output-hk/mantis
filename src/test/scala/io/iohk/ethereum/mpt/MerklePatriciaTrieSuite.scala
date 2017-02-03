@@ -4,6 +4,7 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 
+import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.sha3
 import io.iohk.ethereum.db.dataSource.{EphemDataSource, IodbDataSource}
@@ -306,7 +307,7 @@ class MerklePatriciaTrieSuite extends FunSuite
     val wrongSource = EphemDataSource().update(
       'e'.toByte,
       toRemove = Seq(),
-      toUpdate = Seq(trie.getRootHash -> trie.nodeStorage.get(trie.getRootHash).get)
+      toUpdate = Seq(ByteString(trie.getRootHash) -> ByteString(trie.nodeStorage.get(trie.getRootHash).get))
     )
     val trieWithWrongSource = MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, new NodeStorage(wrongSource), hashFn)
     val trieAfterDelete = Try {

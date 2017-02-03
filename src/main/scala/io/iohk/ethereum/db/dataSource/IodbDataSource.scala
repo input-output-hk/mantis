@@ -9,20 +9,20 @@ class IodbDataSource(lSMStore: LSMStore) extends DataSource {
 
   import IodbDataSource._
 
-  override def get(namespace: Byte, key: Array[Byte]): Option[Array[Byte]] =
-    lSMStore.get(ByteArrayWrapper(namespace +: key)).map(v => v.data)
+  override def get(namespace: Byte, key: Key): Option[Value] =
+    lSMStore.get(ByteArrayWrapper((namespace +: key).toArray)).map(v => v.data.toIndexedSeq)
 
   override def update(namespace: Byte, toRemove: Seq[Key], toUpdate: Seq[(Key, Value)]): DataSource = {
     lSMStore.update(
       ByteArrayWrapper(storageVersionGen()),
-      toRemove.map(key => ByteArrayWrapper(namespace +: key)),
+      toRemove.map(key => ByteArrayWrapper((namespace +: key).toArray)),
       asStorables(namespace, toUpdate))
     new IodbDataSource(lSMStore)
   }
 
   private def asStorables(namespace: Byte,
-                          keyValues: Seq[(Array[Byte], Array[Byte])]): Seq[(ByteArrayWrapper, ByteArrayWrapper)] =
-    keyValues.map(kv => ByteArrayWrapper(namespace +: kv._1) -> ByteArrayWrapper(kv._2))
+                          keyValues: Seq[(Key, Value)]): Seq[(ByteArrayWrapper, ByteArrayWrapper)] =
+    keyValues.map(kv => ByteArrayWrapper((namespace +: kv._1).toArray) -> ByteArrayWrapper(kv._2.toArray))
 }
 
 

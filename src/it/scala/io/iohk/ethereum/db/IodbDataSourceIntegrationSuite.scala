@@ -6,30 +6,32 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.iodb.LSMStore
 import java.io.File
 
+import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.{DataSource, IodbDataSource}
 
 class IodbDataSourceIntegrationSuite extends FunSuite
   with PropertyChecks
   with ObjectGenerators {
 
-  val KeySize: Int = 32 + 1 //Hash size + prefix
+  val KeySizeWithoutPrefix: Int = 32
+  val KeySize: Int = KeySizeWithoutPrefix + 1 //Hash size + prefix
   val KeyNumberLimit: Int = 40
   val OtherNamespace: Byte = 'e'.toByte
 
-  def putMultiple(dataSource: DataSource, toInsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
+  def putMultiple(dataSource: DataSource, toInsert: Seq[(ByteString, ByteString)]): DataSource = {
     toInsert.foldLeft(dataSource){ case (recDB, keyValuePair) =>
       recDB.update(OtherNamespace, Seq(), Seq(keyValuePair))
     }
   }
 
   test("IodbDataSource insert"){
-    forAll(seqByteArrayOfNItemsGen(KeySize - 1)) { unFilteredKeyList: Seq[Array[Byte]] =>
+    forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       //create temporary dir
       val dir = File.createTempFile("iodbInsert", "iodbInsert")
       dir.delete()
       dir.mkdir()
 
-      val keyList = unFilteredKeyList.filter(_.length == KeySize).take(KeyNumberLimit)
+      val keyList = unFilteredKeyList.take(KeyNumberLimit)
       val db = putMultiple(
         dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = KeySize)),
         toInsert = keyList.zip(keyList)

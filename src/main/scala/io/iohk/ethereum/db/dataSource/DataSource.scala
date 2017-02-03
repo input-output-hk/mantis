@@ -2,8 +2,8 @@ package io.iohk.ethereum.db.dataSource
 
 trait DataSource {
 
-  type Key = Array[Byte]
-  type Value = Array[Byte]
+  type Key = IndexedSeq[Byte]
+  type Value = IndexedSeq[Byte]
 
   /**
     * This function obtains the associated value to a key, if there exists one.

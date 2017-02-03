@@ -22,7 +22,7 @@ trait ObjectGenerators {
 
   def byteStringOfLengthNGen(n: Int): Gen[ByteString] = byteArrayOfNItemsGen(n).map(ByteString(_))
 
-  def seqByteArrayOfNItemsGen(n: Int): Gen[Seq[Array[Byte]]] = Gen.listOf(byteArrayOfNItemsGen(n))
+  def seqByteStringOfNItemsGen(n: Int): Gen[Seq[ByteString]] = Gen.listOf(byteStringOfLengthNGen(n))
 
   def hexPrefixDecodeParametersGen(): Gen[(Array[Byte], Boolean)] = {
     for {

@@ -8,13 +8,20 @@ import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 
 import ReceiptStorage._
 
+/**
+  * This class is used to store the Receipts, by using:
+  *   Key: hash of the block to which the list of receipts belong
+  *   Value: the list of receipts
+  */
 class ReceiptStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHash, Seq[Receipt]] {
   type T = ReceiptStorage
 
   val namespace: Byte = Namespaces.ReceiptsNamespace
-  def keySerializer: BlockHash => Array[Byte] = _.toArray
-  def valueSerializer: Seq[Receipt] => Array[Byte] = rlpEncode(_)(seqEncDec[Receipt])
-  def valueDeserializer: Array[Byte] => Seq[Receipt] = rlpDecode[Seq[Receipt]](_)(seqEncDec[Receipt])
+  def keySerializer: BlockHash => IndexedSeq[Byte] = identity
+  def valueSerializer: Seq[Receipt] => IndexedSeq[Byte] =
+    (receipts: Seq[Receipt]) => rlpEncode(receipts)(seqEncDec[Receipt]).toIndexedSeq
+  def valueDeserializer: IndexedSeq[Byte] => Seq[Receipt] =
+    (encodedReceipts: IndexedSeq[Byte]) => rlpDecode[Seq[Receipt]](encodedReceipts.toArray)(seqEncDec[Receipt])
 
   protected def apply(dataSource: DataSource): ReceiptStorage = new ReceiptStorage(dataSource)
 }

@@ -17,9 +17,10 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
     type T = IntStorage
 
     override val namespace: Byte = 'i'.toByte
-    override def keySerializer: Int => Array[Byte] = rlpEncode(_)
-    override def valueSerializer: Int => Array[Byte] = rlpEncode(_)
-    override def valueDeserializer: Array[Byte] => Int = rlpDecode[Int]
+    override def keySerializer: Int => IndexedSeq[Byte] = (i: Int) => rlpEncode(i).toIndexedSeq
+    override def valueSerializer: Int => IndexedSeq[Byte] = (i: Int) => rlpEncode(i).toIndexedSeq
+    override def valueDeserializer: IndexedSeq[Byte] => Int =
+      (encodedInt: IndexedSeq[Byte]) => rlpDecode[Int](encodedInt.toArray)
 
     protected def apply(dataSource: DataSource): IntStorage = new IntStorage(dataSource)
   }

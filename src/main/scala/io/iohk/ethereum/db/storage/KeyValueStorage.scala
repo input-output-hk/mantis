@@ -7,9 +7,9 @@ private[storage] trait KeyValueStorage[K, V] {
 
   val dataSource: DataSource
   val namespace: Byte
-  def keySerializer: K => Array[Byte]
-  def valueSerializer: V => Array[Byte]
-  def valueDeserializer: Array[Byte] => V
+  def keySerializer: K => IndexedSeq[Byte]
+  def valueSerializer: V => IndexedSeq[Byte]
+  def valueDeserializer: IndexedSeq[Byte] => V
 
   protected def apply(dataSource: DataSource): T
 

@@ -7,13 +7,18 @@ import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 
 import MptNodeStorage._
 
+/**
+  * This class is used to store MptNodes, by using:
+  *   Key: hash of the RLP encoded node
+  *   Value: the node
+  */
 class MptNodeStorage(val dataSource: DataSource) extends KeyValueStorage[MptNodeHash, MptNode] {
   type T = MptNodeStorage
 
   val namespace: Byte = Namespaces.NodeNamespace
-  def keySerializer: MptNodeHash => Array[Byte] = _.toArray
-  def valueSerializer: MptNode => Array[Byte] = rlpEncode(_)
-  def valueDeserializer: Array[Byte] => MptNode = rlpDecode[MptNode]
+  def keySerializer: MptNodeHash => IndexedSeq[Byte] = identity
+  def valueSerializer: MptNode => IndexedSeq[Byte] = (node: MptNode) => rlpEncode(node).toIndexedSeq
+  def valueDeserializer: IndexedSeq[Byte] => MptNode = (encodedNode: IndexedSeq[Byte]) => rlpDecode[MptNode](encodedNode.toArray)
 
   protected def apply(dataSource: DataSource): MptNodeStorage = new MptNodeStorage(dataSource)
 
