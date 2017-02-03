@@ -39,7 +39,7 @@ object App {
       peerManager ! PeerManagerActor.ConnectToPeer(node)
       //TODO change to CLI command?
       Thread.sleep(2 * 1000)
-      peerManager ! PeerManagerActor.StartFastDownload(node, ByteString(Hex.decode("ca2b65cf841b7acc2548977ad69a3e118940d0934cdbf2d3645c44bdf5023465")))
+      peerManager ! PeerManagerActor.StartFastDownload(node, ByteString(Hex.decode("f39888122e6ea3e6abcd6cc52e095ee90e790b04ac2a35e8d35edbc82eae7ea6")))
     }
   }
 

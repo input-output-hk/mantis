@@ -68,8 +68,12 @@ object CommonMessages {
     val ValueLength = 32
     val AddressLength = 20
 
+    val negativePointSign = 27
+    val positivePointSign = 28
+
     val FirstByteOfAddress = 12
-    val LastByteOfAddress = FirstByteOfAddress + AddressLength
+    val LastByteOfAddress: Int = FirstByteOfAddress + AddressLength
+    val allowedSignValues: Set[Int] = Set(negativePointSign, positivePointSign)
 
     implicit val rlpEndDec = new RLPEncoder[Transaction] with RLPDecoder[Transaction] {
       override def encode(obj: Transaction): RLPEncodeable = {
@@ -113,12 +117,17 @@ object CommonMessages {
     lazy val bytesToSign: Array[Byte] = crypto.sha3(rlpEncode(RLPList(nonce, gasPrice, gasLimit,
       receivingAddress.toArray[Byte], value, payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte]))))
 
-    lazy val recoveredPublicKey: Option[Array[Byte]] = ECDSASignature.recoverPubBytes(
-      new BigInteger(1, signatureRandom.toArray[Byte]),
-      new BigInteger(1, signature.toArray[Byte]),
-      ECDSASignature.recIdFromSignatureV(pointSign),
-      bytesToSign
-    )
+    //todo implement EC-72
+    lazy val recoveredPublicKey: Option[Array[Byte]] = if (allowedSignValues.contains(pointSign)) {
+      ECDSASignature.recoverPubBytes(
+        new BigInteger(1, signatureRandom.toArray[Byte]),
+        new BigInteger(1, signature.toArray[Byte]),
+        ECDSASignature.recIdFromSignatureV(pointSign),
+        bytesToSign
+      )
+    } else {
+      None
+    }
 
     lazy val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
 

@@ -40,7 +40,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
   def waitForTargetBlockHeader(targetBlockHash: ByteString): Receive = handleTerminated orElse {
     case MessageReceived(BlockHeaders(blockHeaders)) if blockHeaders.nonEmpty =>
       peerActor ! PeerActor.SendMessage(GetNodeData(Seq(blockHeaders.head.stateRoot)))
-      peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(GenesisBlockNumber), BlocksPerMessage, 0, reverse = false))
+      peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(GenesisBlockNumber + 1), BlocksPerMessage, 0, reverse = false))
       context become processMessages(ProcessingState(targetBlockHash,
         targetBlockNumber = Some(blockHeaders.head.number),
         currentBlockNumber = Some(GenesisBlockNumber),

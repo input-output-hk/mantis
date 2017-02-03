@@ -1,6 +1,7 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
+import java.util.UUID
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
@@ -44,7 +45,9 @@ class PeerManagerActor(nodeStatusHolder: Agent[NodeStatus]) extends Actor with A
 
   def createPeer(addr: InetSocketAddress): Peer = {
     val id = addr.toString.filterNot(_ == '/')
-    val ref = context.actorOf(PeerActor.props(nodeStatusHolder, _.actorOf(RLPxConnectionHandler.props(nodeStatusHolder().key), "rlpx-connection")), id)
+    //todo temporal fix, fix this in a way that makes sense
+    val ref = context.actorOf(PeerActor.props(nodeStatusHolder, _.actorOf(RLPxConnectionHandler.props(nodeStatusHolder().key),
+      s"rlpx-connection-${UUID.randomUUID().toString}")), id)
     context watch ref
     val peer = Peer(id, addr, ref)
     peers += id -> peer
