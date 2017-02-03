@@ -21,7 +21,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
   }
 
   test("IodbDataSource insert"){
-    forAll(seqByteArrayOfNItemsGen(KeySize)) { unFilteredKeyList: Seq[Array[Byte]] =>
+    forAll(seqByteArrayOfNItemsGen(KeySize - 1)) { unFilteredKeyList: Seq[Array[Byte]] =>
       //create temporary dir
       val dir = File.createTempFile("iodbInsert", "iodbInsert")
       dir.delete()
