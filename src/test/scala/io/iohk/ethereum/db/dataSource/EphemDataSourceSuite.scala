@@ -40,8 +40,7 @@ class EphemDataSourceSuite extends FunSuite
   }
 
   test("EphemDataSource delete"){
-    forAll(seqByteStringOfNItemsGen(KeySize)) { unFilteredKeyList: Seq[ByteString] =>
-      val keyList = unFilteredKeyList.filter(_.length == KeySize)
+    forAll(seqByteStringOfNItemsGen(KeySize)) { keyList: Seq[ByteString] =>
       val (keysToDelete, keyValueLeft) = Random.shuffle(keyList).splitAt(Gen.choose(0, keyList.size).sample.get)
 
       val dbAfterInsert = putMultiple(dataSource = EphemDataSource(), toInsert = keyList.zip(keyList))
@@ -52,6 +51,16 @@ class EphemDataSourceSuite extends FunSuite
         assert(obtained.get sameElements key)
       }
       keysToDelete.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
+    }
+  }
+
+  test("EphemDataSource clear") {
+    forAll(seqByteStringOfNItemsGen(KeySize)) { keyList: Seq[ByteString] =>
+      val db = EphemDataSource()
+        .update(OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
+        .clear
+
+      keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
     }
   }
 }

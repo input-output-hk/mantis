@@ -34,4 +34,16 @@ trait DataSource {
     * @return the new DataSource after the removals and insertions were done.
     */
   def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource
+
+  /**
+    * This function updates the DataSource by deleting all the (key-value) pairs in it.
+    *
+    * @return the new DataSource after all the data was removed.
+    */
+  def clear: DataSource
+
+  /**
+    * This function closes the DataSource, removing any allocated resources to it.
+    */
+  def close(): Unit
 }

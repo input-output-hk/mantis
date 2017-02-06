@@ -1,6 +1,5 @@
 package io.iohk.ethereum.mpt
 
-import java.io.File
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 
@@ -11,7 +10,6 @@ import io.iohk.ethereum.db.dataSource.IodbDataSource
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.utils.Logger
-import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
@@ -46,12 +44,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
 
   test("IODB test - Insert of the first 5000 numbers hashed and then remove half of them"){
-    //create temporary dir
-    val dir = File.createTempFile("iodb", "iodb")
-    dir.delete()
-    dir.mkdir()
-
-    val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = KeySize))
+    val dataSource = IodbDataSource(path = "/tmp/iodb", keySize = KeySize)
     val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new NodeStorage(dataSource), hashFn)
 
     val keys = (0 to 100).map(intByteArraySerializable.toBytes)
@@ -63,16 +56,13 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
     // We delete keys with no effect so as to test that is the case (and for more code coverage)
     val trieAfterDeleteNoEffect = keys.take(100/2).foldLeft(trieAfterDelete) { case (recTrie, key) => recTrie.remove(md5(key)) }
     assert(Hex.toHexString(trieAfterDeleteNoEffect.getRootHash) == "b0bfbf4d2d6f3c9863c27f41a087208131f775edd9de2cb66242d1e0981aa94c")
+
+    dataSource.close()
   }
 
   test("IODB Test - PatriciaTrie insert and get") {
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
-      //create temporary dir
-      val dir = File.createTempFile("iodb", "iodb")
-      dir.delete()
-      dir.mkdir()
-
-      val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = KeySize))
+      val dataSource = IodbDataSource(path = "/tmp/iodb", keySize = KeySize)
       val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSource), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
@@ -81,16 +71,14 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
         assert(obtained.isDefined)
         assert(obtained.get == value)
       }
+
+      dataSource.close()
     }
   }
 
   test("IODB Test - PatriciaTrie delete") {
     forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[Int])) { keyList: List[Int] =>
-      //create temporary dir
-      val dirWithDelete = File.createTempFile("iodb", "iodb1")
-      dirWithDelete.delete()
-      dirWithDelete.mkdir()
-      val dataSourceWithDelete = new IodbDataSource(new LSMStore(dir = dirWithDelete, keySize = KeySize))
+      val dataSourceWithDelete = IodbDataSource(path = "/tmp/iodb1", keySize = KeySize)
 
       val keyValueList = keyList.distinct.zipWithIndex
       val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSourceWithDelete), hashFn)) {
@@ -111,15 +99,15 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
         assert(obtained.isEmpty)
       }
 
-      val dirOnlyInsert = File.createTempFile("iodb", "iodb2")
-      dirOnlyInsert.delete()
-      dirOnlyInsert.mkdir()
-      val dataSourceOnlyInsert = new IodbDataSource(new LSMStore(dir = dirOnlyInsert, keySize = KeySize))
+      val dataSourceOnlyInsert = IodbDataSource(path = "/tmp/iodb", keySize = KeySize)
 
       val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSourceOnlyInsert), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       assert(trieAfterDelete.getRootHash sameElements trieWithKeyValueLeft.getRootHash)
+
+      dataSourceWithDelete.close()
+      dataSourceOnlyInsert.close()
     }
   }
 

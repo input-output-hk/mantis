@@ -354,13 +354,8 @@ class MerklePatriciaTrieSuite extends FunSuite
 
   /* IODB tests */
   test("Simple test with IODB as Source") {
-    //create temporary dir
-    val dir = File.createTempFile("iodb", "iodb")
-    dir.delete()
-    dir.mkdir()
-
     //open new store
-    val nodeStorage = new IodbDataSource(new LSMStore(dir = dir, keySize = 33))
+    val nodeStorage = IodbDataSource(path = "/tmp/iodb", keySize = 33)
     val emptyTrie = MerklePatriciaTrie[Int, Int](new NodeStorage(nodeStorage), hashFn)
     val trieWithOneElement = emptyTrie.put(1, 5)
     val obtained = trieWithOneElement.get(1)
@@ -369,6 +364,8 @@ class MerklePatriciaTrieSuite extends FunSuite
     val trieAfterDelete = trieWithOneElement.remove(1)
     val obtainedAfterDelete = trieAfterDelete.get(1)
     assert(obtainedAfterDelete.isEmpty)
+
+    nodeStorage.close()
   }
 
   /* EthereumJ tests */
