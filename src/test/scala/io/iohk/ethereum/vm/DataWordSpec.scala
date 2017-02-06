@@ -156,4 +156,11 @@ class DataWordSpec extends FunSuite with PropertyChecks {
     assert(DataWord(BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935")).bytes.size == 32)
   }
 
+  ignore("2-way bytes conversion") {
+    //TODO: test a DataWord created from returns the same bytes ignoring the leading zeroes
+  }
+
+  ignore("byteSize") {
+    //TODO: test the number of relevant bytes
+  }
 }

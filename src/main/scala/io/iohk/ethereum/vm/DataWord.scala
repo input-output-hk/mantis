@@ -98,4 +98,9 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
     f"DataWord(0x$n%02x)" //would be even better to add a leading zero if odd number of digits
 
   def toBigInt: BigInt = n
+
+  /**
+    * @return Size in bytes excluding the leading 0 bytes
+    */
+  def byteSize: Int = (n.bitLength - 1) / 8 + 1
 }
