@@ -2,7 +2,6 @@ package io.iohk.ethereum.network.p2p.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeader, BlockHeaders}
-import org.spongycastle.util.encoders.Hex
 
 /**
   * This Validator checks if a given `BlockHeaders` contains a `BlockHeader` having a specific block number and hash
@@ -23,7 +22,7 @@ case class ForkValidator(blockNumber: BigInt, blockHash: ByteString) extends Mes
     */
   override def validate(message: BlockHeaders): Option[ForkValidatorError] = {
     val errors = message.headers.filter { header =>
-      header.number == blockNumber && !(header.blockHash sameElements blockHash)
+      header.number == blockNumber && !(header.blockHash == blockHash)
     }
     errors.headOption.map(_ => ForkValidatorError(errors))
   }

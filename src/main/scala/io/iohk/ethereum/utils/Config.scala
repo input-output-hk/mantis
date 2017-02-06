@@ -1,7 +1,6 @@
 package io.iohk.ethereum.utils
 
 import java.net.InetSocketAddress
-import java.time.Duration
 
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
@@ -49,6 +48,10 @@ object Config {
 
     val genesisDifficulty: Long = blockchainConfig.getLong("genesis-difficulty")
     val genesisHash = ByteString(Hex.decode(blockchainConfig.getString("genesis-hash")))
+
+    val daoForkBlockNumber = BigInt(blockchainConfig.getString("dao-fork-block-number"))
+    val daoForkBlockTotalDifficulty = BigInt(blockchainConfig.getString("dao-fork-block-total-difficulty"))
+    val daoForkBlockHash = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
   }
 
   object FastSync{

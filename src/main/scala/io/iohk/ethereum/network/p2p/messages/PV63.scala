@@ -1,14 +1,12 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.sha3
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{decode => rlpDecode}
-import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode, _}
 import org.spongycastle.util.encoders.Hex
-
-import scala.util.Try
 
 object PV63 {
 
@@ -113,7 +111,9 @@ object PV63 {
     }
   }
 
-  sealed trait MptNode
+  sealed trait MptNode {
+    lazy val hash: ByteString = ByteString(sha3(rlpEncode(this)))
+  }
 
   object NodeData {
     implicit val rlpEndDec = new RLPEncoder[NodeData] with RLPDecoder[NodeData] {

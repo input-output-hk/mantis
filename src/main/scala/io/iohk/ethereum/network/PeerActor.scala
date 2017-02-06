@@ -15,7 +15,6 @@ import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
-import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
 
@@ -31,6 +30,7 @@ class PeerActor(
     createRlpxConnectionFn: ActorContext => ActorRef)
   extends Actor with ActorLogging {
 
+  import Config.Blockchain._
   import Config.Network.Peer._
   import PeerActor._
   import context.{dispatcher, system}
@@ -44,11 +44,7 @@ class PeerActor(
   val waitForStatusInterval = 30.seconds
   val waitForChainCheck = 15.seconds
 
-  //FIXME move this to props
-  // Doc: https://blog.ethereum.org/2016/07/20/hard-fork-completed/
-  lazy val DaoBlockNumber = 1920000
-  lazy val DaoBlockTotalDifficulty = BigInt("39490964433395682584")
-  lazy val daoForkValidator = ForkValidator(DaoBlockNumber, ByteString(Hex.decode("94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f")))
+  val daoForkValidator = ForkValidator(daoForkBlockNumber, daoForkBlockHash)
 
   private var messageSubscribers: Seq[Subscriber] = Nil
 
@@ -151,7 +147,7 @@ class PeerActor(
       networkId = Config.Network.networkId,
       totalDifficulty = nodeStatus.blockchainStatus.totalDifficulty,
       bestHash = nodeStatus.blockchainStatus.bestHash,
-      genesisHash = Config.Blockchain.genesisHash)
+      genesisHash = genesisHash)
   }
 
   def waitingForNodeStatus(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
@@ -160,7 +156,7 @@ class PeerActor(
     case RLPxConnectionHandler.MessageReceived(status: msg.Status) =>
       timeout.cancel()
       log.info("Peer returned status ({})", status)
-      rlpxConnection.sendMessage(GetBlockHeaders(Left(DaoBlockNumber), maxHeaders = 1, skip = 0, reverse = false))
+      rlpxConnection.sendMessage(GetBlockHeaders(Left(daoForkBlockNumber), maxHeaders = 1, skip = 0, reverse = false))
       val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForChainCheck, self, DaoHeaderReceiveTimeout)
       context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
 
@@ -171,27 +167,35 @@ class PeerActor(
     case GetStatus => sender() ! StatusResponse(Handshaking)
   }
 
-  def waitingForChainForkCheck(rlpxConnection: RLPxConnection, status: msg.Status, timeout: Cancellable): Receive =
+  def waitingForChainForkCheck(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, timeout: Cancellable): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse handlePeerChainCheck(rlpxConnection) orElse {
-    case RLPxConnectionHandler.MessageReceived(msg@BlockHeaders(blockHeader +: Nil)) if blockHeader.number == DaoBlockNumber =>
-      timeout.cancel()
-      log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.blockHash.toArray))
-      if (daoForkValidator.validate(msg).isEmpty) {
-        log.warning("Peer is running the ETC chain")
-        context become new HandshakedHandler(rlpxConnection).receive
-      } else {
-        log.warning("Peer is not running the ETC fork, disconnecting")
-        disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
-      }
+    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse {
 
-    case RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)) =>
-      // FIXME We need to do some checking related to our blockchain. If we haven't arrived to the DAO block we might
-      // take advantage of this peer and grab as much blocks as we can until DAO.
-      // ATM we will only check by DaoBlockTotalDifficulty
-      if (status.totalDifficulty < DaoBlockTotalDifficulty) {
-        log.info("Peer probably hasn't arrived to DAO yet")
-        context become new HandshakedHandler(rlpxConnection).receive
+    case RLPxConnectionHandler.MessageReceived(msg @ BlockHeaders(blockHeaders)) =>
+      timeout.cancel()
+
+      val daoBlockHeaderOpt = blockHeaders.find(_.number == daoForkBlockNumber)
+
+      daoBlockHeaderOpt match {
+        case Some(daoBlockHeader) if daoForkValidator.validate(msg).isEmpty =>
+          log.info("Peer is running the ETC chain")
+          context become new HandshakedHandler(rlpxConnection).receive
+
+        case Some(_) if nodeStatusHolder().blockchainStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
+          log.info("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
+          context become new HandshakedHandler(rlpxConnection).receive
+
+        case Some(_) =>
+          log.info("Peer is not running the ETC fork, disconnecting")
+          disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
+
+        case None if remoteStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
+          log.info("Peer is not at ETC fork yet. Keeping the connection until then.")
+          context become new HandshakedHandler(rlpxConnection).receive
+
+        case None =>
+          log.info("Peer did not respond with ETC fork block header")
+          disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
       }
 
     case DaoHeaderReceiveTimeout => disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
@@ -259,6 +263,7 @@ class PeerActor(
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
         handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
+        log.info("Received message: {}", message)
         notifySubscribers(message)
         processMessage(message)
 
@@ -285,8 +290,18 @@ class PeerActor(
         log.info("Received {}. Closing connection", d)
         context stop self
 
-      case msg =>
-        log.info("Received message: {}", msg)
+      case msg @ BlockHeaders(blockHeaders) =>
+        val daoBlockHeaderOpt = blockHeaders.find(_.number == daoForkBlockNumber)
+
+        daoBlockHeaderOpt foreach { daoBlockHeader =>
+          log.info("Reached the ETC fork block header")
+          if (daoForkValidator.validate(msg).nonEmpty) {
+            log.info("Peer is not running the ETC fork, disconnecting")
+            disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
+          }
+        }
+
+      case _ => // nothing
     }
 
   }

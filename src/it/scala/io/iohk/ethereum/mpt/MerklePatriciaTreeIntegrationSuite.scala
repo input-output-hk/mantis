@@ -6,6 +6,9 @@ import java.security.MessageDigest
 
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.db.dataSource.{EphemDataSource, IodbDataSource}
+import io.iohk.ethereum.db.dataSource.IodbDataSource
+import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.utils.Logger
 import io.iohk.iodb.LSMStore
@@ -23,7 +26,9 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   val hashFn = (input: Array[Byte]) => sha3(input)
 
-  val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](EphemDataSource(), hashFn)
+  val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new NodeStorage(EphemDataSource()), hashFn)
+
+  val KeySize: Int = 32 + 1 /* Hash size + prefix */
 
   implicit val intByteArraySerializable = new ByteArraySerializable[Int] {
     override def toBytes(input: Int): Array[Byte] = {
@@ -46,8 +51,8 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
     dir.delete()
     dir.mkdir()
 
-    val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = 32))
-    val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](dataSource, hashFn)
+    val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = KeySize))
+    val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new NodeStorage(dataSource), hashFn)
 
     val keys = (0 to 100).map(intByteArraySerializable.toBytes)
     val trie = Random.shuffle(keys).foldLeft(emptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
@@ -67,8 +72,8 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
       dir.delete()
       dir.mkdir()
 
-      val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = 32))
-      val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](dataSource, hashFn)) {
+      val dataSource = new IodbDataSource(new LSMStore(dir = dir, keySize = KeySize))
+      val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSource), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       keyValueList.foreach { case (key, value) =>
@@ -85,10 +90,10 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
       val dirWithDelete = File.createTempFile("iodb", "iodb1")
       dirWithDelete.delete()
       dirWithDelete.mkdir()
-      val dataSourceWithDelete = new IodbDataSource(new LSMStore(dir = dirWithDelete, keySize = 32))
+      val dataSourceWithDelete = new IodbDataSource(new LSMStore(dir = dirWithDelete, keySize = KeySize))
 
       val keyValueList = keyList.distinct.zipWithIndex
-      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](dataSourceWithDelete, hashFn)) {
+      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSourceWithDelete), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       val (keyValueToDelete, keyValueLeft) = Random.shuffle(keyValueList).splitAt(Gen.choose(0, keyValueList.size).sample.get)
@@ -109,9 +114,9 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
       val dirOnlyInsert = File.createTempFile("iodb", "iodb2")
       dirOnlyInsert.delete()
       dirOnlyInsert.mkdir()
-      val dataSourceOnlyInsert = new IodbDataSource(new LSMStore(dir = dirOnlyInsert, keySize = 32))
+      val dataSourceOnlyInsert = new IodbDataSource(new LSMStore(dir = dirOnlyInsert, keySize = KeySize))
 
-      val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTrie[Int, Int](dataSourceOnlyInsert, hashFn)) {
+      val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSourceOnlyInsert), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
       assert(trieAfterDelete.getRootHash sameElements trieWithKeyValueLeft.getRootHash)
@@ -184,7 +189,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
     val Symmetric = true
 
     val start: Long = System.currentTimeMillis
-    val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](EphemDataSource(), hashFn)
+    val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new NodeStorage(EphemDataSource()), hashFn)
     var seed: Array[Byte] = Array.fill(32)(0.toByte)
 
     val trieResult = (0 until Rounds).foldLeft(emptyTrie){ case (recTrie, i) =>
