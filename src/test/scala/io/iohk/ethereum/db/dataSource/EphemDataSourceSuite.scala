@@ -14,7 +14,7 @@ class EphemDataSourceSuite extends FunSuite
 
   val KeySize: Int = 32
   val KeyNumberLimit: Int = 40
-  val OtherNamespace: Byte = 'e'.toByte
+  val OtherNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('e'.toByte)
   def putMultiple(dataSource: DataSource, toInsert: Seq[(ByteString, ByteString)]): DataSource = {
     toInsert.foldLeft(dataSource){ case (recDB, keyValuePair) =>
       recDB.update(OtherNamespace, Seq(), Seq(keyValuePair))

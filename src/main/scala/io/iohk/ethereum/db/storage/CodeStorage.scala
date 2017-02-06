@@ -13,7 +13,7 @@ import CodeStorage._
 class CodeStorage(val dataSource: DataSource) extends KeyValueStorage[CodeHash, Code] {
   type T = CodeStorage
 
-  val namespace: Byte = Namespaces.CodeNamespace
+  val namespace: IndexedSeq[Byte] = Namespaces.CodeNamespace
   def keySerializer: CodeHash => IndexedSeq[Byte] = identity
   def valueSerializer: Code => IndexedSeq[Byte] = identity
   def valueDeserializer: IndexedSeq[Byte] => Code = (code: IndexedSeq[Byte]) => ByteString(code.toArray)

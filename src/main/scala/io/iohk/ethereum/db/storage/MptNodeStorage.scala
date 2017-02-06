@@ -15,7 +15,7 @@ import MptNodeStorage._
 class MptNodeStorage(val dataSource: DataSource) extends KeyValueStorage[MptNodeHash, MptNode] {
   type T = MptNodeStorage
 
-  val namespace: Byte = Namespaces.NodeNamespace
+  val namespace: IndexedSeq[Byte] = Namespaces.NodeNamespace
   def keySerializer: MptNodeHash => IndexedSeq[Byte] = identity
   def valueSerializer: MptNode => IndexedSeq[Byte] = (node: MptNode) => rlpEncode(node).toIndexedSeq
   def valueDeserializer: IndexedSeq[Byte] => MptNode = (encodedNode: IndexedSeq[Byte]) => rlpDecode[MptNode](encodedNode.toArray)

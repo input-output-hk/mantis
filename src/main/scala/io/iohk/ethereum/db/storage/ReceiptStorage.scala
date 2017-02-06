@@ -16,7 +16,7 @@ import ReceiptStorage._
 class ReceiptStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHash, Seq[Receipt]] {
   type T = ReceiptStorage
 
-  val namespace: Byte = Namespaces.ReceiptsNamespace
+  val namespace: IndexedSeq[Byte] = Namespaces.ReceiptsNamespace
   def keySerializer: BlockHash => IndexedSeq[Byte] = identity
   def valueSerializer: Seq[Receipt] => IndexedSeq[Byte] =
     (receipts: Seq[Receipt]) => rlpEncode(receipts)(seqEncDec[Receipt]).toIndexedSeq

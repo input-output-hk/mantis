@@ -12,7 +12,7 @@ import akka.util.ByteString
 class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, NodeEncoded] {
   type T = NodeStorage
 
-  val namespace: Byte = Namespaces.NodeNamespace
+  val namespace: IndexedSeq[Byte] = Namespaces.NodeNamespace
   def keySerializer: NodeHash => IndexedSeq[Byte] = _.toIndexedSeq
   def valueSerializer: NodeEncoded => IndexedSeq[Byte] = _.toIndexedSeq
   def valueDeserializer: IndexedSeq[Byte] => NodeEncoded = _.toArray

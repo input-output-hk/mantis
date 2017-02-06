@@ -6,7 +6,7 @@ private[storage] trait KeyValueStorage[K, V] {
   type T <: KeyValueStorage[K, V]
 
   val dataSource: DataSource
-  val namespace: Byte
+  val namespace: IndexedSeq[Byte]
   def keySerializer: K => IndexedSeq[Byte]
   def valueSerializer: V => IndexedSeq[Byte]
   def valueDeserializer: IndexedSeq[Byte] => V
@@ -22,17 +22,19 @@ private[storage] trait KeyValueStorage[K, V] {
   def get(key: K): Option[V] = dataSource.get(namespace, keySerializer(key)).map(valueDeserializer)
 
   /**
-    * This function updates the KeyValueStorage by deleting and inserting new (key-value) pairs in the current namespace.
+    * This function updates the KeyValueStorage by deleting, updating and inserting new (key-value) pairs
+    * in the current namespace.
     *
     * @param toRemove which includes all the keys to be removed from the KeyValueStorage.
-    * @param toUpdate which includes all the (key-value) pairs to be inserted into the KeyValueStorage.
+    * @param toUpsert which includes all the (key-value) pairs to be inserted into the KeyValueStorage.
+    *                 If a key is already in the DataSource its value will be updated.
     * @return the new KeyValueStorage after the removals and insertions were done.
     */
-  def update(toRemove: Seq[K], toUpdate: Seq[(K, V)]): T = {
+  def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): T = {
     val newDataSource = dataSource.update(
       namespace = namespace,
       toRemove = toRemove.map(keySerializer),
-      toUpdate = toUpdate.map { case (k, v) => keySerializer(k) -> valueSerializer(v) }
+      toUpsert = toUpsert.map { case (k, v) => keySerializer(k) -> valueSerializer(v) }
     )
     apply(newDataSource)
   }
@@ -58,7 +60,7 @@ private[storage] trait KeyValueStorage[K, V] {
 }
 
 object Namespaces {
-  val ReceiptsNamespace: Byte = 'r'.toByte
-  val NodeNamespace: Byte = 'n'.toByte
-  val CodeNamespace: Byte = 'c'.toByte
+  val ReceiptsNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('r'.toByte)
+  val NodeNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('n'.toByte)
+  val CodeNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('c'.toByte)
 }

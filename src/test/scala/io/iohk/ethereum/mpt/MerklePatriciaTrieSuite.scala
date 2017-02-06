@@ -305,9 +305,9 @@ class MerklePatriciaTrieSuite extends FunSuite
     val key4: Array[Byte] = Hex.decode("123500")
     val trie = EmptyTrie.put(key1, key1).put(key2, key2).put(key3, key3).put(key4, key4)
     val wrongSource = EphemDataSource().update(
-      'e'.toByte,
+      IndexedSeq[Byte]('e'.toByte),
       toRemove = Seq(),
-      toUpdate = Seq(ByteString(trie.getRootHash) -> ByteString(trie.nodeStorage.get(trie.getRootHash).get))
+      toUpsert = Seq(ByteString(trie.getRootHash) -> ByteString(trie.nodeStorage.get(trie.getRootHash).get))
     )
     val trieWithWrongSource = MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, new NodeStorage(wrongSource), hashFn)
     val trieAfterDelete = Try {
