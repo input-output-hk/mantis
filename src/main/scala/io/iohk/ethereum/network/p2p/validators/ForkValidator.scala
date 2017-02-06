@@ -23,7 +23,7 @@ case class ForkValidator(blockNumber: BigInt, blockHash: ByteString) extends Mes
     */
   override def validate(message: BlockHeaders): Option[ForkValidatorError] = {
     val errors = message.headers.filter { header =>
-      header.number == blockNumber && !(header.hash sameElements blockHash)
+      header.number == blockNumber && !(header.hash == blockHash)
     }
     errors.headOption.map(_ => ForkValidatorError(errors))
   }
