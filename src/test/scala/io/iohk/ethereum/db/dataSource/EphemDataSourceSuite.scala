@@ -1,10 +1,10 @@
-package io.iohk.ethereum.mpt
+package io.iohk.ethereum.db.dataSource
 
+import akka.util.ByteString
+import io.iohk.ethereum.ObjectGenerators
+import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-import io.iohk.ethereum.ObjectGenerators
-
-import org.scalacheck.Gen
 
 import scala.util.Random
 
@@ -14,26 +14,25 @@ class EphemDataSourceSuite extends FunSuite
 
   val KeySize: Int = 32
   val KeyNumberLimit: Int = 40
-  val DefaultRootHash: Array[Byte] = Array.emptyByteArray
-
-  def putMultiple(dataSource: DataSource, toInsert: Seq[(Array[Byte], Array[Byte])]): DataSource = {
+  val OtherNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('e'.toByte)
+  def putMultiple(dataSource: DataSource, toInsert: Seq[(ByteString, ByteString)]): DataSource = {
     toInsert.foldLeft(dataSource){ case (recDB, keyValuePair) =>
-      recDB.update(DefaultRootHash, Seq(), Seq(keyValuePair))
+      recDB.update(OtherNamespace, Seq(), Seq(keyValuePair))
     }
   }
 
-  def removeMultiple(dataSource: DataSource, toDelete: Seq[Array[Byte]]): DataSource = {
+  def removeMultiple(dataSource: DataSource, toDelete: Seq[ByteString]): DataSource = {
     toDelete.foldLeft(dataSource){ case (recDB, key) =>
-      recDB.update(DefaultRootHash, Seq(key), Seq())
+      recDB.update(OtherNamespace, Seq(key), Seq())
     }
   }
 
   test("EphemDataSource insert"){
-    forAll(seqByteArrayOfNItemsGen(KeySize)) { unFilteredKeyList: Seq[Array[Byte]] =>
+    forAll(seqByteStringOfNItemsGen(KeySize)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.filter(_.length == KeySize)
       val db = putMultiple(dataSource = EphemDataSource(), toInsert = keyList.zip(keyList))
       keyList.foreach { key =>
-        val obtained = db.get(key)
+        val obtained = db.get(OtherNamespace, key)
         assert(obtained.isDefined)
         assert(obtained.get sameElements key)
       }
@@ -41,18 +40,18 @@ class EphemDataSourceSuite extends FunSuite
   }
 
   test("EphemDataSource delete"){
-    forAll(seqByteArrayOfNItemsGen(KeySize)) { unFilteredKeyList: Seq[Array[Byte]] =>
+    forAll(seqByteStringOfNItemsGen(KeySize)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.filter(_.length == KeySize)
       val (keysToDelete, keyValueLeft) = Random.shuffle(keyList).splitAt(Gen.choose(0, keyList.size).sample.get)
 
       val dbAfterInsert = putMultiple(dataSource = EphemDataSource(), toInsert = keyList.zip(keyList))
       val db = removeMultiple(dataSource = dbAfterInsert, toDelete = keysToDelete)
       keyValueLeft.foreach { key =>
-        val obtained = db.get(key)
+        val obtained = db.get(OtherNamespace, key)
         assert(obtained.isDefined)
         assert(obtained.get sameElements key)
       }
-      keysToDelete.foreach { key => assert(db.get(key).isEmpty) }
+      keysToDelete.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
     }
   }
 }
