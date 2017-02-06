@@ -48,25 +48,25 @@ object Runner {
     val program = Program(code)
     val callValue = ByteString.empty
 
-    val contextCreate = ProgramContext(program, callData = ByteString.empty, callValue, Storage.Empty)
+    val contextCreate = ProgramContext(program, 0, callData = ByteString.empty, callValue, Storage.Empty)
     val resultCreate = VM.run(contextCreate)
     printResult("CONTRACT CREATE", resultCreate)
 
     val contract = Program(resultCreate.returnData)
 
     val resultAfterIter = (1 to 10).foldLeft(resultCreate){ (previousResult, i) =>
-      val contextStored = ProgramContext(contract, callData = loadCode(getStoredFibHex), callValue, previousResult.storage)
+      val contextStored = ProgramContext(contract, 0, callData = loadCode(getStoredFibHex), callValue, previousResult.storage)
       val resultStored = VM.run(contextStored)
       printResult(s"getStoredFib()  [$getStoredFibHex]", resultStored)
 
-      val contextNew = ProgramContext(contract, callData = loadCode(getNewFibHex(i)), callValue, resultStored.storage)
+      val contextNew = ProgramContext(contract, DataWord.MaxWord.toBigInt, callData = loadCode(getNewFibHex(i)), callValue, resultStored.storage)
       val resultNew = VM.run(contextNew)
       printResult(s"getNewFib($i)  [${getNewFibHex(i)}]", resultNew)
 
       resultNew
     }
 
-    val contextFinal = ProgramContext(contract, callData = loadCode(getStoredFibHex), callValue, resultAfterIter.storage)
+    val contextFinal = ProgramContext(contract, DataWord.MaxWord.toBigInt, callData = loadCode(getStoredFibHex), callValue, resultAfterIter.storage)
     val resultFinal = VM.run(contextFinal)
     printResult(s"getStoredFib()  [$getStoredFibHex]", resultFinal)
   }

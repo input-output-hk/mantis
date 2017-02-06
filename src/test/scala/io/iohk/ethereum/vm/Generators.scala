@@ -32,7 +32,7 @@ object Generators extends ObjectGenerators {
       size <- Gen.choose(0, maxSize)
       list <- Gen.listOfN(size, dataWordGen)
       stack = Stack.empty(maxSize)
-    } yield stack.push(list).right.get
+    } yield stack.push(list)
 
   def getStackGen(maxWord: DataWord): Gen[Stack] =
     getStackGen(getDataWordGen(max = maxWord))
@@ -58,7 +58,7 @@ object Generators extends ObjectGenerators {
       code <- codeGen
       callData <- callDataGen
       callValue <- callValueGen
-      context = ProgramContext(Program(code), callData, callValue, storage)
+      context = ProgramContext(Program(code), DataWord.MaxWord.toBigInt, callData, callValue, storage)
     } yield ProgramState(context).withStack(stack).withMemory(memory)
 
 }
