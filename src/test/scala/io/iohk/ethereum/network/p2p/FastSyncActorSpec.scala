@@ -29,7 +29,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
   }
 
-  "FastSyncActor" should "recursively process chain" in new TestSetup {
+  it should "recursively process chain" in new TestSetup {
     // before
     fastSync ! FastSyncActor.StartSync(targetBlockHash)
 
@@ -49,7 +49,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     peer.expectMsg(PeerActor.SendMessage(GetReceipts(blockHashes)))
   }
 
-  "FastSyncActor" should "stop when chain and mpt is downloaded" in new TestSetup {
+  it should "stop when chain and mpt is downloaded" in new TestSetup {
     // before
     fastSync ! FastSyncActor.StartSync(targetBlockHash)
 
@@ -72,14 +72,14 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     //when
     peer.reply(MessageReceived(BlockBodies(Seq(BlockBody(transactionList = Seq.empty, uncleNodesList = Seq.empty)))))
     peer.reply(MessageReceived(Receipts(Seq(Seq.empty))))
-    peer.reply(MessageReceived(stateMptLeafWithAccount))
+    peer.reply(MessageReceived(NodeData(Seq(stateMptLeafWithAccount))))
 
     //then
     peer.expectMsgClass(classOf[FastSyncDone])
 
   }
 
-  "FastSyncActor" should "send failure message when got malformed response" in new TestSetup {
+  it should "send failure message when got malformed response" in new TestSetup {
     // before
     fastSync ! FastSyncActor.StartSync(targetBlockHash)
 
@@ -102,6 +102,65 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
     //then
     peer.expectMsg(SyncFailure)
+  }
+
+  it should "get state MPT nodes" in new TestSetup {
+    // before
+    fastSync ! FastSyncActor.StartSync(targetBlockHash)
+
+    peer.expectMsgClass(classOf[PeerActor.Subscribe])
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockHeaders]])
+
+    peer.reply(MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
+
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockHeaders]])
+
+    peer.reply(MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
+
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockBodies]])
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetReceipts]])
+
+    //when
+    peer.reply(MessageReceived(NodeData(Seq(mptBranchWithTwoChild))))
+
+    //then
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
+    peer.reply(MessageReceived(NodeData(Seq(mptExtension, stateMptLeafWithAccount))))
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
+    peer.reply(MessageReceived(NodeData(Seq(stateMptLeafWithAccount))))
+    //TODO add assertion on db save for state MPT
+  }
+
+  it should "get contract MPT nodes" in new TestSetup {
+    // before
+    fastSync ! FastSyncActor.StartSync(targetBlockHash)
+
+    peer.expectMsgClass(classOf[PeerActor.Subscribe])
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockHeaders]])
+
+    peer.reply(MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
+
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockHeaders]])
+
+    peer.reply(MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
+
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockBodies]])
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetReceipts]])
+
+    //when
+    peer.reply(MessageReceived(NodeData(Seq(stateMptLeafWithContractAndNotEmptyStorage))))
+
+    //then
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
+    peer.reply(MessageReceived(NodeData(Seq(mptBranchWithTwoChild, contractEvmCode))))
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
+    peer.reply(MessageReceived(NodeData(Seq(mptExtension, contractMptLeafBranch))))
+    peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
+    peer.reply(MessageReceived(NodeData(Seq(contractMptLeafBranch))))
+
+    //TODO add assertion on db save EVM code and contract storage
   }
 
   trait TestSetup {
@@ -149,8 +208,23 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
       genesisBlockHeader.copy(number = 3))
     val blockHashes: Seq[ByteString] = responseBlockHeaders.map(_.blockHash)
 
+    val mptBranchWithTwoChild =
+      ByteString(Hex.decode("f85180a0a22ed27833bf167433f8c9135d70eca57d5410d03520b90188973c58a0e299738080808080808080a0cfde5f1251ac4f23f7a1794f15d56abbd1eceb6a8996aa58b078e3b4b355d331808080808080"))
+
+    val mptExtension =
+      ByteString(Hex.decode("e21aa0ed793383ccae4dc09e75c9cba55d0dac0ff359c37b77848347d844d5bd83bcd7"))
+
     val stateMptLeafWithAccount =
-      NodeData(Seq(ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))))
+      ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
+
+    val stateMptLeafWithContractAndNotEmptyStorage =
+      ByteString(Hex.decode("f8679e20ed81b2e9dea837899e68d7467ffb53b1beaed7e3ec0f5e96bc0c0e3f8eb846f8448080a096dcdcf98b4514062f687e328429cfd8425f0f095e86e6a67fecdabe3eadf7f8a094f25c272c161b7e4827e2806ba596233720ec831884a0e1cebea49f26cd9b2e"))
+
+    val contractMptLeafBranch =
+      ByteString(Hex.decode("e6a0390decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e56384831dfeac"))
+
+    val contractEvmCode =
+      ByteString(Hex.decode("60606040523615600a575b601d6000600060013411601f5760006024565b005b600134035b91508134039050731c814ab24c152fa279f9ec864cc6321090b86d8c73ffffffffffffffffffffffffffffffffffffffff16826000366040518083838082843782019150509250505060006040518083038185876185025a03f1505060405173410c06478eb2fec6ef35d88c179eb38636a666089250839150600081818185876185025a03f150505050505056"))
 
     implicit val system = ActorSystem("PeerActorSpec_System")
 

@@ -6,18 +6,12 @@ import io.iohk.ethereum.network.FastSyncActor._
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.utils.Config.FastSync
 import org.spongycastle.util.encoders.Hex
-
-import scala.concurrent.duration._
 
 class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
   import context.{dispatcher, system}
-
-  //TODO move to conf
-  val BlocksPerMessage = 10
-  val NodesPerRequest = 10
-  val NodeRequestsInterval: FiniteDuration = 3.seconds
 
   val GenesisBlockNumber = 0
   val EmptyAccountStorageHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
@@ -40,7 +34,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
   def waitForTargetBlockHeader(targetBlockHash: ByteString): Receive = handleTerminated orElse {
     case MessageReceived(BlockHeaders(blockHeaders)) if blockHeaders.nonEmpty =>
       peerActor ! PeerActor.SendMessage(GetNodeData(Seq(blockHeaders.head.stateRoot)))
-      peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(GenesisBlockNumber + 1), BlocksPerMessage, 0, reverse = false))
+      peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(GenesisBlockNumber + 1), FastSync.BlocksPerMessage, 0, reverse = false))
       context become processMessages(ProcessingState(targetBlockHash,
         targetBlockNumber = Some(blockHeaders.head.number),
         currentBlockNumber = Some(GenesisBlockNumber),
@@ -93,8 +87,8 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
 
 
         if (nextCurrentBlockNumber < targetBlockNumber) {
-          if (nextBlockNumber + BlocksPerMessage <= targetBlockNumber) {
-            peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(nextBlockNumber), BlocksPerMessage, skip = 0, reverse = false))
+          if (nextBlockNumber + FastSync.BlocksPerMessage <= targetBlockNumber) {
+            peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(nextBlockNumber), FastSync.BlocksPerMessage, skip = 0, reverse = false))
           } else {
             peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(nextBlockNumber), targetBlockNumber - nextCurrentBlockNumber, skip = 0, reverse = false))
           }
@@ -158,10 +152,10 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
           case ContractStorageMptNodeHash(_) => false
         }
 
-        val (forRequest, forQueue) = (nonMptHashes ++ mptHashes).splitAt(NodesPerRequest)
+        val (forRequest, forQueue) = (nonMptHashes ++ mptHashes).splitAt(FastSync.NodesPerRequest)
         context become processMessages(state.copy(requestedNodes = forRequest, nodesQueue = forQueue))
         peerActor ! PeerActor.SendMessage(GetNodeData(forRequest.map(_.v)))
-        system.scheduler.scheduleOnce(NodeRequestsInterval) {
+        system.scheduler.scheduleOnce(FastSync.NodeRequestsInterval) {
           self ! FetchNodes
         }
     }
@@ -176,6 +170,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
       case n: MptBranch =>
         log.info("Got contract branch node: {}", n)
         val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
+        println(hashes)
         self ! RequestNodes(hashes.map(ContractStorageMptNodeHash): _*)
       //TODO insert node
 

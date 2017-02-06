@@ -1,6 +1,7 @@
 package io.iohk.ethereum.utils
 
 import java.net.InetSocketAddress
+import java.time.Duration
 
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
@@ -13,32 +14,32 @@ object Config {
 
   private val config = ConfigFactory.load().getConfig("etc-client")
 
-  val clientId = config.getString("client-id")
+  val clientId: String = config.getString("client-id")
 
   object Network {
     private val networkConfig = config.getConfig("network")
 
-    val networkId = networkConfig.getInt("network-id")
+    val networkId: Int = networkConfig.getInt("network-id")
 
     object Server {
       private val serverConfig = networkConfig.getConfig("server-address")
 
-      val interface = serverConfig.getString("interface")
-      val port = serverConfig.getInt("port")
+      val interface: String = serverConfig.getString("interface")
+      val port: Int = serverConfig.getInt("port")
       val listenAddress = new InetSocketAddress(interface, port)
     }
 
     object Discovery {
       private val discoveryConfig = networkConfig.getConfig("discovery")
 
-      val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").toList
+      val bootstrapNodes: List[String] = discoveryConfig.getStringList("bootstrap-nodes").toList
     }
 
     object Peer {
       private val peerConfig = networkConfig.getConfig("peer")
 
-      val connectRetryDelay = peerConfig.getDuration("connect-retry-delay").toMillis.millis
-      val connectMaxRetries = peerConfig.getInt("connect-max-retries")
+      val connectRetryDelay: FiniteDuration = peerConfig.getDuration("connect-retry-delay").toMillis.millis
+      val connectMaxRetries: Int = peerConfig.getInt("connect-max-retries")
     }
 
   }
@@ -46,8 +47,15 @@ object Config {
   object Blockchain {
     private val blockchainConfig = config.getConfig("blockchain")
 
-    val genesisDifficulty = blockchainConfig.getLong("genesis-difficulty")
+    val genesisDifficulty: Long = blockchainConfig.getLong("genesis-difficulty")
     val genesisHash = ByteString(Hex.decode(blockchainConfig.getString("genesis-hash")))
   }
 
+  object FastSync{
+    private val fastSyncConfig = config.getConfig("fast-sync")
+
+    val BlocksPerMessage: Int = fastSyncConfig.getInt("blocks-per-message")
+    val NodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
+    val NodeRequestsInterval: FiniteDuration = fastSyncConfig.getDuration("node-requests-interval").toMillis.millis
+  }
 }
