@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import org.spongycastle.util.encoders.Hex
+
 import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 
@@ -38,6 +39,9 @@ object Config {
 
       val connectRetryDelay = peerConfig.getDuration("connect-retry-delay").toMillis.millis
       val connectMaxRetries = peerConfig.getInt("connect-max-retries")
+      val disconnectPoisonPillTimeout = peerConfig.getDuration("disconnect-poison-pill-timeout").toMillis.millis
+      val waitForStatusTimeout = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
+      val waitForChainCheckTimeout = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
     }
 
   }
