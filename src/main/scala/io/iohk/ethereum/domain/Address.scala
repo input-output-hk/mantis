@@ -39,6 +39,6 @@ class Address private(val bytes: ByteString) {
     bytes.hashCode
 
   override def toString: String =
-    s"${getClass.getSimpleName}(${Hex.toHexString(toArray)})"
+    s"0x${Hex.toHexString(toArray)}"
 
 }
