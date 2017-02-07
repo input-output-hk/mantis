@@ -41,12 +41,12 @@ class RLPSpeedSuite extends FunSuite
 
     val serializationTxStart: Long = System.currentTimeMillis
     val tx = validTransaction
-    val serializedTx = doTestSerialize(tx, rounds)(SignedTransactions.txRlpEndDec)
+    val serializedTx = doTestSerialize(tx, rounds)(SignedTransactions.txRlpEncDec)
     val elapsedTxSerialization = (System.currentTimeMillis() - serializationTxStart) / 1000f
     log.info(s"TX serializations / sec: (${rounds.toFloat / elapsedTxSerialization})")
 
     val txDeserializationStart: Long = System.currentTimeMillis
-    val deserializedTx: SignedTransaction = doTestDeserialize(serializedTx, rounds)(SignedTransactions.txRlpEndDec)
+    val deserializedTx: SignedTransaction = doTestDeserialize(serializedTx, rounds)(SignedTransactions.txRlpEncDec)
     val elapsedTxDeserialization = (System.currentTimeMillis() - txDeserializationStart) / 1000f
     log.info(s"TX deserializations / sec: (${rounds.toFloat / elapsedTxDeserialization})")
   }
@@ -134,7 +134,7 @@ case class TestBlock(header: BlockHeader, transactions: Seq[SignedTransaction], 
 object TestBlock {
   implicit val encDec = new RLPEncoder[TestBlock] with RLPDecoder[TestBlock] {
     override def encode(obj: TestBlock): RLPEncodeable = {
-      val rplEncodeables: Seq[RLPEncodeable] = obj.transactions.map(SignedTransactions.txRlpEndDec.encode)
+      val rplEncodeables: Seq[RLPEncodeable] = obj.transactions.map(SignedTransactions.txRlpEncDec.encode)
       RLPList(obj.header,
               RLPList(rplEncodeables: _*),
               obj.uncles: RLPList
@@ -143,9 +143,9 @@ object TestBlock {
 
     override def decode(rlp: RLPEncodeable): TestBlock = rlp match {
       case RLPList(header, (txs: RLPList), (uncles: RLPList)) =>
-        TestBlock(BlockHeader.rlpEndDec.decode(header),
-                  txs.items.map(SignedTransactions.txRlpEndDec.decode),
-                  uncles.items.map(BlockHeader.rlpEndDec.decode))
+        TestBlock(BlockHeader.rlpEncDec.decode(header),
+                  txs.items.map(SignedTransactions.txRlpEncDec.decode),
+                  uncles.items.map(BlockHeader.rlpEncDec.decode))
       case _ => throw new RuntimeException("Invalid Block encodeable")
     }
   }

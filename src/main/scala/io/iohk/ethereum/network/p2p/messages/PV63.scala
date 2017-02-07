@@ -14,7 +14,7 @@ import io.iohk.ethereum.crypto.sha3
 object PV63 {
 
   object GetNodeData {
-    implicit val rlpEndDec = new RLPEncoder[GetNodeData] with RLPDecoder[GetNodeData] {
+    implicit val rlpEncDec = new RLPEncoder[GetNodeData] with RLPDecoder[GetNodeData] {
       override def encode(obj: GetNodeData): RLPEncodeable = {
         import obj._
         commonMptHashes: RLPList
@@ -41,7 +41,7 @@ object PV63 {
   }
 
   object AccountImplicits {
-    implicit val rlpEndDec = new RLPEncoder[Account] with RLPDecoder[Account] {
+    implicit val rlpEncDec = new RLPEncoder[Account] with RLPDecoder[Account] {
       override def encode(obj: Account): RLPEncodeable = {
         import obj._
         RLPList(nonce, balance, byteStringEncDec.encode(storageRoot), byteStringEncDec.encode(codeHash))
@@ -58,7 +58,7 @@ object PV63 {
   object MptNode {
     val BranchNodeChildLength = 16
 
-    implicit val rlpEndDec = new RLPEncoder[MptNode] with RLPDecoder[MptNode] {
+    implicit val rlpEncDec = new RLPEncoder[MptNode] with RLPDecoder[MptNode] {
       override def encode(obj: MptNode): RLPEncodeable = {
         obj match {
           case n: MptLeaf =>
@@ -107,7 +107,7 @@ object PV63 {
   }
 
   object NodeData {
-    implicit val rlpEndDec = new RLPEncoder[NodeData] with RLPDecoder[NodeData] {
+    implicit val rlpEncDec = new RLPEncoder[NodeData] with RLPDecoder[NodeData] {
       override def encode(obj: NodeData): RLPEncodeable = {
         import obj._
         values
@@ -186,7 +186,7 @@ object PV63 {
   case class MptValue(value: ByteString)
 
   object GetReceipts {
-    implicit val rlpEndDec = new RLPEncoder[GetReceipts] with RLPDecoder[GetReceipts] {
+    implicit val rlpEncDec = new RLPEncoder[GetReceipts] with RLPDecoder[GetReceipts] {
       override def encode(obj: GetReceipts): RLPEncodeable = {
         import obj._
         blockHashes: RLPList
@@ -213,7 +213,7 @@ object PV63 {
   }
 
   object TransactionLog {
-    implicit val rlpEndDec = new RLPEncoder[TransactionLog] with RLPDecoder[TransactionLog] {
+    implicit val rlpEncDec = new RLPEncoder[TransactionLog] with RLPDecoder[TransactionLog] {
       override def encode(obj: TransactionLog): RLPEncodeable = {
         import obj._
         RLPList(loggerAddress, logTopics, data)
@@ -239,7 +239,7 @@ object PV63 {
   }
 
   object Receipt {
-    implicit val rlpEndDec = new RLPEncoder[Receipt] with RLPDecoder[Receipt] {
+    implicit val rlpEncDec = new RLPEncoder[Receipt] with RLPDecoder[Receipt] {
       override def encode(obj: Receipt): RLPEncodeable = {
         import obj._
         RLPList(postTransactionStateHash, cumulativeGasUsed,
@@ -274,7 +274,7 @@ object PV63 {
   }
 
   object Receipts {
-    implicit val rlpEndDec = new RLPEncoder[Receipts] with RLPDecoder[Receipts] {
+    implicit val rlpEncDec = new RLPEncoder[Receipts] with RLPDecoder[Receipts] {
       override def encode(obj: Receipts): RLPEncodeable = {
         import obj._
         RLPList(receiptsForBlocks.map(r => r:RLPList): _*)

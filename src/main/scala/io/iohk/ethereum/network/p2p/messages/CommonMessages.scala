@@ -10,7 +10,7 @@ import org.spongycastle.util.encoders.Hex
 
 object CommonMessages {
   object Status {
-    implicit val rlpEndDec = new RLPEncoder[Status] with RLPDecoder[Status] {
+    implicit val rlpEncDec = new RLPEncoder[Status] with RLPDecoder[Status] {
       override def encode(obj: Status): RLPEncodeable = {
         import obj._
         RLPList(protocolVersion, networkId, totalDifficulty, bestHash.toArray[Byte], genesisHash.toArray[Byte])
@@ -42,7 +42,7 @@ object CommonMessages {
 
   object SignedTransactions {
 
-    implicit val txRlpEndDec = new RLPEncoder[SignedTransaction] with RLPDecoder[SignedTransaction] {
+    implicit val txRlpEncDec = new RLPEncoder[SignedTransaction] with RLPDecoder[SignedTransaction] {
 
       override def encode(signedTx: SignedTransaction): RLPEncodeable = {
         import signedTx._
@@ -63,15 +63,15 @@ object CommonMessages {
 
     }
 
-    implicit val txsRlpEndDec = new RLPEncoder[SignedTransactions] with RLPDecoder[SignedTransactions] {
+    implicit val txsRlpEncDec = new RLPEncoder[SignedTransactions] with RLPDecoder[SignedTransactions] {
 
       override def encode(obj: SignedTransactions): RLPEncodeable = {
         import obj._
-        RLPList(txs.map(txRlpEndDec.encode): _*)
+        RLPList(txs.map(txRlpEncDec.encode): _*)
       }
 
       override def decode(rlp: RLPEncodeable): SignedTransactions = rlp match {
-        case rlpList: RLPList => SignedTransactions(rlpList.items.map(txRlpEndDec.decode))
+        case rlpList: RLPList => SignedTransactions(rlpList.items.map(txRlpEncDec.decode))
         case _ => throw new RuntimeException("Cannot decode SignedTransactions")
       }
 
