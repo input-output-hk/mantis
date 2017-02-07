@@ -20,7 +20,7 @@ class PeerManagerSpec extends FlatSpec with Matchers {
   "PeerManager" should "try to connect to bootstrap nodes on startup" in new TestSetup {
     val peerManager = TestActorRef(Props(new PeerManagerActor(nodeStatusHolder, peerFactory)))
 
-    Thread.sleep(100) // some time for scheduler to init
+    Thread.sleep(800) // some time for scheduler to init
 
     createdPeers.size shouldBe 2
     createdPeers.head.expectMsg(PeerActor.ConnectTo(new URI(bootstrapNodes.head)))
@@ -30,13 +30,13 @@ class PeerManagerSpec extends FlatSpec with Matchers {
   it should "retry connections to remaining bootstrap nodes" in new TestSetup {
     val peerManager = TestActorRef(Props(new PeerManagerActor(nodeStatusHolder, peerFactory)))
 
-    Thread.sleep(100) // some time for scheduler to init
+    Thread.sleep(800) // some time for scheduler to init
 
     createdPeers.size shouldBe 2
 
     createdPeers.head.ref ! PoisonPill
 
-    Thread.sleep(bootstrapNodesScanInterval.plus(200.millis).toMillis) // wait for next scan
+    Thread.sleep(bootstrapNodesScanInterval.plus(500.millis).toMillis) // wait for next scan
 
     createdPeers.size shouldBe 3
     createdPeers(2).expectMsg(PeerActor.ConnectTo(new URI(bootstrapNodes.head)))
