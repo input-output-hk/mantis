@@ -355,7 +355,7 @@ class MerklePatriciaTrieSuite extends FunSuite
   /* IODB tests */
   test("Simple test with IODB as Source") {
     //open new store
-    val nodeStorage = IodbDataSource(path = "/tmp/iodb", keySize = 33)
+    val nodeStorage = IodbDataSource(path = "/tmp/iodb", keySize = 33, createNew = true)
     val emptyTrie = MerklePatriciaTrie[Int, Int](new NodeStorage(nodeStorage), hashFn)
     val trieWithOneElement = emptyTrie.put(1, 5)
     val obtained = trieWithOneElement.get(1)

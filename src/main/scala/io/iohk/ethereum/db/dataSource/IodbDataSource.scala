@@ -32,13 +32,13 @@ class IodbDataSource private (lSMStore: LSMStore,
 
   override def clear: DataSource = {
     destroy()
-    IodbDataSource(path, keySize)
+    IodbDataSource(path, keySize, createNew = true)
   }
 
   override def close(): Unit = lSMStore.close()
 
   override def destroy(): Unit = {
-    close() //Closing the LSMStore multiple times has the same effect as closing it once
+    close()
     deleteDirectory(new File(path))
   }
 
@@ -55,11 +55,12 @@ object IodbDataSource {
     ByteBuffer.allocate(java.lang.Long.SIZE / java.lang.Byte.SIZE).putLong(updateCounter.incrementAndGet()).array()
   }
 
-  def apply(path: String, keySize: Int): IodbDataSource = {
-    //Delete directory if it existed and create a new one
+  def apply(path: String, keySize: Int, createNew: Boolean): IodbDataSource = {
     val dir: File = new File(path)
-    val dirCreationSuccess = (!dir.exists() || deleteDirectory(dir)) && dir.mkdirs()
-    assert(dirCreationSuccess, "Iodb folder creation failed")
+    val dirSetupSuccess =
+      if(createNew) (!dir.exists() || deleteDirectory(dir)) && dir.mkdirs()
+      else dir.exists() && dir.isDirectory
+    assert(dirSetupSuccess, "Iodb folder creation failed")
 
     val lSMStore: LSMStore = new LSMStore(dir = dir, keySize = keySize, keepSingleVersion = true)
     new IodbDataSource(lSMStore, keySize, path)

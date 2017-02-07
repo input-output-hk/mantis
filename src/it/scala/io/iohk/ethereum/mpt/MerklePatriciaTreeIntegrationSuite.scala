@@ -44,7 +44,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
 
   test("IODB test - Insert of the first 5000 numbers hashed and then remove half of them"){
-    val dataSource = IodbDataSource(path = "/tmp/iodb", keySize = KeySize)
+    val dataSource = IodbDataSource(path = "/tmp/iodb", keySize = KeySize, createNew = true)
     val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new NodeStorage(dataSource), hashFn)
 
     val keys = (0 to 100).map(intByteArraySerializable.toBytes)
@@ -62,7 +62,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   test("IODB Test - PatriciaTrie insert and get") {
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
-      val dataSource = IodbDataSource(path = "/tmp/iodb", keySize = KeySize)
+      val dataSource = IodbDataSource(path = "/tmp/iodb", keySize = KeySize, createNew = true)
       val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSource), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
@@ -78,7 +78,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   test("IODB Test - PatriciaTrie delete") {
     forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[Int])) { keyList: List[Int] =>
-      val dataSourceWithDelete = IodbDataSource(path = "/tmp/iodb1", keySize = KeySize)
+      val dataSourceWithDelete = IodbDataSource(path = "/tmp/iodb1", keySize = KeySize, createNew = true)
 
       val keyValueList = keyList.distinct.zipWithIndex
       val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSourceWithDelete), hashFn)) {
@@ -99,7 +99,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
         assert(obtained.isEmpty)
       }
 
-      val dataSourceOnlyInsert = IodbDataSource(path = "/tmp/iodb", keySize = KeySize)
+      val dataSourceOnlyInsert = IodbDataSource(path = "/tmp/iodb", keySize = KeySize, createNew = true)
 
       val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSourceOnlyInsert), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
