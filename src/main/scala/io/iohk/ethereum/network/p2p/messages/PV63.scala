@@ -7,7 +7,9 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.crypto.sha3
+
 
 object PV63 {
 
@@ -38,7 +40,7 @@ object PV63 {
     }
   }
 
-  object Account {
+  object AccountImplicits {
     implicit val rlpEndDec = new RLPEncoder[Account] with RLPDecoder[Account] {
       override def encode(obj: Account): RLPEncodeable = {
         import obj._
@@ -50,18 +52,6 @@ object PV63 {
           Account(nonce, balance, byteStringEncDec.decode(storageRoot), byteStringEncDec.decode(codeHash))
         case _ => throw new RuntimeException("Cannot decode Account")
       }
-    }
-  }
-
-  case class Account(nonce: BigInt, balance: BigInt, storageRoot: ByteString, codeHash: ByteString) {
-    override def toString: String = {
-      s"""Account{
-         |nonce: $nonce
-         |balance: $balance wei
-         |storageRoot: ${Hex.toHexString(storageRoot.toArray[Byte])}
-         |codeHash: ${Hex.toHexString(codeHash.toArray[Byte])}
-         |}
-       """.stripMargin
     }
   }
 
@@ -176,6 +166,8 @@ object PV63 {
   }
 
   case class MptLeaf(keyNibbles: ByteString, value: ByteString) extends MptNode {
+
+    import AccountImplicits._
 
     def getAccount: Account = rlpDecode[Account](value.toArray[Byte])
 
