@@ -27,7 +27,7 @@ case class ProgramState(
   memory: Memory = Memory.empty,
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
-  gasRefund: BigInt,
+  gasRefund: BigInt = 0,
   halted: Boolean = false,
   error: Option[ProgramError] = None
 ) {
