@@ -2,6 +2,7 @@ package io.iohk.ethereum.network
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated}
 import akka.util.ByteString
+import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.FastSyncActor._
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -9,7 +10,13 @@ import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.utils.Config.FastSync
 import org.spongycastle.util.encoders.Hex
 
-class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
+class FastSyncActor(
+  peerActor: ActorRef,
+  blockHeadersStorage: BlockHeadersStorage,
+  blockBodiesStorage: BlockBodiesStorage,
+  receiptStorage: ReceiptStorage,
+  mptNodeStorage: MptNodeStorage,
+  evmStorage: EvmCodeStorage) extends Actor with ActorLogging {
 
   import context.{dispatcher, system}
 
@@ -82,9 +89,23 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         log.info("receipts: {}", receipts)
         log.info("bodies: {}", bodies)
 
+        val blockHashes = headers.map(_.blockHash)
+
+        blockHashes.zip(headers).foreach { case (hash, value) =>
+          blockHeadersStorage.put(hash, value)
+        }
+
+        blockHashes.zip(receipts).foreach { case (hash, value) =>
+          receiptStorage.put(hash, value)
+        }
+
+        blockHashes.zip(bodies).foreach { case (hash, value) =>
+          blockBodiesStorage.put(hash, value)
+        }
+
+
         val nextCurrentBlockNumber = headers.last.number
         val nextBlockNumber = nextCurrentBlockNumber + 1
-
 
         if (nextCurrentBlockNumber < targetBlockNumber) {
           if (nextBlockNumber + FastSync.BlocksPerMessage <= targetBlockNumber) {
@@ -95,8 +116,6 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
         } else if (nextCurrentBlockNumber == targetBlockNumber) {
           self ! SyncDone
         }
-
-        //TODO insert all elements
 
         context become processMessages(state.copy(
           currentBlockNumber = Some(nextCurrentBlockNumber),
@@ -165,14 +184,14 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
     mptNode match {
       case n: MptLeaf =>
         log.info("Got contract leaf node: {}", n)
-      //TODO insert node
+        mptNodeStorage.put(n)
 
       case n: MptBranch =>
         log.info("Got contract branch node: {}", n)
         val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
         println(hashes)
         self ! RequestNodes(hashes.map(ContractStorageMptNodeHash): _*)
-      //TODO insert node
+        mptNodeStorage.put(n)
 
       case n: MptExtension =>
         log.info("Got contract extension node: {}", n)
@@ -182,7 +201,7 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
           }, { case MptValue(value) =>
             log.info("Got contract value in extension node: ", Hex.toHexString(value.toArray[Byte]))
           })
-      //TODO insert node
+        mptNodeStorage.put(n)
     }
   }
 
@@ -201,13 +220,13 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
           self ! RequestNodes(StorageRootHash(storage))
         }
 
-      //TODO insert node
+        mptNodeStorage.put(n)
 
       case n: MptBranch =>
         log.info("Got branch node: {}", n)
         val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
         self ! RequestNodes(hashes.map(StateMptNodeHash): _*)
-      //TODO insert node
+        mptNodeStorage.put(n)
 
       case n: MptExtension =>
         log.info("Got extension node: {}", n)
@@ -217,13 +236,23 @@ class FastSyncActor(peerActor: ActorRef) extends Actor with ActorLogging {
           }, { case MptValue(value) =>
             log.info("Got value in extension node: ", Hex.toHexString(value.toArray[Byte]))
           })
-      //TODO insert node
+        mptNodeStorage.put(n)
     }
   }
 }
 
 object FastSyncActor {
-  def props(peerActor: ActorRef): Props = Props(new FastSyncActor(peerActor))
+  def props(peerActor: ActorRef, storage: Storage): Props = {
+    import storage._
+    Props(new FastSyncActor(peerActor, blockHeadersStorage, blockBodiesStorage, receiptStorage, mptNodeStorage, evmStorage))
+  }
+
+  case class Storage(
+    blockHeadersStorage: BlockHeadersStorage,
+    blockBodiesStorage: BlockBodiesStorage,
+    receiptStorage: ReceiptStorage,
+    mptNodeStorage: MptNodeStorage,
+    evmStorage: EvmCodeStorage)
 
   case class StartSync(targetBlockHash: ByteString)
 

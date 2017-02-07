@@ -3,6 +3,8 @@ package io.iohk.ethereum.network.p2p
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.FastSyncActor.{FastSyncDone, SyncFailure}
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -228,8 +230,16 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
     implicit val system = ActorSystem("PeerActorSpec_System")
 
+    val storage = FastSyncActor.Storage(
+      new BlockHeadersStorage(EphemDataSource()),
+      new BlockBodiesStorage(EphemDataSource()),
+      new ReceiptStorage(EphemDataSource()),
+      new MptNodeStorage(EphemDataSource()),
+      new EvmCodeStorage(EphemDataSource())
+    )
+
     val peer = TestProbe()
-    val fastSync = TestActorRef(FastSyncActor.props(peer.ref))
+    val fastSync = TestActorRef(FastSyncActor.props(peer.ref, storage))
   }
 
 }

@@ -6,6 +6,8 @@ import java.util.UUID
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
@@ -274,7 +276,15 @@ class PeerActor(
         sender() ! StatusResponse(Handshaked)
 
       case StartFastSync(targetHash) =>
-        val fastSyncActor = context.actorOf(FastSyncActor.props(self), UUID.randomUUID().toString)
+        //todo get storage form somewhere?
+        val storage = FastSyncActor.Storage(
+          new BlockHeadersStorage(EphemDataSource()),
+          new BlockBodiesStorage(EphemDataSource()),
+          new ReceiptStorage(EphemDataSource()),
+          new MptNodeStorage(EphemDataSource()),
+          new EvmCodeStorage(EphemDataSource())
+        )
+        val fastSyncActor = context.actorOf(FastSyncActor.props(self, storage), UUID.randomUUID().toString)
         context watch fastSyncActor
         fastSyncActor ! FastSyncActor.StartSync(targetHash)
     }

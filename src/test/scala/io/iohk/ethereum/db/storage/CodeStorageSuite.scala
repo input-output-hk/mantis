@@ -16,7 +16,7 @@ class CodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
     forAll(Gen.listOf(byteStringOfLengthNGen(32))){ unfilteredCodeHashes =>
       val codeHashes = unfilteredCodeHashes.distinct
       val codes = Gen.listOfN(codeHashes.length, randomSizeByteArrayGen(0, LimitCodeSize)).sample.get.map(ByteString(_))
-      val initialCodeStorage = new CodeStorage(EphemDataSource())
+      val initialCodeStorage = new EvmCodeStorage(EphemDataSource())
       val codeStorage = codeHashes.zip(codes).foldLeft(initialCodeStorage){
         case (recCodeStorage, (codeHash, code)) =>
           recCodeStorage.put(codeHash, code)
@@ -34,7 +34,7 @@ class CodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
       val codes = Gen.listOfN(codeHashes.length, randomSizeByteArrayGen(0, LimitCodeSize)).sample.get.map(ByteString(_))
 
       //EVM codes are inserted
-      val initialCodeStorage = new CodeStorage(EphemDataSource())
+      val initialCodeStorage = new EvmCodeStorage(EphemDataSource())
       val codeStorage = codeHashes.zip(codes).foldLeft(initialCodeStorage){
         case (recCodeStorage, (codeHash, code)) =>
           recCodeStorage.put(codeHash, code)
