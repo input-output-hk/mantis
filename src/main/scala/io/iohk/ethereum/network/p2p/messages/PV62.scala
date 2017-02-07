@@ -183,7 +183,6 @@ object PV62 {
                       ByteString(extraData: Array[Byte]),
                       ByteString(mixHash: Array[Byte]),
                       ByteString(nonce: Array[Byte]))
-          case x => println(s">>> ${x.getClass}"); ???
       }
 
     }
