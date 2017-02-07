@@ -31,7 +31,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.take(KeyNumberLimit)
       val db = updateInSeparateCalls(
-        dataSource = IodbDataSource(path = "/tmp/iodbInsert", keySize = KeySize, createNew = true),
+        dataSource = IodbDataSource(path = "/tmp/iodbInsert", keySize = KeySize, recreate = true),
         toUpsert = keyList.zip(keyList)
       )
       keyList.foreach { key => assert(db.get(OtherNamespace, key).contains(key)) }
@@ -43,7 +43,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
   test("IodbDataSource insert keys in a single update"){
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.take(KeyNumberLimit)
-      val db = IodbDataSource(path = "/tmp/iodbInsert", keySize = KeySize, createNew = true)
+      val db = IodbDataSource(path = "/tmp/iodbInsert", keySize = KeySize, recreate = true)
         .update(OtherNamespace, Seq(), keyList.zip(keyList))
 
       keyList.foreach { key => assert(db.get(OtherNamespace, key).contains(key)) }
@@ -55,7 +55,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
   test("IodbDataSource update keys in separate updates"){
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.take(KeyNumberLimit)
-      val db = IodbDataSource(path = "/tmp/iodbUpdate", keySize = KeySize, createNew = true)
+      val db = IodbDataSource(path = "/tmp/iodbUpdate", keySize = KeySize, recreate = true)
         .update(OtherNamespace, Seq(), keyList.zip(keyList))
 
       val keyListWithExtraByte = keyList.map(1.toByte +: _)
@@ -71,7 +71,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
   test("IodbDataSource update keys in a single update"){
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.take(KeyNumberLimit)
-      val db = IodbDataSource(path = "/tmp/iodbUpdate", keySize = KeySize, createNew = true)
+      val db = IodbDataSource(path = "/tmp/iodbUpdate", keySize = KeySize, recreate = true)
         .update(OtherNamespace, Seq(), keyList.zip(keyList))
 
       val keyListWithExtraByte = keyList.map(1.toByte +: _)
@@ -89,7 +89,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.take(KeyNumberLimit)
       val (keysLeft, keysToInsert) = keyList.splitAt(Gen.choose(0, keyList.size/2).sample.get)
-      val db = IodbDataSource(path = "/tmp/iodbInvalidLength", keySize = KeySize, createNew = true)
+      val db = IodbDataSource(path = "/tmp/iodbInvalidLength", keySize = KeySize, recreate = true)
         .update(OtherNamespace, Seq(), keysToInsert.zip(keysToInsert))
 
       val keyListWithExtraByte = keyList.map(1.toByte +: _)
@@ -109,7 +109,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.take(KeyNumberLimit)
       val (keysLeft, keysToInsert) = keyList.splitAt(Gen.choose(0, keyList.size / 2).sample.get)
-      val db = IodbDataSource(path = "/tmp/iodbInvalidLength", keySize = KeySize, createNew = true)
+      val db = IodbDataSource(path = "/tmp/iodbInvalidLength", keySize = KeySize, recreate = true)
         .update(OtherNamespace, Seq(), keysToInsert.zip(keysToInsert))
 
       val keyListWithExtraByte = keyList.map(1.toByte +: _)
@@ -128,7 +128,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
   test("IodbDataSource clear"){
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.take(KeyNumberLimit)
-      val db = IodbDataSource(path = "/tmp/iodbClean", keySize = KeySize, createNew = true)
+      val db = IodbDataSource(path = "/tmp/iodbClean", keySize = KeySize, recreate = true)
         .update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
         .clear
 
@@ -141,11 +141,11 @@ class IodbDataSourceIntegrationSuite extends FunSuite
   test("IodbDataSource close and creation of new one before using it again") {
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.take(KeyNumberLimit)
-      val db = IodbDataSource(path = "/tmp/iodbClose", keySize = KeySize, createNew = true)
+      val db = IodbDataSource(path = "/tmp/iodbClose", keySize = KeySize, recreate = true)
         .update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
       db.close()
 
-      val dbAfterClose = IodbDataSource(path = "/tmp/iodbClose", keySize = KeySize, createNew = true)
+      val dbAfterClose = IodbDataSource(path = "/tmp/iodbClose", keySize = KeySize, recreate = true)
       keyList.foreach { key => assert(dbAfterClose.get(OtherNamespace, key).isEmpty) }
 
       dbAfterClose.destroy()
@@ -155,11 +155,11 @@ class IodbDataSourceIntegrationSuite extends FunSuite
   test("IodbDataSource close and then continuing using it") {
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.take(KeyNumberLimit)
-      val db = IodbDataSource(path = "/tmp/iodbClose", keySize = KeySize, createNew = true)
+      val db = IodbDataSource(path = "/tmp/iodbClose", keySize = KeySize, recreate = true)
         .update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
       db.close()
 
-      val dbAfterClose = IodbDataSource(path = "/tmp/iodbClose", keySize = KeySize, createNew = false)
+      val dbAfterClose = IodbDataSource(path = "/tmp/iodbClose", keySize = KeySize, recreate = false)
       keyList.foreach { key => assert(dbAfterClose.get(OtherNamespace, key).contains(key)) }
 
       dbAfterClose.destroy()
@@ -169,13 +169,13 @@ class IodbDataSourceIntegrationSuite extends FunSuite
   test("IodbDataSource destroy") {
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.take(KeyNumberLimit)
-      val db = IodbDataSource(path = "/tmp/iodbDestroy", keySize = KeySize, createNew = true)
+      val db = IodbDataSource(path = "/tmp/iodbDestroy", keySize = KeySize, recreate = true)
         .update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
       db.destroy()
 
       assert(!new File("/tmp/iodbDestroy").exists())
 
-      val dbAfterDestroy = IodbDataSource(path = "/tmp/iodbDestroy", keySize = KeySize, createNew = true)
+      val dbAfterDestroy = IodbDataSource(path = "/tmp/iodbDestroy", keySize = KeySize, recreate = true)
       keyList.foreach { key => assert(dbAfterDestroy.get(OtherNamespace, key).isEmpty) }
 
       dbAfterDestroy.destroy()

@@ -32,7 +32,7 @@ class IodbDataSource private (lSMStore: LSMStore,
 
   override def clear: DataSource = {
     destroy()
-    IodbDataSource(path, keySize, createNew = true)
+    IodbDataSource(path, keySize, recreate = true)
   }
 
   override def close(): Unit = lSMStore.close()
@@ -55,10 +55,10 @@ object IodbDataSource {
     ByteBuffer.allocate(java.lang.Long.SIZE / java.lang.Byte.SIZE).putLong(updateCounter.incrementAndGet()).array()
   }
 
-  def apply(path: String, keySize: Int, createNew: Boolean): IodbDataSource = {
+  def apply(path: String, keySize: Int, recreate: Boolean): IodbDataSource = {
     val dir: File = new File(path)
     val dirSetupSuccess =
-      if(createNew) (!dir.exists() || deleteDirectory(dir)) && dir.mkdirs()
+      if(recreate) (!dir.exists() || deleteDirectory(dir)) && dir.mkdirs()
       else dir.exists() && dir.isDirectory
     assert(dirSetupSuccess, "Iodb folder creation failed")
 
