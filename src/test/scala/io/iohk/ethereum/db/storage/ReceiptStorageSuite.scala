@@ -7,8 +7,6 @@ import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 
-import scala.util.Random
-
 class ReceiptStorageSuite extends FunSuite with PropertyChecks with ObjectGenerators {
 
   test("ReceiptStorage insert") {
@@ -44,8 +42,7 @@ class ReceiptStorageSuite extends FunSuite with PropertyChecks with ObjectGenera
       }
 
       //Receipts are deleted
-      val (toDelete, toLeave) = Random.shuffle(blockHashesReceiptsPair)
-        .splitAt(Gen.choose(0, blockHashesReceiptsPair.size).sample.get)
+      val (toDelete, toLeave) = blockHashesReceiptsPair.splitAt(Gen.choose(0, blockHashesReceiptsPair.size).sample.get)
       val receiptStorageAfterDelete = toDelete.foldLeft(receiptStorage){
         case (recReceiptStorage, (_, blockHash)) =>
           recReceiptStorage.remove(blockHash)

@@ -57,7 +57,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
     val trieAfterDeleteNoEffect = keys.take(100/2).foldLeft(trieAfterDelete) { case (recTrie, key) => recTrie.remove(md5(key)) }
     assert(Hex.toHexString(trieAfterDeleteNoEffect.getRootHash) == "b0bfbf4d2d6f3c9863c27f41a087208131f775edd9de2cb66242d1e0981aa94c")
 
-    dataSource.close()
+    dataSource.destroy()
   }
 
   test("IODB Test - PatriciaTrie insert and get") {
@@ -72,7 +72,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
         assert(obtained.get == value)
       }
 
-      dataSource.close()
+      dataSource.destroy()
     }
   }
 
@@ -84,7 +84,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
       val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSourceWithDelete), hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
-      val (keyValueToDelete, keyValueLeft) = Random.shuffle(keyValueList).splitAt(Gen.choose(0, keyValueList.size).sample.get)
+      val (keyValueToDelete, keyValueLeft) = keyValueList.splitAt(Gen.choose(0, keyValueList.size).sample.get)
       val trieAfterDelete = keyValueToDelete.foldLeft(trieAfterInsert) {
         case (recTrie, (key, value)) => recTrie.remove(key)
       }
@@ -106,8 +106,8 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
       }
       assert(trieAfterDelete.getRootHash sameElements trieWithKeyValueLeft.getRootHash)
 
-      dataSourceWithDelete.close()
-      dataSourceOnlyInsert.close()
+      dataSourceWithDelete.destroy()
+      dataSourceOnlyInsert.destroy()
     }
   }
 

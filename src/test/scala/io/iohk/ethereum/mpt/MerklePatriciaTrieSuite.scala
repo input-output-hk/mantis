@@ -61,7 +61,7 @@ class MerklePatriciaTrieSuite extends FunSuite
       val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage, hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
-      val (keyValueToDelete, keyValueLeft) = Random.shuffle(keyValueList).splitAt(Gen.choose(0, keyValueList.size).sample.get)
+      val (keyValueToDelete, keyValueLeft) = keyValueList.splitAt(Gen.choose(0, keyValueList.size).sample.get)
       val trieAfterDelete = keyValueToDelete.foldLeft(trieAfterInsert) {
         case (recTrie, (key, value)) => recTrie.remove(key)
       }
@@ -365,7 +365,7 @@ class MerklePatriciaTrieSuite extends FunSuite
     val obtainedAfterDelete = trieAfterDelete.get(1)
     assert(obtainedAfterDelete.isEmpty)
 
-    nodeStorage.close()
+    nodeStorage.destroy()
   }
 
   /* EthereumJ tests */

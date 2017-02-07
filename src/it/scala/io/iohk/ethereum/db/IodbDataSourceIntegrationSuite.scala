@@ -6,8 +6,7 @@ import io.iohk.ethereum.ObjectGenerators
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.{DataSource, IodbDataSource}
 import org.scalacheck.Gen
-
-import scala.util.{Random, Try}
+import scala.util.Try
 import java.io.File
 
 //FIXME: Add IodbDataSource delete tests (currently not implemented as they failed in previous IODB implementation)
@@ -37,7 +36,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
       )
       keyList.foreach { key => assert(db.get(OtherNamespace, key).contains(key)) }
 
-      db.close()
+      db.destroy()
     }
   }
 
@@ -49,7 +48,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
 
       keyList.foreach { key => assert(db.get(OtherNamespace, key).contains(key)) }
 
-      db.close()
+      db.destroy()
     }
   }
 
@@ -65,7 +64,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
       keyList.zip(keyListWithExtraByte).foreach { case (key, value) =>
         assert(dbAfterUpdate.get(OtherNamespace, key).contains(value)) }
 
-      dbAfterUpdate.close()
+      dbAfterUpdate.destroy()
     }
   }
 
@@ -82,14 +81,14 @@ class IodbDataSourceIntegrationSuite extends FunSuite
         assert(dbAfterUpdate.get(OtherNamespace, key).contains(value))
       }
 
-      dbAfterUpdate.close()
+      dbAfterUpdate.destroy()
     }
   }
 
   test("IodbDataSource insert/update with invalid length") {
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.take(KeyNumberLimit)
-      val (keysLeft, keysToInsert) = Random.shuffle(keyList).splitAt(Gen.choose(0, keyList.size/2).sample.get)
+      val (keysLeft, keysToInsert) = keyList.splitAt(Gen.choose(0, keyList.size/2).sample.get)
       val db = IodbDataSource(path = "/tmp/iodbInvalidLength", keySize = KeySize)
         .update(OtherNamespace, Seq(), keysToInsert.zip(keysToInsert))
 
@@ -102,14 +101,14 @@ class IodbDataSourceIntegrationSuite extends FunSuite
 
       invalidKeyList.foreach { key => assert( Try{db.update(OtherNamespace, Seq(), Seq(key->key))}.isFailure) }
 
-      db.close()
+      db.destroy()
     }
   }
 
   test("IodbDataSource get with invalid length") {
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.take(KeyNumberLimit)
-      val (keysLeft, keysToInsert) = Random.shuffle(keyList).splitAt(Gen.choose(0, keyList.size / 2).sample.get)
+      val (keysLeft, keysToInsert) = keyList.splitAt(Gen.choose(0, keyList.size / 2).sample.get)
       val db = IodbDataSource(path = "/tmp/iodbInvalidLength", keySize = KeySize)
         .update(OtherNamespace, Seq(), keysToInsert.zip(keysToInsert))
 
@@ -122,7 +121,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
 
       invalidKeyList.foreach { key => assert( Try{db.get(OtherNamespace, key)}.isFailure) }
 
-      db.close()
+      db.destroy()
     }
   }
 
@@ -135,7 +134,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
 
       keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
 
-      db.close()
+      db.destroy()
     }
   }
 
@@ -146,10 +145,26 @@ class IodbDataSourceIntegrationSuite extends FunSuite
         .update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
       db.close()
 
-      assert(Option(new File("/tmp/iodbClose").listFiles()).getOrElse(Array()).isEmpty)
-
       val dbAfterClose = IodbDataSource(path = "/tmp/iodbClose", keySize = KeySize)
       keyList.foreach { key => assert(dbAfterClose.get(OtherNamespace, key).isEmpty) }
+
+      dbAfterClose.destroy()
+    }
+  }
+
+  test("IodbDataSource destroy") {
+    forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+      val keyList = unFilteredKeyList.take(KeyNumberLimit)
+      val db = IodbDataSource(path = "/tmp/iodbDestroy", keySize = KeySize)
+        .update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
+      db.destroy()
+
+      assert(!new File("/tmp/iodbDestroy").exists())
+
+      val dbAfterDestroy = IodbDataSource(path = "/tmp/iodbDestroy", keySize = KeySize)
+      keyList.foreach { key => assert(dbAfterDestroy.get(OtherNamespace, key).isEmpty) }
+
+      dbAfterDestroy.destroy()
     }
   }
 }

@@ -8,8 +8,7 @@ import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 class IodbDataSource private (lSMStore: LSMStore,
                               keySize: Int,
-                              firstVersion: ByteArrayWrapper,
-                              dir: File) extends DataSource {
+                              path: String) extends DataSource {
 
   import IodbDataSource._
 
@@ -28,17 +27,19 @@ class IodbDataSource private (lSMStore: LSMStore,
       ByteArrayWrapper(storageVersionGen()),
       toRemove.map(key => ByteArrayWrapper((namespace ++ key).toArray)),
       asStorables(namespace, toUpsert))
-    new IodbDataSource(lSMStore, keySize, firstVersion, dir)
+    new IodbDataSource(lSMStore, keySize, path)
   }
 
   override def clear: DataSource = {
-    lSMStore.rollback(firstVersion)
-    new IodbDataSource(lSMStore, keySize, firstVersion, dir)
+    destroy()
+    IodbDataSource(path, keySize)
   }
 
-  override def close(): Unit = {
-    lSMStore.close()
-    deleteDirectory(dir)
+  override def close(): Unit = lSMStore.close()
+
+  override def destroy(): Unit = {
+    close() //Closing the LSMStore multiple times has the same effect as closing it once
+    deleteDirectory(new File(path))
   }
 
   private def asStorables(namespace: Namespace,
@@ -57,21 +58,15 @@ object IodbDataSource {
   def apply(path: String, keySize: Int): IodbDataSource = {
     //Delete directory if it existed and create a new one
     val dir: File = new File(path)
-    val dirCreationSuccess = (!dir.exists() || deleteDirectory(dir)) && dir.mkdir()
+    val dirCreationSuccess = (!dir.exists() || deleteDirectory(dir)) && dir.mkdirs()
     assert(dirCreationSuccess, "Iodb folder creation failed")
 
     val lSMStore: LSMStore = new LSMStore(dir = dir, keySize = keySize, keepSingleVersion = true)
-
-    //Obtain first LSMStore version
-    lSMStore.update(ByteArrayWrapper(storageVersionGen()), Seq(), Seq())
-    val firstVersion: ByteArrayWrapper = lSMStore.lastVersionID
-      .getOrElse(throw new Exception("Iodb obtaining of first version failed"))
-
-    new IodbDataSource(lSMStore, keySize, firstVersion, dir)
+    new IodbDataSource(lSMStore, keySize, path)
   }
 
   private def deleteDirectory(dir: File): Boolean = {
-    require(dir.isDirectory, "Called on a file that is not a directory")
+    require(dir.exists() && dir.isDirectory, "Trying to delete a file thats not a folder")
     val files = Option(dir.listFiles()).getOrElse(Array())
     val filesDeletionSuccess: Boolean = files.map { f =>
       if(f.isDirectory) deleteDirectory(f) else f.delete()

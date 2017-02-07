@@ -43,7 +43,14 @@ trait DataSource {
   def clear: DataSource
 
   /**
-    * This function closes the DataSource, removing any allocated resources to it.
+    * This function closes the DataSource, without deleting data from it.
+    * Any attempt to access/update a closed DataSource will raise an exception
     */
   def close(): Unit
+
+  /**
+    * This function closes the DataSource, if it is not yet closed, and and deletes all the data from it.
+    * Any attempt to access/update a destroyed DataSource will raise an exception
+    */
+  def destroy(): Unit
 }

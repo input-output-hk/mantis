@@ -5,8 +5,7 @@ import io.iohk.ethereum.ObjectGenerators
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-
-import scala.util.Random
+import scala.util.Try
 
 class EphemDataSourceSuite extends FunSuite
   with PropertyChecks
@@ -41,7 +40,7 @@ class EphemDataSourceSuite extends FunSuite
 
   test("EphemDataSource delete"){
     forAll(seqByteStringOfNItemsGen(KeySize)) { keyList: Seq[ByteString] =>
-      val (keysToDelete, keyValueLeft) = Random.shuffle(keyList).splitAt(Gen.choose(0, keyList.size).sample.get)
+      val (keysToDelete, keyValueLeft) = keyList.splitAt(Gen.choose(0, keyList.size).sample.get)
 
       val dbAfterInsert = putMultiple(dataSource = EphemDataSource(), toInsert = keyList.zip(keyList))
       val db = removeMultiple(dataSource = dbAfterInsert, toDelete = keysToDelete)
