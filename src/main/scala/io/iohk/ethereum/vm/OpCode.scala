@@ -204,7 +204,7 @@ sealed abstract class BinaryOp(code: Int, constGas: GasCost)(val f: (DataWord, D
   }
 }
 
-sealed abstract class UnaryOp(code: Int)(val f: DataWord => DataWord) extends OpCode(code, 1, 1, G_verylow) with ConstGas {
+sealed abstract class UnaryOp(code: Int, constGas: GasCost)(val f: DataWord => DataWord) extends OpCode(code, 1, 1, constGas) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (a, stack1) = state.stack.pop
     val res = f(a)
@@ -232,11 +232,11 @@ case object LT extends BinaryOp(0x10, G_verylow)((a, b) => DataWord(a < b)) with
 
 case object EQ extends BinaryOp(0x14, G_verylow)((a, b) => DataWord(a == b)) with ConstGas
 
-case object ISZERO extends UnaryOp(0x15)(a => DataWord(a == 0)) with ConstGas
+case object ISZERO extends UnaryOp(0x15, G_verylow)(a => DataWord(a == 0)) with ConstGas
 
 case object AND extends BinaryOp(0x16, G_verylow)(_ & _) with ConstGas
 
-case object NOT extends UnaryOp(0x19)(~_) with ConstGas
+case object NOT extends UnaryOp(0x19, G_verylow)(~_) with ConstGas
 
 case object SHA3 extends OpCode(0x20, 2, 1, G_sha3) {
   protected def exec(state: ProgramState): ProgramState = {
