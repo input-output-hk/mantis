@@ -4,15 +4,16 @@ import scala.language.implicitConversions
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
+import io.iohk.ethereum.domain.{Address, BlockHeader, SignedTransaction, Transaction}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeader
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.utils.Logger
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.rlp
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 
 /**
  * Tests based on
@@ -132,21 +133,24 @@ class RLPSpeedSuite extends FunSuite
 case class TestBlock(header: BlockHeader, transactions: Seq[SignedTransaction], uncles: Seq[BlockHeader])
 
 object TestBlock {
+
   implicit val encDec = new RLPEncoder[TestBlock] with RLPDecoder[TestBlock] {
+
     override def encode(obj: TestBlock): RLPEncodeable = {
-      val rplEncodeables: Seq[RLPEncodeable] = obj.transactions.map(SignedTransactions.txRlpEncDec.encode)
-      RLPList(obj.header,
+      val rplEncodeables: Seq[RLPEncodeable] =
+        obj.transactions.map(SignedTransactions.txRlpEncDec.encode)
+      RLPList(headerRlpEncDec.encode(obj.header),
               RLPList(rplEncodeables: _*),
-              obj.uncles: RLPList
-      )
+              RLPList(obj.uncles.map(headerRlpEncDec.encode(_)): _*))
     }
 
     override def decode(rlp: RLPEncodeable): TestBlock = rlp match {
-      case RLPList(header, (txs: RLPList), (uncles: RLPList)) =>
-        TestBlock(BlockHeader.rlpEncDec.decode(header),
+      case RLPList(header, txs: RLPList, uncles: RLPList) =>
+        TestBlock(headerRlpEncDec.decode(header),
                   txs.items.map(SignedTransactions.txRlpEncDec.decode),
-                  uncles.items.map(BlockHeader.rlpEncDec.decode))
+                  uncles.items.map(headerRlpEncDec.decode))
       case _ => throw new RuntimeException("Invalid Block encodeable")
     }
+
   }
 }
