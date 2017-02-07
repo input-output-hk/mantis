@@ -166,8 +166,8 @@ object PV62 {
       }
 
       override def decode(rlp: RLPEncodeable): BlockHeader = rlp match {
-        case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot, logsBloom,
-                     difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce) =>
+        case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
+                     logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce) =>
           BlockHeader(ByteString(parentHash: Array[Byte]),
                       ByteString(ommersHash: Array[Byte]),
                       ByteString(beneficiary: Array[Byte]),
@@ -183,6 +183,7 @@ object PV62 {
                       ByteString(extraData: Array[Byte]),
                       ByteString(mixHash: Array[Byte]),
                       ByteString(nonce: Array[Byte]))
+          case x => println(s">>> ${x.getClass}"); ???
       }
 
     }
