@@ -138,7 +138,7 @@ class IodbDataSourceIntegrationSuite extends FunSuite
     }
   }
 
-  test("IodbDataSource close and clear before using it again") {
+  test("IodbDataSource close and creation of new one before using it again") {
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       val keyList = unFilteredKeyList.take(KeyNumberLimit)
       val db = IodbDataSource(path = "/tmp/iodbClose", keySize = KeySize, createNew = true)
