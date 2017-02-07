@@ -38,11 +38,6 @@ class PeerActor(
 
   val peerId = self.path.name
 
-  val disconnectPoisonPillTimeout = 5.seconds
-
-  val waitForStatusInterval = 30.seconds
-  val waitForChainCheck = 15.seconds
-
   val daoForkValidator = ForkValidator(daoForkBlockNumber, daoForkBlockHash)
 
   private var messageSubscribers: Seq[Subscriber] = Nil
@@ -125,7 +120,7 @@ class PeerActor(
       timeout.cancel()
       if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
         rlpxConnection.sendMessage(createStatusMsg())
-        val statusTimeout = system.scheduler.scheduleOnce(waitForStatusInterval, self, StatusReceiveTimeout)
+        val statusTimeout = system.scheduler.scheduleOnce(waitForStatusTimeout, self, StatusReceiveTimeout)
         context become waitingForNodeStatus(rlpxConnection, statusTimeout)
       } else {
         log.info("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
@@ -156,7 +151,7 @@ class PeerActor(
       timeout.cancel()
       log.info("Peer returned status ({})", status)
       rlpxConnection.sendMessage(GetBlockHeaders(Left(daoForkBlockNumber), maxHeaders = 1, skip = 0, reverse = 0))
-      val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForChainCheck, self, DaoHeaderReceiveTimeout)
+      val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
       context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
 
     case StatusReceiveTimeout =>
