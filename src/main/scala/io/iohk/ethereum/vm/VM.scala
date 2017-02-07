@@ -16,7 +16,12 @@ object VM {
     */
   def run(env: ExecEnv, storage: Storage): ProgramResult = {
     val finalState = run(ProgramState(env, storage))
-    ProgramResult(finalState.returnData, finalState.storage, Seq(), Seq(), finalState.error)
+    ProgramResult(
+      finalState.returnData,
+      finalState.storage,
+      finalState.internalTransactions,
+      finalState.addressesToDelete,
+      finalState.error)
   }
 
   @tailrec
