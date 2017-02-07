@@ -255,12 +255,6 @@ case object CALLDATALOAD extends OpCode(0x35, 1, 1) {
   }
 }
 
-trait OpCode32 {
-
-  def handle(state: ProgramState)
-            (stackItem1: DataWord, stackItem2: DataWord, stackItem3: DataWord): (ProgramState, (DataWord, DataWord))
-}
-
 case object CODECOPY extends OpCode(0x39, 3, 0) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
