@@ -27,6 +27,7 @@ case class ProgramState(
   memory: Memory = Memory.empty,
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
+  gasRefund: BigInt,
   halted: Boolean = false,
   error: Option[ProgramError] = None
 ) {
@@ -56,6 +57,9 @@ case class ProgramState(
 
   def withReturnData(data: ByteString): ProgramState =
     copy(returnData = data)
+
+  def addGasRefund(amount: BigInt): ProgramState =
+    copy(gasRefund = gasRefund + amount)
 
   def halt: ProgramState =
     copy(halted = true)

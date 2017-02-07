@@ -59,14 +59,14 @@ object Runner {
       val resultStored = VM.run(contextStored)
       printResult(s"getStoredFib()  [$getStoredFibHex]", resultStored)
 
-      val contextNew = ProgramContext(contract, DataWord.MaxWord.toBigInt, callData = loadCode(getNewFibHex(i)), callValue, resultStored.storage)
+      val contextNew = ProgramContext(contract, DataWord.MaxValue.toBigInt, callData = loadCode(getNewFibHex(i)), callValue, resultStored.storage)
       val resultNew = VM.run(contextNew)
       printResult(s"getNewFib($i)  [${getNewFibHex(i)}]", resultNew)
 
       resultNew
     }
 
-    val contextFinal = ProgramContext(contract, DataWord.MaxWord.toBigInt, callData = loadCode(getStoredFibHex), callValue, resultAfterIter.storage)
+    val contextFinal = ProgramContext(contract, DataWord.MaxValue.toBigInt, callData = loadCode(getStoredFibHex), callValue, resultAfterIter.storage)
     val resultFinal = VM.run(contextFinal)
     printResult(s"getStoredFib()  [$getStoredFibHex]", resultFinal)
   }

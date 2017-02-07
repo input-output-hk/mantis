@@ -24,7 +24,7 @@ object Generators extends ObjectGenerators {
     } yield bigInt
   }
 
-  def getDataWordGen(min: DataWord = DataWord(0), max: DataWord = DataWord.MaxWord): Gen[DataWord] =
+  def getDataWordGen(min: DataWord = DataWord(0), max: DataWord = DataWord.MaxValue): Gen[DataWord] =
     getBigIntGen(min.toBigInt, max.toBigInt).map(DataWord(_))
 
   def getStackGen(dataWordGen: Gen[DataWord] = getDataWordGen(), maxSize: Int = testStackMaxSize): Gen[Stack] =
@@ -58,7 +58,7 @@ object Generators extends ObjectGenerators {
       code <- codeGen
       callData <- callDataGen
       callValue <- callValueGen
-      context = ProgramContext(Program(code), DataWord.MaxWord.toBigInt, callData, callValue, storage)
+      context = ProgramContext(Program(code), DataWord.MaxValue.toBigInt, callData, callValue, storage)
     } yield ProgramState(context).withStack(stack).withMemory(memory)
 
 }

@@ -1,22 +1,26 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+import language.implicitConversions
 
 
 object DataWord {
 
-  val MaxLength = 32
+  /**
+    * DataWord size in bytes
+    */
+  val Size = 32
 
-  private val Modulus: BigInt = BigInt(2).pow(MaxLength * 8)
+  private val Modulus: BigInt = BigInt(2).pow(Size * 8)
 
-  val MaxWord = DataWord(Modulus - 1)
+  val MaxValue = DataWord(Modulus - 1)
 
   val Zero = DataWord(0)
 
-  private val Zeros: ByteString = ByteString(Array.fill[Byte](MaxLength)(0))
+  private val Zeros: ByteString = ByteString(Array.fill[Byte](Size)(0))
 
   def apply(value: ByteString): DataWord = {
-    require(value.length <= MaxLength, s"Input byte array cannot be longer than $MaxLength: ${value.length}")
+    require(value.length <= Size, s"Input byte array cannot be longer than $Size: ${value.length}")
     DataWord(value.foldLeft(BigInt(0)){(n, b) => (n << 8) + (b & 0xff)})
   }
 
@@ -36,6 +40,7 @@ object DataWord {
 
   private def fixBigInt(n: BigInt): BigInt = (n % Modulus + Modulus) % Modulus
 
+  implicit def dataWord2BigInt(dw: DataWord): BigInt = dw.toBigInt
 }
 
 /** Stores 256 bit words and adds a few convenience methods on them.
@@ -48,8 +53,8 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
    *  Output ByteString is padded with 0's from the left side up to MaxLength bytes.
    */
   lazy val bytes: ByteString = {
-    val bs: ByteString = ByteString(n.toByteArray).takeRight(MaxLength)
-    val padLength: Int = MaxLength - bs.length
+    val bs: ByteString = ByteString(n.toByteArray).takeRight(Size)
+    val padLength: Int = Size - bs.length
     if (padLength > 0)
       Zeros.take(padLength) ++ bs
     else
@@ -84,6 +89,11 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
     * @return an Int with MSB=0, thus a value in range [0, Int.MaxValue]
     */
   def intValue: Int = n.intValue & Int.MaxValue
+
+  /**
+    * @return a Long with MSB=0, thus a value in range [0, Long.MaxValue]
+    */
+  def longValue: Long = n.longValue & Long.MaxValue
 
   override def equals(that: Any): Boolean = {
     that match {

@@ -2,6 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.sha3
+import GasCost._
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
@@ -161,9 +162,8 @@ object OpCode {
   * @param delta number of words to be popped from stack
   * @param alpha number of words to be pushed to stack
   */
-sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constGas: Option[GasCost]) {
-  def this(code: Int, pop: Int, push: Int) = this(code.toByte, pop, push, None)
-  def this(code: Int, pop: Int, push: Int, constGas: GasCost) = this(code.toByte, pop, push, Some(constGas))
+sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constGas: GasCost) {
+  def this(code: Int, pop: Int, push: Int, constGas: GasCost) = this(code.toByte, pop, push, constGas)
 
   def execute(state: ProgramState): ProgramState = {
     if (state.stack.size < delta)
@@ -171,7 +171,7 @@ sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val
     else if (state.stack.size - delta + alpha > state.stack.maxSize)
       state.withError(StackOverflow)
     else {
-      val gas = calcGas(state)
+      val gas = constGas.value + varGas(state)
       if (gas > state.gas)
         state.withError(OutOfGas)
       else
@@ -179,26 +179,22 @@ sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val
     }
   }
 
-  protected def calcGas(state: ProgramState): BigInt
+  protected def varGas(state: ProgramState): BigInt
 
   protected def exec(state: ProgramState): ProgramState
 }
 
-/**
-  * OpCodes implementing this trait must define `constantGas`
-  */
 sealed trait ConstGas { self: OpCode =>
-  override def calcGas(state: ProgramState): BigInt =
-    self.constGas.get.value
+  override def varGas(state: ProgramState): BigInt = 0
 }
 
-case object STOP extends OpCode(0x00, 0, 0, GZero) with ConstGas {
+case object STOP extends OpCode(0x00, 0, 0, G_zero) with ConstGas {
   protected def exec(state: ProgramState): ProgramState =
     state.halt
 }
 
 sealed abstract class BinaryOp(code: Int, constGas: GasCost)(val f: (DataWord, DataWord) => DataWord)
-  extends OpCode(code.toByte, 2, 1, constGas) with ConstGas {
+  extends OpCode(code.toByte, 2, 1, constGas) {
 
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(a, b), stack1) = state.stack.pop(2)
@@ -208,7 +204,7 @@ sealed abstract class BinaryOp(code: Int, constGas: GasCost)(val f: (DataWord, D
   }
 }
 
-sealed abstract class UnaryOp(code: Int)(val f: DataWord => DataWord) extends OpCode(code, 1, 1, GVeryLow) with ConstGas {
+sealed abstract class UnaryOp(code: Int)(val f: DataWord => DataWord) extends OpCode(code, 1, 1, G_verylow) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (a, stack1) = state.stack.pop
     val res = f(a)
@@ -217,39 +213,32 @@ sealed abstract class UnaryOp(code: Int)(val f: DataWord => DataWord) extends Op
   }
 }
 
-case object ADD extends BinaryOp(0x01, GVeryLow)(_ + _)
+case object ADD extends BinaryOp(0x01, G_verylow)(_ + _) with ConstGas
 
-case object MUL extends BinaryOp(0x02, GLow)(_ * _)
+case object MUL extends BinaryOp(0x02, G_low)(_ * _) with ConstGas
 
-case object SUB extends BinaryOp(0x03, GVeryLow)(_ - _)
+case object SUB extends BinaryOp(0x03, G_verylow)(_ - _) with ConstGas
 
-case object DIV extends BinaryOp(0x04, GLow)((a, b) => if (b != 0) a / b else DataWord.Zero)
+case object DIV extends BinaryOp(0x04, G_low)((a, b) => if (b != 0) a / b else DataWord.Zero) with ConstGas
 
-case object EXP extends OpCode(0x0a, 2, 1) {
-  protected def exec(state: ProgramState): ProgramState = {
-    val (Seq(a, b), stack1) = state.stack.pop(2)
-    val res = a ** b
-    val stack2 = stack1.push(res)
-    state.withStack(stack2).step()
-  }
-
-  protected def calcGas(state: ProgramState): BigInt = {
+case object EXP extends BinaryOp(0x0a, G_exp)(_ ** _) {
+  protected def varGas(state: ProgramState): BigInt = {
     val (Seq(_, m: DataWord), _) = state.stack.pop(2)
-    GExp.value + GExpByte.value * m.byteSize
+    G_exp.value + G_expbyte.value * m.byteSize
   }
 }
 
-case object LT extends BinaryOp(0x10, GVeryLow)((a, b) => DataWord(a < b))
+case object LT extends BinaryOp(0x10, G_verylow)((a, b) => DataWord(a < b)) with ConstGas
 
-case object EQ extends BinaryOp(0x14, GVeryLow)((a, b) => DataWord(a == b))
+case object EQ extends BinaryOp(0x14, G_verylow)((a, b) => DataWord(a == b)) with ConstGas
 
-case object ISZERO extends UnaryOp(0x15)(a => DataWord(a == 0))
+case object ISZERO extends UnaryOp(0x15)(a => DataWord(a == 0)) with ConstGas
 
-case object AND extends BinaryOp(0x16, GVeryLow)(_ & _)
+case object AND extends BinaryOp(0x16, G_verylow)(_ & _) with ConstGas
 
-case object NOT extends UnaryOp(0x19)(~_)
+case object NOT extends UnaryOp(0x19)(~_) with ConstGas
 
-case object SHA3 extends OpCode(0x20, 2, 1) {
+case object SHA3 extends OpCode(0x20, 2, 1, G_sha3) {
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(offset, size), stack1) = state.stack.pop(2)
     val (input, mem1) = state.memory.load(offset, size)
@@ -259,17 +248,17 @@ case object SHA3 extends OpCode(0x20, 2, 1) {
     state.withStack(stack2).withMemory(mem1).step()
   }
 
-  protected def calcGas(state: ProgramState): BigInt = 0 //FIXME
+  protected def varGas(state: ProgramState): BigInt = 0 //FIXME
 }
 
-case object CALLVALUE extends OpCode(0x34, 0, 1, GBase) with ConstGas {
+case object CALLVALUE extends OpCode(0x34, 0, 1, G_base) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val stack1 = state.stack.push(DataWord(state.context.callValue))
     state.withStack(stack1).step()
   }
 }
 
-case object CALLDATALOAD extends OpCode(0x35, 1, 1, GVeryLow) with ConstGas {
+case object CALLDATALOAD extends OpCode(0x35, 1, 1, G_verylow) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (offset, stack1) = state.stack.pop
     val i = offset.intValue
@@ -279,7 +268,7 @@ case object CALLDATALOAD extends OpCode(0x35, 1, 1, GVeryLow) with ConstGas {
   }
 }
 
-case object CODECOPY extends OpCode(0x39, 3, 0) {
+case object CODECOPY extends OpCode(0x39, 3, 0, G_verylow) {
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(memOffset, codeOffset, size), stack1) = state.stack.pop(3)
     val bytes = state.program.getBytes(codeOffset.intValue, size.intValue)
@@ -287,10 +276,15 @@ case object CODECOPY extends OpCode(0x39, 3, 0) {
     state.withStack(stack1).withMemory(mem1).step()
   }
 
-  protected def calcGas(state: ProgramState): BigInt = 0 //FIXME
+  protected def varGas(state: ProgramState): BigInt = {
+    val (Seq(addr, _, size), _) = state.stack.pop(3)
+    val memCost = calcMemCost(state.memory.size, addr, size)
+    val copyCost = G_copy.value * wordsForBytes(size)
+    memCost + copyCost
+  }
 }
 
-case object EXTCODECOPY extends OpCode(0x3c, 4, 0) {
+case object EXTCODECOPY extends OpCode(0x3c, 4, 0, G_extcode) {
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(address, memOffset, codeOffset, size), stack1) = state.stack.pop(4)
     val codeCopy = ByteString() //TODO: copy external code
@@ -298,17 +292,22 @@ case object EXTCODECOPY extends OpCode(0x3c, 4, 0) {
     state.withStack(stack1).withMemory(mem1).step()
   }
 
-  protected def calcGas(state: ProgramState): BigInt = 0 //FIXME
+  protected def varGas(state: ProgramState): BigInt = {
+    val (Seq(_, addr, _, size), _) = state.stack.pop(4)
+    val memCost = calcMemCost(state.memory.size, addr, size)
+    val copyCost = G_copy.value * wordsForBytes(size)
+    memCost + copyCost
+  }
 }
 
-case object POP extends OpCode(0x50, 1, 0, GBase) with ConstGas {
+case object POP extends OpCode(0x50, 1, 0, G_base) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (_, stack1) = state.stack.pop
     state.withStack(stack1).step()
   }
 }
 
-case object MLOAD extends OpCode(0x51, 1, 1) {
+case object MLOAD extends OpCode(0x51, 1, 1, G_verylow) {
   protected def exec(state: ProgramState): ProgramState = {
     val (addr, stack1) = state.stack.pop
     val (word, mem1) = state.memory.load(addr)
@@ -316,43 +315,52 @@ case object MLOAD extends OpCode(0x51, 1, 1) {
     state.withStack(stack2).withMemory(mem1).step()
   }
 
-  protected def calcGas(state: ProgramState): BigInt = 0 //FIXME
+  protected def varGas(state: ProgramState): BigInt = {
+    val (addr, _) = state.stack.pop
+    calcMemCost(state.memory.size, addr, DataWord.Size)
+  }
 }
 
-case object MSTORE extends OpCode(0x52, 2, 0) {
+case object MSTORE extends OpCode(0x52, 2, 0, G_verylow) {
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(addr, value), stack1) = state.stack.pop(2)
     val updatedMem = state.memory.store(addr, value)
     state.withStack(stack1).withMemory(updatedMem).step()
   }
 
-  protected def calcGas(state: ProgramState): BigInt = 0 //FIXME
+  protected def varGas(state: ProgramState): BigInt = {
+    val (addr, _) = state.stack.pop
+    calcMemCost(state.memory.size, addr, DataWord.Size)
+  }
 }
 
-case object SLOAD extends OpCode(0x54, 1, 1) {
+case object SLOAD extends OpCode(0x54, 1, 1, G_sload) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (addr, stack1) = state.stack.pop
     val value = state.storage.load(addr)
     val stack2 = stack1.push(value)
     state.withStack(stack2).step()
   }
-
-  protected def calcGas(state: ProgramState): BigInt = 0 //FIXME
 }
 
-
-case object SSTORE extends OpCode(0x55, 2, 0) {
+case object SSTORE extends OpCode(0x55, 2, 0, G_zero) {
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(addr, value), stack1) = state.stack.pop(2)
+    val oldValue = state.storage.load(addr)
+    val refund = if (value == 0 && oldValue != 0) R_sclear.value else BigInt(0)
     val updatedStorage = state.storage.store(addr, value)
-    state.withStack(stack1).withStorage(updatedStorage).step()
+    state.withStack(stack1).withStorage(updatedStorage).addGasRefund(refund).step()
   }
 
-  protected def calcGas(state: ProgramState): BigInt = 0 //FIXME
+  protected def varGas(state: ProgramState): BigInt = {
+    val (Seq(addr, value), _) = state.stack.pop(2)
+    val oldValue = state.storage.load(addr)
+    if (oldValue == 0 && value != 0) G_sset.value else G_sreset.value
+  }
 }
 
 
-case object JUMP extends OpCode(0x56, 1, 0, GMid) with ConstGas {
+case object JUMP extends OpCode(0x56, 1, 0, G_mid) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (pos, stack1) = state.stack.pop
     //TODO: JUMPDEST validation
@@ -360,7 +368,7 @@ case object JUMP extends OpCode(0x56, 1, 0, GMid) with ConstGas {
   }
 }
 
-case object JUMPI extends OpCode(0x57, 2, 0, GHigh) with ConstGas {
+case object JUMPI extends OpCode(0x57, 2, 0, G_high) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(pos, cond), stack1) = state.stack.pop(2)
     val nextPos = if (cond != 0) pos.intValue else state.pc + 1
@@ -369,13 +377,13 @@ case object JUMPI extends OpCode(0x57, 2, 0, GHigh) with ConstGas {
   }
 }
 
-case object JUMPDEST extends OpCode(0x5b, 0, 0, GJumpdest) with ConstGas {
+case object JUMPDEST extends OpCode(0x5b, 0, 0, G_jumpdest) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     state.step()
   }
 }
 
-sealed abstract class PushOp(code: Int) extends OpCode(code, 0, 1, GVeryLow) with ConstGas {
+sealed abstract class PushOp(code: Int) extends OpCode(code, 0, 1, G_verylow) with ConstGas {
   val i: Int = code - 0x60
 
   protected def exec(state: ProgramState): ProgramState = {
@@ -421,7 +429,7 @@ case object PUSH31 extends PushOp(0x7e)
 case object PUSH32 extends PushOp(0x7f)
 
 
-sealed abstract class DupOp private(code: Int, val i: Int) extends OpCode(code, i + 1, i + 2, GVeryLow) with ConstGas {
+sealed abstract class DupOp private(code: Int, val i: Int) extends OpCode(code, i + 1, i + 2, G_verylow) with ConstGas {
   def this(code: Int) = this(code, code - 0x80)
 
   protected def exec(state: ProgramState): ProgramState = {
@@ -448,7 +456,7 @@ case object DUP15 extends DupOp(0x8e)
 case object DUP16 extends DupOp(0x8f)
 
 
-sealed abstract class SwapOp(code: Int, val i: Int) extends OpCode(code, i + 2, i + 2, GVeryLow) with ConstGas {
+sealed abstract class SwapOp(code: Int, val i: Int) extends OpCode(code, i + 2, i + 2, G_verylow) with ConstGas {
   def this(code: Int) = this(code, code - 0x90)
 
   protected def exec(state: ProgramState): ProgramState = {
@@ -475,7 +483,7 @@ case object SWAP15 extends SwapOp(0x9e)
 case object SWAP16 extends SwapOp(0x9f)
 
 
-sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code, i + 2, 0) {
+sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code, i + 2, 0, G_log) {
   def this(code: Int) = this(code, code - 0xa0)
 
   protected def exec(state: ProgramState): ProgramState = {
@@ -484,7 +492,12 @@ sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code, i + 2, 0
     state.withStack(stack1).step()
   }
 
-  protected def calcGas(state: ProgramState): BigInt = 0 //FIXME
+  protected def varGas(state: ProgramState): BigInt = {
+    val (Seq(addr, size, _*), stack1) = state.stack.pop(delta)
+    val memCost = calcMemCost(state.memory.size, addr, size)
+    val logCost = G_log.value + G_logdata.value * size + i * G_logtopic.value
+    memCost + logCost
+  }
 }
 
 case object LOG0 extends LogOp(0xa0)
@@ -494,10 +507,15 @@ case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
 
-case object RETURN extends OpCode(0xf3, 2, 0, GZero) with ConstGas {
+case object RETURN extends OpCode(0xf3, 2, 0, G_zero) {
   protected def exec(state: ProgramState): ProgramState = {
-    val (Seq(offset, size), stack1) = state.stack.pop(2)
-    val (ret, mem1) = state.memory.load(offset, size)
+    val (Seq(addr, size), stack1) = state.stack.pop(2)
+    val (ret, mem1) = state.memory.load(addr, size)
     state.withStack(stack1).withReturnData(ret).withMemory(mem1).halt
+  }
+
+  protected def varGas(state: ProgramState): BigInt = {
+    val (Seq(addr, size), _) = state.stack.pop(2)
+    GasCost.calcMemCost(state.memory.size, addr, size)
   }
 }

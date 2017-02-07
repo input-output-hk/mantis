@@ -9,7 +9,7 @@ import io.iohk.ethereum.vm.DataWord._
 
 class DataWordSpec extends FunSuite with PropertyChecks {
 
-  val specialNumbers = Array(BigInt(-1), BigInt(0), BigInt(1), MaxWord.toBigInt, -MaxWord.toBigInt, -MaxWord.toBigInt + 1)
+  val specialNumbers = Array(BigInt(-1), BigInt(0), BigInt(1), MaxValue.toBigInt, -MaxValue.toBigInt, -MaxValue.toBigInt + 1)
 
   val pairs: Array[(BigInt, BigInt)] = specialNumbers
     .combinations(2)
@@ -107,7 +107,7 @@ class DataWordSpec extends FunSuite with PropertyChecks {
   }
 
   test("**") {
-    val TestModulus: BigInt = BigInt(2).pow(MaxLength * 8)
+    val TestModulus: BigInt = BigInt(2).pow(Size * 8)
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       whenever(n2 != 0) {
         assert(DataWord(n1) ** DataWord(n2) == DataWord(n1.modPow(n2, TestModulus)))
@@ -144,7 +144,7 @@ class DataWordSpec extends FunSuite with PropertyChecks {
 
   test("Passing too long ByteString should throw an exception") {
     assertThrows[IllegalArgumentException] {
-      DataWord(ByteString(Array.fill(MaxLength + 1)(1.toByte)))
+      DataWord(ByteString(Array.fill(Size + 1)(1.toByte)))
     }
   }
 
