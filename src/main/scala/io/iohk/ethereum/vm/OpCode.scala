@@ -177,7 +177,7 @@ sealed abstract class BinaryOp(code: Int)(val f: (DataWord, DataWord) => DataWor
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
-                               (Seq(a, b), stack1) = popped
+      (Seq(a, b), stack1) = popped
       res = f(a, b)
       stack2 <- stack1.push(res)
     } yield state.withStack(stack2).step()
@@ -223,7 +223,7 @@ case object SHA3 extends OpCode(0x20, 2, 1) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(2)
-                               (Seq(offset, size), stack1: Stack) = popped
+      (Seq(offset, size), stack1: Stack) = popped
       (input, mem1) = state.memory.load(offset, size)
       hash = sha3(input.toArray)
       ret = DataWord(hash)
@@ -482,7 +482,7 @@ sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code.toByte, i
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
       popped <- state.stack.pop(delta)
-                               (_, stack1) = popped
+      (_, stack1) = popped
     } yield state.withStack(stack1).step()
     updatedState.valueOr(state.withError)
   }

@@ -1,19 +1,16 @@
 package io.iohk.ethereum.rlp
 
-import scala.language.implicitConversions
-
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.{Address, BlockHeader, SignedTransaction, Transaction}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
-import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
+import io.iohk.ethereum.rlp
 import io.iohk.ethereum.utils.Logger
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.rlp
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 
 /**
  * Tests based on
@@ -58,22 +55,18 @@ class RLPSpeedSuite extends FunSuite
     val ITERATIONS: Int = 10000000
     log.info("Starting " + ITERATIONS + " decoding iterations...")
     val start1: Long = System.currentTimeMillis
-      (1 to ITERATIONS).foreach { _ => RLP.rawDecode(payload); Unit }
+    (1 to ITERATIONS).foreach { _ => RLP.rawDecode(payload); Unit }
     val end1: Long = System.currentTimeMillis
     log.info("Result decode()\t: " + (end1 - start1) + "ms")
   }
 
   def doTestSerialize[T](toSerialize: T, rounds: Int)(implicit enc: RLPEncoder[T]): Array[Byte] = {
-    (1 until rounds).foreach(_ => {
-                               encode[T](toSerialize)
-                             })
+    (1 until rounds).foreach(_ => { encode[T](toSerialize) })
     encode[T](toSerialize)
   }
 
   def doTestDeserialize[T](serialized: Array[Byte], rounds: Int)(implicit dec: RLPDecoder[T]): T = {
-    (1 until rounds).foreach(_ => {
-                               decode[T](serialized)
-                             })
+    (1 until rounds).foreach(_ => { decode[T](serialized) })
     decode[T](serialized)
   }
 

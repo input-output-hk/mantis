@@ -18,28 +18,34 @@ object SignedTransaction {
 
 }
 
-case class SignedTransaction(tx: Transaction,
-                             pointSign: Byte, //v - 27 or 28 according to yellow paper, but it is 37 and 38 in ETH
-                             signatureRandom: ByteString, //r
-                             signature: ByteString /*s*/) {
+case class SignedTransaction(
+  tx: Transaction,
+  pointSign: Byte, //v - 27 or 28 according to yellow paper, but it is 37 and 38 in ETH
+  signatureRandom: ByteString, //r
+  signature: ByteString /*s*/) {
 
   import SignedTransaction._
 
-  lazy val bytesToSign: Array[Byte] = crypto.sha3(
-    rlpEncode(RLPList(tx.nonce, tx.gasPrice, tx.gasLimit,
-                      tx.receivingAddress.toArray,
-                      tx.value,
-                      tx.payload)))
+  lazy val bytesToSign: Array[Byte] =
+    crypto.sha3(
+      rlpEncode(RLPList(
+                  tx.nonce,
+                  tx.gasPrice,
+                  tx.gasLimit,
+                  tx.receivingAddress.toArray,
+                  tx.value,
+                  tx.payload)))
 
 
-  lazy val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
+  lazy val recoveredAddress: Option[Array[Byte]] =
+    recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
 
-
-  lazy val recoveredPublicKey: Option[Array[Byte]] = ECDSASignature.recoverPubBytes(
-    new BigInteger(1, signatureRandom.toArray[Byte]),
-    new BigInteger(1, signature.toArray[Byte]),
-    ECDSASignature.recIdFromSignatureV(pointSign),
-    bytesToSign)
+  lazy val recoveredPublicKey: Option[Array[Byte]] =
+    ECDSASignature.recoverPubBytes(
+      new BigInteger(1, signatureRandom.toArray[Byte]),
+      new BigInteger(1, signature.toArray[Byte]),
+      ECDSASignature.recIdFromSignatureV(pointSign),
+      bytesToSign)
 
   lazy val syntacticValidity: Boolean = {
 
