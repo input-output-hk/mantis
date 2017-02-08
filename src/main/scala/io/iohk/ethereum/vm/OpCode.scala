@@ -365,6 +365,10 @@ case object JUMPI extends OpCode(0x57, 2, 0) {
 }
 
 case object JUMPDEST extends OpCode(0x5b, 0, 0) {
+  // TODO To correctly implement this opcode EVM has to scan whole bytecode of a program
+  // to find all valid JUMP destinations.
+  // We will also have to scan for SSTORE and SSLOAD opcodes and if they are not found
+  // then there's no sense in loading Storage of a transaction from MPT
   def execute(state: ProgramState): ProgramState = {
     state.step()
   }
