@@ -1,9 +1,9 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.vm.Generators._
 import io.iohk.ethereum.crypto.sha3
-import org.scalatest.prop.PropertyChecks
+import io.iohk.ethereum.vm.Generators._
 import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.prop.PropertyChecks
 
 class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
@@ -168,7 +168,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
       withStackVerification(op, stateIn, stateOut) {
         val (data, _) = stateOut.stack.pop
-        data shouldEqual DataWord(stateIn.context.callValue)
+        data shouldEqual DataWord(stateIn.env.value)
 
         val expectedState = stateIn.withStack(stateOut.stack).step()
         stateOut shouldEqual expectedState
@@ -179,7 +179,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
   test(CALLDATALOAD) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = DataWord(256)),
-      callDataGen = getByteStringGen(0, 256)
+      inputDataGen = getByteStringGen(0, 256)
     )
 
     forAll(stateGen) { stateIn =>
@@ -188,7 +188,7 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
       withStackVerification(op, stateIn, stateOut) {
         val (offset, _) = stateIn.stack.pop
         val (data, _) = stateOut.stack.pop
-        data shouldEqual DataWord(stateIn.context.callData.slice(offset.intValue, offset.intValue + 32).padTo(32, 0.toByte))
+        data shouldEqual DataWord(stateIn.inputData.slice(offset.intValue, offset.intValue + 32).padTo(32, 0.toByte))
 
         val expectedState = stateIn.withStack(stateOut.stack).step()
         stateOut shouldEqual expectedState

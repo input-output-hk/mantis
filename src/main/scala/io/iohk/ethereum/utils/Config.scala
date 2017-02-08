@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import org.spongycastle.util.encoders.Hex
+
 import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 
@@ -31,6 +32,7 @@ object Config {
       private val discoveryConfig = networkConfig.getConfig("discovery")
 
       val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").toList
+      val bootstrapNodesScanInterval = discoveryConfig.getDuration("bootstrap-nodes-scan-interval").toMillis.millis
     }
 
     object Peer {
@@ -38,6 +40,9 @@ object Config {
 
       val connectRetryDelay = peerConfig.getDuration("connect-retry-delay").toMillis.millis
       val connectMaxRetries = peerConfig.getInt("connect-max-retries")
+      val disconnectPoisonPillTimeout = peerConfig.getDuration("disconnect-poison-pill-timeout").toMillis.millis
+      val waitForStatusTimeout = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
+      val waitForChainCheckTimeout = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
     }
 
   }
@@ -47,6 +52,10 @@ object Config {
 
     val genesisDifficulty = blockchainConfig.getLong("genesis-difficulty")
     val genesisHash = ByteString(Hex.decode(blockchainConfig.getString("genesis-hash")))
+
+    val daoForkBlockNumber = BigInt(blockchainConfig.getString("dao-fork-block-number"))
+    val daoForkBlockTotalDifficulty = BigInt(blockchainConfig.getString("dao-fork-block-total-difficulty"))
+    val daoForkBlockHash = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
   }
 
 }

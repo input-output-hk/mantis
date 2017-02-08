@@ -51,7 +51,7 @@ class MessageSpec extends FlatSpec with Matchers {
 
   it should "not decode message not existing in given protocol" in {
     assertThrows[RuntimeException] {
-      decode(CommonMessages.Transactions.code, BlockHashesFromNumberBytes, Message.PV62)
+      decode(CommonMessages.SignedTransactions.code, BlockHashesFromNumberBytes, Message.PV62)
     }
   }
 

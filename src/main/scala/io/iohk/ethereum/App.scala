@@ -1,7 +1,5 @@
 package io.iohk.ethereum
 
-import java.net.URI
-
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import akka.actor.ActorSystem
@@ -31,11 +29,6 @@ object App {
     val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
     server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
-
-    val bootstrapNodes = NetworkConfig.Discovery.bootstrapNodes.map(new URI(_))
-    bootstrapNodes.foreach { node =>
-      peerManager ! PeerManagerActor.ConnectToPeer(node)
-    }
   }
 
 }

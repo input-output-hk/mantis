@@ -253,7 +253,7 @@ case object SHA3 extends OpCode(0x20, 2, 1, G_sha3) {
 
 case object CALLVALUE extends OpCode(0x34, 0, 1, G_base) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
-    val stack1 = state.stack.push(DataWord(state.context.callValue))
+    val stack1 = state.stack.push(DataWord(state.env.value))
     state.withStack(stack1).step()
   }
 }
@@ -262,7 +262,7 @@ case object CALLDATALOAD extends OpCode(0x35, 1, 1, G_verylow) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (offset, stack1) = state.stack.pop
     val i = offset.intValue
-    val data = state.context.callData.slice(i, i + 32).padTo(32, 0.toByte)
+    val data = state.inputData.slice(i, i + 32).padTo(32, 0.toByte)
     val stack2 = stack1.push(DataWord(data))
     state.withStack(stack2).step()
   }

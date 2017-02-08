@@ -2,6 +2,8 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
+import org.spongycastle.crypto.AsymmetricCipherKeyPair
+
 import scala.concurrent.duration._
 
 import akka.actor._
@@ -16,7 +18,6 @@ import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{ServerStatus, NodeStatus, Config}
-import org.spongycastle.util.encoders.Hex
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
@@ -27,27 +28,19 @@ import org.spongycastle.util.encoders.Hex
   */
 class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
-    createRlpxConnectionFn: ActorContext => ActorRef)
+    rlpxConnectionFactory: ActorContext => ActorRef)
   extends Actor with ActorLogging {
 
   import PeerActor._
   import Config.Network.Peer._
+  import Config.Blockchain._
   import context.{dispatcher, system}
 
   val P2pVersion = 4
 
   val peerId = self.path.name
 
-  val disconnectPoisonPillTimeout = 5.seconds
-
-  val waitForStatusInterval = 30.seconds
-  val waitForChainCheck = 15.seconds
-
-  //FIXME move this to props
-  // Doc: https://blog.ethereum.org/2016/07/20/hard-fork-completed/
-  lazy val DaoBlockNumber = 1920000
-  lazy val DaoBlockTotalDifficulty = BigInt("39490964433395682584")
-  lazy val daoForkValidator = ForkValidator(DaoBlockNumber, ByteString(Hex.decode("94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f")))
+  val daoForkValidator = ForkValidator(daoForkBlockNumber, daoForkBlockHash)
 
   private var messageSubscribers: Seq[Subscriber] = Nil
 
@@ -68,7 +61,7 @@ class PeerActor(
   }
 
   def createRlpxConnection(remoteAddress: InetSocketAddress, uriOpt: Option[URI]): RLPxConnection = {
-    val ref = createRlpxConnectionFn(context)
+    val ref = rlpxConnectionFactory(context)
     context watch ref
     RLPxConnection(ref, remoteAddress, uriOpt)
   }
@@ -129,7 +122,7 @@ class PeerActor(
       timeout.cancel()
       if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
         rlpxConnection.sendMessage(createStatusMsg())
-        val statusTimeout = system.scheduler.scheduleOnce(waitForStatusInterval, self, StatusReceiveTimeout)
+        val statusTimeout = system.scheduler.scheduleOnce(waitForStatusTimeout, self, StatusReceiveTimeout)
         context become waitingForNodeStatus(rlpxConnection, statusTimeout)
       } else {
         log.info("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
@@ -150,7 +143,7 @@ class PeerActor(
       networkId = Config.Network.networkId,
       totalDifficulty = nodeStatus.blockchainStatus.totalDifficulty,
       bestHash = nodeStatus.blockchainStatus.bestHash,
-      genesisHash = Config.Blockchain.genesisHash)
+      genesisHash = genesisHash)
   }
 
   def waitingForNodeStatus(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
@@ -159,8 +152,8 @@ class PeerActor(
     case RLPxConnectionHandler.MessageReceived(status: msg.Status) =>
       timeout.cancel()
       log.info("Peer returned status ({})", status)
-      rlpxConnection.sendMessage(GetBlockHeaders(Left(DaoBlockNumber), maxHeaders = 1, skip = 0, reverse = 0))
-      val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForChainCheck, self, DaoHeaderReceiveTimeout)
+      rlpxConnection.sendMessage(GetBlockHeaders(Left(daoForkBlockNumber), maxHeaders = 1, skip = 0, reverse = 0))
+      val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
       context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
 
     case StatusReceiveTimeout =>
@@ -170,27 +163,35 @@ class PeerActor(
     case GetStatus => sender() ! StatusResponse(Handshaking)
   }
 
-  def waitingForChainForkCheck(rlpxConnection: RLPxConnection, status: msg.Status, timeout: Cancellable): Receive =
+  def waitingForChainForkCheck(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, timeout: Cancellable): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
     handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse {
-    case RLPxConnectionHandler.MessageReceived(msg@BlockHeaders(blockHeader +: Nil)) if blockHeader.number == DaoBlockNumber =>
-      timeout.cancel()
-      log.info("DAO Fork header received from peer - {}", Hex.toHexString(blockHeader.hash.toArray))
-      if (daoForkValidator.validate(msg).isEmpty) {
-        log.warning("Peer is running the ETC chain")
-        context become new HandshakedHandler(rlpxConnection).receive
-      } else {
-        log.warning("Peer is not running the ETC fork, disconnecting")
-        disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
-      }
 
-    case RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)) =>
-      // FIXME We need to do some checking related to our blockchain. If we haven't arrived to the DAO block we might
-      // take advantage of this peer and grab as much blocks as we can until DAO.
-      // ATM we will only check by DaoBlockTotalDifficulty
-      if (status.totalDifficulty < DaoBlockTotalDifficulty) {
-        log.info("Peer probably hasn't arrived to DAO yet")
-        context become new HandshakedHandler(rlpxConnection).receive
+    case RLPxConnectionHandler.MessageReceived(msg @ BlockHeaders(blockHeaders)) =>
+      timeout.cancel()
+
+      val daoBlockHeaderOpt = blockHeaders.find(_.number == daoForkBlockNumber)
+
+      daoBlockHeaderOpt match {
+        case Some(daoBlockHeader) if daoForkValidator.validate(msg).isEmpty =>
+          log.info("Peer is running the ETC chain")
+          context become new HandshakedHandler(rlpxConnection).receive
+
+        case Some(_) if nodeStatusHolder().blockchainStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
+          log.info("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
+          context become new HandshakedHandler(rlpxConnection).receive
+
+        case Some(_) =>
+          log.info("Peer is not running the ETC fork, disconnecting")
+          disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
+
+        case None if remoteStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
+          log.info("Peer is not at ETC fork yet. Keeping the connection until then.")
+          context become new HandshakedHandler(rlpxConnection).receive
+
+        case None =>
+          log.info("Peer did not respond with ETC fork block header")
+          disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
       }
 
     case DaoHeaderReceiveTimeout => disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
@@ -251,6 +252,7 @@ class PeerActor(
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
+        log.info("Received message: {}", message)
         notifySubscribers(message)
         processMessage(message)
 
@@ -275,8 +277,18 @@ class PeerActor(
         log.info("Received {}. Closing connection", d)
         context stop self
 
-      case msg =>
-        log.info("Received message: {}", msg)
+      case msg @ BlockHeaders(blockHeaders) =>
+        val daoBlockHeaderOpt = blockHeaders.find(_.number == daoForkBlockNumber)
+
+        daoBlockHeaderOpt foreach { daoBlockHeader =>
+          log.info("Reached the ETC fork block header")
+          if (daoForkValidator.validate(msg).nonEmpty) {
+            log.info("Peer is not running the ETC fork, disconnecting")
+            disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
+          }
+        }
+
+      case _ => // nothing
     }
 
   }
@@ -284,8 +296,12 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], createRlpxConnectionFn: ActorContext => ActorRef): Props =
-    Props(new PeerActor(nodeStatusHolder, createRlpxConnectionFn))
+  def props(nodeStatusHolder: Agent[NodeStatus]): Props =
+    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key)))
+
+  def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
+    ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
+  }
 
   case class RLPxConnection(ref: ActorRef, remoteAddress: InetSocketAddress, uriOpt: Option[URI]) {
     def sendMessage[M <: Message : RLPEncoder](message: M): Unit = {

@@ -1,8 +1,19 @@
 package io.iohk.ethereum.network.p2p.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeader, BlockHeaders}
-import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaders
+import io.iohk.ethereum.rlp
+
+object ForkValidator {
+
+  def hash(header: BlockHeader): ByteString = {
+    ByteString(sha3(rlp.encode[BlockHeader](header)))
+  }
+
+}
 
 /**
   * This Validator checks if a given `BlockHeaders` contains a `BlockHeader` having a specific block number and hash
@@ -15,6 +26,8 @@ import org.spongycastle.util.encoders.Hex
   */
 case class ForkValidator(blockNumber: BigInt, blockHash: ByteString) extends MessageValidator[BlockHeaders, ForkValidatorError] {
 
+  import ForkValidator._
+
   /**
     * Validates the header
     *
@@ -23,10 +36,11 @@ case class ForkValidator(blockNumber: BigInt, blockHash: ByteString) extends Mes
     */
   override def validate(message: BlockHeaders): Option[ForkValidatorError] = {
     val errors = message.headers.filter { header =>
-      header.number == blockNumber && !(header.hash sameElements blockHash)
+      header.number == blockNumber && !(hash(header) == blockHash)
     }
     errors.headOption.map(_ => ForkValidatorError(errors))
   }
+
 }
 
 case class ForkValidatorError(invalidHeaders: Seq[BlockHeader]) extends MessageValidatorError

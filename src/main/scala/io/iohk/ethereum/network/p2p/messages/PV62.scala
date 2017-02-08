@@ -1,23 +1,24 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages._
-import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.rlp.RLPImplicits._
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.domain.BlockHeader
 
 object PV62 {
   object NewBlockHashes {
-    implicit val rlpEndDec = new RLPEncoder[NewBlockHashes] with RLPDecoder[NewBlockHashes] {
+    implicit val rlpEncDec = new RLPEncoder[NewBlockHashes] with RLPDecoder[NewBlockHashes] {
       override def encode(obj: NewBlockHashes): RLPEncodeable = {
         import obj._
-        RLPList(hashes.map(BlockHash.rlpEndDec.encode): _*)
+        RLPList(hashes.map(BlockHash.rlpEncDec.encode): _*)
       }
 
       override def decode(rlp: RLPEncodeable): NewBlockHashes = rlp match {
-        case rlpList: RLPList => NewBlockHashes(rlpList.items.map(BlockHash.rlpEndDec.decode))
+        case rlpList: RLPList => NewBlockHashes(rlpList.items.map(BlockHash.rlpEncDec.decode))
         case _ => throw new RuntimeException("Cannot decode NewBlockHashes")
       }
     }
@@ -30,7 +31,7 @@ object PV62 {
   }
 
   object GetBlockHeaders {
-    implicit val rlpEndDec = new RLPEncoder[GetBlockHeaders] with RLPDecoder[GetBlockHeaders] {
+    implicit val rlpEncDec = new RLPEncoder[GetBlockHeaders] with RLPDecoder[GetBlockHeaders] {
       override def encode(obj: GetBlockHeaders): RLPEncodeable = {
         import obj._
         block match {
@@ -54,14 +55,14 @@ object PV62 {
   }
 
   object BlockBodies {
-    implicit val rlpEndDec = new RLPEncoder[BlockBodies] with RLPDecoder[BlockBodies] {
+    implicit val rlpEncDec = new RLPEncoder[BlockBodies] with RLPDecoder[BlockBodies] {
       override def encode(obj: BlockBodies): RLPEncodeable = {
         import obj._
-        RLPList(bodies.map(BlockBody.rlpEndDec.encode): _*)
+        RLPList(bodies.map(BlockBody.rlpEncDec.encode): _*)
       }
 
       override def decode(rlp: RLPEncodeable): BlockBodies = rlp match {
-        case rlpList: RLPList => BlockBodies(rlpList.items.map(BlockBody.rlpEndDec.decode))
+        case rlpList: RLPList => BlockBodies(rlpList.items.map(BlockBody.rlpEncDec.decode))
         case _ => throw new RuntimeException("Cannot decode BlockBodies")
       }
     }
@@ -74,25 +75,27 @@ object PV62 {
   }
 
   object BlockBody {
-    implicit val rlpEndDec = new RLPEncoder[BlockBody] with RLPDecoder[BlockBody] {
+    import BlockHeaderImplicits._
+    implicit val rlpEncDec = new RLPEncoder[BlockBody] with RLPDecoder[BlockBody] {
+
       override def encode(obj: BlockBody): RLPEncodeable = {
         import obj._
         RLPList(
-          RLPList(transactionList.map(CommonMessages.Transaction.rlpEndDec.encode): _*),
-          RLPList(uncleNodesList.map(BlockHeader.rlpEndDec.encode): _*))
+          RLPList(transactionList.map(CommonMessages.SignedTransactions.txRlpEncDec.encode): _*),
+          RLPList(uncleNodesList.map(headerRlpEncDec.encode): _*))
       }
 
       override def decode(rlp: RLPEncodeable): BlockBody = rlp match {
         case RLPList((transactions: RLPList), (uncles: RLPList)) =>
           BlockBody(
-            transactions.items.map(Transaction.rlpEndDec.decode),
-            uncles.items.map(BlockHeader.rlpEndDec.decode))
+            transactions.items.map(SignedTransactions.txRlpEncDec.decode),
+            uncles.items.map(headerRlpEncDec.decode))
         case _ => throw new RuntimeException("Cannot decode BlockBody")
       }
     }
   }
 
-  case class BlockBody(transactionList: Seq[Transaction], uncleNodesList: Seq[BlockHeader]) {
+  case class BlockBody(transactionList: Seq[SignedTransaction], uncleNodesList: Seq[BlockHeader]) {
     override def toString: String =
       s"""BlockBody{
          |transactionList: $transactionList
@@ -102,7 +105,7 @@ object PV62 {
   }
 
   object BlockHash {
-    implicit val rlpEndDec = new RLPEncoder[BlockHash] with RLPDecoder[BlockHash] {
+    implicit val rlpEncDec = new RLPEncoder[BlockHash] with RLPDecoder[BlockHash] {
       override def encode(obj: BlockHash): RLPEncodeable = {
         import obj._
         RLPList(hash.toArray[Byte], number)
@@ -124,8 +127,6 @@ object PV62 {
     }
   }
 
-
-
   case class GetBlockHeaders(block: Either[BigInt, ByteString], maxHeaders: BigInt, skip: BigInt, reverse: Int) extends Message {
     override def code: Int = GetBlockHeaders.code
 
@@ -140,29 +141,10 @@ object PV62 {
     }
   }
 
-  object BlockHeaders {
-    implicit val rlpEndDec = new RLPEncoder[BlockHeaders] with RLPDecoder[BlockHeaders] {
-      override def encode(obj: BlockHeaders): RLPEncodeable = {
-        import obj._
-        RLPList(headers.map(BlockHeader.rlpEndDec.encode): _*)
-      }
+  object BlockHeaderImplicits {
 
-      override def decode(rlp: RLPEncodeable): BlockHeaders = rlp match {
-        case rlpList: RLPList => BlockHeaders(rlpList.items.map(BlockHeader.rlpEndDec.decode))
+    implicit val headerRlpEncDec = new RLPEncoder[BlockHeader] with RLPDecoder[BlockHeader] {
 
-        case _ => throw new RuntimeException("Cannot decode BlockHeaders")
-      }
-    }
-
-    val code: Int = Message.SubProtocolOffset + 0x04
-  }
-
-  case class BlockHeaders(headers: Seq[BlockHeader]) extends Message {
-    override def code: Int = BlockHeaders.code
-  }
-
-  object BlockHeader {
-    implicit val rlpEndDec = new RLPEncoder[BlockHeader] with RLPDecoder[BlockHeader] {
       override def encode(obj: BlockHeader): RLPEncodeable = {
         import obj._
         RLPList(
@@ -184,71 +166,55 @@ object PV62 {
       }
 
       override def decode(rlp: RLPEncodeable): BlockHeader = rlp match {
-        case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot, logsBloom,
-        difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce) =>
+        case RLPList(parentHash, ommersHash, beneficiary, stateRoot, transactionsRoot, receiptsRoot,
+                     logsBloom, difficulty, number, gasLimit, gasUsed, unixTimestamp, extraData, mixHash, nonce) =>
           BlockHeader(ByteString(parentHash: Array[Byte]),
-            ByteString(ommersHash: Array[Byte]),
-            ByteString(beneficiary: Array[Byte]),
-            ByteString(stateRoot: Array[Byte]),
-            ByteString(transactionsRoot: Array[Byte]),
-            ByteString(receiptsRoot: Array[Byte]),
-            ByteString(logsBloom: Array[Byte]),
-            difficulty,
-            number,
-            gasLimit,
-            gasUsed,
-            unixTimestamp,
-            ByteString(extraData: Array[Byte]),
-            ByteString(mixHash: Array[Byte]),
-            ByteString(nonce: Array[Byte]))
+                      ByteString(ommersHash: Array[Byte]),
+                      ByteString(beneficiary: Array[Byte]),
+                      ByteString(stateRoot: Array[Byte]),
+                      ByteString(transactionsRoot: Array[Byte]),
+                      ByteString(receiptsRoot: Array[Byte]),
+                      ByteString(logsBloom: Array[Byte]),
+                      difficulty,
+                      number,
+                      gasLimit,
+                      gasUsed,
+                      unixTimestamp,
+                      ByteString(extraData: Array[Byte]),
+                      ByteString(mixHash: Array[Byte]),
+                      ByteString(nonce: Array[Byte]))
+      }
+
+    }
+
+  }
+
+  object BlockHeaders {
+
+    import BlockHeaderImplicits._
+
+    implicit val headersRlpEncDec = new RLPEncoder[BlockHeaders] with RLPDecoder[BlockHeaders] {
+      override def encode(obj: BlockHeaders): RLPEncodeable = {
+        RLPList(obj.headers.map(headerRlpEncDec.encode): _*)
+      }
+
+      override def decode(rlp: RLPEncodeable): BlockHeaders = rlp match {
+        case rlpList: RLPList => BlockHeaders(rlpList.items.map(headerRlpEncDec.decode))
 
         case _ => throw new RuntimeException("Cannot decode BlockHeaders")
       }
     }
+
+    val code: Int = Message.SubProtocolOffset + 0x04
+
   }
 
-  case class BlockHeader(
-    parentHash: ByteString,
-    ommersHash: ByteString,
-    beneficiary: ByteString,
-    stateRoot: ByteString,
-    transactionsRoot: ByteString,
-    receiptsRoot: ByteString,
-    logsBloom: ByteString,
-    difficulty: BigInt,
-    number: BigInt,
-    gasLimit: BigInt,
-    gasUsed: BigInt,
-    unixTimestamp: Long,
-    extraData: ByteString,
-    mixHash: ByteString,
-    nonce: ByteString) {
-
-    lazy val hash: ByteString = ByteString(sha3(encode[BlockHeader](this)))
-
-    override def toString: String = {
-      s"""BlockHeader {
-         |parentHash: ${Hex.toHexString(parentHash.toArray[Byte])}
-         |ommersHash: ${Hex.toHexString(ommersHash.toArray[Byte])}
-         |beneficiary: ${Hex.toHexString(beneficiary.toArray[Byte])}
-         |stateRoot: ${Hex.toHexString(stateRoot.toArray[Byte])}
-         |transactionsRoot: ${Hex.toHexString(transactionsRoot.toArray[Byte])}
-         |receiptsRoot: ${Hex.toHexString(receiptsRoot.toArray[Byte])}
-         |logsBloom: ${Hex.toHexString(logsBloom.toArray[Byte])}
-         |difficulty: $difficulty,
-         |number: $number,
-         |gasLimit: $gasLimit,
-         |gasUsed: $gasUsed,
-         |unixTimestamp: $unixTimestamp,
-         |extraData: ${Hex.toHexString(extraData.toArray[Byte])}
-         |mixHash: ${Hex.toHexString(mixHash.toArray[Byte])}
-         |nonce: ${Hex.toHexString(nonce.toArray[Byte])}
-         |}""".stripMargin
-    }
+  case class BlockHeaders(headers: Seq[BlockHeader]) extends Message {
+    override def code: Int = BlockHeaders.code
   }
 
   object GetBlockBodies {
-    implicit val rlpEndDec = new RLPEncoder[GetBlockBodies] with RLPDecoder[GetBlockBodies] {
+    implicit val rlpEncDec = new RLPEncoder[GetBlockBodies] with RLPDecoder[GetBlockBodies] {
       override def encode(obj: GetBlockBodies): RLPEncodeable = {
         import obj._
         RLPList(hashes.map(e => RLPValue(e.toArray[Byte])): _*)

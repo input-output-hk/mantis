@@ -8,7 +8,7 @@ import io.iohk.ethereum.rlp._
 object PV61 {
 
   object NewBlockHashes {
-    implicit val rlpEndDec = new RLPEncoder[NewBlockHashes] with RLPDecoder[NewBlockHashes] {
+    implicit val rlpEncDec = new RLPEncoder[NewBlockHashes] with RLPDecoder[NewBlockHashes] {
       override def encode(obj: NewBlockHashes): RLPEncodeable = {
         import obj._
         RLPList(hashes.map(e => RLPValue(e.toArray[Byte])): _*)
@@ -29,7 +29,7 @@ object PV61 {
 
   object BlockHashesFromNumber {
 
-    implicit val rlpEndDec = new RLPEncoder[BlockHashesFromNumber] with RLPDecoder[BlockHashesFromNumber] {
+    implicit val rlpEncDec = new RLPEncoder[BlockHashesFromNumber] with RLPDecoder[BlockHashesFromNumber] {
       override def encode(obj: BlockHashesFromNumber): RLPEncodeable = {
         import obj._
         RLPList(number, maxBlocks)
