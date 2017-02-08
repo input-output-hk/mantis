@@ -68,9 +68,6 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockBodies]])
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetReceipts]])
 
-
-    //TODO add assertion on db save for block elements
-
     //when
     peer.reply(MessageReceived(BlockBodies(Seq(BlockBody(transactionList = Seq.empty, uncleNodesList = Seq.empty)))))
     peer.reply(MessageReceived(Receipts(Seq(Seq.empty))))
@@ -78,8 +75,8 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
     //then
     peer.expectMsgClass(classOf[FastSyncDone])
-
-    // storage.mptNodeStorage.get(targetBlockHeader.stateRoot) shouldBe stateMptLeafWithAccount
+    //todo asserts for blockchain
+    storage.mptNodeStorage.get(targetBlockHeader.stateRoot) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
   }
 
   it should "send failure message when got malformed response" in new TestSetup {

@@ -139,6 +139,7 @@ class FastSyncActor(
           val msg =
             s"got EVM code: ${Hex.toHexString(evmCode.toArray[Byte])}"
           log.info(msg)
+          evmStorage.put(hash, evmCode)
         case (StorageRootHash(hash), idx) =>
           val rootNode = m.getMptNode(idx)
           val msg =
