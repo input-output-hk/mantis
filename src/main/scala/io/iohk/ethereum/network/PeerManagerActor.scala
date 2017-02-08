@@ -46,13 +46,15 @@ class PeerManagerActor(
       peers -= ref.path.name
 
     case ScanBootstrapNodes =>
-      val peerAddresses = peers.values.map(_.remoteAddress).toSeq
+      val peerAddresses = peers.values.map(_.remoteAddress).toSet
       val nodesToConnect = bootstrapNodes
         .map(new URI(_))
         .filterNot(uri => peerAddresses.contains(new InetSocketAddress(uri.getHost, uri.getPort)))
 
-      log.info("Trying to connect to {} bootstrap nodes", nodesToConnect.size)
-      nodesToConnect.foreach(self ! ConnectToPeer(_))
+      if (nodesToConnect.nonEmpty) {
+        log.info("Trying to connect to {} bootstrap nodes", nodesToConnect.size)
+        nodesToConnect.foreach(self ! ConnectToPeer(_))
+      }
   }
 
   def createPeer(addr: InetSocketAddress): Peer = {
