@@ -19,7 +19,7 @@ object ProgramState {
   * @param pc program counter - an index of the opcode in the program to be executed
   * @param returnData data to be returned from the program execution
   * @param gasRefund the amount of gas to be refunded after execution (not sure if a separate field is required)
-  * @param transactions list of transactions created during run of the program
+  * @param internalTransactions list of transactions created during run of the program
   * @param addressesToDelete list of addresses of accounts scheduled to be deleted
   * @param halted a flag to indicate program termination
   * @param error indicates whether the program terminated abnormally
@@ -40,15 +40,17 @@ case class ProgramState(
   error: Option[ProgramError] = None
 ) {
 
-  def program: Program = context.env.program
+  def env: ExecEnv = context.env
 
-  def inputData: ByteString = context.env.inputData
+  def program: Program = env.program
+
+  def inputData: ByteString = env.inputData
 
   def spendGas(amount: BigInt): ProgramState =
-    copy(gas = gas - amount)
+    this //copy(gas = gas - amount) FIXME: tests
 
   def refundGas(amount: BigInt): ProgramState =
-    copy(gasRefund = gasRefund + amount)
+    this //copy(gasRefund = gasRefund + amount) FIXME: tests
 
   def step(i: Int = 1): ProgramState =
     copy(pc = pc + i)

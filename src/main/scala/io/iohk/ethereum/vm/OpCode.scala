@@ -175,7 +175,7 @@ sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val
       if (gas > state.gas)
         state.withError(OutOfGas)
       else
-        exec(state)//.spendGas(gas)
+        exec(state).spendGas(gas)
     }
   }
 
