@@ -10,6 +10,12 @@ case class EphemDataSource(storage: Map[IndexedSeq[Byte], IndexedSeq[Byte]]) ext
       storage + ((namespace ++ toUpdate._1) -> toUpdate._2))
     EphemDataSource(afterUpdate)
   }
+
+  override def clear: DataSource = EphemDataSource(Map())
+
+  override def close(): Unit = ()
+
+  override def destroy(): Unit = ()
 }
 
 object EphemDataSource {

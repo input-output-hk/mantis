@@ -8,8 +8,6 @@ import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 
-import scala.util.Random
-
 class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGenerators {
   val iterationsNumber = 100
 
@@ -67,7 +65,7 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
       val intStorage = initialIntStorage.update(Seq(), listOfInt.zip(listOfInt))
 
       //Delete of ints
-      val (toDelete, toLeave) = Random.shuffle(listOfInt).splitAt(Gen.choose(0, listOfInt.size).sample.get)
+      val (toDelete, toLeave) = listOfInt.splitAt(Gen.choose(0, listOfInt.size).sample.get)
       val keyValueStorage = intStorage.update(toDelete, Seq())
 
       toDelete.foreach{ i =>
@@ -97,7 +95,7 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
       val intStorage = initialIntStorage.update(Seq(), listOfInt.zip(listOfInt))
 
       //Delete of ints
-      val (toDelete, toLeave) = Random.shuffle(listOfInt).splitAt(Gen.choose(0, listOfInt.size).sample.get)
+      val (toDelete, toLeave) = listOfInt.splitAt(Gen.choose(0, listOfInt.size).sample.get)
       val keyValueStorage = toDelete.foldLeft(intStorage){ case (recKeyValueStorage, i) =>
         recKeyValueStorage.remove(i)
       }
