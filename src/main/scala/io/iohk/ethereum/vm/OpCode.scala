@@ -349,7 +349,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, G_zero) {
     val oldValue = state.storage.load(addr)
     val refund = if (value == 0 && oldValue != 0) R_sclear.value else BigInt(0)
     val updatedStorage = state.storage.store(addr, value)
-    state.withStack(stack1).withStorage(updatedStorage).addGasRefund(refund).step()
+    state.withStack(stack1).withStorage(updatedStorage).refundGas(refund).step()
   }
 
   protected def varGas(state: ProgramState): BigInt = {

@@ -11,6 +11,6 @@ import akka.util.ByteString
   * @param callValue value of the initiating transaction (may be replaced with [[io.iohk.ethereum.network.p2p.messages.CommonMessages.Transaction]]
   * @param storage representation of the storage accociated with the contract to be executed
   */
-case class ProgramContext(program: Program, gas: BigInt, callData: ByteString, callValue: ByteString, storage: Storage) {
+case class ProgramContext(program: Program, startGas: BigInt, callData: ByteString, callValue: ByteString, storage: Storage) {
   require(callValue.length <= 32, "Invalid callValue")
 }
