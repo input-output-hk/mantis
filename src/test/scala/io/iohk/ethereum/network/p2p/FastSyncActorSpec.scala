@@ -79,6 +79,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     //then
     peer.expectMsgClass(classOf[FastSyncDone])
 
+    // storage.mptNodeStorage.get(targetBlockHeader.stateRoot) shouldBe stateMptLeafWithAccount
   }
 
   it should "send failure message when got malformed response" in new TestSetup {
@@ -171,7 +172,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
       parentHash = ByteString(Hex.decode("952fe52067413118cd8a69b9436a86ebefe6e9e498378348dbdf2fdc42045f71")),
       ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
       beneficiary = ByteString(Hex.decode("4bb96091ee9d802ed039c4d1a5f6216f90f81b01")),
-      stateRoot = ByteString(Hex.decode("88b3593dc60b1bf27a08da97e15b7bb353d3239427e60a18042a685e38abd37d")),
+      stateRoot = ByteString(Hex.decode("deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc")),
       transactionsRoot = ByteString(Hex.decode("f3f6b2e6e1ac8d58780deebb4c9d139c89e52a6255bd9d9183c52a7afbb7bfd6")),
       receiptsRoot = ByteString(Hex.decode("e9dab9e32635c254966fbb01b61e74f0d66ce16208bcca497fde96eedc53a012")),
       logsBloom = ByteString(Array.fill[Byte](256)(0)),
