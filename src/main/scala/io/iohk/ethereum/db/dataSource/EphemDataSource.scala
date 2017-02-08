@@ -13,9 +13,9 @@ case class EphemDataSource(storage: Map[IndexedSeq[Byte], IndexedSeq[Byte]]) ext
 
   override def clear: DataSource = EphemDataSource(Map())
 
-  override def close(): Unit = Unit
+  override def close(): Unit = ()
 
-  override def destroy(): Unit = Unit
+  override def destroy(): Unit = ()
 }
 
 object EphemDataSource {

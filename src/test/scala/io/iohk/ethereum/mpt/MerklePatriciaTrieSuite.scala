@@ -1,7 +1,7 @@
 package io.iohk.ethereum.mpt
 
-import java.io.File
 import java.nio.ByteBuffer
+import java.nio.file.Files
 import java.security.MessageDigest
 
 import akka.util.ByteString
@@ -10,7 +10,6 @@ import io.iohk.ethereum.crypto.sha3
 import io.iohk.ethereum.db.dataSource.{EphemDataSource, IodbDataSource}
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
-import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
@@ -355,7 +354,11 @@ class MerklePatriciaTrieSuite extends FunSuite
   /* IODB tests */
   test("Simple test with IODB as Source") {
     //open new store
-    val nodeStorage = IodbDataSource(path = "/tmp/iodb", keySize = 33, recreate = true)
+    val nodeStorage = IodbDataSource(
+      path = Files.createTempDirectory("MPT").getFileName.toString,
+      keySize = 33,
+      recreate = true
+    )
     val emptyTrie = MerklePatriciaTrie[Int, Int](new NodeStorage(nodeStorage), hashFn)
     val trieWithOneElement = emptyTrie.put(1, 5)
     val obtained = trieWithOneElement.get(1)

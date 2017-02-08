@@ -6,9 +6,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
-class IodbDataSource private (lSMStore: LSMStore,
-                              keySize: Int,
-                              path: String) extends DataSource {
+class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) extends DataSource {
 
   import IodbDataSource._
 
@@ -56,6 +54,16 @@ object IodbDataSource {
     ByteBuffer.allocate(java.lang.Long.SIZE / java.lang.Byte.SIZE).putLong(updateCounter.incrementAndGet()).array()
   }
 
+  /**
+    * This function constructs an IodbDataSource.
+    *
+    * @param path of the folder where the DataSource files will be stored.
+    * @param keySize of the keys to be stored in the DataSource.
+    *                This length includes the length of the namespace and the length of the keys inside this namespace
+    * @param recreate boolean that, if set to true, this function will return a DataSource with no data in it.
+    *                 If set to false the returned DataSource will continue to use previously built DataSource files.
+    * @return an IodbDataSource.
+    */
   def apply(path: String, keySize: Int, recreate: Boolean): IodbDataSource = {
     val dir: File = new File(path)
     val dirSetupSuccess =

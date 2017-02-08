@@ -1,6 +1,8 @@
 package io.iohk.ethereum.mpt
 
+import java.io.File
 import java.nio.ByteBuffer
+import java.nio.file.Files
 import java.security.MessageDigest
 
 import io.iohk.ethereum.ObjectGenerators
@@ -42,72 +44,90 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
     MessageDigest.getInstance("MD5").digest(bytes)
   }
 
+  def withDirs(numDirs: Int)(testCode: Seq[String] => Any): Unit = {
+    val paths = (0 until numDirs).map(_ => Files.createTempDirectory("MPTIntegration").getFileName.toString)
+    try {
+      testCode(paths)
+    } finally {
+      paths.foreach{ path =>
+        val dir = new File(path)
+        assert(!dir.exists() || dir.delete(), "File deletion failed")
+      }
+    }
+  }
+
 
   test("IODB test - Insert of the first 5000 numbers hashed and then remove half of them"){
-    val dataSource = IodbDataSource(path = "/tmp/iodb", keySize = KeySize, recreate = true)
-    val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new NodeStorage(dataSource), hashFn)
-
-    val keys = (0 to 100).map(intByteArraySerializable.toBytes)
-    val trie = Random.shuffle(keys).foldLeft(emptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
-
-    // We delete have of the (key-value) pairs we had inserted
-    val trieAfterDelete = Random.shuffle(keys.take(100/2)).foldLeft(trie) { case (recTrie, key) => recTrie.remove(md5(key)) }
-
-    // We delete keys with no effect so as to test that is the case (and for more code coverage)
-    val trieAfterDeleteNoEffect = keys.take(100/2).foldLeft(trieAfterDelete) { case (recTrie, key) => recTrie.remove(md5(key)) }
-    assert(Hex.toHexString(trieAfterDeleteNoEffect.getRootHash) == "b0bfbf4d2d6f3c9863c27f41a087208131f775edd9de2cb66242d1e0981aa94c")
-
-    dataSource.destroy()
+    withDirs(1) { paths =>
+      val dataSource = IodbDataSource(path = paths.head, keySize = KeySize, recreate = true)
+      val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new NodeStorage(dataSource), hashFn)
+  
+      val keys = (0 to 100).map(intByteArraySerializable.toBytes)
+      val trie = Random.shuffle(keys).foldLeft(emptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
+  
+      // We delete have of the (key-value) pairs we had inserted
+      val trieAfterDelete = Random.shuffle(keys.take(100/2)).foldLeft(trie) { case (recTrie, key) => recTrie.remove(md5(key)) }
+  
+      // We delete keys with no effect so as to test that is the case (and for more code coverage)
+      val trieAfterDeleteNoEffect = keys.take(100/2).foldLeft(trieAfterDelete) { case (recTrie, key) => recTrie.remove(md5(key)) }
+      assert(Hex.toHexString(trieAfterDeleteNoEffect.getRootHash) == "b0bfbf4d2d6f3c9863c27f41a087208131f775edd9de2cb66242d1e0981aa94c")
+  
+      dataSource.destroy()
+    }
   }
 
   test("IODB Test - PatriciaTrie insert and get") {
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
-      val dataSource = IodbDataSource(path = "/tmp/iodb", keySize = KeySize, recreate = true)
-      val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSource), hashFn)) {
-        case (recTrie, (key, value)) => recTrie.put(key, value)
+      withDirs(1) { paths =>
+        val dataSource = IodbDataSource(path = paths.head, keySize = KeySize, recreate = true)
+        val trie = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSource), hashFn)) {
+          case (recTrie, (key, value)) => recTrie.put(key, value)
+        }
+        keyValueList.foreach { case (key, value) =>
+          val obtained = trie.get(key)
+          assert(obtained.isDefined)
+          assert(obtained.get == value)
+        }
+  
+        dataSource.destroy()
       }
-      keyValueList.foreach { case (key, value) =>
-        val obtained = trie.get(key)
-        assert(obtained.isDefined)
-        assert(obtained.get == value)
-      }
-
-      dataSource.destroy()
     }
   }
 
   test("IODB Test - PatriciaTrie delete") {
     forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[Int])) { keyList: List[Int] =>
-      val dataSourceWithDelete = IodbDataSource(path = "/tmp/iodb1", keySize = KeySize, recreate = true)
-
-      val keyValueList = keyList.distinct.zipWithIndex
-      val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSourceWithDelete), hashFn)) {
-        case (recTrie, (key, value)) => recTrie.put(key, value)
+      withDirs(2) { case Seq(path1, path2) =>
+        val dataSourceWithDelete = IodbDataSource(path = path1, keySize = KeySize, recreate = true)
+  
+        val keyValueList = keyList.distinct.zipWithIndex
+        val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSourceWithDelete), hashFn)) {
+          case (recTrie, (key, value)) => recTrie.put(key, value)
+        }
+        val (keyValueToDelete, keyValueLeft) = keyValueList.splitAt(Gen.choose(0, keyValueList.size).sample.get)
+        val trieAfterDelete = keyValueToDelete.foldLeft(trieAfterInsert) {
+          case (recTrie, (key, value)) => recTrie.remove(key)
+        }
+  
+        keyValueLeft.foreach { case (key, value) =>
+          val obtained = trieAfterDelete.get(key)
+          assert(obtained.isDefined)
+          assert(obtained.get == value)
+        }
+        keyValueToDelete.foreach { case (key, value) =>
+          val obtained = trieAfterDelete.get(key)
+          assert(obtained.isEmpty)
+        }
+  
+        val dataSourceOnlyInsert = IodbDataSource(path = path2, keySize = KeySize, recreate = true)
+  
+        val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSourceOnlyInsert), hashFn)) {
+          case (recTrie, (key, value)) => recTrie.put(key, value)
+        }
+        assert(trieAfterDelete.getRootHash sameElements trieWithKeyValueLeft.getRootHash)
+  
+        dataSourceWithDelete.destroy()
+        dataSourceOnlyInsert.destroy()
       }
-      val (keyValueToDelete, keyValueLeft) = keyValueList.splitAt(Gen.choose(0, keyValueList.size).sample.get)
-      val trieAfterDelete = keyValueToDelete.foldLeft(trieAfterInsert) {
-        case (recTrie, (key, value)) => recTrie.remove(key)
-      }
-
-      keyValueLeft.foreach { case (key, value) =>
-        val obtained = trieAfterDelete.get(key)
-        assert(obtained.isDefined)
-        assert(obtained.get == value)
-      }
-      keyValueToDelete.foreach { case (key, value) =>
-        val obtained = trieAfterDelete.get(key)
-        assert(obtained.isEmpty)
-      }
-
-      val dataSourceOnlyInsert = IodbDataSource(path = "/tmp/iodb", keySize = KeySize, recreate = true)
-
-      val trieWithKeyValueLeft = keyValueLeft.foldLeft(MerklePatriciaTrie[Int, Int](new NodeStorage(dataSourceOnlyInsert), hashFn)) {
-        case (recTrie, (key, value)) => recTrie.put(key, value)
-      }
-      assert(trieAfterDelete.getRootHash sameElements trieWithKeyValueLeft.getRootHash)
-
-      dataSourceWithDelete.destroy()
-      dataSourceOnlyInsert.destroy()
     }
   }
 
