@@ -15,7 +15,7 @@ object Generators extends ObjectGenerators {
   def getByteStringGen(minSize: Int, maxSize: Int): Gen[ByteString] =
     getListGen(minSize, maxSize, Arbitrary.arbitrary[Byte]).map(l => ByteString(l.toArray))
 
-  def getBigIntGen(min: BigInt = -BigInt(2).pow(255), max: BigInt = BigInt(2).pow(255) - 1): Gen[BigInt] = {
+  def getBigIntGen(min: BigInt = -BigInt(2).pow(255), max: BigInt = BigInt(2).pow(256) - 1): Gen[BigInt] = {
     val mod = max - min
     val nBytes = mod.bitLength / 8 + 1
     for {
