@@ -7,8 +7,6 @@ import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 
-import scala.util.Random
-
 class CodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerators {
   val LimitCodeSize = 100
 
@@ -41,7 +39,7 @@ class CodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
       }
 
       //EVM codes are deleted
-      val (toDelete, toLeave) = Random.shuffle(codeHashes.zip(codes))
+      val (toDelete, toLeave) = codeHashes.zip(codes)
         .splitAt(Gen.choose(0, codeHashes.size).sample.get)
       val codeStorageAfterDelete = toDelete.foldLeft(codeStorage){
         case (recCodeStorage, (codeHash, _)) =>

@@ -1,18 +1,16 @@
 package io.iohk.ethereum.network.p2p.messages
 
-import java.math.BigInteger
-
 import akka.util.ByteString
-import io.iohk.ethereum.crypto
-import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
 import org.spongycastle.util.encoders.Hex
+
 
 object CommonMessages {
   object Status {
-    implicit val rlpEndDec = new RLPEncoder[Status] with RLPDecoder[Status] {
+    implicit val rlpEncDec = new RLPEncoder[Status] with RLPDecoder[Status] {
       override def encode(obj: Status): RLPEncodeable = {
         import obj._
         RLPList(protocolVersion, networkId, totalDifficulty, bestHash.toArray[Byte], genesisHash.toArray[Byte])
@@ -42,128 +40,48 @@ object CommonMessages {
     }
   }
 
-  object Transactions {
-    implicit val rlpEndDec = new RLPEncoder[Transactions] with RLPDecoder[Transactions] {
-      override def encode(obj: Transactions): RLPEncodeable = {
-        import obj._
-        RLPList(txs.map(Transaction.rlpEndDec.encode): _*)
+  object SignedTransactions {
+
+    implicit val txRlpEncDec = new RLPEncoder[SignedTransaction] with RLPDecoder[SignedTransaction] {
+
+      override def encode(signedTx: SignedTransaction): RLPEncodeable = {
+        import signedTx._
+        import signedTx.tx._
+        RLPList(nonce, gasPrice, gasLimit, receivingAddress.toArray, value,
+                payload, pointSign, signatureRandom.toArray[Byte], signature.toArray[Byte])
       }
 
-      override def decode(rlp: RLPEncodeable): Transactions = rlp match {
-        case rlpList: RLPList => Transactions(rlpList.items.map(Transaction.rlpEndDec.decode))
-        case _ => throw new RuntimeException("Cannot decode Transactions")
+      override def decode(rlp: RLPEncodeable): SignedTransaction = rlp match {
+        case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value,
+                     payload, pointSign, signatureRandom, signature) =>
+          SignedTransaction(
+            Transaction(nonce, gasPrice, gasLimit, Address(receivingAddress.bytes), value, ByteString(payload: Array[Byte])),
+            pointSign,
+            ByteString(signatureRandom: Array[Byte]),
+            ByteString(signature: Array[Byte]))
       }
+
+    }
+
+    implicit val txsRlpEncDec = new RLPEncoder[SignedTransactions] with RLPDecoder[SignedTransactions] {
+
+      override def encode(obj: SignedTransactions): RLPEncodeable = {
+        import obj._
+        RLPList(txs.map(txRlpEncDec.encode): _*)
+      }
+
+      override def decode(rlp: RLPEncodeable): SignedTransactions = rlp match {
+        case rlpList: RLPList => SignedTransactions(rlpList.items.map(txRlpEncDec.decode))
+        case _ => throw new RuntimeException("Cannot decode SignedTransactions")
+      }
+
     }
 
     val code: Int = Message.SubProtocolOffset + 0x02
   }
 
-  case class Transactions(txs: Seq[Transaction]) extends Message {
-    override def code: Int = Transactions.code
+  case class SignedTransactions(txs: Seq[SignedTransaction]) extends Message {
+    override def code: Int = SignedTransactions.code
   }
 
-  object Transaction {
-    val NonceLength = 32
-    val GasLength = 32
-    val ValueLength = 32
-    val AddressLength = 20
-
-    val negativePointSign = 27
-    val positivePointSign = 28
-
-    val FirstByteOfAddress = 12
-    val LastByteOfAddress: Int = FirstByteOfAddress + AddressLength
-    val allowedSignValues: Set[Int] = Set(negativePointSign, positivePointSign)
-
-    implicit val rlpEndDec = new RLPEncoder[Transaction] with RLPDecoder[Transaction] {
-      override def encode(obj: Transaction): RLPEncodeable = {
-        import obj._
-        RLPList(nonce, gasPrice, gasLimit, receivingAddress.toArray[Byte], value,
-          payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte]),
-          pointSign, signatureRandom.toArray[Byte], signature.toArray[Byte])
-      }
-
-      override def decode(rlp: RLPEncodeable): Transaction = rlp match {
-        case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value, payload, pointSign, signatureRandom, signature)
-          if receivingAddress.bytes.nonEmpty =>
-          Transaction(nonce, gasPrice, gasLimit, ByteString(receivingAddress: Array[Byte]), value, Right(TransactionData(ByteString(payload: Array[Byte]))),
-            pointSign, ByteString(signatureRandom: Array[Byte]), ByteString(signature: Array[Byte]))
-
-        case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value, payload, pointSign, signatureRandom, signature)
-          if receivingAddress.bytes.isEmpty =>
-          Transaction(nonce, gasPrice, gasLimit, ByteString(), value, Left(ContractInit(ByteString(payload: Array[Byte]))),
-            pointSign, ByteString(signatureRandom: Array[Byte]), ByteString(signature: Array[Byte]))
-
-        case _ => throw new RuntimeException("Cannot decode Transaction")
-      }
-    }
-  }
-
-  //ETH yellow paper section 4.3
-  case class Transaction(
-    nonce: BigInt,
-    gasPrice: BigInt,
-    gasLimit: BigInt,
-    receivingAddress: ByteString,
-    value: BigInt,
-    payload: Either[ContractInit, TransactionData],
-    //yellow paper appendix F
-    pointSign: Byte, //v - 27 or 28 according to yellow paper, but it is 37 and 38 in ETH
-    signatureRandom: ByteString, //r
-    signature: ByteString /*s*/) {
-
-    import Transaction._
-
-    lazy val bytesToSign: Array[Byte] = crypto.sha3(rlpEncode(RLPList(nonce, gasPrice, gasLimit,
-      receivingAddress.toArray[Byte], value, payload.fold(_.byteString.toArray[Byte], _.byteString.toArray[Byte]))))
-
-    //todo implement EC-72
-    lazy val recoveredPublicKey: Option[Array[Byte]] = if (allowedSignValues.contains(pointSign)) {
-      ECDSASignature.recoverPubBytes(
-        new BigInteger(1, signatureRandom.toArray[Byte]),
-        new BigInteger(1, signature.toArray[Byte]),
-        ECDSASignature.recIdFromSignatureV(pointSign),
-        bytesToSign
-      )
-    } else {
-      None
-    }
-
-    lazy val recoveredAddress: Option[Array[Byte]] = recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
-
-    lazy val syntacticValidity: Boolean = {
-      def byteLength(b: BigInt): Int = b.toByteArray.length
-
-      byteLength(nonce) <= NonceLength &&
-        (receivingAddress.isEmpty || receivingAddress.length == AddressLength) &&
-        byteLength(gasLimit) <= GasLength &&
-        byteLength(gasPrice) <= GasLength &&
-        byteLength(value) <= ValueLength &&
-        signatureRandom.length <= ECDSASignature.RLength &&
-        signature.length <= ECDSASignature.SLength &&
-        recoveredAddress.isDefined && recoveredAddress.get.length == AddressLength
-    }
-
-    override def toString: String = {
-      s"""Transaction {
-         |nonce: $nonce
-         |gasPrice: $gasPrice
-         |gasLimit: $gasLimit
-         |receivingAddress: ${Hex.toHexString(receivingAddress.toArray[Byte])}
-         |value: $value wei
-         |payload: ${payload.fold(init => s"ContractInit [${Hex.toHexString(init.byteString.toArray[Byte])}]",
-                                  data => s"TransactionData [${Hex.toHexString(data.byteString.toArray[Byte])}]")}
-         |pointSign: $pointSign
-         |signatureRandom: ${Hex.toHexString(signatureRandom.toArray[Byte])}
-         |signature: ${Hex.toHexString(signature.toArray[Byte])}
-         |bytesToSign: ${Hex.toHexString(bytesToSign)}
-         |recoveredPublicKey: ${recoveredPublicKey.map(Hex.toHexString)}
-         |recoveredAddress: ${recoveredAddress.map(Hex.toHexString)}
-         |}""".stripMargin
-    }
-  }
-
-  case class ContractInit(byteString: ByteString)
-
-  case class TransactionData(byteString: ByteString)
 }

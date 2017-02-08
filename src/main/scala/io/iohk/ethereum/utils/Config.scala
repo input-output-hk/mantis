@@ -31,14 +31,18 @@ object Config {
     object Discovery {
       private val discoveryConfig = networkConfig.getConfig("discovery")
 
-      val bootstrapNodes: List[String] = discoveryConfig.getStringList("bootstrap-nodes").toList
+      val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").toList
+      val bootstrapNodesScanInterval = discoveryConfig.getDuration("bootstrap-nodes-scan-interval").toMillis.millis
     }
 
     object Peer {
       private val peerConfig = networkConfig.getConfig("peer")
 
-      val connectRetryDelay: FiniteDuration = peerConfig.getDuration("connect-retry-delay").toMillis.millis
-      val connectMaxRetries: Int = peerConfig.getInt("connect-max-retries")
+      val connectRetryDelay = peerConfig.getDuration("connect-retry-delay").toMillis.millis
+      val connectMaxRetries = peerConfig.getInt("connect-max-retries")
+      val disconnectPoisonPillTimeout = peerConfig.getDuration("disconnect-poison-pill-timeout").toMillis.millis
+      val waitForStatusTimeout = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
+      val waitForChainCheckTimeout = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
     }
 
   }

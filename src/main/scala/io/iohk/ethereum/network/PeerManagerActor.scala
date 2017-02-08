@@ -1,20 +1,26 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
-import java.util.UUID
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
-import io.iohk.ethereum.utils.NodeStatus
+import io.iohk.ethereum.utils.{Config, NodeStatus}
 
-class PeerManagerActor(nodeStatusHolder: Agent[NodeStatus]) extends Actor with ActorLogging {
+class PeerManagerActor(
+    nodeStatusHolder: Agent[NodeStatus],
+    peerFactory: (ActorContext, InetSocketAddress) => ActorRef)
+  extends Actor with ActorLogging {
 
   import PeerManagerActor._
+  import Config.Network.Discovery._
 
   var peers: Map[String, Peer] = Map.empty
+
+  context.system.scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
 
   override val supervisorStrategy =
     OneForOneStrategy() {
@@ -39,29 +45,40 @@ class PeerManagerActor(nodeStatusHolder: Agent[NodeStatus]) extends Actor with A
     case Terminated(ref) =>
       peers -= ref.path.name
 
-    case StartFastDownload(uri,targetHash) =>
-      peers.get(keyForURI(uri)).foreach { p => p.ref ! PeerActor.StartFastSync(targetHash)}
+    case ScanBootstrapNodes =>
+      val peerAddresses = peers.values.map(_.remoteAddress).toSet
+      val nodesToConnect = bootstrapNodes
+        .map(new URI(_))
+        .filterNot(uri => peerAddresses.contains(new InetSocketAddress(uri.getHost, uri.getPort)))
+
+      if (nodesToConnect.nonEmpty) {
+        log.info("Trying to connect to {} bootstrap nodes", nodesToConnect.size)
+        nodesToConnect.foreach(self ! ConnectToPeer(_))
+      }
+    case StartFastDownload(uri, targetHash) =>
+      peers.find { case (_, Peer(remoteAddress, _)) => remoteAddress.getHostString == uri.getHost && remoteAddress.getPort == uri.getPort }
+        .map(_._2)
+        .foreach { p => p.ref ! PeerActor.StartFastSync(targetHash) }
   }
 
   def createPeer(addr: InetSocketAddress): Peer = {
-    val id = addr.toString.filterNot(_ == '/')
-    //todo temporal fix, fix this in a way that makes sense
-    val ref = context.actorOf(PeerActor.props(nodeStatusHolder, _.actorOf(RLPxConnectionHandler.props(nodeStatusHolder().key),
-      s"rlpx-connection-${UUID.randomUUID().toString}")), id)
+    val ref = peerFactory(context, addr)
     context watch ref
-    val peer = Peer(id, addr, ref)
-    peers += id -> peer
+    val peer = Peer(addr, ref)
+    peers += peer.id -> peer
     peer
   }
 
-  private def keyForURI(uri: URI): String = {
-    new InetSocketAddress(uri.getHost, uri.getPort).toString.filterNot(_ == '/')
-  }
 }
 
 object PeerManagerActor {
   def props(nodeStatusHolder: Agent[NodeStatus]): Props =
-    Props(new PeerManagerActor(nodeStatusHolder))
+    Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder)))
+
+  def peerFactory(nodeStatusHolder: Agent[NodeStatus]): (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
+    val id = addr.toString.filterNot(_ == '/')
+    ctx.actorOf(PeerActor.props(nodeStatusHolder), id)
+  }
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
 
@@ -69,8 +86,13 @@ object PeerManagerActor {
 
   case class StartFastDownload(uri: URI, targetBlockHash: ByteString)
 
-  case class Peer(id: String, remoteAddress: InetSocketAddress, ref: ActorRef)
+  case class Peer(remoteAddress: InetSocketAddress, ref: ActorRef) {
+    def id: String = ref.path.name
+  }
+
   case class PeerCreated(peer: Peer)
 
   case object GetPeers
+
+  private case object ScanBootstrapNodes
 }

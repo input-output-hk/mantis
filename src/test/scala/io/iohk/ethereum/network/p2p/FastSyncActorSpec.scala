@@ -5,10 +5,12 @@ import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.FastSyncActor.{FastSyncDone, SyncFailure}
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.network.{FastSyncActor, PeerActor}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -76,9 +78,9 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     //then
     peer.expectMsgClass(classOf[FastSyncDone])
 
-    storage.blockBodiesStorage.get(targetBlockHeader.blockHash) shouldBe Some(BlockBody(transactionList = Seq.empty, uncleNodesList = Seq.empty))
-    storage.blockHeadersStorage.get(targetBlockHeader.blockHash) shouldBe Some(targetBlockHeader)
-    storage.receiptStorage.get(targetBlockHeader.blockHash) shouldBe Some(Seq.empty)
+    storage.blockBodiesStorage.get(ForkValidator.hash(targetBlockHeader)) shouldBe Some(BlockBody(transactionList = Seq.empty, uncleNodesList = Seq.empty))
+    storage.blockHeadersStorage.get(ForkValidator.hash(targetBlockHeader)) shouldBe Some(targetBlockHeader)
+    storage.receiptStorage.get(ForkValidator.hash(targetBlockHeader)) shouldBe Some(Seq.empty)
 
     storage.mptNodeStorage.get(targetBlockHeader.stateRoot) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
   }
@@ -210,7 +212,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
       genesisBlockHeader.copy(number = 1),
       genesisBlockHeader.copy(number = 2),
       genesisBlockHeader.copy(number = 3))
-    val blockHashes: Seq[ByteString] = responseBlockHeaders.map(_.blockHash)
+    val blockHashes: Seq[ByteString] = responseBlockHeaders.map(ForkValidator.hash)
 
     val mptBranchWithTwoChild =
       ByteString(Hex.decode("f85180a0a22ed27833bf167433f8c9135d70eca57d5410d03520b90188973c58a0e299738080808080808080a0cfde5f1251ac4f23f7a1794f15d56abbd1eceb6a8996aa58b078e3b4b355d331808080808080"))

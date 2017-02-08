@@ -2,22 +2,23 @@ package io.iohk.ethereum.network.p2p
 
 import java.net.{InetSocketAddress, URI}
 
-import akka.actor.{ActorSystem, PoisonPill, Terminated}
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+
+import akka.actor.{Props, PoisonPill, Terminated, ActorSystem}
 import akka.agent.Agent
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit.{TestProbe, TestActorRef}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeader, BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
-import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
-import org.scalatest.{FlatSpec, Matchers}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.PV62.{GetBlockHeaders, BlockHeaders}
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.utils.{Config, BlockchainStatus, ServerStatus, NodeStatus}
 import org.spongycastle.util.encoders.Hex
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
+import org.scalatest.{FlatSpec, Matchers}
 
 class PeerActorSpec extends FlatSpec with Matchers {
 
@@ -49,10 +50,10 @@ class PeerActorSpec extends FlatSpec with Matchers {
     implicit val system = ActorSystem("PeerActorSpec_System")
 
     var rlpxConnection = TestProbe() // var as we actually need new instances
-    val peer = TestActorRef(PeerActor.props(nodeStatusHolder, _ => {
+    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }))
+      })))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -263,7 +264,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val rlpxConnection = TestProbe()
 
-    val peer = TestActorRef(PeerActor.props(nodeStatusHolder, _ => rlpxConnection.ref))
+    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref)))
   }
 
 }

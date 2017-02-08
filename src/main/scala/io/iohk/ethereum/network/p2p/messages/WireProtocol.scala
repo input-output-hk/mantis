@@ -26,7 +26,7 @@ object WireProtocol {
 
   object Hello {
 
-    implicit val rlpEndDec = new RLPEncoder[Hello] with RLPDecoder[Hello] {
+    implicit val rlpEncDec = new RLPEncoder[Hello] with RLPDecoder[Hello] {
       override def encode(obj: Hello): RLPEncodeable = {
         import obj._
         RLPList(p2pVersion, clientId, capabilities, listenPort, nodeId.toArray[Byte])
@@ -66,7 +66,7 @@ object WireProtocol {
   }
 
   object Disconnect {
-    implicit val rlpEndDec = new RLPEncoder[Disconnect] with RLPDecoder[Disconnect] {
+    implicit val rlpEncDec = new RLPEncoder[Disconnect] with RLPDecoder[Disconnect] {
       override def encode(obj: Disconnect): RLPEncodeable = {
         RLPList(obj.reason)
       }
@@ -123,7 +123,7 @@ object WireProtocol {
 
   object Ping {
 
-    implicit val rlpEndDec = new RLPEncoder[Ping] with RLPDecoder[Ping] {
+    implicit val rlpEncDec = new RLPEncoder[Ping] with RLPDecoder[Ping] {
       override def encode(obj: Ping): RLPEncodeable = RLPList()
 
       override def decode(rlp: RLPEncodeable): Ping = Ping()
@@ -138,7 +138,7 @@ object WireProtocol {
 
   object Pong {
 
-    implicit val rlpEndDec = new RLPEncoder[Pong] with RLPDecoder[Pong] {
+    implicit val rlpEncDec = new RLPEncoder[Pong] with RLPDecoder[Pong] {
       override def encode(obj: Pong): RLPEncodeable = RLPList()
 
       override def decode(rlp: RLPEncodeable): Pong = Pong()

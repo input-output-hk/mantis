@@ -11,6 +11,12 @@ case class EphemDataSource(var storage: Map[IndexedSeq[Byte], IndexedSeq[Byte]])
     storage = afterUpdate
     this
   }
+
+  override def clear: DataSource = EphemDataSource(Map())
+
+  override def close(): Unit = ()
+
+  override def destroy(): Unit = ()
 }
 
 object EphemDataSource {

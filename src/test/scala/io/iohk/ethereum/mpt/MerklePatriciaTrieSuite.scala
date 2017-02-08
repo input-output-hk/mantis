@@ -1,7 +1,7 @@
 package io.iohk.ethereum.mpt
 
-import java.io.File
 import java.nio.ByteBuffer
+import java.nio.file.Files
 import java.security.MessageDigest
 
 import akka.util.ByteString
@@ -10,7 +10,6 @@ import io.iohk.ethereum.crypto.sha3
 import io.iohk.ethereum.db.dataSource.{EphemDataSource, IodbDataSource}
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
-import io.iohk.iodb.LSMStore
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
@@ -61,7 +60,7 @@ class MerklePatriciaTrieSuite extends FunSuite
       val trieAfterInsert = keyValueList.foldLeft(MerklePatriciaTrie[Int, Int](EmptyEphemNodeStorage, hashFn)) {
         case (recTrie, (key, value)) => recTrie.put(key, value)
       }
-      val (keyValueToDelete, keyValueLeft) = Random.shuffle(keyValueList).splitAt(Gen.choose(0, keyValueList.size).sample.get)
+      val (keyValueToDelete, keyValueLeft) = keyValueList.splitAt(Gen.choose(0, keyValueList.size).sample.get)
       val trieAfterDelete = keyValueToDelete.foldLeft(trieAfterInsert) {
         case (recTrie, (key, value)) => recTrie.remove(key)
       }
@@ -353,13 +352,12 @@ class MerklePatriciaTrieSuite extends FunSuite
 
   /* IODB tests */
   test("Simple test with IODB as Source") {
-    //create temporary dir
-    val dir = File.createTempFile("iodb", "iodb")
-    dir.delete()
-    dir.mkdir()
-
     //open new store
-    val nodeStorage = new IodbDataSource(new LSMStore(dir = dir, keySize = 33))
+    val nodeStorage = IodbDataSource(
+      path = Files.createTempDirectory("MPT").getFileName.toString,
+      keySize = 33,
+      recreate = true
+    )
     val emptyTrie = MerklePatriciaTrie[Int, Int](new NodeStorage(nodeStorage), hashFn)
     val trieWithOneElement = emptyTrie.put(1, 5)
     val obtained = trieWithOneElement.get(1)
@@ -368,6 +366,8 @@ class MerklePatriciaTrieSuite extends FunSuite
     val trieAfterDelete = trieWithOneElement.remove(1)
     val obtainedAfterDelete = trieAfterDelete.get(1)
     assert(obtainedAfterDelete.isEmpty)
+
+    nodeStorage.destroy()
   }
 
   /* EthereumJ tests */

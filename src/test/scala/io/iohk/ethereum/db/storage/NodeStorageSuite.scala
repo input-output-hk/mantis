@@ -8,8 +8,6 @@ import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 
-import scala.util.Random
-
 class NodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerators {
   test("NodeStorage insert") {
     forAll(Gen.listOf(nodeGen)){ unfilteredMptNodes =>
@@ -39,8 +37,7 @@ class NodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
       }
 
       //Nodes are deleted
-      val (toDelete, toLeave) = Random.shuffle(mptNodes)
-        .splitAt(Gen.choose(0, mptNodes.size).sample.get)
+      val (toDelete, toLeave) = mptNodes.splitAt(Gen.choose(0, mptNodes.size).sample.get)
       val nodeStorageAfterDelete = toDelete.foldLeft(nodeStorage){
         case (recNodeStorage, node) =>
           recNodeStorage.remove(node.hash.toArray)

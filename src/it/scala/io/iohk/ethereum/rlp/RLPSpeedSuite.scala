@@ -2,27 +2,26 @@ package io.iohk.ethereum.rlp
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.{Transaction, TransactionData}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeader
-import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.domain.{Address, BlockHeader, SignedTransaction, Transaction}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
+import io.iohk.ethereum.rlp
 import io.iohk.ethereum.utils.Logger
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
 import org.spongycastle.util.encoders.Hex
 
-import scala.language.implicitConversions
-
 /**
-  * Tests based on
-  *   - https://github.com/cryptape/ruby-rlp/blob/master/test/speed.rb
-  *   - https://github.com/ethereum/pyrlp/blob/develop/tests/speed.py
-  */
+ * Tests based on
+ *   - https://github.com/cryptape/ruby-rlp/blob/master/test/speed.rb
+ *   - https://github.com/ethereum/pyrlp/blob/develop/tests/speed.py
+ */
 class RLPSpeedSuite extends FunSuite
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
-  with ObjectGenerators
-  with Logger {
+    with PropertyChecks
+    with GeneratorDrivenPropertyChecks
+    with ObjectGenerators
+    with Logger {
 
   val rounds = 10000
 
@@ -40,12 +39,12 @@ class RLPSpeedSuite extends FunSuite
 
     val serializationTxStart: Long = System.currentTimeMillis
     val tx = validTransaction
-    val serializedTx = doTestSerialize(tx, rounds)(Transaction.rlpEndDec)
+    val serializedTx = doTestSerialize(tx, rounds)(SignedTransactions.txRlpEncDec)
     val elapsedTxSerialization = (System.currentTimeMillis() - serializationTxStart) / 1000f
     log.info(s"TX serializations / sec: (${rounds.toFloat / elapsedTxSerialization})")
 
     val txDeserializationStart: Long = System.currentTimeMillis
-    val deserializedTx: Transaction = doTestDeserialize(serializedTx, rounds)(Transaction.rlpEndDec)
+    val deserializedTx: SignedTransaction = doTestDeserialize(serializedTx, rounds)(SignedTransactions.txRlpEncDec)
     val elapsedTxDeserialization = (System.currentTimeMillis() - txDeserializationStart) / 1000f
     log.info(s"TX deserializations / sec: (${rounds.toFloat / elapsedTxDeserialization})")
   }
@@ -62,26 +61,23 @@ class RLPSpeedSuite extends FunSuite
   }
 
   def doTestSerialize[T](toSerialize: T, rounds: Int)(implicit enc: RLPEncoder[T]): Array[Byte] = {
-    (1 until rounds).foreach(_ => {
-      encode[T](toSerialize)
-    })
+    (1 until rounds).foreach(_ => { encode[T](toSerialize) })
     encode[T](toSerialize)
   }
 
   def doTestDeserialize[T](serialized: Array[Byte], rounds: Int)(implicit dec: RLPDecoder[T]): T = {
-    (1 until rounds).foreach(_ => {
-      decode[T](serialized)
-    })
+    (1 until rounds).foreach(_ => { decode[T](serialized) })
     decode[T](serialized)
   }
 
-  val validTransaction = Transaction(
-    nonce = 172320,
-    gasPrice = BigInt("50000000000"),
-    gasLimit = 90000,
-    receivingAddress = ByteString(Hex.decode("1c51bf013add0857c5d9cf2f71a7f15ca93d4816")),
-    value = BigInt("1049756850000000000"),
-    payload = Right(TransactionData(ByteString())),
+  val validTransaction = SignedTransaction(
+    Transaction(
+      nonce = 172320,
+      gasPrice = BigInt("50000000000"),
+      gasLimit = 90000,
+      receivingAddress = Address(Hex.decode("1c51bf013add0857c5d9cf2f71a7f15ca93d4816")),
+      value = BigInt("1049756850000000000"),
+      payload = ByteString.empty),
     pointSign = 28,
     signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),
     signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0"))
@@ -127,21 +123,27 @@ class RLPSpeedSuite extends FunSuite
 }
 
 // FIXME Replace with our entity once implemented in our codebase
-case class TestBlock(header: BlockHeader, transactions: Seq[Transaction], uncles: Seq[BlockHeader])
+case class TestBlock(header: BlockHeader, transactions: Seq[SignedTransaction], uncles: Seq[BlockHeader])
 
 object TestBlock {
+
   implicit val encDec = new RLPEncoder[TestBlock] with RLPDecoder[TestBlock] {
+
     override def encode(obj: TestBlock): RLPEncodeable = {
-      RLPList(obj.header,
-        obj.transactions: RLPList,
-        obj.uncles: RLPList
-      )
+      val rplEncodeables: Seq[RLPEncodeable] =
+        obj.transactions.map(SignedTransactions.txRlpEncDec.encode)
+      RLPList(headerRlpEncDec.encode(obj.header),
+              RLPList(rplEncodeables: _*),
+              RLPList(obj.uncles.map(headerRlpEncDec.encode(_)): _*))
     }
 
     override def decode(rlp: RLPEncodeable): TestBlock = rlp match {
-      case RLPList(header, (txs: RLPList), (uncles: RLPList)) =>
-        TestBlock(BlockHeader.rlpEndDec.decode(header), txs.items.map(Transaction.rlpEndDec.decode), uncles.items.map(BlockHeader.rlpEndDec.decode))
+      case RLPList(header, txs: RLPList, uncles: RLPList) =>
+        TestBlock(headerRlpEncDec.decode(header),
+                  txs.items.map(SignedTransactions.txRlpEncDec.decode),
+                  uncles.items.map(headerRlpEncDec.decode))
       case _ => throw new RuntimeException("Invalid Block encodeable")
     }
+
   }
 }

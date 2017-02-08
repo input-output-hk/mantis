@@ -2,6 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.domain.Address
 import org.scalacheck.{Arbitrary, Gen}
 
 // scalastyle:off magic.number
@@ -14,7 +15,7 @@ object Generators extends ObjectGenerators {
   def getByteStringGen(minSize: Int, maxSize: Int): Gen[ByteString] =
     getListGen(minSize, maxSize, Arbitrary.arbitrary[Byte]).map(l => ByteString(l.toArray))
 
-  def getBigIntGen(min: BigInt = -BigInt(2).pow(255), max: BigInt = BigInt(2).pow(255) - 1): Gen[BigInt] = {
+  def getBigIntGen(min: BigInt = -BigInt(2).pow(255), max: BigInt = BigInt(2).pow(256) - 1): Gen[BigInt] = {
     val mod = max - min
     val nBytes = mod.bitLength / 8 + 1
     for {
@@ -48,17 +49,18 @@ object Generators extends ObjectGenerators {
     memGen: Gen[Memory] = getMemoryGen(),
     storageGen: Gen[Storage] = getStorageGen(),
     codeGen: Gen[ByteString] = getByteStringGen(0, 0),
-    callDataGen: Gen[ByteString] = getByteStringGen(0, 0),
-    callValueGen: Gen[ByteString] = getByteStringGen(0, 32)
-  ) : Gen[ProgramState] =
+    inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
+    valueGen: Gen[BigInt] = getBigIntGen(0)
+  ): Gen[ProgramState] =
     for {
       stack <- stackGen
       memory <- memGen
       storage <- storageGen
       code <- codeGen
-      callData <- callDataGen
-      callValue <- callValueGen
-      context = ProgramContext(Program(code), callData, callValue, storage)
-    } yield ProgramState(context).withStack(stack).withMemory(memory)
+      inputData <- inputDataGen
+      value <- valueGen
+      env = ExecEnv(Address.empty, Address.empty, 0, inputData,
+                    Address.empty, value, Program(code), null, 0)
+    } yield ProgramState(env).withStack(stack).withMemory(memory)
 
 }

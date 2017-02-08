@@ -3,6 +3,9 @@ package io.iohk.ethereum.network
 import java.net.{InetSocketAddress, URI}
 import java.util.UUID
 
+import org.spongycastle.crypto.AsymmetricCipherKeyPair
+
+import scala.concurrent.duration._
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
@@ -10,15 +13,13 @@ import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
+import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
 import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
-
-import scala.concurrent.duration._
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
@@ -29,22 +30,17 @@ import scala.concurrent.duration._
   */
 class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
-    createRlpxConnectionFn: ActorContext => ActorRef)
+    rlpxConnectionFactory: ActorContext => ActorRef)
   extends Actor with ActorLogging {
 
-  import Config.Blockchain._
-  import Config.Network.Peer._
   import PeerActor._
+  import Config.Network.Peer._
+  import Config.Blockchain._
   import context.{dispatcher, system}
 
   val P2pVersion = 4
 
   val peerId = self.path.name
-
-  val disconnectPoisonPillTimeout = 5.seconds
-
-  val waitForStatusInterval = 30.seconds
-  val waitForChainCheck = 15.seconds
 
   val daoForkValidator = ForkValidator(daoForkBlockNumber, daoForkBlockHash)
 
@@ -67,7 +63,7 @@ class PeerActor(
   }
 
   def createRlpxConnection(remoteAddress: InetSocketAddress, uriOpt: Option[URI]): RLPxConnection = {
-    val ref = createRlpxConnectionFn(context)
+    val ref = rlpxConnectionFactory(context)
     context watch ref
     RLPxConnection(ref, remoteAddress, uriOpt)
   }
@@ -128,7 +124,7 @@ class PeerActor(
       timeout.cancel()
       if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
         rlpxConnection.sendMessage(createStatusMsg())
-        val statusTimeout = system.scheduler.scheduleOnce(waitForStatusInterval, self, StatusReceiveTimeout)
+        val statusTimeout = system.scheduler.scheduleOnce(waitForStatusTimeout, self, StatusReceiveTimeout)
         context become waitingForNodeStatus(rlpxConnection, statusTimeout)
       } else {
         log.info("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
@@ -159,7 +155,7 @@ class PeerActor(
       timeout.cancel()
       log.info("Peer returned status ({})", status)
       rlpxConnection.sendMessage(GetBlockHeaders(Left(daoForkBlockNumber), maxHeaders = 1, skip = 0, reverse = false))
-      val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForChainCheck, self, DaoHeaderReceiveTimeout)
+      val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
       context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
 
     case StatusReceiveTimeout =>
@@ -319,8 +315,12 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], createRlpxConnectionFn: ActorContext => ActorRef): Props =
-    Props(new PeerActor(nodeStatusHolder, createRlpxConnectionFn))
+  def props(nodeStatusHolder: Agent[NodeStatus]): Props =
+    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key)))
+
+  def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
+    ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
+  }
 
   case class RLPxConnection(ref: ActorRef, remoteAddress: InetSocketAddress, uriOpt: Option[URI]) {
     def sendMessage[M <: Message : RLPEncoder](message: M): Unit = {
