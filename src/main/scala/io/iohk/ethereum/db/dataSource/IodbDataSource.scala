@@ -36,9 +36,12 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
   override def close(): Unit = lSMStore.close()
 
   override def destroy(): Unit = {
-    close()
-    val directoryDeletionSuccess = deleteDirectory(new File(path))
-    assert(directoryDeletionSuccess, "Iodb folder destruction failed")
+    try {
+      close()
+    } finally {
+      val directoryDeletionSuccess = deleteDirectory(new File(path))
+      assert(directoryDeletionSuccess, "Iodb folder destruction failed")
+    }
   }
 
   private def asStorables(namespace: Namespace,
