@@ -21,6 +21,18 @@ class StorageSpec extends FunSuite with PropertyChecks {
     }
   }
 
+  test("remove") {
+    forAll(getStorageGen(MaxStorageSize)) {(storage: Storage) =>
+      whenever(!storage.toMap.isEmpty) {
+        storage.toMap.headOption.foreach { case (k, v) =>
+          val updatedStorage = storage.store(k, DataWord.Zero)
+          assert(updatedStorage.load(k) == DataWord.Zero)
+          assert(updatedStorage.toMap.get(k).isEmpty)
+        }
+      }
+    }
+  }
+
   test("load") {
     forAll(getStorageGen(MaxStorageSize), getDataWordGen(), getDataWordGen()) {(storage: Storage, k: DataWord, v: DataWord) =>
         assert(storage.store(k, v).load(k) == v)
