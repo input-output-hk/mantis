@@ -10,16 +10,16 @@ object Storage {
   val Empty: Storage = new Storage()
 }
 
-/* Persistent storage of a transaction. May be viewed as a map of 256 bit keys
- * to 256 bit values.
- * This is just a representation of storage changes occuring during program execution. The
- * actual persistence is not this class's resposibility.
- */
+/** Persistent storage of a transaction. May be viewed as a map of 256 bit keys
+  * to 256 bit values.
+  * This is just a representation of storage changes occuring during program execution. The
+  * actual persistence is not this class's resposibility.
+  */
 class Storage private(private val underlying: Map[DataWord, DataWord] = Map()) {
 
-  /* Stores new value in an underlying hashmap.
-   * If DataWord.Zero is passed as a value then a corresponding key is removed from the hashmap
-   */
+  /** Stores new value in an underlying hashmap.
+    * If DataWord.Zero is passed as a value then a corresponding key is removed from the hashmap
+    */
   def store(addr: DataWord, value: DataWord): Storage = {
     val newUnderlying: Map[DataWord, DataWord] = value match {
       case DataWord.Zero => underlying - addr
@@ -28,9 +28,9 @@ class Storage private(private val underlying: Map[DataWord, DataWord] = Map()) {
     new Storage(newUnderlying)
   }
 
-  /* Retrieves a value from an underlying hashmap for a given key.
-   * Returns a DataWord.Zero if a value for given key does not exist
-   */
+  /** Retrieves a value from an underlying hashmap for a given key.
+    * Returns a DataWord.Zero if a value for given key does not exist
+    */
   def load(addr: DataWord): DataWord = underlying.getOrElse(addr, DataWord.Zero)
 
   def toMap: Map[DataWord, DataWord] = underlying
