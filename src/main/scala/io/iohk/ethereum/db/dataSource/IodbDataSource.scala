@@ -80,10 +80,11 @@ object IodbDataSource {
 
   private def deleteDirectory(dir: File): Boolean = {
     require(dir.exists() && dir.isDirectory, "Trying to delete a file thats not a folder")
-    val files = Option(dir.listFiles()).getOrElse(Array())
-    val filesDeletionSuccess: Boolean = files.map { f =>
-      if(f.isDirectory) deleteDirectory(f) else f.delete()
-    }.forall(identity)
+    val files = dir.listFiles()
+    val filesDeletionSuccess = files.forall { f =>
+      val deleted = if (f.isDirectory) deleteDirectory(f) else f.delete()
+      deleted
+    }
     filesDeletionSuccess && dir.delete()
   }
 }
