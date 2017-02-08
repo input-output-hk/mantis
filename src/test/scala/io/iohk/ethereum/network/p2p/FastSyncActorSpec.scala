@@ -75,7 +75,11 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
     //then
     peer.expectMsgClass(classOf[FastSyncDone])
-    //todo asserts for blockchain
+
+    storage.blockBodiesStorage.get(targetBlockHeader.blockHash) shouldBe Some(BlockBody(transactionList = Seq.empty, uncleNodesList = Seq.empty))
+    storage.blockHeadersStorage.get(targetBlockHeader.blockHash) shouldBe Some(targetBlockHeader)
+    storage.receiptStorage.get(targetBlockHeader.blockHash) shouldBe Some(Seq.empty)
+
     storage.mptNodeStorage.get(targetBlockHeader.stateRoot) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
   }
 
