@@ -156,12 +156,12 @@ object OpCode {
 }
 
 /**
-  * Base class for all the opcodes of the EVM
-  *
-  * @param code Opcode byte representation
-  * @param delta number of words to be popped from stack
-  * @param alpha number of words to be pushed to stack
-  */
+ * Base class for all the opcodes of the EVM
+ *
+ * @param code Opcode byte representation
+ * @param delta number of words to be popped from stack
+ * @param alpha number of words to be pushed to stack
+ */
 sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int) {
   def this(code: Int, pop: Int, push: Int) = this(code.toByte, pop, push)
 
@@ -236,7 +236,7 @@ case object SHA3 extends OpCode(0x20, 2, 1) {
 
 case object CALLVALUE extends OpCode(0x34, 0, 1) {
   def execute(state: ProgramState): ProgramState =
-    state.stack.push(DataWord(state.context.callValue))
+    state.stack.push(DataWord(state.env.value))
       .map(state.withStack(_).step())
       .valueOr(state.withError)
 }
@@ -246,10 +246,8 @@ case object CALLDATALOAD extends OpCode(0x35, 1, 1) {
     val updatedState = for {
       popped <- state.stack.pop
       (offset, stack1) = popped
-
       i = offset.intValue
-      data = state.context.callData.slice(i, i + 32).padTo(32, 0.toByte)
-
+      data = state.inputData.slice(i, i + 32).padTo(32, 0.toByte)
       stack2 <- stack1.push(DataWord(data))
     } yield state.withStack(stack2).step()
 
@@ -490,7 +488,6 @@ case object LOG2 extends LogOp(0xa2)
 case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
-
 case object RETURN extends OpCode(0xf3, 2, 0) {
   def execute(state: ProgramState): ProgramState = {
     val updatedState = for {
@@ -498,7 +495,6 @@ case object RETURN extends OpCode(0xf3, 2, 0) {
       (Seq(offset, size), stack1) = popped
       (ret, mem1) = state.memory.load(offset, size)
     } yield state.withStack(stack1).withReturnData(ret).withMemory(mem1).halt
-
     updatedState.valueOr(state.withError)
   }
 }

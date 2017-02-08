@@ -13,7 +13,8 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.PV62.{GetBlockHeaders, BlockHeader, BlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV62.{GetBlockHeaders, BlockHeaders}
+import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.utils.{Config, BlockchainStatus, ServerStatus, NodeStatus}
 import org.spongycastle.util.encoders.Hex

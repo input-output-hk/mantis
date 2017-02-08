@@ -1,7 +1,8 @@
 package io.iohk.ethereum.network.p2p.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeader, BlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders}
+import io.iohk.ethereum.domain.BlockHeader
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -9,16 +10,18 @@ class ForkValidatorSpec extends FlatSpec with Matchers {
 
   val daoForkValidator = ForkValidator(1920000, ByteString(Hex.decode("94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f")))
 
+  import ForkValidator.hash
+
   "DaoForkValidator" should "determine if it's ETH fork" in {
-    assert(Hex.toHexString(daoForkHeader.hash.toArray) == "4985f5ca3d2afbec36529aa96f74de3cc10a2a4a6c44f2157a57d2c6059a11bb")
+    assert(Hex.toHexString(hash(daoForkHeader).toArray) == "4985f5ca3d2afbec36529aa96f74de3cc10a2a4a6c44f2157a57d2c6059a11bb")
     val validationResult = daoForkValidator.validate(BlockHeaders(Seq(daoForkHeader)))
     assert(validationResult.isDefined)
     assert(validationResult.get.invalidHeaders.size == 1)
-    assert(validationResult.get.invalidHeaders.head.hash sameElements daoForkHeader.hash)
+    assert(hash(validationResult.get.invalidHeaders.head) sameElements hash(daoForkHeader))
   }
 
   "DaoForkValidator" should "determine if it's ETC fork" in {
-    assert(Hex.toHexString(etcForkHeader.hash.toArray) == "94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f")
+    assert(Hex.toHexString(hash(etcForkHeader).toArray) == "94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f")
     assert(daoForkValidator.validate(BlockHeaders(Seq(etcForkHeader))).isEmpty)
   }
 
@@ -26,7 +29,7 @@ class ForkValidatorSpec extends FlatSpec with Matchers {
     val validationResult = daoForkValidator.validate(BlockHeaders(Seq(etcForkHeader, daoForkHeader, someHeader)))
     assert(validationResult.isDefined)
     assert(validationResult.get.invalidHeaders.size == 1)
-    assert(validationResult.get.invalidHeaders.head.hash sameElements daoForkHeader.hash)
+    assert(hash(validationResult.get.invalidHeaders.head) sameElements hash(daoForkHeader))
   }
 
   val someHeader: BlockHeader = BlockHeader(

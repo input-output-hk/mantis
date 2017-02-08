@@ -1,36 +1,37 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-
-object ProgramState {
-  def apply(context: ProgramContext): ProgramState =
-    ProgramState(context = context, storage = context.storage)
-}
+import io.iohk.ethereum.domain.{Address, Transaction}
 
 /**
-  * Intermediate state updated with execution of each opcode in the program
-  *
-  * @param context the context which initiates the program
-  * @param stack current stack
-  * @param memory current memory
-  * @param storage current storage
-  * @param pc program counter - an index of the opcode in the program to be executed
-  * @param returnData data to be returned from the program execution
-  * @param halted a flag to indicate program termination
-  * @param error indicates whether the program terminated abnormally
-  */
+ * Intermediate state updated with execution of each opcode in the program
+ *
+ * @param context the context which initiates the program
+ * @param stack current stack
+ * @param memory current memory
+ * @param storage current storage
+ * @param pc program counter - an index of the opcode in the program to be executed
+ * @param returnData data to be returned from the program execution
+ * @param transactions list of transactions created during run of the program
+ * @param addressesToDelete list of addresses of accounts scheduled to be deleted
+ * @param halted a flag to indicate program termination
+ * @param error indicates whether the program terminated abnormally
+ */
 case class ProgramState(
-  context: ProgramContext,
+  env: ExecEnv,
+  storage: Storage = Storage.Empty,
   stack: Stack = Stack.empty(),
   memory: Memory = Memory.empty,
-  storage: Storage,
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
+  internalTransactions: Seq[Transaction] = Seq(),
+  addressesToDelete: Seq[Address] = Seq(),
   halted: Boolean = false,
-  error: Option[ProgramError] = None
-) {
+  error: Option[ProgramError] = None) {
 
-  def program: Program = context.program
+  def program: Program = env.program
+
+  def inputData: ByteString = env.inputData
 
   def step(i: Int = 1): ProgramState =
     copy(pc = pc + i)
@@ -53,6 +54,13 @@ case class ProgramState(
   def withReturnData(data: ByteString): ProgramState =
     copy(returnData = data)
 
+  def withTx(tx: Transaction): ProgramState =
+    copy(internalTransactions = internalTransactions :+ tx)
+
+  def withAddressToDelete(addr: Address): ProgramState =
+    copy(addressesToDelete = addressesToDelete :+ addr)
+
   def halt: ProgramState =
     copy(halted = true)
+
 }
