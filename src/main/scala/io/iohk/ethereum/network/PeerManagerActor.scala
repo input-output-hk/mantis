@@ -2,17 +2,25 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
-import io.iohk.ethereum.utils.NodeStatus
+import io.iohk.ethereum.utils.{Config, NodeStatus}
 
-class PeerManagerActor(nodeStatusHolder: Agent[NodeStatus]) extends Actor with ActorLogging {
+class PeerManagerActor(
+    nodeStatusHolder: Agent[NodeStatus],
+    peerFactory: (ActorContext, InetSocketAddress) => ActorRef)
+  extends Actor with ActorLogging {
 
   import PeerManagerActor._
+  import Config.Network.Discovery._
 
   var peers: Map[String, Peer] = Map.empty
+
+  context.system.scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
 
   override val supervisorStrategy =
     OneForOneStrategy() {
@@ -36,14 +44,24 @@ class PeerManagerActor(nodeStatusHolder: Agent[NodeStatus]) extends Actor with A
 
     case Terminated(ref) =>
       peers -= ref.path.name
+
+    case ScanBootstrapNodes =>
+      val peerAddresses = peers.values.map(_.remoteAddress).toSet
+      val nodesToConnect = bootstrapNodes
+        .map(new URI(_))
+        .filterNot(uri => peerAddresses.contains(new InetSocketAddress(uri.getHost, uri.getPort)))
+
+      if (nodesToConnect.nonEmpty) {
+        log.info("Trying to connect to {} bootstrap nodes", nodesToConnect.size)
+        nodesToConnect.foreach(self ! ConnectToPeer(_))
+      }
   }
 
   def createPeer(addr: InetSocketAddress): Peer = {
-    val id = addr.toString.filterNot(_ == '/')
-    val ref = context.actorOf(PeerActor.props(nodeStatusHolder, _.actorOf(RLPxConnectionHandler.props(nodeStatusHolder().key), "rlpx-connection")), id)
+    val ref = peerFactory(context, addr)
     context watch ref
-    val peer = Peer(id, addr, ref)
-    peers += id -> peer
+    val peer = Peer(addr, ref)
+    peers += peer.id -> peer
     peer
   }
 
@@ -51,13 +69,23 @@ class PeerManagerActor(nodeStatusHolder: Agent[NodeStatus]) extends Actor with A
 
 object PeerManagerActor {
   def props(nodeStatusHolder: Agent[NodeStatus]): Props =
-    Props(new PeerManagerActor(nodeStatusHolder))
+    Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder)))
+
+  def peerFactory(nodeStatusHolder: Agent[NodeStatus]): (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
+    val id = addr.toString.filterNot(_ == '/')
+    ctx.actorOf(PeerActor.props(nodeStatusHolder), id)
+  }
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
   case class ConnectToPeer(uri: URI)
 
-  case class Peer(id: String, remoteAddress: InetSocketAddress, ref: ActorRef)
+  case class Peer(remoteAddress: InetSocketAddress, ref: ActorRef) {
+    def id: String = ref.path.name
+  }
+
   case class PeerCreated(peer: Peer)
 
   case object GetPeers
+
+  private case object ScanBootstrapNodes
 }

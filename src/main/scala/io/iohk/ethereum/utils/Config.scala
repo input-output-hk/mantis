@@ -32,6 +32,7 @@ object Config {
       private val discoveryConfig = networkConfig.getConfig("discovery")
 
       val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").toList
+      val bootstrapNodesScanInterval = discoveryConfig.getDuration("bootstrap-nodes-scan-interval").toMillis.millis
     }
 
     object Peer {

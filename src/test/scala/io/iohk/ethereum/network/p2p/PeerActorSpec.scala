@@ -5,7 +5,7 @@ import java.net.{InetSocketAddress, URI}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-import akka.actor.{PoisonPill, Terminated, ActorSystem}
+import akka.actor.{Props, PoisonPill, Terminated, ActorSystem}
 import akka.agent.Agent
 import akka.testkit.{TestProbe, TestActorRef}
 import akka.util.ByteString
@@ -49,10 +49,10 @@ class PeerActorSpec extends FlatSpec with Matchers {
     implicit val system = ActorSystem("PeerActorSpec_System")
 
     var rlpxConnection = TestProbe() // var as we actually need new instances
-    val peer = TestActorRef(PeerActor.props(nodeStatusHolder, _ => {
+    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }))
+      })))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -263,7 +263,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val rlpxConnection = TestProbe()
 
-    val peer = TestActorRef(PeerActor.props(nodeStatusHolder, _ => rlpxConnection.ref))
+    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref)))
   }
 
 }

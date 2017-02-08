@@ -2,6 +2,8 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
+import org.spongycastle.crypto.AsymmetricCipherKeyPair
+
 import scala.concurrent.duration._
 
 import akka.actor._
@@ -26,7 +28,7 @@ import io.iohk.ethereum.utils.{ServerStatus, NodeStatus, Config}
   */
 class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
-    createRlpxConnectionFn: ActorContext => ActorRef)
+    rlpxConnectionFactory: ActorContext => ActorRef)
   extends Actor with ActorLogging {
 
   import PeerActor._
@@ -59,7 +61,7 @@ class PeerActor(
   }
 
   def createRlpxConnection(remoteAddress: InetSocketAddress, uriOpt: Option[URI]): RLPxConnection = {
-    val ref = createRlpxConnectionFn(context)
+    val ref = rlpxConnectionFactory(context)
     context watch ref
     RLPxConnection(ref, remoteAddress, uriOpt)
   }
@@ -294,8 +296,12 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], createRlpxConnectionFn: ActorContext => ActorRef): Props =
-    Props(new PeerActor(nodeStatusHolder, createRlpxConnectionFn))
+  def props(nodeStatusHolder: Agent[NodeStatus]): Props =
+    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key)))
+
+  def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
+    ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
+  }
 
   case class RLPxConnection(ref: ActorRef, remoteAddress: InetSocketAddress, uriOpt: Option[URI]) {
     def sendMessage[M <: Message : RLPEncoder](message: M): Unit = {
