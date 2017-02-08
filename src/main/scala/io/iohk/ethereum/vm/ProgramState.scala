@@ -12,6 +12,8 @@ import io.iohk.ethereum.domain.{Address, Transaction}
  * @param storage current storage
  * @param pc program counter - an index of the opcode in the program to be executed
  * @param returnData data to be returned from the program execution
+ * @param transactions list of transactions created during run of the program
+ * @param addressesToDelete list of addresses of accounts scheduled to be deleted
  * @param halted a flag to indicate program termination
  * @param error indicates whether the program terminated abnormally
  */
