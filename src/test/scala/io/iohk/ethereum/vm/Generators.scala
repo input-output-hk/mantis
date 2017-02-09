@@ -21,22 +21,32 @@ object Generators extends ObjectGenerators {
     for {
       byte <- Arbitrary.arbitrary[Byte]
       bytes <- getByteStringGen(nBytes, nBytes)
-      bigInt = BigInt(bytes.toArray).abs % mod + min
+      bigInt = (if (mod > 0) BigInt(bytes.toArray).abs % mod else BigInt(0)) + min
     } yield bigInt
   }
 
   def getDataWordGen(min: DataWord = DataWord(0), max: DataWord = DataWord.MaxValue): Gen[DataWord] =
     getBigIntGen(min.toBigInt, max.toBigInt).map(DataWord(_))
 
-  def getStackGen(dataWordGen: Gen[DataWord] = getDataWordGen(), maxSize: Int = testStackMaxSize): Gen[Stack] =
+  def getStackGen(minElems: Int = 0, maxElems: Int = testStackMaxSize, dataWordGen: Gen[DataWord] = getDataWordGen(),
+    maxSize: Int = testStackMaxSize): Gen[Stack] =
     for {
-      size <- Gen.choose(0, maxSize)
+      size <- Gen.choose(minElems, maxElems)
       list <- Gen.listOfN(size, dataWordGen)
       stack = Stack.empty(maxSize)
     } yield stack.push(list)
 
+  def getStackGen(elems: Int, dataWordGen: Gen[DataWord]): Gen[Stack] =
+    getStackGen(minElems = elems, maxElems = elems, dataWordGen)
+
+  def getStackGen(elems: Int): Gen[Stack] =
+    getStackGen(minElems = elems, maxElems = elems, getDataWordGen())
+
+  def getStackGen(elems: Int, maxWord: DataWord): Gen[Stack] =
+    getStackGen(minElems = elems, maxElems = elems, dataWordGen = getDataWordGen(max = maxWord), maxSize = testStackMaxSize)
+
   def getStackGen(maxWord: DataWord): Gen[Stack] =
-    getStackGen(getDataWordGen(max = maxWord))
+    getStackGen(dataWordGen = getDataWordGen(max = maxWord), maxSize = testStackMaxSize)
 
   def getMemoryGen(maxSize: Int = 0): Gen[Memory] =
     getByteStringGen(0, maxSize).map(Memory.empty.store(DataWord(0), _))
@@ -48,6 +58,7 @@ object Generators extends ObjectGenerators {
     stackGen: Gen[Stack] = getStackGen(),
     memGen: Gen[Memory] = getMemoryGen(),
     storageGen: Gen[Storage] = getStorageGen(),
+    gasGen: Gen[BigInt] = getBigIntGen(),
     codeGen: Gen[ByteString] = getByteStringGen(0, 0),
     inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
     valueGen: Gen[BigInt] = getBigIntGen()
@@ -56,12 +67,13 @@ object Generators extends ObjectGenerators {
       stack <- stackGen
       memory <- memGen
       storage <- storageGen
+      gas <- gasGen
       code <- codeGen
       inputData <- inputDataGen
       value <- valueGen
       env = ExecEnv(Address.empty, Address.empty, 0, inputData,
         Address.empty, value, Program(code), null, 0)
-      context = ProgramContext(env, startGas = DataWord.MaxValue, storage)
+      context = ProgramContext(env, startGas = gas, storage)
     } yield ProgramState(context).withStack(stack).withMemory(memory)
 
 }

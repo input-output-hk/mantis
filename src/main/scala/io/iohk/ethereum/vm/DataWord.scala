@@ -95,6 +95,8 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
     */
   def longValue: Long = n.longValue & Long.MaxValue
 
+  def isZero: Boolean = n == 0
+
   override def equals(that: Any): Boolean = {
     that match {
       case that: DataWord => this.n.equals(that.n)
