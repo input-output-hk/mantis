@@ -26,13 +26,7 @@ class FastSyncActor(
   val EmptyAccountStorageHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
   val EmptyAccountEvmCodeHash = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 
-  def handleTerminated: Receive = {
-    case _: Terminated =>
-      log.info("FastSync actor terminated")
-      context stop self
-  }
-
-  override def receive: Receive = handleTerminated orElse {
+  override def receive: Receive = {
     case StartSync(targetBlockHash) =>
       //TODO check DB if it is not empty delete everything
       peerActor ! PeerActor.Subscribe(Set(NodeData.code, Receipts.code, BlockBodies.code, BlockHeaders.code))
@@ -40,7 +34,7 @@ class FastSyncActor(
       context become waitForTargetBlockHeader(targetBlockHash)
   }
 
-  def waitForTargetBlockHeader(targetBlockHash: ByteString): Receive = handleTerminated orElse {
+  def waitForTargetBlockHeader(targetBlockHash: ByteString): Receive = {
     case MessageReceived(BlockHeaders(blockHeaders)) if blockHeaders.nonEmpty =>
       peerActor ! PeerActor.SendMessage(GetNodeData(Seq(blockHeaders.head.stateRoot)))
       peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(GenesisBlockNumber + 1), FastSync.BlocksPerMessage, 0, reverse = false))
@@ -50,7 +44,7 @@ class FastSyncActor(
         requestedNodes = Seq(StateMptNodeHash(blockHeaders.head.stateRoot))))
   }
 
-  def processMessages(state: ProcessingState): Receive = handleTerminated orElse handleMptDownload(state) orElse {
+  def processMessages(state: ProcessingState): Receive = handleMptDownload(state) orElse {
     case MessageReceived(BlockHeaders(headers)) =>
       val blockHashes = headers.map(ForkValidator.hash)//todo move this methode from ForkValidator
       peerActor ! PeerActor.SendMessage(GetBlockBodies(blockHashes))

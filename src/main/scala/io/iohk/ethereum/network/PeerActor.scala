@@ -281,7 +281,6 @@ class PeerActor(
           new EvmCodeStorage(EphemDataSource())
         )
         val fastSyncActor = context.actorOf(FastSyncActor.props(self, storage), UUID.randomUUID().toString)
-        context watch fastSyncActor
         fastSyncActor ! FastSyncActor.StartSync(targetHash)
     }
 
