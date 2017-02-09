@@ -28,8 +28,8 @@ class LevelDBDataSource(val db: DB, private val path: String) extends DataSource
     */
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
     val batch = new WriteBatchImpl()
-    toRemove.foldLeft(batch) { (batch, key) => batch.delete(key.toArray[Byte]); batch }
-    toUpsert.foldLeft(batch) { (batch, item) => db.put(item._1.toArray, item._2.toArray); batch }
+    toRemove.foreach { key => batch.delete(key.toArray[Byte]) }
+    toUpsert.foreach { item => db.put(item._1.toArray, item._2.toArray) }
     db.write(batch, new WriteOptions())
     new LevelDBDataSource(db, path)
   }
