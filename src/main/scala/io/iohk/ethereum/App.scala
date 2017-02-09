@@ -1,12 +1,15 @@
 package io.iohk.ethereum
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import java.net.URI
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.ActorSystem
 import akka.agent._
+import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.network.{ServerActor, PeerManagerActor}
-import io.iohk.ethereum.utils.{BlockchainStatus, ServerStatus, NodeStatus, Config}
+import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
+import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
+import org.spongycastle.util.encoders.Hex
 
 object App {
 
@@ -29,6 +32,14 @@ object App {
     val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
     server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
+
+    val bootstrapNodes = NetworkConfig.Discovery.bootstrapNodes.map(new URI(_))
+    bootstrapNodes.foreach { node =>
+      peerManager ! PeerManagerActor.ConnectToPeer(node)
+      //TODO change to CLI command?
+      Thread.sleep(2 * 1000)
+      peerManager ! PeerManagerActor.StartFastDownload(node, ByteString(Hex.decode("12d7b70f28b819867087c37e4190b727dfbb1f7f34e2687e5ad126a31cf051be")))
+    }
   }
 
 }
