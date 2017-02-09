@@ -10,7 +10,7 @@ class ForkValidatorSpec extends FlatSpec with Matchers {
 
   val daoForkValidator = ForkValidator(1920000, ByteString(Hex.decode("94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f")))
 
-  import ForkValidator.hash
+  import BlockHeader.hash
 
   "DaoForkValidator" should "determine if it's ETH fork" in {
     assert(Hex.toHexString(hash(daoForkHeader).toArray) == "4985f5ca3d2afbec36529aa96f74de3cc10a2a4a6c44f2157a57d2c6059a11bb")

@@ -11,7 +11,6 @@ import io.iohk.ethereum.network.FastSyncActor.{FastSyncDone, SyncFailure}
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
-import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.network.{FastSyncActor, PeerActor}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -79,9 +78,9 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     //then
     peer.expectMsgClass(classOf[FastSyncDone])
 
-    storage.blockBodiesStorage.get(ForkValidator.hash(targetBlockHeader)) shouldBe Some(BlockBody(transactionList = Seq.empty, uncleNodesList = Seq.empty))
-    storage.blockHeadersStorage.get(ForkValidator.hash(targetBlockHeader)) shouldBe Some(targetBlockHeader)
-    storage.receiptStorage.get(ForkValidator.hash(targetBlockHeader)) shouldBe Some(Seq.empty)
+    storage.blockBodiesStorage.get(BlockHeader.hash(targetBlockHeader)) shouldBe Some(BlockBody(transactionList = Seq.empty, uncleNodesList = Seq.empty))
+    storage.blockHeadersStorage.get(BlockHeader.hash(targetBlockHeader)) shouldBe Some(targetBlockHeader)
+    storage.receiptStorage.get(BlockHeader.hash(targetBlockHeader)) shouldBe Some(Seq.empty)
 
     storage.mptNodeStorage.get(targetBlockHeader.stateRoot) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
   }
@@ -236,7 +235,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
       genesisBlockHeader.copy(number = 1),
       genesisBlockHeader.copy(number = 2),
       genesisBlockHeader.copy(number = 3))
-    val blockHashes: Seq[ByteString] = responseBlockHeaders.map(ForkValidator.hash)
+    val blockHashes: Seq[ByteString] = responseBlockHeaders.map(BlockHeader.hash)
 
     val mptBranchWithTwoChild =
       ByteString(Hex.decode("f851a0ce34e58455f786d71e7d5528e94b2141bfef9496732ce884d951010ae29d5937a0deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc808080808080808080808080808080"))

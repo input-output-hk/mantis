@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network
 
-import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.BlockHeader
@@ -8,7 +8,6 @@ import io.iohk.ethereum.network.FastSyncActor._
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
-import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.utils.Config.FastSync
 import org.spongycastle.util.encoders.Hex
 
@@ -46,7 +45,7 @@ class FastSyncActor(
 
   def processMessages(state: ProcessingState): Receive = handleMptDownload(state) orElse {
     case MessageReceived(BlockHeaders(headers)) =>
-      val blockHashes = headers.map(ForkValidator.hash)//todo move this methode from ForkValidator
+      val blockHashes = headers.map(BlockHeader.hash)
       peerActor ! PeerActor.SendMessage(GetBlockBodies(blockHashes))
       peerActor ! PeerActor.SendMessage(GetReceipts(blockHashes))
       context become processMessages(state.copy(blockHeaders = headers))
@@ -85,7 +84,7 @@ class FastSyncActor(
         log.info("receipts: {}", receipts)
         log.info("bodies: {}", bodies)
 
-        val blockHashes = headers.map(ForkValidator.hash)
+        val blockHashes = headers.map(BlockHeader.hash)
 
         blockHashes.zip(headers).foreach { case (hash, value) =>
           blockHeadersStorage.put(hash, value)

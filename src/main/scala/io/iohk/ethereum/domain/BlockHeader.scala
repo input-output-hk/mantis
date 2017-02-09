@@ -1,6 +1,9 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
+import io.iohk.ethereum.rlp
 import org.spongycastle.util.encoders.Hex
 
 case class BlockHeader(
@@ -40,3 +43,14 @@ case class BlockHeader(
          |}""".stripMargin
     }
   }
+
+object BlockHeader {
+    /**
+      * calculates blockHash for given block header
+      * @param header - block header for which hash will be calculated
+      * @return - hash that can be used to get block bodies / receipts
+      */
+    def hash(header: BlockHeader): ByteString = {
+        ByteString(sha3(rlp.encode[BlockHeader](header)))
+    }
+}
