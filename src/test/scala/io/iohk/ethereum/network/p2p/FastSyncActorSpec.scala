@@ -3,6 +3,7 @@ package io.iohk.ethereum.network.p2p
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.BlockHeader
@@ -151,6 +152,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
   it should "get contract MPT nodes" in new TestSetup {
     // before
+    val stateRootHash = ByteString(Hex.decode("b873d163a301e493dd3ec03cd47940149292ebef988c9d9ecefb245c08ef96ed"))
     fastSync ! FastSyncActor.StartSync(targetBlockHash)
 
     peer.expectMsgClass(classOf[PeerActor.Subscribe])
@@ -161,7 +163,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockHeaders]])
 
-    peer.reply(MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
+    peer.reply(MessageReceived(BlockHeaders(Seq(targetBlockHeader.copy(stateRoot = stateRootHash)))))
 
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockBodies]])
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetReceipts]])
@@ -171,13 +173,24 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
     //then
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
-    peer.reply(MessageReceived(NodeData(Seq(mptBranchWithTwoChild, contractEvmCode))))
+    peer.reply(MessageReceived(NodeData(Seq(contractMptBranchWithTwoChild, contractEvmCode))))
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
-    peer.reply(MessageReceived(NodeData(Seq(mptExtension, contractMptLeafBranch))))
+    peer.reply(MessageReceived(NodeData(Seq(contractMptExtension, contractMptLeafNode))))
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
-    peer.reply(MessageReceived(NodeData(Seq(contractMptLeafBranch))))
+    peer.reply(MessageReceived(NodeData(Seq(contractMptLeafNode))))
 
-    //TODO add assertion on db save EVM code and contract storage
+    storage.evmStorage.get(ByteString(crypto.sha3(contractEvmCode.toArray[Byte])))
+
+    storage.mptNodeStorage.get(stateRootHash) shouldBe Some(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0))
+
+    storage.mptNodeStorage.get(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0)
+      .asInstanceOf[MptBranch].children(1).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(contractMptExtension)).getMptNode(0))
+
+    storage.mptNodeStorage.get(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0)
+      .asInstanceOf[MptBranch].children(0).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(contractMptLeafNode)).getMptNode(0))
+
+    storage.mptNodeStorage.get(NodeData(Seq(contractMptExtension)).getMptNode(0)
+      .asInstanceOf[MptExtension].child.asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(contractMptLeafNode)).getMptNode(0))
   }
 
   trait TestSetup {
@@ -237,7 +250,13 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     val stateMptLeafWithContractAndNotEmptyStorage =
       ByteString(Hex.decode("f8679e20ed81b2e9dea837899e68d7467ffb53b1beaed7e3ec0f5e96bc0c0e3f8eb846f8448080a096dcdcf98b4514062f687e328429cfd8425f0f095e86e6a67fecdabe3eadf7f8a094f25c272c161b7e4827e2806ba596233720ec831884a0e1cebea49f26cd9b2e"))
 
-    val contractMptLeafBranch =
+    val contractMptBranchWithTwoChild =
+      ByteString(Hex.decode("f851a02eea913239753940e01d22b7cf59db93420916452c0081a74f28b2637f12ccada0d3c7a5a650e03272c2ea5b10a4bb586fa6e11d5b1ddd2b55174c4d1f4d975d97808080808080808080808080808080"))
+
+    val contractMptExtension =
+      ByteString(Hex.decode("e48200cfa02eea913239753940e01d22b7cf59db93420916452c0081a74f28b2637f12ccad"))
+
+    val contractMptLeafNode =
       ByteString(Hex.decode("e6a0390decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e56384831dfeac"))
 
     val contractEvmCode =
