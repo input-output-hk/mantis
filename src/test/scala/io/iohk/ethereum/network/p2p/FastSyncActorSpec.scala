@@ -112,6 +112,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
   it should "get state MPT nodes" in new TestSetup {
     // before
+    val stateRootHash = ByteString(Hex.decode("2b84be521a9825016427a81d946c43a79ca2a4e1c89a55a6d8cda21719f799ec"))
     fastSync ! FastSyncActor.StartSync(targetBlockHash)
 
     peer.expectMsgClass(classOf[PeerActor.Subscribe])
@@ -122,7 +123,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockHeaders]])
 
-    peer.reply(MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
+    peer.reply(MessageReceived(BlockHeaders(Seq(targetBlockHeader.copy(stateRoot = stateRootHash)))))
 
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetBlockBodies]])
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetReceipts]])
@@ -135,7 +136,17 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     peer.reply(MessageReceived(NodeData(Seq(mptExtension, stateMptLeafWithAccount))))
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
     peer.reply(MessageReceived(NodeData(Seq(stateMptLeafWithAccount))))
-    //TODO add assertion on db save for state MPT
+
+    storage.mptNodeStorage.get(stateRootHash) shouldBe Some(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0))
+
+    storage.mptNodeStorage.get(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0)
+      .asInstanceOf[MptBranch].children(0).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(mptExtension)).getMptNode(0))
+
+    storage.mptNodeStorage.get(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0)
+      .asInstanceOf[MptBranch].children(1).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
+
+    storage.mptNodeStorage.get(NodeData(Seq(mptExtension)).getMptNode(0)
+      .asInstanceOf[MptExtension].child.asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
   }
 
   it should "get contract MPT nodes" in new TestSetup {
@@ -215,10 +226,10 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     val blockHashes: Seq[ByteString] = responseBlockHeaders.map(ForkValidator.hash)
 
     val mptBranchWithTwoChild =
-      ByteString(Hex.decode("f85180a0a22ed27833bf167433f8c9135d70eca57d5410d03520b90188973c58a0e299738080808080808080a0cfde5f1251ac4f23f7a1794f15d56abbd1eceb6a8996aa58b078e3b4b355d331808080808080"))
+      ByteString(Hex.decode("f851a0ce34e58455f786d71e7d5528e94b2141bfef9496732ce884d951010ae29d5937a0deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc808080808080808080808080808080"))
 
     val mptExtension =
-      ByteString(Hex.decode("e21aa0ed793383ccae4dc09e75c9cba55d0dac0ff359c37b77848347d844d5bd83bcd7"))
+      ByteString(Hex.decode("e48200cfa0deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc"))
 
     val stateMptLeafWithAccount =
       ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
