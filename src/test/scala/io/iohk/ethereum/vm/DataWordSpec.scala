@@ -18,6 +18,10 @@ class DataWordSpec extends FunSuite with PropertyChecks {
 
   val specialCases = Table(("n1", "n2"), pairs: _*)
 
+  def toSignedBigInt(n: BigInt): BigInt = if (n > MaxSignedValue) n - Modulus else n
+
+  def toUnsignedBigInt(n: BigInt): BigInt = if (n < 0) n + Modulus else n
+
   /** For each operation (op) tests check a following property:
    For two BigInts (n1, n2):
    DataWord(n1) op DataWord(n2) == DataWord(n1 op n2)
@@ -32,7 +36,7 @@ class DataWordSpec extends FunSuite with PropertyChecks {
   }
 
   test("|") {
-   forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       assert((DataWord(n1) | DataWord(n2)) == DataWord(n1 | n2))
     }
     forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
@@ -101,8 +105,17 @@ class DataWordSpec extends FunSuite with PropertyChecks {
         assert(DataWord(n1) / DataWord(n2) == DataWord(n1 / n2))
       }
     }
-    assertThrows[ArithmeticException] {
+    assertThrows[ArithmeticException] { // TODO return Zero
       DataWord(1) / DataWord(0)
+    }
+  }
+
+  test("sdiv") {
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      whenever(n2 != 0) {
+        val expected: BigInt = toUnsignedBigInt(toSignedBigInt(n1) / toSignedBigInt(n2))
+        assert((DataWord(n1) sdiv DataWord(n2)) == DataWord(expected))
+      }
     }
   }
 
@@ -132,7 +145,7 @@ class DataWordSpec extends FunSuite with PropertyChecks {
 
     forAll(Table("comparators", comparators: _*)) { cmp =>
       forAll(dataWordGen, dataWordGen) { (a, b) =>
-         assert(cmp.dw(a, b) == cmp.bi(a.toBigInt, b.toBigInt))
+        assert(cmp.dw(a, b) == cmp.bi(a.toBigInt, b.toBigInt))
       }
 
       forAll(specialCases) { (x, y) =>
