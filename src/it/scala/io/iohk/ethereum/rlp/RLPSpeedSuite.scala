@@ -83,39 +83,6 @@ class RLPSpeedSuite extends FunSuite
     signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0"))
   )
 
-  lazy val blockHeaderGen: Gen[BlockHeader] = for {
-    parentHash <- byteArrayOfNItemsGen(32).map(ByteString(_))
-    ommersHash <- byteArrayOfNItemsGen(32).map(ByteString(_))
-    beneficiary <- byteArrayOfNItemsGen(20).map(ByteString(_))
-    stateRoot <- byteArrayOfNItemsGen(32).map(ByteString(_))
-    transactionsRoot <- byteArrayOfNItemsGen(32).map(ByteString(_))
-    receiptsRoot <- byteArrayOfNItemsGen(32).map(ByteString(_))
-    logsBloom <- byteArrayOfNItemsGen(50).map(ByteString(_))
-    difficulty <- bigIntGen
-    number <- bigIntGen
-    gasLimit <- bigIntGen
-    gasUsed <- bigIntGen
-    unixTimestamp <- intGen
-    extraData <- byteArrayOfNItemsGen(8).map(ByteString(_))
-    mixHash <- byteArrayOfNItemsGen(8).map(ByteString(_))
-    nonce <- byteArrayOfNItemsGen(8).map(ByteString(_))
-  } yield BlockHeader(
-    parentHash = parentHash,
-    ommersHash = ommersHash,
-    beneficiary = beneficiary,
-    stateRoot = stateRoot,
-    transactionsRoot = transactionsRoot,
-    receiptsRoot = receiptsRoot,
-    logsBloom = logsBloom,
-    difficulty = difficulty,
-    number = number,
-    gasLimit = gasLimit,
-    gasUsed = gasUsed,
-    unixTimestamp = unixTimestamp,
-    extraData = extraData,
-    mixHash = mixHash,
-    nonce = nonce)
-
   lazy val blockGen: Gen[TestBlock] = for {
     header <- blockHeaderGen
     uncles <- blockHeaderGen

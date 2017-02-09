@@ -1,8 +1,10 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
+import io.iohk.ethereum.domain.{Address, BlockHeader, SignedTransaction, Transaction}
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.spongycastle.util.encoders.Hex
@@ -84,4 +86,48 @@ object CommonMessages {
     override def code: Int = SignedTransactions.code
   }
 
+  object NewBlock {
+
+    implicit val rlpEncDec = new RLPEncoder[NewBlock] with RLPDecoder[NewBlock] {
+
+      override def encode(obj: NewBlock): RLPEncodeable = {
+        import obj._
+        RLPList(
+          RLPList(
+            blockHeader,
+            RLPList(blockBody.transactionList.map(SignedTransactions.txRlpEncDec.encode): _*),
+            RLPList(blockBody.uncleNodesList.map(headerRlpEncDec.encode): _*)
+          ),
+          totalDifficulty
+        )
+      }
+
+      override def decode(rlp: RLPEncodeable): NewBlock = rlp match {
+        case RLPList(RLPList(blockHeader, (transactionList: RLPList), (uncleNodesList: RLPList)), totalDifficulty) =>
+          NewBlock(
+            headerRlpEncDec.decode(blockHeader),
+            BlockBody(
+              transactionList.items.map(SignedTransactions.txRlpEncDec.decode),
+              uncleNodesList.items.map(headerRlpEncDec.decode)),
+            totalDifficulty
+          )
+        case _ => throw new RuntimeException("Cannot decode NewBlock")
+      }
+
+    }
+
+    val code: Int = Message.SubProtocolOffset + 0x07
+  }
+
+  case class NewBlock(blockHeader: BlockHeader, blockBody: BlockBody, totalDifficulty: BigInt) extends Message {
+    override def code: Int = NewBlock.code
+
+    override def toString: String = {
+      s"""NewBlock {
+         |blockHeader: $blockHeader
+         |blockBody: $blockBody
+         |totalDifficulty: $totalDifficulty
+         |}""".stripMargin
+    }
+  }
 }
