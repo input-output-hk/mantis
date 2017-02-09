@@ -105,9 +105,7 @@ class DataWordSpec extends FunSuite with PropertyChecks {
         assert(DataWord(n1) / DataWord(n2) == DataWord(n1 / n2))
       }
     }
-    assertThrows[ArithmeticException] { // TODO return Zero
-      DataWord(1) / DataWord(0)
-    }
+    assert(DataWord(1) / Zero == Zero)
   }
 
   test("sdiv") {
@@ -117,6 +115,7 @@ class DataWordSpec extends FunSuite with PropertyChecks {
         assert((DataWord(n1) sdiv DataWord(n2)) == DataWord(expected))
       }
     }
+    assert((DataWord(-1) sdiv Zero) == Zero)
   }
 
   test("**") {
