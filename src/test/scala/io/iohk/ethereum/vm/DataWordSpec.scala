@@ -124,6 +124,16 @@ class DataWordSpec extends FunSuite with PropertyChecks {
     assert((DataWord(-1) sdiv Zero) == Zero)
   }
 
+  test("mod") {
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      whenever(n2 != 0) {
+        assert((DataWord(n1) mod DataWord(n2)) == DataWord(n1 mod n2))
+      }
+    }
+    assert((DataWord(-1) mod DataWord(MaxValue.toBigInt)) == Zero)
+    assert((DataWord(1) mod Zero) == Zero)
+  }
+
   test("**") {
     val TestModulus: BigInt = BigInt(2).pow(Size * 8)
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
