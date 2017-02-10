@@ -31,7 +31,7 @@ class LevelDBDataSource(val db: DB, private val path: String) extends DataSource
     toRemove.foreach { key => batch.delete(key.toArray[Byte]) }
     toUpsert.foreach { item => db.put(item._1.toArray, item._2.toArray) }
     db.write(batch, new WriteOptions())
-    new LevelDBDataSource(db, path)
+    this
   }
 
   /**
