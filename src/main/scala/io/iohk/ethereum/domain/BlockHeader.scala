@@ -1,6 +1,8 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+import io.iohk.ethereum.rlp.{RLPList, encode}
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import org.spongycastle.util.encoders.Hex
 
 case class BlockHeader(
@@ -40,3 +42,14 @@ case class BlockHeader(
          |}""".stripMargin
     }
   }
+
+object BlockHeader {
+
+  def getEncodedWithoutNonce(blockHeader: BlockHeader): Array[Byte] = {
+    val rlpEncoded = headerRlpEncDec.encode(blockHeader) match {
+      case rlpList: RLPList => RLPList(rlpList.items.dropRight(2): _*)
+      case _ => throw new Exception("BlockHeader cannot be encoded without nonce and mixHash")
+    }
+    encode(rlpEncoded)
+  }
+}
