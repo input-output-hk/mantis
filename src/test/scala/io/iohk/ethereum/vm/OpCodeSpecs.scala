@@ -37,8 +37,6 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     }
   }
 
-
-
   test(STOP) { op =>
     forAll(getProgramStateGen()) { stateIn =>
       val stateOut = op.execute(stateIn)
@@ -75,10 +73,6 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
         stateOut shouldEqual expectedState
       }
     }
-  }
-
-  ignore("SDIV") {
-    // to be implemented
   }
 
   ignore("MOD") {

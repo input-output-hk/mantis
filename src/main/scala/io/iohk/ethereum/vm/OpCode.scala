@@ -14,7 +14,7 @@ object OpCode {
     MUL,
     SUB,
     DIV,
-    //SDIV,
+    SDIV,
     //MOD,
     //SMOD,
     //ADDMOD,
@@ -219,7 +219,9 @@ case object MUL extends BinaryOp(0x02, G_low)(_ * _) with ConstGas
 
 case object SUB extends BinaryOp(0x03, G_verylow)(_ - _) with ConstGas
 
-case object DIV extends BinaryOp(0x04, G_low)((a, b) => if (b != 0) a / b else DataWord.Zero) with ConstGas
+case object DIV extends BinaryOp(0x04, G_low)(_ / _) with ConstGas
+
+case object SDIV extends BinaryOp(0x05, G_low)(_ sdiv _) with ConstGas
 
 case object EXP extends BinaryOp(0x0a, G_exp)(_ ** _) {
   protected def varGas(state: ProgramState): BigInt = {
