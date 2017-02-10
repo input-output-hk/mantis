@@ -29,8 +29,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-
-
   test(STOP) { op =>
     forAll(getProgramStateGen()) { stateIn =>
       val stateOut = executeOp(op, stateIn)
@@ -67,10 +65,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         stateOut shouldEqual expectedState
       }
     }
-  }
-
-  ignore("SDIV") {
-    // to be implemented
   }
 
   ignore("MOD") {
