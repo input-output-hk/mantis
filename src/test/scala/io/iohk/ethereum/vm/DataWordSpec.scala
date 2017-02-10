@@ -105,6 +105,11 @@ class DataWordSpec extends FunSuite with PropertyChecks {
         assert(DataWord(n1) / DataWord(n2) == DataWord(n1 / n2))
       }
     }
+    forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
+      whenever(n1 > 0 && n2 > 0) {
+        assert(DataWord(n1) / DataWord(n2) == DataWord(n1 / n2))
+      }
+    }
     assert(DataWord(1) / Zero == Zero)
   }
 
@@ -115,6 +120,7 @@ class DataWordSpec extends FunSuite with PropertyChecks {
         assert((DataWord(n1) sdiv DataWord(n2)) == DataWord(expected))
       }
     }
+    assert((DataWord(-1) sdiv DataWord(-MaxValue.toBigInt)) == DataWord(-1))
     assert((DataWord(-1) sdiv Zero) == Zero)
   }
 
