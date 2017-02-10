@@ -42,15 +42,10 @@ case class BlockHeader(
          |nonce: ${Hex.toHexString(nonce.toArray[Byte])}
          |}""".stripMargin
     }
-  }
 
-object BlockHeader {
     /**
       * calculates blockHash for given block header
-      * @param header - block header for which hash will be calculated
       * @return - hash that can be used to get block bodies / receipts
       */
-    def hash(header: BlockHeader): ByteString = {
-        ByteString(sha3(rlp.encode[BlockHeader](header)))
-    }
-}
+    lazy val hash: ByteString = ByteString(sha3(rlp.encode[BlockHeader](this)))
+  }

@@ -45,7 +45,7 @@ class FastSyncActor(
 
   def processMessages(state: ProcessingState): Receive = handleMptDownload(state) orElse {
     case MessageReceived(BlockHeaders(headers)) =>
-      val blockHashes = headers.map(BlockHeader.hash)
+      val blockHashes = headers.map(_.hash)
       peerActor ! PeerActor.SendMessage(GetBlockBodies(blockHashes))
       peerActor ! PeerActor.SendMessage(GetReceipts(blockHashes))
       context become processMessages(state.copy(blockHeaders = headers))
@@ -84,7 +84,7 @@ class FastSyncActor(
         log.info("receipts: {}", receipts)
         log.info("bodies: {}", bodies)
 
-        val blockHashes = headers.map(BlockHeader.hash)
+        val blockHashes = headers.map(_.hash)
 
         blockHashes.zip(headers).foreach { case (hash, value) =>
           blockHeadersStorage.put(hash, value)
