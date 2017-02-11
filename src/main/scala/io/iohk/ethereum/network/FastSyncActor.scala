@@ -2,8 +2,9 @@ package io.iohk.ethereum.network
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.Blockchain
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.FastSyncActor._
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -12,12 +13,11 @@ import io.iohk.ethereum.utils.Config.FastSync
 import org.spongycastle.util.encoders.Hex
 
 class FastSyncActor(
-  peerActor: ActorRef,
-  blockHeadersStorage: BlockHeadersStorage,
-  blockBodiesStorage: BlockBodiesStorage,
-  receiptStorage: ReceiptStorage,
-  mptNodeStorage: MptNodeStorage,
-  evmStorage: EvmCodeStorage) extends Actor with ActorLogging {
+    peerActor: ActorRef,
+    blockchain: Blockchain,
+    mptNodeStorage: MptNodeStorage)
+  extends Actor
+  with ActorLogging{
 
   import context.{dispatcher, system}
 
@@ -86,18 +86,11 @@ class FastSyncActor(
 
         val blockHashes = headers.map(_.hash)
 
-        blockHashes.zip(headers).foreach { case (hash, value) =>
-          blockHeadersStorage.put(hash, value)
-        }
+        (blockHashes, headers, bodies).zipped.foreach { case (hash, header, body) => blockchain.save(Block(header, body)) }
 
         blockHashes.zip(receipts).foreach { case (hash, value) =>
-          receiptStorage.put(hash, value)
+          blockchain.save(hash, value)
         }
-
-        blockHashes.zip(bodies).foreach { case (hash, value) =>
-          blockBodiesStorage.put(hash, value)
-        }
-
 
         val nextCurrentBlockNumber = headers.last.number
         val nextBlockNumber = nextCurrentBlockNumber + 1
@@ -134,7 +127,7 @@ class FastSyncActor(
           val msg =
             s"got EVM code: ${Hex.toHexString(evmCode.toArray[Byte])}"
           log.info(msg)
-          evmStorage.put(hash, evmCode)
+          blockchain.save(hash, evmCode)
         case (StorageRootHash(hash), idx) =>
           val rootNode = m.getMptNode(idx)
           log.info(s"got root node for contract storage: $rootNode")
@@ -236,14 +229,12 @@ class FastSyncActor(
 }
 
 object FastSyncActor {
-  def props(peerActor: ActorRef, storage: Storage): Props = {
-    import storage._
-    Props(new FastSyncActor(peerActor, blockHeadersStorage, blockBodiesStorage, receiptStorage, mptNodeStorage, evmStorage))
+  def props(peerActor: ActorRef, blockchain: Blockchain, mptNodeStorage: MptNodeStorage): Props = {
+    Props(new FastSyncActor(peerActor, blockchain, mptNodeStorage))
   }
 
   case class Storage(
-    blockHeadersStorage: BlockHeadersStorage,
-    blockBodiesStorage: BlockBodiesStorage,
+    blockchain: Blockchain,
     receiptStorage: ReceiptStorage,
     mptNodeStorage: MptNodeStorage,
     evmStorage: EvmCodeStorage)

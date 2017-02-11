@@ -9,7 +9,6 @@ import org.iq80.leveldb.impl.{Iq80DBFactory, WriteBatchImpl}
 
 class LevelDBDataSource(
                          private var db: DB,
-                         private val path: String,
                          private val levelDbConfig: LevelDbConfig
                        )
   extends DataSource {
@@ -21,7 +20,7 @@ class LevelDBDataSource(
     * @param key
     * @return the value associated with the passed key.
     */
-  override def get(namespace: Namespace, key: Key): Option[Value] = Option(db.get(key.toArray))
+  override def get(namespace: Namespace, key: Key): Option[Value] = Option(db.get((namespace ++ key).toArray))
 
   /**
     * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
@@ -33,9 +32,9 @@ class LevelDBDataSource(
     * @return the new DataSource after the removals and insertions were done.
     */
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
-    val batch = new WriteBatchImpl()
-    toRemove.foreach { key => batch.delete(key.toArray[Byte]) }
-    toUpsert.foreach { item => db.put(item._1.toArray, item._2.toArray) }
+    val batch = db.createWriteBatch()
+    toRemove.foreach { key => batch.delete((namespace ++ key).toArray) }
+    toUpsert.foreach { item => batch.put((namespace ++ item._1).toArray, item._2.toArray) }
     db.write(batch, new WriteOptions())
     this
   }
@@ -47,7 +46,7 @@ class LevelDBDataSource(
     */
   override def clear: DataSource = {
     destroy()
-    this.db = LevelDBDataSource.createDB(path, levelDbConfig)
+    this.db = LevelDBDataSource.createDB(levelDbConfig)
     this
   }
 
@@ -63,7 +62,7 @@ class LevelDBDataSource(
     try {
       close()
     } finally {
-      Iq80DBFactory.factory.destroy(new File(path), null) // Options are not being used ¯\_(ツ)_/¯
+      Iq80DBFactory.factory.destroy(new File(levelDbConfig.path), null) // Options are not being used ¯\_(ツ)_/¯
     }
   }
 }
@@ -73,11 +72,12 @@ trait LevelDbConfig {
   val paranoidChecks: Boolean
   val verifyChecksums: Boolean
   val cacheSize: Int
+  val path: String
 }
 
 object LevelDBDataSource {
 
-  private def createDB(path: String, levelDbConfig: LevelDbConfig): DB = {
+  private def createDB(levelDbConfig: LevelDbConfig): DB = {
     import levelDbConfig._
 
     val options = new Options()
@@ -88,7 +88,7 @@ object LevelDBDataSource {
     Iq80DBFactory.factory.open(new File(path), options)
   }
 
-  def apply(path: String, levelDbConfig: LevelDbConfig): LevelDBDataSource = {
-    new LevelDBDataSource(createDB(path, levelDbConfig), path, levelDbConfig)
+  def apply(levelDbConfig: LevelDbConfig): LevelDBDataSource = {
+    new LevelDBDataSource(createDB(levelDbConfig), levelDbConfig)
   }
 }

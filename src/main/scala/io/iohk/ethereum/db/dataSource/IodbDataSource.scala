@@ -51,6 +51,9 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
 
 
 object IodbDataSource {
+  val KeySizeWithoutNamespace = 32
+  val KeySize = 33
+
   private val updateCounter = new AtomicLong(System.currentTimeMillis())
 
   private def storageVersionGen(): Array[Byte] = {

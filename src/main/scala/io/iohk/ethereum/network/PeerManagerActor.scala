@@ -8,6 +8,8 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.Blockchain
+import io.iohk.ethereum.db.storage.MptNodeStorage
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 class PeerManagerActor(
@@ -55,10 +57,10 @@ class PeerManagerActor(
         log.info("Trying to connect to {} bootstrap nodes", nodesToConnect.size)
         nodesToConnect.foreach(self ! ConnectToPeer(_))
       }
-    case StartFastDownload(uri, targetHash, storage) =>
+    case StartFastDownload(uri, targetHash, blockchain, mptNodeStorage) =>
       peers.find { case (_, Peer(remoteAddress, _)) => remoteAddress.getHostString == uri.getHost && remoteAddress.getPort == uri.getPort }
         .map(_._2)
-        .foreach { p => p.ref ! PeerActor.StartFastSync(targetHash, storage) }
+        .foreach { p => p.ref ! PeerActor.StartFastSync(targetHash, blockchain, mptNodeStorage) }
   }
 
   def createPeer(addr: InetSocketAddress): Peer = {
@@ -84,7 +86,7 @@ object PeerManagerActor {
 
   case class ConnectToPeer(uri: URI)
 
-  case class StartFastDownload(uri: URI, targetBlockHash: ByteString, storage: FastSyncActor.Storage)
+  case class StartFastDownload(uri: URI, targetBlockHash: ByteString, blockchain: Blockchain, mptNodeStorage: MptNodeStorage)
 
   case class Peer(remoteAddress: InetSocketAddress, ref: ActorRef) {
     def id: String = ref.path.name

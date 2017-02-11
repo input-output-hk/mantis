@@ -9,6 +9,7 @@ import scala.concurrent.duration._
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.Blockchain
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.PeerActor.Status._
@@ -271,8 +272,8 @@ class PeerActor(
       case GetStatus =>
         sender() ! StatusResponse(Handshaked)
 
-      case StartFastSync(targetHash, storage) =>
-        val fastSyncActor = context.actorOf(FastSyncActor.props(self, storage), UUID.randomUUID().toString)
+      case StartFastSync(targetHash, blockchain, mptNodeStorage) =>
+        val fastSyncActor = context.actorOf(FastSyncActor.props(self, blockchain, mptNodeStorage), UUID.randomUUID().toString)
         fastSyncActor ! FastSyncActor.StartSync(targetHash)
     }
 
@@ -325,7 +326,7 @@ object PeerActor {
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
 
-  case class StartFastSync(targetBlockHash: ByteString, storage: FastSyncActor.Storage)
+  case class StartFastSync(targetBlockHash: ByteString, blockchain: Blockchain, mptNodeStorage: MptNodeStorage)
 
   private case object DaoHeaderReceiveTimeout
 

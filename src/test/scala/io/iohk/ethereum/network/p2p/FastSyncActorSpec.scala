@@ -3,10 +3,12 @@ package io.iohk.ethereum.network.p2p
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain
+import io.iohk.ethereum.blockchain.{Blockchain, BlockchainComp, BlockchainCompImpl}
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.db.components.{SharedEphemDataSources, SharedIodbDataSources, Storages, StoragesComp}
+import io.iohk.ethereum.db.components.Storages.DefaultStorages
+import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.FastSyncActor.{FastSyncDone, SyncFailure}
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -78,11 +80,11 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     //then
     peer.expectMsgClass(classOf[FastSyncDone])
 
-    storage.blockBodiesStorage.get(targetBlockHeader.hash) shouldBe Some(BlockBody(transactionList = Seq.empty, uncleNodesList = Seq.empty))
-    storage.blockHeadersStorage.get(targetBlockHeader.hash) shouldBe Some(targetBlockHeader)
-    storage.receiptStorage.get(targetBlockHeader.hash) shouldBe Some(Seq.empty)
+    val block = blockchain.getBlockByHash(targetBlockHeader.hash)
+    block shouldBe Some(Block(targetBlockHeader, BlockBody(transactionList = Seq.empty, uncleNodesList = Seq.empty)))
+    blockchain.receiptStorage.get(targetBlockHeader.hash) shouldBe Some(Seq.empty)
 
-    storage.mptNodeStorage.get(targetBlockHeader.stateRoot) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
+    mptNodeStorage.get(targetBlockHeader.stateRoot) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
   }
 
   it should "send failure message when got malformed response" in new TestSetup {
@@ -137,15 +139,15 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
     peer.reply(MessageReceived(NodeData(Seq(stateMptLeafWithAccount))))
 
-    storage.mptNodeStorage.get(stateRootHash) shouldBe Some(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0))
+    mptNodeStorage.get(stateRootHash) shouldBe Some(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0))
 
-    storage.mptNodeStorage.get(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0)
+    mptNodeStorage.get(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0)
       .asInstanceOf[MptBranch].children(0).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(mptExtension)).getMptNode(0))
 
-    storage.mptNodeStorage.get(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0)
+    mptNodeStorage.get(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0)
       .asInstanceOf[MptBranch].children(1).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
 
-    storage.mptNodeStorage.get(NodeData(Seq(mptExtension)).getMptNode(0)
+    mptNodeStorage.get(NodeData(Seq(mptExtension)).getMptNode(0)
       .asInstanceOf[MptExtension].child.asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
   }
 
@@ -178,17 +180,17 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
     peer.reply(MessageReceived(NodeData(Seq(contractMptLeafNode))))
 
-    storage.evmStorage.get(ByteString(crypto.sha3(contractEvmCode.toArray[Byte])))
+    blockchain.evmCodeStorage.get(ByteString(crypto.sha3(contractEvmCode.toArray[Byte])))
 
-    storage.mptNodeStorage.get(stateRootHash) shouldBe Some(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0))
+    mptNodeStorage.get(stateRootHash) shouldBe Some(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0))
 
-    storage.mptNodeStorage.get(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0)
+    mptNodeStorage.get(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0)
       .asInstanceOf[MptBranch].children(1).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(contractMptExtension)).getMptNode(0))
 
-    storage.mptNodeStorage.get(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0)
+    mptNodeStorage.get(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0)
       .asInstanceOf[MptBranch].children(0).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(contractMptLeafNode)).getMptNode(0))
 
-    storage.mptNodeStorage.get(NodeData(Seq(contractMptExtension)).getMptNode(0)
+    mptNodeStorage.get(NodeData(Seq(contractMptExtension)).getMptNode(0)
       .asInstanceOf[MptExtension].child.asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(contractMptLeafNode)).getMptNode(0))
   }
 
@@ -263,16 +265,15 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
     implicit val system = ActorSystem("PeerActorSpec_System")
 
-    val storage = FastSyncActor.Storage(
-      new BlockHeadersStorage(EphemDataSource()),
-      new BlockBodiesStorage(EphemDataSource()),
-      new ReceiptStorage(EphemDataSource()),
-      new MptNodeStorage(EphemDataSource()),
-      new EvmCodeStorage(EphemDataSource())
-    )
-
+    val storagesImpl = new Storages.DefaultStorages with SharedEphemDataSources
+    val blockchainComp: BlockchainComp = new BlockchainCompImpl {
+      override val storagesComp: StoragesComp = storagesImpl
+    }
+    val blockchain = blockchainComp.blockchain
+    val mptNodeStorage = storagesImpl.storages.mptNodeStorage
+    
     val peer = TestProbe()
-    val fastSync = TestActorRef(FastSyncActor.props(peer.ref, storage))
+    val fastSync = TestActorRef(FastSyncActor.props(peer.ref, blockchain, mptNodeStorage))
   }
 
 }

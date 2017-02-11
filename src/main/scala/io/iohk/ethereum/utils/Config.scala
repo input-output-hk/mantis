@@ -46,6 +46,14 @@ object Config {
       val waitForChainCheckTimeout = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
     }
 
+    object Rpc {
+      private val rpcConfig = networkConfig.getConfig("rpc")
+
+      val enabled = rpcConfig.getBoolean("enabled")
+      val interface = rpcConfig.getString("interface")
+      val port = rpcConfig.getInt("port")
+    }
+
   }
 
   object Blockchain {
@@ -72,12 +80,19 @@ object Config {
   object Db {
 
     private val dbConfig = config.getConfig("db")
+    private val iodbConfig = dbConfig.getConfig("iodb")
+    private val levelDbConfig = dbConfig.getConfig("leveldb")
+
+    object Iodb {
+      val path: String = iodbConfig.getString("path")
+    }
 
     object LevelDb extends LevelDbConfig {
-      override val createIfMissing: Boolean = dbConfig.getBoolean("create-if-missing")
-      override val paranoidChecks: Boolean = dbConfig.getBoolean("paranoid-checks")
-      override val verifyChecksums: Boolean = dbConfig.getBoolean("verify-checksums")
-      override val cacheSize: Int = dbConfig.getInt("cache-size")
+      override val createIfMissing: Boolean = levelDbConfig.getBoolean("create-if-missing")
+      override val paranoidChecks: Boolean = levelDbConfig.getBoolean("paranoid-checks")
+      override val verifyChecksums: Boolean = levelDbConfig.getBoolean("verify-checksums")
+      override val cacheSize: Int = levelDbConfig.getInt("cache-size")
+      override val path: String = levelDbConfig.getString("path")
     }
   }
 }
