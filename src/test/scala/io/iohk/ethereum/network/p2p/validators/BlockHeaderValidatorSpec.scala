@@ -8,9 +8,12 @@ import org.scalatest.prop.PropertyChecks
 import org.scalatest.FunSuite
 import org.spongycastle.util.encoders.Hex
 
-//FIXME: Obtain tests (this are only for testing)
 class BlockHeaderValidatorSpec extends FunSuite with PropertyChecks with ObjectGenerators {
   val ExtraDataSizeLimit = 20
+
+  //BlockHeader member's lengths obtained from Yellow paper
+  val NonceLength = 8 //64bit
+  val MixHashLength = 32 //256bit
 
   test("BlockHeaderValidator should validate correctly formed BlockHeaders") {
     BlockHeaderValidator.validate(validBlockHeader, validBlockParent) match {
@@ -22,7 +25,8 @@ class BlockHeaderValidatorSpec extends FunSuite with PropertyChecks with ObjectG
   test("BlockHeaderValidator should return a failure if created based on invalid extra data") {
     forAll(randomSizeByteStringGen(
       BlockHeaderValidator.MaxExtraDataSize + 1,
-      BlockHeaderValidator.MaxExtraDataSize + ExtraDataSizeLimit)) { wrongExtraData =>
+      BlockHeaderValidator.MaxExtraDataSize + ExtraDataSizeLimit)
+    ) { wrongExtraData =>
       val invalidBlockHeader = validBlockHeader.copy(extraData = wrongExtraData)
       assert(BlockHeaderValidator.validate(invalidBlockHeader, validBlockParent) == Left(HeaderExtraDataError))
     }
@@ -30,62 +34,64 @@ class BlockHeaderValidatorSpec extends FunSuite with PropertyChecks with ObjectG
 
   test("BlockHeaderValidator should return a failure if created based on invalid timestamp") {
     forAll(longGen) { timestamp =>
-      whenever(timestamp <= validBlockParent.unixTimestamp) {
-        val invalidBlockHeader = validBlockHeader.copy(unixTimestamp = timestamp)
-        assert(BlockHeaderValidator.validate(invalidBlockHeader, validBlockParent) == Left(HeaderTimestampError))
+      val blockHeader = validBlockHeader.copy(unixTimestamp = timestamp)
+      val validateResult = BlockHeaderValidator.validate(blockHeader, validBlockParent)
+      timestamp match {
+        case t if t <= validBlockParent.unixTimestamp => assert(validateResult == Left(HeaderTimestampError))
+        case validBlockHeader.unixTimestamp => assert(validateResult == Right(blockHeader))
+        case _ => assert(validateResult == Left(HeaderDifficultyError))
       }
     }
   }
 
   test("BlockHeader return a failure if created based on invalid difficulty") {
     forAll(bigIntGen) { difficulty =>
-      whenever(difficulty != validBlockHeader.difficulty) {
-        val invalidBlockHeader = validBlockHeader.copy(difficulty = difficulty)
-        assert(BlockHeaderValidator.validate(invalidBlockHeader, validBlockParent) == Left(HeaderDifficultyError))
-      }
+      val blockHeader = validBlockHeader.copy(difficulty = difficulty)
+      val validateResult = BlockHeaderValidator.validate(blockHeader, validBlockParent)
+      if(difficulty != validBlockHeader.difficulty) assert(validateResult == Left(HeaderDifficultyError))
+      else assert(validateResult == Right(blockHeader))
     }
   }
 
   test("BlockHeader should return a failure if created based on invalid gas used") {
     forAll(bigIntGen) { gasUsed =>
-      whenever(gasUsed > validBlockHeader.gasLimit) {
-        val invalidBlockHeader = validBlockHeader.copy(gasUsed = gasUsed)
-        assert(BlockHeaderValidator.validate(invalidBlockHeader, validBlockParent) == Left(HeaderGasUsedError))
-      }
+      val blockHeader = validBlockHeader.copy(gasUsed = gasUsed)
+      val validateResult = BlockHeaderValidator.validate(blockHeader, validBlockParent)
+      if(gasUsed > validBlockHeader.gasLimit) assert(validateResult == Left(HeaderGasUsedError))
+      else assert(validateResult == Right(blockHeader))
     }
   }
 
   test("BlockHeader should return a failure if created based on invalid gas limit") {
-    val LowerGasLimit = BlockHeaderValidator.MinGasLimit.min(
+    val LowerGasLimit = BlockHeaderValidator.MinGasLimit.max(
       validBlockParent.gasLimit - validBlockParent.gasLimit / BlockHeaderValidator.GasLimitBoundDivisor + 1)
     val UpperGasLimit = validBlockParent.gasLimit + validBlockParent.gasLimit / BlockHeaderValidator.GasLimitBoundDivisor - 1
 
-    forAll(bigIntGen) {
-      gasLimit =>
-        whenever(gasLimit < LowerGasLimit || gasLimit > UpperGasLimit) {
-          val invalidBlockHeader = validBlockHeader.copy(gasLimit = gasLimit)
-          assert(BlockHeaderValidator.validate(invalidBlockHeader, validBlockParent) == Left(HeaderGasLimitError))
-        }
+    forAll(bigIntGen) { gasLimit =>
+      val blockHeader = validBlockHeader.copy(gasLimit = gasLimit)
+      val validateResult = BlockHeaderValidator.validate(blockHeader, validBlockParent)
+      if(gasLimit < LowerGasLimit || gasLimit > UpperGasLimit)
+        assert(validateResult == Left(HeaderGasLimitError))
+      else assert(validateResult == Right(blockHeader))
     }
   }
 
   test("BlockHeader should return a failure if created based on invalid number") {
-    forAll(bigIntGen) {
-      number =>
-        whenever(number != validBlockParent.number + 1) {
-          val invalidBlockHeader = validBlockHeader.copy(number = number)
-          assert(BlockHeaderValidator.validate(invalidBlockHeader, validBlockParent) == Left(HeaderNumberError) ||
-            BlockHeaderValidator.validate(invalidBlockHeader, validBlockParent) == Left(HeaderDifficultyError))
-        }
+    forAll(bigIntGen) { number =>
+      val blockHeader = validBlockHeader.copy(number = number)
+      val validateResult = BlockHeaderValidator.validate(blockHeader, validBlockParent)
+      if(number != validBlockParent.number + 1)
+        assert(validateResult == Left(HeaderNumberError) || validateResult == Left(HeaderDifficultyError))
+      else assert(validateResult == Right(blockHeader))
     }
   }
 
-  test("BlockHeader should return a failure if created based on nonce/mixHash") {
-    forAll(byteStringOfLengthNGen(32), byteStringOfLengthNGen(32)) { case (nonce, mixHash) =>
-      whenever(nonce != validBlockHeader.nonce || mixHash != validBlockHeader.mixHash) {
-        val invalidBlockHeader = validBlockHeader.copy(nonce = nonce, mixHash = mixHash)
-        assert(BlockHeaderValidator.validate(invalidBlockHeader, validBlockParent) == Left(HeaderPoWError))
-      }
+  test("BlockHeader should return a failure if created based on invalid nonce/mixHash") {
+    forAll(byteStringOfLengthNGen(NonceLength), byteStringOfLengthNGen(MixHashLength)) { case (nonce, mixHash) =>
+      val blockHeader =validBlockHeader.copy(nonce = nonce, mixHash = mixHash)
+      val validateResult = BlockHeaderValidator.validate(blockHeader, validBlockParent)
+      if(nonce != validBlockHeader.nonce || mixHash != validBlockHeader.mixHash) assert(validateResult == Left(HeaderPoWError))
+      else assert(validateResult == Right(blockHeader))
     }
   }
 

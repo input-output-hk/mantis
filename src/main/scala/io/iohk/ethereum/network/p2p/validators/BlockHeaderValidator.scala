@@ -13,6 +13,7 @@ object BlockHeaderValidator {
   val DifficultyBoundDivision: Int = 2048
   val HomesteadBlock: BigInt = 1150000
   val FrontierTimestampDiffLimit: Int = -99
+  val ExpDifficultyPeriod: Int = 100000
   val MinimumDifficulty: BigInt = 131072
 
   import BlockHeaderError._
@@ -37,7 +38,7 @@ object BlockHeaderValidator {
   }
 
   /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.extraData]] has a valid length
+    * Validates [[io.iohk.ethereum.domain.BlockHeader.extraData]] length
     * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
     *
     * @param blockHeader BlockHeader to validate.
@@ -133,7 +134,7 @@ object BlockHeaderValidator {
         val timestampDiff = blockHeader.unixTimestamp - parentHeader.unixTimestamp
         math.max(1 - timestampDiff / 10, FrontierTimestampDiffLimit)
       }
-    val difficultyBombExponent: Int = (blockHeader.number / 100000 - 2).toInt
+    val difficultyBombExponent: Int = (blockHeader.number / ExpDifficultyPeriod - 2).toInt
     val difficultyBomb: BigInt =
       if(difficultyBombExponent >= 0)
         BigInt(2).pow(difficultyBombExponent)
