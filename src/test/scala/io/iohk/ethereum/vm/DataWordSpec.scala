@@ -116,7 +116,7 @@ class DataWordSpec extends FunSuite with PropertyChecks {
   }
 
   test("intValue") {
-    assert(specialNumbers.map(DataWord(_).intValue).toSeq == Seq(2147483647, 0, 1, 2147483647, 1, 2))
+    assert(specialNumbers.map(DataWord(_).intValue).toSeq == Seq(Int.MaxValue, 0, 1, Int.MaxValue, 1, 2))
   }
 
   test("comparison") {
@@ -156,11 +156,29 @@ class DataWordSpec extends FunSuite with PropertyChecks {
     assert(DataWord(BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935")).bytes.size == 32)
   }
 
-  ignore("2-way bytes conversion") {
-    //TODO: test a DataWord created from returns the same bytes ignoring the leading zeroes
+  test("2-way bytes conversion") {
+    forAll(getDataWordGen()) { x =>
+      val y = DataWord(x.bytes)
+      assert(x === y)
+    }
+
+    forAll(getByteStringGen(0, 32)) { xs =>
+      val ys = DataWord(xs).bytes
+      assert(xs.dropWhile(_ == 0) === ys.dropWhile(_ == 0))
+    }
   }
 
-  ignore("byteSize") {
-    //TODO: test the number of relevant bytes
+  test("byteSize") {
+    val table = Table[BigInt, Int](("x", "expected"), (0, 0), (1, 1), (255, 1), (256, 2), (65535, 2), (65536, 3),
+      (BigInt(2).pow(256) - 1, 32), (BigInt(2).pow(256), 0))
+    forAll(table) { (x, expected) =>
+      assert(DataWord(x).byteSize === expected)
+    }
+
+    forAll(getDataWordGen()) { x =>
+      import math._
+      val byteSize = 1 + floor(log(x.doubleValue) / log(256)).toInt
+      //assert(x.byteSize === byteSize)
+    }
   }
 }

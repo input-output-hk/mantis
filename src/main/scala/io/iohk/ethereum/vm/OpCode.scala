@@ -219,12 +219,12 @@ case object MUL extends BinaryOp(0x02, G_low)(_ * _) with ConstGas
 
 case object SUB extends BinaryOp(0x03, G_verylow)(_ - _) with ConstGas
 
-case object DIV extends BinaryOp(0x04, G_low)((a, b) => if (b != 0) a / b else DataWord.Zero) with ConstGas
+case object DIV extends BinaryOp(0x04, G_low)((a, b) => if (!b.isZero) a / b else DataWord.Zero) with ConstGas
 
 case object EXP extends BinaryOp(0x0a, G_exp)(_ ** _) {
   protected def varGas(state: ProgramState): BigInt = {
     val (Seq(_, m: DataWord), _) = state.stack.pop(2)
-    G_exp.value + G_expbyte.value * m.byteSize
+    G_expbyte.value * wordsForBytes(m)
   }
 }
 
@@ -232,7 +232,7 @@ case object LT extends BinaryOp(0x10, G_verylow)((a, b) => DataWord(a < b)) with
 
 case object EQ extends BinaryOp(0x14, G_verylow)((a, b) => DataWord(a == b)) with ConstGas
 
-case object ISZERO extends UnaryOp(0x15, G_verylow)(a => DataWord(a == 0)) with ConstGas
+case object ISZERO extends UnaryOp(0x15, G_verylow)(a => DataWord(a.isZero)) with ConstGas
 
 case object AND extends BinaryOp(0x16, G_verylow)(_ & _) with ConstGas
 
@@ -240,15 +240,20 @@ case object NOT extends UnaryOp(0x19, G_verylow)(~_) with ConstGas
 
 case object SHA3 extends OpCode(0x20, 2, 1, G_sha3) {
   protected def exec(state: ProgramState): ProgramState = {
-    val (Seq(offset, size), stack1) = state.stack.pop(2)
-    val (input, mem1) = state.memory.load(offset, size)
+    val (Seq(addr, size), stack1) = state.stack.pop(2)
+    val (input, mem1) = state.memory.load(addr, size)
     val hash = sha3(input.toArray)
     val ret = DataWord(hash)
     val stack2 = stack1.push(ret)
     state.withStack(stack2).withMemory(mem1).step()
   }
 
-  protected def varGas(state: ProgramState): BigInt = 0 //FIXME
+  protected def varGas(state: ProgramState): BigInt = {
+    val (Seq(addr, size), _) = state.stack.pop(2)
+    val memCost = calcMemCost(state.memory.size, addr, size)
+    val shaCost = G_sha3word.value * wordsForBytes(size)
+    memCost + shaCost
+  }
 }
 
 case object CALLVALUE extends OpCode(0x34, 0, 1, G_base) with ConstGas {
@@ -371,7 +376,7 @@ case object JUMP extends OpCode(0x56, 1, 0, G_mid) with ConstGas {
 case object JUMPI extends OpCode(0x57, 2, 0, G_high) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(pos, cond), stack1) = state.stack.pop(2)
-    val nextPos = if (cond != 0) pos.intValue else state.pc + 1
+    val nextPos = if (!cond.isZero) pos.intValue else state.pc + 1
     //TODO: JUMPDEST validation
     state.withStack(stack1).goto(nextPos)
   }
@@ -516,6 +521,6 @@ case object RETURN extends OpCode(0xf3, 2, 0, G_zero) {
 
   protected def varGas(state: ProgramState): BigInt = {
     val (Seq(addr, size), _) = state.stack.pop(2)
-    GasFee.calcMemCost(state.memory.size, addr, size)
+    calcMemCost(state.memory.size, addr, size)
   }
 }

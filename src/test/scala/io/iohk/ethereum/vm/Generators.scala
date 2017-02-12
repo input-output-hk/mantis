@@ -58,7 +58,7 @@ object Generators extends ObjectGenerators {
     stackGen: Gen[Stack] = getStackGen(),
     memGen: Gen[Memory] = getMemoryGen(),
     storageGen: Gen[Storage] = getStorageGen(),
-    gasGen: Gen[BigInt] = getBigIntGen(),
+    gasGen: Gen[BigInt] = getBigIntGen(min = DataWord.MaxValue, max = DataWord.MaxValue),
     codeGen: Gen[ByteString] = getByteStringGen(0, 0),
     inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
     valueGen: Gen[BigInt] = getBigIntGen()

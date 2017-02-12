@@ -16,27 +16,27 @@ object GasFee {
     * @return gas cost
     */
   def calcMemCost(memSize: BigInt, addr: BigInt, dataSize: BigInt): BigInt = {
-    val memNeeded = addr.longValue + dataSize
+    val memNeeded = if (dataSize == 0) BigInt(0) else addr + dataSize
 
     if (memNeeded > MaxMemory)
       DataWord.MaxValue
     else if (memNeeded <= memSize)
       0
-    else {
-      // See YP H.1 (222)
-      def c(m: BigInt) = {
-        val w = wordsForBytes(m)
-        G_memory.value * w + w * w / 512
-      }
+    else
       c(memNeeded) - c(memSize)
-    }
+  }
+
+  /** See YP H.1 (222) */
+  private def c(m: BigInt): BigInt = {
+    val a = wordsForBytes(m)
+    G_memory.value * a + a * a / 512
   }
 
   /**
     * Number of 32-byte DataWords required to hold n bytes (~= math.ceil(n / 32))
     */
   def wordsForBytes(n: BigInt): BigInt =
-    (n - 1) / DataWord.Size + 1
+    if (n == 0) 0 else (n - 1) / DataWord.Size + 1
 }
 
 /**
