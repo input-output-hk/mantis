@@ -28,9 +28,9 @@ import scala.util.{Failure, Success, Try}
 class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
   extends Actor with ActorLogging {
 
+  import AuthHandshaker.{InitiatePacketLength, ResponsePacketLength}
   import RLPxConnectionHandler._
   import context.{dispatcher, system}
-  import AuthHandshaker.{InitiatePacketLength, ResponsePacketLength}
 
   val ProtocolVersion = Message.PV63
 
@@ -143,6 +143,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
         case sm: SendMessage[_] =>
           val out = messageCodec.encodeMessage(sm.message)(sm.enc)
           connection ! Write(out)
+          log.info("Sent message: {}", sm.message)
 
         case Received(data) =>
           val messages = messageCodec.readMessages(data)

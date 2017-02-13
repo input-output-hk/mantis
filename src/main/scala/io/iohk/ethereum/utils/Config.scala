@@ -14,18 +14,18 @@ object Config {
 
   private val config = ConfigFactory.load().getConfig("etc-client")
 
-  val clientId = config.getString("client-id")
+  val clientId: String = config.getString("client-id")
 
   object Network {
     private val networkConfig = config.getConfig("network")
 
-    val networkId = networkConfig.getInt("network-id")
+    val networkId: Int = networkConfig.getInt("network-id")
 
     object Server {
       private val serverConfig = networkConfig.getConfig("server-address")
 
-      val interface = serverConfig.getString("interface")
-      val port = serverConfig.getInt("port")
+      val interface: String = serverConfig.getString("interface")
+      val port: Int = serverConfig.getInt("port")
       val listenAddress = new InetSocketAddress(interface, port)
     }
 
@@ -51,7 +51,7 @@ object Config {
   object Blockchain {
     private val blockchainConfig = config.getConfig("blockchain")
 
-    val genesisDifficulty = blockchainConfig.getLong("genesis-difficulty")
+    val genesisDifficulty: Long = blockchainConfig.getLong("genesis-difficulty")
     val genesisHash = ByteString(Hex.decode(blockchainConfig.getString("genesis-hash")))
 
     val daoForkBlockNumber = BigInt(blockchainConfig.getString("dao-fork-block-number"))
@@ -59,6 +59,14 @@ object Config {
     val daoForkBlockHash = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
   }
 
+  object FastSync{
+    private val fastSyncConfig = config.getConfig("fast-sync")
+
+    val BlocksPerMessage: Int = fastSyncConfig.getInt("blocks-per-message")
+    val NodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
+    val NodeRequestsInterval: FiniteDuration = fastSyncConfig.getDuration("node-requests-interval").toMillis.millis
+  }
+  
   object Db {
 
     private val dbConfig = config.getConfig("db")
@@ -70,5 +78,4 @@ object Config {
       override val cacheSize: Int = dbConfig.getInt("cache-size")
     }
   }
-
 }

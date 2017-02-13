@@ -229,9 +229,8 @@ class MerklePatriciaTrieSuite extends FunSuite
     val val1: Array[Byte] = Hex.decode("947e70f9460402290a3e487dae01f610a1a8218fda")
     val keys = List(key1, key2, key3)
     val vals = List(val1, val1, val1)
-    val keysWithVal = keys.zip(vals).take(2)
+    val keysWithVal = keys.zip(vals)
     val trie = keysWithVal.foldLeft(EmptyTrie) { (recTrie, elem) => recTrie.put(elem._1, elem._2) }
-    trie.put(key3, val1)
     keysWithVal.foreach { t =>
       val obtained = trie.get(t._1)
       assert(obtained.isDefined)

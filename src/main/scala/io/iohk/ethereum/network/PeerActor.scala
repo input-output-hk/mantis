@@ -1,14 +1,16 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
+import java.util.UUID
 
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 import scala.concurrent.duration._
-
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
@@ -17,7 +19,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
-import io.iohk.ethereum.utils.{ServerStatus, NodeStatus, Config}
+import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
@@ -152,7 +154,7 @@ class PeerActor(
     case RLPxConnectionHandler.MessageReceived(status: msg.Status) =>
       timeout.cancel()
       log.info("Peer returned status ({})", status)
-      rlpxConnection.sendMessage(GetBlockHeaders(Left(daoForkBlockNumber), maxHeaders = 1, skip = 0, reverse = 0))
+      rlpxConnection.sendMessage(GetBlockHeaders(Left(daoForkBlockNumber), maxHeaders = 1, skip = 0, reverse = false))
       val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
       context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
 
@@ -165,7 +167,7 @@ class PeerActor(
 
   def waitingForChainForkCheck(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, timeout: Cancellable): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse {
+    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse handlePeerChainCheck(rlpxConnection) orElse{
 
     case RLPxConnectionHandler.MessageReceived(msg @ BlockHeaders(blockHeaders)) =>
       timeout.cancel()
@@ -247,10 +249,17 @@ class PeerActor(
       messageSubscribers = messageSubscribers.filterNot(_.ref == sender())
   }
 
+  def handlePeerChainCheck(rlpxConnection: RLPxConnection): Receive = {
+    case RLPxConnectionHandler.MessageReceived(message@GetBlockHeaders(Left(number), _, _, _)) if number == 1920000 =>
+      log.info("Received message: {}", message)
+      rlpxConnection.sendMessage(BlockHeaders(Seq())) //stub because we do not have this block yet
+  }
+
   class HandshakedHandler(rlpxConnection: RLPxConnection) {
 
     def receive: Receive =
-      handleSubscriptions orElse handleTerminated(rlpxConnection) orElse {
+      handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
+        handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
         log.info("Received message: {}", message)
         notifySubscribers(message)
@@ -261,6 +270,10 @@ class PeerActor(
 
       case GetStatus =>
         sender() ! StatusResponse(Handshaked)
+
+      case StartFastSync(targetHash, storage) =>
+        val fastSyncActor = context.actorOf(FastSyncActor.props(self, storage), UUID.randomUUID().toString)
+        fastSyncActor ! FastSyncActor.StartSync(targetHash)
     }
 
     def notifySubscribers(message: Message): Unit = {
@@ -270,9 +283,6 @@ class PeerActor(
     }
 
     def processMessage(message: Message): Unit = message match {
-      case Ping() =>
-        rlpxConnection.sendMessage(Pong())
-
       case d: Disconnect =>
         log.info("Received {}. Closing connection", d)
         context stop self
@@ -314,6 +324,8 @@ object PeerActor {
   case class ConnectTo(uri: URI)
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
+
+  case class StartFastSync(targetBlockHash: ByteString, storage: FastSyncActor.Storage)
 
   private case object DaoHeaderReceiveTimeout
 

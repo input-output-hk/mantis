@@ -6,7 +6,6 @@ import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 import io.iohk.ethereum.vm.DataWord._
 
-
 class DataWordSpec extends FunSuite with PropertyChecks {
 
   val specialNumbers = Array(BigInt(-1), BigInt(0), BigInt(1), MaxWord.toBigInt, -MaxWord.toBigInt, -MaxWord.toBigInt + 1)
