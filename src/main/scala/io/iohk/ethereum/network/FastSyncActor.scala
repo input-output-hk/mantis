@@ -137,9 +137,7 @@ class FastSyncActor(
           evmStorage.put(hash, evmCode)
         case (StorageRootHash(hash), idx) =>
           val rootNode = m.getMptNode(idx)
-          val msg =
-            s"got root node for contract storage: $rootNode"
-          log.info(msg)
+          log.info(s"got root node for contract storage: $rootNode")
           handleContractMptNode(hash, rootNode)
       }
       //remove hashes from state as nodes received
@@ -185,7 +183,7 @@ class FastSyncActor(
       case n: MptBranch =>
         log.info("Got contract branch node: {}", n)
         val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-        println(hashes)
+        log.info("{}", hashes)
         self ! RequestNodes(hashes.map(ContractStorageMptNodeHash): _*)
         mptNodeStorage.put(n)
 
