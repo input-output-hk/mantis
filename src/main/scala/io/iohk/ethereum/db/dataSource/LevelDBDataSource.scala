@@ -6,7 +6,7 @@ import org.iq80.leveldb.{DB, Options, WriteOptions}
 import org.iq80.leveldb.impl.{Iq80DBFactory, WriteBatchImpl}
 
 
-class LevelDBDataSource(val db: DB, private val path: String) extends DataSource {
+class LevelDBDataSource(private val db: DB, private val path: String) extends DataSource {
 
   /**
     * This function obtains the associated value to a key, if there exists one.
