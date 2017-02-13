@@ -12,20 +12,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     op.execute(stateIn).copy(gas = stateIn.gas, gasRefund = stateIn.gasRefund)
   }
 
-  val unaryOps = OpCode.opcodes.collect { case op: UnaryOp => op }
-  val binaryOps = OpCode.opcodes.collect { case op: BinaryOp => op }
-  val ternaryOps = OpCode.opcodes.collect { case op: TernaryOp => op }
-  val pushOps = OpCode.opcodes.collect { case op: PushOp => op }
-  val dupOps = OpCode.opcodes.collect { case op: DupOp => op }
-  val swapOps = OpCode.opcodes.collect { case op: SwapOp => op }
-  val logOps = OpCode.opcodes.collect { case op: LogOp => op }
-
-  def test[T <: OpCode](ops: T*)(f: T => Any): Unit =
-    ops.foreach(op => test(op.toString)(f(op)))
-
-  def ignore[T <: OpCode](ops: T*)(f: T => Any): Unit =
-    ops.foreach(op => ignore(op.toString)(f(op)))
-
   def withStackVerification(op: OpCode, stateIn: ProgramState, stateOut: ProgramState)(body: => Any): Any = {
     if (stateIn.stack.size < op.delta)
       stateOut shouldEqual stateIn.withError(StackUnderflow).halt
@@ -66,7 +52,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  test(binaryOps: _*) { binaryOp =>
+  test(binaryOps: _*) { op =>
     forAll(getProgramStateGen()) { stateIn =>
       val stateOut = executeOp(op, stateIn)
 

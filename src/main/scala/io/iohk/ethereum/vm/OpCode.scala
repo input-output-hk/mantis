@@ -193,7 +193,7 @@ case object STOP extends OpCode(0x00, 0, 0, G_zero) with ConstGas {
     state.halt
 }
 
-sealed abstract class UnaryOp(code: Int, constGas: GasCost)(val f: DataWord => DataWord) extends OpCode(code, 1, 1, constGas) with ConstGas {
+sealed abstract class UnaryOp(code: Int, constGas: GasFee)(val f: DataWord => DataWord) extends OpCode(code, 1, 1, constGas) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (a, stack1) = state.stack.pop
     val res = f(a)
@@ -202,7 +202,7 @@ sealed abstract class UnaryOp(code: Int, constGas: GasCost)(val f: DataWord => D
   }
 }
 
-sealed abstract class BinaryOp(code: Int, constGas: GasCost)(val f: (DataWord, DataWord) => DataWord)
+sealed abstract class BinaryOp(code: Int, constGas: GasFee)(val f: (DataWord, DataWord) => DataWord)
     extends OpCode(code.toByte, 2, 1, constGas) {
 
   protected def exec(state: ProgramState): ProgramState = {
@@ -213,7 +213,7 @@ sealed abstract class BinaryOp(code: Int, constGas: GasCost)(val f: (DataWord, D
   }
 }
 
-sealed abstract class TernaryOp(code: Int, constGas: GasCost)(val f: (DataWord, DataWord, DataWord) => DataWord)
+sealed abstract class TernaryOp(code: Int, constGas: GasFee)(val f: (DataWord, DataWord, DataWord) => DataWord)
     extends OpCode(code.toByte, 3, 1, constGas) {
 
   protected def exec(state: ProgramState): ProgramState = {
