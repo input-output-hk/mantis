@@ -11,6 +11,7 @@ import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.network.FastSyncActor.FastSyncDone
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
@@ -274,6 +275,10 @@ class PeerActor(
       case StartFastSync(targetHash, storage) =>
         val fastSyncActor = context.actorOf(FastSyncActor.props(self, storage), UUID.randomUUID().toString)
         fastSyncActor ! FastSyncActor.StartSync(targetHash)
+
+      case FastSyncDone(_) =>
+        //Start normal sync
+        context.actorOf(BlockBroadcastActor.props(self, context.parent), UUID.randomUUID().toString)
     }
 
     def notifySubscribers(message: Message): Unit = {
