@@ -21,4 +21,7 @@
         <appender-ref ref="FILE" />
     </root>
 
+    <logger name="io.iohk.ethereum.network.rlpx.RLPxConnectionHandler" level="INFO" />
+    <logger name="io.iohk.ethereum.network.FastSyncController" level="INFO" />
+
 </configuration>

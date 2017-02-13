@@ -13,10 +13,6 @@ object ForkValidator {
     ByteString(sha3(rlp.encode[BlockHeader](header)))
   }
 
-  def hash(body: BlockBody): ByteString = {
-    ByteString(sha3(rlp.encode[BlockBody](body)))
-  }
-
 }
 
 /**
