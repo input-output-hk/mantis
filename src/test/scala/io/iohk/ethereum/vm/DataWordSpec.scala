@@ -167,6 +167,19 @@ class DataWordSpec extends FunSuite with PropertyChecks {
     }
   }
 
+  test("signExtend") {
+    assert(DataWord(42).signExtend(DataWord(-1)) == DataWord(42))
+    assert(DataWord(42).signExtend(DataWord(0)) == DataWord(42))
+    assert(DataWord(42).signExtend(DataWord(Size)) == Zero)
+    assert(DataWord(42).signExtend(DataWord(Size + 1)) == Zero)
+    assert(DataWord(-42).signExtend(DataWord(Size)) == DataWord(-1))
+    assert(DataWord(-42).signExtend(DataWord(Size + 1)) == DataWord(-1))
+    assert(DataWord(-42).signExtend(DataWord(-11)) == DataWord(-42))
+    assert(DataWord(-1).signExtend(DataWord(1)) == DataWord(-1))
+    assert(DataWord(-1).signExtend(DataWord(1)) == DataWord(-1))
+    // assert(DataWord(0x1a81ff).signExtend(DataWord(1)) == DataWord(0xff1a81ff)) // n1 = 1737215
+  }
+
   test("intValue") {
     assert(specialNumbers.map(DataWord(_).intValue).toSeq == Seq(Int.MaxValue, 0, 1, Int.MaxValue, 1, 2))
   }
@@ -222,7 +235,7 @@ class DataWordSpec extends FunSuite with PropertyChecks {
 
   test("byteSize") {
     val table = Table[BigInt, Int](("x", "expected"), (0, 0), (1, 1), (255, 1), (256, 2), (65535, 2), (65536, 3),
-      (BigInt(2).pow(256) - 1, 32), (BigInt(2).pow(256), 0))
+                                   (BigInt(2).pow(256) - 1, 32), (BigInt(2).pow(256), 0))
     forAll(table) { (x, expected) =>
       assert(DataWord(x).byteSize === expected)
     }

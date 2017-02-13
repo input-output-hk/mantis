@@ -7,8 +7,8 @@ import language.implicitConversions
 object DataWord {
 
   /**
-    * DataWord size in bytes
-    */
+   * DataWord size in bytes
+   */
   val Size: Int = 32
 
   val Modulus: BigInt = BigInt(2).pow(Size * 8)
@@ -110,19 +110,31 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
 
   def **(that: DataWord): DataWord = DataWord(this.n.modPow(that.n, Modulus))
 
+  def signExtend(that: DataWord): DataWord = {
+    val cnt: Byte = that.n.toByte
+    if (cnt < 1) {
+      this
+    } else {
+      val mask: Int = if (this.signedN.testBit((cnt * 8) + 7)) 0xFF else 0x00
+      val leftFill: Array[Byte] = Array.fill(scala.math.min(cnt, Size))(mask.toByte)
+      val bs = ByteString(leftFill) ++ this.bytes.dropWhile(_ == 0)
+      DataWord(bs.take(Size))
+    }
+  }
+
   private def zeroCheck(dw: DataWord)(result: =>DataWord): DataWord =
     if (dw == Zero) Zero else result
 
   def compare(that: DataWord): Int = this.n.compare(that.n)
 
   /**
-    * @return an Int with MSB=0, thus a value in range [0, Int.MaxValue]
-    */
+   * @return an Int with MSB=0, thus a value in range [0, Int.MaxValue]
+   */
   def intValue: Int = n.intValue & Int.MaxValue
 
   /**
-    * @return a Long with MSB=0, thus a value in range [0, Long.MaxValue]
-    */
+   * @return a Long with MSB=0, thus a value in range [0, Long.MaxValue]
+   */
   def longValue: Long = n.longValue & Long.MaxValue
 
   def isZero: Boolean = n == 0
@@ -142,7 +154,7 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
   def toBigInt: BigInt = n
 
   /**
-    * @return Size in bytes excluding the leading 0 bytes
-    */
+   * @return Size in bytes excluding the leading 0 bytes
+   */
   def byteSize: Int = if (isZero) 0 else (n.bitLength - 1) / 8 + 1
 }
