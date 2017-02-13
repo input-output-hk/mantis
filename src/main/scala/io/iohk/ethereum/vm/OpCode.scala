@@ -193,8 +193,17 @@ case object STOP extends OpCode(0x00, 0, 0, G_zero) with ConstGas {
     state.halt
 }
 
-sealed abstract class BinaryOp(code: Int, constGas: GasFee)(val f: (DataWord, DataWord) => DataWord)
-  extends OpCode(code.toByte, 2, 1, constGas) {
+sealed abstract class UnaryOp(code: Int, constGas: GasCost)(val f: DataWord => DataWord) extends OpCode(code, 1, 1, constGas) with ConstGas {
+  protected def exec(state: ProgramState): ProgramState = {
+    val (a, stack1) = state.stack.pop
+    val res = f(a)
+    val stack2 = stack1.push(res)
+    state.withStack(stack2).step()
+  }
+}
+
+sealed abstract class BinaryOp(code: Int, constGas: GasCost)(val f: (DataWord, DataWord) => DataWord)
+    extends OpCode(code.toByte, 2, 1, constGas) {
 
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(a, b), stack1) = state.stack.pop(2)
@@ -204,10 +213,12 @@ sealed abstract class BinaryOp(code: Int, constGas: GasFee)(val f: (DataWord, Da
   }
 }
 
-sealed abstract class UnaryOp(code: Int, constGas: GasFee)(val f: DataWord => DataWord) extends OpCode(code, 1, 1, constGas) {
+sealed abstract class TernaryOp(code: Int, constGas: GasCost)(val f: (DataWord, DataWord, DataWord) => DataWord)
+    extends OpCode(code.toByte, 3, 1, constGas) {
+
   protected def exec(state: ProgramState): ProgramState = {
-    val (a, stack1) = state.stack.pop
-    val res = f(a)
+    val (Seq(a, b, c), stack1) = state.stack.pop(3)
+    val res = f(a, b, c)
     val stack2 = stack1.push(res)
     state.withStack(stack2).step()
   }
