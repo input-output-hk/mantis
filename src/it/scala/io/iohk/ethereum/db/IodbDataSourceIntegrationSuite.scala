@@ -1,122 +1,27 @@
 package io.iohk.ethereum.db
 
-import org.scalatest.FunSuite
-import org.scalatest.prop.PropertyChecks
-import io.iohk.ethereum.ObjectGenerators
 import akka.util.ByteString
-import io.iohk.ethereum.db.dataSource.{DataSource, IodbDataSource}
+import io.iohk.ethereum.db.dataSource.IodbDataSource
 import org.scalacheck.Gen
+import org.scalatest.FlatSpec
 
 import scala.util.Try
-import java.io.File
-import java.nio.file.Files
 
-//FIXME: Add IodbDataSource delete tests (currently not implemented as they failed in previous IODB implementation)
-class IodbDataSourceIntegrationSuite extends FunSuite
-  with PropertyChecks
-  with ObjectGenerators {
+class IodbDataSourceIntegrationSuite extends FlatSpec with DataSourceIntegrationTestBehavior {
 
-  val KeySizeWithoutPrefix: Int = 32
-  val KeySize: Int = KeySizeWithoutPrefix + 1 //Hash size + prefix
-  val KeyNumberLimit: Int = 40
-  val OtherNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('e'.toByte)
+  private def createDataSource(path: String) = IodbDataSource(path, KeySize)
 
-  val MaxIncreaseInLength = 10
+  it should behave like dataSource(createDataSource)
 
-  def withDir(testCode: String => Any): Unit = {
-    val path = Files.createTempDirectory("iodbIntegration").getFileName.toString
-    try {
-      testCode(path)
-    } finally {
-      val dir = new File(path)
-      assert(!dir.exists() || dir.delete(), "File deletion failed")
-    }
-  }
-
-  def updateInSeparateCalls(dataSource: DataSource, toUpsert: Seq[(ByteString, ByteString)]): DataSource = {
-    toUpsert.foldLeft(dataSource){ case (recDB, keyValuePair) =>
-      recDB.update(OtherNamespace, Seq(), Seq(keyValuePair))
-    }
-  }
-
-  test("IodbDataSource insert keys in separate updates"){
+  it should "error when insert/update with invalid length" in {
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       withDir { path =>
         val keyList = unFilteredKeyList.take(KeyNumberLimit)
-        val db = updateInSeparateCalls(
-          dataSource = IodbDataSource(path = path, keySize = KeySize, recreate = true),
-          toUpsert = keyList.zip(keyList)
-        )
-        keyList.foreach { key => assert(db.get(OtherNamespace, key).contains(key)) }
-
-        db.destroy()
-      }
-    }
-  }
-
-  test("IodbDataSource insert keys in a single update"){
-    forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-      withDir { path =>
-        val keyList = unFilteredKeyList.take(KeyNumberLimit)
-        val db = IodbDataSource(path = path, keySize = KeySize, recreate = true)
-          .update(OtherNamespace, Seq(), keyList.zip(keyList))
-
-        keyList.foreach { key => assert(db.get(OtherNamespace, key).contains(key)) }
-
-        db.destroy()
-      }
-    }
-  }
-
-  test("IodbDataSource update keys in separate updates"){
-    forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-      withDir { path =>
-        val keyList = unFilteredKeyList.take(KeyNumberLimit)
-        val db = IodbDataSource(path = path, keySize = KeySize, recreate = true)
-          .update(OtherNamespace, Seq(), keyList.zip(keyList))
-
-        val keyListWithExtraByte = keyList.map(1.toByte +: _)
-        val dbAfterUpdate = updateInSeparateCalls(db, keyList.zip(keyListWithExtraByte))
-
-        keyList.zip(keyListWithExtraByte).foreach { case (key, value) =>
-          assert(dbAfterUpdate.get(OtherNamespace, key).contains(value)) }
-
-        dbAfterUpdate.destroy()
-      }
-    }
-  }
-
-  test("IodbDataSource update keys in a single update"){
-    forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-      withDir { path =>
-        val keyList = unFilteredKeyList.take(KeyNumberLimit)
-        val db = IodbDataSource(path = path, keySize = KeySize, recreate = true)
-          .update(OtherNamespace, Seq(), keyList.zip(keyList))
-
-        val keyListWithExtraByte = keyList.map(1.toByte +: _)
-        val dbAfterUpdate = db.update(OtherNamespace, Seq(), keyList.zip(keyListWithExtraByte))
-
-        keyList.zip(keyListWithExtraByte).foreach { case (key, value) =>
-          assert(dbAfterUpdate.get(OtherNamespace, key).contains(value))
-        }
-
-        dbAfterUpdate.destroy()
-      }
-    }
-  }
-
-  test("IodbDataSource insert/update with invalid length") {
-    forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-      withDir { path =>
-        val keyList = unFilteredKeyList.take(KeyNumberLimit)
-        val (keysLeft, keysToInsert) = keyList.splitAt(Gen.choose(0, keyList.size/2).sample.get)
-        val db = IodbDataSource(path = path, keySize = KeySize, recreate = true)
-          .update(OtherNamespace, Seq(), keysToInsert.zip(keysToInsert))
-
-        val keyListWithExtraByte = keyList.map(1.toByte +: _)
+        val keysToInsert = keyList.take(keyList.size/2)
+        val db = createDataSource(path).update(OtherNamespace, Seq(), keysToInsert.zip(keysToInsert))
 
         val invalidKeyList = keyList.map{ key =>
-          val suffixOfRandomLength = (0 until Gen.choose(1, MaxIncreaseInLength).sample.get).map( i => 1.toByte )
+          val suffixOfRandomLength = (0 until Gen.choose(1, MaxIncreaseInLength).sample.get).map(_ => 1.toByte )
           suffixOfRandomLength ++ key
         }
 
@@ -127,89 +32,20 @@ class IodbDataSourceIntegrationSuite extends FunSuite
     }
   }
 
-  test("IodbDataSource get with invalid length") {
+  it should "error get with invalid length" in {
     forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
       withDir { path =>
         val keyList = unFilteredKeyList.take(KeyNumberLimit)
-        val (keysLeft, keysToInsert) = keyList.splitAt(Gen.choose(0, keyList.size / 2).sample.get)
-        val db = IodbDataSource(path = path, keySize = KeySize, recreate = true)
-          .update(OtherNamespace, Seq(), keysToInsert.zip(keysToInsert))
-
-        val keyListWithExtraByte = keyList.map(1.toByte +: _)
+        val db = createDataSource(path).update(OtherNamespace, Seq(), keyList.zip(keyList))
 
         val invalidKeyList = keyList.map { key =>
-          val suffixOfRandomLength = (0 until Gen.choose(1, MaxIncreaseInLength).sample.get).map(i => 1.toByte)
+          val suffixOfRandomLength = (0 until Gen.choose(1, MaxIncreaseInLength).sample.get).map(_ => 1.toByte)
           suffixOfRandomLength ++ key
         }
 
         invalidKeyList.foreach { key => assert( Try{db.get(OtherNamespace, key)}.isFailure) }
 
         db.destroy()
-      }
-    }
-  }
-
-  test("IodbDataSource clear"){
-    forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-      withDir { path =>
-        val keyList = unFilteredKeyList.take(KeyNumberLimit)
-        val db = IodbDataSource(path = path, keySize = KeySize, recreate = true)
-          .update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
-          .clear
-
-        keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
-
-        db.destroy()
-      }
-    }
-  }
-
-  test("IodbDataSource close and creation of new one before using it again") {
-    forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-      withDir { path =>
-        val keyList = unFilteredKeyList.take(KeyNumberLimit)
-        val db = IodbDataSource(path = path, keySize = KeySize, recreate = true)
-          .update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
-        db.close()
-
-        val dbAfterClose = IodbDataSource(path = path, keySize = KeySize, recreate = true)
-        keyList.foreach { key => assert(dbAfterClose.get(OtherNamespace, key).isEmpty) }
-
-        dbAfterClose.destroy()
-      }
-    }
-  }
-
-  test("IodbDataSource close and then continuing using it") {
-    forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-      withDir { path =>
-        val keyList = unFilteredKeyList.take(KeyNumberLimit)
-        val db = IodbDataSource(path = path, keySize = KeySize, recreate = true)
-          .update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
-        db.close()
-
-        val dbAfterClose = IodbDataSource(path = path, keySize = KeySize, recreate = false)
-        keyList.foreach { key => assert(dbAfterClose.get(OtherNamespace, key).contains(key)) }
-
-        dbAfterClose.destroy()
-      }
-    }
-  }
-
-  test("IodbDataSource destroy") {
-    withDir { path =>
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-        val keyList = unFilteredKeyList.take(KeyNumberLimit)
-        val db = IodbDataSource(path = path, keySize = KeySize, recreate = true)
-          .update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
-        db.destroy()
-  
-        assert(!new File("/tmp/iodbDestroy").exists())
-  
-        val dbAfterDestroy = IodbDataSource(path = path, keySize = KeySize, recreate = true)
-        keyList.foreach { key => assert(dbAfterDestroy.get(OtherNamespace, key).isEmpty) }
-  
-        dbAfterDestroy.destroy()
       }
     }
   }
