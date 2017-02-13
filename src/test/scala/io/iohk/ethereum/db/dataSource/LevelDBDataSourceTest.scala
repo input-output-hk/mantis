@@ -1,10 +1,9 @@
-package io.iohk.ethereum.db
+package io.iohk.ethereum.db.dataSource
 
-import io.iohk.ethereum.db.dataSource.{LevelDBDataSource, LevelDbOptions}
 import org.iq80.leveldb.Options
 import org.scalatest.FlatSpec
 
-class LevelDBDataSourceIntegrationSuite extends FlatSpec with DataSourceIntegrationTestBehavior {
+class LevelDBDataSourceTest extends FlatSpec with DataSourceTestBehavior {
 
   private def createDataSource(path: String) = LevelDBDataSource(path, new LevelDbOptions {
     // Configs available https://rawgit.com/google/leveldb/master/doc/index.html
