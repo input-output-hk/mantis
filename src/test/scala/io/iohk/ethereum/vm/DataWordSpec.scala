@@ -175,7 +175,7 @@ class DataWordSpec extends FunSuite with PropertyChecks {
       assert(DataWord(x).byteSize === expected)
     }
 
-    forAll(getDataWordGen()) { x =>
+    forAll(getDataWordGen(min = DataWord(1))) { x =>
       import math._
       val byteSize = 1 + floor(log(x.doubleValue) / log(256)).toInt
       assert(x.byteSize === byteSize)
