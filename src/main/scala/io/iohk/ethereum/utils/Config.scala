@@ -56,6 +56,8 @@ object Config {
     val daoForkBlockNumber = BigInt(blockchainConfig.getString("dao-fork-block-number"))
     val daoForkBlockTotalDifficulty = BigInt(blockchainConfig.getString("dao-fork-block-total-difficulty"))
     val daoForkBlockHash = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
+
+    val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
   }
 
 }

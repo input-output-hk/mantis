@@ -28,10 +28,20 @@ class TransactionSpec extends FlatSpec with Matchers {
     signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),
     signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0")))
 
+  val newInvalidStx = SignedTransaction(
+    validTx,
+    pointSign = -98,
+    signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),
+    signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0")))
+
   val invalidStx: SignedTransaction = validStx.copy(tx = validTx.copy(gasPrice = 0))
 
   "Transaction" should "recover sender public key" in {
     validStx.recoveredPublicKey.map(crypto.curve.getCurve.decodePoint) shouldBe Some(publicKey)
+  }
+
+  it should "recover sender public key for new sign encoding schema" in {
+    newInvalidStx.recoveredPublicKey.map(crypto.curve.getCurve.decodePoint) shouldNot be(Some(publicKey))
   }
 
   it should "recover sender address" in {
