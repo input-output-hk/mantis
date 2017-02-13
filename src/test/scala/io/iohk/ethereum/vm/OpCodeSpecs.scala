@@ -7,8 +7,9 @@ import org.scalatest.prop.PropertyChecks
 
 class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
 
-  val binaryOps = OpCode.opcodes.collect { case op: BinaryOp => op }
   val unaryOps = OpCode.opcodes.collect { case op: UnaryOp => op }
+  val binaryOps = OpCode.opcodes.collect { case op: BinaryOp => op }
+  val ternaryOps = OpCode.opcodes.collect { case op: TernaryOp => op }
   val pushOps = OpCode.opcodes.collect { case op: PushOp => op }
   val dupOps = OpCode.opcodes.collect { case op: DupOp => op }
   val swapOps = OpCode.opcodes.collect { case op: SwapOp => op }
@@ -45,6 +46,21 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     }
   }
 
+  test(unaryOps: _*) { op =>
+    forAll(getProgramStateGen()) { stateIn =>
+      val stateOut = op.execute(stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val (a, _) = stateIn.stack.pop
+        val (result, _) = stateOut.stack.pop
+        result shouldEqual op.f(a)
+
+        val expectedState = stateIn.withStack(stateOut.stack).step()
+        stateOut shouldEqual expectedState
+      }
+    }
+  }
+
   test(binaryOps: _*) { binaryOp =>
     forAll(getProgramStateGen()) { stateIn =>
       val stateOut = binaryOp.execute(stateIn)
@@ -60,14 +76,14 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     }
   }
 
-  test(unaryOps: _*) { op =>
+  test(ternaryOps: _*) { ternaryOp =>
     forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = ternaryOp.execute(stateIn)
 
-      withStackVerification(op, stateIn, stateOut) {
-        val (a, _) = stateIn.stack.pop
+      withStackVerification(ternaryOp, stateIn, stateOut) {
+        val (Seq(a, b, c), _) = stateIn.stack.pop(3)
         val (result, _) = stateOut.stack.pop
-        result shouldEqual op.f(a)
+        result shouldEqual ternaryOp.f(a, b, c)
 
         val expectedState = stateIn.withStack(stateOut.stack).step()
         stateOut shouldEqual expectedState
