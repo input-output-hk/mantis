@@ -20,7 +20,7 @@ object OpCode {
     ADDMOD,
     MULMOD,
     EXP,
-    //SIGNEXTEND,
+    SIGNEXTEND,
 
     LT,
     //GT,
@@ -248,6 +248,8 @@ case object EXP extends BinaryOp(0x0a, G_exp)(_ ** _) {
     G_expbyte.value * wordsForBytes(m)
   }
 }
+
+case object SIGNEXTEND extends BinaryOp(0x0b, G_low)((a, b) => b signExtend a) with ConstGas
 
 case object LT extends BinaryOp(0x10, G_verylow)((a, b) => DataWord(a < b)) with ConstGas
 
