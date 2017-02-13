@@ -2,11 +2,11 @@ package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
+import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-import io.iohk.ethereum.rlp.{encode => rlpEncode, decode => rlpDecode}
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
 
 class NodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerators {
   test("NodeStorage insert") {

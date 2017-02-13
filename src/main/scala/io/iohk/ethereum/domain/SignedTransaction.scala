@@ -14,7 +14,10 @@ object SignedTransaction {
 
   val FirstByteOfAddress = 12
   val AddressLength = 20
-  val LastByteOfAddress = FirstByteOfAddress + AddressLength
+  val LastByteOfAddress: Int = FirstByteOfAddress + AddressLength
+  val negativePointSign = 27
+  val positivePointSign = 28
+  val allowedSignValues: Set[Int] = Set(negativePointSign, positivePointSign)
 
 }
 
@@ -40,12 +43,17 @@ case class SignedTransaction(
   lazy val recoveredAddress: Option[Array[Byte]] =
     recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
 
-  lazy val recoveredPublicKey: Option[Array[Byte]] =
+  //todo implement EC-72
+  lazy val recoveredPublicKey: Option[Array[Byte]] = if (allowedSignValues.contains(pointSign)) {
     ECDSASignature.recoverPubBytes(
       new BigInteger(1, signatureRandom.toArray[Byte]),
       new BigInteger(1, signature.toArray[Byte]),
       ECDSASignature.recIdFromSignatureV(pointSign),
-      bytesToSign)
+      bytesToSign
+    )
+  } else {
+    None
+  }
 
   lazy val syntacticValidity: Boolean = {
 

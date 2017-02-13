@@ -6,7 +6,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.agent.Agent
 import akka.io.Tcp.{Bind, Bound, CommandFailed, Connected}
 import akka.io.{IO, Tcp}
-import io.iohk.ethereum.utils.{ServerStatus, NodeStatus}
+import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 
 class ServerActor(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) extends Actor with ActorLogging {
