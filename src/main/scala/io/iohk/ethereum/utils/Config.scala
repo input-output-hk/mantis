@@ -58,11 +58,16 @@ object Config {
     val daoForkBlockHash = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
   }
 
-  object FastSync{
+  object FastSync {
     private val fastSyncConfig = config.getConfig("fast-sync")
 
     val BlocksPerMessage: Int = fastSyncConfig.getInt("blocks-per-message")
     val NodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
     val NodeRequestsInterval: FiniteDuration = fastSyncConfig.getDuration("node-requests-interval").toMillis.millis
+
+    val maxConcurrentRequests: Int = 50
+    val blacklistDuration: FiniteDuration = 30.seconds
+    val startRetryInterval: FiniteDuration = 30.seconds
+    val downloadRetryInterval: FiniteDuration = 30.seconds
   }
 }

@@ -4,13 +4,17 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.sha3
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaders
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockBodies, BlockHeaders}
 import io.iohk.ethereum.rlp
 
 object ForkValidator {
 
   def hash(header: BlockHeader): ByteString = {
     ByteString(sha3(rlp.encode[BlockHeader](header)))
+  }
+
+  def hash(body: BlockBody): ByteString = {
+    ByteString(sha3(rlp.encode[BlockBody](body)))
   }
 
 }

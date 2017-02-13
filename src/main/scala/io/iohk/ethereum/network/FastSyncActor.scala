@@ -12,6 +12,7 @@ import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.utils.Config.FastSync
 import org.spongycastle.util.encoders.Hex
 
+
 class FastSyncActor(
   peerActor: ActorRef,
   blockHeadersStorage: BlockHeadersStorage,
@@ -22,7 +23,6 @@ class FastSyncActor(
 
   import context.{dispatcher, system}
 
-  val GenesisBlockNumber = 0
   val EmptyAccountStorageHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
   val EmptyAccountEvmCodeHash = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 
@@ -167,6 +167,7 @@ class FastSyncActor(
       case (requested, queue) if requested.isEmpty && queue.isEmpty =>
         self ! SyncDone
       case (requested, queue) if requested.isEmpty =>
+        // to avoid explosion first download elements that do not expand
         val (nonMptHashes, mptHashes) = queue.partition {
           case EvmCodeHash(_) => true
           case StorageRootHash(_) => true
@@ -265,23 +266,23 @@ object FastSyncActor {
 
   private case object PartialDownloadDone
 
-  private trait HashType {
+  trait HashType {
     val v: ByteString
   }
 
-  private case class StateMptNodeHash(v: ByteString) extends HashType {
+  case class StateMptNodeHash(v: ByteString) extends HashType {
     override def toString: String = s"StateMptNodeHash(${Hex.toHexString(v.toArray[Byte])})"
   }
 
-  private case class ContractStorageMptNodeHash(v: ByteString) extends HashType {
+  case class ContractStorageMptNodeHash(v: ByteString) extends HashType {
     override def toString: String = s"ContractStorageMptNodeHash(${Hex.toHexString(v.toArray[Byte])})"
   }
 
-  private case class EvmCodeHash(v: ByteString) extends HashType {
+  case class EvmCodeHash(v: ByteString) extends HashType {
     override def toString: String = s"EvmCodeHash(${Hex.toHexString(v.toArray[Byte])})"
   }
 
-  private case class StorageRootHash(v: ByteString) extends HashType {
+  case class StorageRootHash(v: ByteString) extends HashType {
     override def toString: String = s"StorageRootHash(${Hex.toHexString(v.toArray[Byte])})"
   }
 
@@ -290,6 +291,9 @@ object FastSyncActor {
   private case object FetchNodes
 
   private case object SyncDone
+
+  val GenesisBlockNumber = 0
+
 
   private case class ProcessingState(
     targetBlockHash: ByteString,

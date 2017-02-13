@@ -261,7 +261,7 @@ class PeerActor(
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
         handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
-        log.info("Received message: {}", message)
+        //log.info("Received message: {}", message)
         notifySubscribers(message)
         processMessage(message)
 
@@ -270,19 +270,6 @@ class PeerActor(
 
       case GetStatus =>
         sender() ! StatusResponse(Handshaked)
-
-      case StartFastSync(targetHash) =>
-        //todo get storage form somewhere?
-        val storage = FastSyncActor.Storage(
-          new BlockHeadersStorage(EphemDataSource()),
-          new BlockBodiesStorage(EphemDataSource()),
-          new ReceiptStorage(EphemDataSource()),
-          new MptNodeStorage(EphemDataSource()),
-          new EvmCodeStorage(EphemDataSource())
-        )
-        val fastSyncActor = context.actorOf(FastSyncActor.props(self, storage), UUID.randomUUID().toString)
-        context watch fastSyncActor
-        fastSyncActor ! FastSyncActor.StartSync(targetHash)
     }
 
     def notifySubscribers(message: Message): Unit = {
@@ -333,8 +320,6 @@ object PeerActor {
   case class ConnectTo(uri: URI)
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
-
-  case class StartFastSync(targetBlockHash: ByteString)
 
   private case object DaoHeaderReceiveTimeout
 
