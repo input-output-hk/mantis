@@ -8,7 +8,7 @@ import org.iq80.leveldb.impl.{Iq80DBFactory, WriteBatchImpl}
 
 
 class LevelDBDataSource(
-                         private val db: DB,
+                         private var db: DB,
                          private val path: String,
                          private val levelDbConfig: LevelDbConfig
                        )
@@ -47,7 +47,8 @@ class LevelDBDataSource(
     */
   override def clear: DataSource = {
     destroy()
-    LevelDBDataSource(path, levelDbConfig)
+    this.db = LevelDBDataSource.createDB(path, levelDbConfig)
+    this
   }
 
   /**
@@ -75,14 +76,19 @@ trait LevelDbConfig {
 }
 
 object LevelDBDataSource {
-  def apply(path: String, levelDbConfig: LevelDbConfig): LevelDBDataSource = {
+
+  private def createDB(path: String, levelDbConfig: LevelDbConfig): DB = {
     import levelDbConfig._
+
     val options = new Options()
       .createIfMissing(createIfMissing)
       .paranoidChecks(paranoidChecks) // raise an error as soon as it detects an internal corruption
       .verifyChecksums(verifyChecksums) // force checksum verification of all data that is read from the file system on behalf of a particular read
       .cacheSize(cacheSize)
+    Iq80DBFactory.factory.open(new File(path), options)
+  }
 
-    new LevelDBDataSource(Iq80DBFactory.factory.open(new File(path), options), path, levelDbConfig)
+  def apply(path: String, levelDbConfig: LevelDbConfig): LevelDBDataSource = {
+    new LevelDBDataSource(createDB(path, levelDbConfig), path, levelDbConfig)
   }
 }

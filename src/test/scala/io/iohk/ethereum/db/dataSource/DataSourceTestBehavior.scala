@@ -27,6 +27,7 @@ trait DataSourceTestBehavior
     }
   }
 
+  // scalastyle:off
   def dataSource(createDataSource: => String => DataSource): Unit = {
     it should "be able to insert and retrieve stored keys" in {
       val someByteString = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
@@ -42,5 +43,45 @@ trait DataSourceTestBehavior
         dataSource.destroy()
       }
     }
+
+    it should "allow to remove keys" in {
+      val key1 = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
+      val key2 = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
+      withDir { path =>
+        val dataSource = createDataSource(path)
+
+        dataSource.update(OtherNamespace, Seq(), Seq(key1 -> key1, key2 -> key2))
+
+        assert(dataSource.get(OtherNamespace, key1).isDefined)
+        assert(dataSource.get(OtherNamespace, key2).isDefined)
+
+        dataSource.update(OtherNamespace, Seq(key1), Seq())
+
+        assert(dataSource.get(OtherNamespace, key1).isEmpty)
+        assert(dataSource.get(OtherNamespace, key2).isDefined)
+
+        dataSource.destroy()
+      }
+    }
+
+    it should "remove all keys after clear" in {
+      val someByteString = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
+      withDir { path =>
+        val dataSource = createDataSource(path)
+
+        dataSource.update(OtherNamespace, Seq(), Seq(someByteString -> someByteString))
+
+        assert(dataSource.get(OtherNamespace, someByteString).isDefined)
+
+        val newDataSource = dataSource.clear
+
+        assert(newDataSource.get(OtherNamespace, someByteString).isEmpty)
+
+        dataSource.destroy()
+      }
+    }
   }
+  // scalastyle:on
+
+
 }
