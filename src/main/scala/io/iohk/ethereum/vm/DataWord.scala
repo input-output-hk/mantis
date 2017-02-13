@@ -100,6 +100,10 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
     DataWord(this.signedN.signum * (this.signedN.abs mod that.signedN.abs))
   }
 
+  def addmod(that: DataWord, modulus: DataWord): DataWord = zeroCheck(modulus) {
+    DataWord((this.n + that.n) mod modulus.n)
+  }
+
   def **(that: DataWord): DataWord = DataWord(this.n.modPow(that.n, Modulus))
 
   private def zeroCheck(dw: DataWord)(result: =>DataWord): DataWord =
