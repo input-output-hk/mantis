@@ -96,10 +96,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("ADDMOD") {
-    // to be implemented
-  }
-
   ignore("MULMOD") {
     // to be implemented
   }
