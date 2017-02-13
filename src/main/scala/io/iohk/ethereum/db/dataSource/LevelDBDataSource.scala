@@ -2,11 +2,17 @@ package io.iohk.ethereum.db.dataSource
 
 import java.io.File
 
+import io.iohk.ethereum.utils.Config
 import org.iq80.leveldb.{DB, Options, WriteOptions}
 import org.iq80.leveldb.impl.{Iq80DBFactory, WriteBatchImpl}
 
 
-class LevelDBDataSource(private val db: DB, private val path: String) extends DataSource {
+class LevelDBDataSource(
+                         private val db: DB,
+                         private val path: String,
+                         private val options: LevelDbOptions
+                       )
+  extends DataSource {
 
   /**
     * This function obtains the associated value to a key, if there exists one.
@@ -41,7 +47,7 @@ class LevelDBDataSource(private val db: DB, private val path: String) extends Da
     */
   override def clear: DataSource = {
     destroy()
-    LevelDBDataSource(path)
+    LevelDBDataSource(path, options)
   }
 
   /**
@@ -61,16 +67,12 @@ class LevelDBDataSource(private val db: DB, private val path: String) extends Da
   }
 }
 
+trait LevelDbOptions {
+  // Configs available https://rawgit.com/google/leveldb/master/doc/index.html
+  def buildOptions(): Options
+}
 
 object LevelDBDataSource {
-
-  def apply(path: String): LevelDBDataSource = {
-    // Configs available https://rawgit.com/google/leveldb/master/doc/index.html
-    val options = new Options()
-      .createIfMissing(true)
-      .paranoidChecks(true) // raise an error as soon as it detects an internal corruption
-      .verifyChecksums(true) // force checksum verification of all data that is read from the file system on behalf of a particular read
-      .cacheSize(0) // do not cache
-    new LevelDBDataSource(Iq80DBFactory.factory.open(new File(path), options), path)
-  }
+  def apply(path: String, options: LevelDbOptions): LevelDBDataSource =
+    new LevelDBDataSource(Iq80DBFactory.factory.open(new File(path), options.buildOptions()), path, options)
 }

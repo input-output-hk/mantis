@@ -58,4 +58,16 @@ object Config {
     val daoForkBlockHash = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
   }
 
+  object Db {
+
+    private val dbConfig = config.getConfig("db")
+
+    object LevelDb {
+      val createIfMissing = dbConfig.getBoolean("create-if-missing")
+      val paranoidChecks = dbConfig.getBoolean("paranoid-checks")
+      val verifyChecksums = dbConfig.getBoolean("verify-checksums")
+      val cacheSize = dbConfig.getInt("cache-size")
+    }
+  }
+
 }
