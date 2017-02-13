@@ -1,6 +1,6 @@
 package io.iohk.ethereum.db.dataSource
 
-case class EphemDataSource(storage: Map[IndexedSeq[Byte], IndexedSeq[Byte]]) extends DataSource {
+case class EphemDataSource(var storage: Map[IndexedSeq[Byte], IndexedSeq[Byte]]) extends DataSource {
 
   override def get(namespace: Namespace, key: Key): Option[Value] = storage.get(namespace ++: key)
 
@@ -8,7 +8,8 @@ case class EphemDataSource(storage: Map[IndexedSeq[Byte], IndexedSeq[Byte]]) ext
     val afterRemoval = toRemove.foldLeft(storage)((storage, key) => storage - (namespace ++ key))
     val afterUpdate = toUpsert.foldLeft(afterRemoval)((storage, toUpdate) =>
       storage + ((namespace ++ toUpdate._1) -> toUpdate._2))
-    EphemDataSource(afterUpdate)
+    storage = afterUpdate
+    this
   }
 
   override def clear: DataSource = EphemDataSource(Map())

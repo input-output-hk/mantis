@@ -35,17 +35,17 @@ object PV62 {
       override def encode(obj: GetBlockHeaders): RLPEncodeable = {
         import obj._
         block match {
-          case Left(blockNumber) => RLPList(blockNumber, maxHeaders, skip, reverse)
-          case Right(blockHash) => RLPList(blockHash.toArray[Byte], maxHeaders, skip, reverse)
+          case Left(blockNumber) => RLPList(blockNumber, maxHeaders, skip, if (reverse) 1 else 0)
+          case Right(blockHash) => RLPList(blockHash.toArray[Byte], maxHeaders, skip, if (reverse) 1 else 0)
         }
       }
 
       override def decode(rlp: RLPEncodeable): GetBlockHeaders = rlp match {
         case RLPList((block: RLPValue), maxHeaders, skip, reverse) if block.bytes.length < 32 =>
-          GetBlockHeaders(Left(block), maxHeaders, skip, reverse)
+          GetBlockHeaders(Left(block), maxHeaders, skip, (reverse: Int) == 1)
 
         case RLPList((block: RLPValue), maxHeaders, skip, reverse) =>
-          GetBlockHeaders(Right(ByteString(block: Array[Byte])), maxHeaders, skip, reverse)
+          GetBlockHeaders(Right(ByteString(block: Array[Byte])), maxHeaders, skip, (reverse: Int) == 1)
 
         case _ => throw new RuntimeException("Cannot decode GetBlockHeaders")
       }
@@ -127,7 +127,7 @@ object PV62 {
     }
   }
 
-  case class GetBlockHeaders(block: Either[BigInt, ByteString], maxHeaders: BigInt, skip: BigInt, reverse: Int) extends Message {
+  case class GetBlockHeaders(block: Either[BigInt, ByteString], maxHeaders: BigInt, skip: BigInt, reverse: Boolean) extends Message {
     override def code: Int = GetBlockHeaders.code
 
     override def toString: String = {
@@ -135,7 +135,7 @@ object PV62 {
          |block: ${block.fold(a => a, b => Hex.toHexString(b.toArray[Byte]))}
          |maxHeaders: $maxHeaders
          |skip: $skip
-         |reverse: ${reverse == 1}
+         |reverse: $reverse
          |}
      """.stripMargin
     }
