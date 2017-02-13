@@ -91,10 +91,6 @@ class OpCodeSpecs extends FunSuite with Matchers with PropertyChecks {
     }
   }
 
-  ignore("ADDMOD") {
-    // to be implemented
-  }
-
   ignore("MULMOD") {
     // to be implemented
   }
