@@ -1,11 +1,10 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.vm.DataWord._
 import io.iohk.ethereum.vm.Generators._
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-
+import io.iohk.ethereum.vm.DataWord._
 
 class DataWordSpec extends FunSuite with PropertyChecks {
 
