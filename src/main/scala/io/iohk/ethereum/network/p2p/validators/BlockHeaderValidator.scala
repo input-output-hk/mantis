@@ -24,7 +24,6 @@ object BlockHeaderValidator {
     * @param blockHeader BlockHeader to validate.
     * @param parentHeader BlockHeader of the parent of the block to validate.
     */
-  //FIXME: Geth validates the extra data for the [DAOForkBlock, DAOForkBlock + 10) blocks, should we also do so?
   def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
     for {
       _ <- validateExtraData(blockHeader)
