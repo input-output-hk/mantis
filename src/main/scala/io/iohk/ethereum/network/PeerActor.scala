@@ -271,15 +271,7 @@ class PeerActor(
       case GetStatus =>
         sender() ! StatusResponse(Handshaked)
 
-      case StartFastSync(targetHash) =>
-        //todo get storage form somewhere?
-        val storage = FastSyncActor.Storage(
-          new BlockHeadersStorage(EphemDataSource()),
-          new BlockBodiesStorage(EphemDataSource()),
-          new ReceiptStorage(EphemDataSource()),
-          new MptNodeStorage(EphemDataSource()),
-          new EvmCodeStorage(EphemDataSource())
-        )
+      case StartFastSync(targetHash, storage) =>
         val fastSyncActor = context.actorOf(FastSyncActor.props(self, storage), UUID.randomUUID().toString)
         fastSyncActor ! FastSyncActor.StartSync(targetHash)
     }
@@ -333,7 +325,7 @@ object PeerActor {
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
 
-  case class StartFastSync(targetBlockHash: ByteString)
+  case class StartFastSync(targetBlockHash: ByteString, storage: FastSyncActor.Storage)
 
   private case object DaoHeaderReceiveTimeout
 

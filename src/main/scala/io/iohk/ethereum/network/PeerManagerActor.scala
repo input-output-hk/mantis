@@ -55,10 +55,10 @@ class PeerManagerActor(
         log.info("Trying to connect to {} bootstrap nodes", nodesToConnect.size)
         nodesToConnect.foreach(self ! ConnectToPeer(_))
       }
-    case StartFastDownload(uri, targetHash) =>
+    case StartFastDownload(uri, targetHash, storage) =>
       peers.find { case (_, Peer(remoteAddress, _)) => remoteAddress.getHostString == uri.getHost && remoteAddress.getPort == uri.getPort }
         .map(_._2)
-        .foreach { p => p.ref ! PeerActor.StartFastSync(targetHash) }
+        .foreach { p => p.ref ! PeerActor.StartFastSync(targetHash, storage) }
   }
 
   def createPeer(addr: InetSocketAddress): Peer = {
@@ -84,7 +84,7 @@ object PeerManagerActor {
 
   case class ConnectToPeer(uri: URI)
 
-  case class StartFastDownload(uri: URI, targetBlockHash: ByteString)
+  case class StartFastDownload(uri: URI, targetBlockHash: ByteString, storage: FastSyncActor.Storage)
 
   case class Peer(remoteAddress: InetSocketAddress, ref: ActorRef) {
     def id: String = ref.path.name
