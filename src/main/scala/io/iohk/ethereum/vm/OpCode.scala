@@ -18,7 +18,7 @@ object OpCode {
     MOD,
     SMOD,
     ADDMOD,
-    //MULMOD,
+    MULMOD,
     EXP,
     //SIGNEXTEND,
 
@@ -239,6 +239,8 @@ case object MOD extends BinaryOp(0x06, G_low)(_ mod _) with ConstGas
 case object SMOD extends BinaryOp(0x06, G_low)(_ smod _) with ConstGas
 
 case object ADDMOD extends TernaryOp(0x07, G_mid)(_.addmod(_, _)) with ConstGas
+
+case object MULMOD extends TernaryOp(0x08, G_mid)(_.mulmod(_, _)) with ConstGas
 
 case object EXP extends BinaryOp(0x0a, G_exp)(_ ** _) {
   protected def varGas(state: ProgramState): BigInt = {
