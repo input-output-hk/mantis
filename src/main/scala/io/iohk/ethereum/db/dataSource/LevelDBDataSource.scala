@@ -10,7 +10,7 @@ import org.iq80.leveldb.impl.{Iq80DBFactory, WriteBatchImpl}
 class LevelDBDataSource(
                          private val db: DB,
                          private val path: String,
-                         private val options: LevelDbOptions
+                         private val levelDbConfig: LevelDbConfig
                        )
   extends DataSource {
 
@@ -47,7 +47,7 @@ class LevelDBDataSource(
     */
   override def clear: DataSource = {
     destroy()
-    LevelDBDataSource(path, options)
+    LevelDBDataSource(path, levelDbConfig)
   }
 
   /**
@@ -67,12 +67,22 @@ class LevelDBDataSource(
   }
 }
 
-trait LevelDbOptions {
-  // Configs available https://rawgit.com/google/leveldb/master/doc/index.html
-  def buildOptions(): Options
+trait LevelDbConfig {
+  val createIfMissing: Boolean
+  val paranoidChecks: Boolean
+  val verifyChecksums: Boolean
+  val cacheSize: Int
 }
 
 object LevelDBDataSource {
-  def apply(path: String, options: LevelDbOptions): LevelDBDataSource =
-    new LevelDBDataSource(Iq80DBFactory.factory.open(new File(path), options.buildOptions()), path, options)
+  def apply(path: String, levelDbConfig: LevelDbConfig): LevelDBDataSource = {
+    import levelDbConfig._
+    val options = new Options()
+      .createIfMissing(createIfMissing)
+      .paranoidChecks(paranoidChecks) // raise an error as soon as it detects an internal corruption
+      .verifyChecksums(verifyChecksums) // force checksum verification of all data that is read from the file system on behalf of a particular read
+      .cacheSize(cacheSize)
+
+    new LevelDBDataSource(Iq80DBFactory.factory.open(new File(path), options), path, levelDbConfig)
+  }
 }
