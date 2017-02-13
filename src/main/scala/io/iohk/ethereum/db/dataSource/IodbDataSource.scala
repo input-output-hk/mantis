@@ -30,7 +30,7 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
 
   override def clear: DataSource = {
     destroy()
-    IodbDataSource(path, keySize, recreate = true)
+    IodbDataSource(path, keySize)
   }
 
   override def close(): Unit = lSMStore.close()
@@ -63,15 +63,11 @@ object IodbDataSource {
     * @param path of the folder where the DataSource files will be stored.
     * @param keySize of the keys to be stored in the DataSource.
     *                This length includes the length of the namespace and the length of the keys inside this namespace
-    * @param recreate boolean that, if set to true, this function will return a DataSource with no data in it.
-    *                 If set to false the returned DataSource will continue to use previously built DataSource files.
     * @return an IodbDataSource.
     */
-  def apply(path: String, keySize: Int, recreate: Boolean): IodbDataSource = {
+  def apply(path: String, keySize: Int): IodbDataSource = {
     val dir: File = new File(path)
-    val dirSetupSuccess =
-      if(recreate) (!dir.exists() || deleteDirectory(dir)) && dir.mkdirs()
-      else dir.exists() && dir.isDirectory
+    val dirSetupSuccess = (dir.exists() && dir.isDirectory) || dir.mkdirs()
     assert(dirSetupSuccess, "Iodb folder creation failed")
 
     val lSMStore: LSMStore = new LSMStore(dir = dir, keySize = keySize, keepSingleVersion = true)
