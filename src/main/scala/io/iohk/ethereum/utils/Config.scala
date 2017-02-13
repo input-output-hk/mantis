@@ -66,7 +66,7 @@ object Config {
     val NodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
     val NodeRequestsInterval: FiniteDuration = fastSyncConfig.getDuration("node-requests-interval").toMillis.millis
   }
-  
+
   object Db {
 
     private val dbConfig = config.getConfig("db")
