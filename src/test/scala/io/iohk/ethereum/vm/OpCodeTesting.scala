@@ -7,7 +7,7 @@ trait OpCodeTesting extends FunSuiteLike {
 
   val unaryOps = OpCode.opcodes.collect { case op: UnaryOp => op }
   val binaryOps = OpCode.opcodes.collect { case op: BinaryOp => op }
-  val ternaryOps = OpCode.opcodes.collect { case op: TernaryOp => op }
+     val ternaryOps = OpCode.opcodes.collect { case op: TernaryOp => op }
   val pushOps = OpCode.opcodes.collect { case op: PushOp => op }
   val dupOps = OpCode.opcodes.collect { case op: DupOp => op }
   val swapOps = OpCode.opcodes.collect { case op: SwapOp => op }
