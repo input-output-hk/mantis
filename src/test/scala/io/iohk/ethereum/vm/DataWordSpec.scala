@@ -235,15 +235,15 @@ class DataWordSpec extends FunSuite with PropertyChecks {
 
   test("byteSize") {
     val table = Table[BigInt, Int](("x", "expected"), (0, 0), (1, 1), (255, 1), (256, 2), (65535, 2), (65536, 3),
-                                   (BigInt(2).pow(256) - 1, 32), (BigInt(2).pow(256), 0))
+      (BigInt(2).pow(256) - 1, 32), (BigInt(2).pow(256), 0))
     forAll(table) { (x, expected) =>
       assert(DataWord(x).byteSize === expected)
     }
 
-    forAll(getDataWordGen()) { x =>
+    forAll(getDataWordGen(min = DataWord(1))) { x =>
       import math._
       val byteSize = 1 + floor(log(x.doubleValue) / log(256)).toInt
-      //assert(x.byteSize === byteSize)
+      assert(x.byteSize === byteSize)
     }
   }
 }

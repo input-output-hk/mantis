@@ -10,8 +10,9 @@ object GasFee {
 
   /**
     * Calculate gas cost of memory usage. Incur a blocking gas cost if memory usage exceeds reasonable limits.
-    * @param memSize current memory size in bytes
-    * @param addr memory address to be written/read
+    *
+    * @param memSize  current memory size in bytes
+    * @param addr     memory address to be written/read
     * @param dataSize size of data to be written/read in bytes
     * @return gas cost
     */
@@ -29,53 +30,50 @@ object GasFee {
   /** See YP H.1 (222) */
   private def c(m: BigInt): BigInt = {
     val a = wordsForBytes(m)
-    G_memory.value * a + a * a / 512
+    G_memory * a + a * a / 512
   }
 
   /**
     * Number of 32-byte DataWords required to hold n bytes (~= math.ceil(n / 32))
     */
   def wordsForBytes(n: BigInt): BigInt =
-    if (n == 0) 0 else (n - 1) / DataWord.Size + 1
+   if (n == 0) 0 else (n - 1) / DataWord.Size + 1
+
+
+  // See YP, appendix G
+  val G_zero           = BigInt(0)
+  val G_base           = BigInt(2)
+  val G_verylow        = BigInt(3)
+  val G_low            = BigInt(5)
+  val G_mid            = BigInt(8)
+  val G_high           = BigInt(10)
+  val G_extcode        = BigInt(700)
+  val G_balance        = BigInt(400)
+  val G_sload          = BigInt(200)
+  val G_jumpdest       = BigInt(1)
+  val G_sset           = BigInt(20000)
+  val G_sreset         = BigInt(5000)
+  val R_sclear         = BigInt(15000)
+  val R_suicide        = BigInt(24000)
+  val G_suicide        = BigInt(5000)
+  val G_create         = BigInt(32000)
+  val G_codedeposit    = BigInt(200)
+  val G_call           = BigInt(700)
+  val G_callvalue      = BigInt(9000)
+  val G_callstipend    = BigInt(2300)
+  val G_newaccount     = BigInt(25000)
+  val G_exp            = BigInt(10)
+  val G_expbyte        = BigInt(10)
+  val G_memory         = BigInt(3)
+  val G_txcreate       = BigInt(32000)
+  val G_txdatazero     = BigInt(4)
+  val G_txdatanonzero  = BigInt(68)
+  val G_transaction    = BigInt(21000)
+  val G_log            = BigInt(375)
+  val G_logdata        = BigInt(8)
+  val G_logtopic       = BigInt(375)
+  val G_sha3           = BigInt(30)
+  val G_sha3word       = BigInt(6)
+  val G_copy           = BigInt(3)
+  val G_blockhash      = BigInt(20)
 }
-
-/**
-  * See YP, appendix G
-  */
-sealed abstract class GasFee(val value: BigInt)
-
-case object G_zero          extends GasFee(0)
-case object G_base          extends GasFee(2)
-case object G_verylow       extends GasFee(3)
-case object G_low           extends GasFee(5)
-case object G_mid           extends GasFee(8)
-case object G_high          extends GasFee(10)
-case object G_extcode       extends GasFee(700)
-case object G_balance       extends GasFee(400)
-case object G_sload         extends GasFee(200)
-case object G_jumpdest      extends GasFee(1)
-case object G_sset          extends GasFee(20000)
-case object G_sreset        extends GasFee(5000)
-case object R_sclear        extends GasFee(15000)
-case object R_suicide       extends GasFee(24000)
-case object G_suicide       extends GasFee(5000)
-case object G_create        extends GasFee(32000)
-case object G_codedeposit   extends GasFee(200)
-case object G_call          extends GasFee(700)
-case object G_callvalue     extends GasFee(9000)
-case object G_callstipend   extends GasFee(2300)
-case object G_newaccount    extends GasFee(25000)
-case object G_exp           extends GasFee(10)
-case object G_expbyte       extends GasFee(10)
-case object G_memory        extends GasFee(3)
-case object G_txcreate      extends GasFee(32000)
-case object G_txdatazero    extends GasFee(4)
-case object G_txdatanonzero extends GasFee(68)
-case object G_transaction   extends GasFee(21000)
-case object G_log           extends GasFee(375)
-case object G_logdata       extends GasFee(8)
-case object G_logtopic      extends GasFee(375)
-case object G_sha3          extends GasFee(30)
-case object G_sha3word      extends GasFee(6)
-case object G_copy          extends GasFee(3)
-case object G_blockhash     extends GasFee(20)

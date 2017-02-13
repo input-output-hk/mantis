@@ -5,8 +5,7 @@ import io.iohk.ethereum.ObjectGenerators
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-
-import scala.util.Random
+import scala.util.Try
 
 class EphemDataSourceSuite extends FunSuite
   with PropertyChecks
@@ -40,9 +39,8 @@ class EphemDataSourceSuite extends FunSuite
   }
 
   test("EphemDataSource delete"){
-    forAll(seqByteStringOfNItemsGen(KeySize)) { unFilteredKeyList: Seq[ByteString] =>
-      val keyList = unFilteredKeyList.filter(_.length == KeySize)
-      val (keysToDelete, keyValueLeft) = Random.shuffle(keyList).splitAt(Gen.choose(0, keyList.size).sample.get)
+    forAll(seqByteStringOfNItemsGen(KeySize)) { keyList: Seq[ByteString] =>
+      val (keysToDelete, keyValueLeft) = keyList.splitAt(Gen.choose(0, keyList.size).sample.get)
 
       val dbAfterInsert = putMultiple(dataSource = EphemDataSource(), toInsert = keyList.zip(keyList))
       val db = removeMultiple(dataSource = dbAfterInsert, toDelete = keysToDelete)
@@ -52,6 +50,16 @@ class EphemDataSourceSuite extends FunSuite
         assert(obtained.get sameElements key)
       }
       keysToDelete.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
+    }
+  }
+
+  test("EphemDataSource clear") {
+    forAll(seqByteStringOfNItemsGen(KeySize)) { keyList: Seq[ByteString] =>
+      val db = EphemDataSource()
+        .update(OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
+        .clear
+
+      keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
     }
   }
 }

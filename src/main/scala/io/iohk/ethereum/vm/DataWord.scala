@@ -154,7 +154,7 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
   def toBigInt: BigInt = n
 
   /**
-   * @return Size in bytes excluding the leading 0 bytes
-   */
+    * @return Size in bytes excluding the leading 0 bytes
+    */
   def byteSize: Int = if (isZero) 0 else (n.bitLength - 1) / 8 + 1
 }

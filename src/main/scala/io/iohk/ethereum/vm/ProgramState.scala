@@ -47,10 +47,10 @@ case class ProgramState(
   def inputData: ByteString = env.inputData
 
   def spendGas(amount: BigInt): ProgramState =
-    copy(gas = gas - amount) //FIXME: tests
+    copy(gas = gas - amount)
 
   def refundGas(amount: BigInt): ProgramState =
-    copy(gasRefund = gasRefund + amount) //FIXME: tests
+    copy(gasRefund = gasRefund + amount)
 
   def step(i: Int = 1): ProgramState =
     copy(pc = pc + i)
