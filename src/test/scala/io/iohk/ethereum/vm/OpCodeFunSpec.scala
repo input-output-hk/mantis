@@ -39,7 +39,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   test(unaryOps: _*) { op =>
     forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = op.execute(stateIn)
+      val stateOut = executeOp(op, stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val (a, _) = stateIn.stack.pop
@@ -67,14 +67,14 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  test(ternaryOps: _*) { ternaryOp =>
+  test(ternaryOps: _*) { op =>
     forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = ternaryOp.execute(stateIn)
+      val stateOut = executeOp(op, stateIn)
 
-      withStackVerification(ternaryOp, stateIn, stateOut) {
+      withStackVerification(op, stateIn, stateOut) {
         val (Seq(a, b, c), _) = stateIn.stack.pop(3)
         val (result, _) = stateOut.stack.pop
-        result shouldEqual ternaryOp.f(a, b, c)
+        result shouldEqual op.f(a, b, c)
 
         val expectedState = stateIn.withStack(stateOut.stack).step()
         stateOut shouldEqual expectedState
