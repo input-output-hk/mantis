@@ -95,6 +95,8 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
     */
   def longValue: Long = n.longValue & Long.MaxValue
 
+  def isZero: Boolean = n == 0
+
   override def equals(that: Any): Boolean = {
     that match {
       case that: DataWord => this.n.equals(that.n)
@@ -112,5 +114,5 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
   /**
     * @return Size in bytes excluding the leading 0 bytes
     */
-  def byteSize: Int = (n.bitLength - 1) / 8 + 1
+  def byteSize: Int = if (isZero) 0 else (n.bitLength - 1) / 8 + 1
 }
