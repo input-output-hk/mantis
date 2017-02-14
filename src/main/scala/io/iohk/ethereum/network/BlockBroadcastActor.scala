@@ -23,19 +23,20 @@ class BlockBroadcastActor(
 
   def processNewBlocks(unprocessedNewBlocks: Seq[(Block, BigInt)], toBroadcastBlocks: Seq[(Block, BigInt)]): Receive = {
 
-    case PeerActor.MessageReceived(m: NewBlock) =>
-      log.info("Got NewBlock message {}", m)
-      self ! ProcessNewBlocks
-      context become processNewBlocks(
-        unprocessedNewBlocks = unprocessedNewBlocks :+ (Block(m.blockHeader, m.blockBody) -> m.totalDifficulty),
-        toBroadcastBlocks = toBroadcastBlocks
-      )
+    case PeerActor.MessageReceived(m: NewBlock)
+      if (unprocessedNewBlocks ++ toBroadcastBlocks).forall(_._1 != Block(m.blockHeader, m.blockBody)) =>
+        log.info("Got NewBlock message {}", m)
+        self ! ProcessNewBlocks
+        context become processNewBlocks(
+          unprocessedNewBlocks = unprocessedNewBlocks :+ (Block(m.blockHeader, m.blockBody) -> m.totalDifficulty),
+          toBroadcastBlocks = toBroadcastBlocks
+        )
 
     case ProcessNewBlocks if unprocessedNewBlocks.nonEmpty =>
       log.info("Processing new block message")
       val (blockToProcess, blockTd) = unprocessedNewBlocks.head
 
-      //TODO: Check that we haven't yet received the block and that it is not on the blockchain (?)
+      //TODO: Check that the block is not on the blockchain
 
       //TODO: Validate block header [EC-78]
 

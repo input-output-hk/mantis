@@ -24,7 +24,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peer.expectMsg(PeerActor.Subscribe(Set(NewBlock.code)))
   }
 
-  it should "broadcast any sent blocks to it" in {
+  it should "broadcast only blocks that it hasn't yet received" in {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
 
     val newBlock = NewBlock(block.blockHeader, block.blockBody, BigInt("989772"))
@@ -34,9 +34,26 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
     peerManager.reply(peers)
 
-    peersProbes.foreach{ peer =>
-      peer.expectMsg(PeerActor.SendMessage(newBlock))
-    }
+    peersProbes.foreach{ peer => peer.expectMsg(PeerActor.SendMessage(newBlock)) }
+  }
+
+  it should "not broadcast repeated blocks" in {
+    blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
+
+    val newBlock = NewBlock(block.blockHeader, block.blockBody, BigInt("989772"))
+    blockBroadcast ! PeerActor.MessageReceived(newBlock)
+
+    peerManager.expectMsg(GetPeers)
+
+    //Send a repeated block
+    blockBroadcast ! PeerActor.MessageReceived(newBlock)
+
+    peerManager.reply(peers)
+
+    peersProbes.foreach{ peer => peer.expectMsg(PeerActor.SendMessage(newBlock)) }
+
+    //Each peer should have only received one block
+    peersProbes.foreach{ peer => assert(!peer.msgAvailable) }
   }
 
   implicit val system = ActorSystem("PeerActorSpec_System")
