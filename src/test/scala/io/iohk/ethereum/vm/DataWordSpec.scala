@@ -167,16 +167,19 @@ class DataWordSpec extends FunSuite with PropertyChecks {
   }
 
   test("signExtend") {
+    assert(DataWord(42).signExtend(DataWord(3)) == DataWord(42))
+    assert(DataWord(42).signExtend(DataWord(1)) == DataWord(42))
     assert(DataWord(42).signExtend(DataWord(-1)) == DataWord(42))
     assert(DataWord(42).signExtend(DataWord(0)) == DataWord(42))
-    assert(DataWord(42).signExtend(DataWord(Size)) == Zero)
-    assert(DataWord(42).signExtend(DataWord(Size + 1)) == Zero)
-    assert(DataWord(-42).signExtend(DataWord(Size)) == DataWord(-1))
-    assert(DataWord(-42).signExtend(DataWord(Size + 1)) == DataWord(-1))
+    assert(DataWord(42).signExtend(DataWord(Size)) == DataWord(42))
+    assert(DataWord(42).signExtend(DataWord(Size + 1)) == DataWord(42))
+    assert(DataWord(-42).signExtend(DataWord(Size)) == DataWord(-42))
+    assert(DataWord(-42).signExtend(DataWord(Size + 1)) == DataWord(-42))
     assert(DataWord(-42).signExtend(DataWord(-11)) == DataWord(-42))
     assert(DataWord(-1).signExtend(DataWord(1)) == DataWord(-1))
     assert(DataWord(-1).signExtend(DataWord(1)) == DataWord(-1))
-    // assert(DataWord(0x1a81ff).signExtend(DataWord(1)) == DataWord(0xff1a81ff)) // n1 = 1737215
+    // 1737215.signExtend(1) == 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff81ff
+    assert(DataWord(0x1a81ff).signExtend(DataWord(1)) == DataWord(Array.fill[Byte](30)(-1) ++ Array[Byte](-127, -1)))
   }
 
   test("intValue") {
