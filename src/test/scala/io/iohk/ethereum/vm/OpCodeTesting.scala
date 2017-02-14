@@ -1,0 +1,35 @@
+package io.iohk.ethereum.vm
+
+import org.scalatest.FunSuiteLike
+
+
+trait OpCodeTesting extends FunSuiteLike {
+
+  val binaryOps = OpCode.opcodes.collect { case op: BinaryOp => op }
+  val unaryOps = OpCode.opcodes.collect { case op: UnaryOp => op }
+  val pushOps = OpCode.opcodes.collect { case op: PushOp => op }
+  val dupOps = OpCode.opcodes.collect { case op: DupOp => op }
+  val swapOps = OpCode.opcodes.collect { case op: SwapOp => op }
+  val logOps = OpCode.opcodes.collect { case op: LogOp => op }
+  val constGasOps = OpCode.opcodes.collect { case op: ConstGas => op }
+
+  def test[T <: OpCode](ops: T*)(f: T => Any): Unit =
+    ops.foreach(op => test(op.toString)(f(op)))
+
+  def ignore[T <: OpCode](ops: T*)(f: T => Any): Unit =
+    ops.foreach(op => ignore(op.toString)(f(op)))
+
+  /**
+    * Run this as the last test in the suite
+    * Ignoring an OpCode test will NOT cause this test to fail
+    */
+  def verifyAllOpCodesRegistered(): Unit = {
+    test("all opcodes have been registered") {
+      val untested = OpCode.opcodes.filterNot(op => testNames(op.toString))
+      if (untested.isEmpty)
+        succeed
+      else
+        fail("Unregistered opcodes: " + untested.mkString(", "))
+    }
+  }
+}

@@ -14,10 +14,8 @@ object VM {
     * @param context context to be executed
     * @return result of the execution
    */
-  // TODO We'll have to pass additional parameters to this method.
-  // Please create a ProgramContext class and keep storage inside of it.
-  def run(env: ExecEnv, storage: Storage): ProgramResult = {
-    val finalState = run(ProgramState(env, storage))
+  def run(context: ProgramContext): ProgramResult = {
+    val finalState = run(ProgramState(context))
     ProgramResult(
       finalState.returnData,
       finalState.storage,
