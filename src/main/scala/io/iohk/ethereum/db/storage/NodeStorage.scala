@@ -1,8 +1,7 @@
 package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.db.dataSource.DataSource
-import NodeStorage._
-import akka.util.ByteString
+import io.iohk.ethereum.db.storage.NodeStorage._
 
 /**
   * This class is used to store Nodes (defined in mpt/Node.scala), by using:

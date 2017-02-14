@@ -42,6 +42,7 @@ object Message {
   private def handlePV61(`type`: Int, payload: Array[Byte]): Message = `type` match {
     case pv61.NewBlockHashes.code => rlp.decode(payload)(pv61.NewBlockHashes.rlpEncDec)
     case pv61.BlockHashesFromNumber.code => rlp.decode(payload)(pv61.BlockHashesFromNumber.rlpEncDec)
+    case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
   }
 
   private def handlePV63(`type`: Int, payload: Array[Byte]): Message = `type` match {
@@ -49,6 +50,7 @@ object Message {
     case pv63.NodeData.code => rlp.decode(payload)(pv63.NodeData.rlpEncDec)
     case pv63.GetReceipts.code => rlp.decode(payload)(pv63.GetReceipts.rlpEncDec)
     case pv63.Receipts.code => rlp.decode(payload)(pv63.Receipts.rlpEncDec)
+    case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
   }
 }
 

@@ -128,6 +128,7 @@ object PV63 {
   case class NodeData(values: Seq[ByteString]) extends Message {
     override def code: Int = NodeData.code
 
+    @throws[RLPException]
     def getMptNode(index: Int): MptNode = rlpDecode[MptNode](values(index).toArray[Byte])
 
     override def toString: String = {
@@ -159,6 +160,7 @@ object PV63 {
       s"""MptExtension{
          |key nibbles: $keyNibbles
          |key nibbles length: ${keyNibbles.length}
+         |key: ${Hex.toHexString(keyNibbles.toArray[Byte])}
          |childHash: ${child.fold(a => s"Hash(${Hex.toHexString(a.hash.toArray[Byte])})", b => s"Value(${Hex.toHexString(b.value.toArray[Byte])})")}
          |}
        """.stripMargin
@@ -175,7 +177,8 @@ object PV63 {
       s"""MptLeaf{
          |key nibbles: $keyNibbles
          |key nibbles length: ${keyNibbles.length}
-         |value: $value
+         |key: ${Hex.toHexString(keyNibbles.toArray[Byte])}
+         |value: ${Hex.toHexString(value.toArray[Byte])}
          |}
        """.stripMargin
     }
