@@ -7,9 +7,11 @@ import language.implicitConversions
 object DataWord {
 
   /**
-   * DataWord size in bytes
-   */
+    * DataWord size in bytes
+    */
   val Size: Int = 32
+
+  val Modulus: BigInt = BigInt(2).pow(Size * 8)
 
   val MaxSignedValue: BigInt = BigInt(2).pow(Size * 8 - 1) - 1
 
@@ -37,8 +39,6 @@ object DataWord {
   }
 
   implicit def dataWord2BigInt(dw: DataWord): BigInt = dw.toBigInt
-
-  private val Modulus: BigInt = BigInt(2).pow(Size * 8)
 
   private val Zeros: ByteString = ByteString(Array.fill[Byte](Size)(0))
 

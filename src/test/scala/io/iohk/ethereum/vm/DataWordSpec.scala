@@ -17,8 +17,6 @@ class DataWordSpec extends FunSuite with PropertyChecks {
 
   val specialCases = Table(("n1", "n2"), pairs: _*)
 
-  val Modulus: BigInt = BigInt(2).pow(Size * 8)
-
   def toSignedBigInt(n: BigInt): BigInt = if (n > MaxSignedValue) n - Modulus else n
 
   def toUnsignedBigInt(n: BigInt): BigInt = if (n < 0) n + Modulus else n
