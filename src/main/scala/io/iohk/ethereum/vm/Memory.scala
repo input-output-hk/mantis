@@ -50,7 +50,7 @@ class Memory(private[vm] val underlying: ByteString) {
   }
 
   def load(addr: DataWord): (DataWord, Memory) = {
-    doLoad(addr, DataWord.MaxLength) match {
+    doLoad(addr, DataWord.Size) match {
       case (bs, memory) => DataWord(bs) -> memory
     }
   }
@@ -72,6 +72,9 @@ class Memory(private[vm] val underlying: ByteString) {
     newUnderlying.slice(start, end) -> new Memory(newUnderlying)
   }
 
+  /**
+    * @return memory size in bytes
+    */
   def size: Int = underlying.size
 
   override def equals(that: Any): Boolean = {

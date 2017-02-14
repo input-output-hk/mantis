@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
+import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import org.spongycastle.util.encoders.Hex
 
 import scala.collection.JavaConversions._
@@ -13,18 +14,18 @@ object Config {
 
   private val config = ConfigFactory.load().getConfig("etc-client")
 
-  val clientId = config.getString("client-id")
+  val clientId: String = config.getString("client-id")
 
   object Network {
     private val networkConfig = config.getConfig("network")
 
-    val networkId = networkConfig.getInt("network-id")
+    val networkId: Int = networkConfig.getInt("network-id")
 
     object Server {
       private val serverConfig = networkConfig.getConfig("server-address")
 
-      val interface = serverConfig.getString("interface")
-      val port = serverConfig.getInt("port")
+      val interface: String = serverConfig.getString("interface")
+      val port: Int = serverConfig.getInt("port")
       val listenAddress = new InetSocketAddress(interface, port)
     }
 
@@ -50,7 +51,7 @@ object Config {
   object Blockchain {
     private val blockchainConfig = config.getConfig("blockchain")
 
-    val genesisDifficulty = blockchainConfig.getLong("genesis-difficulty")
+    val genesisDifficulty: Long = blockchainConfig.getLong("genesis-difficulty")
     val genesisHash = ByteString(Hex.decode(blockchainConfig.getString("genesis-hash")))
 
     val daoForkBlockNumber = BigInt(blockchainConfig.getString("dao-fork-block-number"))
@@ -58,4 +59,23 @@ object Config {
     val daoForkBlockHash = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
   }
 
+  object FastSync{
+    private val fastSyncConfig = config.getConfig("fast-sync")
+
+    val BlocksPerMessage: Int = fastSyncConfig.getInt("blocks-per-message")
+    val NodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
+    val NodeRequestsInterval: FiniteDuration = fastSyncConfig.getDuration("node-requests-interval").toMillis.millis
+  }
+
+  object Db {
+
+    private val dbConfig = config.getConfig("db")
+
+    object LevelDb extends LevelDbConfig {
+      override val createIfMissing: Boolean = dbConfig.getBoolean("create-if-missing")
+      override val paranoidChecks: Boolean = dbConfig.getBoolean("paranoid-checks")
+      override val verifyChecksums: Boolean = dbConfig.getBoolean("verify-checksums")
+      override val cacheSize: Int = dbConfig.getInt("cache-size")
+    }
+  }
 }

@@ -1,7 +1,5 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.utils.EitherExtensions._
-
 object Stack {
   /**
     * Stack max size as defined in the YP (9.1)
@@ -15,69 +13,86 @@ object Stack {
 //TODO: consider a List with head being top of the stack (DUP,SWAP go at most the depth of 16)
 /**
   * Stack for the EVM. Instruction pop their arguments from it and push their results to it.
-  * The Stack handles overflow and underflow errors.
+  * The Stack doesn't handle overflow and underflow errors. Any operations that trascend given stack bounds will
+  * return the stack unchanged. Pop will always return zeroes in such case.
   */
 class Stack private(private val underlying: Vector[DataWord], val maxSize: Int) {
 
-  def pop: Either[StackError, (DataWord, Stack)] = underlying.lastOption match {
+  def pop: (DataWord, Stack) = underlying.lastOption match {
     case Some(word) =>
       val updated = underlying.dropRight(1)
-      (word, copy(updated)).asRight
+      (word, copy(updated))
 
     case None =>
-      StackUnderflow.asLeft
+      (DataWord.Zero, this)
   }
 
-  def pop(n: Int): Either[StackError, (Seq[DataWord], Stack)] = {
+  /**
+    * Pop n elements from the stack. The first element in the resulting sequence will be the top-most element
+    * in the current stack
+    */
+  def pop(n: Int): (Seq[DataWord], Stack) = {
     val (updated, popped) = underlying.splitAt(underlying.length - n)
-    if (popped.length >= n)
-      (popped.reverse, copy(updated)).asRight
+    if (popped.length == n)
+      (popped.reverse, copy(updated))
     else
-      StackUnderflow.asLeft
+      (Seq.fill(n)(DataWord.Zero), this)
   }
 
-  def push(word: DataWord): Either[StackError, Stack] = {
+  def push(word: DataWord): Stack = {
     val updated = underlying :+ word
     if (updated.length <= maxSize)
-      copy(updated).asRight
+      copy(updated)
     else
-      StackOverflow.asLeft
+      this
   }
 
-  def push(words: Seq[DataWord]): Either[StackError, Stack] = {
+  /**
+    * Push a sequence of elements to the stack. That last element of the sequence will be the top-most element
+    * in the resulting stack
+    */
+  def push(words: Seq[DataWord]): Stack = {
     val updated = underlying ++ words
     if (updated.length > maxSize)
-      StackOverflow.asLeft
+      this
     else
-      copy(updated).asRight
+      copy(updated)
   }
 
-  def dup(i: Int): Either[StackError, Stack] = {
+  /**
+    * Duplicate i-th element of the stack, pushing it to the top. i=0 is the top-most element.
+    */
+  def dup(i: Int): Stack = {
     val j = underlying.length - i - 1
 
-    if (j < 0)
-      StackUnderflow.asLeft
-    else if (underlying.length >= maxSize)
-      StackOverflow.asLeft
+    if (i < 0 || i >= underlying.length || underlying.length >= maxSize)
+      this
     else
-      copy(underlying :+ underlying(j)).asRight
+      copy(underlying :+ underlying(j))
   }
 
-  def swap(i: Int): Either[StackError, Stack] = {
+  /**
+    * Swap i-th and the top-most elements of the stack. i=0 is the top-most element (and that would be a no-op)
+    */
+  def swap(i: Int): Stack = {
     val j = underlying.length - i - 1
 
-    if (j < 0)
-      StackUnderflow.asLeft
+    if (i <= 0 || i >= underlying.length)
+      this
     else {
       val a = underlying.last
       val b = underlying(j)
       val updated = underlying.updated(j, a).init :+ b
-      copy(updated).asRight
+      copy(updated)
     }
   }
 
   def size: Int = underlying.size
 
+  /**
+    * @return the elements of the stack as a sequence, with the top-most element of the stack
+    *         as the first element in the sequence
+    */
   def toSeq: Seq[DataWord] = underlying.reverse
 
   override def equals(that: Any): Boolean = that match {
