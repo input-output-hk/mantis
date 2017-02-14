@@ -202,6 +202,21 @@ class DataWordSpec extends FunSuite with PropertyChecks {
     assert((DataWord(1) sgt DataWord(0)) == DataWord(1))
   }
 
+  test("getByte") {
+    forAll(getDataWordGen(), getDataWordGen(max = DataWord(31))) {(d1, d2) =>
+      val result = d1.getByte(d2)
+      assert(result.bytes.dropRight(1) == ByteString(Array.fill[Byte](Size - 1)(0)))
+    }
+    assert(DataWord(42).getByte(DataWord(-1)) == Zero)
+    assert(DataWord(42).getByte(DataWord(Size)) == Zero)
+    assert(DataWord(42).getByte(DataWord(Size + 1)) == Zero)
+    val dw = DataWord(ByteString((100 to 131).map(_.toByte).toArray))
+    assert(dw.getByte(DataWord(0)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 100.toByte))
+    assert(dw.getByte(DataWord(1)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 101.toByte))
+    assert(dw.getByte(DataWord(30)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -126.toByte))
+    assert(dw.getByte(DataWord(31)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -125.toByte))
+  }
+
   test("intValue") {
     assert(specialNumbers.map(DataWord(_).intValue).toSeq == Seq(Int.MaxValue, 0, 1, Int.MaxValue, 1, 2))
   }

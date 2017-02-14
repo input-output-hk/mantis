@@ -126,6 +126,15 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
 
   def sgt(that: DataWord): DataWord = DataWord(this.signedN > that.signedN)
 
+  def getByte(that: DataWord): DataWord = {
+    val cnt: Byte = that.n.toByte
+    if (cnt < 0 || cnt > 31) {
+      Zero
+    } else {
+      DataWord(Zeros.take(Size - 1) :+ this.bytes(cnt))
+    }
+  }
+
   private def zeroCheck(dw: DataWord)(result: =>DataWord): DataWord =
     if (dw == Zero) Zero else result
 
