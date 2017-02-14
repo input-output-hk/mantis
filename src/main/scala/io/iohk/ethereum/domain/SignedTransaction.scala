@@ -64,22 +64,21 @@ case class SignedTransaction(
     * formula for calculating pointt sing new way
     * v = CHAIN_ID * 2 + 35 or v = CHAIN_ID * 2 + 36
     */
-  lazy val recoveredPublicKey: Option[Array[Byte]] = pointSign match {
+  lazy val recoveredPointSign: Option[Int] = pointSign match {
     case p if p == negativePointSign || p == (Blockchain.chainId * 2 + newNegativePointSign).toByte =>
-      ECDSASignature.recoverPubBytes(
-        new BigInteger(1, signatureRandom.toArray[Byte]),
-        new BigInteger(1, signature.toArray[Byte]),
-        ECDSASignature.recIdFromSignatureV(negativePointSign),
-        bytesToSign
-      )
+      Some(negativePointSign)
     case p if p == positivePointSign || p == (Blockchain.chainId * 2 + newPositivePointSign).toByte =>
-      ECDSASignature.recoverPubBytes(
-        new BigInteger(1, signatureRandom.toArray[Byte]),
-        new BigInteger(1, signature.toArray[Byte]),
-        ECDSASignature.recIdFromSignatureV(positivePointSign),
-        bytesToSign
-      )
+      Some(positivePointSign)
     case _ => None
+  }
+
+  lazy val recoveredPublicKey: Option[Array[Byte]] = recoveredPointSign.flatMap { p =>
+    ECDSASignature.recoverPubBytes(
+      new BigInteger(1, signatureRandom.toArray[Byte]),
+      new BigInteger(1, signature.toArray[Byte]),
+      ECDSASignature.recIdFromSignatureV(p),
+      bytesToSign
+    )
   }
 
   lazy val syntacticValidity: Boolean = {
