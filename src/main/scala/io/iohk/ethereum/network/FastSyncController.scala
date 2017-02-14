@@ -4,6 +4,7 @@ import java.util.UUID
 
 import akka.agent.Agent
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.rlp.RLPEncoder
 
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
@@ -368,7 +369,7 @@ class FastSyncController(
             val newState = (0 until requestsNumToSend).foldLeft(syncState) { case (state, idx) =>
               val peer = availablePeers(idx)
 
-              def createAndSendRequest[T <: Message](requestFn: (String, Cancellable) => SentRequest[T]) = {
+              def createAndSendRequest[T <: Message : RLPEncoder](requestFn: (String, Cancellable) => SentRequest[T]) = {
                 val requestId = UUID.randomUUID().toString
                 val timeout = context.system.scheduler.scheduleOnce(peerResponseTimeout, self, RequestTimeout(requestId))
                 val request = requestFn(requestId, timeout)
