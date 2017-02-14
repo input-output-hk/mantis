@@ -72,5 +72,10 @@ object Config {
     val downloadRetryInterval: FiniteDuration = 30.seconds
     val peerResponseTimeout: FiniteDuration = 10.seconds
     val printStatusInterval: FiniteDuration = 2.seconds
+
+    val blockHeadersPerRequest: Int = 100
+    val blockBodiesPerRequest: Int = 100
+    val receiptsPerRequest: Int = 100
+    val nodesPerRequest: Int = 100
   }
 }

@@ -3,6 +3,7 @@ package io.iohk.ethereum.network
 import java.util.UUID
 
 import akka.agent.Agent
+import io.iohk.ethereum.network.p2p.Message
 
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
@@ -367,39 +368,31 @@ class FastSyncController(
             val newState = (0 until requestsNumToSend).foldLeft(syncState) { case (state, idx) =>
               val peer = availablePeers(idx)
 
+              def createAndSendRequest[T <: Message](requestFn: (String, Cancellable) => SentRequest[T]) = {
+                val requestId = UUID.randomUUID().toString
+                val timeout = context.system.scheduler.scheduleOnce(peerResponseTimeout, self, RequestTimeout(requestId))
+                val request = requestFn(requestId, timeout)
+                request.peer ! PeerActor.SendMessage(request.sentMessage)
+                request.peer ! PeerActor.Subscribe(Set(request.sentMessage.code))
+                state.copy(sentRequests = state.sentRequests :+ request)
+              }
+
               if (state.receiptsToDownload.nonEmpty) {
-                val msg = GetReceipts(state.receiptsToDownload.take(10)) // 10 do zmiennej
-                val requestId = UUID.randomUUID().toString
-                val timeout = context.system.scheduler.scheduleOnce(peerResponseTimeout, self, RequestTimeout(requestId))
-                val receiptsRequest = ReceiptsRequest(requestId, peer, timeout, msg)
-                peer ! PeerActor.SendMessage(msg)
-                peer ! PeerActor.Subscribe(Set(Receipts.code))
-                state.copy(sentRequests = state.sentRequests :+ receiptsRequest, receiptsToDownload = state.receiptsToDownload.drop(10)) // drop 10 do zmiennej
+                val msg = GetReceipts(state.receiptsToDownload.take(receiptsPerRequest))
+                createAndSendRequest { (id, timeout) => ReceiptsRequest(id, peer, timeout, msg)
+                }.copy(receiptsToDownload = state.receiptsToDownload.drop(receiptsPerRequest))
               } else if (state.blocksBodiesToDownload.nonEmpty) {
-                val msg = GetBlockBodies(state.blocksBodiesToDownload.take(10)) // 10 do zmiennej
-                val requestId = UUID.randomUUID().toString
-                val timeout = context.system.scheduler.scheduleOnce(peerResponseTimeout, self, RequestTimeout(requestId))
-                val blocksRequest = BlockBodiesRequest(requestId, peer, timeout, msg)
-                peer ! PeerActor.SendMessage(msg)
-                peer ! PeerActor.Subscribe(Set(BlockBodies.code))
-                state.copy(sentRequests = state.sentRequests :+ blocksRequest, blocksBodiesToDownload = state.blocksBodiesToDownload.drop(10)) // drop 10 do zmiennej
+                val msg = GetBlockBodies(state.blocksBodiesToDownload.take(blockBodiesPerRequest))
+                createAndSendRequest { (id, timeout) => BlockBodiesRequest(id, peer, timeout, msg)
+                }.copy(blocksBodiesToDownload = state.blocksBodiesToDownload.drop(blockBodiesPerRequest))
               } else if (state.sentRequests.collect { case r: BlockHeadersRequest => r }.isEmpty) {
-                val msg = GetBlockHeaders(Left(state.currentBlockNumber + 1), 10, 0, reverse = false) // max 10 do zmiennej
-                val requestId = UUID.randomUUID().toString
-                val timeout = context.system.scheduler.scheduleOnce(peerResponseTimeout, self, RequestTimeout(requestId))
-                val blockHeadersRequest = BlockHeadersRequest(requestId, peer, timeout, msg)
-                peer ! PeerActor.SendMessage(msg)
-                peer ! PeerActor.Subscribe(Set(BlockHeaders.code))
-                state.copy(sentRequests = state.sentRequests :+ blockHeadersRequest)
+                val msg = GetBlockHeaders(Left(state.currentBlockNumber + 1), blockHeadersPerRequest, 0, reverse = false)
+                createAndSendRequest { (id, timeout) => BlockHeadersRequest(id, peer, timeout, msg) }
               } else if (state.nodesToDownload.nonEmpty) {
-                val nodesToGet = state.nodesToDownload.take(10)
-                val msg = GetNodeData(nodesToGet.map(_.v)) // max 10 do zmiennej
-                val requestId = UUID.randomUUID().toString
-                val timeout = context.system.scheduler.scheduleOnce(peerResponseTimeout, self, RequestTimeout(requestId))
-                val nodesRequest = NodesRequest(requestId, peer, timeout, msg, nodesToGet)
-                peer ! PeerActor.SendMessage(msg)
-                peer ! PeerActor.Subscribe(Set(NodeData.code))
-                state.copy(sentRequests = state.sentRequests :+ nodesRequest, nodesToDownload = state.nodesToDownload.drop(10))
+                val nodesToGet = state.nodesToDownload.take(nodesPerRequest)
+                val msg = GetNodeData(nodesToGet.map(_.v))
+                createAndSendRequest { (id, timeout) => NodesRequest(id, peer, timeout, msg, nodesToGet)
+                }.copy(nodesToDownload = state.nodesToDownload.drop(nodesPerRequest))
               } else {
                 state
               }
@@ -433,7 +426,7 @@ object FastSyncController {
   private case class RequestTimeout(requestId: String)
   private case class RequestNodes(hashes: Seq[HashType])
 
-  sealed trait SentRequest[Msg] {
+  sealed trait SentRequest[Msg <: Message] {
     def id: String
     def peer: ActorRef
     def timeout: Cancellable
