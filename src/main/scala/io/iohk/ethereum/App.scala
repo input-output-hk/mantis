@@ -38,6 +38,7 @@ object App {
     val dataSource = EphemDataSource()
     val fastSyncController = actorSystem.actorOf(Props(new FastSyncController(
       peerManager,
+      nodeStatusHolder,
       new MptNodeStorage(dataSource),
       new BlockHeadersStorage(dataSource),
       new BlockBodiesStorage(dataSource),

@@ -2,6 +2,8 @@ package io.iohk.ethereum.network
 
 import java.util.UUID
 
+import akka.agent.Agent
+
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -9,9 +11,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.network.FastSyncController.UnblacklistPeer
 import io.iohk.ethereum.network.p2p.validators.ForkValidator
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, Config}
 import io.iohk.ethereum.utils.Config.FastSync._
 import io.iohk.ethereum.network.FastSyncActor._
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, GetBlockBodies, GetBlockHeaders, BlockHeaders}
@@ -21,6 +22,7 @@ import org.spongycastle.util.encoders.Hex
 
 class FastSyncController(
     peerManager: ActorRef,
+    nodeStatusHolder: Agent[NodeStatus],
     mptNodeStorage: MptNodeStorage,
     blockHeadersStorage: BlockHeadersStorage,
     blockBodiesStorage: BlockBodiesStorage,
@@ -30,33 +32,70 @@ class FastSyncController(
 
   import FastSyncController._
   import Config.FastSync._
+  import BlacklistSupport._
   import context.system
 
   var handshakedPeers: Seq[ActorRef] = Nil
 
-  val EmptyAccountStorageHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
-  val EmptyAccountEvmCodeHash = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
-
-  system.scheduler.schedule(0.seconds, 30.seconds, peerManager, PeerManagerActor.GetPeers)
-
-  def peersToDownloadFrom: Seq[ActorRef] = handshakedPeers.filterNot(isBlacklisted)
+  system.scheduler.schedule(0.seconds, peersScanInterval, peerManager, PeerManagerActor.GetPeers)
 
   override def receive: Receive = idle
 
   def idle: Receive = handlePeerUpdates orElse {
     case StartFastSync(targetBlockHash) =>
       peersToDownloadFrom match {
-        case firstPeer :: Nil =>
+        case firstPeer :: _ =>
           log.info("Starting fast sync, asking peer {} for target block header", firstPeer.path.name)
           firstPeer ! PeerActor.Subscribe(Set(BlockHeaders.code))
           firstPeer ! PeerActor.SendMessage(GetBlockHeaders(Right(targetBlockHash), 1, 0, reverse = false))
-          val timeout = system.scheduler.scheduleOnce(30.seconds, self, Timeout)
+          val timeout = system.scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
           context become waitingForTargetBlock(targetBlockHash, timeout)
 
         case Nil =>
           log.info("Cannot start fast sync, no peers to download from. Scheduling retry in {}", startRetryInterval)
           scheduleStartFastSync(startRetryInterval, targetBlockHash)
       }
+  }
+
+  def waitingForTargetBlock(targetBlockHash: ByteString, timeout: Cancellable): Receive = handlePeerUpdates orElse {
+    case PeerActor.MessageReceived(blockHeaders: BlockHeaders) =>
+      timeout.cancel()
+      val targetBlockHeaderOpt = blockHeaders.headers.find(header => ForkValidator.hash(header) == targetBlockHash)
+      targetBlockHeaderOpt match {
+        case Some(targetBlockHeader) =>
+          log.info("Received target block from peer, starting fast sync")
+          val initialSyncState = SyncState(
+            targetBlockHash = targetBlockHash,
+            targetBlockNumber = targetBlockHeader.number,
+            nodesToDownload = Queue(StateMptNodeHash(targetBlockHeader.stateRoot)))
+
+          context.system.scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
+          new SyncingHandler(initialSyncState).proceedSyncing()
+
+        case None =>
+          log.info("Peer ({}) did not respond with target block header, blacklisting and scheduling retry in {}",
+            sender().path.name,
+            startRetryInterval)
+
+          blacklist(sender())
+          sender() ! PeerActor.Unsubscribe
+          scheduleStartFastSync(startRetryInterval, targetBlockHash)
+      }
+
+    case TargetBlockTimeout =>
+      log.info("Peer ({}) did not respond with target block header (timeout), blacklisting and scheduling retry in {}",
+        sender().path.name,
+        startRetryInterval)
+
+      blacklist(sender())
+      sender() ! PeerActor.Unsubscribe
+      scheduleStartFastSync(startRetryInterval, targetBlockHash)
+  }
+
+  def peersToDownloadFrom: Seq[ActorRef] = handshakedPeers.filterNot(isBlacklisted)
+
+  def scheduleStartFastSync(interval: FiniteDuration, targetBlockHash: ByteString): Unit = {
+    system.scheduler.scheduleOnce(interval, self, StartFastSync(targetBlockHash))
   }
 
   def handlePeerUpdates: Receive = {
@@ -86,146 +125,129 @@ class FastSyncController(
     handshakedPeers = handshakedPeers.filterNot(_ == peer)
   }
 
-  def waitingForTargetBlock(targetBlockHash: ByteString, timeout: Cancellable): Receive = handlePeerUpdates orElse {
-    case PeerActor.MessageReceived(blockHeaders: BlockHeaders) =>
-      timeout.cancel()
-      val targetBlockHeaderOpt = blockHeaders.headers.find(header => ForkValidator.hash(header) == targetBlockHash)
-      targetBlockHeaderOpt match {
-        case Some(targetBlockHeader) =>
-          log.info("Received target block from peer, starting fast sync")
-          val initialSyncState = SyncState(
-            targetBlockHash = targetBlockHash,
-            targetBlockNumber = targetBlockHeader.number,
-            nodesToDownload = Queue(StateMptNodeHash(targetBlockHeader.stateRoot)))
-
-          context.system.scheduler.schedule(2.seconds, 2.seconds, self, "print")
-          new SyncingHandler(initialSyncState).processAndBecome()
-
-        case None =>
-          log.info("Peer ({}) did not respond with target block header, blacklisting and scheduling retry in {}",
-            sender().path.name,
-            startRetryInterval)
-
-          blacklist(sender())
-          sender() ! PeerActor.Unsubscribe
-          scheduleStartFastSync(2.minutes, targetBlockHash)
-      }
-
-    case Timeout =>
-      log.info("Peer ({}) did not respond with target block header (timeout), blacklisting and scheduling retry in {}",
-        sender().path.name,
-        startRetryInterval)
-
-      blacklist(sender())
-      sender() ! PeerActor.Unsubscribe
-      scheduleStartFastSync(startRetryInterval, targetBlockHash)
-  }
-
-  def scheduleStartFastSync(interval: FiniteDuration, targetBlockHash: ByteString): Unit = {
-    system.scheduler.scheduleOnce(interval, self, StartFastSync(targetBlockHash))
-  }
-
   class SyncingHandler(syncState: SyncState) {
 
-    def processAndBecome(): Unit = {
-      becomeWithState(processSyncState(syncState))
+    def becomeWithState(newState: SyncState): SyncingHandler = {
+      val handler = new SyncingHandler(newState)
+      context.become(handler.receive)
+      handler
     }
 
-    private def becomeWithState(newState: SyncState) =
-      context.become(new SyncingHandler(newState).receive)
+    def receive: Receive =
+      handlePeerUpdates orElse
+      handleNodeDataMsg orElse
+      handleBlockHeadersMsg orElse handleBlockBodiesMsg orElse handleReceiptsMsg orElse
+      handleRequestTimeout orElse {
 
-    // scalastyle:off
-    def receive: Receive = handleNodeDataMsg(syncState) orElse handlePeerUpdates orElse {
-      case PeerActor.MessageReceived(blockHeaders: BlockHeaders) =>
-        log.debug("Received {} block headers", blockHeaders.headers.size)
+      case RequestNodes(hashes) =>
+        val updatedSyncState = syncState.enqueueNodes(hashes)
+        becomeWithState(updatedSyncState).proceedSyncing()
 
-        val blockHashes = blockHeaders.headers.map(ForkValidator.hash) // todo move this methode from ForkValidator
-        (blockHashes zip blockHeaders.headers).foreach { case (hash, header) => blockHeadersStorage.put(hash, header) }
-        val requests = syncState.sentBlockHeadersRequests.filter(_.peer == sender())
+      case PrintStatus =>
+        import syncState._
+        log.info(
+          s"""|Block: $currentBlockNumber/$targetBlockNumber.
+              |Peers: ${busyPeers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
+              |State: $downloadedNodesCount/$knownNodesCount known nodes.""".stripMargin.replace("\n", " "))
+  }
+
+    def handleBlockHeadersMsg: Receive = {
+      case PeerActor.MessageReceived(BlockHeaders(headers)) =>
+        log.debug("Received {} block headers", headers.size)
+
+        val requests = syncState.sentRequests.collect { case r: BlockHeadersRequest if r.peer == sender() => r }
         requests.foreach(_.timeout.cancel())
+
+        val blockHashes = headers.map(ForkValidator.hash)
+        (blockHashes zip headers).foreach { case (hash, header) =>
+          blockHeadersStorage.put(hash, header)
+        }
+        headers.lastOption.foreach { lastHeader =>
+          val newBlockchainStatus = BlockchainStatus(lastHeader.difficulty, ForkValidator.hash(lastHeader))
+          nodeStatusHolder.send(_.copy(blockchainStatus = newBlockchainStatus))
+        }
+
+        val newBlockNumber = headers.map(_.number).fold(syncState.currentBlockNumber)(_ max _)
 
         val updatedSyncState = syncState
           .enqueueBlockBodies(blockHashes)
           .enqueueReceipts(blockHashes)
-          .copy(sentRequests = syncState.sentRequests.filterNot(requests.contains))
-          .copy(currentBlockNumber = blockHeaders.headers.lastOption.map(_.number).getOrElse(syncState.currentBlockNumber))
+          .removeSentRequests(requests)
+          .copy(currentBlockNumber = newBlockNumber)
 
-        becomeWithState(processSyncState(updatedSyncState))
+        becomeWithState(updatedSyncState).proceedSyncing()
+    }
 
-      case PeerActor.MessageReceived(blockBodies: BlockBodies) =>
-        log.debug("Received {} block bodies", blockBodies.bodies.size)
+    def handleBlockBodiesMsg: Receive = {
+      case PeerActor.MessageReceived(BlockBodies(bodies)) =>
+        log.debug("Received {} block bodies", bodies.size)
 
-        val senderRequests = syncState.sentRequests.collect { case br: BlocksRequest if br.peer == sender() => br }
-        val requestedBodies = senderRequests.flatMap(_.sentMessage.hashes)
-        senderRequests.foreach(_.timeout.cancel())
+        val requests = syncState.sentRequests.collect { case r: BlockBodiesRequest if r.peer == sender() => r }
+        requests.foreach(_.timeout.cancel())
 
-        (requestedBodies zip blockBodies.bodies).foreach { case (hash, body) => blockBodiesStorage.put(hash, body) }
+        // TODO: is order always the same? can I get a hash from block body only?
+        val requestedBlockBodies = requests.flatMap(_.sentMessage.hashes)
+        (requestedBlockBodies zip bodies).foreach { case (hash, body) =>
+          blockBodiesStorage.put(hash, body)
+        }
 
-        // TODO: what if we receive less block bodies than requested? how do we know which ones to request again? seq order?
-
-        val updatedSyncState = syncState
-          .copy(sentRequests = syncState.sentRequests.filterNot(senderRequests.contains))
-
-        becomeWithState(processSyncState(updatedSyncState))
-
-      case PeerActor.MessageReceived(receipts: Receipts) =>
-        log.debug("Received receipts for {} blocks", receipts.receiptsForBlocks.size)
-        val senderRequests = syncState.sentRequests.collect { case rr: ReceiptsRequest if rr.peer == sender() => rr }
-        val requestedReceipts = senderRequests.flatMap(_.sentMessage.blockHashes)
-        (requestedReceipts zip receipts.receiptsForBlocks) foreach { case (hash, rec) => receiptStorage.put(hash, rec) } // does it always work!?
-        senderRequests.foreach(_.timeout.cancel())
+        val remainingBlockBodies = requestedBlockBodies.drop(bodies.size)
 
         val updatedSyncState = syncState
-          .copy(sentRequests = syncState.sentRequests.filterNot(senderRequests.contains))
+            .enqueueBlockBodies(remainingBlockBodies)
+            .removeSentRequests(requests)
 
-        becomeWithState(processSyncState(updatedSyncState))
+        becomeWithState(updatedSyncState).proceedSyncing()
+    }
 
+    def handleReceiptsMsg: Receive = {
+      case PeerActor.MessageReceived(Receipts(receiptsForBlocks)) =>
+        log.debug("Received receipts for {} blocks", receiptsForBlocks.size)
 
+        val requests = syncState.sentRequests.collect { case r: ReceiptsRequest if r.peer == sender() => r }
+        requests.foreach(_.timeout.cancel())
+
+        // TODO: is order always the same?
+        val requestedReceipts = requests.flatMap(_.sentMessage.blockHashes)
+        (requestedReceipts zip receiptsForBlocks) foreach { case (hash, receipts) =>
+          receiptStorage.put(hash, receipts)
+        }
+
+        val remainingReceipts = requestedReceipts.drop(receiptsForBlocks.size)
+
+        val updatedSyncState = syncState
+            .enqueueReceipts(remainingReceipts)
+            .removeSentRequests(requests)
+
+        becomeWithState(updatedSyncState).proceedSyncing()
+    }
+
+    private def handleRequestTimeout: Receive = {
       case RequestTimeout(requestId) =>
         val requestOpt = syncState.sentRequests.find(_.id == requestId)
         requestOpt foreach { request =>
-          log.debug("The request {} has timed out. Blacklisting peer {} for {}", request.sentMessage, request.peer.path.name, blacklistDuration)
+          log.info("The request {} has timed out. Blacklisting peer {} for {}",
+            request.sentMessage,
+            request.peer.path.name,
+            blacklistDuration)
+
           request.timeout.cancel()
           blacklist(request.peer)
+
           val updatedSyncState = (request match {
             case nodesReq: NodesRequest => syncState.enqueueNodes(nodesReq.hashes)
             case headersReq: BlockHeadersRequest => syncState
-            case bodiesReq: BlocksRequest => syncState.enqueueBlockBodies(bodiesReq.sentMessage.hashes)
+            case bodiesReq: BlockBodiesRequest => syncState.enqueueBlockBodies(bodiesReq.sentMessage.hashes)
             case receiptsReq: ReceiptsRequest => syncState.enqueueReceipts(receiptsReq.sentMessage.blockHashes)
           }).copy(sentRequests = syncState.sentRequests.filterNot(_.id == requestId))
-          becomeWithState(processSyncState(updatedSyncState))
 
+          becomeWithState(updatedSyncState).proceedSyncing()
         }
-
-      case RequestNodes(hashes) =>
-        val nodesToEnqueue = hashes.filterNot(hash =>
-          syncState.nodesToDownload.contains(hash) ||
-            syncState.sentRequests.exists {
-              case nodesReq: NodesRequest => nodesReq.hashes.contains(hash)
-              case _ => false
-            }
-        )
-        val updatedSyncState = syncState.enqueueNodes(nodesToEnqueue)
-        becomeWithState(processSyncState(updatedSyncState))
-
-      case "print" =>
-        val knownNodesCount =
-          syncState.downloadedNodesCount +
-          syncState.nodesToDownload.size +
-          syncState.sentRequests.collect { case nr: NodesRequest => nr.hashes.size }.sum
-
-        log.info(
-          s"""
-             |Block: ${syncState.currentBlockNumber}/${syncState.targetBlockNumber}.
-             |Peers: ${busyPeers(syncState).size}/${peersToDownloadFrom.size} (${blacklistedPeers.size} blacklisted).
-             |State: ${syncState.downloadedNodesCount}/$knownNodesCount known nodes.
-           """.stripMargin.replace("\n", " "))
     }
 
-
-    private def handleNodeDataMsg(syncState: SyncState): Receive = {
+    private def handleNodeDataMsg: Receive = {
       case PeerActor.MessageReceived(nodeData: NodeData) =>
-        log.info("Received {} mpt nodes", nodeData.values.size)
+        log.debug("Received {} state nodes", nodeData.values.size)
 
         val peerRequests: Seq[NodesRequest] = syncState.sentRequests.collect {
           case req: NodesRequest if req.peer == sender() => req
@@ -263,8 +285,7 @@ class FastSyncController(
         val updatedSyncState = syncState.copy(
           sentRequests = syncState.sentRequests.filterNot(nodesRequests.contains),
           downloadedNodesCount = syncState.downloadedNodesCount + nodeData.values.size)
-        becomeWithState(processSyncState(updatedSyncState))
-
+        becomeWithState(updatedSyncState).proceedSyncing()
     }
 
     private def handleMptNode(hash: ByteString, mptNode: MptNode) = {
@@ -284,18 +305,18 @@ class FastSyncController(
           mptNodeStorage.put(n)
 
         case n: MptBranch =>
-          log.info("Got branch node: {}", n)
+          log.debug("Got branch node: {}", n)
           val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
           self ! RequestNodes(hashes.map(StateMptNodeHash))
           mptNodeStorage.put(n)
 
         case n: MptExtension =>
-          log.info("Got extension node: {}", n)
+          log.debug("Got extension node: {}", n)
           n.child.fold(
             { case MptHash(nodeHash) =>
               self ! RequestNodes(Seq(StateMptNodeHash(nodeHash)))
             }, { case MptValue(value) =>
-              log.info("Got value in extension node: ", Hex.toHexString(value.toArray[Byte]))
+              log.debug("Got value in extension node: ", Hex.toHexString(value.toArray[Byte]))
             })
           mptNodeStorage.put(n)
       }
@@ -304,59 +325,52 @@ class FastSyncController(
     private def handleContractMptNode(hash: ByteString, mptNode: MptNode) = {
       mptNode match {
         case n: MptLeaf =>
-          log.info("Got contract leaf node: {}", n)
+          log.debug("Got contract leaf node: {}", n)
           mptNodeStorage.put(n)
 
         case n: MptBranch =>
-          log.info("Got contract branch node: {}", n)
+          log.debug("Got contract branch node: {}", n)
           val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-          println(hashes)
           self ! RequestNodes(hashes.map(ContractStorageMptNodeHash))
           mptNodeStorage.put(n)
 
         case n: MptExtension =>
-          log.info("Got contract extension node: {}", n)
+          log.debug("Got contract extension node: {}", n)
           n.child.fold(
             { case MptHash(nodeHash) =>
               self ! RequestNodes(Seq(ContractStorageMptNodeHash(nodeHash)))
             }, { case MptValue(value) =>
-              log.info("Got contract value in extension node: ", Hex.toHexString(value.toArray[Byte]))
+              log.debug("Got contract value in extension node: ", Hex.toHexString(value.toArray[Byte]))
             })
           mptNodeStorage.put(n)
       }
     }
 
     // scalastyle:off
-    private def processSyncState(syncState: SyncState): SyncState = {
-      if (syncState.finished) {
+    def proceedSyncing(): Unit = {
+      if (syncState.finishedSyncing) {
         log.info("Fast sync finished")
         context stop self
-        syncState
       } else {
-        // don't forget to subscribe
         if (syncState.hasAnythingToDownload) {
-          log.debug("Using {} peers, {} still available ({} blacklisted).", busyPeers(syncState).size, availablePeers(syncState).size, blacklistedPeers.size)
-
-          if (availablePeers(syncState).isEmpty) {
-            if (busyPeers(syncState).nonEmpty) {
+          if (availablePeers.isEmpty) {
+            if (busyPeers.nonEmpty) {
               log.debug("There are no available peers, waiting for responses")
-              syncState
             } else {
               log.debug("There are no peers to download from, scheduling a retry in {}", downloadRetryInterval)
               // schedule a retry
-              syncState
             }
           } else {
             val remainingRequests = maxConcurrentRequests - syncState.sentRequests.size
-            val requestsNumToSend = Math.min(remainingRequests, availablePeers(syncState).size)
+            val requestsNumToSend = Math.min(remainingRequests, availablePeers.size)
 
-            (0 until requestsNumToSend).foldLeft(syncState) { case (state, idx) =>
-              val peer = availablePeers(syncState)(idx)
+            val newState = (0 until requestsNumToSend).foldLeft(syncState) { case (state, idx) =>
+              val peer = availablePeers(idx)
 
               if (state.receiptsToDownload.nonEmpty) {
                 val msg = GetReceipts(state.receiptsToDownload.take(10)) // 10 do zmiennej
                 val requestId = UUID.randomUUID().toString
-                val timeout = context.system.scheduler.scheduleOnce(30.seconds, self, RequestTimeout(requestId))
+                val timeout = context.system.scheduler.scheduleOnce(peerResponseTimeout, self, RequestTimeout(requestId))
                 val receiptsRequest = ReceiptsRequest(requestId, peer, timeout, msg)
                 peer ! PeerActor.SendMessage(msg)
                 peer ! PeerActor.Subscribe(Set(Receipts.code))
@@ -364,15 +378,15 @@ class FastSyncController(
               } else if (state.blocksBodiesToDownload.nonEmpty) {
                 val msg = GetBlockBodies(state.blocksBodiesToDownload.take(10)) // 10 do zmiennej
                 val requestId = UUID.randomUUID().toString
-                val timeout = context.system.scheduler.scheduleOnce(30.seconds, self, RequestTimeout(requestId))
-                val blocksRequest = BlocksRequest(requestId, peer, timeout, msg)
+                val timeout = context.system.scheduler.scheduleOnce(peerResponseTimeout, self, RequestTimeout(requestId))
+                val blocksRequest = BlockBodiesRequest(requestId, peer, timeout, msg)
                 peer ! PeerActor.SendMessage(msg)
                 peer ! PeerActor.Subscribe(Set(BlockBodies.code))
                 state.copy(sentRequests = state.sentRequests :+ blocksRequest, blocksBodiesToDownload = state.blocksBodiesToDownload.drop(10)) // drop 10 do zmiennej
-              } else if (state.sentBlockHeadersRequests.isEmpty) {
+              } else if (state.sentRequests.collect { case r: BlockHeadersRequest => r }.isEmpty) {
                 val msg = GetBlockHeaders(Left(state.currentBlockNumber + 1), 10, 0, reverse = false) // max 10 do zmiennej
                 val requestId = UUID.randomUUID().toString
-                val timeout = context.system.scheduler.scheduleOnce(30.seconds, self, RequestTimeout(requestId))
+                val timeout = context.system.scheduler.scheduleOnce(peerResponseTimeout, self, RequestTimeout(requestId))
                 val blockHeadersRequest = BlockHeadersRequest(requestId, peer, timeout, msg)
                 peer ! PeerActor.SendMessage(msg)
                 peer ! PeerActor.Subscribe(Set(BlockHeaders.code))
@@ -381,7 +395,7 @@ class FastSyncController(
                 val nodesToGet = state.nodesToDownload.take(10)
                 val msg = GetNodeData(nodesToGet.map(_.v)) // max 10 do zmiennej
                 val requestId = UUID.randomUUID().toString
-                val timeout = context.system.scheduler.scheduleOnce(30.seconds, self, RequestTimeout(requestId))
+                val timeout = context.system.scheduler.scheduleOnce(peerResponseTimeout, self, RequestTimeout(requestId))
                 val nodesRequest = NodesRequest(requestId, peer, timeout, msg, nodesToGet)
                 peer ! PeerActor.SendMessage(msg)
                 peer ! PeerActor.Subscribe(Set(NodeData.code))
@@ -390,31 +404,33 @@ class FastSyncController(
                 state
               }
             }
+
+            becomeWithState(newState)
           }
 
         } else {
           log.debug("No more items to request, waiting for {} responses", syncState.sentRequests.size)
-          syncState
         }
       }
     }
 
-    // to powinna ubywac stanu ktory sie mu przekaze.. lol
-    def busyPeers(syncState: SyncState) = syncState.sentRequests.map(_.peer)
+    def busyPeers: Seq[ActorRef] = syncState.sentRequests.map(_.peer)
 
-    def availablePeers(syncState: SyncState) = peersToDownloadFrom.filterNot(busyPeers(syncState).contains)
+    def availablePeers: Seq[ActorRef] = peersToDownloadFrom.filterNot(busyPeers.contains)
   }
 
 }
 
 object FastSyncController {
+
+  val EmptyAccountStorageHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+  val EmptyAccountEvmCodeHash = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
+
   case class StartFastSync(targetBlockHash: ByteString)
 
-  case class UnblacklistPeer(peer: ActorRef)
-
-  private case object Timeout
-  case class RequestTimeout(requestId: String)
-
+  private case object PrintStatus
+  private case object TargetBlockTimeout
+  private case class RequestTimeout(requestId: String)
   private case class RequestNodes(hashes: Seq[HashType])
 
   sealed trait SentRequest[Msg] {
@@ -433,22 +449,21 @@ object FastSyncController {
     extends SentRequest[GetNodeData]
 
   case class BlockHeadersRequest(
-                                  override val id: String,
-
-                                  override val peer: ActorRef,
+      override val id: String,
+      override val peer: ActorRef,
       override val timeout: Cancellable,
       override val sentMessage: GetBlockHeaders)
     extends SentRequest[GetBlockHeaders]
 
-  case class BlocksRequest(
-                            override val id: String,
+  case class BlockBodiesRequest(
+      override val id: String,
       override val peer: ActorRef,
       override val timeout: Cancellable,
       override val sentMessage: GetBlockBodies)
     extends SentRequest[GetBlockBodies]
 
   case class ReceiptsRequest(
-                              override val id: String,
+      override val id: String,
       override val peer: ActorRef,
       override val timeout: Cancellable,
       override val sentMessage: GetReceipts)
@@ -464,27 +479,55 @@ object FastSyncController {
       receiptsToDownload: Queue[ByteString] = Queue(),
       downloadedNodesCount: Int = 0) {
 
-    def sentBlockHeadersRequests: Seq[BlockHeadersRequest] =
-      sentRequests.collect { case req: BlockHeadersRequest => req }
-
     def hasAnythingToDownload: Boolean =
       nodesToDownload.nonEmpty ||
       blocksBodiesToDownload.nonEmpty ||
       receiptsToDownload.nonEmpty
 
-    def finished: Boolean =
+    def finishedSyncing: Boolean =
       currentBlockNumber == targetBlockNumber &&
-        !hasAnythingToDownload &&
-        sentRequests.isEmpty
+      !hasAnythingToDownload &&
+      sentRequests.isEmpty
+
+    def isReceiptAdded(hash: ByteString): Boolean = {
+      receiptsToDownload.contains(hash) ||
+      sentRequests.exists {
+        case r: ReceiptsRequest => r.sentMessage.blockHashes.contains(hash)
+        case _ => false
+      }
+    }
 
     def enqueueReceipts(blockHashes: Seq[ByteString]): SyncState =
-      copy(receiptsToDownload = receiptsToDownload ++ blockHashes.filterNot(receiptsToDownload.contains))
+      copy(receiptsToDownload = receiptsToDownload ++ blockHashes.filterNot(isReceiptAdded))
+
+    def isBlockBodyAdded(hash: ByteString): Boolean = {
+      blocksBodiesToDownload.contains(hash) ||
+      sentRequests.exists {
+        case r: BlockBodiesRequest => r.sentMessage.hashes.contains(hash)
+        case _ => false
+      }
+    }
 
     def enqueueBlockBodies(blockHashes: Seq[ByteString]): SyncState =
-      copy(blocksBodiesToDownload = blocksBodiesToDownload ++ blockHashes.filterNot(blocksBodiesToDownload.contains))
+      copy(blocksBodiesToDownload = blocksBodiesToDownload ++ blockHashes.filterNot(isBlockBodyAdded))
 
-    def enqueueNodes(hashes: Seq[HashType]): SyncState =
-      copy(nodesToDownload = nodesToDownload ++ hashes.filterNot(nodesToDownload.contains))
+    def isNodeAdded(hash: HashType): Boolean = {
+      nodesToDownload.contains(hash) ||
+      sentRequests.exists {
+        case r: NodesRequest => r.hashes.contains(hash)
+        case _ => false
+      }
+    }
+
+    def enqueueNodes(hashes: Seq[HashType]): SyncState = {
+      copy(nodesToDownload = nodesToDownload ++ hashes.filterNot(isNodeAdded))
+    }
+
+    def removeSentRequests(requestsToRemove: Seq[SentRequest[_]]) =
+      copy(sentRequests = sentRequests.filterNot(requestsToRemove.contains))
+
+    def knownNodesCount =
+      downloadedNodesCount + nodesToDownload.size + sentRequests.collect { case r: NodesRequest => r.hashes.size }.sum
 
     override def toString = {
       s"""
@@ -492,18 +535,18 @@ object FastSyncController {
          |  current block: $currentBlockNumber,
          |  target block: $targetBlockNumber,
          |  ${sentRequests.size} sent requests,
-         |  ${nodesToDownload.size} state nodes queued,
+         |  ${nodesToDownload.size} nodes queued,
          |  ${blocksBodiesToDownload.size} block bodies queued,
-         |  ${receiptsToDownload.size} receipts queued)
-       """.stripMargin
+         |  ${receiptsToDownload.size} receipts queued)""".stripMargin
     }
-
   }
+
 }
 
 trait BlacklistSupport {
   selfActor: Actor =>
 
+  import BlacklistSupport._
   import context.system
 
   var blacklistedPeers: Seq[(ActorRef, Cancellable)] = Nil
@@ -521,4 +564,8 @@ trait BlacklistSupport {
 
   def isBlacklisted(peer: ActorRef): Boolean =
     blacklistedPeers.exists(_._1 == peer)
+}
+
+object BlacklistSupport {
+  case class UnblacklistPeer(peer: ActorRef)
 }

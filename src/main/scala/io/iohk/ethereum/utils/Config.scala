@@ -66,8 +66,11 @@ object Config {
     val NodeRequestsInterval: FiniteDuration = fastSyncConfig.getDuration("node-requests-interval").toMillis.millis
 
     val maxConcurrentRequests: Int = 50
+    val peersScanInterval: FiniteDuration = 10.seconds
     val blacklistDuration: FiniteDuration = 30.seconds
     val startRetryInterval: FiniteDuration = 30.seconds
     val downloadRetryInterval: FiniteDuration = 30.seconds
+    val peerResponseTimeout: FiniteDuration = 10.seconds
+    val printStatusInterval: FiniteDuration = 2.seconds
   }
 }
