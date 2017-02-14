@@ -122,6 +122,10 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
     }
   }
 
+  def slt(that: DataWord): DataWord = DataWord(this.signedN < that.signedN)
+
+  def sgt(that: DataWord): DataWord = DataWord(this.signedN > that.signedN)
+
   private def zeroCheck(dw: DataWord)(result: =>DataWord): DataWord =
     if (dw == Zero) Zero else result
 

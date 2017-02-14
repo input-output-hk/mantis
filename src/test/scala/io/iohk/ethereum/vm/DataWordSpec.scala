@@ -182,6 +182,26 @@ class DataWordSpec extends FunSuite with PropertyChecks {
     assert(DataWord(0x1a81ff).signExtend(DataWord(1)) == DataWord(Array.fill[Byte](30)(-1) ++ Array[Byte](-127, -1)))
   }
 
+  test("slt") {
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      assert((DataWord(n1) slt DataWord(n2)) == DataWord(toSignedBigInt(n1) < toSignedBigInt(n2)))
+    }
+    assert((DataWord(-1) slt DataWord(1)) == DataWord(1))
+    assert((DataWord(1) slt DataWord(-1)) == DataWord(0))
+    assert((DataWord(0) slt DataWord(1)) == DataWord(1))
+    assert((DataWord(1) slt DataWord(0)) == DataWord(0))
+  }
+
+  test("sgt") {
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      assert((DataWord(n1) sgt DataWord(n2)) == DataWord(toSignedBigInt(n1) > toSignedBigInt(n2)))
+    }
+    assert((DataWord(-1) sgt DataWord(1)) == DataWord(0))
+    assert((DataWord(1) sgt DataWord(-1)) == DataWord(1))
+    assert((DataWord(0) sgt DataWord(1)) == DataWord(0))
+    assert((DataWord(1) sgt DataWord(0)) == DataWord(1))
+  }
+
   test("intValue") {
     assert(specialNumbers.map(DataWord(_).intValue).toSeq == Seq(Int.MaxValue, 0, 1, Int.MaxValue, 1, 2))
   }
