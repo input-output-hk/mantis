@@ -23,7 +23,7 @@ object OpCode {
     SIGNEXTEND,
 
     LT,
-    //GT,
+    GT,
     //SLT,
     //SGT,
     EQ,
@@ -252,6 +252,8 @@ case object EXP extends BinaryOp(0x0a, G_exp)(_ ** _) {
 case object SIGNEXTEND extends BinaryOp(0x0b, G_low)((a, b) => b signExtend a) with ConstGas
 
 case object LT extends BinaryOp(0x10, G_verylow)((a, b) => DataWord(a < b)) with ConstGas
+
+case object GT extends BinaryOp(0x11, G_verylow)((a, b) => DataWord(a > b)) with ConstGas
 
 case object EQ extends BinaryOp(0x14, G_verylow)((a, b) => DataWord(a == b)) with ConstGas
 
