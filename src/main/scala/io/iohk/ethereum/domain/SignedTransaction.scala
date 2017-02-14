@@ -18,7 +18,9 @@ object SignedTransaction {
   val AddressLength = 20
   val LastByteOfAddress: Int = FirstByteOfAddress + AddressLength
   val negativePointSign = 27
+  val newNegativePointSign = 35
   val positivePointSign = 28
+  val newPositivePointSign = 36
 }
 
 case class SignedTransaction(
@@ -58,15 +60,19 @@ case class SignedTransaction(
   lazy val recoveredAddress: Option[Array[Byte]] =
     recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
 
+  /**
+    * formula for calculating pointt sing new way
+    * v = CHAIN_ID * 2 + 35 or v = CHAIN_ID * 2 + 36
+    */
   lazy val recoveredPublicKey: Option[Array[Byte]] = pointSign match {
-    case p if p == negativePointSign || p == (Blockchain.chainId * 2 + 35).toByte =>
+    case p if p == negativePointSign || p == (Blockchain.chainId * 2 + newNegativePointSign).toByte =>
       ECDSASignature.recoverPubBytes(
         new BigInteger(1, signatureRandom.toArray[Byte]),
         new BigInteger(1, signature.toArray[Byte]),
         ECDSASignature.recIdFromSignatureV(negativePointSign),
         bytesToSign
       )
-    case p if p == positivePointSign || p == (Blockchain.chainId * 2 + 36).toByte =>
+    case p if p == positivePointSign || p == (Blockchain.chainId * 2 + newPositivePointSign).toByte =>
       ECDSASignature.recoverPubBytes(
         new BigInteger(1, signatureRandom.toArray[Byte]),
         new BigInteger(1, signature.toArray[Byte]),
