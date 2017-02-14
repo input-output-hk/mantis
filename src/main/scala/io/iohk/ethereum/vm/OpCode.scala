@@ -255,6 +255,10 @@ case object LT extends BinaryOp(0x10, G_verylow)((a, b) => DataWord(a < b)) with
 
 case object GT extends BinaryOp(0x11, G_verylow)((a, b) => DataWord(a > b)) with ConstGas
 
+case object SLT extends BinaryOp(0x12, G_verylow)(_ slt _) with ConstGas
+
+case object SGT extends BinaryOp(0x13, G_verylow)(_ sgt _) with ConstGas
+
 case object EQ extends BinaryOp(0x14, G_verylow)((a, b) => DataWord(a == b)) with ConstGas
 
 case object ISZERO extends UnaryOp(0x15, G_verylow)(a => DataWord(a.isZero)) with ConstGas

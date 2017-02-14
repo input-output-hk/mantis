@@ -82,14 +82,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("SLT") {
-    // to be implemented
-  }
-
-  ignore("SGT") {
-    // to be implemented
-  }
-
   ignore("OR") {
     // to be implemented
   }
