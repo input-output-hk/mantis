@@ -22,10 +22,8 @@
         <appender-ref ref="FILE" />
     </root>
 
-    <logger name="io.iohk.ethereum.network.rlpx.RLPxConnectionHandler" level="ERROR" />
-    <logger name="io.iohk.ethereum.network.FastSyncController" level="INFO" />
-    <logger name="io.iohk.ethereum.network.PeerActor" level="ERROR" />
-    <logger name="akka.io.SelectionHandler" level="ERROR" />
-    <logger name="akka.io.TcpOutgoingConnection" level="ERROR" />
+    <logger name="io.iohk.ethereum.network.rlpx.RLPxConnectionHandler" level="INFO" />
+    <logger name="io.iohk.ethereum.blockchain.FastSyncController" level="INFO" />
+    <logger name="io.iohk.ethereum.network.PeerActor" level="INFO" />
 
 </configuration>

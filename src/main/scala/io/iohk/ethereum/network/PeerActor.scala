@@ -261,7 +261,7 @@ class PeerActor(
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
         handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
-        //log.info("Received message: {}", message)
+        log.debug("Received message: {}", message)
         notifySubscribers(message)
         processMessage(message)
 

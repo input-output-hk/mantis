@@ -62,22 +62,18 @@ object Config {
   object FastSync {
     private val fastSyncConfig = config.getConfig("fast-sync")
 
-    val BlocksPerMessage: Int = fastSyncConfig.getInt("blocks-per-message")
-    val NodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
-    val NodeRequestsInterval: FiniteDuration = fastSyncConfig.getDuration("node-requests-interval").toMillis.millis
+    val peersScanInterval: FiniteDuration = fastSyncConfig.getDuration("peers-scan-interval").toMillis.millis
+    val blacklistDuration: FiniteDuration = fastSyncConfig.getDuration("blacklist-duration").toMillis.millis
+    val startRetryInterval: FiniteDuration = fastSyncConfig.getDuration("start-retry-interval").toMillis.millis
+    val syncRetryInterval: FiniteDuration = fastSyncConfig.getDuration("sync-retry-interval").toMillis.millis
+    val peerResponseTimeout: FiniteDuration = fastSyncConfig.getDuration("peer-response-timeout").toMillis.millis
+    val printStatusInterval: FiniteDuration = fastSyncConfig.getDuration("print-status-interval").toMillis.millis
 
-    val maxConcurrentRequests: Int = 50
-    val peersScanInterval: FiniteDuration = 30.seconds
-    val blacklistDuration: FiniteDuration = 30.seconds
-    val startRetryInterval: FiniteDuration = 5.seconds
-    val downloadRetryInterval: FiniteDuration = 5.seconds
-    val peerResponseTimeout: FiniteDuration = 10.seconds
-    val printStatusInterval: FiniteDuration = 2.seconds
-
-    val blockHeadersPerRequest: Int = 2048
-    val blockBodiesPerRequest: Int = 128
-    val receiptsPerRequest: Int = 128
-    val nodesPerRequest: Int = 384
+    val maxConcurrentRequests: Int = fastSyncConfig.getInt("max-concurrent-requests")
+    val blockHeadersPerRequest: Int = fastSyncConfig.getInt("block-headers-per-request")
+    val blockBodiesPerRequest: Int = fastSyncConfig.getInt("block-bodies-per-request")
+    val receiptsPerRequest: Int = fastSyncConfig.getInt("receipts-per-request")
+    val nodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
   }
 
   object Db {

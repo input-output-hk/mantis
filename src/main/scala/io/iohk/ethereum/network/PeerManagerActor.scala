@@ -7,7 +7,6 @@ import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
-import akka.util.ByteString
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 class PeerManagerActor(
