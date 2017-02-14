@@ -203,7 +203,7 @@ sealed abstract class UnaryOp(code: Int, constGas: BigInt)(val f: DataWord => Da
 }
 
 sealed abstract class BinaryOp(code: Int, constGas: BigInt)(val f: (DataWord, DataWord) => DataWord)
-    extends OpCode(code.toByte, 2, 1, constGas) {
+  extends OpCode(code.toByte, 2, 1, constGas) {
 
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(a, b), stack1) = state.stack.pop(2)

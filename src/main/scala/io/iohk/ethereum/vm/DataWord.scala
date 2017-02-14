@@ -11,8 +11,6 @@ object DataWord {
    */
   val Size: Int = 32
 
-  val Modulus: BigInt = BigInt(2).pow(Size * 8)
-
   val MaxSignedValue: BigInt = BigInt(2).pow(Size * 8 - 1) - 1
 
   val MaxValue: DataWord = DataWord(Modulus - 1)
@@ -39,6 +37,8 @@ object DataWord {
   }
 
   implicit def dataWord2BigInt(dw: DataWord): BigInt = dw.toBigInt
+
+  private val Modulus: BigInt = BigInt(2).pow(Size * 8)
 
   private val Zeros: ByteString = ByteString(Array.fill[Byte](Size)(0))
 
@@ -141,13 +141,13 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
   def compare(that: DataWord): Int = this.n.compare(that.n)
 
   /**
-   * @return an Int with MSB=0, thus a value in range [0, Int.MaxValue]
-   */
+    * @return an Int with MSB=0, thus a value in range [0, Int.MaxValue]
+    */
   def intValue: Int = n.intValue & Int.MaxValue
 
   /**
-   * @return a Long with MSB=0, thus a value in range [0, Long.MaxValue]
-   */
+    * @return a Long with MSB=0, thus a value in range [0, Long.MaxValue]
+    */
   def longValue: Long = n.longValue & Long.MaxValue
 
   def isZero: Boolean = n == 0
