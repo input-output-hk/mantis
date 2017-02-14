@@ -24,13 +24,13 @@ object OpCode {
 
     LT,
     GT,
-    //SLT,
-    //SGT,
+    SLT,
+    SGT,
     EQ,
     ISZERO,
     AND,
-    //OR,
-    //XOR,
+    OR,
+    XOR,
     NOT,
     //BYTE,
 
@@ -264,6 +264,10 @@ case object EQ extends BinaryOp(0x14, G_verylow)((a, b) => DataWord(a == b)) wit
 case object ISZERO extends UnaryOp(0x15, G_verylow)(a => DataWord(a.isZero)) with ConstGas
 
 case object AND extends BinaryOp(0x16, G_verylow)(_ & _) with ConstGas
+
+case object OR extends BinaryOp(0x17, G_verylow)(_ & _) with ConstGas
+
+case object XOR extends BinaryOp(0x18, G_verylow)(_ & _) with ConstGas
 
 case object NOT extends UnaryOp(0x19, G_verylow)(~_) with ConstGas
 
