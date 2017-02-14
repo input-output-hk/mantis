@@ -1,7 +1,8 @@
 package io.iohk.ethereum.network
 
+import akka.actor.Actor.Receive
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage}
+import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, TotalDifficultyStorage}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -17,19 +18,21 @@ class BlockBroadcastActor(
 
   import BlockBroadcastActor._
 
-  def receive: Receive = {
+  override def receive: Receive = idle
+
+  def idle: Receive = {
     //TODO: Be able to process NewBlockHashes
     case StartBlockBroadcast =>
       peerActor ! PeerActor.Subscribe(Set(NewBlock.code))
       context become processNewBlockMessages(Seq(), Seq())
   }
 
-  def processNewBlockMessages(unprocessedNewBlocks: Seq[(Block, BigInt)], toBroadcastBlocks: Seq[(Block, BigInt)]): Receive = {
+  def processNewBlockMessages(unprocessedNewBlocks: Seq[Block], toBroadcastBlocks: Seq[Block]): Receive = {
 
     case PeerActor.MessageReceived(m: NewBlock) =>
       //Check that the NewBlock should be processed
       val newBlock = Block(m.blockHeader, m.blockBody)
-      val blockNotProcessed = (unprocessedNewBlocks ++ toBroadcastBlocks).forall(_._1 != newBlock)
+      val blockNotProcessed = !(unprocessedNewBlocks ++ toBroadcastBlocks).contains(newBlock)
       val blockNotInStorage = storage.blockHeadersStorage.get(m.blockHeader.hash).isEmpty
 
       //TODO: Check if the block's number is ok (not too old and not too into the future)
@@ -37,10 +40,10 @@ class BlockBroadcastActor(
       //      We also need to decide how to handle blocks too into the future (Geth or EthereumJ approach)
 
       if(blockNotProcessed && blockNotInStorage){
-        log.info("Got NewBlock message {}", m)
+        log.debug("Got NewBlock message {}", m)
         self ! ProcessNewBlocks
         context become processNewBlockMessages(
-          unprocessedNewBlocks = unprocessedNewBlocks :+ (newBlock -> m.totalDifficulty),
+          unprocessedNewBlocks = unprocessedNewBlocks :+ newBlock,
           toBroadcastBlocks = toBroadcastBlocks
         )
       }
@@ -49,23 +52,24 @@ class BlockBroadcastActor(
 
     case peers: Map[String, Peer] if toBroadcastBlocks.nonEmpty =>
       //TODO: Decide block propagation algorithm (for now we send block to every peer)
-      peers.values.foreach{ peer =>
-        toBroadcastBlocks.foreach{ case (b, td) =>
-          val newBlockMsg = NewBlock(b.blockHeader, b.blockBody, td)
-          log.info("Sending NewBlockMessage {} to {}", newBlockMsg, peer.id)
+      toBroadcastBlocks.foreach{ b =>
+        val blockTd = b.blockHeader.difficulty + storage.totalDifficultyStorage.get(b.blockHeader.parentHash)
+          .getOrElse(throw new Exception("Block td is not on storage"))
+        peers.values.foreach{ peer =>
+          val newBlockMsg = NewBlock(b.blockHeader, b.blockBody, blockTd)
+          log.debug("Sending NewBlockMessage {} to {}", newBlockMsg, peer.id)
           peer.ref ! PeerActor.SendMessage(newBlockMsg)
         }
       }
       context become processNewBlockMessages(unprocessedNewBlocks, Seq())
 
     case other => //Nothing
-      log.info("Received {}")
+      log.debug("Received {}")
   }
 
-  private def processBlock(unprocessedNewBlocks: Seq[(Block, BigInt)], toBroadcastBlocks: Seq[(Block, BigInt)]) = {
-    log.info("Processing new block message")
-    val (blockToProcess, blockTd) = unprocessedNewBlocks.head
-    val blockToProcessHash = blockToProcess.blockHeader.hash
+  private def processBlock(unprocessedNewBlocks: Seq[Block], toBroadcastBlocks: Seq[Block]) = {
+    val blockToProcess = unprocessedNewBlocks.head
+    log.debug("Processing new block {}", blockToProcess)
 
     val block: Option[Block] = for {
       parentHeader <- storage.blockHeadersStorage.get(blockToProcess.blockHeader.parentHash)
@@ -78,7 +82,7 @@ class BlockBroadcastActor(
     block match {
       case Some(b: Block) =>
         peerManagerActor ! GetPeers
-        context become processNewBlockMessages(unprocessedNewBlocks.tail, toBroadcastBlocks :+ (blockToProcess -> blockTd))
+        context become processNewBlockMessages(unprocessedNewBlocks.tail, toBroadcastBlocks :+ blockToProcess)
       case None =>
         context become processNewBlockMessages(unprocessedNewBlocks.tail, toBroadcastBlocks)
     }
@@ -94,11 +98,11 @@ object BlockBroadcastActor {
   case object ProcessNewBlocks
 
   /**TODO: Storages to add:
-    *   TotalDifficultyStorage (for the blocks received after NewBlockHashes)
     *   Blockchain (for inserting blocks to it)
     */
   case class Storage(blockHeadersStorage: BlockHeadersStorage,
-                     blockBodiesStorage: BlockBodiesStorage)
+                     blockBodiesStorage: BlockBodiesStorage,
+                     totalDifficultyStorage: TotalDifficultyStorage)
 }
 
 //FIXME: Start using [EC-43] Block class

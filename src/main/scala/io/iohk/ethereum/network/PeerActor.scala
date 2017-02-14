@@ -281,7 +281,8 @@ class PeerActor(
         //FIXME: Share with fastsync
         val storage = BlockBroadcastActor.Storage(
           new BlockHeadersStorage(EphemDataSource()),
-          new BlockBodiesStorage(EphemDataSource())
+          new BlockBodiesStorage(EphemDataSource()),
+          new TotalDifficultyStorage(EphemDataSource())
         )
         context.actorOf(BlockBroadcastActor.props(self, context.parent, storage), UUID.randomUUID().toString)
     }

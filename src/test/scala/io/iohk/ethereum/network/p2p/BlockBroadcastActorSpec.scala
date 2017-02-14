@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage}
+import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, TotalDifficultyStorage}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -28,7 +28,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
   it should "broadcast only blocks that it hasn't yet received" in {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
 
-    val newBlock = NewBlock(block.blockHeader, block.blockBody, BigInt("989772"))
+    val newBlock = NewBlock(block.blockHeader, block.blockBody, block.blockHeader.difficulty + blockParent.blockHeader.difficulty)
     blockBroadcast ! PeerActor.MessageReceived(newBlock)
 
     peerManager.expectMsg(GetPeers)
@@ -41,7 +41,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
   it should "not broadcast repeated blocks" in {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
 
-    val newBlock = NewBlock(block.blockHeader, block.blockBody, BigInt("989772"))
+    val newBlock = NewBlock(block.blockHeader, block.blockBody, block.blockHeader.difficulty + blockParent.blockHeader.difficulty)
     blockBroadcast ! PeerActor.MessageReceived(newBlock)
 
     peerManager.expectMsg(GetPeers)
@@ -142,7 +142,8 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
   val blockBroadcastStorage = BlockBroadcastActor.Storage(
     new BlockHeadersStorage(EphemDataSource()).put(blockParent.blockHeader.hash, blockParent.blockHeader),
-    new BlockBodiesStorage(EphemDataSource()).put(blockParent.blockHeader.hash, blockParent.blockBody)
+    new BlockBodiesStorage(EphemDataSource()).put(blockParent.blockHeader.hash, blockParent.blockBody),
+    new TotalDifficultyStorage(EphemDataSource()).put(blockParent.blockHeader.hash, blockParent.blockHeader.difficulty)
   )
 
   val blockBroadcast = TestActorRef(BlockBroadcastActor.props(peer.ref, peerManager.ref, blockBroadcastStorage))
