@@ -8,6 +8,8 @@ import io.iohk.ethereum.vm.DataWord._
 
 class DataWordSpec extends FunSuite with PropertyChecks {
 
+  val Modulus: BigInt = BigInt(2).pow(Size * 8)
+
   val specialNumbers = Array(BigInt(-1), BigInt(0), BigInt(1), MaxValue.toBigInt, -MaxValue.toBigInt, -MaxValue.toBigInt + 1)
 
   val pairs: Array[(BigInt, BigInt)] = specialNumbers
