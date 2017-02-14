@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
+import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import org.spongycastle.util.encoders.Hex
 
 import scala.collection.JavaConversions._
@@ -77,5 +78,17 @@ object Config {
     val blockBodiesPerRequest: Int = 100
     val receiptsPerRequest: Int = 100
     val nodesPerRequest: Int = 100
+  }
+
+  object Db {
+
+    private val dbConfig = config.getConfig("db")
+
+    object LevelDb extends LevelDbConfig {
+      override val createIfMissing: Boolean = dbConfig.getBoolean("create-if-missing")
+      override val paranoidChecks: Boolean = dbConfig.getBoolean("paranoid-checks")
+      override val verifyChecksums: Boolean = dbConfig.getBoolean("verify-checksums")
+      override val cacheSize: Int = dbConfig.getInt("cache-size")
+    }
   }
 }

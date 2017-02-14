@@ -62,7 +62,7 @@ class FastSyncController(
   def waitingForTargetBlock(targetBlockHash: ByteString, timeout: Cancellable): Receive = handlePeerUpdates orElse {
     case PeerActor.MessageReceived(blockHeaders: BlockHeaders) =>
       timeout.cancel()
-      val targetBlockHeaderOpt = blockHeaders.headers.find(header => ForkValidator.hash(header) == targetBlockHash)
+      val targetBlockHeaderOpt = blockHeaders.headers.find(header => header.hash == targetBlockHash)
       targetBlockHeaderOpt match {
         case Some(targetBlockHeader) =>
           log.info("Received target block from peer, starting fast sync")
@@ -160,12 +160,12 @@ class FastSyncController(
         val requests = syncState.sentRequests.collect { case r: BlockHeadersRequest if r.peer == sender() => r }
         requests.foreach(_.timeout.cancel())
 
-        val blockHashes = headers.map(ForkValidator.hash)
+        val blockHashes = headers.map(_.hash)
         (blockHashes zip headers).foreach { case (hash, header) =>
           blockHeadersStorage.put(hash, header)
         }
         headers.lastOption.foreach { lastHeader =>
-          val newBlockchainStatus = BlockchainStatus(lastHeader.difficulty, ForkValidator.hash(lastHeader))
+          val newBlockchainStatus = BlockchainStatus(lastHeader.difficulty, lastHeader.hash)
           nodeStatusHolder.send(_.copy(blockchainStatus = newBlockchainStatus))
         }
 
@@ -427,7 +427,7 @@ object FastSyncController {
   private case class RequestTimeout(requestId: String)
   private case class RequestNodes(hashes: Seq[HashType])
 
-  sealed trait SentRequest[Msg <: Message] {
+  sealed trait SentRequest[Msg] {
     def id: String
     def peer: ActorRef
     def timeout: Cancellable

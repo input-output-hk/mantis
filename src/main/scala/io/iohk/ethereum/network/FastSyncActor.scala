@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network
 
-import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.BlockHeader
@@ -8,7 +8,6 @@ import io.iohk.ethereum.network.FastSyncActor._
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
-import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.utils.Config.FastSync
 import org.spongycastle.util.encoders.Hex
 
@@ -26,13 +25,7 @@ class FastSyncActor(
   val EmptyAccountStorageHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
   val EmptyAccountEvmCodeHash = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 
-  def handleTerminated: Receive = {
-    case _: Terminated =>
-      log.info("FastSync actor terminated")
-      context stop self
-  }
-
-  override def receive: Receive = handleTerminated orElse {
+  override def receive: Receive = {
     case StartSync(targetBlockHash) =>
       //TODO check DB if it is not empty delete everything
       peerActor ! PeerActor.Subscribe(Set(NodeData.code, Receipts.code, BlockBodies.code, BlockHeaders.code))
@@ -40,7 +33,7 @@ class FastSyncActor(
       context become waitForTargetBlockHeader(targetBlockHash)
   }
 
-  def waitForTargetBlockHeader(targetBlockHash: ByteString): Receive = handleTerminated orElse {
+  def waitForTargetBlockHeader(targetBlockHash: ByteString): Receive = {
     case MessageReceived(BlockHeaders(blockHeaders)) if blockHeaders.nonEmpty =>
       peerActor ! PeerActor.SendMessage(GetNodeData(Seq(blockHeaders.head.stateRoot)))
       peerActor ! PeerActor.SendMessage(GetBlockHeaders(Left(GenesisBlockNumber + 1), FastSync.BlocksPerMessage, 0, reverse = false))
@@ -50,9 +43,9 @@ class FastSyncActor(
         requestedNodes = Seq(StateMptNodeHash(blockHeaders.head.stateRoot))))
   }
 
-  def processMessages(state: ProcessingState): Receive = handleTerminated orElse handleMptDownload(state) orElse {
+  def processMessages(state: ProcessingState): Receive = handleMptDownload(state) orElse {
     case MessageReceived(BlockHeaders(headers)) =>
-      val blockHashes = headers.map(ForkValidator.hash)//todo move this methode from ForkValidator
+      val blockHashes = headers.map(_.hash)
       peerActor ! PeerActor.SendMessage(GetBlockBodies(blockHashes))
       peerActor ! PeerActor.SendMessage(GetReceipts(blockHashes))
       context become processMessages(state.copy(blockHeaders = headers))
@@ -91,7 +84,7 @@ class FastSyncActor(
         log.info("receipts: {}", receipts)
         log.info("bodies: {}", bodies)
 
-        val blockHashes = headers.map(ForkValidator.hash)
+        val blockHashes = headers.map(_.hash)
 
         blockHashes.zip(headers).foreach { case (hash, value) =>
           blockHeadersStorage.put(hash, value)
@@ -144,9 +137,7 @@ class FastSyncActor(
           evmStorage.put(hash, evmCode)
         case (StorageRootHash(hash), idx) =>
           val rootNode = m.getMptNode(idx)
-          val msg =
-            s"got root node for contract storage: $rootNode"
-          log.info(msg)
+          log.info(s"got root node for contract storage: $rootNode")
           handleContractMptNode(hash, rootNode)
       }
       //remove hashes from state as nodes received
@@ -193,7 +184,7 @@ class FastSyncActor(
       case n: MptBranch =>
         log.info("Got contract branch node: {}", n)
         val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-        println(hashes)
+        log.info("{}", hashes)
         self ! RequestNodes(hashes.map(ContractStorageMptNodeHash): _*)
         mptNodeStorage.put(n)
 
