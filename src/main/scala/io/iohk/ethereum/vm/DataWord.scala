@@ -154,6 +154,9 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
   def toBigInt: BigInt = n
 
   /**
+    * Used for gas calculation for EXP opcode. See YP Appendix H.1 (220)
+    * For n > 0: (n.bitLength - 1) / 8 + 1 == 1 + floor(log_256(n))
+    *
     * @return Size in bytes excluding the leading 0 bytes
     */
   def byteSize: Int = if (isZero) 0 else (n.bitLength - 1) / 8 + 1
