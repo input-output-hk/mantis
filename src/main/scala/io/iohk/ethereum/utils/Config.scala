@@ -32,7 +32,7 @@ object Config {
     object Discovery {
       private val discoveryConfig = networkConfig.getConfig("discovery")
 
-      val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").toList
+      val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").toSet
       val bootstrapNodesScanInterval = discoveryConfig.getDuration("bootstrap-nodes-scan-interval").toMillis.millis
     }
 
@@ -67,17 +67,17 @@ object Config {
     val NodeRequestsInterval: FiniteDuration = fastSyncConfig.getDuration("node-requests-interval").toMillis.millis
 
     val maxConcurrentRequests: Int = 50
-    val peersScanInterval: FiniteDuration = 10.seconds
+    val peersScanInterval: FiniteDuration = 30.seconds
     val blacklistDuration: FiniteDuration = 30.seconds
-    val startRetryInterval: FiniteDuration = 30.seconds
-    val downloadRetryInterval: FiniteDuration = 30.seconds
+    val startRetryInterval: FiniteDuration = 5.seconds
+    val downloadRetryInterval: FiniteDuration = 5.seconds
     val peerResponseTimeout: FiniteDuration = 10.seconds
     val printStatusInterval: FiniteDuration = 2.seconds
 
-    val blockHeadersPerRequest: Int = 100
-    val blockBodiesPerRequest: Int = 100
-    val receiptsPerRequest: Int = 100
-    val nodesPerRequest: Int = 100
+    val blockHeadersPerRequest: Int = 2048
+    val blockBodiesPerRequest: Int = 128
+    val receiptsPerRequest: Int = 128
+    val nodesPerRequest: Int = 384
   }
 
   object Db {

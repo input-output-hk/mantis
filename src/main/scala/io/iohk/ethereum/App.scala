@@ -35,11 +35,6 @@ object App {
 
     server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
 
-    val bootstrapNodes = NetworkConfig.Discovery.bootstrapNodes.map(new URI(_))
-    bootstrapNodes.foreach { node =>
-      peerManager ! PeerManagerActor.ConnectToPeer(node)
-    }
-
     val dataSource = EphemDataSource()
     val fastSyncController = actorSystem.actorOf(Props(new FastSyncController(
       peerManager,
@@ -51,7 +46,7 @@ object App {
       new EvmCodeStorage(dataSource))))
 
 
-    fastSyncController ! FastSyncController.StartFastSync(ByteString(Hex.decode("dc550c0c4345df8183f77fd52773e2ae0c453c288e3371bdfbb7fb0e22f90b4e")))
+    fastSyncController ! FastSyncController.StartFastSync(ByteString(Hex.decode("6a97918a39123ead4673c4ef0a88f77765f5c15c87d0faa906b95cb2cc729784")))
   }
 
 }
