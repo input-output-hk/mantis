@@ -82,10 +82,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("BYTE") {
-    // to be implemented
-  }
-
   test(SHA3) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = DataWord(256)),

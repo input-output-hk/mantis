@@ -32,7 +32,7 @@ object OpCode {
     OR,
     XOR,
     NOT,
-    //BYTE,
+    BYTE,
 
     SHA3,
 
@@ -270,6 +270,8 @@ case object OR extends BinaryOp(0x17, G_verylow)(_ & _) with ConstGas
 case object XOR extends BinaryOp(0x18, G_verylow)(_ & _) with ConstGas
 
 case object NOT extends UnaryOp(0x19, G_verylow)(~_) with ConstGas
+
+case object BYTE extends BinaryOp(0x1a, G_verylow)((a, b) => b getByte a) with ConstGas
 
 case object SHA3 extends OpCode(0x20, 2, 1, G_sha3) {
   protected def exec(state: ProgramState): ProgramState = {
