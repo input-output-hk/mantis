@@ -165,9 +165,9 @@ class FastSyncController(
       case ProcessSyncing =>
         processSyncing()
 
-      case FastSyncRequestHandler.Done(peer) =>
+      case FastSyncRequestHandler.Done =>
         context unwatch sender()
-        assignedHandlers = assignedHandlers.filterNot(_._2 == peer)
+        assignedHandlers -= sender()
         processSyncing()
 
       case Terminated(ref) if assignedHandlers.contains(ref) =>
@@ -251,7 +251,7 @@ class FastSyncController(
       nodesQueue = nodesQueue.drop(nodesPerRequest)
     }
 
-    def unassignedPeers: Set[ActorRef] = peersToDownloadFrom.filterNot(assignedHandlers.contains)
+    def unassignedPeers: Set[ActorRef] = peersToDownloadFrom diff assignedHandlers.values.toSet
 
     def anythingQueued: Boolean =
       nodesQueue.nonEmpty ||

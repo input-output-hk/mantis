@@ -51,13 +51,13 @@ abstract class FastSyncRequestHandler[RequestMsg <: Message : RLPEncoder,
     timeout.cancel()
     context unwatch peer
     peer ! PeerActor.Unsubscribe
-    fastSyncController ! Done(peer)
+    fastSyncController ! Done
     context stop self
   }
 }
 
 object FastSyncRequestHandler {
-  case class Done(peer: ActorRef)
+  case object Done
 
   private case object Timeout
 }
