@@ -40,7 +40,7 @@ class TransactionSpec extends FlatSpec with Matchers {
     validStx.recoveredPublicKey.map(crypto.curve.getCurve.decodePoint) shouldBe Some(publicKey)
   }
 
-  it should "recover sender public key for new sign encoding schema" in {
+  it should "not recover sender public key for new sign encoding schema if there is no chain_id in signed data" in {
     newInvalidStx.recoveredPublicKey.map(crypto.curve.getCurve.decodePoint) shouldNot be(Some(publicKey))
   }
 

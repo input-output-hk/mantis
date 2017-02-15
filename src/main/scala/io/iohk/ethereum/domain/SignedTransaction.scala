@@ -61,16 +61,17 @@ case class SignedTransaction(
     recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
 
   /**
-    * formula for calculating pointt sing new way
+    * new formula for calculating point sign post EIP 155 adoption
     * v = CHAIN_ID * 2 + 35 or v = CHAIN_ID * 2 + 36
     */
-  lazy val recoveredPointSign: Option[Int] = pointSign match {
-    case p if p == negativePointSign || p == (Blockchain.chainId * 2 + newNegativePointSign).toByte =>
+  lazy val recoveredPointSign: Option[Int] =
+    if (pointSign == negativePointSign || pointSign == (Blockchain.chainId * 2 + newNegativePointSign).toByte) {
       Some(negativePointSign)
-    case p if p == positivePointSign || p == (Blockchain.chainId * 2 + newPositivePointSign).toByte =>
+    } else if (pointSign == positivePointSign || pointSign == (Blockchain.chainId * 2 + newPositivePointSign).toByte) {
       Some(positivePointSign)
-    case _ => None
-  }
+    } else {
+      None
+    }
 
   lazy val recoveredPublicKey: Option[Array[Byte]] = recoveredPointSign.flatMap { p =>
     ECDSASignature.recoverPubBytes(
