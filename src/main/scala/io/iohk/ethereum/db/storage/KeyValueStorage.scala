@@ -62,6 +62,7 @@ private[storage] trait KeyValueStorage[K, V] {
 object Namespaces {
   val ReceiptsNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('r'.toByte)
   val HeaderNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('h'.toByte)
+  val HeaderNumberNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('n'.toByte)
   val BodyNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('b'.toByte)
   val NodeNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('n'.toByte)
   val CodeNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('c'.toByte)

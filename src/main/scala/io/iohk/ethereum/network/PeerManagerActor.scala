@@ -72,12 +72,12 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus]): Props =
-    Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder)))
+  def props(nodeStatusHolder: Agent[NodeStatus], storage: PeerActor.Storage): Props =
+    Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder, storage)))
 
-  def peerFactory(nodeStatusHolder: Agent[NodeStatus]): (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
+  def peerFactory(nodeStatusHolder: Agent[NodeStatus], storage: PeerActor.Storage): (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
     val id = addr.toString.filterNot(_ == '/')
-    ctx.actorOf(PeerActor.props(nodeStatusHolder), id)
+    ctx.actorOf(PeerActor.props(nodeStatusHolder, storage), id)
   }
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)

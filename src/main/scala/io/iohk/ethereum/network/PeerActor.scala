@@ -3,23 +3,23 @@ package io.iohk.ethereum.network
 import java.net.{InetSocketAddress, URI}
 import java.util.UUID
 
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-
-import scala.concurrent.duration._
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
-import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
-import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
+import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
 import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
+import org.spongycastle.crypto.AsymmetricCipherKeyPair
+
+import scala.concurrent.duration._
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
@@ -30,17 +30,18 @@ import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
   */
 class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
-    rlpxConnectionFactory: ActorContext => ActorRef)
+    rlpxConnectionFactory: ActorContext => ActorRef,
+    storage: PeerActor.Storage)
   extends Actor with ActorLogging {
 
-  import PeerActor._
-  import Config.Network.Peer._
   import Config.Blockchain._
+  import Config.Network.Peer._
+  import PeerActor._
   import context.{dispatcher, system}
 
   val P2pVersion = 4
 
-  val peerId = self.path.name
+  val peerId: String = self.path.name
 
   val daoForkValidator = ForkValidator(daoForkBlockNumber, daoForkBlockHash)
 
@@ -229,6 +230,39 @@ class PeerActor(
     context become waitingForConnectionResult(newConnection, noRetries)
   }
 
+  def handleBlockFastDownload(rlpxConnection: RLPxConnection): Receive = {
+    case RLPxConnectionHandler.MessageReceived(request: GetReceipts) =>
+      val receipts = request.blockHashes.slice(0, maxReceiptsPerMessage)
+        .flatMap(hash => storage.receiptStorage.get(hash))
+
+      rlpxConnection.sendMessage(Receipts(receipts))
+
+    case RLPxConnectionHandler.MessageReceived(request: GetBlockBodies) =>
+      val blockBodies = request.hashes.slice(0, maxBlocksBodiesPerMessage)
+        .flatMap(hash => storage.blockBodiesStorage.get(hash))
+
+      rlpxConnection.sendMessage(BlockBodies(blockBodies))
+
+    case RLPxConnectionHandler.MessageReceived(request: GetBlockHeaders) =>
+      val blockNumber = request.block.fold(a => Some(a), b => storage.blockHeadersStorage.get(b).map(_.number))
+
+      blockNumber match {
+        case Some(number) if number >= 0 && request.maxHeaders >= 0 && request.skip >= 0 =>
+
+          val headersCount: BigInt = if(maxBlocksHeadersPerMessage < request.maxHeaders) maxBlocksHeadersPerMessage else request.maxHeaders
+
+          val blockHeaders = ((number + request.skip) to (number + request.skip + headersCount))
+            .flatMap(storage.blockHeadersStorage.get)
+
+          if (request.reverse) {
+            rlpxConnection.sendMessage(BlockHeaders(blockHeaders.reverse))
+          } else {
+            rlpxConnection.sendMessage(BlockHeaders(blockHeaders))
+          }
+        case _ => log.info("got request for block headers with invalid block hash/number: {}", request)
+      }
+  }
+
   def handlePingMsg(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(ping: Ping) => rlpxConnection.sendMessage(Pong())
   }
@@ -306,8 +340,8 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus]): Props =
-    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key)))
+  def props(nodeStatusHolder: Agent[NodeStatus], storage: PeerActor.Storage): Props =
+    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), storage))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
@@ -318,6 +352,11 @@ object PeerActor {
       ref ! RLPxConnectionHandler.SendMessage(message)
     }
   }
+
+  case class Storage(
+    blockHeadersStorage: BlockHeadersStorage,
+    blockBodiesStorage: BlockBodiesStorage,
+    receiptStorage: ReceiptStorage)
 
   case class HandleConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
 

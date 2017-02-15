@@ -264,7 +264,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     implicit val system = ActorSystem("PeerActorSpec_System")
 
     val storage = FastSyncActor.Storage(
-      new BlockHeadersStorage(EphemDataSource()),
+      new BlockHeadersStorage(EphemDataSource(), new BlockHeadersNumbersStorage(EphemDataSource())),
       new BlockBodiesStorage(EphemDataSource()),
       new ReceiptStorage(EphemDataSource()),
       new MptNodeStorage(EphemDataSource()),

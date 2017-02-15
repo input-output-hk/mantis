@@ -39,11 +39,15 @@ object Config {
     object Peer {
       private val peerConfig = networkConfig.getConfig("peer")
 
-      val connectRetryDelay = peerConfig.getDuration("connect-retry-delay").toMillis.millis
-      val connectMaxRetries = peerConfig.getInt("connect-max-retries")
-      val disconnectPoisonPillTimeout = peerConfig.getDuration("disconnect-poison-pill-timeout").toMillis.millis
-      val waitForStatusTimeout = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
-      val waitForChainCheckTimeout = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
+      val connectRetryDelay: FiniteDuration = peerConfig.getDuration("connect-retry-delay").toMillis.millis
+      val connectMaxRetries: Int = peerConfig.getInt("connect-max-retries")
+      val disconnectPoisonPillTimeout: FiniteDuration = peerConfig.getDuration("disconnect-poison-pill-timeout").toMillis.millis
+      val waitForStatusTimeout: FiniteDuration = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
+      val waitForChainCheckTimeout: FiniteDuration = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
+
+      val maxBlocksHeadersPerMessage: Int = peerConfig.getInt("max-blocks-headers-per-message")
+      val maxBlocksBodiesPerMessage: Int = peerConfig.getInt("max-blocks-bodies-per-message")
+      val maxReceiptsPerMessage: Int = peerConfig.getInt("max-receipts-per-message")
     }
 
   }

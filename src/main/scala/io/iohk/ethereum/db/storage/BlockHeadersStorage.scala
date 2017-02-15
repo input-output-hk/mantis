@@ -12,7 +12,8 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
   *   Key: hash of the block to which the BlockHeader belong
   *   Value: the block header
   */
-class BlockHeadersStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHeaderHash, BlockHeader] {
+class BlockHeadersStorage(val dataSource: DataSource,
+  val blockHeadersNumbersStorage: BlockHeadersNumbersStorage) extends KeyValueStorage[BlockHeaderHash, BlockHeader] {
   override type T = BlockHeadersStorage
   override val namespace: IndexedSeq[Byte] = Namespaces.HeaderNamespace
 
@@ -24,7 +25,23 @@ class BlockHeadersStorage(val dataSource: DataSource) extends KeyValueStorage[Bl
   override def valueDeserializer: (IndexedSeq[Byte]) => BlockHeader =
     (encodedBlockHeader: IndexedSeq[Byte]) => rlpDecode[BlockHeader](encodedBlockHeader.toArray)
 
-  override protected def apply(dataSource: DataSource): BlockHeadersStorage = new BlockHeadersStorage(dataSource)
+  override protected def apply(dataSource: DataSource): BlockHeadersStorage =
+    new BlockHeadersStorage(dataSource, blockHeadersNumbersStorage)
+
+  def get(blockNumber: BigInt): Option[BlockHeader] = if (blockNumber == 0) {
+    //todo get block from config, or we will put 0 block to storage at app startup if it is not there?
+    None
+  } else {
+    blockHeadersNumbersStorage.get(blockNumber).flatMap(key => super.get(key))
+  }
+
+  override def update(toRemove: Seq[BlockHeaderHash], toUpsert: Seq[(BlockHeaderHash, BlockHeader)]): BlockHeadersStorage = {
+    val numbersToRemove = toRemove.map(get).collect { case Some(block) => block.number }
+    val numberToUpdate = toUpsert.map { case (hash, block) => (block.number, hash) }
+    blockHeadersNumbersStorage.update(numbersToRemove, numberToUpdate)
+    super.update(toRemove, toUpsert)
+  }
+
 }
 
 object BlockHeadersStorage {

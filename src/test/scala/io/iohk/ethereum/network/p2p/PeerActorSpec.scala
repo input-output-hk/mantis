@@ -4,19 +4,20 @@ import java.net.{InetSocketAddress, URI}
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-
-import akka.actor.{Props, PoisonPill, Terminated, ActorSystem}
+import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
-import akka.testkit.{TestProbe, TestActorRef}
+import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersNumbersStorage, BlockHeadersStorage, ReceiptStorage}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.PV62.{GetBlockHeaders, BlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.utils.{Config, BlockchainStatus, ServerStatus, NodeStatus}
+import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -53,7 +54,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      })))
+      }, storage)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -257,6 +258,12 @@ class PeerActorSpec extends FlatSpec with Matchers {
       blockchainStatus = BlockchainStatus(0, ByteString("123")))
 
     val nodeStatusHolder = Agent(nodeStatus)
+
+    val storage = PeerActor.Storage(
+      new BlockHeadersStorage(EphemDataSource(), new BlockHeadersNumbersStorage(EphemDataSource())),
+      new BlockBodiesStorage(EphemDataSource()),
+      new ReceiptStorage(EphemDataSource())
+    )
   }
 
   trait TestSetup extends NodeStatusSetup {
@@ -264,7 +271,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val rlpxConnection = TestProbe()
 
-    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref)))
+    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, storage)))
   }
 
 }
