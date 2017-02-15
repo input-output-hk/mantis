@@ -205,18 +205,17 @@ class DataWordSpec extends FunSuite with PropertyChecks {
   }
 
   test("getByte") {
-    forAll(getDataWordGen(), getDataWordGen(max = DataWord(31))) {(d1, d2) =>
-      val result = d1.getByte(d2)
-      assert(result.bytes.dropRight(1) == ByteString(Array.fill[Byte](Size - 1)(0)))
-    }
     assert(DataWord(42).getByte(DataWord(-1)) == Zero)
     assert(DataWord(42).getByte(DataWord(Size)) == Zero)
     assert(DataWord(42).getByte(DataWord(Size + 1)) == Zero)
-    val dw = DataWord(ByteString((100 to 131).map(_.toByte).toArray))
-    assert(dw.getByte(DataWord(0)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 100.toByte))
-    assert(dw.getByte(DataWord(1)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 101.toByte))
-    assert(dw.getByte(DataWord(30)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -126.toByte))
-    assert(dw.getByte(DataWord(31)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -125.toByte))
+    assert(DataWord(1).getByte(DataWord(287)) == Zero)
+    val dw1 = DataWord(ByteString((100 to 131).map(_.toByte).toArray))
+    assert(dw1.getByte(DataWord(0)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 100.toByte))
+    assert(dw1.getByte(DataWord(1)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 101.toByte))
+    assert(dw1.getByte(DataWord(30)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -126.toByte))
+    assert(dw1.getByte(DataWord(31)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -125.toByte))
+    val dw2 = DataWord(ByteString(Array.fill[Byte](32)(-50)))
+    assert(dw2.getByte(DataWord(8)) == DataWord(ByteString(-50)))
   }
 
   test("intValue") {
