@@ -279,12 +279,14 @@ class PeerActor(
       case FastSyncDone(_) =>
         //Start normal sync
         //FIXME: Share with fastsync
-        val storage = BlockBroadcastActor.Storage(
+        val broadcastActor = BlockBroadcastActor.props(
+          self,
+          context.parent,
           new BlockHeadersStorage(EphemDataSource()),
           new BlockBodiesStorage(EphemDataSource()),
           new TotalDifficultyStorage(EphemDataSource())
         )
-        context.actorOf(BlockBroadcastActor.props(self, context.parent, storage), UUID.randomUUID().toString)
+        context.actorOf(broadcastActor, UUID.randomUUID().toString)
     }
 
     def notifySubscribers(message: Message): Unit = {

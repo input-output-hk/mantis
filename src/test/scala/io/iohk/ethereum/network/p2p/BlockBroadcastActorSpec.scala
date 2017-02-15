@@ -10,10 +10,11 @@ import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, Tot
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.{Block, BlockBroadcastActor, PeerActor}
+import io.iohk.ethereum.network.p2p.messages.PV61.NewBlockHashes
+import io.iohk.ethereum.network.{Block, BlockBroadcastActor, PeerActor, PeerManagerActor}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockBody, BlockHeaders}
 
 class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
@@ -22,10 +23,10 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
   "BlockBroadcastActor" should "subscribe for messages" in {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
 
-    peer.expectMsg(PeerActor.Subscribe(Set(NewBlock.code)))
+    peerProbe.expectMsg(PeerActor.Subscribe(Set(NewBlock.code, NewBlockHashes.code, BlockHeaders.code, BlockBodies.code)))
   }
 
-  it should "broadcast only blocks that it hasn't yet received" in {
+  it should "broadcast only blocks that it hasn't yet received (but not to the sending peer)" in {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
 
     val newBlock = NewBlock(block.blockHeader, block.blockBody, block.blockHeader.difficulty + blockParent.blockHeader.difficulty)
@@ -33,9 +34,10 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
 
-    peerManager.reply(peers)
+    peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
 
-    peersProbes.foreach { peer => peer.expectMsg(PeerActor.SendMessage(newBlock)) }
+    assert(!peerProbe.msgAvailable)
+    peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(newBlock)) }
   }
 
   it should "not broadcast repeated blocks" in {
@@ -49,12 +51,14 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     //Send a repeated block
     blockBroadcast ! PeerActor.MessageReceived(newBlock)
 
-    peerManager.reply(peers)
+    peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
 
-    peersProbes.foreach { peer => peer.expectMsg(PeerActor.SendMessage(newBlock)) }
+    assert(!peerProbe.msgAvailable)
+    peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(newBlock)) }
 
     //Each peer should have only received one block
-    peersProbes.foreach { peer => assert(!peer.msgAvailable) }
+    assert(!peerProbe.msgAvailable)
+    peersProbes.foreach { p => assert(!p.msgAvailable) }
   }
 
   it should "not broadcast blocks whose parent is not known" in {
@@ -67,34 +71,20 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
     //No message should have been sent
     assert(!peerManager.msgAvailable)
-    peersProbes.foreach { peer => assert(!peer.msgAvailable) }
+    assert(!peerProbe.msgAvailable)
+    peersProbes.foreach { p => assert(!p.msgAvailable) }
   }
 
   implicit val system = ActorSystem("PeerActorSpec_System")
 
-  val peer = TestProbe()
+  val peerProbe = TestProbe()
+  val peer = Peer(new InetSocketAddress("localhost", NumberPeers), peerProbe.ref)
   val peerManager = TestProbe()
 
-  val blockParent = Block(
-    BlockHeader(
-      parentHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
-      ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
-      beneficiary = ByteString(Hex.decode("3333333333333333333333333333333333333333")),
-      stateRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
-      transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
-      receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
-      logsBloom = ByteString(Hex.decode("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")),
-      difficulty = BigInt("983040"),
-      number = 0,
-      gasLimit = 134217728,
-      gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = ByteString(Hex.decode("00")),
-      mixHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
-      nonce = ByteString(Hex.decode("deadbeefdeadbeef"))
-    ),
-    BlockBody(Seq(), Seq())
-  )
+  val peersProbes = (0 until NumberPeers).map { _ => TestProbe() }
+  val peers: Seq[Peer] = peersProbes.zipWithIndex.map { case (testProbe, i) => Peer(new InetSocketAddress("localhost", i), testProbe.ref) }
+
+  val allPeers = peer +: peers
 
   //Block whose parent is in storage
   val block = Block(
@@ -105,7 +95,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
       stateRoot = ByteString(Hex.decode("69a98eeeb69be0fb528c4c64485dd570138d45c5daa51f8d7947ffbb166217e5")),
       transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
       receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
-      logsBloom = ByteString(Hex.decode("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")),
+      logsBloom = ByteString(Hex.decode("00" * 256)),
       difficulty = BigInt("982560"),
       number = 1,
       gasLimit = 134086657,
@@ -114,6 +104,27 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
       extraData = ByteString(Hex.decode("d783010507846765746887676f312e372e33856c696e7578")),
       mixHash = ByteString(Hex.decode("d556da10ebf4789a9d407133605bc35c5e8ae25d7a6276a4754d95a35c82a301")),
       nonce = ByteString(Hex.decode("5d33e977872dd4ed"))
+    ),
+    BlockBody(Seq(), Seq())
+  )
+
+  val blockParent = Block(
+    BlockHeader(
+      parentHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
+      ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
+      beneficiary = ByteString(Hex.decode("3333333333333333333333333333333333333333")),
+      stateRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+      transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+      receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+      logsBloom = ByteString(Hex.decode("00" * 256)),
+      difficulty = BigInt("983040"),
+      number = 0,
+      gasLimit = 134217728,
+      gasUsed = 0,
+      unixTimestamp = 0,
+      extraData = ByteString(Hex.decode("00")),
+      mixHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
+      nonce = ByteString(Hex.decode("deadbeefdeadbeef"))
     ),
     BlockBody(Seq(), Seq())
   )
@@ -140,18 +151,12 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     BlockBody(Seq(), Seq())
   )
 
-  val blockBroadcastStorage = BlockBroadcastActor.Storage(
+  val blockBroadcast = TestActorRef(BlockBroadcastActor.props(
+    peer.ref,
+    peerManager.ref,
     new BlockHeadersStorage(EphemDataSource()).put(blockParent.blockHeader.hash, blockParent.blockHeader),
     new BlockBodiesStorage(EphemDataSource()).put(blockParent.blockHeader.hash, blockParent.blockBody),
     new TotalDifficultyStorage(EphemDataSource()).put(blockParent.blockHeader.hash, blockParent.blockHeader.difficulty)
-  )
-
-  val blockBroadcast = TestActorRef(BlockBroadcastActor.props(peer.ref, peerManager.ref, blockBroadcastStorage))
-
-  val peersProbes = (0 until NumberPeers).map { _ => TestProbe() }
-  val peers = peersProbes.zipWithIndex.map { case (testProbe, i) =>
-    i.toString -> Peer(new InetSocketAddress("localhost", i), testProbe.ref)
-  }.toMap
-
+  ))
 
 }

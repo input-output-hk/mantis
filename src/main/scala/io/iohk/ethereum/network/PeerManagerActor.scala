@@ -40,7 +40,7 @@ class PeerManagerActor(
       sender() ! PeerCreated(peer)
 
     case GetPeers =>
-      sender() ! peers
+      sender() ! PeersResponse(peers.values.toSeq)
 
     case Terminated(ref) =>
       peers -= ref.path.name
@@ -93,6 +93,7 @@ object PeerManagerActor {
   case class PeerCreated(peer: Peer)
 
   case object GetPeers
+  case class PeersResponse(peers: Seq[Peer])
 
   private case object ScanBootstrapNodes
 }
