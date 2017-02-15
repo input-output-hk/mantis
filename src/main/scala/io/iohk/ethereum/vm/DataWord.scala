@@ -88,7 +88,7 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
 
   def *(that: DataWord): DataWord = DataWord(this.n * that.n)
 
-  def /(that: DataWord): DataWord = zeroCheck(that) { DataWord(this.n / that.n) }
+  def div(that: DataWord): DataWord = zeroCheck(that) { DataWord(this.n / that.n) }
 
   def sdiv(that: DataWord): DataWord = zeroCheck(that) {
     DataWord(toUnsignedBigInt(this.signedN / that.signedN))

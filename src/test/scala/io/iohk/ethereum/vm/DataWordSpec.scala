@@ -100,18 +100,18 @@ class DataWordSpec extends FunSuite with PropertyChecks {
     }
   }
 
-  test("/") {
+  test("div") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       whenever(n2 != 0) {
-        assert(DataWord(n1) / DataWord(n2) == DataWord(n1 / n2))
+        assert((DataWord(n1) div DataWord(n2)) == DataWord(n1 / n2))
       }
     }
     forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
       whenever(n1 > 0 && n2 > 0) {
-        assert(DataWord(n1) / DataWord(n2) == DataWord(n1 / n2))
+        assert((DataWord(n1) div DataWord(n2)) == DataWord(n1 / n2))
       }
     }
-    assert(DataWord(1) / Zero == Zero)
+    assert((DataWord(1) div Zero) == Zero)
   }
 
   test("sdiv") {
