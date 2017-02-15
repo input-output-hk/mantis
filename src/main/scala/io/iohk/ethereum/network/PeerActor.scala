@@ -293,7 +293,8 @@ class PeerActor(
 
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-        handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse {
+        handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
+        handleBlockFastDownload(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
         log.info("Received message: {}", message)
         notifySubscribers(message)
