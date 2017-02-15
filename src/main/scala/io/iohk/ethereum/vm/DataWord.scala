@@ -52,6 +52,7 @@ object DataWord {
 
 /** Stores 256 bit words and adds a few convenience methods on them.
  *  Internally a word is stored as an unsinged BigInt. */
+// TODO: consider moving to domain as Uint256, which follows Scala numeric conventions, and is used across the system for P_256 numbers (see YP 4.3)
 class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
 
   import DataWord._
