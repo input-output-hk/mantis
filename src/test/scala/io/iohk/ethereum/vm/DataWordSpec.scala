@@ -169,53 +169,77 @@ class DataWordSpec extends FunSuite with PropertyChecks {
   }
 
   test("signExtend") {
-    assert(DataWord(42).signExtend(DataWord(3)) == DataWord(42))
-    assert(DataWord(42).signExtend(DataWord(1)) == DataWord(42))
-    assert(DataWord(42).signExtend(DataWord(-1)) == DataWord(42))
-    assert(DataWord(42).signExtend(DataWord(0)) == DataWord(42))
-    assert(DataWord(42).signExtend(DataWord(Size)) == DataWord(42))
-    assert(DataWord(42).signExtend(DataWord(Size + 1)) == DataWord(42))
-    assert(DataWord(-42).signExtend(DataWord(Size)) == DataWord(-42))
-    assert(DataWord(-42).signExtend(DataWord(Size + 1)) == DataWord(-42))
-    assert(DataWord(-42).signExtend(DataWord(-11)) == DataWord(-42))
-    assert(DataWord(-1).signExtend(DataWord(1)) == DataWord(-1))
-    assert(DataWord(-1).signExtend(DataWord(1)) == DataWord(-1))
-    // 1737215.signExtend(1) == 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff81ff
-    assert(DataWord(0x1a81ff).signExtend(DataWord(1)) == DataWord(Array.fill[Byte](30)(-1) ++ Array[Byte](-127, -1)))
+    val testData = Table[DataWord, DataWord, DataWord](
+      ("word", "extension", "result"),
+      (DataWord(42), DataWord(3), DataWord(42)),
+      (DataWord(42), DataWord(1), DataWord(42)),
+      (DataWord(42), DataWord(-1), DataWord(42)),
+      (DataWord(42), DataWord(0), DataWord(42)),
+      (DataWord(42), DataWord(Size), DataWord(42)),
+      (DataWord(42), DataWord(Size + 1), DataWord(42)),
+      (DataWord(-42), DataWord(Size), DataWord(-42)),
+      (DataWord(-42), DataWord(Size + 1), DataWord(-42)),
+      (DataWord(-42), DataWord(-11), DataWord(-42)),
+      (DataWord(-1), DataWord(1), DataWord(-1)),
+      (DataWord(-1), DataWord(1), DataWord(-1)),
+      (DataWord(0x1a81ff), DataWord(1), DataWord(Array.fill[Byte](30)(-1) ++ Array[Byte](-127, -1))))
+
+    forAll(testData) { (word, extension, result) =>
+      assert((word).signExtend(extension) == result)
+    }
   }
 
   test("slt") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       assert((DataWord(n1) slt DataWord(n2)) == DataWord(toSignedBigInt(n1) < toSignedBigInt(n2)))
     }
-    assert((DataWord(-1) slt DataWord(1)) == DataWord(1))
-    assert((DataWord(1) slt DataWord(-1)) == DataWord(0))
-    assert((DataWord(0) slt DataWord(1)) == DataWord(1))
-    assert((DataWord(1) slt DataWord(0)) == DataWord(0))
+
+    val testData = Table[DataWord, DataWord, DataWord](
+      ("a", "b", "result"),
+      (DataWord(-1), DataWord(1), DataWord(1)),
+      (DataWord(1), DataWord(-1), DataWord(0)),
+      (DataWord(1), DataWord(0), DataWord(0)))
+
+    forAll(testData) { (a, b, result) =>
+      assert((a slt b) == result)
+    }
   }
 
   test("sgt") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       assert((DataWord(n1) sgt DataWord(n2)) == DataWord(toSignedBigInt(n1) > toSignedBigInt(n2)))
     }
-    assert((DataWord(-1) sgt DataWord(1)) == DataWord(0))
-    assert((DataWord(1) sgt DataWord(-1)) == DataWord(1))
-    assert((DataWord(0) sgt DataWord(1)) == DataWord(0))
-    assert((DataWord(1) sgt DataWord(0)) == DataWord(1))
+
+    val testData = Table[DataWord, DataWord, DataWord](
+      ("a", "b", "result"),
+      (DataWord(-1), DataWord(1), DataWord(0)),
+      (DataWord(1), DataWord(-1), DataWord(1)),
+      (DataWord(0), DataWord(1), DataWord(0)),
+      (DataWord(1), DataWord(0), DataWord(1)))
+
+    forAll(testData) { (a, b, result) =>
+      assert((a sgt b) == result)
+    }
   }
 
   test("getByte") {
-    assert(DataWord(42).getByte(DataWord(-1)) == Zero)
-    assert(DataWord(42).getByte(DataWord(Size)) == Zero)
-    assert(DataWord(42).getByte(DataWord(Size + 1)) == Zero)
-    assert(DataWord(1).getByte(DataWord(287)) == Zero)
     val dw1 = DataWord(ByteString((100 to 131).map(_.toByte).toArray))
-    assert(dw1.getByte(DataWord(0)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 100.toByte))
-    assert(dw1.getByte(DataWord(1)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 101.toByte))
-    assert(dw1.getByte(DataWord(30)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -126.toByte))
-    assert(dw1.getByte(DataWord(31)) == DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -125.toByte))
-    val dw2 = DataWord(ByteString(Array.fill[Byte](32)(-50)))
-    assert(dw2.getByte(DataWord(8)) == DataWord(ByteString(-50)))
+
+    val testData = Table[DataWord, DataWord, DataWord](
+      ("word", "idx", "result"),
+      (DataWord(42), DataWord(-1), Zero),
+      (DataWord(42), DataWord(Size), Zero),
+      (DataWord(42), DataWord(Size + 1), Zero),
+      (DataWord(1), DataWord(287), Zero),
+      (dw1, DataWord(0), DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 100.toByte)),
+      (dw1, DataWord(1), DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 101.toByte)),
+      (dw1, DataWord(30), DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -126.toByte)),
+      (dw1, DataWord(31), DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -125.toByte)),
+      (DataWord(ByteString(Array.fill[Byte](32)(-50))), DataWord(8), DataWord(ByteString(-50))))
+
+    forAll(testData) { (a, b, result) =>
+      assert(a.getByte(b) == result)
+    }
   }
 
   test("intValue") {
