@@ -265,9 +265,9 @@ case object ISZERO extends UnaryOp(0x15, G_verylow)(a => DataWord(a.isZero)) wit
 
 case object AND extends BinaryOp(0x16, G_verylow)(_ & _) with ConstGas
 
-case object OR extends BinaryOp(0x17, G_verylow)(_ & _) with ConstGas
+case object OR extends BinaryOp(0x17, G_verylow)(_ | _) with ConstGas
 
-case object XOR extends BinaryOp(0x18, G_verylow)(_ & _) with ConstGas
+case object XOR extends BinaryOp(0x18, G_verylow)(_ ^ _) with ConstGas
 
 case object NOT extends UnaryOp(0x19, G_verylow)(~_) with ConstGas
 
