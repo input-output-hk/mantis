@@ -140,13 +140,13 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     storage.mptNodeStorage.get(stateRootHash) shouldBe Some(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0))
 
     storage.mptNodeStorage.get(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0)
-      .asInstanceOf[MptBranch].children(0).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(mptExtension)).getMptNode(0))
+      .asInstanceOf[MptBranch].children(0).left.get.hash) shouldBe Some(NodeData(Seq(mptExtension)).getMptNode(0))
 
     storage.mptNodeStorage.get(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0)
-      .asInstanceOf[MptBranch].children(1).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
+      .asInstanceOf[MptBranch].children(1).left.get.hash) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
 
     storage.mptNodeStorage.get(NodeData(Seq(mptExtension)).getMptNode(0)
-      .asInstanceOf[MptExtension].child.asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
+      .asInstanceOf[MptExtension].child.left.get.hash) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
   }
 
   it should "get contract MPT nodes" in new TestSetup {
@@ -183,13 +183,13 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     storage.mptNodeStorage.get(stateRootHash) shouldBe Some(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0))
 
     storage.mptNodeStorage.get(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0)
-      .asInstanceOf[MptBranch].children(1).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(contractMptExtension)).getMptNode(0))
+      .asInstanceOf[MptBranch].children(1).left.get.hash) shouldBe Some(NodeData(Seq(contractMptExtension)).getMptNode(0))
 
     storage.mptNodeStorage.get(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0)
-      .asInstanceOf[MptBranch].children(0).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(contractMptLeafNode)).getMptNode(0))
+      .asInstanceOf[MptBranch].children(0).left.get.hash) shouldBe Some(NodeData(Seq(contractMptLeafNode)).getMptNode(0))
 
     storage.mptNodeStorage.get(NodeData(Seq(contractMptExtension)).getMptNode(0)
-      .asInstanceOf[MptExtension].child.asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(contractMptLeafNode)).getMptNode(0))
+      .asInstanceOf[MptExtension].child.left.get.hash) shouldBe Some(NodeData(Seq(contractMptLeafNode)).getMptNode(0))
   }
 
   trait TestSetup {

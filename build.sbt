@@ -1,7 +1,7 @@
 val commonSettings = Seq(
   name := "etc-client",
   version := "0.1",
-  scalaVersion := "2.11.8"
+  scalaVersion := "2.12.1"
 )
 
 val dep = {
@@ -15,7 +15,7 @@ val dep = {
     "org.consensusresearch" %% "scrypto" % "1.2.0-RC3",
     "com.madgag.spongycastle" % "core" % "1.54.0.0",
     "org.iq80.leveldb" % "leveldb" % "0.9",
-    "org.scorexfoundation" %% "iodb" % "0.1.1",
+    "org.scorexfoundation" %% "iodb" % "0.2.0",
     "ch.qos.logback" % "logback-classic" % "1.1.9",
     "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test"
