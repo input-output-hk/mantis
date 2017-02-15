@@ -23,7 +23,7 @@
     </root>
 
     <logger name="io.iohk.ethereum.network.rlpx.RLPxConnectionHandler" level="INFO" />
-    <logger name="io.iohk.ethereum.blockchain.FastSyncController" level="INFO" />
+    <logger name="io.iohk.ethereum.blockchain.sync.FastSyncController" level="INFO" />
     <logger name="io.iohk.ethereum.network.PeerActor" level="INFO" />
 
 </configuration>
