@@ -30,9 +30,9 @@ import scala.concurrent.duration._
   * Once that's done it can send/receive messages with peer (HandshakedHandler.receive).
   */
 class PeerActor(
-  nodeStatusHolder: Agent[NodeStatus],
-  rlpxConnectionFactory: ActorContext => ActorRef,
-  storage: PeerActor.Storage)
+    nodeStatusHolder: Agent[NodeStatus],
+    rlpxConnectionFactory: ActorContext => ActorRef,
+    storage: PeerActor.Storage)
   extends Actor with ActorLogging {
 
   import Config.Blockchain._
@@ -171,7 +171,7 @@ class PeerActor(
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
     handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse handlePeerChainCheck(rlpxConnection) orElse {
 
-    case RLPxConnectionHandler.MessageReceived(msg@BlockHeaders(blockHeaders)) =>
+    case RLPxConnectionHandler.MessageReceived(msg @ BlockHeaders(blockHeaders)) =>
       timeout.cancel()
 
       val daoBlockHeaderOpt = blockHeaders.find(_.number == daoForkBlockNumber)
