@@ -21,6 +21,8 @@ object SignedTransaction {
   val newNegativePointSign = 35
   val positivePointSign = 28
   val newPositivePointSign = 36
+  val valueForEmptyR = 0
+  val valueForEmptyS = 0
 }
 
 case class SignedTransaction(
@@ -52,8 +54,8 @@ case class SignedTransaction(
         tx.value,
         tx.payload,
         Config.Blockchain.chainId,
-        0,
-        0)))
+        valueForEmptyR,
+        valueForEmptyS)))
   }
 
 
@@ -104,7 +106,7 @@ case class SignedTransaction(
          |tx: $tx
          |pointSign: $pointSign
          |signatureRandom: ${Hex.toHexString(signatureRandom.toArray[Byte])}
-         |signature: ${Hex.toHexString(signatureRandom.toArray[Byte])}
+         |signature: ${Hex.toHexString(signature.toArray[Byte])}
          |bytesToSign: ${Hex.toHexString(bytesToSign)}
          |recoveredPublicKey: ${recoveredPublicKey.map(Hex.toHexString)}
          |recoveredAddress: ${recoveredAddress.map(Hex.toHexString)}
