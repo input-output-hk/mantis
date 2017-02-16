@@ -1,6 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Props, ActorRef}
+import akka.actor.{Scheduler, Props, ActorRef}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSyncController._
 import io.iohk.ethereum.crypto._
@@ -12,7 +12,7 @@ class FastSyncNodesRequestHandler(
     peer: ActorRef,
     requestedHashes: Seq[HashType],
     evmCodeStorage: EvmCodeStorage,
-    mptNodeStorage: MptNodeStorage)
+    mptNodeStorage: MptNodeStorage)(implicit scheduler: Scheduler)
   extends FastSyncRequestHandler[GetNodeData, NodeData](peer) {
 
   import FastSyncNodesRequestHandler._
@@ -114,7 +114,8 @@ class FastSyncNodesRequestHandler(
 
 object FastSyncNodesRequestHandler {
   def props(peer: ActorRef, requestedHashes: Seq[HashType],
-            evmCodeStorage: EvmCodeStorage, mptNodeStorage: MptNodeStorage): Props =
+            evmCodeStorage: EvmCodeStorage, mptNodeStorage: MptNodeStorage)
+           (implicit scheduler: Scheduler): Props =
     Props(new FastSyncNodesRequestHandler(peer, requestedHashes, evmCodeStorage, mptNodeStorage))
 
   private val EmptyAccountStorageHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))

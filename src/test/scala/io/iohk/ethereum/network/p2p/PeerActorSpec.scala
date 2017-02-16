@@ -72,7 +72,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "successfully connect to ETC peer" in new TestSetup with BlockUtils {
     nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
       Config.Blockchain.daoForkBlockTotalDifficulty + 10000000, // we're at some block, after the fork
-      ByteString("unused"))))
+      ByteString("unused"), 0)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -103,7 +103,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "disconnect from non-ETC peer" in new TestSetup with BlockUtils {
     nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
       Config.Blockchain.daoForkBlockTotalDifficulty + 10000000, // we're at some block, after the fork
-      ByteString("unused"))))
+      ByteString("unused"), 0)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -132,7 +132,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "stay connected to non-ETC peer until reaching the fork" in new TestSetup with BlockUtils {
     nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
       Config.Blockchain.daoForkBlockTotalDifficulty - 10000000, // we're at some block, before the fork
-      ByteString("unused"))))
+      ByteString("unused"), 0)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -166,7 +166,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "stay connected to pre fork peer until reaching the fork" in new TestSetup with BlockUtils {
     nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
       Config.Blockchain.daoForkBlockTotalDifficulty - 10000000, // we're at some block, before the fork
-      ByteString("unused"))))
+      ByteString("unused"), 0)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -254,7 +254,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val nodeStatus = NodeStatus(
       key = nodeKey,
       serverStatus = ServerStatus.NotListening,
-      blockchainStatus = BlockchainStatus(0, ByteString("123")))
+      blockchainStatus = BlockchainStatus(0, ByteString("123"), 0))
 
     val nodeStatusHolder = Agent(nodeStatus)
   }

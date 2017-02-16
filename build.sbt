@@ -18,7 +18,8 @@ val dep = {
     "org.scorexfoundation" %% "iodb" % "0.1.1",
     "ch.qos.logback" % "logback-classic" % "1.1.9",
     "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
-    "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test"
+    "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
+    "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test"
   )
 }
 

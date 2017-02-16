@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.reflect.ClassTag
 
-import akka.actor.{Terminated, ActorLogging, Actor, ActorRef}
+import akka.actor._
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPEncoder
@@ -11,10 +11,10 @@ import io.iohk.ethereum.utils.Config.FastSync._
 
 abstract class FastSyncRequestHandler[RequestMsg <: Message : RLPEncoder,
                                       ResponseMsg <: Message : ClassTag](peer: ActorRef)
+                                                                        (implicit scheduler: Scheduler)
   extends Actor with ActorLogging {
 
   import FastSyncRequestHandler._
-  import context.system
 
   def requestMsg: RequestMsg
   def responseMsgCode: Int
@@ -24,7 +24,7 @@ abstract class FastSyncRequestHandler[RequestMsg <: Message : RLPEncoder,
 
   val fastSyncController = context.parent
 
-  val timeout = system.scheduler.scheduleOnce(peerResponseTimeout, self, Timeout)
+  val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, Timeout)
 
   val startTime = System.currentTimeMillis()
 

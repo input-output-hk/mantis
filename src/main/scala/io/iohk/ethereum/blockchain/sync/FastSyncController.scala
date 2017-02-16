@@ -21,13 +21,13 @@ class FastSyncController(
     blockHeadersStorage: BlockHeadersStorage,
     blockBodiesStorage: BlockBodiesStorage,
     receiptStorage: ReceiptStorage,
-    evmStorage: EvmCodeStorage)
+    evmStorage: EvmCodeStorage,
+    externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging with BlacklistSupport {
 
   import BlacklistSupport._
   import Config.FastSync._
   import FastSyncController._
-  import context.system
 
   override val supervisorStrategy =
     OneForOneStrategy() {
@@ -36,7 +36,9 @@ class FastSyncController(
 
   var handshakedPeers: Set[ActorRef] = Set.empty
 
-  system.scheduler.schedule(0.seconds, peersScanInterval, peerManager, PeerManagerActor.GetPeers)
+  scheduler.schedule(0.seconds, peersScanInterval, peerManager, PeerManagerActor.GetPeers)
+
+  implicit def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
   override def receive: Receive = idle
 
@@ -47,7 +49,7 @@ class FastSyncController(
           log.info("Starting fast sync, asking peer {} for target block header", firstPeer.path.name)
           firstPeer ! PeerActor.Subscribe(Set(BlockHeaders.code))
           firstPeer ! PeerActor.SendMessage(GetBlockHeaders(Right(targetBlockHash), 1, 0, reverse = false))
-          val timeout = system.scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
+          val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
           context become waitingForTargetBlock(firstPeer, targetBlockHash, timeout)
 
         case None =>
@@ -68,7 +70,7 @@ class FastSyncController(
         case Some(targetBlockHeader) =>
           log.info("Received target block from peer, starting fast sync")
 
-          system.scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
+          scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
           context become new SyncingHandler(targetBlockHeader).receive
           self ! EnqueueNodes(Seq(StateMptNodeHash(targetBlockHeader.stateRoot)))
           self ! ProcessSyncing
@@ -98,7 +100,7 @@ class FastSyncController(
   def peersToDownloadFrom: Set[ActorRef] = handshakedPeers.filterNot(isBlacklisted)
 
   def scheduleStartFastSync(interval: FiniteDuration, targetBlockHash: ByteString): Unit = {
-    system.scheduler.scheduleOnce(interval, self, StartFastSync(targetBlockHash))
+    scheduler.scheduleOnce(interval, self, StartFastSync(targetBlockHash))
   }
 
   def handlePeerUpdates: Receive = {
@@ -201,7 +203,7 @@ class FastSyncController(
           log.error("There are no available peers, waiting for responses")
         } else {
           log.error("There are no peers to download from, scheduling a retry in {}", syncRetryInterval)
-          context.system.scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
+          scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
       } else {
         unassignedPeers
@@ -211,10 +213,16 @@ class FastSyncController(
     }
 
     def assignWork(peer: ActorRef): Unit = {
-      if (receiptsQueue.nonEmpty) requestReceipts(peer)
-      else if (blockBodiesQueue.nonEmpty) requestBlockBodies(peer)
-      else if (context.child(blockHeadersHandlerName).isEmpty) requestBlockHeaders(peer)
-      else if (nodesQueue.nonEmpty) requestNodes(peer)
+      if (receiptsQueue.nonEmpty) {
+        requestReceipts(peer)
+      } else if (blockBodiesQueue.nonEmpty) {
+        requestBlockBodies(peer)
+      } else if (context.child(blockHeadersHandlerName).isEmpty &&
+        targetBlock.number > nodeStatusHolder().blockchainStatus.bestNumber) {
+        requestBlockHeaders(peer)
+      } else if (nodesQueue.nonEmpty) {
+        requestNodes(peer)
+      }
     }
 
     def requestReceipts(peer: ActorRef): Unit = {
@@ -280,7 +288,7 @@ object FastSyncController {
 
   case class UpdateDownloadedNodesCount(update: Int)
 
-  trait HashType {
+  sealed trait HashType {
     def v: ByteString
   }
   case class StateMptNodeHash(v: ByteString) extends HashType

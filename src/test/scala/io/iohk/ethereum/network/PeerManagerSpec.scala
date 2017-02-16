@@ -23,8 +23,8 @@ class PeerManagerSpec extends FlatSpec with Matchers {
     Thread.sleep(800) // some time for scheduler to init
 
     createdPeers.size shouldBe 2
-    createdPeers.head.expectMsg(PeerActor.ConnectTo(new URI(bootstrapNodes.head)))
-    createdPeers(1).expectMsg(PeerActor.ConnectTo(new URI(bootstrapNodes(1))))
+    createdPeers.head.expectMsgAnyOf(PeerActor.ConnectTo(new URI(bootstrapNodes.head)))
+    createdPeers(1).expectMsg(PeerActor.ConnectTo(new URI(bootstrapNodes.last)))
   }
 
   it should "retry connections to remaining bootstrap nodes" in new TestSetup {
@@ -50,7 +50,7 @@ class PeerManagerSpec extends FlatSpec with Matchers {
     val nodeStatus = NodeStatus(
       key = nodeKey,
       serverStatus = ServerStatus.NotListening,
-      blockchainStatus = BlockchainStatus(0, ByteString("123")))
+      blockchainStatus = BlockchainStatus(0, ByteString("123"), 0))
 
     val nodeStatusHolder = Agent(nodeStatus)
 

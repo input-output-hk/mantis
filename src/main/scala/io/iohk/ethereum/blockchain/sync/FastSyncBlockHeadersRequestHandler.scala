@@ -1,6 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Props, ActorRef}
+import akka.actor.{Scheduler, Props, ActorRef}
 import akka.agent.Agent
 import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
@@ -11,7 +11,7 @@ class FastSyncBlockHeadersRequestHandler(
     block: BigInt,
     maxHeaders: Int,
     nodeStatusHolder: Agent[NodeStatus],
-    blockHeadersStorage: BlockHeadersStorage)
+    blockHeadersStorage: BlockHeadersStorage)(implicit scheduler: Scheduler)
   extends FastSyncRequestHandler[GetBlockHeaders, BlockHeaders](peer) {
 
   override val requestMsg = GetBlockHeaders(Left(block), maxHeaders, 0, reverse = false)
@@ -48,6 +48,7 @@ class FastSyncBlockHeadersRequestHandler(
 
 object FastSyncBlockHeadersRequestHandler {
   def props(peer: ActorRef, block: BigInt, maxHeaders: Int,
-            nodeStatusHolder: Agent[NodeStatus], blockHeadersStorage: BlockHeadersStorage): Props =
+            nodeStatusHolder: Agent[NodeStatus], blockHeadersStorage: BlockHeadersStorage)
+           (implicit scheduler: Scheduler): Props =
     Props(new FastSyncBlockHeadersRequestHandler(peer, block, maxHeaders, nodeStatusHolder, blockHeadersStorage))
 }
