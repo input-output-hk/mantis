@@ -1,11 +1,13 @@
 package io.iohk.ethereum.network
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import io.iohk.ethereum.db.storage.ReceiptStorage.BlockHash
+import io.iohk.ethereum.db.storage.ReceiptStorage.BlockHash //FIXME Change
 import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, TotalDifficultyStorage}
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.{PV61, PV62}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 
 //TODO: Handle known blocks to peers [EC-80]
@@ -22,14 +24,16 @@ class BlockBroadcastActor(
 
   override def receive: Receive = idle
 
+  private val msgToSubscribe = Set(NewBlock.code, PV61.NewBlockHashes.code, PV62.NewBlockHashes.code, BlockHeaders.code, BlockBodies.code)
+
   def idle: Receive = {
     case StartBlockBroadcast =>
-      peer ! PeerActor.Subscribe(Set(NewBlock.code, NewBlockHashes.code, BlockHeaders.code, BlockBodies.code))
-      context become processNewBlockMessages(ProcessingState(Seq(), Seq(), Seq(), Seq()))
+      peer ! PeerActor.Subscribe(msgToSubscribe)
+      context become processMessages(ProcessingState(Seq(), Seq(), Seq(), Seq()))
   }
 
-  def processNewBlockMessages(state: ProcessingState): Receive =
-    handleMessages(state) orElse {
+  def processMessages(state: ProcessingState): Receive =
+    handleReceivedMessages(state) orElse {
 
       case ProcessNewBlocks if state.unprocessedNewBlocks.nonEmpty =>
         val blockToProcess = state.unprocessedNewBlocks.head
@@ -38,8 +42,8 @@ class BlockBroadcastActor(
         val block: Option[Block] = for {
           _ <- blockHeadersStorage.get(blockToProcess.blockHeader.parentHash)
           _ <- blockBodiesStorage.get(blockToProcess.blockHeader.parentHash)
-        //TODO: Validate block header [EC-78] (using block parent)
-        //TODO: Import block to blockchain
+          //TODO: Validate block header [EC-78] (using block parent)
+          //TODO: Import block to blockchain
         } yield blockToProcess
         if(state.unprocessedNewBlocks.tail.nonEmpty) self ! ProcessNewBlocks
         block match {
@@ -49,69 +53,80 @@ class BlockBroadcastActor(
               unprocessedNewBlocks = state.unprocessedNewBlocks.tail,
               toBroadcastBlocks = state.toBroadcastBlocks :+ blockToProcess
             )
-            context become processNewBlockMessages(newState)
+            context become processMessages(newState)
           case None =>
-            context become processNewBlockMessages(state.copy(unprocessedNewBlocks = state.unprocessedNewBlocks.tail))
+            context become processMessages(state.copy(unprocessedNewBlocks = state.unprocessedNewBlocks.tail))
         }
 
       case PeerManagerActor.PeersResponse(peers) if state.toBroadcastBlocks.nonEmpty =>
         state.toBroadcastBlocks.foreach{ b =>
-          val parentTd = totalDifficultyStorage.get(b.blockHeader.parentHash)
-            .getOrElse(throw new Exception("Block td is not on storage"))
-          val newBlockMsg = NewBlock(b.blockHeader, b.blockBody, b.blockHeader.difficulty + parentTd)
-          sendNewBlockMsgToPeers(peers, newBlockMsg)
+          val newBlock = Block(b.blockHeader, b.blockBody)
+          sendNewBlockMsgToPeers(peers, newBlock)
         }
-        context become processNewBlockMessages(state.copy(toBroadcastBlocks = Seq()))
+        context become processMessages(state.copy(toBroadcastBlocks = Seq()))
 
       case _ => //Nothing
     }
 
-  private def handleMessages(state: ProcessingState): Receive = {
-    case PeerActor.MessageReceived(m: NewBlock) =>
+  def handleReceivedMessages(state: ProcessingState): Receive = {
+    case MessageReceived(m: NewBlock) =>
       val newBlock = Block(m.blockHeader, m.blockBody)
-      if(toProcess(newBlock.blockHeader.hash, state)){
+      if(blockToProcess(newBlock.blockHeader.hash, state)){
         log.debug("Got NewBlock message {}", m)
         self ! ProcessNewBlocks
-        context become processNewBlockMessages(state.copy(unprocessedNewBlocks = state.unprocessedNewBlocks :+ newBlock))
+        context become processMessages(state.copy(unprocessedNewBlocks = state.unprocessedNewBlocks :+ newBlock))
       }
 
-    case PeerActor.MessageReceived(m: NewBlockHashes) =>
-      log.debug("Got NewBlockHashes message {}", m)
-      val hashes = m.hashes.map(_.hash).filter(hash => toProcess(hash, state))
-      hashes.foreach{ hash =>
-        val getBlockHeadersMsg = GetBlockHeaders(block = Right(hash), maxHeaders = 1, skip = 0, reverse =  false)
-        peer ! PeerActor.SendMessage(getBlockHeadersMsg) }
-      context become processNewBlockMessages(state.copy(fetchedBlockHeaders = state.fetchedBlockHeaders ++ hashes))
+    case MessageReceived(m: PV61.NewBlockHashes) => processNewBlockHashes(m.hashes, state)
 
-    case PeerActor.MessageReceived(BlockHeaders(Seq(bh))) if state.fetchedBlockHeaders.contains(bh.hash)=>
-      val newFetchedBlockHeaders = state.fetchedBlockHeaders.filterNot(_ == bh.hash)
-      peer ! PeerActor.SendMessage(GetBlockBodies(Seq(bh.hash)))
-      context become processNewBlockMessages(state.copy(fetchedBlockHeaders = newFetchedBlockHeaders, obtainedBlockHeaders = state.obtainedBlockHeaders :+ bh))
+    case MessageReceived(m: PV62.NewBlockHashes) => processNewBlockHashes(m.hashes.map(_.hash), state)
 
-    case PeerActor.MessageReceived(BlockBodies(Seq(bb))) =>
-      val block: Option[Block] = BlockHeaderAndBodyGrouper.matchHeaderAndBody(state.obtainedBlockHeaders, bb)
+    case MessageReceived(BlockHeaders(Seq(blockHeader))) if state.fetchedBlockHeaders.contains(blockHeader.hash)=>
+      log.debug("Received block header {}", blockHeader)
+      val newFetchedBlockHeaders = state.fetchedBlockHeaders.filterNot(_ == blockHeader.hash)
+      peer ! PeerActor.SendMessage(GetBlockBodies(Seq(blockHeader.hash)))
+      val newState = state.copy(fetchedBlockHeaders = newFetchedBlockHeaders, obtainedBlockHeaders = state.obtainedBlockHeaders :+ blockHeader)
+      context become processMessages(newState)
+
+    case MessageReceived(BlockBodies(Seq(blockBody))) =>
+      log.debug("Received block body {}", blockBody)
+      val block: Option[Block] = BlockHeaderAndBodyMatcher.matchHeaderAndBody(state.obtainedBlockHeaders, blockBody)
       block foreach { b =>
         val newObtainedBlockHeaders = state.obtainedBlockHeaders.filterNot(_.hash == b.blockHeader.hash)
         val newState = state.copy(unprocessedNewBlocks = state.unprocessedNewBlocks :+ b, obtainedBlockHeaders = newObtainedBlockHeaders)
-        context become processNewBlockMessages(newState)
+        self ! ProcessNewBlocks
+        context become processMessages(newState)
       }
 
   }
 
-  def blockInProgress(hash: BlockHash, state: ProcessingState): Boolean =
+  private def processNewBlockHashes(newHashes: Seq[BlockHash], state: ProcessingState) = {
+    log.debug("Got NewBlockHashes message {}", newHashes)
+    val hashes = newHashes.filter(hash => blockToProcess(hash, state))
+    hashes.foreach{ hash =>
+      val getBlockHeadersMsg = GetBlockHeaders(block = Right(hash), maxHeaders = 1, skip = 0, reverse =  false)
+      peer ! PeerActor.SendMessage(getBlockHeadersMsg) }
+    context become processMessages(state.copy(fetchedBlockHeaders = state.fetchedBlockHeaders ++ hashes))
+  }
+
+  private def blockInProgress(hash: BlockHash, state: ProcessingState): Boolean =
     ((state.unprocessedNewBlocks ++ state.toBroadcastBlocks).map(_.blockHeader.hash) ++
       state.fetchedBlockHeaders ++
       state.obtainedBlockHeaders.map(_.hash)).contains(hash)
 
-  def blockInStorage(hash: BlockHash, state: ProcessingState): Boolean = blockHeadersStorage.get(hash).isDefined
+  private def blockInStorage(hash: BlockHash, state: ProcessingState): Boolean =
+    blockHeadersStorage.get(hash).isDefined && blockBodiesStorage.get(hash).isDefined
 
   //TODO: Check if the block's number is ok (not too old and not too into the future)
   //      We need to know our current height (from blockchain)
   //      We also need to decide how to handle blocks too into the future (Geth or EthereumJ approach)
-  def toProcess(hash: BlockHash, state: ProcessingState): Boolean = !blockInProgress(hash, state) && !blockInStorage(hash, state)
+  private def blockToProcess(hash: BlockHash, state: ProcessingState): Boolean = !blockInProgress(hash, state) && !blockInStorage(hash, state)
 
   //TODO: Decide block propagation algorithm (for now we send block to every peer except the sender)
-  private def sendNewBlockMsgToPeers(peers: Seq[Peer], newBlockMsg: NewBlock) = {
+  private def sendNewBlockMsgToPeers(peers: Seq[Peer], newBlock: Block) = {
+    val parentTd = totalDifficultyStorage.get(newBlock.blockHeader.parentHash)
+      .getOrElse(throw new Exception("Block td is not on storage"))
+    val newBlockMsg = NewBlock(newBlock.blockHeader, newBlock.blockBody, newBlock.blockHeader.difficulty + parentTd)
     peers.foreach{ p =>
       if(p.id != peer.path.name){
         log.debug("Sending NewBlockMessage {} to {}", newBlockMsg, p.id)
@@ -144,7 +159,7 @@ case class Block(blockHeader: BlockHeader, blockBody: BlockBody){
   def isValid: Boolean = true
 }
 
-object BlockHeaderAndBodyGrouper {
+object BlockHeaderAndBodyMatcher {
   def matchHeaderAndBody(blockHeaders: Seq[BlockHeader], blockBody: BlockBody): Option[Block] =
     blockHeaders.collectFirst{ case blockHeader if Block(blockHeader, blockBody).isValid =>
       Block(blockHeader, blockBody)
