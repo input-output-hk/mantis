@@ -31,3 +31,6 @@ val root = project.in(file("."))
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
 
 scalacOptions := Seq("-unchecked", "-deprecation")
+
+(scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
+scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}

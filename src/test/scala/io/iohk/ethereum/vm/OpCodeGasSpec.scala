@@ -195,8 +195,8 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
-    
-    
+
+
     val maxGas = G_verylow + G_copy * 8
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 3, maxWord = DataWord(256)),
@@ -234,7 +234,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
-    
+
     val maxGas = G_verylow + G_copy * 8
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 4, maxWord = DataWord(256)),
