@@ -6,7 +6,6 @@ import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, Tot
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.PV61.NewBlockHashes
 import io.iohk.ethereum.network.p2p.messages.PV62._
 
 //TODO: Handle known blocks to peers [EC-80]
@@ -67,7 +66,6 @@ class BlockBroadcastActor(
       case _ => //Nothing
     }
 
-  //TODO: Be able to process NewBlockHashes
   private def handleMessages(state: ProcessingState): Receive = {
     case PeerActor.MessageReceived(m: NewBlock) =>
       val newBlock = Block(m.blockHeader, m.blockBody)
@@ -77,10 +75,12 @@ class BlockBroadcastActor(
         context become processNewBlockMessages(state.copy(unprocessedNewBlocks = state.unprocessedNewBlocks :+ newBlock))
       }
 
-    //FIXME: This is how it is implemented in geth but not in EthereumJ
     case PeerActor.MessageReceived(m: NewBlockHashes) =>
-      val hashes = m.hashes.filter(toProcess(_, state))
-      hashes.foreach{ hash => sender() ! PeerActor.SendMessage(GetBlockHeaders(Right(hash), 1, 0, false)) }
+      log.debug("Got NewBlockHashes message {}", m)
+      val hashes = m.hashes.map(_.hash).filter(hash => toProcess(hash, state))
+      hashes.foreach{ hash =>
+        val getBlockHeadersMsg = GetBlockHeaders(block = Right(hash), maxHeaders = 1, skip = 0, reverse =  false)
+        peer ! PeerActor.SendMessage(getBlockHeadersMsg) }
       context become processNewBlockMessages(state.copy(fetchedBlockHeaders = state.fetchedBlockHeaders ++ hashes))
 
     case PeerActor.MessageReceived(BlockHeaders(Seq(bh))) if state.fetchedBlockHeaders.contains(bh.hash)=>

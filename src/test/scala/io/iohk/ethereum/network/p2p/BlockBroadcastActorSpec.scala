@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network.p2p
 
-import java.net.{InetSocketAddress, URI}
+import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
@@ -8,13 +8,15 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, TotalDifficultyStorage}
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV61.NewBlockHashes
+import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.{Block, BlockBroadcastActor, PeerActor, PeerManagerActor}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockBody, BlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV62._
 
 class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
@@ -73,6 +75,23 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     assert(!peerManager.msgAvailable)
     assert(!peerProbe.msgAvailable)
     peersProbes.foreach { p => assert(!p.msgAvailable) }
+  }
+
+  it should "ask for the header and body of the new block hash" in {
+    blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
+
+    peerProbe.expectMsg(PeerActor.Subscribe(Set(NewBlock.code, NewBlockHashes.code, BlockHeaders.code, BlockBodies.code)))
+
+    val newBlockHash = PV62.NewBlockHashes(Seq(BlockHash(block.blockHeader.hash, block.blockHeader.number)))
+    blockBroadcast ! PeerActor.MessageReceived(newBlockHash)
+
+    val reqHeaderMsg: SendMessage[GetBlockHeaders] = peerProbe.receiveN(1).head.asInstanceOf[SendMessage[GetBlockHeaders]]
+    reqHeaderMsg.message.block shouldBe Right(block.blockHeader.hash)
+
+    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(block.blockHeader))))
+
+    val reqBodyMsg: SendMessage[GetBlockBodies] = peerProbe.receiveN(1).head.asInstanceOf[SendMessage[GetBlockBodies]]
+    reqBodyMsg.message.hashes shouldBe Seq(block.blockHeader.hash)
   }
 
   implicit val system = ActorSystem("PeerActorSpec_System")
