@@ -72,28 +72,28 @@ class PeerActor(
 
   def waitingForConnectionResult(rlpxConnection: RLPxConnection, noRetries: Int = 0): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse {
-      case RLPxConnectionHandler.ConnectionEstablished =>
-        log.info("RLPx connection established, sending Hello")
-        rlpxConnection.sendMessage(createHelloMsg())
-        val timeout = system.scheduler.scheduleOnce(3.seconds, self, ProtocolHandshakeTimeout)
-        context become waitingForHello(rlpxConnection, timeout)
+    case RLPxConnectionHandler.ConnectionEstablished =>
+      log.info("RLPx connection established, sending Hello")
+      rlpxConnection.sendMessage(createHelloMsg())
+      val timeout = system.scheduler.scheduleOnce(3.seconds, self, ProtocolHandshakeTimeout)
+      context become waitingForHello(rlpxConnection, timeout)
 
-      case RLPxConnectionHandler.ConnectionFailed =>
-        log.info("Failed to establish RLPx connection")
-        rlpxConnection.uriOpt match {
-          case Some(uri) if noRetries < connectMaxRetries =>
-            context unwatch rlpxConnection.ref
-            scheduleConnectRetry(uri, noRetries)
-          case Some(uri) =>
-            log.info("No more reconnect attempts left, removing peer")
-            context stop self
-          case None =>
-            log.info("Connection was initiated by remote peer, not attempting to reconnect")
-            context stop self
-        }
+    case RLPxConnectionHandler.ConnectionFailed =>
+      log.info("Failed to establish RLPx connection")
+      rlpxConnection.uriOpt match {
+        case Some(uri) if noRetries < connectMaxRetries =>
+          context unwatch rlpxConnection.ref
+          scheduleConnectRetry(uri, noRetries)
+        case Some(uri) =>
+          log.info("No more reconnect attempts left, removing peer")
+          context stop self
+        case None =>
+          log.info("Connection was initiated by remote peer, not attempting to reconnect")
+          context stop self
+      }
 
-      case GetStatus => sender() ! StatusResponse(Connecting)
-    }
+    case GetStatus => sender() ! StatusResponse(Connecting)
+  }
 
   private def createHelloMsg(): Hello = {
     val nodeStatus = nodeStatusHolder()
@@ -120,25 +120,25 @@ class PeerActor(
 
   def waitingForHello(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-      handleDisconnectMsg orElse {
-      case RLPxConnectionHandler.MessageReceived(hello: Hello) =>
-        log.info("Protocol handshake finished with peer ({})", hello)
-        timeout.cancel()
-        if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
-          rlpxConnection.sendMessage(createStatusMsg())
-          val statusTimeout = system.scheduler.scheduleOnce(waitForStatusTimeout, self, StatusReceiveTimeout)
-          context become waitingForNodeStatus(rlpxConnection, statusTimeout)
-        } else {
-          log.info("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
-          disconnectFromPeer(rlpxConnection, Disconnect.Reasons.IncompatibleP2pProtocolVersion)
-        }
+    handleDisconnectMsg orElse {
+    case RLPxConnectionHandler.MessageReceived(hello: Hello) =>
+      log.info("Protocol handshake finished with peer ({})", hello)
+      timeout.cancel()
+      if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
+        rlpxConnection.sendMessage(createStatusMsg())
+        val statusTimeout = system.scheduler.scheduleOnce(waitForStatusTimeout, self, StatusReceiveTimeout)
+        context become waitingForNodeStatus(rlpxConnection, statusTimeout)
+      } else {
+        log.info("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
+        disconnectFromPeer(rlpxConnection, Disconnect.Reasons.IncompatibleP2pProtocolVersion)
+      }
 
-      case ProtocolHandshakeTimeout =>
-        log.warning("Timeout while waiting for Hello")
-        disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
+    case ProtocolHandshakeTimeout =>
+      log.warning("Timeout while waiting for Hello")
+      disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
 
-      case GetStatus => sender() ! StatusResponse(Handshaking)
-    }
+    case GetStatus => sender() ! StatusResponse(Handshaking)
+  }
 
   private def createStatusMsg(): msg.Status = {
     val nodeStatus = nodeStatusHolder()
@@ -152,56 +152,56 @@ class PeerActor(
 
   def waitingForNodeStatus(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-      handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse {
-      case RLPxConnectionHandler.MessageReceived(status: msg.Status) =>
-        timeout.cancel()
-        log.info("Peer returned status ({})", status)
-        rlpxConnection.sendMessage(GetBlockHeaders(Left(daoForkBlockNumber), maxHeaders = 1, skip = 0, reverse = false))
-        val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
-        context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
+    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse {
+    case RLPxConnectionHandler.MessageReceived(status: msg.Status) =>
+      timeout.cancel()
+      log.info("Peer returned status ({})", status)
+      rlpxConnection.sendMessage(GetBlockHeaders(Left(daoForkBlockNumber), maxHeaders = 1, skip = 0, reverse = false))
+      val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
+      context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
 
-      case StatusReceiveTimeout =>
-        log.warning("Timeout while waiting status")
-        disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
+    case StatusReceiveTimeout =>
+      log.warning("Timeout while waiting status")
+      disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
 
-      case GetStatus => sender() ! StatusResponse(Handshaking)
-    }
+    case GetStatus => sender() ! StatusResponse(Handshaking)
+  }
 
   def waitingForChainForkCheck(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, timeout: Cancellable): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-      handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse handlePeerChainCheck(rlpxConnection) orElse {
+    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse handlePeerChainCheck(rlpxConnection) orElse {
 
-      case RLPxConnectionHandler.MessageReceived(msg@BlockHeaders(blockHeaders)) =>
-        timeout.cancel()
+    case RLPxConnectionHandler.MessageReceived(msg@BlockHeaders(blockHeaders)) =>
+      timeout.cancel()
 
-        val daoBlockHeaderOpt = blockHeaders.find(_.number == daoForkBlockNumber)
+      val daoBlockHeaderOpt = blockHeaders.find(_.number == daoForkBlockNumber)
 
-        daoBlockHeaderOpt match {
-          case Some(daoBlockHeader) if daoForkValidator.validate(msg).isEmpty =>
-            log.info("Peer is running the ETC chain")
-            context become new HandshakedHandler(rlpxConnection).receive
+      daoBlockHeaderOpt match {
+        case Some(_) if daoForkValidator.validate(msg).isEmpty =>
+          log.info("Peer is running the ETC chain")
+          context become new HandshakedHandler(rlpxConnection).receive
 
-          case Some(_) if nodeStatusHolder().blockchainStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
-            log.info("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
-            context become new HandshakedHandler(rlpxConnection).receive
+        case Some(_) if nodeStatusHolder().blockchainStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
+          log.info("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
+          context become new HandshakedHandler(rlpxConnection).receive
 
-          case Some(_) =>
-            log.info("Peer is not running the ETC fork, disconnecting")
-            disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
+        case Some(_) =>
+          log.info("Peer is not running the ETC fork, disconnecting")
+          disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
 
-          case None if remoteStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
-            log.info("Peer is not at ETC fork yet. Keeping the connection until then.")
-            context become new HandshakedHandler(rlpxConnection).receive
+        case None if remoteStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
+          log.info("Peer is not at ETC fork yet. Keeping the connection until then.")
+          context become new HandshakedHandler(rlpxConnection).receive
 
-          case None =>
-            log.info("Peer did not respond with ETC fork block header")
-            disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
-        }
+        case None =>
+          log.info("Peer did not respond with ETC fork block header")
+          disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
+      }
 
-      case DaoHeaderReceiveTimeout => disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
+    case DaoHeaderReceiveTimeout => disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
 
-      case GetStatus => sender() ! StatusResponse(Handshaking)
-    }
+    case GetStatus => sender() ! StatusResponse(Handshaking)
+  }
 
   private def disconnectFromPeer(rlpxConnection: RLPxConnection, reason: Int): Unit = {
     rlpxConnection.sendMessage(Disconnect(reason))
