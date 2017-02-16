@@ -112,13 +112,13 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
   def **(that: DataWord): DataWord = DataWord(this.n.modPow(that.n, Modulus))
 
   def signExtend(that: DataWord): DataWord = {
-    val cnt: Byte = that.n.toByte
-    if (cnt < 0 || cnt > 31) {
+    if (that.n < 0 || that.n > 31) {
       this
     } else {
-      val mask: Int = if (this.signedN.testBit((cnt * 8) + 7)) 0xFF else 0x00
-      val leftFill: Array[Byte] = Array.fill(Size - cnt - 1)(mask.toByte)
-      val bs = ByteString(leftFill) ++ this.bytes.takeRight(cnt + 1)
+      val idx = that.n.toByte
+      val mask: Int = if (this.signedN.testBit((idx * 8) + 7)) 0xFF else 0x00
+      val leftFill: Array[Byte] = Array.fill(Size - idx - 1)(mask.toByte)
+      val bs = ByteString(leftFill) ++ this.bytes.takeRight(idx + 1)
       DataWord(bs)
     }
   }
