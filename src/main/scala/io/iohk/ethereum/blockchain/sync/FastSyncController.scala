@@ -1,6 +1,5 @@
 package io.iohk.ethereum.blockchain.sync
 
-import scala.collection.immutable.Queue
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
@@ -38,7 +37,7 @@ class FastSyncController(
 
   scheduler.schedule(0.seconds, peersScanInterval, peerManager, PeerManagerActor.GetPeers)
 
-  implicit def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
+  override implicit def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
   override def receive: Receive = idle
 
@@ -134,9 +133,11 @@ class FastSyncController(
 
     private val blockHeadersHandlerName = "block-headers-request-handler"
 
-    private var nodesQueue: Seq[HashType] = Queue()
-    private var blockBodiesQueue: Seq[ByteString] = Queue()
-    private var receiptsQueue: Seq[ByteString] = Nil
+    private var nonMptNodesQueue: Set[HashType] = Set.empty
+    private var mptNodesQueue: Set[HashType] = Set.empty
+
+    private var blockBodiesQueue: Set[ByteString] = Set.empty
+    private var receiptsQueue: Set[ByteString] = Set.empty
 
     private var downloadedNodesCount: Int = 0
 
@@ -144,21 +145,18 @@ class FastSyncController(
 
     def receive: Receive = handlePeerUpdates orElse {
       case EnqueueNodes(hashes) =>
-        // to avoid explosion first download elements that do not expand
-        val (nonMptHashes, mptHashes) =
-          (nodesQueue ++ hashes.filterNot(nodesQueue.contains)).partition {
-            case EvmCodeHash(_) => true
-            case StorageRootHash(_) => true
-            case StateMptNodeHash(_) => false
-            case ContractStorageMptNodeHash(_) => false
+        hashes.foreach {
+          case h: EvmCodeHash => nonMptNodesQueue += h
+          case h: StorageRootHash => nonMptNodesQueue += h
+          case h: StateMptNodeHash => mptNodesQueue += h
+          case h: ContractStorageMptNodeHash => mptNodesQueue += h
         }
-        nodesQueue = nonMptHashes ++ mptHashes
 
       case EnqueueBlockBodies(hashes) =>
-        blockBodiesQueue ++= hashes.filterNot(blockBodiesQueue.contains)
+        blockBodiesQueue ++= hashes
 
       case EnqueueReceipts(hashes) =>
-        receiptsQueue ++= hashes.filterNot(receiptsQueue.contains)
+        receiptsQueue ++= hashes
 
       case UpdateDownloadedNodesCount(num) =>
         downloadedNodesCount += num
@@ -176,8 +174,8 @@ class FastSyncController(
         assignedHandlers -= ref
 
       case PrintStatus =>
-        val totalNodesCount = downloadedNodesCount + nodesQueue.size
-        log.error(
+        val totalNodesCount = downloadedNodesCount + mptNodesQueue.size + nonMptNodesQueue.size
+        log.info(
           s"""|Block: ${nodeStatusHolder().blockchainStatus.bestNumber}/${targetBlock.number}.
               |Peers: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
               |State: $downloadedNodesCount/$totalNodesCount known nodes.""".stripMargin.replace("\n", " "))
@@ -199,9 +197,9 @@ class FastSyncController(
     def processQueues(): Unit = {
       if (unassignedPeers.isEmpty) {
         if (assignedHandlers.nonEmpty) {
-          log.error("There are no available peers, waiting for responses")
+          log.info("There are no available peers, waiting for responses")
         } else {
-          log.error("There are no peers to download from, scheduling a retry in {}", syncRetryInterval)
+          log.info("There are no peers to download from, scheduling a retry in {}", syncRetryInterval)
           scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
       } else {
@@ -219,25 +217,25 @@ class FastSyncController(
       } else if (context.child(blockHeadersHandlerName).isEmpty &&
         targetBlock.number > nodeStatusHolder().blockchainStatus.bestNumber) {
         requestBlockHeaders(peer)
-      } else if (nodesQueue.nonEmpty) {
+      } else if (nonMptNodesQueue.nonEmpty || mptNodesQueue.nonEmpty) {
         requestNodes(peer)
       }
     }
 
     def requestReceipts(peer: ActorRef): Unit = {
-      val receipts = receiptsQueue.take(receiptsPerRequest)
-      val handler = context.actorOf(FastSyncReceiptsRequestHandler.props(peer, receipts, receiptStorage))
+      val (receiptsToGet, remainingReceipts) = receiptsQueue.splitAt(receiptsPerRequest)
+      val handler = context.actorOf(FastSyncReceiptsRequestHandler.props(peer, receiptsToGet.toSeq, receiptStorage))
       context watch handler
       assignedHandlers += (handler -> peer)
-      receiptsQueue = receiptsQueue.drop(receiptsPerRequest)
+      receiptsQueue = remainingReceipts
     }
 
     def requestBlockBodies(peer: ActorRef): Unit = {
-      val blockBodies = blockBodiesQueue.take(blockBodiesPerRequest)
-      val handler = context.actorOf(FastSyncBlockBodiesRequestHandler.props(peer, blockBodies, blockBodiesStorage))
+      val (blockBodiesToGet, remainingBlockBodies) = blockBodiesQueue.splitAt(blockBodiesPerRequest)
+      val handler = context.actorOf(FastSyncBlockBodiesRequestHandler.props(peer, blockBodiesToGet.toSeq, blockBodiesStorage))
       context watch handler
       assignedHandlers += (handler -> peer)
-      blockBodiesQueue = blockBodiesQueue.drop(blockBodiesPerRequest)
+      blockBodiesQueue = remainingBlockBodies
     }
 
     def requestBlockHeaders(peer: ActorRef): Unit = {
@@ -251,17 +249,21 @@ class FastSyncController(
     }
 
     def requestNodes(peer: ActorRef): Unit = {
-      val nodes = nodesQueue.take(nodesPerRequest)
-      val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, nodes, evmStorage, mptNodeStorage))
+      val (nonMptNodesToGet, remainingNonMptNodes) = nonMptNodesQueue.splitAt(nodesPerRequest)
+      val (mptNodesToGet, remainingMptNodes) = mptNodesQueue.splitAt(nodesPerRequest - nonMptNodesToGet.size)
+      val nodesToGet = nonMptNodesToGet.toSeq ++ mptNodesToGet.toSeq
+      val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, nodesToGet, evmStorage, mptNodeStorage))
       context watch handler
       assignedHandlers += (handler -> peer)
-      nodesQueue = nodesQueue.drop(nodesPerRequest)
+      nonMptNodesQueue = remainingNonMptNodes
+      mptNodesQueue = remainingMptNodes
     }
 
     def unassignedPeers: Set[ActorRef] = peersToDownloadFrom diff assignedHandlers.values.toSet
 
     def anythingQueued: Boolean =
-      nodesQueue.nonEmpty ||
+      nonMptNodesQueue.nonEmpty ||
+      mptNodesQueue.nonEmpty ||
       blockBodiesQueue.nonEmpty ||
       receiptsQueue.nonEmpty
 
