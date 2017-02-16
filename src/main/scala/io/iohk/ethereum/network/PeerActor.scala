@@ -296,30 +296,28 @@ class PeerActor(
 
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-        handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
-        handleBlockFastDownload(rlpxConnection) orElse {
-        case RLPxConnectionHandler.MessageReceived(message) =>
-          log.info("Received message: {}", message)
-          notifySubscribers(message)
-          processMessage(message)
+      handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
+      handleBlockFastDownload(rlpxConnection) orElse {
+      case RLPxConnectionHandler.MessageReceived(message) =>
+        log.info("Received message: {}", message)
+        notifySubscribers(message)
+        processMessage(message)
 
-        case s: SendMessage[_] =>
-          rlpxConnection.sendMessage(s.message)(s.enc)
+      case s: SendMessage[_] =>
+        rlpxConnection.sendMessage(s.message)(s.enc)
 
-        case GetStatus =>
-          sender() ! StatusResponse(Handshaked)
+      case GetStatus =>
+        sender() ! StatusResponse(Handshaked)
 
-        case StartFastSync(targetHash, fastSyncStorage) =>
-          val fastSyncActor = context.actorOf(FastSyncActor.props(self, fastSyncStorage), UUID.randomUUID().toString)
-          fastSyncActor ! FastSyncActor.StartSync(targetHash)
-      }
+      case StartFastSync(targetHash, fastSyncStorage) =>
+        val fastSyncActor = context.actorOf(FastSyncActor.props(self, fastSyncStorage), UUID.randomUUID().toString)
+        fastSyncActor ! FastSyncActor.StartSync(targetHash)
+    }
 
     def notifySubscribers(message: Message): Unit = {
       val subscribers = messageSubscribers.filter(_.messageCodes.contains(message.code))
       val toNotify = subscribers.map(_.ref).toSet
-      toNotify.foreach {
-        _ ! MessageReceived(message)
-      }
+      toNotify.foreach { _ ! MessageReceived(message) }
     }
 
     def processMessage(message: Message): Unit = message match {
@@ -327,7 +325,7 @@ class PeerActor(
         log.info("Received {}. Closing connection", d)
         context stop self
 
-      case msg@BlockHeaders(blockHeaders) =>
+      case msg @ BlockHeaders(blockHeaders) =>
         val daoBlockHeaderOpt = blockHeaders.find(_.number == daoForkBlockNumber)
 
         daoBlockHeaderOpt foreach { daoBlockHeader =>
@@ -381,31 +379,21 @@ object PeerActor {
   private case object RetryConnectionTimeout
 
   case object GetStatus
-
   case class StatusResponse(status: Status)
 
   sealed trait Status
-
   object Status {
-
     case object Idle extends Status
-
     case object Connecting extends Status
-
     case object Handshaking extends Status
-
     case object Handshaked extends Status
-
     case object Disconnected extends Status
-
   }
 
   case class Subscribe(messageCodes: Set[Int])
-
   case object Unsubscribe
 
   private case class Subscriber(ref: ActorRef, messageCodes: Set[Int])
 
   case class MessageReceived(message: Message)
-
 }
