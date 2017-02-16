@@ -288,7 +288,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "return block headers by block number in reverse order" in new TestSetup {
     //given
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 3)
-    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 4)
+    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 2)
 
     storage.blockHeadersStorage.put(firstHeader.hash, firstHeader)
     storage.blockHeadersStorage.put(secondHeader.hash, secondHeader)
@@ -299,7 +299,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Left(3), 2, 0, reverse = true)))
 
       //then
-      rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(secondHeader, firstHeader))))
+      rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader))))
   }
 
   it should "return block headers by block hash" in new TestSetup {
@@ -322,7 +322,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "return block headers by block hash when skipping headers" in new TestSetup {
     //given
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 3)
-    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 4)
+    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 5)
 
     storage.blockHeadersStorage.put(firstHeader.hash, firstHeader)
     storage.blockHeadersStorage.put(secondHeader.hash, secondHeader)
@@ -333,13 +333,13 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Right(firstHeader.hash), 2, 1, reverse = false)))
 
     //then
-    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(secondHeader))))
+    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader))))
   }
 
-  it should "return block headers in reverse when there is only i block header" in new TestSetup {
+  it should "return block headers in reverse when there are skipped blocks" in new TestSetup {
     //given
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 3)
-    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 4)
+    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 1)
 
     storage.blockHeadersStorage.put(firstHeader.hash, firstHeader)
     storage.blockHeadersStorage.put(secondHeader.hash, secondHeader)
@@ -350,7 +350,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Right(firstHeader.hash), 2, 1, reverse = true)))
 
     //then
-    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(secondHeader))))
+    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader))))
   }
 
 
