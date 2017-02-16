@@ -81,7 +81,6 @@ class FastSyncController(
             startRetryInterval)
 
           blacklist(sender(), blacklistDuration)
-          sender() ! PeerActor.Unsubscribe
           scheduleStartFastSync(startRetryInterval, targetBlockHash)
           context become idle
       }
@@ -92,7 +91,7 @@ class FastSyncController(
         startRetryInterval)
 
       blacklist(sender(), blacklistDuration)
-      sender() ! PeerActor.Unsubscribe
+      peer ! PeerActor.Unsubscribe
       scheduleStartFastSync(startRetryInterval, targetBlockHash)
       context become idle
   }
@@ -267,7 +266,7 @@ class FastSyncController(
       receiptsQueue.nonEmpty
 
     def fullySynced: Boolean =
-      nodeStatusHolder().blockchainStatus.bestNumber == targetBlock.number &&
+      nodeStatusHolder().blockchainStatus.bestNumber >= targetBlock.number &&
       !anythingQueued &&
       assignedHandlers.isEmpty
   }

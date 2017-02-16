@@ -23,13 +23,8 @@ import org.scalatest.{Matchers, FlatSpec}
 
 class FastSyncControllerSpec extends FlatSpec with Matchers {
 
-  "FastSyncController" should "download target block and request state nodes" in {
-    implicit val system = ActorSystem("FastSyncControllerSpec_System")
-
-    val time = new VirtualTime
-
-    val peerManager = TestProbe()
-    val peer = TestProbe()
+  "FastSyncController" should "download target block and request state nodes" in new TestSetup {
+    val peer = TestProbe()(system)
 
     val targetBlockHeader = BlockHeader(
       parentHash = ByteString("unused"),
@@ -48,24 +43,10 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
       mixHash = ByteString("unused"),
       nonce = ByteString("unused"))
 
-    val nodeKey = crypto.generateKeyPair()
-
-    val nodeStatus = NodeStatus(
-      key = nodeKey,
-      serverStatus = ServerStatus.NotListening,
-      blockchainStatus = BlockchainStatus(0, targetBlockHeader.hash, targetBlockHeader.number))
-
-    val nodeStatusHolder = Agent(nodeStatus)
-
-    val dataSource = EphemDataSource()
-
-    val fastSyncController = TestActorRef(Props(new FastSyncController(peerManager.ref, nodeStatusHolder,
-      new MptNodeStorage(dataSource),
-      new BlockHeadersStorage(dataSource),
-      new BlockBodiesStorage(dataSource),
-      new ReceiptStorage(dataSource),
-      new EvmCodeStorage(dataSource),
-      externalSchedulerOpt = Some(time.scheduler))))
+    nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
+      targetBlockHeader.difficulty,
+      targetBlockHeader.hash,
+      targetBlockHeader.number)))
 
     time.advance(1.seconds)
 
@@ -86,6 +67,32 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
 
     peer.expectMsg(PeerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot))))
     peer.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
+  }
+
+  trait TestSetup {
+    implicit val system = ActorSystem("FastSyncControllerSpec_System")
+
+    val nodeKey = crypto.generateKeyPair()
+
+    val nodeStatus = NodeStatus(
+      key = nodeKey,
+      serverStatus = ServerStatus.NotListening,
+      blockchainStatus = BlockchainStatus(0, ByteString("changeme"), 0))
+
+    val nodeStatusHolder = Agent(nodeStatus)
+
+    val time = new VirtualTime
+    val peerManager = TestProbe()
+
+    val dataSource = EphemDataSource()
+
+    val fastSyncController = TestActorRef(Props(new FastSyncController(peerManager.ref, nodeStatusHolder,
+      new MptNodeStorage(dataSource),
+      new BlockHeadersStorage(dataSource),
+      new BlockBodiesStorage(dataSource),
+      new ReceiptStorage(dataSource),
+      new EvmCodeStorage(dataSource),
+      externalSchedulerOpt = Some(time.scheduler))))
   }
 
 }
