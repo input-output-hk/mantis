@@ -29,28 +29,11 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-
-
   test(STOP) { op =>
     forAll(getProgramStateGen()) { stateIn =>
       val stateOut = executeOp(op, stateIn)
       stateOut.halted shouldBe true
       stateIn shouldEqual stateOut.copy(halted = stateIn.halted)
-    }
-  }
-
-  test(binaryOps: _*) { op =>
-    forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = executeOp(op, stateIn)
-
-      withStackVerification(op, stateIn, stateOut) {
-        val (Seq(a, b), _) = stateIn.stack.pop(2)
-        val (result, _) = stateOut.stack.pop
-        result shouldEqual op.f(a, b)
-
-        val expectedState = stateIn.withStack(stateOut.stack).step()
-        stateOut shouldEqual expectedState
-      }
     }
   }
 
@@ -69,52 +52,34 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("SDIV") {
-    // to be implemented
+  test(binaryOps: _*) { op =>
+    forAll(getProgramStateGen()) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val (Seq(a, b), _) = stateIn.stack.pop(2)
+        val (result, _) = stateOut.stack.pop
+        result shouldEqual op.f(a, b)
+
+        val expectedState = stateIn.withStack(stateOut.stack).step()
+        stateOut shouldEqual expectedState
+      }
+    }
   }
 
-  ignore("MOD") {
-    // to be implemented
-  }
+  test(ternaryOps: _*) { op =>
+    forAll(getProgramStateGen()) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
 
-  ignore("SMOD") {
-    // to be implemented
-  }
+      withStackVerification(op, stateIn, stateOut) {
+        val (Seq(a, b, c), _) = stateIn.stack.pop(3)
+        val (result, _) = stateOut.stack.pop
+        result shouldEqual op.f(a, b, c)
 
-  ignore("ADDMOD") {
-    // to be implemented
-  }
-
-  ignore("MULMOD") {
-    // to be implemented
-  }
-
-  ignore("SIGNEXTEND") {
-    // to be implemented
-  }
-
-  ignore("GT") {
-    // to be implemented
-  }
-
-  ignore("SLT") {
-    // to be implemented
-  }
-
-  ignore("SGT") {
-    // to be implemented
-  }
-
-  ignore("OR") {
-    // to be implemented
-  }
-
-  ignore("XOR") {
-    // to be implemented
-  }
-
-  ignore("BYTE") {
-    // to be implemented
+        val expectedState = stateIn.withStack(stateOut.stack).step()
+        stateOut shouldEqual expectedState
+      }
+    }
   }
 
   test(SHA3) { op =>
