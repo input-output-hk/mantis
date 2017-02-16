@@ -1,7 +1,7 @@
 package io.iohk.ethereum.network
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import io.iohk.ethereum.db.storage.ReceiptStorage.BlockHash //FIXME Change
+import akka.util.ByteString
 import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, TotalDifficultyStorage}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor.MessageReceived
@@ -11,7 +11,6 @@ import io.iohk.ethereum.network.p2p.messages.{PV61, PV62}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 
 //TODO: Handle known blocks to peers [EC-80]
-//FIXME: Should we be able unsubscribe from the messages that are not needed?
 class BlockBroadcastActor(
                            peer: ActorRef,
                            peerManagerActor: ActorRef,
@@ -90,7 +89,7 @@ class BlockBroadcastActor(
 
     case MessageReceived(BlockBodies(Seq(blockBody))) =>
       log.debug("Received block body {}", blockBody)
-      val block: Option[Block] = BlockHeaderAndBodyMatcher.matchHeaderAndBody(state.obtainedBlockHeaders, blockBody)
+      val block: Option[Block] = matchHeaderAndBody(state.obtainedBlockHeaders, blockBody)
       block foreach { b =>
         val newObtainedBlockHeaders = state.obtainedBlockHeaders.filterNot(_.hash == b.blockHeader.hash)
         val newState = state.copy(unprocessedNewBlocks = state.unprocessedNewBlocks :+ b, obtainedBlockHeaders = newObtainedBlockHeaders)
@@ -134,9 +133,16 @@ class BlockBroadcastActor(
       }
     }
   }
+
+  private def matchHeaderAndBody(blockHeaders: Seq[BlockHeader], blockBody: BlockBody): Option[Block] =
+    blockHeaders.collectFirst{ case blockHeader if Block(blockHeader, blockBody).isValid =>
+      Block(blockHeader, blockBody)
+    }
 }
 
 object BlockBroadcastActor {
+  type BlockHash = ByteString
+
   def props(peer: ActorRef,
             peerManagerActor: ActorRef,
             blockHeadersStorage: BlockHeadersStorage,
@@ -154,14 +160,7 @@ object BlockBroadcastActor {
                              obtainedBlockHeaders: Seq[BlockHeader])
 }
 
-//FIXME: Start using [EC-43] Block class and Block validator
+//TODO: Start using [EC-43] Block class and Block validator
 case class Block(blockHeader: BlockHeader, blockBody: BlockBody){
   def isValid: Boolean = true
-}
-
-object BlockHeaderAndBodyMatcher {
-  def matchHeaderAndBody(blockHeaders: Seq[BlockHeader], blockBody: BlockBody): Option[Block] =
-    blockHeaders.collectFirst{ case blockHeader if Block(blockHeader, blockBody).isValid =>
-      Block(blockHeader, blockBody)
-    }
 }
