@@ -13,12 +13,11 @@ import org.spongycastle.util.encoders.Hex
 
 //TODO: Handle known blocks to peers [EC-80]
 class BlockBroadcastActor(
-                           peer: ActorRef,
-                           peerManagerActor: ActorRef,
-                           blockHeadersStorage: BlockHeadersStorage,
-                           blockBodiesStorage: BlockBodiesStorage,
-                           totalDifficultyStorage: TotalDifficultyStorage
-                         ) extends Actor with ActorLogging {
+  peer: ActorRef,
+  peerManagerActor: ActorRef,
+  blockHeadersStorage: BlockHeadersStorage,
+  blockBodiesStorage: BlockBodiesStorage,
+  totalDifficultyStorage: TotalDifficultyStorage) extends Actor with ActorLogging {
 
   import BlockBroadcastActor._
 
@@ -35,32 +34,33 @@ class BlockBroadcastActor(
   def processMessages(state: ProcessingState): Receive =
     handleReceivedMessages(state) orElse {
 
-      case ProcessNewBlocks if state.unprocessedNewBlocks.nonEmpty =>
-        val blockToProcess = state.unprocessedNewBlocks.head
+      case ProcessNewBlocks if state.unprocessedBlocks.nonEmpty =>
+        val blockToProcess = state.unprocessedBlocks.head
         val block: Option[Block] = for {
           _ <- blockHeadersStorage.get(blockToProcess.blockHeader.parentHash)
           _ <- blockBodiesStorage.get(blockToProcess.blockHeader.parentHash)
           //TODO: Validate block header [EC-78] (using block parent)
         } yield blockToProcess
-        if(state.unprocessedNewBlocks.tail.nonEmpty) self ! ProcessNewBlocks
+        if(state.unprocessedBlocks.tail.nonEmpty) self ! ProcessNewBlocks
         block match {
           case Some(_) =>
             //FIXME: Replace with importing the block to blockchain
-            blockHeadersStorage.put(blockToProcess.blockHeader.hash, blockToProcess.blockHeader)
-            blockBodiesStorage.put(blockToProcess.blockHeader.hash, blockToProcess.blockBody)
+            val blockHash = blockToProcess.blockHeader.hash
+            blockHeadersStorage.put(blockHash, blockToProcess.blockHeader)
+            blockBodiesStorage.put(blockHash, blockToProcess.blockBody)
             val parentTd = totalDifficultyStorage.get(blockToProcess.blockHeader.parentHash)
               .getOrElse(throw new Exception("Block total difficulty is not on storage"))
-            totalDifficultyStorage.put(blockToProcess.blockHeader.hash, parentTd + blockToProcess.blockHeader.difficulty)
+            totalDifficultyStorage.put(blockHash, parentTd + blockToProcess.blockHeader.difficulty)
 
             peerManagerActor ! GetPeers
             val newState = state.copy(
-              unprocessedNewBlocks = state.unprocessedNewBlocks.tail,
+              unprocessedBlocks = state.unprocessedBlocks.tail,
               toBroadcastBlocks = state.toBroadcastBlocks :+ blockToProcess
             )
             context become processMessages(newState)
           case None =>
             log.info("Block {} will not be broadcasted", Hex.toHexString(blockToProcess.blockHeader.hash.toArray))
-            context become processMessages(state.copy(unprocessedNewBlocks = state.unprocessedNewBlocks.tail))
+            context become processMessages(state.copy(unprocessedBlocks = state.unprocessedBlocks.tail))
         }
 
       case PeerManagerActor.PeersResponse(peers) if state.toBroadcastBlocks.nonEmpty =>
@@ -79,7 +79,7 @@ class BlockBroadcastActor(
       if(blockToProcess(newBlock.blockHeader.hash, state)){
         log.info("Got NewBlock message {}", Hex.toHexString(newBlock.blockHeader.hash.toArray))
         self ! ProcessNewBlocks
-        context become processMessages(state.copy(unprocessedNewBlocks = state.unprocessedNewBlocks :+ newBlock))
+        context become processMessages(state.copy(unprocessedBlocks = state.unprocessedBlocks :+ newBlock))
       }
 
     case MessageReceived(m: PV61.NewBlockHashes) => processNewBlockHashes(m.hashes, state)
@@ -90,15 +90,15 @@ class BlockBroadcastActor(
       log.info("Got BlockHeaders message {}", blockHeader)
       val newFetchedBlockHeaders = state.fetchedBlockHeaders.filterNot(_ == blockHeader.hash)
       peer ! PeerActor.SendMessage(GetBlockBodies(Seq(blockHeader.hash)))
-      val newState = state.copy(fetchedBlockHeaders = newFetchedBlockHeaders, obtainedBlockHeaders = state.obtainedBlockHeaders :+ blockHeader)
+      val newState = state.copy(fetchedBlockHeaders = newFetchedBlockHeaders, blockHeaders = state.blockHeaders :+ blockHeader)
       context become processMessages(newState)
 
     case MessageReceived(BlockBodies(Seq(blockBody))) =>
       log.info("Got BlockBodies message {}", blockBody)
-      val block: Option[Block] = matchHeaderAndBody(state.obtainedBlockHeaders, blockBody)
+      val block: Option[Block] = matchHeaderAndBody(state.blockHeaders, blockBody)
       block foreach { b =>
-        val newObtainedBlockHeaders = state.obtainedBlockHeaders.filterNot(_.hash == b.blockHeader.hash)
-        val newState = state.copy(unprocessedNewBlocks = state.unprocessedNewBlocks :+ b, obtainedBlockHeaders = newObtainedBlockHeaders)
+        val newObtainedBlockHeaders = state.blockHeaders.filterNot(_.hash == b.blockHeader.hash)
+        val newState = state.copy(unprocessedBlocks = state.unprocessedBlocks :+ b, blockHeaders = newObtainedBlockHeaders)
         self ! ProcessNewBlocks
         context become processMessages(newState)
       }
@@ -115,9 +115,9 @@ class BlockBroadcastActor(
   }
 
   private def blockInProgress(hash: BlockHash, state: ProcessingState): Boolean =
-    ((state.unprocessedNewBlocks ++ state.toBroadcastBlocks).map(_.blockHeader.hash) ++
+    ((state.unprocessedBlocks ++ state.toBroadcastBlocks).map(_.blockHeader.hash) ++
       state.fetchedBlockHeaders ++
-      state.obtainedBlockHeaders.map(_.hash)).contains(hash)
+      state.blockHeaders.map(_.hash)).contains(hash)
 
   private def blockInStorage(hash: BlockHash, state: ProcessingState): Boolean =
     blockHeadersStorage.get(hash).isDefined && blockBodiesStorage.get(hash).isDefined
@@ -159,10 +159,10 @@ object BlockBroadcastActor {
   case object StartBlockBroadcast
   case object ProcessNewBlocks
 
-  case class ProcessingState(unprocessedNewBlocks: Seq[Block],
+  case class ProcessingState(unprocessedBlocks: Seq[Block],
                              toBroadcastBlocks: Seq[Block],
                              fetchedBlockHeaders: Seq[BlockHash],
-                             obtainedBlockHeaders: Seq[BlockHeader])
+                             blockHeaders: Seq[BlockHeader])
 }
 
 //TODO: Start using [EC-43] Block class and Block validator
