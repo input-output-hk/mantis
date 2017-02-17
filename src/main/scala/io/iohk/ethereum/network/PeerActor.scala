@@ -11,6 +11,7 @@ import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.network.BlockBroadcastActor.StartBlockBroadcast
 import io.iohk.ethereum.network.FastSyncActor.FastSyncDone
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
@@ -258,6 +259,14 @@ class PeerActor(
 
   class HandshakedHandler(rlpxConnection: RLPxConnection) {
 
+    val storage = FastSyncActor.Storage(
+      new BlockHeadersStorage(EphemDataSource()),
+      new BlockBodiesStorage(EphemDataSource()),
+      new ReceiptStorage(EphemDataSource()),
+      new MptNodeStorage(EphemDataSource()),
+      new EvmCodeStorage(EphemDataSource())
+    )
+
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
         handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse {
@@ -272,7 +281,7 @@ class PeerActor(
       case GetStatus =>
         sender() ! StatusResponse(Handshaked)
 
-      case StartFastSync(targetHash, storage) =>
+      case StartFastSync(targetHash, _) =>
         val fastSyncActor = context.actorOf(FastSyncActor.props(self, storage), UUID.randomUUID().toString)
         fastSyncActor ! FastSyncActor.StartSync(targetHash)
 
@@ -282,11 +291,12 @@ class PeerActor(
         val broadcastActor = BlockBroadcastActor.props(
           self,
           context.parent,
-          new BlockHeadersStorage(EphemDataSource()),
-          new BlockBodiesStorage(EphemDataSource()),
+          storage.blockHeadersStorage,
+          storage.blockBodiesStorage,
           new TotalDifficultyStorage(EphemDataSource())
         )
-        context.actorOf(broadcastActor, UUID.randomUUID().toString)
+        val blockBroadcastActor = context.actorOf(broadcastActor, "blockbroadcast")
+        blockBroadcastActor ! StartBlockBroadcast
     }
 
     def notifySubscribers(message: Message): Unit = {

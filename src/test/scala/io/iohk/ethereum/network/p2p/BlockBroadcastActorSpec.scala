@@ -28,11 +28,11 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
   }
 
   it should "broadcast only blocks that it hasn't yet received (but not to the sending peer)" in new TestSetup {
-    blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
+    peerProbe.send(blockBroadcast, BlockBroadcastActor.StartBlockBroadcast)
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
     val newBlock = NewBlock(block.blockHeader, block.blockBody, block.blockHeader.difficulty + blockParent.blockHeader.difficulty)
-    blockBroadcast ! PeerActor.MessageReceived(newBlock)
+    peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlock))
 
     peerManager.expectMsg(GetPeers)
 
@@ -47,12 +47,12 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
     val newBlock = NewBlock(block.blockHeader, block.blockBody, block.blockHeader.difficulty + blockParent.blockHeader.difficulty)
-    blockBroadcast ! PeerActor.MessageReceived(newBlock)
+    peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlock))
 
     peerManager.expectMsg(GetPeers)
 
     //Send a repeated block
-    blockBroadcast ! PeerActor.MessageReceived(newBlock)
+    peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlock))
 
     peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
 
@@ -69,9 +69,9 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
     val newBlock = NewBlock(otherBlock.blockHeader, otherBlock.blockBody, otherBlock.blockHeader.difficulty)
-    blockBroadcast ! PeerActor.MessageReceived(newBlock)
+    peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlock))
 
-    time.
+    Thread.sleep(1000)
 
     //No message should have been sent
     assert(!peerManager.msgAvailable)
@@ -84,7 +84,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
     val newBlockHash = PV61.NewBlockHashes(Seq(block.blockHeader.hash))
-    blockBroadcast ! PeerActor.MessageReceived(newBlockHash)
+    peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlockHash))
 
     val reqHeaderMsg: SendMessage[GetBlockHeaders] = peerProbe.receiveN(1).head.asInstanceOf[SendMessage[GetBlockHeaders]]
     reqHeaderMsg.message.block shouldBe Right(block.blockHeader.hash)
@@ -107,7 +107,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
     val newBlockHash = PV62.NewBlockHashes(Seq(BlockHash(block.blockHeader.hash, block.blockHeader.number)))
-    blockBroadcast ! PeerActor.MessageReceived(newBlockHash)
+    peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlockHash))
 
     val reqHeaderMsg: SendMessage[GetBlockHeaders] = peerProbe.receiveN(1).head.asInstanceOf[SendMessage[GetBlockHeaders]]
     reqHeaderMsg.message.block shouldBe Right(block.blockHeader.hash)
@@ -165,7 +165,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     val newBlockHashes = PV62.NewBlockHashes(Seq(
       PV62.BlockHash(block.blockHeader.hash, block.blockHeader.number),
       PV62.BlockHash(blockSon.blockHeader.hash, blockSon.blockHeader.number)))
-    blockBroadcast ! PeerActor.MessageReceived(newBlockHashes)
+    peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlockHashes))
 
     val reqHeadersMsg: Seq[SendMessage[GetBlockHeaders]] = peerProbe.receiveN(2).asInstanceOf[Seq[SendMessage[GetBlockHeaders]]]
     reqHeadersMsg(0).message.block shouldBe Right(block.blockHeader.hash)

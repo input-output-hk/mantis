@@ -37,8 +37,6 @@ class BlockBroadcastActor(
 
       case ProcessNewBlocks if state.unprocessedNewBlocks.nonEmpty =>
         val blockToProcess = state.unprocessedNewBlocks.head
-        log.debug("Processing new block {}", blockToProcess)
-
         val block: Option[Block] = for {
           _ <- blockHeadersStorage.get(blockToProcess.blockHeader.parentHash)
           _ <- blockBodiesStorage.get(blockToProcess.blockHeader.parentHash)
@@ -61,6 +59,7 @@ class BlockBroadcastActor(
             )
             context become processMessages(newState)
           case None =>
+            log.info("Block {} will not be broadcasted", Hex.toHexString(blockToProcess.blockHeader.hash.toArray))
             context become processMessages(state.copy(unprocessedNewBlocks = state.unprocessedNewBlocks.tail))
         }
 
@@ -78,7 +77,7 @@ class BlockBroadcastActor(
     case MessageReceived(m: NewBlock) =>
       val newBlock = Block(m.blockHeader, m.blockBody)
       if(blockToProcess(newBlock.blockHeader.hash, state)){
-        log.debug("Got NewBlock message {}", Hex.toHexString(newBlock.blockHeader.hash.toArray))
+        log.info("Got NewBlock message {}", Hex.toHexString(newBlock.blockHeader.hash.toArray))
         self ! ProcessNewBlocks
         context become processMessages(state.copy(unprocessedNewBlocks = state.unprocessedNewBlocks :+ newBlock))
       }
@@ -88,12 +87,14 @@ class BlockBroadcastActor(
     case MessageReceived(m: PV62.NewBlockHashes) => processNewBlockHashes(m.hashes.map(_.hash), state)
 
     case MessageReceived(BlockHeaders(Seq(blockHeader))) if state.fetchedBlockHeaders.contains(blockHeader.hash)=>
+      log.info("Got BlockHeaders message {}", blockHeader)
       val newFetchedBlockHeaders = state.fetchedBlockHeaders.filterNot(_ == blockHeader.hash)
       peer ! PeerActor.SendMessage(GetBlockBodies(Seq(blockHeader.hash)))
       val newState = state.copy(fetchedBlockHeaders = newFetchedBlockHeaders, obtainedBlockHeaders = state.obtainedBlockHeaders :+ blockHeader)
       context become processMessages(newState)
 
     case MessageReceived(BlockBodies(Seq(blockBody))) =>
+      log.info("Got BlockBodies message {}", blockBody)
       val block: Option[Block] = matchHeaderAndBody(state.obtainedBlockHeaders, blockBody)
       block foreach { b =>
         val newObtainedBlockHeaders = state.obtainedBlockHeaders.filterNot(_.hash == b.blockHeader.hash)
@@ -105,8 +106,8 @@ class BlockBroadcastActor(
   }
 
   private def processNewBlockHashes(newHashes: Seq[BlockHash], state: ProcessingState) = {
-    log.debug("Got NewBlockHashes message {}", newHashes)
     val hashes = newHashes.filter(hash => blockToProcess(hash, state))
+    log.info("Got NewBlockHashes message {}", newHashes.map( hash => Hex.toHexString(hash.toArray)))
     hashes.foreach{ hash =>
       val getBlockHeadersMsg = GetBlockHeaders(block = Right(hash), maxHeaders = 1, skip = 0, reverse =  false)
       peer ! PeerActor.SendMessage(getBlockHeadersMsg) }
@@ -132,7 +133,7 @@ class BlockBroadcastActor(
     val newBlockMsg = NewBlock(newBlock.blockHeader, newBlock.blockBody, newBlock.blockHeader.difficulty + parentTd)
     peers.foreach{ p =>
       if(p.id != peer.path.name){
-        log.debug("Sending NewBlockMessage {} to {}", newBlockMsg, p.id)
+        log.info("Sending NewBlockMessage {} to {}", newBlockMsg, p.id)
         p.ref ! PeerActor.SendMessage(newBlockMsg)
       }
     }
