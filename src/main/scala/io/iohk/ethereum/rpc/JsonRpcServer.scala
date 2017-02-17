@@ -6,12 +6,16 @@ import akka.stream.ActorMaterializer
 import io.iohk.ethereum.blockchain.Blockchain
 import io.iohk.ethereum.utils.Config
 
+trait RpcServerConfig {
+  val enabled: Boolean
+  val interface: String
+  val port: Int
+}
+
 object JsonRpcServer {
 
-  def run(implicit actorSystem: ActorSystem, blockchain: Blockchain): Unit = {
-    import Config.Network.Rpc._
-
+  def run(implicit actorSystem: ActorSystem, blockchain: Blockchain, config: RpcServerConfig): Unit = {
     implicit val materializer = ActorMaterializer()
-    Http().bindAndHandle(BlockController.route(blockchain), interface, port)
+    Http().bindAndHandle(BlockController.route(blockchain), config.interface, config.port)
   }
 }

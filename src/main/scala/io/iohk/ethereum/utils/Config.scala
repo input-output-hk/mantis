@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
+import io.iohk.ethereum.rpc.RpcServerConfig
 import org.spongycastle.util.encoders.Hex
 
 import scala.collection.JavaConversions._
@@ -46,7 +47,7 @@ object Config {
       val waitForChainCheckTimeout = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
     }
 
-    object Rpc {
+    object Rpc extends RpcServerConfig {
       private val rpcConfig = networkConfig.getConfig("rpc")
 
       val enabled = rpcConfig.getBoolean("enabled")
@@ -69,7 +70,7 @@ object Config {
     val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
   }
 
-  object FastSync{
+  object FastSync {
     private val fastSyncConfig = config.getConfig("fast-sync")
 
     val BlocksPerMessage: Int = fastSyncConfig.getInt("blocks-per-message")
@@ -94,5 +95,7 @@ object Config {
       override val cacheSize: Int = levelDbConfig.getInt("cache-size")
       override val path: String = levelDbConfig.getString("path")
     }
+
   }
+
 }

@@ -42,7 +42,7 @@ object App {
 
     server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
 
-    if(Config.Network.Rpc.enabled) JsonRpcServer.run(actorSystem, blockchainComp.blockchain)
+    if(Config.Network.Rpc.enabled) JsonRpcServer.run(actorSystem, blockchainComp.blockchain, Config.Network.Rpc)
 
     val bootstrapNodes = NetworkConfig.Discovery.bootstrapNodes.map(new URI(_))
     bootstrapNodes.foreach { node =>
