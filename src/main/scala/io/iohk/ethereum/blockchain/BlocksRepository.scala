@@ -2,7 +2,8 @@ package io.iohk.ethereum.blockchain
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, BlockNumberMappingStorage}
-import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
 /**
   * This interface presents an API to persist and query blocks within the blockchain.
@@ -13,15 +14,29 @@ trait BlocksRepository {
   def blockNumberMappingStorage: BlockNumberMappingStorage
 
   /**
+    * Allows to query a blockHeader by block hash
+    * @param hash of the block that's being searched
+    * @return [[BlockHeader]] if found
+    */
+  def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = blockHeadersStorage.get(hash)
+
+  /**
+    * Allows to query a blockBody by block hash
+    * @param hash of the block that's being searched
+    * @return [[BlockBody]] if found
+    */
+  def getBlockBodyByHash(hash: ByteString): Option[BlockBody] = blockBodiesStorage.get(hash)
+
+  /**
     * Allows to query for a block based on it's hash
     *
-    * @param hash Keccak hash of the block that's being searched
+    * @param hash of the block that's being searched
     * @return Block if found
     */
   def getBlockByHash(hash: ByteString): Option[Block] =
     for {
-      header <- blockHeadersStorage.get(hash)
-      body <- blockBodiesStorage.get(hash)
+      header <- getBlockHeaderByHash(hash)
+      body <- getBlockBodyByHash(hash)
     } yield Block(header, body)
 
   /**

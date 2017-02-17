@@ -12,6 +12,12 @@ class BlockchainSpec extends FlatSpec with Matchers {
     val block = blockchain.getBlockByHash(validBlock.header.hash)
     assert(block.isDefined)
     assert(validBlock == block.get)
+    val blockHeader = blockchain.getBlockHeaderByHash(validBlock.header.hash)
+    assert(blockHeader.isDefined)
+    assert(validBlock.header == blockHeader.get)
+    val blockBody = blockchain.getBlockBodyByHash(validBlock.header.hash)
+    assert(blockBody.isDefined)
+    assert(validBlock.body == blockBody.get)
   }
 
   "Blockchain" should "be able to store a block and retrieve it by number" in new BlockchainTestSetup {
