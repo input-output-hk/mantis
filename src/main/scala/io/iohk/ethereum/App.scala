@@ -20,7 +20,6 @@ object App {
 
   val nodeKey = generateKeyPair()
 
-  // FIXME We need to close DataSources before app ends
   val storagesInstance =  new Storages.DefaultStorages with SharedLevelDBDataSources
   val blockchainComp: BlockchainComp = new BlockchainCompImpl {
     override val storagesComp: StoragesComp = storagesInstance
