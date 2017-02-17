@@ -3,7 +3,6 @@ package io.iohk.ethereum.network.p2p.validators
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.crypto.{sha3, sha512}
-import io.iohk.ethereum.utils.EitherExtensions._
 
 object BlockHeaderValidator {
 
