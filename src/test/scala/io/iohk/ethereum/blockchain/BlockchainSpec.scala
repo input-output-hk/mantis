@@ -34,9 +34,10 @@ class BlockchainSpec extends FlatSpec with Matchers {
   }
 
   trait BlockchainTestSetup {
-    private val storagesImpl = new Storages.DefaultStorages with SharedEphemDataSources
+    private val storagesImpl = new SharedEphemDataSources with Storages.DefaultStorages
     private val blockchainComp: BlockchainComp = new BlockchainCompImpl {
       override val storagesComp: StoragesComp = storagesImpl
+      override val blockchain: Blockchain = new BlockchainImpl
     }
     val blockchain: Blockchain = blockchainComp.blockchain
   }

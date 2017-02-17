@@ -7,17 +7,17 @@ trait SharedEphemDataSources extends DataSourcesComp {
 
   val dataSources = new DataSources {
 
-    override def evmCodeStorage: DataSource = ephemDataSource
+    override val evmCodeStorage: DataSource = ephemDataSource
 
-    override def mptDataSource: DataSource = ephemDataSource
+    override val mptDataSource: DataSource = ephemDataSource
 
-    override def receiptsDataSource: DataSource = ephemDataSource
+    override val receiptsDataSource: DataSource = ephemDataSource
 
-    override def blockBodiesDataSource: DataSource = ephemDataSource
+    override val blockBodiesDataSource: DataSource = ephemDataSource
 
-    override def blockHeightsHashesDataSource: DataSource = ephemDataSource
+    override val blockHeightsHashesDataSource: DataSource = ephemDataSource
 
-    override def blockHeadersDataSource: DataSource = ephemDataSource
+    override val blockHeadersDataSource: DataSource = ephemDataSource
 
     override def closeAll: Unit = ()
   }

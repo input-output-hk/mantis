@@ -265,9 +265,10 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
     implicit val system = ActorSystem("PeerActorSpec_System")
 
-    val storagesImpl = new Storages.DefaultStorages with SharedEphemDataSources
+    val storagesImpl = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchainComp: BlockchainComp = new BlockchainCompImpl {
       override val storagesComp: StoragesComp = storagesImpl
+      override val blockchain: Blockchain = new BlockchainImpl
     }
     val blockchain = blockchainComp.blockchain
     val mptNodeStorage = storagesImpl.storages.mptNodeStorage

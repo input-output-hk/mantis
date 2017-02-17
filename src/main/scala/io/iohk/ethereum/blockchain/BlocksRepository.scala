@@ -9,9 +9,9 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
   * This interface presents an API to persist and query blocks within the blockchain.
   */
 trait BlocksRepository {
-  protected def blockHeadersStorage: BlockHeadersStorage
-  protected def blockBodiesStorage: BlockBodiesStorage
-  protected def blockNumberMappingStorage: BlockNumberMappingStorage
+  protected val blockHeadersStorage: BlockHeadersStorage
+  protected val blockBodiesStorage: BlockBodiesStorage
+  protected val blockNumberMappingStorage: BlockNumberMappingStorage
 
   /**
     * Allows to query a blockHeader by block hash

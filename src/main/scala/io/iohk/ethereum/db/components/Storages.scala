@@ -12,17 +12,17 @@ object Storages {
 
     class DefaultBlockchainStorages extends Storages {
 
-      def blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(dataSources.blockHeadersDataSource)
+      override val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(dataSources.blockHeadersDataSource)
 
-      def blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(dataSources.blockBodiesDataSource)
+      override val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(dataSources.blockBodiesDataSource)
 
-      def blockNumberMappingStorage: BlockNumberMappingStorage = new BlockNumberMappingStorage(dataSources.blockHeightsHashesDataSource)
+      override val blockNumberMappingStorage: BlockNumberMappingStorage = new BlockNumberMappingStorage(dataSources.blockHeightsHashesDataSource)
 
-      override def receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
+      override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
 
-      override def mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
+      override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
 
-      override def evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeStorage)
+      override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeStorage)
     }
 
   }
@@ -38,17 +38,17 @@ object Storages {
 
     class DefaultBlockchainStorages extends Storages {
 
-      def blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(dataSources.blockHeadersDataSource)
+      override val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(dataSources.blockHeadersDataSource)
 
-      def blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(dataSources.blockBodiesDataSource)
+      override val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(dataSources.blockBodiesDataSource)
 
-      def blockNumberMappingStorage: BlockNumberMappingStorage = new IodbBlockNumberMappingStorage(dataSources.blockHeightsHashesDataSource)
+      override val blockNumberMappingStorage: BlockNumberMappingStorage = new IodbBlockNumberMappingStorage(dataSources.blockHeightsHashesDataSource)
 
-      override def receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
+      override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
 
-      override def mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
+      override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
 
-      override def evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeStorage)
+      override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeStorage)
     }
   }
 }

@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 
 trait EvmRepository {
-  protected def evmCodeStorage: EvmCodeStorage
+  protected val evmCodeStorage: EvmCodeStorage
 
   def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
 

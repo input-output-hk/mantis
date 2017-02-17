@@ -6,7 +6,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.ActorSystem
 import akka.agent._
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.{BlockchainComp, BlockchainCompImpl}
+import io.iohk.ethereum.blockchain.{Blockchain, BlockchainComp, BlockchainCompImpl}
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, _}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
@@ -20,9 +20,10 @@ object App {
 
   val nodeKey = generateKeyPair()
 
-  val storagesInstance =  new Storages.DefaultStorages with SharedLevelDBDataSources
+  val storagesInstance =  new SharedLevelDBDataSources with Storages.DefaultStorages
   val blockchainComp: BlockchainComp = new BlockchainCompImpl {
     override val storagesComp: StoragesComp = storagesInstance
+    override val blockchain: Blockchain = new BlockchainImpl
   }
 
   def main(args: Array[String]): Unit = {

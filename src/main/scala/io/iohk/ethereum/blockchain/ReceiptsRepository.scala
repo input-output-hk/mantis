@@ -7,7 +7,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
 
 trait ReceiptsRepository {
 
-  protected def receiptStorage: ReceiptStorage
+  protected val receiptStorage: ReceiptStorage
 
   def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit = receiptStorage.put(blockHash, receipts)
 

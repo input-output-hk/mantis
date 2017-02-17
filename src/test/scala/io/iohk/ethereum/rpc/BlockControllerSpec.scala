@@ -57,15 +57,11 @@ trait BlockRouteSetup {
       if (number == Fixtures.Blocks.ValidBlock.header.number) Some(Fixtures.Blocks.ValidBlock.block)
       else None
 
-    override protected def receiptStorage: ReceiptStorage = ???
-
-    override protected def evmCodeStorage: EvmCodeStorage = ???
-
-    override protected def blockHeadersStorage: BlockHeadersStorage = ???
-
-    override protected def blockBodiesStorage: BlockBodiesStorage = ???
-
-    override protected def blockNumberMappingStorage: BlockNumberMappingStorage = ???
+    override protected val receiptStorage: ReceiptStorage = null
+    override protected val evmCodeStorage: EvmCodeStorage = null
+    override protected val blockHeadersStorage: BlockHeadersStorage = null
+    override protected val blockBodiesStorage: BlockBodiesStorage = null
+    override protected val blockNumberMappingStorage: BlockNumberMappingStorage = null
   }
 
   val route: Route = BlockController.route(stubbedBlockchain)

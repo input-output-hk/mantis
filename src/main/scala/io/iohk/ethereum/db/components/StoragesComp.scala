@@ -4,21 +4,21 @@ import io.iohk.ethereum.db.storage._
 
 trait StoragesComp {
 
-  def storages: Storages
+  val storages: Storages
 
   trait Storages {
 
-    def blockHeadersStorage: BlockHeadersStorage
+    val blockHeadersStorage: BlockHeadersStorage
 
-    def blockBodiesStorage: BlockBodiesStorage
+    val blockBodiesStorage: BlockBodiesStorage
 
-    def blockNumberMappingStorage: BlockNumberMappingStorage
+    val blockNumberMappingStorage: BlockNumberMappingStorage
 
-    def receiptStorage: ReceiptStorage
+    val receiptStorage: ReceiptStorage
 
-    def mptNodeStorage: MptNodeStorage
+    val mptNodeStorage: MptNodeStorage
 
-    def evmCodeStorage: EvmCodeStorage
+    val evmCodeStorage: EvmCodeStorage
 
   }
 

@@ -8,17 +8,17 @@ trait DataSourcesComp {
 
   trait DataSources {
 
-    def evmCodeStorage: DataSource
+    val evmCodeStorage: DataSource
 
-    def mptDataSource: DataSource
+    val mptDataSource: DataSource
 
-    def receiptsDataSource: DataSource
+    val receiptsDataSource: DataSource
 
-    def blockHeadersDataSource: DataSource
+    val blockHeadersDataSource: DataSource
 
-    def blockBodiesDataSource: DataSource
+    val blockBodiesDataSource: DataSource
 
-    def blockHeightsHashesDataSource: DataSource
+    val blockHeightsHashesDataSource: DataSource
 
     def closeAll: Unit
 

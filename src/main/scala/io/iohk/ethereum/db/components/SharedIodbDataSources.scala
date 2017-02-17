@@ -9,17 +9,17 @@ trait SharedIodbDataSources extends DataSourcesComp {
 
   override val dataSources = new DataSources {
 
-    override def blockBodiesDataSource: DataSource = dataSource
+    override val blockBodiesDataSource: DataSource = dataSource
 
-    override def blockHeightsHashesDataSource: DataSource = dataSource
+    override val blockHeightsHashesDataSource: DataSource = dataSource
 
-    override def blockHeadersDataSource: DataSource = dataSource
+    override val blockHeadersDataSource: DataSource = dataSource
 
-    override def evmCodeStorage: DataSource = dataSource
+    override val evmCodeStorage: DataSource = dataSource
 
-    override def mptDataSource: DataSource = dataSource
+    override val mptDataSource: DataSource = dataSource
 
-    override def receiptsDataSource: DataSource = dataSource
+    override val receiptsDataSource: DataSource = dataSource
 
     override def closeAll: Unit = dataSource.close()
   }
