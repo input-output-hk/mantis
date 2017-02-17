@@ -6,7 +6,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.Blockchain
-import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, BlockNumberMappingStorage}
+import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.rpc.BlockController.BlockView
 import org.scalatest.{FlatSpec, Matchers}
@@ -57,15 +57,15 @@ trait BlockRouteSetup {
       if (number == Fixtures.Blocks.ValidBlock.header.number) Some(Fixtures.Blocks.ValidBlock.block)
       else None
 
-    override def receiptStorage = ???
+    override protected def receiptStorage: ReceiptStorage = ???
 
-    override def evmCodeStorage = ???
+    override protected def evmCodeStorage: EvmCodeStorage = ???
 
-    override def blockHeadersStorage: BlockHeadersStorage = ???
+    override protected def blockHeadersStorage: BlockHeadersStorage = ???
 
-    override def blockBodiesStorage: BlockBodiesStorage = ???
+    override protected def blockBodiesStorage: BlockBodiesStorage = ???
 
-    override def blockNumberMappingStorage: BlockNumberMappingStorage = ???
+    override protected def blockNumberMappingStorage: BlockNumberMappingStorage = ???
   }
 
   val route: Route = BlockController.route(stubbedBlockchain)

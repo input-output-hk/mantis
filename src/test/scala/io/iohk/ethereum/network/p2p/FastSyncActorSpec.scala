@@ -82,7 +82,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
 
     val block = blockchain.getBlockByHash(targetBlockHeader.hash)
     block shouldBe Some(Block(targetBlockHeader, BlockBody(transactionList = Seq.empty, uncleNodesList = Seq.empty)))
-    blockchain.receiptStorage.get(targetBlockHeader.hash) shouldBe Some(Seq.empty)
+    blockchain.getReceiptsByHash(targetBlockHeader.hash) shouldBe Some(Seq.empty)
 
     mptNodeStorage.get(targetBlockHeader.stateRoot) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
   }
@@ -180,7 +180,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     peer.expectMsgClass(classOf[PeerActor.SendMessage[GetNodeData]])
     peer.reply(MessageReceived(NodeData(Seq(contractMptLeafNode))))
 
-    blockchain.evmCodeStorage.get(ByteString(crypto.sha3(contractEvmCode.toArray[Byte])))
+    blockchain.getEvmCodeByHash(ByteString(crypto.sha3(contractEvmCode.toArray[Byte])))
 
     mptNodeStorage.get(stateRootHash) shouldBe Some(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0))
 
