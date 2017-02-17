@@ -4,6 +4,7 @@ import java.net.{InetSocketAddress, URI}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
@@ -11,7 +12,8 @@ import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 class PeerManagerActor(
     nodeStatusHolder: Agent[NodeStatus],
-    peerFactory: (ActorContext, InetSocketAddress) => ActorRef)
+    peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
+    externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging {
 
   import PeerManagerActor._
@@ -19,7 +21,9 @@ class PeerManagerActor(
 
   var peers: Map[String, Peer] = Map.empty
 
-  context.system.scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
+  private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
+
+  scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
 
   override val supervisorStrategy =
     OneForOneStrategy() {
