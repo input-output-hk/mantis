@@ -5,7 +5,7 @@ val commonSettings = Seq(
 )
 
 val dep = {
-  val akkaVersion = "2.4.16"
+  val akkaVersion = "2.4.17"
 
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
