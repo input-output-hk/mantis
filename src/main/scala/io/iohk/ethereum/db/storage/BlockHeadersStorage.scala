@@ -6,6 +6,7 @@ import io.iohk.ethereum.db.storage.BlockHeadersStorage.BlockHeaderHash
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
+import io.iohk.ethereum.utils.Config
 
 /**
   * This class is used to store the BlockHeader, by using:
@@ -28,9 +29,14 @@ class BlockHeadersStorage(val dataSource: DataSource,
   override protected def apply(dataSource: DataSource): BlockHeadersStorage =
     new BlockHeadersStorage(dataSource, blockHeadersNumbersStorage)
 
+  override def get(key: BlockHeaderHash): Option[BlockHeader] = if (key == Config.Blockchain.genesisBlockHeader.hash) {
+    Some(Config.Blockchain.genesisBlockHeader)
+  } else {
+    super.get(key)
+  }
+
   def get(blockNumber: BigInt): Option[BlockHeader] = if (blockNumber == 0) {
-    //todo get block from config, or we will put 0 block to storage at app startup if it is not there?
-    None
+    Some(Config.Blockchain.genesisBlockHeader)
   } else {
     blockHeadersNumbersStorage.get(blockNumber).flatMap(key => super.get(key))
   }

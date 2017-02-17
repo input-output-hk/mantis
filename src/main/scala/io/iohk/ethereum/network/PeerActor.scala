@@ -258,7 +258,7 @@ class PeerActor(
             startBlockNumber to (startBlockNumber + (request.skip + 1) * headersCount) by (request.skip + 1)
           }
 
-          val blockHeaders: Seq[BlockHeader] = range.flatMap(storage.blockHeadersStorage.get)
+          val blockHeaders: Seq[BlockHeader] = range.flatMap { a: BigInt => storage.blockHeadersStorage.get(a) }
 
           rlpxConnection.sendMessage(BlockHeaders(blockHeaders))
 

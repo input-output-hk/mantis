@@ -353,7 +353,39 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader))))
   }
 
+  it should "return block headers in reverse when there are skipped blocks and we are asking for blocks before genesis" in new TestSetup {
+    //given
+    val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 3)
+    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 1)
 
+    storage.blockHeadersStorage.put(firstHeader.hash, firstHeader)
+    storage.blockHeadersStorage.put(secondHeader.hash, secondHeader)
+
+    setupConnection()
+
+    //when
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Right(firstHeader.hash), 3, 1, reverse = true)))
+
+    //then
+    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader))))
+  }
+
+  it should "return block headers in reverse when there are skipped blocks ending at genesis" in new TestSetup {
+    //given
+    val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 4)
+    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 2)
+
+    storage.blockHeadersStorage.put(firstHeader.hash, firstHeader)
+    storage.blockHeadersStorage.put(secondHeader.hash, secondHeader)
+
+    setupConnection()
+
+    //when
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Right(firstHeader.hash), 4, 1, reverse = true)))
+
+    //then
+    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader, Config.Blockchain.genesisBlockHeader))))
+  }
 
   trait BlockUtils {
 
