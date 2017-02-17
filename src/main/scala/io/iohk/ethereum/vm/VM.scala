@@ -2,8 +2,6 @@ package io.iohk.ethereum.vm
 
 import scala.annotation.tailrec
 
-import io.iohk.ethereum.utils.EitherExtensions._
-
 /**
   * Entry point to executing a program.
   */
@@ -42,8 +40,8 @@ object VM {
   private def getOpCode(state: ProgramState): Either[ProgramError, OpCode] = {
     val byte = state.program.getByte(state.pc)
     OpCode.byteToOpCode.get(byte) match {
-      case Some(opcode) => opcode.asRight
-      case None => InvalidOpCode(byte).asLeft
+      case Some(opcode) => Right(opcode)
+      case None => Left(InvalidOpCode(byte))
     }
   }
 

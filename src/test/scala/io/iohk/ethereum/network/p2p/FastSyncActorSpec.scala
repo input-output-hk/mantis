@@ -80,8 +80,8 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     //then
     peer.expectMsgClass(classOf[FastSyncDone])
 
-    val block = blockchain.getBlockByHash(targetBlockHeader.hash)
-    block shouldBe Some(Block(targetBlockHeader, BlockBody(transactionList = Seq.empty, uncleNodesList = Seq.empty)))
+    blockchain.getBlockBodyByHash(targetBlockHeader.hash) shouldBe Some(BlockBody(transactionList = Seq.empty, uncleNodesList = Seq.empty))
+    blockchain.getBlockHeaderByHash(targetBlockHeader.hash) shouldBe Some(targetBlockHeader)
     blockchain.getReceiptsByHash(targetBlockHeader.hash) shouldBe Some(Seq.empty)
 
     mptNodeStorage.get(targetBlockHeader.stateRoot) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
@@ -142,13 +142,13 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     mptNodeStorage.get(stateRootHash) shouldBe Some(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0))
 
     mptNodeStorage.get(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0)
-      .asInstanceOf[MptBranch].children(0).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(mptExtension)).getMptNode(0))
+      .asInstanceOf[MptBranch].children(0).left.get.hash) shouldBe Some(NodeData(Seq(mptExtension)).getMptNode(0))
 
     mptNodeStorage.get(NodeData(Seq(mptBranchWithTwoChild)).getMptNode(0)
-      .asInstanceOf[MptBranch].children(1).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
+      .asInstanceOf[MptBranch].children(1).left.get.hash) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
 
     mptNodeStorage.get(NodeData(Seq(mptExtension)).getMptNode(0)
-      .asInstanceOf[MptExtension].child.asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
+      .asInstanceOf[MptExtension].child.left.get.hash) shouldBe Some(NodeData(Seq(stateMptLeafWithAccount)).getMptNode(0))
   }
 
   it should "get contract MPT nodes" in new TestSetup {
@@ -185,13 +185,13 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     mptNodeStorage.get(stateRootHash) shouldBe Some(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0))
 
     mptNodeStorage.get(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0)
-      .asInstanceOf[MptBranch].children(1).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(contractMptExtension)).getMptNode(0))
+      .asInstanceOf[MptBranch].children(1).left.get.hash) shouldBe Some(NodeData(Seq(contractMptExtension)).getMptNode(0))
 
     mptNodeStorage.get(NodeData(Seq(contractMptBranchWithTwoChild)).getMptNode(0)
-      .asInstanceOf[MptBranch].children(0).asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(contractMptLeafNode)).getMptNode(0))
+      .asInstanceOf[MptBranch].children(0).left.get.hash) shouldBe Some(NodeData(Seq(contractMptLeafNode)).getMptNode(0))
 
     mptNodeStorage.get(NodeData(Seq(contractMptExtension)).getMptNode(0)
-      .asInstanceOf[MptExtension].child.asInstanceOf[Left[MptHash, MptValue]].a.hash) shouldBe Some(NodeData(Seq(contractMptLeafNode)).getMptNode(0))
+      .asInstanceOf[MptExtension].child.left.get.hash) shouldBe Some(NodeData(Seq(contractMptLeafNode)).getMptNode(0))
   }
 
   trait TestSetup {
@@ -272,7 +272,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     }
     val blockchain = blockchainComp.blockchain
     val mptNodeStorage = storagesImpl.storages.mptNodeStorage
-    
+
     val peer = TestProbe()
     val fastSync = TestActorRef(FastSyncActor.props(peer.ref, blockchain, mptNodeStorage))
   }

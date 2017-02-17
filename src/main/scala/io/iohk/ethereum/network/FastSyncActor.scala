@@ -247,7 +247,7 @@ object FastSyncActor {
 
   private case object PartialDownloadDone
 
-  private trait HashType {
+  private sealed trait HashType {
     val v: ByteString
   }
 
