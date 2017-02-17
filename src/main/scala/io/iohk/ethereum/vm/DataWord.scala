@@ -9,15 +9,15 @@ object DataWord {
   /**
     * DataWord size in bytes
     */
-  val Size = 32
+  val Size: Int = 32
 
-  private val Modulus: BigInt = BigInt(2).pow(Size * 8)
+  val Modulus: BigInt = BigInt(2).pow(Size * 8)
 
-  val MaxValue = DataWord(Modulus - 1)
+  val MaxSignedValue: BigInt = BigInt(2).pow(Size * 8 - 1) - 1
 
-  val Zero = DataWord(0)
+  val MaxValue: DataWord = DataWord(Modulus - 1)
 
-  private val Zeros: ByteString = ByteString(Array.fill[Byte](Size)(0))
+  val Zero: DataWord = DataWord(0)
 
   def apply(value: ByteString): DataWord = {
     require(value.length <= Size, s"Input byte array cannot be longer than $Size: ${value.length}")
@@ -38,13 +38,21 @@ object DataWord {
     apply(BigInt(num.toLong(n)))
   }
 
+  implicit def dataWord2BigInt(dw: DataWord): BigInt = dw.toBigInt
+
+  private val Zeros: ByteString = ByteString(Array.fill[Byte](Size)(0))
+
   private def fixBigInt(n: BigInt): BigInt = (n % Modulus + Modulus) % Modulus
 
-  implicit def dataWord2BigInt(dw: DataWord): BigInt = dw.toBigInt
+  private def toSignedBigInt(n: BigInt): BigInt = if (n > MaxSignedValue) n - Modulus else n
+
+  private def toUnsignedBigInt(n: BigInt): BigInt = if (n < 0) n + Modulus else n
+
 }
 
 /** Stores 256 bit words and adds a few convenience methods on them.
- *  Internally a word is stored as a BigInt. */
+ *  Internally a word is stored as an unsinged BigInt. */
+// TODO: consider moving to domain as Uint256, which follows Scala numeric conventions, and is used across the system for P_256 numbers (see YP 4.3)
 class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
 
   import DataWord._
@@ -60,6 +68,8 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
     else
       bs
   }
+
+  private lazy val signedN: BigInt = toSignedBigInt(n)
 
   require(n >= 0 && n < Modulus, s"Invalid word value: $n")
 
@@ -79,9 +89,52 @@ class DataWord private (private val n: BigInt) extends Ordered[DataWord] {
 
   def *(that: DataWord): DataWord = DataWord(this.n * that.n)
 
-  def /(that: DataWord): DataWord = DataWord(this.n / that.n)
+  def div(that: DataWord): DataWord = zeroCheck(that) { DataWord(this.n / that.n) }
+
+  def sdiv(that: DataWord): DataWord = zeroCheck(that) {
+    DataWord(toUnsignedBigInt(this.signedN / that.signedN))
+  }
+
+  def mod(that: DataWord): DataWord = zeroCheck(that) { DataWord(this.n mod that.n) }
+
+  def smod(that: DataWord): DataWord = zeroCheck(that) {
+    DataWord(this.signedN.signum * (this.signedN.abs mod that.signedN.abs))
+  }
+
+  def addmod(that: DataWord, modulus: DataWord): DataWord = zeroCheck(modulus) {
+    DataWord((this.n + that.n) mod modulus.n)
+  }
+
+  def mulmod(that: DataWord, modulus: DataWord): DataWord = zeroCheck(modulus) {
+    DataWord((this.n * that.n) mod modulus.n)
+  }
 
   def **(that: DataWord): DataWord = DataWord(this.n.modPow(that.n, Modulus))
+
+  def signExtend(that: DataWord): DataWord = {
+    if (that.n < 0 || that.n > 31) {
+      this
+    } else {
+      val idx = that.n.toByte
+      val mask: Int = if (this.signedN.testBit((idx * 8) + 7)) 0xFF else 0x00
+      val leftFill: Array[Byte] = Array.fill(Size - idx - 1)(mask.toByte)
+      val bs = ByteString(leftFill) ++ this.bytes.takeRight(idx + 1)
+      DataWord(bs)
+    }
+  }
+
+  def slt(that: DataWord): DataWord = DataWord(this.signedN < that.signedN)
+
+  def sgt(that: DataWord): DataWord = DataWord(this.signedN > that.signedN)
+
+  def getByte(that: DataWord): DataWord =
+    if (that.n > 31)
+      Zero
+    else
+      DataWord(Zeros.take(Size - 1) :+ this.bytes(that.n.toInt))
+
+  private def zeroCheck(dw: DataWord)(result: =>DataWord): DataWord =
+    if (dw == Zero) Zero else result
 
   def compare(that: DataWord): Int = this.n.compare(that.n)
 

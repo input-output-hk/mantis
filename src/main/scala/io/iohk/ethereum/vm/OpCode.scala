@@ -14,25 +14,25 @@ object OpCode {
     MUL,
     SUB,
     DIV,
-    //SDIV,
-    //MOD,
-    //SMOD,
-    //ADDMOD,
-    //MULMOD,
+    SDIV,
+    MOD,
+    SMOD,
+    ADDMOD,
+    MULMOD,
     EXP,
-    //SIGNEXTEND,
+    SIGNEXTEND,
 
     LT,
-    //GT,
-    //SLT,
-    //SGT,
+    GT,
+    SLT,
+    SGT,
     EQ,
     ISZERO,
     AND,
-    //OR,
-    //XOR,
+    OR,
+    XOR,
     NOT,
-    //BYTE,
+    BYTE,
 
     SHA3,
 
@@ -193,6 +193,15 @@ case object STOP extends OpCode(0x00, 0, 0, G_zero) with ConstGas {
     state.halt
 }
 
+sealed abstract class UnaryOp(code: Int, constGas: BigInt)(val f: DataWord => DataWord) extends OpCode(code, 1, 1, constGas) with ConstGas {
+  protected def exec(state: ProgramState): ProgramState = {
+    val (a, stack1) = state.stack.pop
+    val res = f(a)
+    val stack2 = stack1.push(res)
+    state.withStack(stack2).step()
+  }
+}
+
 sealed abstract class BinaryOp(code: Int, constGas: BigInt)(val f: (DataWord, DataWord) => DataWord)
   extends OpCode(code.toByte, 2, 1, constGas) {
 
@@ -204,10 +213,12 @@ sealed abstract class BinaryOp(code: Int, constGas: BigInt)(val f: (DataWord, Da
   }
 }
 
-sealed abstract class UnaryOp(code: Int, constGas: BigInt)(val f: DataWord => DataWord) extends OpCode(code, 1, 1, constGas) {
+sealed abstract class TernaryOp(code: Int, constGas: BigInt)(val f: (DataWord, DataWord, DataWord) => DataWord)
+    extends OpCode(code.toByte, 3, 1, constGas) {
+
   protected def exec(state: ProgramState): ProgramState = {
-    val (a, stack1) = state.stack.pop
-    val res = f(a)
+    val (Seq(a, b, c), stack1) = state.stack.pop(3)
+    val res = f(a, b, c)
     val stack2 = stack1.push(res)
     state.withStack(stack2).step()
   }
@@ -219,7 +230,17 @@ case object MUL extends BinaryOp(0x02, G_low)(_ * _) with ConstGas
 
 case object SUB extends BinaryOp(0x03, G_verylow)(_ - _) with ConstGas
 
-case object DIV extends BinaryOp(0x04, G_low)((a, b) => if (!b.isZero) a / b else DataWord.Zero) with ConstGas
+case object DIV extends BinaryOp(0x04, G_low)(_ div _) with ConstGas
+
+case object SDIV extends BinaryOp(0x05, G_low)(_ sdiv _) with ConstGas
+
+case object MOD extends BinaryOp(0x06, G_low)(_ mod _) with ConstGas
+
+case object SMOD extends BinaryOp(0x06, G_low)(_ smod _) with ConstGas
+
+case object ADDMOD extends TernaryOp(0x07, G_mid)(_.addmod(_, _)) with ConstGas
+
+case object MULMOD extends TernaryOp(0x08, G_mid)(_.mulmod(_, _)) with ConstGas
 
 case object EXP extends BinaryOp(0x0a, G_exp)(_ ** _) {
   protected def varGas(state: ProgramState): BigInt = {
@@ -228,7 +249,15 @@ case object EXP extends BinaryOp(0x0a, G_exp)(_ ** _) {
   }
 }
 
+case object SIGNEXTEND extends BinaryOp(0x0b, G_low)((a, b) => b signExtend a) with ConstGas
+
 case object LT extends BinaryOp(0x10, G_verylow)((a, b) => DataWord(a < b)) with ConstGas
+
+case object GT extends BinaryOp(0x11, G_verylow)((a, b) => DataWord(a > b)) with ConstGas
+
+case object SLT extends BinaryOp(0x12, G_verylow)(_ slt _) with ConstGas
+
+case object SGT extends BinaryOp(0x13, G_verylow)(_ sgt _) with ConstGas
 
 case object EQ extends BinaryOp(0x14, G_verylow)((a, b) => DataWord(a == b)) with ConstGas
 
@@ -236,7 +265,13 @@ case object ISZERO extends UnaryOp(0x15, G_verylow)(a => DataWord(a.isZero)) wit
 
 case object AND extends BinaryOp(0x16, G_verylow)(_ & _) with ConstGas
 
+case object OR extends BinaryOp(0x17, G_verylow)(_ | _) with ConstGas
+
+case object XOR extends BinaryOp(0x18, G_verylow)(_ ^ _) with ConstGas
+
 case object NOT extends UnaryOp(0x19, G_verylow)(~_) with ConstGas
+
+case object BYTE extends BinaryOp(0x1a, G_verylow)((a, b) => b getByte a) with ConstGas
 
 case object SHA3 extends OpCode(0x20, 2, 1, G_sha3) {
   protected def exec(state: ProgramState): ProgramState = {
@@ -363,7 +398,6 @@ case object SSTORE extends OpCode(0x55, 2, 0, G_zero) {
     if (oldValue.isZero && !value.isZero) G_sset else G_sreset
   }
 }
-
 
 case object JUMP extends OpCode(0x56, 1, 0, G_mid) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {

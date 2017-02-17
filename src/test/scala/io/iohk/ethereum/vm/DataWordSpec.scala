@@ -8,6 +8,8 @@ import io.iohk.ethereum.vm.DataWord._
 
 class DataWordSpec extends FunSuite with PropertyChecks {
 
+  val Modulus: BigInt = BigInt(2).pow(Size * 8)
+
   val specialNumbers = Array(BigInt(-1), BigInt(0), BigInt(1), MaxValue.toBigInt, -MaxValue.toBigInt, -MaxValue.toBigInt + 1)
 
   val pairs: Array[(BigInt, BigInt)] = specialNumbers
@@ -16,6 +18,10 @@ class DataWordSpec extends FunSuite with PropertyChecks {
     .toArray
 
   val specialCases = Table(("n1", "n2"), pairs: _*)
+
+  def toSignedBigInt(n: BigInt): BigInt = if (n > MaxSignedValue) n - Modulus else n
+
+  def toUnsignedBigInt(n: BigInt): BigInt = if (n < 0) n + Modulus else n
 
   /** For each operation (op) tests check a following property:
    For two BigInts (n1, n2):
@@ -31,7 +37,7 @@ class DataWordSpec extends FunSuite with PropertyChecks {
   }
 
   test("|") {
-   forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       assert((DataWord(n1) | DataWord(n2)) == DataWord(n1 | n2))
     }
     forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
@@ -94,15 +100,63 @@ class DataWordSpec extends FunSuite with PropertyChecks {
     }
   }
 
-  test("/") {
+  test("div") {
     forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       whenever(n2 != 0) {
-        assert(DataWord(n1) / DataWord(n2) == DataWord(n1 / n2))
+        assert((DataWord(n1) div DataWord(n2)) == DataWord(n1 / n2))
       }
     }
-    assertThrows[ArithmeticException] {
-      DataWord(1) / DataWord(0)
+    forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
+      whenever(n1 > 0 && n2 > 0) {
+        assert((DataWord(n1) div DataWord(n2)) == DataWord(n1 / n2))
+      }
     }
+    assert((DataWord(1) div Zero) == Zero)
+  }
+
+  test("sdiv") {
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      whenever(n2 != 0) {
+        val expected: BigInt = toUnsignedBigInt(toSignedBigInt(n1) / toSignedBigInt(n2))
+        assert((DataWord(n1) sdiv DataWord(n2)) == DataWord(expected))
+      }
+    }
+    assert((DataWord(-1) sdiv DataWord(-MaxValue.toBigInt)) == DataWord(-1))
+    assert((DataWord(-1) sdiv Zero) == Zero)
+  }
+
+  test("mod") {
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      whenever(n2 != 0) {
+        assert((DataWord(n1) mod DataWord(n2)) == DataWord(n1 mod n2))
+      }
+    }
+    assert((DataWord(-1) mod DataWord(MaxValue.toBigInt)) == Zero)
+    assert((DataWord(1) mod Zero) == Zero)
+  }
+
+  test("smod") {
+    assert((DataWord(Modulus - 1) smod DataWord(3)) == DataWord(Modulus - 1))
+    assert((DataWord(-1) smod DataWord(MaxValue.toBigInt)) == Zero)
+    assert((DataWord(1) smod Zero) == Zero)
+  }
+
+  test("addmod") {
+    forAll(bigIntGen, bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt, n3: BigInt) =>
+      whenever(n3 != 0) {
+        assert(DataWord(n1).addmod(DataWord(n2), DataWord(n3)) == DataWord((n1 + n2) mod n3))
+      }
+    }
+    assert(DataWord(42).addmod(DataWord(42), Zero) == Zero)
+  }
+
+  test("mulmod") {
+    forAll(bigIntGen, bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt, n3: BigInt) =>
+      whenever(n3 != 0) {
+        assert(DataWord(n1).mulmod(DataWord(n2), DataWord(n3)) == DataWord((n1 * n2) mod n3))
+      }
+    }
+    assert(DataWord(42).mulmod(DataWord(42), Zero) == Zero)
   }
 
   test("**") {
@@ -111,6 +165,80 @@ class DataWordSpec extends FunSuite with PropertyChecks {
       whenever(n2 != 0) {
         assert(DataWord(n1) ** DataWord(n2) == DataWord(n1.modPow(n2, TestModulus)))
       }
+    }
+  }
+
+  test("signExtend") {
+    val testData = Table[DataWord, DataWord, DataWord](
+      ("word", "extension", "result"),
+      (DataWord(42), DataWord(3), DataWord(42)),
+      (DataWord(42), DataWord(1), DataWord(42)),
+      (DataWord(42), DataWord(-1), DataWord(42)),
+      (DataWord(42), DataWord(0), DataWord(42)),
+      (DataWord(42), DataWord(Size), DataWord(42)),
+      (DataWord(42), DataWord(Size + 1), DataWord(42)),
+      (DataWord(-42), DataWord(Size), DataWord(-42)),
+      (DataWord(-42), DataWord(Size + 1), DataWord(-42)),
+      (DataWord(-42), DataWord(-11), DataWord(-42)),
+      (DataWord(-1), DataWord(1), DataWord(-1)),
+      (DataWord(-1), DataWord(1), DataWord(-1)),
+      (DataWord(0x1a81ff), DataWord(1), DataWord(Array.fill[Byte](30)(-1) ++ Array[Byte](-127, -1))))
+
+    forAll(testData) { (word, extension, result) =>
+      assert((word).signExtend(extension) == result)
+    }
+  }
+
+  test("slt") {
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      assert((DataWord(n1) slt DataWord(n2)) == DataWord(toSignedBigInt(n1) < toSignedBigInt(n2)))
+    }
+
+    val testData = Table[DataWord, DataWord, DataWord](
+      ("a", "b", "result"),
+      (DataWord(-1), DataWord(1), DataWord(1)),
+      (DataWord(1), DataWord(-1), DataWord(0)),
+      (DataWord(1), DataWord(0), DataWord(0)))
+
+    forAll(testData) { (a, b, result) =>
+      assert((a slt b) == result)
+    }
+  }
+
+  test("sgt") {
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      assert((DataWord(n1) sgt DataWord(n2)) == DataWord(toSignedBigInt(n1) > toSignedBigInt(n2)))
+    }
+
+    val testData = Table[DataWord, DataWord, DataWord](
+      ("a", "b", "result"),
+      (DataWord(-1), DataWord(1), DataWord(0)),
+      (DataWord(1), DataWord(-1), DataWord(1)),
+      (DataWord(0), DataWord(1), DataWord(0)),
+      (DataWord(1), DataWord(0), DataWord(1)))
+
+    forAll(testData) { (a, b, result) =>
+      assert((a sgt b) == result)
+    }
+  }
+
+  test("getByte") {
+    val dw1 = DataWord(ByteString((100 to 131).map(_.toByte).toArray))
+
+    val testData = Table[DataWord, DataWord, DataWord](
+      ("word", "idx", "result"),
+      (DataWord(42), DataWord(-1), Zero),
+      (DataWord(42), DataWord(Size), Zero),
+      (DataWord(42), DataWord(Size + 1), Zero),
+      (DataWord(1), DataWord(287), Zero),
+      (dw1, DataWord(0), DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 100.toByte)),
+      (dw1, DataWord(1), DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 101.toByte)),
+      (dw1, DataWord(30), DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -126.toByte)),
+      (dw1, DataWord(31), DataWord(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -125.toByte)),
+      (DataWord(ByteString(Array.fill[Byte](32)(-50))), DataWord(8), DataWord(ByteString(-50))))
+
+    forAll(testData) { (a, b, result) =>
+      assert(a.getByte(b) == result)
     }
   }
 
@@ -131,7 +259,7 @@ class DataWordSpec extends FunSuite with PropertyChecks {
 
     forAll(Table("comparators", comparators: _*)) { cmp =>
       forAll(dataWordGen, dataWordGen) { (a, b) =>
-         assert(cmp.dw(a, b) == cmp.bi(a.toBigInt, b.toBigInt))
+        assert(cmp.dw(a, b) == cmp.bi(a.toBigInt, b.toBigInt))
       }
 
       forAll(specialCases) { (x, y) =>
