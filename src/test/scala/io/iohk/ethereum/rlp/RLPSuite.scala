@@ -387,14 +387,14 @@ class RLPSuite extends FunSuite
     val expected = "c88363617483646f67"
     val data = RLP.encode(RLPList("cat", "dog"))
     assert(expected == Hex.toHexString(data))
-    val dataObtained = decode[Seq[String]](data)
+    val dataObtained = decode[Seq[String]](data)(stringSeqEncDec)
     val obtained = dataObtained
     assert(Seq("cat", "dog") equals obtained)
 
     val expected2 = "cc83646f6783676f6483636174"
     val data2 = RLP.encode(RLPList("dog", "god", "cat"))
     assert(expected2 == Hex.toHexString(data2))
-    val dataObtained2 = decode[Seq[String]](data2)
+    val dataObtained2 = decode[Seq[String]](data2)(stringSeqEncDec)
     val obtained2 = dataObtained2
     assert(Seq("dog", "god", "cat") equals obtained2)
   }
@@ -404,7 +404,7 @@ class RLPSuite extends FunSuite
     val expected = "f83e83636174b8384c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c6974"
     val data = RLP.encode(RLPList(list.map(i => toEncodeable(i)): _*))
     assert(expected == Hex.toHexString(data))
-    val dataObtained = decode[Seq[String]](data)
+    val dataObtained = decode[Seq[String]](data)(stringSeqEncDec)
     val obtained = dataObtained
     assert(list equals obtained)
   }

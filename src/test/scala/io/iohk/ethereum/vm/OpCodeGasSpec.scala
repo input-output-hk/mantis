@@ -17,11 +17,23 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     MUL -> G_low,
     SUB -> G_verylow,
     DIV -> G_low,
+    SDIV -> G_low,
+    MOD -> G_low,
+    SMOD -> G_low,
+    ADDMOD -> G_mid,
+    MULMOD -> G_mid,
+    SIGNEXTEND -> G_low,
     LT -> G_verylow,
+    GT -> G_verylow,
+    SLT -> G_verylow,
+    SGT -> G_verylow,
     EQ -> G_verylow,
     ISZERO -> G_verylow,
     AND -> G_verylow,
+    OR -> G_verylow,
+    XOR -> G_verylow,
     NOT -> G_verylow,
+    BYTE -> G_verylow,
     CALLVALUE -> G_base,
     CALLDATALOAD -> G_verylow,
     POP -> G_base,
@@ -101,7 +113,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
     forAll(stateGen) { stateIn =>
       val stateOut = op.execute(stateIn)
-      verifyGas(op.constGas, stateIn, stateOut)
+      verifyGas(constGasFees(op), stateIn, stateOut)
     }
   }
 
@@ -195,8 +207,8 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
-    
-    
+
+
     val maxGas = G_verylow + G_copy * 8
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 3, maxWord = DataWord(256)),
@@ -234,7 +246,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val stateOut = op.execute(stateIn)
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
-    
+
     val maxGas = G_verylow + G_copy * 8
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 4, maxWord = DataWord(256)),

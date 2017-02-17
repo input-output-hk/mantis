@@ -70,7 +70,7 @@ object IodbDataSource {
     val dirSetupSuccess = (dir.exists() && dir.isDirectory) || dir.mkdirs()
     assert(dirSetupSuccess, "Iodb folder creation failed")
 
-    val lSMStore: LSMStore = new LSMStore(dir = dir, keySize = keySize, keepSingleVersion = true)
+    val lSMStore: LSMStore = new LSMStore(dir = dir, keySize = keySize)
     new IodbDataSource(lSMStore, keySize, path)
   }
 
