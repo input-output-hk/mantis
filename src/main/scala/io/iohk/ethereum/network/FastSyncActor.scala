@@ -182,7 +182,7 @@ class FastSyncActor(
 
       case n: MptBranch =>
         log.info("Got contract branch node: {}", n)
-        val hashes = n.children.collect { case Left(h@MptHash) => h}.filter{case MptHash(h,t) => h.nonEmpty && t.isEmpty}.map(_.hash)
+        val hashes = n.children.collect { case Left(h) => h}.filter{case MptHash(h,t) => h.nonEmpty && t.isEmpty}.map(_.hash)
         log.info("{}", hashes)
         self ! RequestNodes(hashes.map(ContractStorageMptNodeHash): _*)
         mptNodeStorage.put(n)
@@ -218,7 +218,7 @@ class FastSyncActor(
 
       case n: MptBranch =>
         log.info("Got branch node: {}", n)
-        val hashes = n.children.collect { case Left(h@MptHash) => h}.filter{case MptHash(h,t) => h.nonEmpty && t.isEmpty}.map(_.hash)
+        val hashes = n.children.collect { case Left(h) => h}.filter{case MptHash(h,t) => h.nonEmpty && t.isEmpty}.map(_.hash)
         self ! RequestNodes(hashes.map(StateMptNodeHash): _*)
         mptNodeStorage.put(n)
 
