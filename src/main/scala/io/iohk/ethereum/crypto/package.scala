@@ -2,7 +2,7 @@ package io.iohk.ethereum
 
 import java.security.SecureRandom
 
-import fr.cryptohash.Keccak256
+import fr.cryptohash.{Keccak256, Keccak512}
 import org.spongycastle.asn1.sec.SECNamedCurves
 import org.spongycastle.asn1.x9.X9ECParameters
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
@@ -23,6 +23,12 @@ package object crypto {
   def sha3(input: Array[Byte] *): Array[Byte] = {
     val digest: Keccak256 = new Keccak256
     input.foreach(i => digest.update(i))
+    digest.digest
+  }
+
+  def sha512(input: Array[Byte]): Array[Byte] = {
+    val digest = new Keccak512
+    digest.update(input)
     digest.digest
   }
 
