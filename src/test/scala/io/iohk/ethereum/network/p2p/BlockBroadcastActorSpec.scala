@@ -2,13 +2,13 @@ package io.iohk.ethereum.network.p2p
 
 import java.net.InetSocketAddress
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, TotalDifficultyStorage}
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.PeerActor.SendMessage
+import io.iohk.ethereum.network.PeerActor.{SendMessage, Unsubscribe}
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.{PV61, PV62}
@@ -16,10 +16,11 @@ import io.iohk.ethereum.network.{Block, BlockBroadcastActor, PeerActor, PeerMana
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 
 class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
-  val NumberPeers = 5
+  val PeersNumber = 5
 
   "BlockBroadcastActor" should "subscribe for messages" in new TestSetup {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
@@ -46,7 +47,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
-    val newBlock = NewBlock(block.blockHeader, block.blockBody, block.blockHeader.difficulty + blockParent.blockHeader.difficulty)
+    val newBlock = NewBlock(block.blockHeader, block.blockBody, blockTD)
     peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlock))
 
     peerManager.expectMsg(GetPeers)
@@ -193,14 +194,28 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(expectedNewBlockSon)) }
   }
 
+  it should "drop the peer when receiving an invalid block" in new TestSetup {
+    blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
+    peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
+
+    val parentNumber: BigInt = blockParent.blockHeader.number
+    val invalidBlock: Block = block.copy(blockHeader = block.blockHeader.copy(number = parentNumber))
+
+    val newBlock = NewBlock(invalidBlock.blockHeader, invalidBlock.blockBody, blockTD)
+
+    peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlock))
+
+    peerProbe.expectMsg(PeerActor.DropPeer(Disconnect.Reasons.UselessPeer))
+  }
+
   trait TestSetup extends BlockUtil {
     implicit val system = ActorSystem("PeerActorSpec_System")
 
     val peerProbe = TestProbe()
-    val peer = Peer(new InetSocketAddress("localhost", NumberPeers), peerProbe.ref)
+    val peer = Peer(new InetSocketAddress("localhost", PeersNumber), peerProbe.ref)
     val peerManager = TestProbe()
 
-    val peersProbes: Seq[TestProbe] = (0 until NumberPeers).map { _ => TestProbe() }
+    val peersProbes: Seq[TestProbe] = (0 until PeersNumber).map { _ => TestProbe() }
     val peers: Seq[Peer] = peersProbes.zipWithIndex.map { case (testProbe, i) => Peer(new InetSocketAddress("localhost", i), testProbe.ref) }
 
     val allPeers: Seq[Peer] = peer +: peers

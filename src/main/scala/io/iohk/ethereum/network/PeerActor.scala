@@ -269,7 +269,8 @@ class PeerActor(
 
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-        handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse {
+        handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
+        handleDropPeer(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
         log.info("Received message: {}", message)
         notifySubscribers(message)
@@ -286,8 +287,6 @@ class PeerActor(
         fastSyncActor ! FastSyncActor.StartSync(targetHash)
 
       case FastSyncDone(_) =>
-        //Start normal sync
-        //FIXME: Share with fastsync
         val broadcastActor = BlockBroadcastActor.props(
           self,
           context.parent,
@@ -326,6 +325,10 @@ class PeerActor(
 
   }
 
+  private def handleDropPeer(rlpxConnection: RLPxConnection): Receive = {
+    case DropPeer(reason: Int) => disconnectFromPeer(rlpxConnection, reason)
+  }
+
 }
 
 object PeerActor {
@@ -357,6 +360,8 @@ object PeerActor {
   private case object StatusReceiveTimeout
 
   private case object RetryConnectionTimeout
+
+  case class DropPeer(reason: Int)
 
   case object GetStatus
   case class StatusResponse(status: Status)

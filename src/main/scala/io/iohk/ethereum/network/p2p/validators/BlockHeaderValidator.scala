@@ -3,6 +3,7 @@ package io.iohk.ethereum.network.p2p.validators
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.crypto.{sha3, sha512}
+import io.iohk.ethereum.db.storage.BlockHeadersStorage
 
 object BlockHeaderValidator {
 
@@ -32,6 +33,19 @@ object BlockHeaderValidator {
       _ <- validateGasLimit(blockHeader, parentHeader)
       _ <- validateNumber(blockHeader, parentHeader)
       _ <- validatePoW(blockHeader)
+    } yield blockHeader
+  }
+
+  /** This method allows validate a BlockHeader (stated on
+    * section 4.4.4 of http://paper.gavwood.com/).
+    *
+    * @param blockHeader BlockHeader to validate.
+    * @param blockHeadersStorage Storage of the BlockHeaders where the header of the parent of the block will be fetched.
+    */
+  def validate(blockHeader: BlockHeader, blockHeadersStorage: BlockHeadersStorage): Either[BlockHeaderError, BlockHeader] = {
+    for {
+      blockHeaderParent <- obtainBlockParentHeader(blockHeader, blockHeadersStorage)
+      _ <- validate(blockHeader, blockHeaderParent)
     } yield blockHeader
   }
 
@@ -148,11 +162,27 @@ object BlockHeaderValidator {
 
     ByteString(sha3(seedHash ++ blockHeader.mixHash))
   }
+
+  /**
+    * Retrieves the header of the parent of a block from the BlockHeadersStorage, if it exists.
+    *
+    * @param blockHeader BlockHeader whose parent we want to fetch.
+    * @param blockHeadersStorage Storage of the BlockHeaders where the header of the parent of the block will be fetched.
+    * @return the BlockHeader of the parent if it exists, an [[HeaderParentNotFoundError]] otherwise
+    */
+  private def obtainBlockParentHeader(blockHeader: BlockHeader,
+                                      blockHeadersStorage: BlockHeadersStorage): Either[BlockHeaderError, BlockHeader] = {
+    blockHeadersStorage.get(blockHeader.parentHash) match{
+      case Some(blockParentHeader) => Right(blockParentHeader)
+      case None => Left(HeaderParentNotFoundError)
+    }
+  }
 }
 
 sealed trait BlockHeaderError
 
 object BlockHeaderError {
+  case object HeaderParentNotFoundError extends BlockHeaderError
   case object HeaderExtraDataError extends BlockHeaderError
   case object HeaderTimestampError extends BlockHeaderError
   case object HeaderDifficultyError extends BlockHeaderError

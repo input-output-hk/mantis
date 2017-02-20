@@ -2,6 +2,8 @@ package io.iohk.ethereum.network.p2p.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.validators.BlockHeaderError._
 import org.scalatest.prop.PropertyChecks
@@ -92,6 +94,22 @@ class BlockHeaderValidatorSpec extends FunSuite with PropertyChecks with ObjectG
       val validateResult = BlockHeaderValidator.validate(blockHeader, validBlockParent)
       if(nonce != validBlockHeader.nonce || mixHash != validBlockHeader.mixHash) assert(validateResult == Left(HeaderPoWError))
       else assert(validateResult == Right(blockHeader))
+    }
+  }
+
+  test("BlockHeader should validate correctly a block whose parent is in storage") {
+    val blockHeadersStorage = new BlockHeadersStorage(EphemDataSource()).put(validBlockHeader.parentHash, validBlockParent)
+    BlockHeaderValidator.validate(validBlockHeader, blockHeadersStorage) match {
+      case Right(validated) if validated equals validBlockHeader => succeed
+      case _ => fail
+    }
+  }
+
+  test("Block header should return a failure if the parent's header is not in storage"){
+    val emptyBlockHeadersStorage = new BlockHeadersStorage(EphemDataSource())
+    BlockHeaderValidator.validate(validBlockHeader, emptyBlockHeadersStorage) match {
+      case Left(HeaderParentNotFoundError) => succeed
+      case _ => fail
     }
   }
 
