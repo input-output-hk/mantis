@@ -7,7 +7,7 @@ import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import org.spongycastle.util.encoders.Hex
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 object Config {
@@ -32,7 +32,7 @@ object Config {
     object Discovery {
       private val discoveryConfig = networkConfig.getConfig("discovery")
 
-      val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").toSet
+      val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet
       val bootstrapNodesScanInterval = discoveryConfig.getDuration("bootstrap-nodes-scan-interval").toMillis.millis
     }
 
