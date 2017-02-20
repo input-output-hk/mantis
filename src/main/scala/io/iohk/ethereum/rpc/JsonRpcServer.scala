@@ -3,7 +3,7 @@ package io.iohk.ethereum.rpc
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
-import io.iohk.ethereum.blockchain.Blockchain
+import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.utils.Config
 
 trait RpcServerConfig {

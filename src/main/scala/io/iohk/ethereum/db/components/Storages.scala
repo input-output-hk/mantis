@@ -8,9 +8,9 @@ object Storages {
 
     dataSourcesComp: DataSourcesComp =>
 
-    override val storages = new DefaultBlockchainStorages
+    override val storages: Storages = new DefaultStorages
 
-    class DefaultBlockchainStorages extends Storages {
+    class DefaultStorages extends Storages {
 
       override val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(dataSources.blockHeadersDataSource)
 

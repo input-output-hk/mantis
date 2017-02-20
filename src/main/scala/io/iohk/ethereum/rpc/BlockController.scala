@@ -5,9 +5,8 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.Blockchain
 import io.iohk.ethereum.crypto.sha3
-import io.iohk.ethereum.domain.{Block, SignedTransaction}
+import io.iohk.ethereum.domain.{Block, Blockchain, SignedTransaction}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rpc.customserializers.ByteStringJsonSerializer._

@@ -1,4 +1,4 @@
-package io.iohk.ethereum.blockchain
+package io.iohk.ethereum.domain
 
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages, StoragesComp}
@@ -35,11 +35,7 @@ class BlockchainSpec extends FlatSpec with Matchers {
 
   trait BlockchainTestSetup {
     private val storagesImpl = new SharedEphemDataSources with Storages.DefaultStorages
-    private val blockchainComp: BlockchainComp = new BlockchainCompImpl {
-      override val storagesComp: StoragesComp = storagesImpl
-      override val blockchain: Blockchain = new BlockchainImpl
-    }
-    val blockchain: Blockchain = blockchainComp.blockchain
+    val blockchain: Blockchain = BlockchainImpl(storagesImpl.storages)
   }
 
 }

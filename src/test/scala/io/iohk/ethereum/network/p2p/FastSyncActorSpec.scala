@@ -3,12 +3,9 @@ package io.iohk.ethereum.network.p2p
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain
-import io.iohk.ethereum.blockchain.{Blockchain, BlockchainComp, BlockchainCompImpl}
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, SharedIodbDataSources, Storages, StoragesComp}
-import io.iohk.ethereum.db.components.Storages.DefaultStorages
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages, StoragesComp}
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.FastSyncActor.{FastSyncDone, SyncFailure}
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -266,11 +263,7 @@ class FastSyncActorSpec extends FlatSpec with Matchers {
     implicit val system = ActorSystem("PeerActorSpec_System")
 
     val storagesImpl = new SharedEphemDataSources with Storages.DefaultStorages
-    val blockchainComp: BlockchainComp = new BlockchainCompImpl {
-      override val storagesComp: StoragesComp = storagesImpl
-      override val blockchain: Blockchain = new BlockchainImpl
-    }
-    val blockchain = blockchainComp.blockchain
+    val blockchain: Blockchain = BlockchainImpl(storagesImpl.storages)
     val mptNodeStorage = storagesImpl.storages.mptNodeStorage
 
     val peer = TestProbe()

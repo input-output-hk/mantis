@@ -8,8 +8,8 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.Blockchain
 import io.iohk.ethereum.db.storage.MptNodeStorage
+import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 class PeerManagerActor(

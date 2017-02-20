@@ -1,12 +1,13 @@
 package io.iohk.ethereum.db.components
 
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.domain.BlockchainStorages
 
 trait StoragesComp {
 
   val storages: Storages
 
-  trait Storages {
+  trait Storages extends BlockchainStorages {
 
     val blockHeadersStorage: BlockHeadersStorage
 
@@ -21,5 +22,4 @@ trait StoragesComp {
     val evmCodeStorage: EvmCodeStorage
 
   }
-
 }

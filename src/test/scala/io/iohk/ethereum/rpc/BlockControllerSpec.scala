@@ -4,10 +4,11 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.blockchain.Blockchain
-import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
 import io.iohk.ethereum.rpc.BlockController.BlockView
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -57,11 +58,21 @@ trait BlockRouteSetup {
       if (number == Fixtures.Blocks.ValidBlock.header.number) Some(Fixtures.Blocks.ValidBlock.block)
       else None
 
-    override protected val receiptStorage: ReceiptStorage = null
-    override protected val evmCodeStorage: EvmCodeStorage = null
-    override protected val blockHeadersStorage: BlockHeadersStorage = null
-    override protected val blockBodiesStorage: BlockBodiesStorage = null
-    override protected val blockNumberMappingStorage: BlockNumberMappingStorage = null
+    override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = ???
+
+    override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] = ???
+
+    override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = ???
+
+    override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = ???
+
+    override def save(block: Block): Unit = ???
+
+    override def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit = ???
+
+    override def save(hash: ByteString, evmCode: ByteString): Unit = ???
+
+    override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = ???
   }
 
   val route: Route = BlockController.route(stubbedBlockchain)
