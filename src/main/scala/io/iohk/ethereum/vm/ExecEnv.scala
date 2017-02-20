@@ -10,7 +10,7 @@ case class ExecEnv(ownerAddr: Address,
                    senderAddr: Address,
                    gasPrice: BigInt,
                    inputData: ByteString,
-                   execAddr: Address,
+                   execAddr: Address, // TODO: is this necessary?
                    value: BigInt,
                    program: Program,
                    blockHeader: BlockHeader,
