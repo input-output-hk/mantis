@@ -29,5 +29,5 @@ object Block {
       )
   }
 
-  def size(block: Block): Long = encode[Block](block).length //encode[BlockHeader](block.header).length + encode[BlockBody](block.body).length
+  def size(block: Block): Long = encode[Block](block).length
 }
