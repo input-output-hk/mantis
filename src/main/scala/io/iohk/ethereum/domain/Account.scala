@@ -3,6 +3,10 @@ package io.iohk.ethereum.domain
 import akka.util.ByteString
 import org.spongycastle.util.encoders.Hex
 
+object Account {
+  val Empty = Account(0, 0, ByteString.empty, ByteString.empty)
+}
+
 case class Account(
   nonce: BigInt,
   balance: BigInt,
