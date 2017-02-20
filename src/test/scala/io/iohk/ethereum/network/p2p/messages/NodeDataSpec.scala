@@ -79,4 +79,36 @@ class NodeDataSpec extends FlatSpec with Matchers {
   it should "be decoded previously encoded value" in {
     msgDecode(NodeData.code, encode(nodeData), constantPV63) shouldBe nodeData
   }
+
+  it should "decode branch node with terminators in leafs" in {
+    //given
+    val encodedMptBranch =
+      Hex.decode("f84d8080808080de9c32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b8901808080808080de9c3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a91620180808080")
+
+    val decodedMptBranch =
+      MptBranch(Seq(
+        Left(MptHash(ByteString.empty)),
+        Left(MptHash(ByteString.empty)),
+        Left(MptHash(ByteString.empty)),
+        Left(MptHash(ByteString.empty)),
+        Left(MptHash(ByteString.empty)),
+        Left(MptHash(ByteString(Hex.decode("32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b89")), Some(ByteString(1)))),
+        Left(MptHash(ByteString.empty)),
+        Left(MptHash(ByteString.empty)),
+        Left(MptHash(ByteString.empty)),
+        Left(MptHash(ByteString.empty)),
+        Left(MptHash(ByteString.empty)),
+        Left(MptHash(ByteString.empty)),
+        Left(MptHash(ByteString(Hex.decode("3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a9162")), Some(ByteString(1)))),
+        Left(MptHash(ByteString.empty)),
+        Left(MptHash(ByteString.empty)),
+        Left(MptHash(ByteString.empty))
+      ), ByteString.empty)
+
+    //when
+    val result: MptNode = decode[MptNode](encodedMptBranch)
+
+    //then
+    result shouldBe decodedMptBranch
+  }
 }
