@@ -16,33 +16,27 @@ object VM {
     val finalState = run(ProgramState(context))
     ProgramResult(
       finalState.returnData,
-      finalState.storage,
-      finalState.internalTransactions,
+      finalState.gas,
+      context.startGas - finalState.gas,
+      finalState.storages,
+      finalState.internalTransfers.reverse,
       finalState.addressesToDelete,
       finalState.error)
   }
 
   @tailrec
   private def run(state: ProgramState): ProgramState = {
-    getOpCode(state) match {
-      case Right(opcode) =>
+    val byte = state.program.getByte(state.pc)
+    OpCode.byteToOpCode.get(byte) match {
+      case Some(opcode) =>
         val newState = opcode.execute(state)
         if (newState.halted)
           newState
         else
           run(newState)
 
-      case Left(error) =>
-        state.withError(error).halt
+      case None =>
+        state.withError(InvalidOpCode(byte)).halt
     }
   }
-
-  private def getOpCode(state: ProgramState): Either[ProgramError, OpCode] = {
-    val byte = state.program.getByte(state.pc)
-    OpCode.byteToOpCode.get(byte) match {
-      case Some(opcode) => Right(opcode)
-      case None => Left(InvalidOpCode(byte))
-    }
-  }
-
 }
