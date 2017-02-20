@@ -1,7 +1,7 @@
 package io.iohk.ethereum.db.components
 import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
 
-trait SharedEphemDataSources extends DataSourcesComp {
+trait SharedEphemDataSources extends DataSourcesComponent {
 
   val ephemDataSource = EphemDataSource()
 

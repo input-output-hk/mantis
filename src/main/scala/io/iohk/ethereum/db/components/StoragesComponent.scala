@@ -3,7 +3,7 @@ package io.iohk.ethereum.db.components
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.BlockchainStorages
 
-trait StoragesComp {
+trait StoragesComponent {
 
   val storages: Storages
 

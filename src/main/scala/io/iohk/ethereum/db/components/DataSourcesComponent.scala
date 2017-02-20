@@ -2,7 +2,7 @@ package io.iohk.ethereum.db.components
 
 import io.iohk.ethereum.db.dataSource.DataSource
 
-trait DataSourcesComp {
+trait DataSourcesComponent {
 
   val dataSources: DataSources
 

@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages, StoragesComp}
+import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages, StoragesComponent}
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.FastSyncActor.{FastSyncDone, SyncFailure}
 import io.iohk.ethereum.network.PeerActor.MessageReceived

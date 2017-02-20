@@ -4,9 +4,9 @@ import io.iohk.ethereum.db.storage._
 
 object Storages {
 
-  trait DefaultStorages extends StoragesComp {
+  trait DefaultStorages extends StoragesComponent {
 
-    dataSourcesComp: DataSourcesComp =>
+    dataSourcesComp: DataSourcesComponent =>
 
     override val storages: Storages = new DefaultStorages
 
@@ -31,8 +31,8 @@ object Storages {
     * As IODB required same length keys, we need a specific storage that pads integer values to be used as keys to match
     * keccak keys. See [[IodbBlockNumberMappingStorage]]
     */
-  trait IodbStorages extends StoragesComp {
-    dataSourcesComp: DataSourcesComp =>
+  trait IodbStorages extends StoragesComponent {
+    dataSourcesComp: DataSourcesComponent =>
 
     override val storages = new DefaultBlockchainStorages
 

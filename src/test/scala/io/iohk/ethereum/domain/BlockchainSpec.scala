@@ -1,7 +1,7 @@
 package io.iohk.ethereum.domain
 
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages, StoragesComp}
+import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages, StoragesComponent}
 import org.scalatest.{FlatSpec, Matchers}
 
 class BlockchainSpec extends FlatSpec with Matchers {
