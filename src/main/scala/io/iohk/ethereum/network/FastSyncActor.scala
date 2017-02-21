@@ -182,7 +182,7 @@ class FastSyncActor(
 
       case n: MptBranch =>
         log.info("Got contract branch node: {}", n)
-        val hashes = n.children.collect { case Left(h) => h}.filter{case MptHash(h,t) => h.nonEmpty && t.isEmpty}.map(_.hash)
+        val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
         log.info("{}", hashes)
         self ! RequestNodes(hashes.map(ContractStorageMptNodeHash): _*)
         mptNodeStorage.put(n)
@@ -190,7 +190,7 @@ class FastSyncActor(
       case n: MptExtension =>
         log.info("Got contract extension node: {}", n)
         n.child.fold(
-          { case MptHash(nodeHash, _) => //todo use terminator?
+          { case MptHash(nodeHash) =>
             self ! RequestNodes(ContractStorageMptNodeHash(nodeHash))
           }, { case MptValue(value) =>
             log.info("Got contract value in extension node: ", Hex.toHexString(value.toArray[Byte]))
@@ -218,14 +218,14 @@ class FastSyncActor(
 
       case n: MptBranch =>
         log.info("Got branch node: {}", n)
-        val hashes = n.children.collect { case Left(h) => h}.filter{case MptHash(h,t) => h.nonEmpty && t.isEmpty}.map(_.hash)
+        val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
         self ! RequestNodes(hashes.map(StateMptNodeHash): _*)
         mptNodeStorage.put(n)
 
       case n: MptExtension =>
         log.info("Got extension node: {}", n)
         n.child.fold(
-          { case MptHash(nodeHash, _) => //todo use terminator?
+          { case MptHash(nodeHash) =>
             self ! RequestNodes(StateMptNodeHash(nodeHash))
           }, { case MptValue(value) =>
             log.info("Got value in extension node: ", Hex.toHexString(value.toArray[Byte]))

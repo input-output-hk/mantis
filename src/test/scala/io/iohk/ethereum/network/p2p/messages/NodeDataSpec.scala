@@ -6,7 +6,7 @@ import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.mpt.HexPrefix.{bytesToNibbles, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.Message.{PV63 => constantPV63, decode => msgDecode}
 import io.iohk.ethereum.network.p2p.messages.PV63._
-import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.rlp.{encode, _}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -80,7 +80,7 @@ class NodeDataSpec extends FlatSpec with Matchers {
     msgDecode(NodeData.code, encode(nodeData), constantPV63) shouldBe nodeData
   }
 
-  it should "decode branch node with terminators in leafs" in {
+  it should "decode branch node with values in leafs that looks like RLP list" in {
     //given
     val encodedMptBranch =
       Hex.decode("f84d8080808080de9c32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b8901808080808080de9c3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a91620180808080")
@@ -92,14 +92,14 @@ class NodeDataSpec extends FlatSpec with Matchers {
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
-        Left(MptHash(ByteString(Hex.decode("32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b89")), Some(ByteString(1)))),
+        Right(MptValue(ByteString(Hex.decode("de9c32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b8901")))),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
-        Left(MptHash(ByteString(Hex.decode("3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a9162")), Some(ByteString(1)))),
+        Right(MptValue(ByteString(Hex.decode("de9c3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a916201")))),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty))

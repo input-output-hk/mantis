@@ -69,7 +69,6 @@ object PV63 {
             RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = false)), child.fold(_.hash, _.value): RLPEncodeable)
           case n: MptBranch =>
             import n._
-            //todo change encoding _.hash => RLPList(_.hash, _.terminator)
             RLPList(children.map(e => e.fold(_.hash, _.value)).map(e => byteStringEncDec.encode(e)) :+ (terminator: RLPEncodeable): _*)
         }
       }
@@ -77,7 +76,6 @@ object PV63 {
       override def decode(rlp: RLPEncodeable): MptNode = rlp match {
         case rlpList: RLPList if rlpList.items.length == BranchNodeChildLength + 1 =>
           MptBranch(rlpList.items.take(BranchNodeChildLength).map {
-
             case bytes: RLPValue =>
               val v = rlpDecode[ByteString](bytes)
               if (v.nonEmpty && v.length < 32) {
@@ -86,10 +84,9 @@ object PV63 {
                 Left(MptHash(v))
               }
 
-            case RLPList(hash, terminator) =>
-              Left(MptHash(rlpDecode[ByteString](hash), Some(rlpDecode[ByteString](terminator))))
-
-          }, rlpDecode[ByteString](rlpList.items(16)))
+            case value:RLPEncodeable =>
+              Right(MptValue(ByteString(rlpEncode(value))))
+          }, byteStringEncDec.decode(rlpList.items(16)))
         case RLPList(hpEncoded, value) =>
           hpDecode(hpEncoded: Array[Byte]) match {
             case (decoded, true) =>
@@ -151,7 +148,7 @@ object PV63 {
 
     override def toString: String = {
       val childrenString = children.map { e =>
-        e.fold(a => s"Hash(${Hex.toHexString(a.hash.toArray[Byte])}, ${a.terminator})", b => s"Value(${Hex.toHexString(b.value.toArray[Byte])})")
+        e.fold(a => s"Hash(${Hex.toHexString(a.hash.toArray[Byte])})", b => s"Value(${Hex.toHexString(b.value.toArray[Byte])})")
       }.mkString("(", ",\n", ")")
 
       s"""MptBranch{
@@ -191,7 +188,7 @@ object PV63 {
     }
   }
 
-  case class MptHash(hash: ByteString, terminator: Option[ByteString] = None)
+  case class MptHash(hash: ByteString)
 
   case class MptValue(value: ByteString)
 
