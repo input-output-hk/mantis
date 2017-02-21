@@ -2,21 +2,25 @@ package io.iohk.ethereum.network.p2p
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorSystem, PoisonPill}
+import scala.concurrent.ExecutionContext.Implicits.global
+import akka.actor.ActorSystem
+import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, TotalDifficultyStorage}
-import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.PeerActor.{SendMessage, Unsubscribe}
+import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.{PV61, PV62}
-import io.iohk.ethereum.network.{Block, BlockBroadcastActor, PeerActor, PeerManagerActor}
+import io.iohk.ethereum.network.{BlockBroadcastActor, PeerActor, PeerManagerActor}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
 
 class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
@@ -32,7 +36,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peerProbe.send(blockBroadcast, BlockBroadcastActor.StartBlockBroadcast)
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
-    val newBlock = NewBlock(block.blockHeader, block.blockBody, block.blockHeader.difficulty + blockParent.blockHeader.difficulty)
+    val newBlock = NewBlock(block, blockTD)
     peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlock))
 
     peerManager.expectMsg(GetPeers)
@@ -47,7 +51,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
-    val newBlock = NewBlock(block.blockHeader, block.blockBody, blockTD)
+    val newBlock = NewBlock(block, blockTD)
     peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlock))
 
     peerManager.expectMsg(GetPeers)
@@ -69,7 +73,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
-    val newBlock = NewBlock(otherBlock.blockHeader, otherBlock.blockBody, otherBlock.blockHeader.difficulty)
+    val newBlock = NewBlock(otherBlock, otherBlock.header.difficulty)
     peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlock))
 
     Thread.sleep(1000)
@@ -84,21 +88,21 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
-    val newBlockHash = PV61.NewBlockHashes(Seq(block.blockHeader.hash))
+    val newBlockHash = PV61.NewBlockHashes(Seq(block.header.hash))
     peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlockHash))
 
     val reqHeaderMsg: SendMessage[GetBlockHeaders] = peerProbe.receiveN(1).head.asInstanceOf[SendMessage[GetBlockHeaders]]
-    reqHeaderMsg.message.block shouldBe Right(block.blockHeader.hash)
-    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(block.blockHeader))))
+    reqHeaderMsg.message.block shouldBe Right(block.header.hash)
+    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(block.header))))
 
     val reqBodyMsg: SendMessage[GetBlockBodies] = peerProbe.receiveN(1).head.asInstanceOf[SendMessage[GetBlockBodies]]
-    reqBodyMsg.message.hashes shouldBe Seq(block.blockHeader.hash)
-    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(block.blockBody))))
+    reqBodyMsg.message.hashes shouldBe Seq(block.header.hash)
+    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(block.body))))
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
 
-    val expectedNewBlock = NewBlock(block.blockHeader, block.blockBody, block.blockHeader.difficulty + blockParent.blockHeader.difficulty)
+    val expectedNewBlock = NewBlock(block, blockTD)
     assert(!peerProbe.msgAvailable)
     peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(expectedNewBlock)) }
   }
@@ -107,21 +111,21 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
-    val newBlockHash = PV62.NewBlockHashes(Seq(BlockHash(block.blockHeader.hash, block.blockHeader.number)))
+    val newBlockHash = PV62.NewBlockHashes(Seq(BlockHash(block.header.hash, block.header.number)))
     peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlockHash))
 
     val reqHeaderMsg: SendMessage[GetBlockHeaders] = peerProbe.receiveN(1).head.asInstanceOf[SendMessage[GetBlockHeaders]]
-    reqHeaderMsg.message.block shouldBe Right(block.blockHeader.hash)
-    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(block.blockHeader))))
+    reqHeaderMsg.message.block shouldBe Right(block.header.hash)
+    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(block.header))))
 
     val reqBodyMsg: SendMessage[GetBlockBodies] = peerProbe.receiveN(1).head.asInstanceOf[SendMessage[GetBlockBodies]]
-    reqBodyMsg.message.hashes shouldBe Seq(block.blockHeader.hash)
-    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(block.blockBody))))
+    reqBodyMsg.message.hashes shouldBe Seq(block.header.hash)
+    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(block.body))))
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
 
-    val expectedNewBlock = NewBlock(block.blockHeader, block.blockBody, block.blockHeader.difficulty + blockParent.blockHeader.difficulty)
+    val expectedNewBlock = NewBlock(block, blockTD)
     assert(!peerProbe.msgAvailable)
     peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(expectedNewBlock)) }
   }
@@ -130,31 +134,31 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
-    val newBlockHashes = PV61.NewBlockHashes(Seq(block.blockHeader.hash, blockSon.blockHeader.hash))
+    val newBlockHashes = PV61.NewBlockHashes(Seq(block.header.hash, blockSon.header.hash))
     blockBroadcast ! PeerActor.MessageReceived(newBlockHashes)
 
     val reqHeadersMsg: Seq[SendMessage[GetBlockHeaders]] = peerProbe.receiveN(2).asInstanceOf[Seq[SendMessage[GetBlockHeaders]]]
-    reqHeadersMsg(0).message.block shouldBe Right(block.blockHeader.hash)
-    reqHeadersMsg(1).message.block shouldBe Right(blockSon.blockHeader.hash)
+    reqHeadersMsg(0).message.block shouldBe Right(block.header.hash)
+    reqHeadersMsg(1).message.block shouldBe Right(blockSon.header.hash)
 
-    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(block.blockHeader))))
-    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(blockSon.blockHeader))))
+    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(block.header))))
+    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(blockSon.header))))
 
     val reqBodiesMsg: Seq[SendMessage[GetBlockBodies]] = peerProbe.receiveN(2).asInstanceOf[Seq[SendMessage[GetBlockBodies]]]
-    reqBodiesMsg(0).message.hashes shouldBe Seq(block.blockHeader.hash)
-    reqBodiesMsg(1).message.hashes shouldBe Seq(blockSon.blockHeader.hash)
+    reqBodiesMsg(0).message.hashes shouldBe Seq(block.header.hash)
+    reqBodiesMsg(1).message.hashes shouldBe Seq(blockSon.header.hash)
 
-    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(block.blockBody))))
-    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(blockSon.blockBody))))
+    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(block.body))))
+    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(blockSon.body))))
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
 
-    val expectedNewBlock = NewBlock(block.blockHeader, block.blockBody, block.blockHeader.difficulty + blockParent.blockHeader.difficulty)
+    val expectedNewBlock = NewBlock(block, blockTD)
     assert(!peerProbe.msgAvailable)
     peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(expectedNewBlock)) }
 
-    val expectedNewBlockSon = NewBlock(blockSon.blockHeader, blockSon.blockBody, blockSonTD)
+    val expectedNewBlockSon = NewBlock(blockSon, blockSonTD)
     assert(!peerProbe.msgAvailable)
     peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(expectedNewBlockSon)) }
   }
@@ -164,32 +168,32 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
     val newBlockHashes = PV62.NewBlockHashes(Seq(
-      PV62.BlockHash(block.blockHeader.hash, block.blockHeader.number),
-      PV62.BlockHash(blockSon.blockHeader.hash, blockSon.blockHeader.number)))
+      PV62.BlockHash(block.header.hash, block.header.number),
+      PV62.BlockHash(blockSon.header.hash, blockSon.header.number)))
     peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlockHashes))
 
     val reqHeadersMsg: Seq[SendMessage[GetBlockHeaders]] = peerProbe.receiveN(2).asInstanceOf[Seq[SendMessage[GetBlockHeaders]]]
-    reqHeadersMsg(0).message.block shouldBe Right(block.blockHeader.hash)
-    reqHeadersMsg(1).message.block shouldBe Right(blockSon.blockHeader.hash)
+    reqHeadersMsg(0).message.block shouldBe Right(block.header.hash)
+    reqHeadersMsg(1).message.block shouldBe Right(blockSon.header.hash)
 
-    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(block.blockHeader))))
-    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(blockSon.blockHeader))))
+    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(block.header))))
+    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(blockSon.header))))
 
     val reqBodiesMsg: Seq[SendMessage[GetBlockBodies]] = peerProbe.receiveN(2).asInstanceOf[Seq[SendMessage[GetBlockBodies]]]
-    reqBodiesMsg(0).message.hashes shouldBe Seq(block.blockHeader.hash)
-    reqBodiesMsg(1).message.hashes shouldBe Seq(blockSon.blockHeader.hash)
+    reqBodiesMsg(0).message.hashes shouldBe Seq(block.header.hash)
+    reqBodiesMsg(1).message.hashes shouldBe Seq(blockSon.header.hash)
 
-    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(block.blockBody))))
-    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(blockSon.blockBody))))
+    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(block.body))))
+    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(blockSon.body))))
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
 
-    val expectedNewBlock = NewBlock(block.blockHeader, block.blockBody, block.blockHeader.difficulty + blockParent.blockHeader.difficulty)
+    val expectedNewBlock = NewBlock(block, blockTD)
     assert(!peerProbe.msgAvailable)
     peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(expectedNewBlock)) }
 
-    val expectedNewBlockSon = NewBlock(blockSon.blockHeader, blockSon.blockBody, blockSonTD)
+    val expectedNewBlockSon = NewBlock(blockSon, blockSonTD)
     assert(!peerProbe.msgAvailable)
     peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(expectedNewBlockSon)) }
   }
@@ -198,10 +202,10 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
-    val parentNumber: BigInt = blockParent.blockHeader.number
-    val invalidBlock: Block = block.copy(blockHeader = block.blockHeader.copy(number = parentNumber))
+    val parentNumber: BigInt = blockParent.header.number
+    val invalidBlock: Block = block.copy(header = block.header.copy(number = parentNumber))
 
-    val newBlock = NewBlock(invalidBlock.blockHeader, invalidBlock.blockBody, blockTD)
+    val newBlock = NewBlock(invalidBlock, blockTD)
 
     peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlock))
 
@@ -210,6 +214,15 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
   trait TestSetup extends BlockUtil {
     implicit val system = ActorSystem("PeerActorSpec_System")
+
+    val nodeKey = crypto.generateKeyPair()
+
+    val nodeStatus = NodeStatus(
+      key = nodeKey,
+      serverStatus = ServerStatus.NotListening,
+      blockchainStatus = BlockchainStatus(0, ByteString("changeme"), 0))
+
+    val nodeStatusHolder = Agent(nodeStatus)
 
     val peerProbe = TestProbe()
     val peer = Peer(new InetSocketAddress("localhost", PeersNumber), peerProbe.ref)
@@ -221,11 +234,12 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     val allPeers: Seq[Peer] = peer +: peers
 
     val blockBroadcast = TestActorRef(BlockBroadcastActor.props(
+      nodeStatusHolder,
       peer.ref,
       peerManager.ref,
-      new BlockHeadersStorage(EphemDataSource()).put(blockParent.blockHeader.hash, blockParent.blockHeader),
-      new BlockBodiesStorage(EphemDataSource()).put(blockParent.blockHeader.hash, blockParent.blockBody),
-      new TotalDifficultyStorage(EphemDataSource()).put(blockParent.blockHeader.hash, blockParent.blockHeader.difficulty)
+      new BlockHeadersStorage(EphemDataSource()).put(blockParent.header.hash, blockParent.header),
+      new BlockBodiesStorage(EphemDataSource()).put(blockParent.header.hash, blockParent.body),
+      new TotalDifficultyStorage(EphemDataSource()).put(blockParent.header.hash, blockParent.header.difficulty)
     ))
   }
 
@@ -250,7 +264,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
       ),
       BlockBody(Seq(), Seq())
     )
-    val blockParentTD: BigInt = blockParent.blockHeader.difficulty
+    val blockParentTD: BigInt = blockParent.header.difficulty
 
     //Block whose parent is in storage
     val block = Block(
@@ -273,7 +287,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
       ),
       BlockBody(Seq(), Seq())
     )
-    val blockTD: BigInt = blockParentTD + block.blockHeader.difficulty
+    val blockTD: BigInt = blockParentTD + block.header.difficulty
 
     val blockSon = Block(
       BlockHeader(
@@ -295,7 +309,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
       ),
       BlockBody(Seq(), Seq())
     )
-    val blockSonTD: BigInt = blockTD + blockSon.blockHeader.difficulty
+    val blockSonTD: BigInt = blockTD + blockSon.header.difficulty
 
     //Block whose parent is not in storage
     val otherBlock = Block(

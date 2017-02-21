@@ -1,7 +1,7 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, BlockHeader, SignedTransaction, Transaction}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
@@ -94,9 +94,9 @@ object CommonMessages {
         import obj._
         RLPList(
           RLPList(
-            blockHeader,
-            RLPList(blockBody.transactionList.map(SignedTransactions.txRlpEncDec.encode): _*),
-            RLPList(blockBody.uncleNodesList.map(headerRlpEncDec.encode): _*)
+            block.header,
+            RLPList(block.body.transactionList.map(SignedTransactions.txRlpEncDec.encode): _*),
+            RLPList(block.body.uncleNodesList.map(headerRlpEncDec.encode): _*)
           ),
           totalDifficulty
         )
@@ -105,10 +105,11 @@ object CommonMessages {
       override def decode(rlp: RLPEncodeable): NewBlock = rlp match {
         case RLPList(RLPList(blockHeader, (transactionList: RLPList), (uncleNodesList: RLPList)), totalDifficulty) =>
           NewBlock(
-            headerRlpEncDec.decode(blockHeader),
-            BlockBody(
-              transactionList.items.map(SignedTransactions.txRlpEncDec.decode),
-              uncleNodesList.items.map(headerRlpEncDec.decode)),
+            Block(
+              headerRlpEncDec.decode(blockHeader),
+              BlockBody(
+                transactionList.items.map(SignedTransactions.txRlpEncDec.decode),
+                uncleNodesList.items.map(headerRlpEncDec.decode))),
             totalDifficulty
           )
         case _ => throw new RuntimeException("Cannot decode NewBlock")
@@ -119,13 +120,12 @@ object CommonMessages {
     val code: Int = Message.SubProtocolOffset + 0x07
   }
 
-  case class NewBlock(blockHeader: BlockHeader, blockBody: BlockBody, totalDifficulty: BigInt) extends Message {
+  case class NewBlock(block: Block, totalDifficulty: BigInt) extends Message {
     override def code: Int = NewBlock.code
 
     override def toString: String = {
       s"""NewBlock {
-         |blockHeader: $blockHeader
-         |blockBody: $blockBody
+         |block: $block
          |totalDifficulty: $totalDifficulty
          |}""".stripMargin
     }

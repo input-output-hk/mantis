@@ -1,9 +1,10 @@
 package io.iohk.ethereum.network
 
-import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, TotalDifficultyStorage}
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -11,11 +12,13 @@ import io.iohk.ethereum.network.p2p.messages.{PV61, PV62}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.validators.BlockHeaderError.HeaderParentNotFoundError
-import io.iohk.ethereum.network.p2p.validators.BlockHeaderValidator
+import io.iohk.ethereum.network.p2p.validators.{BlockHeaderValidator, BlockValidator}
+import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus}
 import org.spongycastle.util.encoders.Hex
 
-//TODO: Handle known blocks to peers [EC-80]
+//FIXME: Handle known blocks to peers [EC-80]
 class BlockBroadcastActor(
+  nodeStatusHolder: Agent[NodeStatus],
   peer: ActorRef,
   peerManagerActor: ActorRef,
   blockHeadersStorage: BlockHeadersStorage,
@@ -41,17 +44,11 @@ class BlockBroadcastActor(
         if(state.unprocessedBlocks.tail.nonEmpty) self ! ProcessNewBlocks
 
         val blockToProcess = state.unprocessedBlocks.head
-        val blockHeader = BlockHeaderValidator.validate(blockToProcess.blockHeader, blockHeadersStorage)
+        val blockHeader = BlockHeaderValidator.validate(blockToProcess.header, blockHeadersStorage)
 
         blockHeader match {
           case Right(_) =>
-            //FIXME: Replace with importing the block to blockchain
-            val blockHash = blockToProcess.blockHeader.hash
-            blockHeadersStorage.put(blockHash, blockToProcess.blockHeader)
-            blockBodiesStorage.put(blockHash, blockToProcess.blockBody)
-            val parentTd = totalDifficultyStorage.get(blockToProcess.blockHeader.parentHash)
-              .getOrElse(throw new Exception("Block total difficulty is not on storage"))
-            totalDifficultyStorage.put(blockHash, parentTd + blockToProcess.blockHeader.difficulty)
+            importBlockToBlockchain(blockToProcess)
 
             peerManagerActor ! GetPeers
             val newState = state.copy(
@@ -61,18 +58,18 @@ class BlockBroadcastActor(
             context become processMessages(newState)
 
           case Left(HeaderParentNotFoundError) =>
-            log.info("Block parent not found, block {} will not be broadcasted", Hex.toHexString(blockToProcess.blockHeader.hash.toArray))
+            log.info("Block parent not found, block {} will not be broadcasted", Hex.toHexString(blockToProcess.header.hash.toArray))
             context become processMessages(state.copy(unprocessedBlocks = state.unprocessedBlocks.tail))
 
           case Left(_) =>
-            log.info("Block {} not valid, dropping peer {}", Hex.toHexString(blockToProcess.blockHeader.hash.toArray), peer.path.name)
+            log.info("Block {} not valid, dropping peer {}", Hex.toHexString(blockToProcess.header.hash.toArray), peer.path.name)
             peer ! PeerActor.DropPeer(Disconnect.Reasons.UselessPeer)
             context stop self
         }
 
       case PeerManagerActor.PeersResponse(peers) if state.toBroadcastBlocks.nonEmpty =>
         state.toBroadcastBlocks.foreach{ b =>
-          val newBlock = Block(b.blockHeader, b.blockBody)
+          val newBlock = Block(b.header, b.body)
           sendNewBlockMsgToPeers(peers, newBlock)
         }
         context become processMessages(state.copy(toBroadcastBlocks = Seq()))
@@ -82,9 +79,9 @@ class BlockBroadcastActor(
 
   def handleReceivedMessages(state: ProcessingState): Receive = {
     case MessageReceived(m: NewBlock) =>
-      val newBlock = Block(m.blockHeader, m.blockBody)
-      if(blockToProcess(newBlock.blockHeader.hash, state)){
-        log.info("Got NewBlock message {}", Hex.toHexString(newBlock.blockHeader.hash.toArray))
+      val newBlock = Block(m.block.header, m.block.body)
+      if(blockToProcess(newBlock.header.hash, state)){
+        log.info("Got NewBlock message {}", Hex.toHexString(newBlock.header.hash.toArray))
         self ! ProcessNewBlocks
         context become processMessages(state.copy(unprocessedBlocks = state.unprocessedBlocks :+ newBlock))
       }
@@ -104,7 +101,7 @@ class BlockBroadcastActor(
       log.info("Got BlockBodies message {}", blockBody)
       val block: Option[Block] = matchHeaderAndBody(state.blockHeaders, blockBody)
       block foreach { b =>
-        val newObtainedBlockHeaders = state.blockHeaders.filterNot(_.hash == b.blockHeader.hash)
+        val newObtainedBlockHeaders = state.blockHeaders.filterNot(_.hash == b.header.hash)
         val newState = state.copy(unprocessedBlocks = state.unprocessedBlocks :+ b, blockHeaders = newObtainedBlockHeaders)
         self ! ProcessNewBlocks
         context become processMessages(newState)
@@ -122,7 +119,7 @@ class BlockBroadcastActor(
   }
 
   private def blockInProgress(hash: BlockHash, state: ProcessingState): Boolean =
-    ((state.unprocessedBlocks ++ state.toBroadcastBlocks).map(_.blockHeader.hash) ++
+    ((state.unprocessedBlocks ++ state.toBroadcastBlocks).map(_.header.hash) ++
       state.fetchedBlockHeaders ++
       state.blockHeaders.map(_.hash)).contains(hash)
 
@@ -130,14 +127,14 @@ class BlockBroadcastActor(
     blockHeadersStorage.get(hash).isDefined && blockBodiesStorage.get(hash).isDefined
 
   //TODO: Check if the block's number is ok (not too old and not too into the future)
-  //      We need to know our current height (from blockchain)
+  //      We need to know our current height (from status)
   private def blockToProcess(hash: BlockHash, state: ProcessingState): Boolean = !blockInProgress(hash, state) && !blockInStorage(hash, state)
 
-  //TODO: Decide block propagation algorithm (for now we send block to every peer except the sender) [EC-87]
+  //FIXME: Decide block propagation algorithm (for now we send block to every peer except the sender) [EC-87]
   private def sendNewBlockMsgToPeers(peers: Seq[Peer], newBlock: Block) = {
-    val parentTd = totalDifficultyStorage.get(newBlock.blockHeader.parentHash)
+    val blockTd = totalDifficultyStorage.get(newBlock.header.hash)
       .getOrElse(throw new Exception("Block td is not on storage"))
-    val newBlockMsg = NewBlock(newBlock.blockHeader, newBlock.blockBody, newBlock.blockHeader.difficulty + parentTd)
+    val newBlockMsg = NewBlock(newBlock, blockTd)
     peers.foreach{ p =>
       if(p.id != peer.path.name){
         log.info("Sending NewBlockMessage {} to {}", newBlockMsg, p.id)
@@ -147,20 +144,37 @@ class BlockBroadcastActor(
   }
 
   private def matchHeaderAndBody(blockHeaders: Seq[BlockHeader], blockBody: BlockBody): Option[Block] =
-    blockHeaders.collectFirst{ case blockHeader if Block(blockHeader, blockBody).isValid =>
+    blockHeaders.collectFirst{ case blockHeader if BlockValidator.validHeaderAndBody(blockHeader, blockBody).isRight =>
       Block(blockHeader, blockBody)
     }
+
+  //FIXME: Replace with importing the block to blockchain
+  private def importBlockToBlockchain(block: Block) = {
+    val blockHash = block.header.hash
+
+    //Insert block to storages
+    blockHeadersStorage.put(blockHash, block.header)
+    blockBodiesStorage.put(blockHash, block.body)
+    val parentTd = totalDifficultyStorage.get(block.header.parentHash)
+      .getOrElse(throw new Exception("Block total difficulty is not on storage"))
+    totalDifficultyStorage.put(blockHash, parentTd + block.header.difficulty)
+
+    //Update NodeStatus
+    nodeStatusHolder.send(_.copy(
+      blockchainStatus = BlockchainStatus(block.header.difficulty, block.header.hash, block.header.number)))
+  }
 }
 
 object BlockBroadcastActor {
   type BlockHash = ByteString
 
-  def props(peer: ActorRef,
+  def props(nodeStatusHolder: Agent[NodeStatus],
+            peer: ActorRef,
             peerManagerActor: ActorRef,
             blockHeadersStorage: BlockHeadersStorage,
             blockBodiesStorage: BlockBodiesStorage,
             totalDifficultyStorage: TotalDifficultyStorage): Props = {
-    Props(new BlockBroadcastActor(peer, peerManagerActor, blockHeadersStorage, blockBodiesStorage, totalDifficultyStorage))
+    Props(new BlockBroadcastActor(nodeStatusHolder, peer, peerManagerActor, blockHeadersStorage, blockBodiesStorage, totalDifficultyStorage))
   }
 
   case object StartBlockBroadcast
@@ -172,7 +186,3 @@ object BlockBroadcastActor {
                              blockHeaders: Seq[BlockHeader])
 }
 
-//TODO: Start using [EC-43] Block class and Block validator
-case class Block(blockHeader: BlockHeader, blockBody: BlockBody){
-  def isValid: Boolean = true
-}

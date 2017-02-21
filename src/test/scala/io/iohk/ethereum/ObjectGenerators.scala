@@ -7,7 +7,7 @@ import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.vm.DataWord
 import org.scalacheck.{Arbitrary, Gen}
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
@@ -86,7 +86,7 @@ trait ObjectGenerators {
     blockHeader <- blockHeaderGen
     uncles <- seqBlockHeaderGen
     td <- bigIntGen
-  } yield NewBlock(blockHeader, BlockBody(Seq(), uncles), td)
+  } yield NewBlock(Block(blockHeader, BlockBody(Seq(), uncles)), td)
 
   def blockHeaderGen: Gen[BlockHeader] = for {
     parentHash <- byteStringOfLengthNGen(32)

@@ -275,6 +275,7 @@ class PeerActor(
 
       case PeerActor.StartBlockBroadcast(blockHeadersStorage, blockBodiesStorage, totalDifficultyStorage) =>
         val broadcastActor = BlockBroadcastActor.props(
+          nodeStatusHolder,
           self,
           context.parent,
           blockHeadersStorage,
