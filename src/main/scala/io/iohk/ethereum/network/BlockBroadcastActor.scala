@@ -65,10 +65,9 @@ class BlockBroadcastActor(
             context become processMessages(state.copy(unprocessedBlocks = state.unprocessedBlocks.tail))
 
           case Left(_) =>
-            log.info("Block {} not valid", Hex.toHexString(blockToProcess.blockHeader.hash.toArray))
+            log.info("Block {} not valid, dropping peer {}", Hex.toHexString(blockToProcess.blockHeader.hash.toArray), peer.path.name)
             peer ! PeerActor.DropPeer(Disconnect.Reasons.UselessPeer)
-            self ! PoisonPill
-            context become disconnected
+            context stop self
         }
 
       case PeerManagerActor.PeersResponse(peers) if state.toBroadcastBlocks.nonEmpty =>
@@ -111,10 +110,6 @@ class BlockBroadcastActor(
         context become processMessages(newState)
       }
 
-  }
-
-  def disconnected: Receive = {
-    case _ => //Nothing
   }
 
   private def processNewBlockHashes(newHashes: Seq[BlockHash], state: ProcessingState) = {

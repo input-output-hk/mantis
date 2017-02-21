@@ -11,8 +11,6 @@ import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.network.BlockBroadcastActor.StartBlockBroadcast
-import io.iohk.ethereum.network.FastSyncActor.FastSyncDone
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
@@ -259,20 +257,12 @@ class PeerActor(
 
   class HandshakedHandler(rlpxConnection: RLPxConnection) {
 
-    val storage = FastSyncActor.Storage(
-      new BlockHeadersStorage(EphemDataSource()),
-      new BlockBodiesStorage(EphemDataSource()),
-      new ReceiptStorage(EphemDataSource()),
-      new MptNodeStorage(EphemDataSource()),
-      new EvmCodeStorage(EphemDataSource())
-    )
-
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
         handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
         handleDropPeer(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
-        log.info("Received message: {}", message)
+        log.debug("Received message: {}", message)
         notifySubscribers(message)
         processMessage(message)
 
@@ -281,21 +271,6 @@ class PeerActor(
 
       case GetStatus =>
         sender() ! StatusResponse(Handshaked)
-
-      case StartFastSync(targetHash, _) =>
-        val fastSyncActor = context.actorOf(FastSyncActor.props(self, storage), UUID.randomUUID().toString)
-        fastSyncActor ! FastSyncActor.StartSync(targetHash)
-
-      case FastSyncDone(_) =>
-        val broadcastActor = BlockBroadcastActor.props(
-          self,
-          context.parent,
-          storage.blockHeadersStorage,
-          storage.blockBodiesStorage,
-          new TotalDifficultyStorage(EphemDataSource())
-        )
-        val blockBroadcastActor = context.actorOf(broadcastActor, "blockbroadcast")
-        blockBroadcastActor ! StartBlockBroadcast
     }
 
     def notifySubscribers(message: Message): Unit = {
@@ -350,8 +325,6 @@ object PeerActor {
   case class ConnectTo(uri: URI)
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
-
-  case class StartFastSync(targetBlockHash: ByteString, storage: FastSyncActor.Storage)
 
   private case object DaoHeaderReceiveTimeout
 

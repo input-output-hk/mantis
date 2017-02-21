@@ -4,15 +4,16 @@ import java.net.{InetSocketAddress, URI}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
-import akka.util.ByteString
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 class PeerManagerActor(
     nodeStatusHolder: Agent[NodeStatus],
-    peerFactory: (ActorContext, InetSocketAddress) => ActorRef)
+    peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
+    externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging {
 
   import PeerManagerActor._
@@ -20,7 +21,9 @@ class PeerManagerActor(
 
   var peers: Map[String, Peer] = Map.empty
 
-  context.system.scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
+  private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
+
+  scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
 
   override val supervisorStrategy =
     OneForOneStrategy() {
@@ -55,10 +58,6 @@ class PeerManagerActor(
         log.info("Trying to connect to {} bootstrap nodes", nodesToConnect.size)
         nodesToConnect.foreach(self ! ConnectToPeer(_))
       }
-    case StartFastDownload(uri, targetHash, storage) =>
-      peers.find { case (_, Peer(remoteAddress, _)) => remoteAddress.getHostString == uri.getHost && remoteAddress.getPort == uri.getPort }
-        .map(_._2)
-        .foreach { p => p.ref ! PeerActor.StartFastSync(targetHash, storage) }
   }
 
   def createPeer(addr: InetSocketAddress): Peer = {
@@ -83,8 +82,6 @@ object PeerManagerActor {
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
 
   case class ConnectToPeer(uri: URI)
-
-  case class StartFastDownload(uri: URI, targetBlockHash: ByteString, storage: FastSyncActor.Storage)
 
   case class Peer(remoteAddress: InetSocketAddress, ref: ActorRef) {
     def id: String = ref.path.name
