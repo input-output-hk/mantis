@@ -21,7 +21,7 @@ class LevelDBDataSource(
     * @param key
     * @return the value associated with the passed key.
     */
-  override def get(namespace: Namespace, key: Key): Option[Value] = Option(db.get(key.toArray))
+  override def get(namespace: Namespace, key: Key): Option[Value] = Option(db.get(namespace.toArray ++ key.toArray))
 
   /**
     * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
@@ -34,8 +34,8 @@ class LevelDBDataSource(
     */
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
     val batch = new WriteBatchImpl()
-    toRemove.foreach { key => batch.delete(key.toArray[Byte]) }
-    toUpsert.foreach { item => db.put(item._1.toArray, item._2.toArray) }
+    toRemove.foreach { key => batch.delete(namespace.toArray ++ key.toArray[Byte]) }
+    toUpsert.foreach { item => db.put(namespace.toArray ++ item._1.toArray, item._2.toArray) }
     db.write(batch, new WriteOptions())
     this
   }

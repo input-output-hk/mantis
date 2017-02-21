@@ -289,7 +289,7 @@ class PeerActor(
   def handlePeerChainCheck(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(message@GetBlockHeaders(Left(number), _, _, _)) if number == 1920000 =>
       log.info("Received message: {}", message)
-      rlpxConnection.sendMessage(BlockHeaders(Seq())) //stub because we do not have this block yet
+      storage.blockHeadersStorage.get(number).foreach(header => rlpxConnection.sendMessage(BlockHeaders(Seq(header))))
   }
 
   class HandshakedHandler(rlpxConnection: RLPxConnection) {
