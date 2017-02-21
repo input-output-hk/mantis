@@ -65,11 +65,11 @@ trait Blockchain {
   def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]]
 
   /**
-    * Returns the receipts based on a block hash
-    * @param blockHash
+    * Returns EVM code searched by it's hash
+    * @param hash Code Hash
     * @return EVM code if found
     */
-  def getEvmCodeByHash(blockHash: ByteString): Option[ByteString]
+  def getEvmCodeByHash(hash: ByteString): Option[ByteString]
 
   /**
     * Persists a block in the underlying Blockchain Database
