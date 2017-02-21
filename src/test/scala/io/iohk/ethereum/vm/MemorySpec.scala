@@ -45,9 +45,9 @@ class MemorySpec extends FunSuite with PropertyChecks with ObjectGenerators {
       (initialMemorySize, dw, idx) =>
       whenever(initialMemorySize >= 0 && idx >= 0) {
         val memory = new Memory(zeros(initialMemorySize)).store(DataWord(idx), dw)
-        val expectedSize = math.max(initialMemorySize, idx + DataWord.MaxLength)
+        val expectedSize = math.max(initialMemorySize, idx + DataWord.Size)
         assert(memory.size == expectedSize)
-        assert(memory.underlying == zeros(idx) ++ dw.bytes ++ zeros(memory.size - idx - DataWord.MaxLength))
+        assert(memory.underlying == zeros(idx) ++ dw.bytes ++ zeros(memory.size - idx - DataWord.Size))
       }
     }
   }
@@ -92,15 +92,15 @@ class MemorySpec extends FunSuite with PropertyChecks with ObjectGenerators {
         val initialMemory = new Memory(nonNegativeInts(initialMemorySize))
         val addr = DataWord(idx)
         val (dw, memory) = initialMemory.load(addr)
-        val expectedMemorySize = math.max(initialMemorySize, idx + DataWord.MaxLength)
+        val expectedMemorySize = math.max(initialMemorySize, idx + DataWord.Size)
         assert(memory.size == expectedMemorySize)
         assert(memory.underlying == nonNegativeInts(initialMemorySize) ++ zeros(expectedMemorySize - initialMemorySize))
         if (idx >= initialMemorySize)
-          assert(dw.bytes == zeros(DataWord.MaxLength))
-        else if (idx + DataWord.MaxLength > initialMemorySize)
-          assert(dw.bytes == (nonNegativeInts(initialMemorySize - idx, idx) ++ zeros(idx + DataWord.MaxLength - initialMemorySize)))
+          assert(dw.bytes == zeros(DataWord.Size))
+        else if (idx + DataWord.Size > initialMemorySize)
+          assert(dw.bytes == (nonNegativeInts(initialMemorySize - idx, idx) ++ zeros(idx + DataWord.Size - initialMemorySize)))
         else
-          assert(dw.bytes == nonNegativeInts(DataWord.MaxLength, idx))
+          assert(dw.bytes == nonNegativeInts(DataWord.Size, idx))
       }
     }
   }

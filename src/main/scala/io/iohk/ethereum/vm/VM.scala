@@ -2,8 +2,6 @@ package io.iohk.ethereum.vm
 
 import scala.annotation.tailrec
 
-import io.iohk.ethereum.utils.EitherExtensions._
-
 /**
   * Entry point to executing a program.
   */
@@ -14,10 +12,8 @@ object VM {
     * @param context context to be executed
     * @return result of the execution
    */
-  // TODO We'll have to pass additional parameters to this method.
-  // Please create a ProgramContext class and keep storage inside of it.
-  def run(env: ExecEnv, storage: Storage): ProgramResult = {
-    val finalState = run(ProgramState(env, storage))
+  def run(context: ProgramContext): ProgramResult = {
+    val finalState = run(ProgramState(context))
     ProgramResult(
       finalState.returnData,
       finalState.storage,
@@ -44,8 +40,8 @@ object VM {
   private def getOpCode(state: ProgramState): Either[ProgramError, OpCode] = {
     val byte = state.program.getByte(state.pc)
     OpCode.byteToOpCode.get(byte) match {
-      case Some(opcode) => opcode.asRight
-      case None => InvalidOpCode(byte).asLeft
+      case Some(opcode) => Right(opcode)
+      case None => Left(InvalidOpCode(byte))
     }
   }
 

@@ -43,7 +43,7 @@
     </check>
     <check level="error" class="org.scalastyle.scalariform.MagicNumberChecker" enabled="true">
         <parameters>
-            <parameter name="ignore"><![CDATA[-1,0,1,2,3,8,16,32,256,0x00,0x01,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x10]]></parameter>
+            <parameter name="ignore"><![CDATA[-1,0,1,2,3,4,5,6,7,8,9,10,16,32,256,0x00,0x01,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x10,0xFF]]></parameter>
         </parameters>
     </check>
     <check level="error" class="org.scalastyle.scalariform.NoWhitespaceBeforeLeftBracketChecker"
@@ -90,5 +90,10 @@
         <parameters>
             <parameter name="words">TODO|FIXME|todo|fixme|bug|BUG</parameter>
         </parameters>
+    </check>
+    <check level="error" class="org.scalastyle.file.RegexChecker" enabled="true">
+    <parameters>
+        <parameter name="regex"><![CDATA[println]]></parameter>
+    </parameters>
     </check>
 </scalastyle>

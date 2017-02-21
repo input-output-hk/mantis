@@ -7,7 +7,7 @@ import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import org.spongycastle.util.encoders.Hex
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 object Config {
@@ -32,7 +32,7 @@ object Config {
     object Discovery {
       private val discoveryConfig = networkConfig.getConfig("discovery")
 
-      val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").toList
+      val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet
       val bootstrapNodesScanInterval = discoveryConfig.getDuration("bootstrap-nodes-scan-interval").toMillis.millis
     }
 
@@ -57,14 +57,25 @@ object Config {
     val daoForkBlockNumber = BigInt(blockchainConfig.getString("dao-fork-block-number"))
     val daoForkBlockTotalDifficulty = BigInt(blockchainConfig.getString("dao-fork-block-total-difficulty"))
     val daoForkBlockHash = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
+
+    val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
   }
 
-  object FastSync{
+  object FastSync {
     private val fastSyncConfig = config.getConfig("fast-sync")
 
-    val BlocksPerMessage: Int = fastSyncConfig.getInt("blocks-per-message")
-    val NodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
-    val NodeRequestsInterval: FiniteDuration = fastSyncConfig.getDuration("node-requests-interval").toMillis.millis
+    val peersScanInterval: FiniteDuration = fastSyncConfig.getDuration("peers-scan-interval").toMillis.millis
+    val blacklistDuration: FiniteDuration = fastSyncConfig.getDuration("blacklist-duration").toMillis.millis
+    val startRetryInterval: FiniteDuration = fastSyncConfig.getDuration("start-retry-interval").toMillis.millis
+    val syncRetryInterval: FiniteDuration = fastSyncConfig.getDuration("sync-retry-interval").toMillis.millis
+    val peerResponseTimeout: FiniteDuration = fastSyncConfig.getDuration("peer-response-timeout").toMillis.millis
+    val printStatusInterval: FiniteDuration = fastSyncConfig.getDuration("print-status-interval").toMillis.millis
+
+    val maxConcurrentRequests: Int = fastSyncConfig.getInt("max-concurrent-requests")
+    val blockHeadersPerRequest: Int = fastSyncConfig.getInt("block-headers-per-request")
+    val blockBodiesPerRequest: Int = fastSyncConfig.getInt("block-bodies-per-request")
+    val receiptsPerRequest: Int = fastSyncConfig.getInt("receipts-per-request")
+    val nodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
   }
 
   object Db {
