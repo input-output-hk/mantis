@@ -54,12 +54,23 @@ object Generators extends ObjectGenerators {
   def getStorageGen(maxSize: Int = 0, dataWordGen: Gen[DataWord] = getDataWordGen()): Gen[Storage] =
     getListGen(0, maxSize, dataWordGen).map(Storage.fromSeq)
 
-  lazy val fakeAccountRetriever: AccountRetriever = new AccountRetriever {
+  def getAccountGen(
+    nonceGen: Gen[BigInt] = bigIntGen,
+    balanceGen: Gen[BigInt] = bigIntGen,
+    storageRootGen: Gen[ByteString] = byteStringOfLengthNGen(100),
+    codeHashGen: Gen[ByteString] = byteStringOfLengthNGen(20)
+  ): Gen[Account] =
+    for {
+      nonce <- nonceGen
+      balance <- balanceGen
+      storageRoot <- storageRootGen
+      codeHash <- codeHashGen
+    } yield Account(nonce, balance, storageRoot, codeHash)
 
-    override def getAccount(address: Address): Option[Account] = {
-      None
-    }
+  def addressGen: Gen[Address] = dataWordGen.map(Address(_))
 
+  case class FakeAccountRetriever(accounts: Map[Address, Account] = Map()) extends AccountRetriever {
+    override def getAccount(address: Address): Option[Account] = accounts.get(address)
   }
 
   def getProgramStateGen(
@@ -69,7 +80,11 @@ object Generators extends ObjectGenerators {
     gasGen: Gen[BigInt] = getBigIntGen(min = DataWord.MaxValue, max = DataWord.MaxValue),
     codeGen: Gen[ByteString] = getByteStringGen(0, 0),
     inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
-    valueGen: Gen[BigInt] = getBigIntGen()
+    valueGen: Gen[BigInt] = getBigIntGen(),
+    ownerAccountGen: Gen[Account] = getAccountGen(),
+    execAddrGen: Gen[Address] = addressGen,
+    senderAddrGen: Gen[Address] = addressGen,
+    ownerAddrGen: Gen[Address] = addressGen
   ): Gen[ProgramState] =
     for {
       stack <- stackGen
@@ -79,9 +94,12 @@ object Generators extends ObjectGenerators {
       code <- codeGen
       inputData <- inputDataGen
       value <- valueGen
-      env = ExecEnv(Address.empty, Address.empty, 0, inputData,
-        Address.empty, value, Program(code), null, 0)
-      context = ProgramContext(env, startGas = gas, storage, Account.Empty, fakeAccountRetriever)
+      ownerAccount <- ownerAccountGen
+      ownerAddr <- ownerAddrGen
+      senderAddr <- senderAddrGen
+      execAddr <- execAddrGen
+      env = ExecEnv(ownerAddr, senderAddr, 0, inputData, execAddr, value, Program(code), null, 0)
+      context = ProgramContext(env, startGas = gas, storage, ownerAccount, FakeAccountRetriever())
     } yield ProgramState(context).withStack(stack).withMemory(memory)
 
 }
