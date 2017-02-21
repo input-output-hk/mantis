@@ -25,6 +25,7 @@ object Message {
     //common
     case (_, Status.code) => rlp.decode(payload)(Status.rlpEncDec)
     case (_, SignedTransactions.code) => rlp.decode(payload)(SignedTransactions.txsRlpEncDec)
+    case (_, NewBlock.code) => rlp.decode(payload)(NewBlock.rlpEncDec)
 
     case (PV61, t) => handlePV61(t, payload)
 
