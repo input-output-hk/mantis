@@ -151,6 +151,32 @@ trait DataSourceIntegrationTestBehavior
         }
       }
     }
+
+    it should "be able to use multiple namespaces with the same key" in {
+      val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('o'.toByte)
+      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+        withDir { path =>
+          val keyList = unFilteredKeyList.take(KeyNumberLimit)
+          val db = createDataSource(path).update(OtherNamespace, Seq(), keyList.zip(keyList))
+
+          val valList1 = keyList.map(1.toByte +: _)
+          db.update(OtherNamespace, Seq(), keyList.zip(valList1))
+
+          val valList2 = keyList.map(2.toByte +: _)
+          db.update(OtherNamespace2, Seq(), keyList.zip(valList2))
+
+          keyList.zip(valList1).foreach { case (key, value) =>
+            assert(db.get(OtherNamespace, key).contains(value))
+          }
+
+          keyList.zip(valList2).foreach { case (key, value) =>
+            assert(db.get(OtherNamespace2, key).contains(value))
+          }
+
+          db.destroy()
+        }
+      }
+    }
   }
   // scalastyle:on
 
