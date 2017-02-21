@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration._
 
-import akka.actor.ActorSystem
+import akka.actor.{Terminated, PoisonPill, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
@@ -41,6 +41,16 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     parent.expectMsg(FastSyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
+  }
+
+  it should "handle peer termination" in new TestSetup {
+    peer.expectMsg(PeerActor.SendMessage(GetReceipts(requestedHashes)))
+    peer.expectMsg(PeerActor.Subscribe(Set(Receipts.code)))
+
+    peer.ref ! PoisonPill
+
+    parent.expectMsg(FastSyncController.EnqueueReceipts(requestedHashes))
+    parent.expectMsg(FastSyncRequestHandler.Done)
   }
 
   trait TestSetup {
