@@ -1,6 +1,6 @@
 package io.iohk.ethereum.vm
 
-import akka.util.ByteString
+import io.iohk.ethereum.domain.Account
 
 /**
   * Input parameters to a program executed on the EVM. Apart from the code itself
@@ -9,5 +9,10 @@ import akka.util.ByteString
   * @param env set of constants for the execution
   * @param startGas initial gas for the execution
   * @param storage representation of the storage accociated with the contract to be executed
+  * @param account this contract's account
   */
-case class ProgramContext(env: ExecEnv, startGas: BigInt, storage: Storage)
+case class ProgramContext(
+  env: ExecEnv,
+  startGas: BigInt,
+  storage: Storage,
+  account: Account)

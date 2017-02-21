@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.{ Account, Address }
 import org.scalacheck.{Arbitrary, Gen}
 
 // scalastyle:off magic.number
@@ -73,7 +73,7 @@ object Generators extends ObjectGenerators {
       value <- valueGen
       env = ExecEnv(Address.empty, Address.empty, 0, inputData,
         Address.empty, value, Program(code), null, 0)
-      context = ProgramContext(env, startGas = gas, storage)
+      context = ProgramContext(env, startGas = gas, storage, Account.Empty)
     } yield ProgramState(context).withStack(stack).withMemory(memory)
 
 }
