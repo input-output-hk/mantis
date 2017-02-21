@@ -21,6 +21,7 @@ abstract class FastSyncRequestHandler[RequestMsg <: Message : RLPEncoder,
 
   def handleResponseMsg(responseMsg: ResponseMsg): Unit
   def handleTimeout(): Unit
+  def handleTerminated(): Unit
 
   val fastSyncController = context.parent
 
@@ -44,7 +45,7 @@ abstract class FastSyncRequestHandler[RequestMsg <: Message : RLPEncoder,
       handleTimeout()
 
     case Terminated(`peer`) =>
-      cleanupAndStop()
+      handleTerminated()
   }
 
   def cleanupAndStop(): Unit = {

@@ -37,6 +37,12 @@ class FastSyncBlockBodiesRequestHandler(
     fastSyncController ! FastSyncController.EnqueueBlockBodies(requestedHashes)
     cleanupAndStop()
   }
+
+  override def handleTerminated(): Unit = {
+    fastSyncController ! FastSyncController.EnqueueBlockBodies(requestedHashes)
+    cleanupAndStop()
+  }
+
 }
 
 object FastSyncBlockBodiesRequestHandler {

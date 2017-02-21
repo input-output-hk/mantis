@@ -37,6 +37,11 @@ class FastSyncReceiptsRequestHandler(
     fastSyncController ! FastSyncController.EnqueueReceipts(requestedHashes)
     cleanupAndStop()
   }
+
+  override def handleTerminated(): Unit = {
+    fastSyncController ! FastSyncController.EnqueueReceipts(requestedHashes)
+    cleanupAndStop()
+  }
 }
 
 object FastSyncReceiptsRequestHandler {

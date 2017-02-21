@@ -44,6 +44,11 @@ class FastSyncBlockHeadersRequestHandler(
     fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
     cleanupAndStop()
   }
+
+  override def handleTerminated(): Unit = {
+    cleanupAndStop()
+  }
+
 }
 
 object FastSyncBlockHeadersRequestHandler {
