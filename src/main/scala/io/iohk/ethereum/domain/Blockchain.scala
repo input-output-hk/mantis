@@ -59,7 +59,14 @@ trait Blockchain {
     *
     * @param block Block to be saved
     */
-  def save(block: Block): Unit
+  def save(block: Block): Unit = {
+    save(block.header)
+    save(block.header.hash, block.body)
+  }
+
+  def save(blockHeader: BlockHeader): Unit
+
+  def save(blockHash: ByteString, blockBody: BlockBody): Unit
 
   def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit
 
@@ -103,17 +110,13 @@ class BlockchainImpl(
 
   override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = evmCodeStorage.get(hash)
 
-  /**
-    * Persists a block in the underlaying Blockchain Database
-    *
-    * @param block Block to be saved
-    */
-  override def save(block: Block): Unit = {
-    val hash = block.header.hash
-    blockHeadersStorage.put(hash, block.header)
-    blockBodiesStorage.put(hash, block.body)
-    saveBlockNumberMapping(block.header.number, hash)
+  override def save(blockHeader: BlockHeader): Unit = {
+    val hash = blockHeader.hash
+    blockHeadersStorage.put(hash, blockHeader)
+    saveBlockNumberMapping(blockHeader.number, hash)
   }
+
+  override def save(blockHash: ByteString, blockBody: BlockBody): Unit = blockBodiesStorage.put(blockHash, blockBody)
 
   override def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit = receiptStorage.put(blockHash, receipts)
 
@@ -134,6 +137,7 @@ class BlockchainImpl(
     * @param hash   Related hash for that given block
     */
   private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit = blockNumberMappingStorage.put(number, hash)
+
 }
 
 trait BlockchainStorages {

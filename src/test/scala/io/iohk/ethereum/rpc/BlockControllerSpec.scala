@@ -73,6 +73,10 @@ trait BlockRouteSetup {
     override def save(hash: ByteString, evmCode: ByteString): Unit = ???
 
     override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = ???
+
+    override def save(blockHeader: BlockHeader): Unit = ???
+
+    override def save(blockHash: ByteString, blockBody: BlockBody): Unit = ???
   }
 
   val route: Route = BlockController.route(stubbedBlockchain)

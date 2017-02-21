@@ -4,17 +4,16 @@ import java.net.{InetSocketAddress, URI}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
-import akka.util.ByteString
-import io.iohk.ethereum.db.storage.MptNodeStorage
-import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 class PeerManagerActor(
     nodeStatusHolder: Agent[NodeStatus],
-    peerFactory: (ActorContext, InetSocketAddress) => ActorRef)
+    peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
+    externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging {
 
   import PeerManagerActor._
@@ -22,7 +21,9 @@ class PeerManagerActor(
 
   var peers: Map[String, Peer] = Map.empty
 
-  context.system.scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
+  private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
+
+  scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
 
   override val supervisorStrategy =
     OneForOneStrategy() {
@@ -42,7 +43,7 @@ class PeerManagerActor(
       sender() ! PeerCreated(peer)
 
     case GetPeers =>
-      sender() ! peers
+      sender() ! PeersResponse(peers.values.toSeq)
 
     case Terminated(ref) =>
       peers -= ref.path.name
@@ -57,10 +58,6 @@ class PeerManagerActor(
         log.info("Trying to connect to {} bootstrap nodes", nodesToConnect.size)
         nodesToConnect.foreach(self ! ConnectToPeer(_))
       }
-    case StartFastDownload(uri, targetHash, blockchain, mptNodeStorage) =>
-      peers.find { case (_, Peer(remoteAddress, _)) => remoteAddress.getHostString == uri.getHost && remoteAddress.getPort == uri.getPort }
-        .map(_._2)
-        .foreach { p => p.ref ! PeerActor.StartFastSync(targetHash, blockchain, mptNodeStorage) }
   }
 
   def createPeer(addr: InetSocketAddress): Peer = {
@@ -86,8 +83,6 @@ object PeerManagerActor {
 
   case class ConnectToPeer(uri: URI)
 
-  case class StartFastDownload(uri: URI, targetBlockHash: ByteString, blockchain: Blockchain, mptNodeStorage: MptNodeStorage)
-
   case class Peer(remoteAddress: InetSocketAddress, ref: ActorRef) {
     def id: String = ref.path.name
   }
@@ -95,6 +90,7 @@ object PeerManagerActor {
   case class PeerCreated(peer: Peer)
 
   case object GetPeers
+  case class PeersResponse(peers: Seq[Peer])
 
   private case object ScanBootstrapNodes
 }

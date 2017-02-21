@@ -11,7 +11,6 @@ import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
@@ -262,7 +261,7 @@ class PeerActor(
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
         handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
-        log.info("Received message: {}", message)
+        log.debug("Received message: {}", message)
         notifySubscribers(message)
         processMessage(message)
 
@@ -271,10 +270,6 @@ class PeerActor(
 
       case GetStatus =>
         sender() ! StatusResponse(Handshaked)
-
-      case StartFastSync(targetHash, blockchain, mptNodeStorage) =>
-        val fastSyncActor = context.actorOf(FastSyncActor.props(self, blockchain, mptNodeStorage), UUID.randomUUID().toString)
-        fastSyncActor ! FastSyncActor.StartSync(targetHash)
     }
 
     def notifySubscribers(message: Message): Unit = {
@@ -325,8 +320,6 @@ object PeerActor {
   case class ConnectTo(uri: URI)
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
-
-  case class StartFastSync(targetBlockHash: ByteString, blockchain: Blockchain, mptNodeStorage: MptNodeStorage)
 
   private case object DaoHeaderReceiveTimeout
 
