@@ -18,40 +18,61 @@ import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerManagerActor.{Peer, PeersResponse, GetPeers}
 import io.iohk.ethereum.network.p2p.messages.PV62.{GetBlockHeaders, BlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.utils.{BlockchainStatus, ServerStatus, NodeStatus}
 import org.scalatest.{Matchers, FlatSpec}
 
 class FastSyncControllerSpec extends FlatSpec with Matchers {
 
   "FastSyncController" should "download target block and request state nodes" in new TestSetup {
-    val peer = TestProbe()(system)
+    val peer1 = TestProbe()(system)
+    val peer2 = TestProbe()(system)
 
-    val targetBlockHeader = baseBlockHeader.copy(number = 100)
+    time.advance(1.seconds)
+
+    peerManager.expectMsg(GetPeers)
+    peerManager.reply(PeersResponse(Seq(
+      Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref),
+      Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref))))
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    peer1.expectMsg(PeerActor.GetStatus)
+    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status)))
+
+    val peer2Status= Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
+    peer2.expectMsg(PeerActor.GetStatus)
+    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status)))
+
+    fastSyncController ! FastSyncController.StartFastSync
+
+    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
+    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))
+    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq(baseBlockHeader.copy(number = 300000)))))
+    peer1.expectMsg(PeerActor.Unsubscribe)
+
+    peer2.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
+    peer2.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer2_bestHash")), 1, 0, reverse = false)))
+    peer2.reply(PeerActor.MessageReceived(BlockHeaders(Seq(baseBlockHeader.copy(number = 400000)))))
+    peer2.expectMsg(PeerActor.Unsubscribe)
+
+    val expectedTargetBlock = 399500
+
+    peer1.expectNoMsg()
+
+    val targetBlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
+    peer2.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
+    peer2.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedTargetBlock), 1, 0, reverse = false)))
+    peer2.reply(PeerActor.MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
 
     nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
       targetBlockHeader.difficulty,
       targetBlockHeader.hash,
       targetBlockHeader.number)))
 
-    time.advance(1.seconds)
+    peer2.expectMsg(PeerActor.Unsubscribe)
 
-    peerManager.expectMsg(GetPeers)
-    peerManager.reply(PeersResponse(Seq(Peer(new InetSocketAddress("127.0.0.1", 0), peer.ref))))
-
-    peer.expectMsg(PeerActor.GetStatus)
-    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked))
-
-    fastSyncController ! FastSyncController.StartFastSync(targetBlockHeader.hash)
-
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(targetBlockHeader.hash), 1, 0, reverse = false)))
-
-    peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
-
-    peer.expectMsg(PeerActor.Unsubscribe)
-
-    peer.expectMsg(PeerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot))))
-    peer.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
+    peer2.expectMsg(PeerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot))))
+    peer2.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
   }
 
   it should "download target block and request state and blocks from two peers" in new TestSetup {
@@ -70,10 +91,11 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     peerManager.expectMsg(GetPeers)
     peerManager.reply(PeersResponse(Seq(Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref))))
 
+    val peerStatus= Status(1, 1, 1, ByteString("best hash"), ByteString("genesis hash"))
     peer1.expectMsg(PeerActor.GetStatus)
-    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked))
+    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peerStatus)))
 
-    fastSyncController ! FastSyncController.StartFastSync(targetBlockHeader.hash)
+    fastSyncController ! FastSyncController.StartFastSync
 
     peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(targetBlockHeader.hash), 1, 0, reverse = false)))
@@ -91,8 +113,9 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
       Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref),
       Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref))))
 
+    val peer2Status= Status(1, 1, 1, ByteString("best hash"), ByteString("genesis hash"))
     peer2.expectMsg(PeerActor.GetStatus)
-    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked))
+    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status)))
 
     time.advance(1.seconds)
 
@@ -115,10 +138,11 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     peerManager.expectMsg(GetPeers)
     peerManager.reply(PeersResponse(Seq(Peer(new InetSocketAddress("127.0.0.1", 0), peer.ref))))
 
+    val peerStatus = Status(1, 1, 1, ByteString("best hash"), ByteString("genesis hash"))
     peer.expectMsg(PeerActor.GetStatus)
-    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked))
+    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peerStatus)))
 
-    fastSyncController ! FastSyncController.StartFastSync(targetBlockHeader.hash)
+    fastSyncController ! FastSyncController.StartFastSync
 
     peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(targetBlockHeader.hash), 1, 0, reverse = false)))
