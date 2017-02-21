@@ -69,7 +69,7 @@ object PV63 {
             RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = false)), child.fold(_.hash, _.value): RLPEncodeable)
           case n: MptBranch =>
             import n._
-            RLPList(children.map(e => e.fold(_.hash, _.value)).map(e => byteStringEncDec.encode(e)) :+ (terminator: RLPEncodeable): _*)
+            RLPList(children.map(e => e.fold(a => byteStringEncDec.encode(a.hash), b => rawDecode(b.value.toArray[Byte]))) :+ (terminator: RLPEncodeable): _*)
         }
       }
 
@@ -79,7 +79,7 @@ object PV63 {
             case bytes: RLPValue =>
               val v = rlpDecode[ByteString](bytes)
               if (v.nonEmpty && v.length < 32) {
-                Right(MptValue(v))
+                Right(MptValue(ByteString(rlpEncode(bytes))))
               } else {
                 Left(MptHash(v))
               }
