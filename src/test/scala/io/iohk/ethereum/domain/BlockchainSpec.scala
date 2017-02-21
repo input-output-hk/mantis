@@ -1,12 +1,12 @@
 package io.iohk.ethereum.domain
 
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import org.scalatest.{FlatSpec, Matchers}
 
 class BlockchainSpec extends FlatSpec with Matchers {
 
-  "Blockchain" should "be able to store a block and return if if queried by hash" in new BlockchainTestSetup {
+  "Blockchain" should "be able to store a block and return if if queried by hash" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchain.save(validBlock)
     val block = blockchain.getBlockByHash(validBlock.header.hash)
@@ -20,7 +20,7 @@ class BlockchainSpec extends FlatSpec with Matchers {
     assert(validBlock.body == blockBody.get)
   }
 
-  "Blockchain" should "be able to store a block and retrieve it by number" in new BlockchainTestSetup {
+  "Blockchain" should "be able to store a block and retrieve it by number" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchain.save(validBlock)
     val block = blockchain.getBlockByNumber(validBlock.header.number)
@@ -28,7 +28,7 @@ class BlockchainSpec extends FlatSpec with Matchers {
     assert(validBlock == block.get)
   }
 
-  "Blockchain" should "be able to query a stored blockHeader by it's number" in new BlockchainTestSetup {
+  "Blockchain" should "be able to query a stored blockHeader by it's number" in new EphemBlockchainTestSetup {
     val validHeader = Fixtures.Blocks.ValidBlock.header
     blockchain.save(validHeader)
     val header = blockchain.getBlockHeaderByNumber(validHeader.number)
@@ -36,14 +36,8 @@ class BlockchainSpec extends FlatSpec with Matchers {
     assert(validHeader == header.get)
   }
 
-  "Blockchain" should "not return a value if not stored" in new BlockchainTestSetup {
+  "Blockchain" should "not return a value if not stored" in new EphemBlockchainTestSetup {
     assert(blockchain.getBlockByNumber(Fixtures.Blocks.ValidBlock.header.number).isEmpty)
     assert(blockchain.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash).isEmpty)
   }
-
-  trait BlockchainTestSetup {
-    private val storagesImpl = new SharedEphemDataSources with Storages.DefaultStorages
-    val blockchain: Blockchain = BlockchainImpl(storagesImpl.storages)
-  }
-
 }
