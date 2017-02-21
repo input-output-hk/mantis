@@ -5,7 +5,11 @@ import io.iohk.ethereum.domain.{Address, Transaction}
 
 object ProgramState {
   def apply(context: ProgramContext): ProgramState =
-    ProgramState(context = context, gas = context.startGas, storage = context.storage)
+    ProgramState(
+      context = context,
+      gas = context.startGas,
+      storage = context.storage,
+      balance = context.account.balance)
 }
 
 /**
@@ -16,10 +20,11 @@ object ProgramState {
   * @param stack current stack
   * @param memory current memory
   * @param storage current storage
+  * @param balance this contract's account balance
   * @param pc program counter - an index of the opcode in the program to be executed
   * @param returnData data to be returned from the program execution
   * @param gasRefund the amount of gas to be refunded after execution (not sure if a separate field is required)
-  * @param internalTransactions list of transactions created during run of the program
+  * @param internalTransfers list of transactions created during run of the program
   * @param addressesToDelete list of addresses of accounts scheduled to be deleted
   * @param halted a flag to indicate program termination
   * @param error indicates whether the program terminated abnormally
@@ -28,13 +33,14 @@ case class ProgramState(
   context: ProgramContext,
   gas: BigInt,
   storage: Storage = Storage.Empty,
+  balance: BigInt,
   stack: Stack = Stack.empty(),
   memory: Memory = Memory.empty,
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
   //TODO: investigate whether we need this or should refunds be simply added to current gas
   gasRefund: BigInt = 0,
-  internalTransactions: Seq[Transaction] = Seq(),
+  internalTransfers: List[Transfer] = Nil,
   addressesToDelete: Seq[Address] = Seq(),
   halted: Boolean = false,
   error: Option[ProgramError] = None
@@ -73,8 +79,10 @@ case class ProgramState(
   def withReturnData(data: ByteString): ProgramState =
     copy(returnData = data)
 
-  def withTx(tx: Transaction): ProgramState =
-    copy(internalTransactions = internalTransactions :+ tx)
+  def transfer(to: Address, value: BigInt): ProgramState = {
+    val t = Transfer(env.ownerAddr, to, value)
+    copy(internalTransfers = t :: internalTransfers, balance = balance - value)
+  }
 
   def withAddressToDelete(addr: Address): ProgramState =
     copy(addressesToDelete = addressesToDelete :+ addr)

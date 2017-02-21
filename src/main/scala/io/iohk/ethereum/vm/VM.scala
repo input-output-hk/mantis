@@ -17,7 +17,7 @@ object VM {
     ProgramResult(
       finalState.returnData,
       finalState.storage,
-      finalState.internalTransactions,
+      finalState.internalTransfers.reverse,
       finalState.addressesToDelete,
       finalState.error)
   }
