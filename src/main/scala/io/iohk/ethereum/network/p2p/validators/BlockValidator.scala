@@ -7,7 +7,6 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
-import io.iohk.ethereum.utils.EitherExtensions._
 
 object BlockValidator {
   /**
