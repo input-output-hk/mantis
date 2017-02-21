@@ -171,63 +171,6 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     peer.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
   }
 
-  it should "stop syncing when chain and mpt is downloaded" in new TestSetup {
-    val peer = TestProbe()(system)
-
-    val targetBlockHeader = baseBlockHeader.copy(
-      number = 6,
-      stateRoot = ByteString(Hex.decode("deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc")))
-
-    nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
-      10,
-      ByteString("bestHash"),
-      5)))
-
-    time.advance(1.seconds)
-
-    peerManager.expectMsg(GetPeers)
-    peerManager.reply(PeersResponse(Seq(Peer(new InetSocketAddress("127.0.0.1", 0), peer.ref))))
-
-    peer.expectMsg(PeerActor.GetStatus)
-    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked))
-
-    fastSyncController ! FastSyncController.StartFastSync(targetBlockHeader.hash)
-
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(targetBlockHeader.hash), 1, 0, reverse = false)))
-
-    peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
-    peer.expectMsg(PeerActor.Unsubscribe)
-
-    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(6), 10, 0, false)))
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
-    peer.expectMsg(PeerActor.Unsubscribe)
-
-    peer.expectMsg(PeerActor.SendMessage(GetReceipts(Seq(targetBlockHeader.hash))))
-    peer.expectMsg(PeerActor.Subscribe(Set(Receipts.code)))
-    peer.reply(PeerActor.MessageReceived(Receipts(Seq(Seq()))))
-    peer.expectMsg(PeerActor.Unsubscribe)
-
-    peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(targetBlockHeader.hash))))
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
-    peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil)))))
-    peer.expectMsg(PeerActor.Unsubscribe)
-
-    val stateMptLeafWithAccount =
-      ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
-
-    val watcher = TestProbe()
-    watcher.watch(fastSyncController)
-
-    peer.expectMsg(PeerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot))))
-    peer.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
-    peer.reply(PeerActor.MessageReceived(NodeData(Seq(stateMptLeafWithAccount))))
-    peer.expectMsg(PeerActor.Unsubscribe)
-
-    watcher.expectMsgPF(2.seconds) { case Terminated(`fastSyncController`) => () }
-  }
-
   trait TestSetup {
     implicit val system = ActorSystem("FastSyncControllerSpec_System")
 

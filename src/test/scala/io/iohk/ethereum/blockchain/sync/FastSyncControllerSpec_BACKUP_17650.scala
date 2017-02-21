@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{Terminated, ActorSystem, Props}
 import akka.agent.Agent
 import akka.testkit.{TestProbe, TestActorRef}
 import akka.util.ByteString
@@ -16,11 +16,17 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerManagerActor.{Peer, PeersResponse, GetPeers}
+<<<<<<< HEAD
 import io.iohk.ethereum.network.p2p.messages.PV62.{GetBlockHeaders, BlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+=======
+import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.PV63.{Receipts, GetReceipts, GetNodeData, NodeData}
+>>>>>>> origin/feature/fastSyncControllerWithChild
 import io.iohk.ethereum.utils.{BlockchainStatus, ServerStatus, NodeStatus}
 import org.scalatest.{Matchers, FlatSpec}
+import org.spongycastle.util.encoders.Hex
 
 class FastSyncControllerSpec extends FlatSpec with Matchers {
 
