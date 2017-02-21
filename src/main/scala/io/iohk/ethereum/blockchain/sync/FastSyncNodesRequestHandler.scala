@@ -63,6 +63,11 @@ class FastSyncNodesRequestHandler(
     cleanupAndStop()
   }
 
+  override def handleTerminated(): Unit = {
+    fastSyncController ! FastSyncController.EnqueueNodes(requestedHashes)
+    cleanupAndStop()
+  }
+
   private def handleMptNode(hash: ByteString, mptNode: MptNode): Seq[HashType] = mptNode match {
     case n: MptLeaf =>
       val evm = n.getAccount.codeHash
