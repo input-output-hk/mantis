@@ -3,6 +3,7 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.sha3
 import GasFee._
+import io.iohk.ethereum.domain.{ Account, Address }
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
@@ -146,9 +147,9 @@ object OpCode {
     //CREATE,
     //CALL,
     //CALLCODE,
-    RETURN
+    RETURN,
     //DELEGATECALL,
-    //SUICIDE
+    SELFDESTRUCT
   )
 
   val byteToOpCode: Map[Byte, OpCode] =
@@ -545,7 +546,6 @@ case object LOG2 extends LogOp(0xa2)
 case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
-
 case object RETURN extends OpCode(0xf3, 2, 0, G_zero) {
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(addr, size), stack1) = state.stack.pop(2)
@@ -556,5 +556,34 @@ case object RETURN extends OpCode(0xf3, 2, 0, G_zero) {
   protected def varGas(state: ProgramState): BigInt = {
     val (Seq(addr, size), _) = state.stack.pop(2)
     calcMemCost(state.memory.size, addr, size)
+  }
+}
+
+case object SELFDESTRUCT extends OpCode(0xff, 1, 0, G_selfdestruct) {
+  protected def exec(state: ProgramState): ProgramState = {
+    val (refundDW, stack1) = state.stack.pop
+    val refundAddr: Address = Address(refundDW)
+    val ownerAccount: Account = state.context.account
+    val ownerAddr: Address = state.context.env.ownerAddr
+    val gasRefund: BigInt = if (state.addressesToDelete contains ownerAddr) 0 else R_selfdestruct
+    state
+      .transfer(refundAddr, ownerAccount.balance)
+      .refundGas(gasRefund)
+      .withAddressToDelete(ownerAddr)
+      .withStack(stack1)
+      .halt
+  }
+
+  // Assumes that EIP-161 is not in use on ETC network
+  // https://github.com/ethereum/EIPs/issues/161
+  // I copied the logic from etc geth
+  // https://github.com/ethereumproject/go-ethereum/blob/9fe9368c69f2fb6d7449a4504c71d1af87552957/core/vm/vm.go#L260-L265
+  protected def varGas(state: ProgramState): BigInt = {
+    val (Seq(_, accDW), _) = state.stack.pop(2)
+    val newAccAddr: Address = Address(accDW)
+    state.context.accounts.getAccount(newAccAddr) match {
+      case Some(_) => G_newaccount
+      case None => 0
+    }
   }
 }

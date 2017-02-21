@@ -15,5 +15,5 @@ import io.iohk.ethereum.domain.Address
 case class ProgramResult(returnData: ByteString,
                          storage: Storage,
                          internalTransfers: Seq[Transfer] = Nil,
-                         addressesToDelete: Seq[Address] = Seq(),
+                         addressesToDelete: Set[Address] = Set(),
                          error: Option[ProgramError])

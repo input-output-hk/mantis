@@ -54,6 +54,14 @@ object Generators extends ObjectGenerators {
   def getStorageGen(maxSize: Int = 0, dataWordGen: Gen[DataWord] = getDataWordGen()): Gen[Storage] =
     getListGen(0, maxSize, dataWordGen).map(Storage.fromSeq)
 
+  lazy val fakeAccountRetriever: AccountRetriever = new AccountRetriever {
+
+    override def getAccount(address: Address): Option[Account] = {
+      None
+    }
+
+  }
+
   def getProgramStateGen(
     stackGen: Gen[Stack] = getStackGen(),
     memGen: Gen[Memory] = getMemoryGen(),
@@ -73,7 +81,7 @@ object Generators extends ObjectGenerators {
       value <- valueGen
       env = ExecEnv(Address.empty, Address.empty, 0, inputData,
         Address.empty, value, Program(code), null, 0)
-      context = ProgramContext(env, startGas = gas, storage, Account.Empty)
+      context = ProgramContext(env, startGas = gas, storage, Account.Empty, fakeAccountRetriever)
     } yield ProgramState(context).withStack(stack).withMemory(memory)
 
 }

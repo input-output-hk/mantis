@@ -41,7 +41,7 @@ case class ProgramState(
   //TODO: investigate whether we need this or should refunds be simply added to current gas
   gasRefund: BigInt = 0,
   internalTransfers: List[Transfer] = Nil,
-  addressesToDelete: Seq[Address] = Seq(),
+  addressesToDelete: Set[Address] = Set(),
   halted: Boolean = false,
   error: Option[ProgramError] = None
 ) {
@@ -85,7 +85,7 @@ case class ProgramState(
   }
 
   def withAddressToDelete(addr: Address): ProgramState =
-    copy(addressesToDelete = addressesToDelete :+ addr)
+    copy(addressesToDelete = addressesToDelete + addr)
 
   def halt: ProgramState =
     copy(halted = true)
