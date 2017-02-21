@@ -191,6 +191,7 @@ class FastSyncController(
 
     def finish(): Unit = {
       log.info("Fast sync finished")
+      context.parent ! FastSyncDone
       context stop self
     }
 
@@ -300,4 +301,5 @@ object FastSyncController {
   private case object PrintStatus
   private case object TargetBlockTimeout
   private case object ProcessSyncing
+  case object FastSyncDone
 }

@@ -11,6 +11,7 @@ import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.network.BlockBroadcastActor.StartBlockBroadcast
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
@@ -271,6 +272,16 @@ class PeerActor(
 
       case GetStatus =>
         sender() ! StatusResponse(Handshaked)
+
+      case PeerActor.StartBlockBroadcast(blockHeadersStorage, blockBodiesStorage, totalDifficultyStorage) =>
+        val broadcastActor = BlockBroadcastActor.props(
+          self,
+          context.parent,
+          blockHeadersStorage,
+          blockBodiesStorage,
+          totalDifficultyStorage)
+        val blockBroadcastActor = context.actorOf(broadcastActor, "blockbroadcast")
+        blockBroadcastActor ! BlockBroadcastActor.StartBlockBroadcast
     }
 
     def notifySubscribers(message: Message): Unit = {
@@ -325,6 +336,10 @@ object PeerActor {
   case class ConnectTo(uri: URI)
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
+
+  case class StartBlockBroadcast(blockHeadersStorage: BlockHeadersStorage,
+                                 blockBodiesStorage: BlockBodiesStorage,
+                                 totalDifficultyStorage: TotalDifficultyStorage)
 
   private case object DaoHeaderReceiveTimeout
 
