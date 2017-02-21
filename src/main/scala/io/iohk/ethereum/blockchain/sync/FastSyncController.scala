@@ -78,7 +78,10 @@ class FastSyncController(
       context become waitingForBlockHeaders(waitingFor - sender(), received, timeout)
 
     case BlockHeadersTimeout =>
-      waitingFor.foreach(blacklist(_, blacklistDuration))
+      waitingFor.foreach { peer =>
+        peer ! PeerActor.Unsubscribe
+        blacklist(peer, blacklistDuration)
+      }
       tryStartSync(received)
   }
 
@@ -94,7 +97,7 @@ class FastSyncController(
       val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
       context become waitingForTargetBlock(mostUpToDatePeer, targetBlock, timeout)
     } else {
-      log.info("Did not get enough status block headers to start fast sync. Retry in {}", startRetryInterval)
+      log.info("Did not receive enough status block headers to start fast sync. Retry in {}", startRetryInterval)
       scheduleStartFastSync(startRetryInterval)
       context become idle
     }
