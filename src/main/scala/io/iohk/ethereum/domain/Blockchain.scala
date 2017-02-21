@@ -18,6 +18,13 @@ trait Blockchain {
     */
   def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader]
 
+  def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] = {
+    for {
+      hash <- getHashByBlockNumber(number)
+      header <- getBlockHeaderByHash(hash)
+    } yield header
+  }
+
   /**
     * Allows to query a blockBody by block hash
     *
@@ -41,8 +48,8 @@ trait Blockchain {
   /**
     * Allows to query for a block based on it's number
     *
-    * @param number
-    * @return
+    * @param number Block number
+    * @return Block if it exists
     */
   def getBlockByNumber(number: BigInt): Option[Block] =
     for {
@@ -50,12 +57,22 @@ trait Blockchain {
       block <- getBlockByHash(hash)
     } yield block
 
+  /**
+    * Returns the receipts based on a block hash
+    * @param blockhash
+    * @return Receipts if found
+    */
   def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]]
 
-  def getEvmCodeByHash(hash: ByteString): Option[ByteString]
+  /**
+    * Returns the receipts based on a block hash
+    * @param blockHash
+    * @return EVM code if found
+    */
+  def getEvmCodeByHash(blockHash: ByteString): Option[ByteString]
 
   /**
-    * Persists a block in the underlaying Blockchain Database
+    * Persists a block in the underlying Blockchain Database
     *
     * @param block Block to be saved
     */
@@ -64,6 +81,11 @@ trait Blockchain {
     save(block.header.hash, block.body)
   }
 
+  /**
+    * Persists a block header in the underlying Blockchain Database
+    *
+    * @param blockHeader Block to be saved
+    */
   def save(blockHeader: BlockHeader): Unit
 
   def save(blockHash: ByteString, blockBody: BlockBody): Unit
@@ -90,20 +112,8 @@ class BlockchainImpl(
                       protected val evmCodeStorage: EvmCodeStorage
                     ) extends Blockchain {
 
-  /**
-    * Allows to query a blockHeader by block hash
-    *
-    * @param hash of the block that's being searched
-    * @return [[BlockHeader]] if found
-    */
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = blockHeadersStorage.get(hash)
 
-  /**
-    * Allows to query a blockBody by block hash
-    *
-    * @param hash of the block that's being searched
-    * @return [[BlockBody]] if found
-    */
   override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] = blockBodiesStorage.get(hash)
 
   override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
@@ -122,20 +132,8 @@ class BlockchainImpl(
 
   override def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
 
-  /**
-    * Returns a block hash given a block number
-    *
-    * @param number Number of the searchead block
-    * @return Block hash if found
-    */
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = blockNumberMappingStorage.get(number)
 
-  /**
-    * Saves the number -> hash relationship in order to be used within queries
-    *
-    * @param number Block Number to be indexed
-    * @param hash   Related hash for that given block
-    */
   private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit = blockNumberMappingStorage.put(number, hash)
 
 }

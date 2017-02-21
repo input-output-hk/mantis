@@ -1,7 +1,7 @@
 package io.iohk.ethereum.domain
 
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages, StoragesComponent}
+import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import org.scalatest.{FlatSpec, Matchers}
 
 class BlockchainSpec extends FlatSpec with Matchers {
@@ -26,6 +26,14 @@ class BlockchainSpec extends FlatSpec with Matchers {
     val block = blockchain.getBlockByNumber(validBlock.header.number)
     assert(block.isDefined)
     assert(validBlock == block.get)
+  }
+
+  "Blockchain" should "be able to query a stored blockHeader by it's number" in new BlockchainTestSetup {
+    val validHeader = Fixtures.Blocks.ValidBlock.header
+    blockchain.save(validHeader)
+    val header = blockchain.getBlockHeaderByNumber(validHeader.number)
+    assert(header.isDefined)
+    assert(validHeader == header.get)
   }
 
   "Blockchain" should "not return a value if not stored" in new BlockchainTestSetup {
