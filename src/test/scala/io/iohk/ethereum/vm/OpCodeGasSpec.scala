@@ -1,5 +1,6 @@
 package io.iohk.ethereum.vm
 
+import io.iohk.ethereum.domain.Address
 import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
 import Generators._
@@ -389,6 +390,29 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val expectedGas = calcMemCost(stateIn.memory.size, addr, size)
 
       verifyGas(expectedGas, stateIn, stateOut)
+    }
+  }
+
+  test(SELFDESTRUCT) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(elems = 2),
+      gasGen = getBigIntGen(max = G_selfdestruct + G_newaccount)
+    )
+    val accountGen = getAccountGen()
+
+    // Sending refund to an account created in current transaction
+    forAll(stateGen) { stateIn =>
+      val stateOut = op.execute(stateIn)
+      verifyGas(G_selfdestruct + G_newaccount, stateIn, stateOut)
+    }
+
+    // Sending refund to an already existing account
+    forAll(stateGen, accountGen) { (stateIn, account) =>
+      val (Seq(_, refundDW), _) = stateIn.stack.pop(2)
+      val accountRetriever = FakeAccountRetriever(Map(Address(refundDW) -> account))
+      val updatedStateIn = stateIn.copy(context = stateIn.context.copy(accounts = accountRetriever))
+      val stateOut = op.execute(updatedStateIn)
+      verifyGas(G_selfdestruct, stateIn, stateOut)
     }
   }
 

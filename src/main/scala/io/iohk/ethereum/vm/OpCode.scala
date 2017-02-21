@@ -582,8 +582,8 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, G_selfdestruct) {
     val (Seq(_, accDW), _) = state.stack.pop(2)
     val newAccAddr: Address = Address(accDW)
     state.context.accounts.getAccount(newAccAddr) match {
-      case Some(_) => G_newaccount
-      case None => 0
+      case Some(_) => 0
+      case None => G_newaccount
     }
   }
 }
