@@ -1,6 +1,7 @@
 package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.vm.Generators._
 import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
@@ -449,8 +450,24 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     // to be implemented
   }
 
-  ignore("SUICIDE") {
-    // to be implemented
+  test(SELFDESTRUCT) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(elems = 2)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+      withStackVerification(op, stateIn, stateOut) {
+        val (refundDW, stack1) = stateIn.stack.pop
+        val expectedState = stateIn
+          .transfer(Address(refundDW), stateIn.context.account.balance)
+          .withAddressToDelete(stateIn.context.env.ownerAddr)
+          .withStack(stack1)
+          .halt
+        stateOut.internalTransfers shouldEqual expectedState.internalTransfers
+        stateOut shouldEqual expectedState
+      }
+    }
   }
 
   verifyAllOpCodesRegistered()

@@ -395,14 +395,14 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   test(SELFDESTRUCT) { op =>
     val stateGen = getProgramStateGen(
-      stackGen = getStackGen(elems = 2),
-      gasGen = getBigIntGen(max = G_selfdestruct + G_newaccount)
+      stackGen = getStackGen(elems = 2)
     )
     val accountGen = getAccountGen()
 
     // Sending refund to an account created in current transaction
     forAll(stateGen) { stateIn =>
       val stateOut = op.execute(stateIn)
+      stateOut.gasRefund shouldEqual R_selfdestruct
       verifyGas(G_selfdestruct + G_newaccount, stateIn, stateOut)
     }
 
@@ -413,6 +413,14 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val updatedStateIn = stateIn.copy(context = stateIn.context.copy(accounts = accountRetriever))
       val stateOut = op.execute(updatedStateIn)
       verifyGas(G_selfdestruct, stateIn, stateOut)
+      stateOut.gasRefund shouldEqual R_selfdestruct
+    }
+
+    // Owner account was already selfdestructed
+    forAll(stateGen) { stateIn =>
+      val updatedStateIn = stateIn.withAddressToDelete(stateIn.context.env.ownerAddr)
+      val stateOut = op.execute(updatedStateIn)
+      stateOut.gasRefund shouldEqual 0
     }
   }
 
