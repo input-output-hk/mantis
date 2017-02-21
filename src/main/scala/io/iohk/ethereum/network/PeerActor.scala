@@ -6,12 +6,11 @@ import java.util.UUID
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts}
+import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
 import io.iohk.ethereum.network.p2p.validators.ForkValidator
@@ -32,7 +31,7 @@ import scala.concurrent.duration._
 class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
     rlpxConnectionFactory: ActorContext => ActorRef,
-    storage: PeerActor.Storage)
+    storage: FastSyncActor.Storage)
   extends Actor with ActorLogging {
 
   import Config.Blockchain._
@@ -231,6 +230,18 @@ class PeerActor(
     context become waitingForConnectionResult(newConnection, noRetries)
   }
 
+  def handleEvmMptFastDownload(rlpxConnection: RLPxConnection): Receive = {
+    case RLPxConnectionHandler.MessageReceived(request: GetNodeData) =>
+      import io.iohk.ethereum.rlp.encode
+
+      val result: Seq[ByteString] = request.commonMptHashes.slice(0, maxMptComponentsPerMessage).flatMap { hash =>
+        storage.mptNodeStorage.get(hash).map((node: MptNode) => ByteString(encode[MptNode](node)))
+          .orElse(storage.evmStorage.get(hash).map((evm: ByteString) => evm))
+      }
+
+      rlpxConnection.sendMessage(NodeData(result))
+  }
+
   def handleBlockFastDownload(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(request: GetReceipts) =>
       val receipts = request.blockHashes.slice(0, maxReceiptsPerMessage)
@@ -300,7 +311,7 @@ class PeerActor(
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
       handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
-      handleBlockFastDownload(rlpxConnection) orElse {
+      handleBlockFastDownload(rlpxConnection) orElse handleEvmMptFastDownload(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
         log.info("Received message: {}", message)
         notifySubscribers(message)
@@ -347,7 +358,7 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], storage: PeerActor.Storage): Props =
+  def props(nodeStatusHolder: Agent[NodeStatus], storage: FastSyncActor.Storage): Props =
     Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), storage))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
@@ -359,11 +370,6 @@ object PeerActor {
       ref ! RLPxConnectionHandler.SendMessage(message)
     }
   }
-
-  case class Storage(
-    blockHeadersStorage: BlockHeadersStorage,
-    blockBodiesStorage: BlockBodiesStorage,
-    receiptStorage: ReceiptStorage)
 
   case class HandleConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
 

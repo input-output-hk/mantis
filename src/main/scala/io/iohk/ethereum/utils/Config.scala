@@ -50,6 +50,7 @@ object Config {
       val maxBlocksHeadersPerMessage: Int = peerConfig.getInt("max-blocks-headers-per-message")
       val maxBlocksBodiesPerMessage: Int = peerConfig.getInt("max-blocks-bodies-per-message")
       val maxReceiptsPerMessage: Int = peerConfig.getInt("max-receipts-per-message")
+      val maxMptComponentsPerMessage: Int = peerConfig.getInt("max-mpt-components-per-message")
     }
 
   }

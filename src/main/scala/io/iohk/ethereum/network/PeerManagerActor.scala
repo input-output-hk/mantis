@@ -22,7 +22,7 @@ class PeerManagerActor(
 
   context.system.scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
 
-  override val supervisorStrategy =
+  override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
       case _ => Stop
     }
@@ -72,10 +72,10 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], storage: PeerActor.Storage): Props =
+  def props(nodeStatusHolder: Agent[NodeStatus], storage: FastSyncActor.Storage): Props =
     Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder, storage)))
 
-  def peerFactory(nodeStatusHolder: Agent[NodeStatus], storage: PeerActor.Storage): (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
+  def peerFactory(nodeStatusHolder: Agent[NodeStatus], storage: FastSyncActor.Storage): (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
     val id = addr.toString.filterNot(_ == '/')
     ctx.actorOf(PeerActor.props(nodeStatusHolder, storage), id)
   }

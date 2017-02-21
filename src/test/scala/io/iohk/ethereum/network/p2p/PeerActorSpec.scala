@@ -8,16 +8,17 @@ import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
+import io.iohk.ethereum
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersNumbersStorage, BlockHeadersStorage, ReceiptStorage}
+import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipt, Receipts}
+import io.iohk.ethereum.network.{FastSyncActor, PeerActor}
+import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 import org.scalatest.{FlatSpec, Matchers}
@@ -387,6 +388,22 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader, Config.Blockchain.genesisBlockHeader))))
   }
 
+  it should "return evm code for hash" in new TestSetup {
+    //given
+    val fakeEvmCode = ByteString(Hex.decode("ffddaaffddaaffddaaffddaaffddaa"))
+    val evmCodeHash: ByteString = ByteString(ethereum.crypto.sha3(fakeEvmCode.toArray[Byte]))
+
+    storage.evmStorage.put(evmCodeHash, fakeEvmCode)
+
+    setupConnection()
+
+    //when
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetNodeData(Seq(evmCodeHash))))
+
+    //then
+    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(NodeData(Seq(fakeEvmCode))))
+  }
+
   trait BlockUtils {
 
     val blockBody = new BlockBody(Seq(), Seq())
@@ -438,10 +455,12 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val nodeStatusHolder = Agent(nodeStatus)
 
-    val storage = PeerActor.Storage(
+    val storage = FastSyncActor.Storage(
       new BlockHeadersStorage(EphemDataSource(), new BlockHeadersNumbersStorage(EphemDataSource())),
       new BlockBodiesStorage(EphemDataSource()),
-      new ReceiptStorage(EphemDataSource())
+      new ReceiptStorage(EphemDataSource()),
+      new MptNodeStorage(EphemDataSource()),
+      new EvmCodeStorage(EphemDataSource())
     )
   }
 

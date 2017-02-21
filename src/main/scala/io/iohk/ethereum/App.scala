@@ -38,12 +38,6 @@ object App {
       new EvmCodeStorage(ds)
     )
 
-    val peerActorStorage = PeerActor.Storage(
-      new BlockHeadersStorage(ds, new BlockHeadersNumbersStorage(ds)),
-      new BlockBodiesStorage(ds),
-      new ReceiptStorage(ds)
-    )
-
     val actorSystem = ActorSystem("etc-client_system")
 
     val nodeStatus =
@@ -54,7 +48,7 @@ object App {
 
     val nodeStatusHolder = Agent(nodeStatus)
 
-    val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, peerActorStorage), "peer-manager")
+    val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, storage), "peer-manager")
     val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
     server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
@@ -65,7 +59,7 @@ object App {
       //TODO change to CLI command?
       Thread.sleep(2 * 1000)
       peerManager ! PeerManagerActor.StartFastDownload(node,
-        ByteString(Hex.decode("12d7b70f28b819867087c37e4190b727dfbb1f7f34e2687e5ad126a31cf051be")), storage)
+        ByteString(Hex.decode("6a063566fa4e4d31cd8babe9e0278fb0f3ea36473f3d15cccce871edf1a23854")), storage)
     }
   }
 
