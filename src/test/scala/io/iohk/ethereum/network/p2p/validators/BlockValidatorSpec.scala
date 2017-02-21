@@ -46,6 +46,27 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
     }
   }
 
+  "Block" should "return a block when verifing if a block body corresponds to a block header" in {
+    BlockValidator.validateHeaderAndBody(validBlockHeader, validBlockBody) match {
+      case Right(block) if block equals Block(validBlockHeader, validBlockBody) => succeed
+      case _ => fail
+    }
+  }
+
+  "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong tx hash" in {
+    BlockValidator.validateHeaderAndBody(wrongTransactionsRootHeader, validBlockBody) match {
+      case Left(BlockTransactionsHashError) => succeed
+      case _ => fail
+    }
+  }
+
+  "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong ommers hash" in {
+    BlockValidator.validateHeaderAndBody(wrongOmmersHashHeader, validBlockBody) match {
+      case Left(BlockOmmersHashError) => succeed
+      case _ => fail
+    }
+  }
+
   val validBlockHeader = BlockHeader(
     parentHash = ByteString(Hex.decode("8345d132564b3660aa5f27c9415310634b50dbc92579c65a0825d9a255227a71")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),

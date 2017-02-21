@@ -3,10 +3,13 @@ package io.iohk.ethereum.network.p2p
 import java.net.InetSocketAddress
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+
 import akka.actor.ActorSystem
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
+import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, TotalDifficultyStorage}
@@ -76,7 +79,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     val newBlock = NewBlock(otherBlock, otherBlock.header.difficulty)
     peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlock))
 
-    Thread.sleep(1000)
+    time.advance(1.seconds)
 
     //No message should have been sent
     assert(!peerManager.msgAvailable)
@@ -223,6 +226,8 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
       blockchainStatus = BlockchainStatus(0, ByteString("changeme"), 0))
 
     val nodeStatusHolder = Agent(nodeStatus)
+
+    val time = new VirtualTime
 
     val peerProbe = TestProbe()
     val peer = Peer(new InetSocketAddress("localhost", PeersNumber), peerProbe.ref)

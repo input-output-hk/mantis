@@ -87,14 +87,23 @@ object BlockValidator {
     */
   def validate(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block] = {
     for {
-      _ <- validateTransactionRoot(block)
-      _ <- validateOmmers(block)
+      _ <- validateHeaderAndBody(block.header, block.body)
       _ <- validateReceipts(block, receipts)
       _ <- validateLogBloom(block, receipts)
     } yield block
   }
 
-  def validHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody): Either[BlockError, Block] = {
+  /**
+    * This method allows validate that a BlockHeader matches a BlockBody. It only perfoms the following validations (stated on
+    * section 4.2.2 of http://paper.gavwood.com/):
+    *   - [[BlockValidator.validateTransactionRoot]]
+    *   - [[BlockValidator.validateOmmers]]
+    *
+    * @param blockHeader to validate
+    * @param blockBody to validate
+    * @return The block if the header matched the body, error otherwise
+    */
+  def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody): Either[BlockError, Block] = {
     val block = Block(blockHeader, blockBody)
     for {
       _ <- validateTransactionRoot(block)

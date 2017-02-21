@@ -73,7 +73,6 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair, actorSystem: ActorSystem) exten
 
       fastSyncController ! FastSyncController.StartFastSync(ByteString(Hex.decode("81e2dcb132c2af3cb84591466aa904bb054f0b9ba52e369c06a271f6d92190db")))
 
-      context watch fastSyncController
       context become waitingForFastSyncDone(storages, peerManager)
 
   }
@@ -83,9 +82,10 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair, actorSystem: ActorSystem) exten
       //Ask for peers to start block broadcast
       peerManager ! PeerManagerActor.GetPeers
 
-    case PeersResponse(peers) => peers.foreach{ peer =>
-      peer.ref ! PeerActor.StartBlockBroadcast(storages.blockHeadersStorage, storages.blockBodiesStorage, storages.totalDifficultyStorage)
-    }
+    case PeersResponse(peers) =>
+      peers.foreach{ peer =>
+        peer.ref ! PeerActor.StartBlockBroadcast(storages.blockHeadersStorage, storages.blockBodiesStorage, storages.totalDifficultyStorage)
+      }
   }
 
 }

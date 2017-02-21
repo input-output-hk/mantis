@@ -98,11 +98,11 @@ class BlockBroadcastActor(
       context become processMessages(newState)
 
     case MessageReceived(BlockBodies(Seq(blockBody))) =>
-      log.info("Got BlockBodies message {}", blockBody)
       val block: Option[Block] = matchHeaderAndBody(state.blockHeaders, blockBody)
       block foreach { b =>
-        val newObtainedBlockHeaders = state.blockHeaders.filterNot(_.hash == b.header.hash)
-        val newState = state.copy(unprocessedBlocks = state.unprocessedBlocks :+ b, blockHeaders = newObtainedBlockHeaders)
+        log.info("Got BlockBodies message {}", blockBody)
+        val newBlockHeaders = state.blockHeaders.filterNot(_.hash == b.header.hash)
+        val newState = state.copy(unprocessedBlocks = state.unprocessedBlocks :+ b, blockHeaders = newBlockHeaders)
         self ! ProcessNewBlocks
         context become processMessages(newState)
       }
@@ -133,7 +133,7 @@ class BlockBroadcastActor(
   //FIXME: Decide block propagation algorithm (for now we send block to every peer except the sender) [EC-87]
   private def sendNewBlockMsgToPeers(peers: Seq[Peer], newBlock: Block) = {
     val blockTd = totalDifficultyStorage.get(newBlock.header.hash)
-      .getOrElse(throw new Exception("Block td is not on storage"))
+      .getOrElse(throw new Exception(s"Block ${Hex.toHexString(newBlock.header.hash.toArray)} total difficulty is not on storage"))
     val newBlockMsg = NewBlock(newBlock, blockTd)
     peers.foreach{ p =>
       if(p.id != peer.path.name){
@@ -144,7 +144,7 @@ class BlockBroadcastActor(
   }
 
   private def matchHeaderAndBody(blockHeaders: Seq[BlockHeader], blockBody: BlockBody): Option[Block] =
-    blockHeaders.collectFirst{ case blockHeader if BlockValidator.validHeaderAndBody(blockHeader, blockBody).isRight =>
+    blockHeaders.collectFirst{ case blockHeader if BlockValidator.validateHeaderAndBody(blockHeader, blockBody).isRight =>
       Block(blockHeader, blockBody)
     }
 
@@ -156,7 +156,7 @@ class BlockBroadcastActor(
     blockHeadersStorage.put(blockHash, block.header)
     blockBodiesStorage.put(blockHash, block.body)
     val parentTd = totalDifficultyStorage.get(block.header.parentHash)
-      .getOrElse(throw new Exception("Block total difficulty is not on storage"))
+      .getOrElse(throw new Exception(s"Block ${Hex.toHexString(block.header.parentHash.toArray)} total difficulty is not on storage"))
     totalDifficultyStorage.put(blockHash, parentTd + block.header.difficulty)
 
     //Update NodeStatus
