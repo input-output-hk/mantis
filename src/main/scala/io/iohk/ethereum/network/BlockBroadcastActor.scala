@@ -126,8 +126,6 @@ class BlockBroadcastActor(
   private def blockInStorage(hash: BlockHash, state: ProcessingState): Boolean =
     blockHeadersStorage.get(hash).isDefined && blockBodiesStorage.get(hash).isDefined
 
-  //TODO: Check if the block's number is ok (not too old and not too into the future)
-  //      We need to know our current height (from status)
   private def blockToProcess(hash: BlockHash, state: ProcessingState): Boolean = !blockInProgress(hash, state) && !blockInStorage(hash, state)
 
   //FIXME: Decide block propagation algorithm (for now we send block to every peer except the sender) [EC-87]
