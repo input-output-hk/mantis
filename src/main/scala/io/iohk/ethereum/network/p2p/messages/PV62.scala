@@ -76,13 +76,16 @@ object PV62 {
 
   object BlockBody {
     import BlockHeaderImplicits._
+
     implicit val rlpEncDec = new RLPEncoder[BlockBody] with RLPDecoder[BlockBody] {
+
+      def encodeUncles(uncleNodesList: Seq[BlockHeader]) : RLPEncodeable = RLPList(uncleNodesList.map(headerRlpEncDec.encode): _*)
 
       override def encode(obj: BlockBody): RLPEncodeable = {
         import obj._
         RLPList(
           RLPList(transactionList.map(CommonMessages.SignedTransactions.txRlpEncDec.encode): _*),
-          RLPList(uncleNodesList.map(headerRlpEncDec.encode): _*))
+          encodeUncles(uncleNodesList))
       }
 
       override def decode(rlp: RLPEncodeable): BlockBody = rlp match {
