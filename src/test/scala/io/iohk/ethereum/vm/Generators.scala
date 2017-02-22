@@ -73,32 +73,38 @@ object Generators extends ObjectGenerators {
     override def getAccount(address: Address): Option[Account] = accounts.get(address)
   }
 
+  def getExecEnvGen(
+    ownerAddrGen: Gen[Address] = addressGen,
+    senderAddrGen: Gen[Address] = addressGen,
+    inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
+    execAddrGen: Gen[Address] = addressGen,
+    valueGen: Gen[BigInt] = getBigIntGen(),
+    codeGen: Gen[ByteString] = getByteStringGen(0, 0)
+  ): Gen[ExecEnv] =
+    for {
+      ownerAddr <- ownerAddrGen
+      senderAddr <- senderAddrGen
+      inputData <- inputDataGen
+      execAddr <- execAddrGen
+      value <- valueGen
+      code <- codeGen
+    } yield ExecEnv(ownerAddr, senderAddr, 0, inputData, execAddr, value, Program(code), null, 0)
+
   def getProgramStateGen(
     stackGen: Gen[Stack] = getStackGen(),
     memGen: Gen[Memory] = getMemoryGen(),
     storageGen: Gen[Storage] = getStorageGen(),
     gasGen: Gen[BigInt] = getBigIntGen(min = DataWord.MaxValue, max = DataWord.MaxValue),
-    codeGen: Gen[ByteString] = getByteStringGen(0, 0),
-    inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
-    valueGen: Gen[BigInt] = getBigIntGen(),
     ownerAccountGen: Gen[Account] = getAccountGen(),
-    execAddrGen: Gen[Address] = addressGen,
-    senderAddrGen: Gen[Address] = addressGen,
-    ownerAddrGen: Gen[Address] = addressGen
+    envGen: Gen[ExecEnv] = getExecEnvGen()
   ): Gen[ProgramState] =
     for {
       stack <- stackGen
       memory <- memGen
       storage <- storageGen
       gas <- gasGen
-      code <- codeGen
-      inputData <- inputDataGen
-      value <- valueGen
       ownerAccount <- ownerAccountGen
-      ownerAddr <- ownerAddrGen
-      senderAddr <- senderAddrGen
-      execAddr <- execAddrGen
-      env = ExecEnv(ownerAddr, senderAddr, 0, inputData, execAddr, value, Program(code), null, 0)
+      env <- envGen
       context = ProgramContext(env, startGas = gas, storage, ownerAccount, FakeAccountRetriever())
     } yield ProgramState(context).withStack(stack).withMemory(memory)
 

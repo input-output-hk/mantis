@@ -211,11 +211,13 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
 
     val maxGas = G_verylow + G_copy * 8
+    val envGen = getExecEnvGen(
+      codeGen = getByteStringGen(0, 256)
+    )
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 3, maxWord = DataWord(256)),
       memGen = getMemoryGen(256),
-      gasGen = getBigIntGen(max = maxGas),
-      codeGen = getByteStringGen(0, 256)
+      envGen = envGen
     )
 
     forAll(stateGen) { stateIn =>

@@ -135,9 +135,12 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(CALLDATALOAD) { op =>
+    val envGen = getExecEnvGen(
+      inputDataGen = getByteStringGen(0, 256)
+    )
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = DataWord(256)),
-      inputDataGen = getByteStringGen(0, 256)
+      envGen = envGen
     )
 
     forAll(stateGen) { stateIn =>
@@ -167,10 +170,13 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(CODECOPY) { op =>
+    val envGen = getExecEnvGen(
+      codeGen = getByteStringGen(0, 256)
+    )
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = DataWord(256)),
       memGen = getMemoryGen(256),
-      codeGen = getByteStringGen(0, 256)
+      envGen = envGen
     )
 
     forAll(stateGen) { stateIn =>
@@ -372,7 +378,12 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(pushOps: _*) { op =>
-    val stateGen = getProgramStateGen(codeGen = getByteStringGen(0, 32))
+    val envGen = getExecEnvGen(
+      inputDataGen = getByteStringGen(0, 32)
+    )
+    val stateGen = getProgramStateGen(
+      envGen = envGen
+    )
 
     forAll(stateGen) { stateIn =>
       val stateOut = executeOp(op, stateIn)
