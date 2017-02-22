@@ -17,7 +17,7 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.{FastSyncActor, PeerActor}
+import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
@@ -75,7 +75,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "successfully connect to ETC peer" in new TestSetup {
     nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
       Config.Blockchain.daoForkBlockTotalDifficulty + 10000000, // we're at some block, after the fork
-      ByteString("unused"))))
+      ByteString("unused"), 0)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -106,7 +106,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "disconnect from non-ETC peer" in new TestSetup {
     nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
       Config.Blockchain.daoForkBlockTotalDifficulty + 10000000, // we're at some block, after the fork
-      ByteString("unused"))))
+      ByteString("unused"), 0)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -135,7 +135,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "stay connected to non-ETC peer until reaching the fork" in new TestSetup {
     nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
       Config.Blockchain.daoForkBlockTotalDifficulty - 10000000, // we're at some block, before the fork
-      ByteString("unused"))))
+      ByteString("unused"), 0)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -169,7 +169,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "stay connected to pre fork peer until reaching the fork" in new TestSetup {
     nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
       Config.Blockchain.daoForkBlockTotalDifficulty - 10000000, // we're at some block, before the fork
-      ByteString("unused"))))
+      ByteString("unused"), 0)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -393,7 +393,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val fakeEvmCode = ByteString(Hex.decode("ffddaaffddaaffddaaffddaaffddaa"))
     val evmCodeHash: ByteString = ByteString(ethereum.crypto.sha3(fakeEvmCode.toArray[Byte]))
 
-    storage.evmStorage.put(evmCodeHash, fakeEvmCode)
+    storage.evmCodeStorage.put(evmCodeHash, fakeEvmCode)
 
     setupConnection()
 
@@ -451,11 +451,11 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val nodeStatus = NodeStatus(
       key = nodeKey,
       serverStatus = ServerStatus.NotListening,
-      blockchainStatus = BlockchainStatus(0, ByteString("123")))
+      blockchainStatus = BlockchainStatus(0, ByteString("123"), 0))
 
     val nodeStatusHolder = Agent(nodeStatus)
 
-    val storage = FastSyncActor.Storage(
+    val storage = PeerActor.Storage(
       new BlockHeadersStorage(EphemDataSource(), new BlockHeadersNumbersStorage(EphemDataSource())),
       new BlockBodiesStorage(EphemDataSource()),
       new ReceiptStorage(EphemDataSource()),
@@ -469,7 +469,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     def setupConnection(): Unit = {
       nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
         Config.Blockchain.daoForkBlockTotalDifficulty + 10000000, // we're at some block, after the fork
-        ByteString("unused"))))
+        ByteString("unused"), 0)))
 
       peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 

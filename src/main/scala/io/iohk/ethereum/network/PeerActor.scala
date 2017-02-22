@@ -6,6 +6,7 @@ import java.util.UUID
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
+import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
@@ -31,7 +32,7 @@ import scala.concurrent.duration._
 class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
     rlpxConnectionFactory: ActorContext => ActorRef,
-    storage: FastSyncActor.Storage)
+    storage: PeerActor.Storage)
   extends Actor with ActorLogging {
 
   import Config.Blockchain._
@@ -236,7 +237,7 @@ class PeerActor(
 
       val result: Seq[ByteString] = request.commonMptHashes.slice(0, maxMptComponentsPerMessage).flatMap { hash =>
         storage.mptNodeStorage.get(hash).map((node: MptNode) => ByteString(encode[MptNode](node)))
-          .orElse(storage.evmStorage.get(hash).map((evm: ByteString) => evm))
+          .orElse(storage.evmCodeStorage.get(hash).map((evm: ByteString) => evm))
       }
 
       rlpxConnection.sendMessage(NodeData(result))
@@ -313,7 +314,7 @@ class PeerActor(
       handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
       handleBlockFastDownload(rlpxConnection) orElse handleEvmMptFastDownload(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
-        log.info("Received message: {}", message)
+        log.debug("Received message: {}", message)
         notifySubscribers(message)
         processMessage(message)
 
@@ -322,10 +323,6 @@ class PeerActor(
 
       case GetStatus =>
         sender() ! StatusResponse(Handshaked)
-
-      case StartFastSync(targetHash, fastSyncStorage) =>
-        val fastSyncActor = context.actorOf(FastSyncActor.props(self, fastSyncStorage), UUID.randomUUID().toString)
-        fastSyncActor ! FastSyncActor.StartSync(targetHash)
     }
 
     def notifySubscribers(message: Message): Unit = {
@@ -358,7 +355,7 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], storage: FastSyncActor.Storage): Props =
+  def props(nodeStatusHolder: Agent[NodeStatus], storage: PeerActor.Storage): Props =
     Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), storage))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
@@ -371,13 +368,19 @@ object PeerActor {
     }
   }
 
+  case class Storage(
+    blockHeadersStorage: BlockHeadersStorage,
+    blockBodiesStorage: BlockBodiesStorage,
+    receiptStorage: ReceiptStorage,
+    mptNodeStorage: MptNodeStorage,
+    evmCodeStorage: EvmCodeStorage
+  )
+
   case class HandleConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
 
   case class ConnectTo(uri: URI)
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
-
-  case class StartFastSync(targetBlockHash: ByteString, storage: FastSyncActor.Storage)
 
   private case object DaoHeaderReceiveTimeout
 
