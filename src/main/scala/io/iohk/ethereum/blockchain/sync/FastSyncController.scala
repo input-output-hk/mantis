@@ -11,6 +11,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 class FastSyncController(
@@ -33,7 +34,7 @@ class FastSyncController(
       case _ => Stop
     }
 
-  var handshakedPeers: Set[ActorRef] = Set.empty
+  var handshakedPeers: Map[ActorRef, Status] = Map.empty
 
   scheduler.schedule(0.seconds, peersScanInterval, peerManager, PeerManagerActor.GetPeers)
 
@@ -42,29 +43,74 @@ class FastSyncController(
   override def receive: Receive = idle
 
   def idle: Receive = handlePeerUpdates orElse {
-    case StartFastSync(targetBlockHash) =>
-      peersToDownloadFrom.headOption match {
-        case Some(firstPeer) =>
-          log.info("Starting fast sync, asking peer {} for target block header", firstPeer.path.name)
-          firstPeer ! PeerActor.Subscribe(Set(BlockHeaders.code))
-          firstPeer ! PeerActor.SendMessage(GetBlockHeaders(Right(targetBlockHash), 1, 0, reverse = false))
-          val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
-          context become waitingForTargetBlock(firstPeer, targetBlockHash, timeout)
-
-        case None =>
-          log.info("Cannot start fast sync, no peers to download from. Scheduling retry in {}", startRetryInterval)
-          scheduleStartFastSync(startRetryInterval, targetBlockHash)
+    case StartFastSync =>
+      if (peersToDownloadFrom.size >= minPeersToChooseTargetBlock) {
+        peersToDownloadFrom.foreach { case (peer, status) =>
+          peer ! PeerActor.Subscribe(Set(BlockHeaders.code))
+          peer ! PeerActor.SendMessage(GetBlockHeaders(Right(status.bestHash), 1, 0, reverse = false))
+        }
+        log.info("Asking {} peers for block headers", peersToDownloadFrom.size)
+        val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, BlockHeadersTimeout)
+        context become waitingForBlockHeaders(peersToDownloadFrom.keySet, Map.empty, timeout)
+      } else {
+        log.info("Cannot start fast sync, not enough peers to download from. Scheduling retry in {}", startRetryInterval)
+        scheduleStartFastSync(startRetryInterval)
       }
   }
 
+  def waitingForBlockHeaders(waitingFor: Set[ActorRef],
+                             received: Map[ActorRef, BlockHeader],
+                             timeout: Cancellable): Receive = {
+    case PeerActor.MessageReceived(BlockHeaders(blockHeaders)) if blockHeaders.size == 1 =>
+      sender() ! PeerActor.Unsubscribe
+
+      val newWaitingFor = waitingFor - sender()
+      val newReceived = received + (sender() -> blockHeaders.head)
+
+      if (newWaitingFor.isEmpty) {
+        timeout.cancel()
+        tryStartSync(newReceived)
+      } else context become waitingForBlockHeaders(newWaitingFor, newReceived, timeout)
+
+    case msg @ PeerActor.MessageReceived(BlockHeaders(_)) =>
+      sender() ! PeerActor.Unsubscribe
+      blacklist(sender(), blacklistDuration)
+      context become waitingForBlockHeaders(waitingFor - sender(), received, timeout)
+
+    case BlockHeadersTimeout =>
+      waitingFor.foreach { peer =>
+        peer ! PeerActor.Unsubscribe
+        blacklist(peer, blacklistDuration)
+      }
+      tryStartSync(received)
+  }
+
+  def tryStartSync(receivedHeaders: Map[ActorRef, BlockHeader]): Unit = {
+    log.info("Trying to start fast sync. Received {} block headers", receivedHeaders.size)
+    if (receivedHeaders.size >= minPeersToChooseTargetBlock) {
+      val (mostUpToDatePeer, mostUpToDateBlockHeader) = receivedHeaders.maxBy(_._2.number)
+      val targetBlock = mostUpToDateBlockHeader.number - targetBlockOffset
+
+      log.info("Starting fast sync. Asking peer {} for target block header ({})", mostUpToDatePeer.path.name, targetBlock)
+      mostUpToDatePeer ! PeerActor.Subscribe(Set(BlockHeaders.code))
+      mostUpToDatePeer ! PeerActor.SendMessage(GetBlockHeaders(Left(targetBlock), 1, 0, reverse = false))
+      val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
+      context become waitingForTargetBlock(mostUpToDatePeer, targetBlock, timeout)
+    } else {
+      log.info("Did not receive enough status block headers to start fast sync. Retry in {}", startRetryInterval)
+      scheduleStartFastSync(startRetryInterval)
+      context become idle
+    }
+  }
+
   def waitingForTargetBlock(peer: ActorRef,
-                            targetBlockHash: ByteString,
+                            targetBlockNumber: BigInt,
                             timeout: Cancellable): Receive =handlePeerUpdates orElse {
     case PeerActor.MessageReceived(blockHeaders: BlockHeaders) =>
       timeout.cancel()
       peer ! PeerActor.Unsubscribe
 
-      val targetBlockHeaderOpt = blockHeaders.headers.find(header => header.hash == targetBlockHash)
+      val targetBlockHeaderOpt = blockHeaders.headers.find(header => header.number == targetBlockNumber)
       targetBlockHeaderOpt match {
         case Some(targetBlockHeader) =>
           log.info("Received target block from peer, starting fast sync")
@@ -80,7 +126,7 @@ class FastSyncController(
             startRetryInterval)
 
           blacklist(sender(), blacklistDuration)
-          scheduleStartFastSync(startRetryInterval, targetBlockHash)
+          scheduleStartFastSync(startRetryInterval)
           context become idle
       }
 
@@ -91,27 +137,28 @@ class FastSyncController(
 
       blacklist(sender(), blacklistDuration)
       peer ! PeerActor.Unsubscribe
-      scheduleStartFastSync(startRetryInterval, targetBlockHash)
+      scheduleStartFastSync(startRetryInterval)
       context become idle
   }
 
-  def peersToDownloadFrom: Set[ActorRef] = handshakedPeers.filterNot(isBlacklisted)
+  def peersToDownloadFrom: Map[ActorRef, Status] = handshakedPeers.filterNot { case (p, s) => isBlacklisted(p) }
 
-  def scheduleStartFastSync(interval: FiniteDuration, targetBlockHash: ByteString): Unit = {
-    scheduler.scheduleOnce(interval, self, StartFastSync(targetBlockHash))
+  def scheduleStartFastSync(interval: FiniteDuration): Unit = {
+    scheduler.scheduleOnce(interval, self, StartFastSync)
   }
 
   def handlePeerUpdates: Receive = {
     case PeerManagerActor.PeersResponse(peers) =>
       peers.foreach(_.ref ! PeerActor.GetStatus)
 
-    case PeerActor.StatusResponse(status) =>
-      if (status == PeerActor.Status.Handshaked) {
-        if (!handshakedPeers.contains(sender()) && !isBlacklisted(sender())) {
-          handshakedPeers += sender()
-          context watch sender()
-        }
-      } else removePeer(sender())
+    case PeerActor.StatusResponse(PeerActor.Status.Handshaked(initialStatus)) =>
+      if (!handshakedPeers.contains(sender()) && !isBlacklisted(sender())) {
+        handshakedPeers += (sender() -> initialStatus)
+        context watch sender()
+      }
+
+    case PeerActor.StatusResponse(_) =>
+      removePeer(sender())
 
     case Terminated(ref) if handshakedPeers.contains(ref) =>
       removePeer(ref)
@@ -259,7 +306,7 @@ class FastSyncController(
       mptNodesQueue = remainingMptNodes
     }
 
-    def unassignedPeers: Set[ActorRef] = peersToDownloadFrom diff assignedHandlers.values.toSet
+    def unassignedPeers: Set[ActorRef] = peersToDownloadFrom.keySet diff assignedHandlers.values.toSet
 
     def anythingQueued: Boolean =
       nonMptNodesQueue.nonEmpty ||
@@ -281,7 +328,7 @@ object FastSyncController {
     Props(new FastSyncController(peerManager, nodeStatusHolder, mptNodeStorage, blockHeadersStorage,
       blockBodiesStorage, receiptStorage, evmStorage))
 
-  case class StartFastSync(targetBlockHash: ByteString)
+  case object StartFastSync
 
   case class EnqueueNodes(hashes: Seq[HashType])
   case class EnqueueBlockBodies(hashes: Seq[ByteString])
@@ -299,5 +346,6 @@ object FastSyncController {
 
   private case object PrintStatus
   private case object TargetBlockTimeout
+  private case object BlockHeadersTimeout
   private case object ProcessSyncing
 }
