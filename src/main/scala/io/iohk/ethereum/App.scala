@@ -1,19 +1,16 @@
 package io.iohk.ethereum
 
-import java.lang.Runtime
-
 import scala.concurrent.ExecutionContext.Implicits.global
+
 import akka.actor.ActorSystem
 import akka.agent._
-import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSyncController
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, _}
-import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl, BlockchainStorages}
+import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.rpc.JsonRpcServer
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
-import org.spongycastle.util.encoders.Hex
 
 object App {
 
@@ -50,7 +47,7 @@ object App {
         storagesInstance.storages.mptNodeStorage),
       "fast-sync-controller")
 
-    fastSyncController ! FastSyncController.StartFastSync(ByteString(Hex.decode("81e2dcb132c2af3cb84591466aa904bb054f0b9ba52e369c06a271f6d92190db")))
+    fastSyncController ! FastSyncController.StartFastSync
 
     Runtime.getRuntime.addShutdownHook(new Thread() {
       override def run(): Unit = {
