@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.{ Account, Address }
 import org.scalacheck.{Arbitrary, Gen}
 
 // scalastyle:off magic.number
@@ -54,26 +54,58 @@ object Generators extends ObjectGenerators {
   def getStorageGen(maxSize: Int = 0, dataWordGen: Gen[DataWord] = getDataWordGen()): Gen[Storage] =
     getListGen(0, maxSize, dataWordGen).map(Storage.fromSeq)
 
+  def getAccountGen(
+    nonceGen: Gen[BigInt] = bigIntGen,
+    balanceGen: Gen[BigInt] = bigIntGen,
+    storageRootGen: Gen[ByteString] = byteStringOfLengthNGen(100),
+    codeHashGen: Gen[ByteString] = byteStringOfLengthNGen(20)
+  ): Gen[Account] =
+    for {
+      nonce <- nonceGen
+      balance <- balanceGen
+      storageRoot <- storageRootGen
+      codeHash <- codeHashGen
+    } yield Account(nonce, balance, storageRoot, codeHash)
+
+  def addressGen: Gen[Address] = dataWordGen.map(Address(_))
+
+  case class FakeAccountRetriever(accounts: Map[Address, Account] = Map()) extends AccountRetriever {
+    override def getAccount(address: Address): Option[Account] = accounts.get(address)
+  }
+
+  def getExecEnvGen(
+    ownerAddrGen: Gen[Address] = addressGen,
+    senderAddrGen: Gen[Address] = addressGen,
+    inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
+    execAddrGen: Gen[Address] = addressGen,
+    valueGen: Gen[BigInt] = getBigIntGen(),
+    codeGen: Gen[ByteString] = getByteStringGen(0, 0)
+  ): Gen[ExecEnv] =
+    for {
+      ownerAddr <- ownerAddrGen
+      senderAddr <- senderAddrGen
+      inputData <- inputDataGen
+      execAddr <- execAddrGen
+      value <- valueGen
+      code <- codeGen
+    } yield ExecEnv(ownerAddr, senderAddr, 0, inputData, execAddr, value, Program(code), null, 0)
+
   def getProgramStateGen(
     stackGen: Gen[Stack] = getStackGen(),
     memGen: Gen[Memory] = getMemoryGen(),
     storageGen: Gen[Storage] = getStorageGen(),
     gasGen: Gen[BigInt] = getBigIntGen(min = DataWord.MaxValue, max = DataWord.MaxValue),
-    codeGen: Gen[ByteString] = getByteStringGen(0, 0),
-    inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
-    valueGen: Gen[BigInt] = getBigIntGen()
+    ownerAccountGen: Gen[Account] = getAccountGen(),
+    envGen: Gen[ExecEnv] = getExecEnvGen()
   ): Gen[ProgramState] =
     for {
       stack <- stackGen
       memory <- memGen
       storage <- storageGen
       gas <- gasGen
-      code <- codeGen
-      inputData <- inputDataGen
-      value <- valueGen
-      env = ExecEnv(Address.empty, Address.empty, 0, inputData,
-        Address.empty, value, Program(code), null, 0)
-      context = ProgramContext(env, startGas = gas, storage)
+      ownerAccount <- ownerAccountGen
+      env <- envGen
+      context = ProgramContext(env, startGas = gas, storage, ownerAccount, FakeAccountRetriever())
     } yield ProgramState(context).withStack(stack).withMemory(memory)
 
 }
