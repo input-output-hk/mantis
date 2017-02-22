@@ -302,7 +302,7 @@ class PeerActor(
       handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
       handleBlockFastDownload(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
-        log.info("Received message: {}", message)
+        log.debug("Received message: {}", message)
         notifySubscribers(message)
         processMessage(message)
 
@@ -311,10 +311,6 @@ class PeerActor(
 
       case GetStatus =>
         sender() ! StatusResponse(Handshaked)
-
-      case StartFastSync(targetHash, fastSyncStorage) =>
-        val fastSyncActor = context.actorOf(FastSyncActor.props(self, fastSyncStorage), UUID.randomUUID().toString)
-        fastSyncActor ! FastSyncActor.StartSync(targetHash)
     }
 
     def notifySubscribers(message: Message): Unit = {
@@ -370,8 +366,6 @@ object PeerActor {
   case class ConnectTo(uri: URI)
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
-
-  case class StartFastSync(targetBlockHash: ByteString, storage: FastSyncActor.Storage)
 
   private case object DaoHeaderReceiveTimeout
 

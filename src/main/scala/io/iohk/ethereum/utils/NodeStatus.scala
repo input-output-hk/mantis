@@ -13,7 +13,7 @@ object ServerStatus {
   case class Listening(address: InetSocketAddress) extends ServerStatus
 }
 
-case class BlockchainStatus(totalDifficulty: BigInt, bestHash: ByteString)
+case class BlockchainStatus(totalDifficulty: BigInt, bestHash: ByteString, bestNumber: BigInt)
 
 case class NodeStatus(
     key: AsymmetricCipherKeyPair,
