@@ -1,9 +1,11 @@
 package io.iohk.ethereum
 
 import java.io.{File, PrintWriter}
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.ActorSystem
 import akka.agent._
+import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSyncController
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.dataSource.EphemDataSource
@@ -23,7 +25,7 @@ object App {
       val keysValuePair = generateKeyPair()
 
       //Write keys to file
-      val (pub, priv) = getEncoded(keysValuePair)
+      val (pub, priv) = getSerialized(keysValuePair)
       val file = new PrintWriter(Config.keysFile)
       file.write(pub ++ "\n" ++ priv)
       file.close()
@@ -31,8 +33,19 @@ object App {
       keysValuePair
     } else {
       val List(pub, priv) = Source.fromFile(Config.keysFile).getLines().toList
-      fromEncoded(pub, priv)
+      fromSerialized(pub, priv)
     }
+
+  def prueba(): Unit = {
+    val keysValuePair = generateKeyPair()
+    val (pub, priv) = getSerialized(keysValuePair)
+    val keysValuePair2 = fromSerialized(pub, priv)
+    val (pub2, priv2) = getSerialized(keysValuePair2)
+    assert(ByteString(pub2) == ByteString(pub))
+    assert(ByteString(priv2) == ByteString(priv))
+  }
+
+  prueba()
 
   def main(args: Array[String]): Unit = {
     val actorSystem = ActorSystem("etc-client_system")
