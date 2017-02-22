@@ -45,7 +45,7 @@ object App {
       new ReceiptStorage(dataSource),
       new EvmCodeStorage(dataSource)), "fast-sync-controller")
 
-    fastSyncController ! FastSyncController.StartFastSync(ByteString(Hex.decode("81e2dcb132c2af3cb84591466aa904bb054f0b9ba52e369c06a271f6d92190db")))
+    fastSyncController ! FastSyncController.StartFastSync
   }
 
 }
