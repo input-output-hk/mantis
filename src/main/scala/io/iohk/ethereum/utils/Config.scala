@@ -107,6 +107,8 @@ object Config {
     val blockBodiesPerRequest: Int = fastSyncConfig.getInt("block-bodies-per-request")
     val receiptsPerRequest: Int = fastSyncConfig.getInt("receipts-per-request")
     val nodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
+    val minPeersToChooseTargetBlock: Int = fastSyncConfig.getInt("min-peers-to-choose-target-block")
+    val targetBlockOffset: Int = fastSyncConfig.getInt("target-block-offset")
   }
 
   object Db {

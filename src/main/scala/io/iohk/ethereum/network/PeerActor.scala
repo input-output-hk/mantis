@@ -1,7 +1,6 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
-import java.util.UUID
 
 import akka.actor._
 import akka.agent.Agent
@@ -179,11 +178,11 @@ class PeerActor(
       daoBlockHeaderOpt match {
         case Some(_) if daoForkValidator.validate(msg).isEmpty =>
           log.info("Peer is running the ETC chain")
-          context become new HandshakedHandler(rlpxConnection).receive
+          context become new HandshakedHandler(rlpxConnection, remoteStatus).receive
 
         case Some(_) if nodeStatusHolder().blockchainStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
           log.info("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
-          context become new HandshakedHandler(rlpxConnection).receive
+          context become new HandshakedHandler(rlpxConnection, remoteStatus).receive
 
         case Some(_) =>
           log.info("Peer is not running the ETC fork, disconnecting")
@@ -191,7 +190,7 @@ class PeerActor(
 
         case None if remoteStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
           log.info("Peer is not at ETC fork yet. Keeping the connection until then.")
-          context become new HandshakedHandler(rlpxConnection).receive
+          context become new HandshakedHandler(rlpxConnection, remoteStatus).receive
 
         case None =>
           log.info("Peer did not respond with ETC fork block header")
@@ -307,7 +306,7 @@ class PeerActor(
       }
   }
 
-  class HandshakedHandler(rlpxConnection: RLPxConnection) {
+  class HandshakedHandler(rlpxConnection: RLPxConnection, initialStatus: msg.Status) {
 
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
@@ -322,7 +321,7 @@ class PeerActor(
         rlpxConnection.sendMessage(s.message)(s.enc)
 
       case GetStatus =>
-        sender() ! StatusResponse(Handshaked)
+        sender() ! StatusResponse(Handshaked(initialStatus))
     }
 
     def notifySubscribers(message: Message): Unit = {
@@ -398,7 +397,7 @@ object PeerActor {
     case object Idle extends Status
     case object Connecting extends Status
     case object Handshaking extends Status
-    case object Handshaked extends Status
+    case class Handshaked(initialStatus: msg.Status) extends Status
     case object Disconnected extends Status
   }
 
