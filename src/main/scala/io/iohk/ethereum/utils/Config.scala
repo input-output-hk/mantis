@@ -16,6 +16,8 @@ object Config {
 
   val clientId: String = config.getString("client-id")
 
+  val keysFile: String = config.getString("keys-file")
+
   object Network {
     private val networkConfig = config.getConfig("network")
 
