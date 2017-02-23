@@ -17,8 +17,10 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.rlp.encode
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 import org.scalatest.{FlatSpec, Matchers}
@@ -402,6 +404,23 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     //then
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(NodeData(Seq(fakeEvmCode))))
+  }
+
+  it should "return mptNode for hash" in new TestSetup {
+    //given
+    val exampleNibbles = ByteString(bytesToNibbles(Hex.decode("ffddaa")))
+    val exampleValue = ByteString(Hex.decode("abcdee"))
+    val extensionNode: MptNode = MptExtension(exampleNibbles, Right(MptValue(exampleValue)))
+
+    storage.mptNodeStorage.put(extensionNode)
+
+    setupConnection()
+
+    //when
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetNodeData(Seq(extensionNode.hash))))
+
+    //then
+    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(NodeData(Seq(ByteString(encode(extensionNode))))))
   }
 
   trait BlockUtils {
