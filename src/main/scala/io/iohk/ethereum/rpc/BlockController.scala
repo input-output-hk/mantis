@@ -5,7 +5,7 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Block, Blockchain, SignedTransaction}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.rlp._
@@ -74,7 +74,7 @@ object BlockController {
       ommersHash = ommersHash,
       stateRoot = stateRoot,
       unixTimestamp = unixTimestamp,
-      transactions = transactionList.map(tx => ByteString(sha3(encode[SignedTransaction](tx)))),
+      transactions = transactionList.map(tx => ByteString(kec256(encode[SignedTransaction](tx)))),
       transactionsRoot = transactionsRoot,
       uncles = uncleNodesList.map(h => h.hash),
       size = Block.size(block)

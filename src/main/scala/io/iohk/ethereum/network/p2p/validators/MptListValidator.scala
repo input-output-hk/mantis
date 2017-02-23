@@ -1,7 +1,7 @@
 package io.iohk.ethereum.network.p2p.validators
 
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, RLPByteArraySerializable}
@@ -24,7 +24,7 @@ object MptListValidator {
 
     val trie = MerklePatriciaTrie[Int, K](
       source = new NodeStorage(EphemDataSource()),
-      hashFn = (input: Array[Byte]) => sha3(input)
+      hashFn = (input: Array[Byte]) => kec256(input)
     )(intByteArraySerializable, vSerializable)
     val trieRoot = toValidate.zipWithIndex.foldLeft(trie) { (trie, r) => trie.put(r._2, r._1) }.getRootHash
     hash sameElements trieRoot
