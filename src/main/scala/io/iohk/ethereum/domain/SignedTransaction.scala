@@ -35,7 +35,7 @@ case class SignedTransaction(
 
   lazy val bytesToSign: Array[Byte] = if (pointSign == negativePointSign || pointSign == positivePointSign) {
     //global transaction
-    crypto.sha3(
+    crypto.kec256(
       rlpEncode(RLPList(
         tx.nonce,
         tx.gasPrice,
@@ -45,7 +45,7 @@ case class SignedTransaction(
         tx.payload)))
   } else {
     //chain specific transaction
-    crypto.sha3(
+    crypto.kec256(
       rlpEncode(RLPList(
         tx.nonce,
         tx.gasPrice,
@@ -60,7 +60,7 @@ case class SignedTransaction(
 
 
   lazy val recoveredAddress: Option[Array[Byte]] =
-    recoveredPublicKey.map(key => crypto.sha3(key).slice(FirstByteOfAddress, LastByteOfAddress))
+    recoveredPublicKey.map(key => crypto.kec256(key).slice(FirstByteOfAddress, LastByteOfAddress))
 
   /**
     * new formula for calculating point sign post EIP 155 adoption
