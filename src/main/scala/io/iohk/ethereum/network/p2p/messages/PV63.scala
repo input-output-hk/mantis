@@ -3,9 +3,8 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
-import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.rlp.RLPImplicits.{byteStringEncDec, _}
+import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode, _}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.crypto.sha3
@@ -66,10 +65,14 @@ object PV63 {
             RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = true)), value)
           case n: MptExtension =>
             import n._
-            RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = false)), child.fold(_.hash, _.value): RLPEncodeable)
+            RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = false)), byteStringEncDec.encode(child.hash))
           case n: MptBranch =>
             import n._
-            RLPList(children.map(e => e.fold(a => byteStringEncDec.encode(a.hash), b => rawDecode(b.value.toArray[Byte]))) :+ (terminator: RLPEncodeable): _*)
+            RLPList(children.map { e =>
+              e.fold(
+                { mptHash => byteStringEncDec.encode(mptHash.hash) },
+                { mptVal => RLPList(byteStringEncDec.encode(mptVal.key), byteStringEncDec.encode(mptVal.value)) })
+            } :+ (terminator: RLPEncodeable): _*)
         }
       }
 
@@ -78,25 +81,20 @@ object PV63 {
           MptBranch(rlpList.items.take(BranchNodeChildLength).map {
             case bytes: RLPValue =>
               val v = rlpDecode[ByteString](bytes)
-              if (v.nonEmpty && v.length < 32) {
-                Right(MptValue(ByteString(rlpEncode(bytes))))
-              } else {
                 Left(MptHash(v))
-              }
-
-            case value:RLPEncodeable =>
-              Right(MptValue(ByteString(rlpEncode(value))))
+            case RLPList(key: RLPValue, value: RLPValue) =>
+              Right(MptValue(rlpDecode[ByteString](key), rlpDecode[ByteString](value)))
           }, byteStringEncDec.decode(rlpList.items(16)))
         case RLPList(hpEncoded, value) =>
           hpDecode(hpEncoded: Array[Byte]) match {
             case (decoded, true) =>
               MptLeaf(ByteString(decoded), rlpDecode[ByteString](value))
             case (decoded, false) =>
-              val v = rlpDecode[ByteString](value)
-              val child = if (v.nonEmpty && v.length < 32)
-                Right(MptValue(v))
-              else
-                Left(MptHash(v))
+              val child = value match {
+                case bytes: RLPValue =>
+                  MptHash(rlpDecode[ByteString](bytes))
+                case _ => throw new RuntimeException("unexpected value in extension node")
+              }
 
               MptExtension(ByteString(decoded), child)
           }
@@ -148,7 +146,9 @@ object PV63 {
 
     override def toString: String = {
       val childrenString = children.map { e =>
-        e.fold(a => s"Hash(${Hex.toHexString(a.hash.toArray[Byte])})", b => s"Value(${Hex.toHexString(b.value.toArray[Byte])})")
+        e.fold(
+          { a => s"Hash(${Hex.toHexString(a.hash.toArray[Byte])})" },
+          { b => s"Value(${Hex.toHexString(b.key.toArray[Byte])}, ${Hex.toHexString(b.value.toArray[Byte])})" })
       }.mkString("(", ",\n", ")")
 
       s"""MptBranch{
@@ -159,13 +159,13 @@ object PV63 {
     }
   }
 
-  case class MptExtension(keyNibbles: ByteString, child: Either[MptHash, MptValue]) extends MptNode {
+  case class MptExtension(keyNibbles: ByteString, child: MptHash) extends MptNode {
     override def toString: String = {
       s"""MptExtension{
          |key nibbles: $keyNibbles
          |key nibbles length: ${keyNibbles.length}
          |key: ${Hex.toHexString(keyNibbles.toArray[Byte])}
-         |childHash: ${child.fold(a => s"Hash(${Hex.toHexString(a.hash.toArray[Byte])})", b => s"Value(${Hex.toHexString(b.value.toArray[Byte])})")}
+         |childHash: s"Hash(${Hex.toHexString(child.hash.toArray[Byte])})"
          |}
        """.stripMargin
     }
@@ -190,7 +190,7 @@ object PV63 {
 
   case class MptHash(hash: ByteString)
 
-  case class MptValue(value: ByteString)
+  case class MptValue(key: ByteString, value: ByteString)
 
   object GetReceipts {
     implicit val rlpEncDec = new RLPEncoder[GetReceipts] with RLPDecoder[GetReceipts] {

@@ -24,6 +24,7 @@ class NodeDataSpec extends FlatSpec with Matchers {
   val exampleNibbles = ByteString(bytesToNibbles(Hex.decode("ffddaa")))
   val exampleHash = ByteString(sha3(Hex.decode("abcd")))
   val exampleValue = ByteString(Hex.decode("abcdee"))
+  val exampleKey = ByteString(Hex.decode("ffddee"))
 
   val account = Account(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
   val encodedAccount = RLPList(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
@@ -41,8 +42,8 @@ class NodeDataSpec extends FlatSpec with Matchers {
       (Seq.fill[RLPValue](6)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
       (Seq.fill[RLPValue](5)(RLPValue(Array.emptyByteArray)) :+ (Array.emptyByteArray: RLPEncodeable)): _*)
 
-  val extensionNode = MptExtension(exampleNibbles, Right(MptValue(exampleValue)))
-  val encodedExtensionNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), exampleValue)
+  val extensionNode = MptExtension(exampleNibbles, MptHash(exampleHash))
+  val encodedExtensionNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), RLPValue(exampleHash.toArray[Byte]))
 
   val nodeData = NodeData(Seq(
     ByteString(encode[MptNode](leafNode)),
@@ -92,14 +93,14 @@ class NodeDataSpec extends FlatSpec with Matchers {
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
-        Right(MptValue(ByteString(Hex.decode("de9c32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b8901")))),
+        Right(MptValue(ByteString(Hex.decode("32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b89")), ByteString(Hex.decode("01")))),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
-        Right(MptValue(ByteString(Hex.decode("de9c3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a916201")))),
+        Right(MptValue(ByteString(Hex.decode("3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a9162")), ByteString(Hex.decode("01")))),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty))

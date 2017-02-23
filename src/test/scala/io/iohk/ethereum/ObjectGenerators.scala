@@ -62,7 +62,7 @@ trait ObjectGenerators {
   def extensionNodeGen: Gen[MptExtension] = for {
     keyNibbles <- byteArrayOfNItemsGen(32)
     value <- byteStringOfLengthNGen(32)
-  } yield MptExtension(ByteString(bytesToNibbles(keyNibbles)), Left(MptHash(value)))
+  } yield MptExtension(ByteString(bytesToNibbles(keyNibbles)), MptHash(value))
 
   def leafNodeGen: Gen[MptLeaf] = for {
     keyNibbles <- byteArrayOfNItemsGen(32)
