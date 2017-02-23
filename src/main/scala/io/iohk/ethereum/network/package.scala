@@ -23,15 +23,19 @@ package object network {
     curve.getCurve.decodePoint(bytes)
   }
 
-  def getSerialized(keysValuePair: AsymmetricCipherKeyPair): (String, String) = {
-    val pubKey = keysValuePair.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
-    val privKey = keysValuePair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD.toByteArray
-    (Hex.toHexString(pubKey), Hex.toHexString(privKey))
+  object AsymmetricCipherKeyPairSerializable {
+
+    def toBytes(keysValuePair: AsymmetricCipherKeyPair): (String, String) = {
+      val pubKey = keysValuePair.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
+      val privKey = keysValuePair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD.toByteArray
+      (Hex.toHexString(pubKey), Hex.toHexString(privKey))
+    }
+
+    def fromBytes(publicKey: String, privateKey: String): AsymmetricCipherKeyPair = {
+      val pub = new ECPublicKeyParameters(publicKeyFromNodeId(publicKey), curve)
+      val priv = new ECPrivateKeyParameters(new BigInteger(Hex.decode(privateKey)), curve)
+      new AsymmetricCipherKeyPair(pub, priv)
+    }
   }
 
-  def fromSerialized(publicKey: String, privateKey: String): AsymmetricCipherKeyPair = {
-    val pub = new ECPublicKeyParameters(publicKeyFromNodeId(publicKey), curve)
-    val priv = new ECPrivateKeyParameters(new BigInteger(Hex.decode(privateKey)), curve)
-    new AsymmetricCipherKeyPair(pub, priv)
-  }
 }

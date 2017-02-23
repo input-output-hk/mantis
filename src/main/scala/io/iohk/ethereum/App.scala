@@ -24,7 +24,7 @@ object App {
       val keysValuePair = generateKeyPair()
 
       //Write keys to file
-      val (pub, priv) = getSerialized(keysValuePair)
+      val (pub, priv) = AsymmetricCipherKeyPairSerializable.toBytes(keysValuePair)
       val file = new PrintWriter(Config.keysFile)
       file.write(pub ++ "\n" ++ priv)
       file.close()
@@ -32,7 +32,7 @@ object App {
       keysValuePair
     } else {
       val List(pub, priv) = Source.fromFile(Config.keysFile).getLines().toList
-      fromSerialized(pub, priv)
+      AsymmetricCipherKeyPairSerializable.fromBytes(pub, priv)
     }
 
   def main(args: Array[String]): Unit = {
