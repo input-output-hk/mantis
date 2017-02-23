@@ -92,7 +92,9 @@ class FastSyncNodesRequestHandler(
 
     case n: MptExtension =>
       mptNodeStorage.put(n)
-      Seq(StateMptNodeHash(n.child.hash))
+      n.child.fold(
+        mptHash => Seq(StateMptNodeHash(mptHash.hash)),
+        _ => Nil)
     }
 
   private def handleContractMptNode(hash: ByteString, mptNode: MptNode): Seq[HashType] = {
@@ -108,7 +110,9 @@ class FastSyncNodesRequestHandler(
 
       case n: MptExtension =>
         mptNodeStorage.put(n)
-        Seq(ContractStorageMptNodeHash(n.child.hash))
+        n.child.fold(
+          mptHash => Seq(ContractStorageMptNodeHash(mptHash.hash)),
+          _ => Nil)
     }
   }
 }

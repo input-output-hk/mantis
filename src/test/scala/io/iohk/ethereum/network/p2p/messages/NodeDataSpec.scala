@@ -22,7 +22,7 @@ class NodeDataSpec extends FlatSpec with Matchers {
   val accountBalance = 2000
 
   val exampleNibbles = ByteString(bytesToNibbles(Hex.decode("ffddaa")))
-  val exampleHash = ByteString(kec256(Hex.decode("abcd")))
+  val exampleHash = ByteString(kec256(Hex.decode("ab" * 32)))
   val exampleValue = ByteString(Hex.decode("abcdee"))
   val exampleKey = ByteString(Hex.decode("ffddee"))
 
@@ -33,16 +33,16 @@ class NodeDataSpec extends FlatSpec with Matchers {
   val encodedLeafNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = true), encode(encodedAccount))
 
   val branchNode = MptBranch(
-    (Seq.fill[Either[MptHash, MptValue]](3)(Left(MptHash(ByteString.empty))) :+ Left(MptHash(exampleHash))) ++
-      (Seq.fill[Either[MptHash, MptValue]](6)(Left(MptHash(ByteString.empty))) :+ Left(MptHash(exampleHash))) ++
-      Seq.fill[Either[MptHash, MptValue]](5)(Left(MptHash(ByteString.empty))), ByteString())
+    (Seq.fill[Either[MptHash, MptNode]](3)(Left(MptHash(ByteString.empty))) :+ Left(MptHash(exampleHash))) ++
+      (Seq.fill[Either[MptHash, MptNode]](6)(Left(MptHash(ByteString.empty))) :+ Left(MptHash(exampleHash))) ++
+      Seq.fill[Either[MptHash, MptNode]](5)(Left(MptHash(ByteString.empty))), ByteString())
 
   val encodedBranchNode = RLPList(
     (Seq.fill[RLPValue](3)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
       (Seq.fill[RLPValue](6)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
       (Seq.fill[RLPValue](5)(RLPValue(Array.emptyByteArray)) :+ (Array.emptyByteArray: RLPEncodeable)): _*)
 
-  val extensionNode = MptExtension(exampleNibbles, MptHash(exampleHash))
+  val extensionNode = MptExtension(exampleNibbles, Left(MptHash(exampleHash)))
   val encodedExtensionNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), RLPValue(exampleHash.toArray[Byte]))
 
   val nodeData = NodeData(Seq(
@@ -93,14 +93,18 @@ class NodeDataSpec extends FlatSpec with Matchers {
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
-        Right(MptValue(ByteString(Hex.decode("32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b89")), ByteString(Hex.decode("01")))),
+        Right(MptLeaf(
+          keyNibbles = ByteString(Hex.decode("020e0a00070b0109080606070c0406000b0b070d080b0c090605020f060f0f0b0d0e070b0109050d08010c01070e0b0601040e020b0809")),
+          value = ByteString(1))),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
-        Right(MptValue(ByteString(Hex.decode("3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a9162")), ByteString(Hex.decode("01")))),
+        Right(MptLeaf(
+          keyNibbles = ByteString(Hex.decode("0f0f0e080c0b070f090c0e0b0d0c0b040e0c0a060e0608020b05060a0b06060f040f04050802070c0f02070c01010b070f000a09010602")),
+          value = ByteString(1))),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty)),
         Left(MptHash(ByteString.empty))
