@@ -22,6 +22,7 @@ class FastSyncController(
     blockBodiesStorage: BlockBodiesStorage,
     receiptStorage: ReceiptStorage,
     evmStorage: EvmCodeStorage,
+    totalDifficultyStorage: TotalDifficultyStorage,
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging with BlacklistSupport {
 
@@ -290,7 +291,7 @@ class FastSyncController(
         peer,
         nodeStatusHolder().blockchainStatus.bestNumber + 1,
         blockHeadersPerRequest,
-        nodeStatusHolder, blockHeadersStorage), blockHeadersHandlerName)
+        nodeStatusHolder, blockHeadersStorage, totalDifficultyStorage), blockHeadersHandlerName)
       context watch handler
       assignedHandlers += (handler -> peer)
     }
@@ -324,9 +325,9 @@ class FastSyncController(
 object FastSyncController {
   def props(peerManager: ActorRef, nodeStatusHolder: Agent[NodeStatus], mptNodeStorage: MptNodeStorage,
             blockHeadersStorage: BlockHeadersStorage, blockBodiesStorage: BlockBodiesStorage,
-            receiptStorage: ReceiptStorage, evmStorage: EvmCodeStorage): Props =
+            receiptStorage: ReceiptStorage, evmStorage: EvmCodeStorage, totalDifficultyStorage: TotalDifficultyStorage): Props =
     Props(new FastSyncController(peerManager, nodeStatusHolder, mptNodeStorage, blockHeadersStorage,
-      blockBodiesStorage, receiptStorage, evmStorage))
+      blockBodiesStorage, receiptStorage, evmStorage, totalDifficultyStorage))
 
   case object StartFastSync
 

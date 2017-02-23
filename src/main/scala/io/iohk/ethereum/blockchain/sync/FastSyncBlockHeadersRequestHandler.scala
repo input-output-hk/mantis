@@ -1,17 +1,19 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Scheduler, Props, ActorRef}
+import akka.actor.{ActorRef, Props, Scheduler}
 import akka.agent.Agent
-import io.iohk.ethereum.db.storage.BlockHeadersStorage
+import io.iohk.ethereum.db.storage.{BlockHeadersStorage, TotalDifficultyStorage}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus}
+import org.spongycastle.util.encoders.Hex
 
 class FastSyncBlockHeadersRequestHandler(
     peer: ActorRef,
     block: BigInt,
     maxHeaders: Int,
     nodeStatusHolder: Agent[NodeStatus],
-    blockHeadersStorage: BlockHeadersStorage)(implicit scheduler: Scheduler)
+    blockHeadersStorage: BlockHeadersStorage,
+    totalDifficultyStorage: TotalDifficultyStorage)(implicit scheduler: Scheduler)
   extends FastSyncRequestHandler[GetBlockHeaders, BlockHeaders](peer) {
 
   override val requestMsg = GetBlockHeaders(Left(block), maxHeaders, 0, reverse = false)
@@ -22,6 +24,9 @@ class FastSyncBlockHeadersRequestHandler(
 
     (blockHashes zip blockHeaders.headers).foreach { case (hash, header) =>
       blockHeadersStorage.put(hash, header)
+      val parentTotalDifficulty = totalDifficultyStorage.get(header.parentHash)
+        .getOrElse(throw new Exception(s"Block ${Hex.toHexString(header.parentHash.toArray)} total difficulty not found"))
+      totalDifficultyStorage.put(hash, parentTotalDifficulty + header.difficulty)
     }
 
     blockHeaders.headers.lastOption foreach { lastHeader =>
@@ -53,7 +58,8 @@ class FastSyncBlockHeadersRequestHandler(
 
 object FastSyncBlockHeadersRequestHandler {
   def props(peer: ActorRef, block: BigInt, maxHeaders: Int,
-            nodeStatusHolder: Agent[NodeStatus], blockHeadersStorage: BlockHeadersStorage)
+            nodeStatusHolder: Agent[NodeStatus], blockHeadersStorage: BlockHeadersStorage,
+            totalDifficultyStorage: TotalDifficultyStorage)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncBlockHeadersRequestHandler(peer, block, maxHeaders, nodeStatusHolder, blockHeadersStorage))
+    Props(new FastSyncBlockHeadersRequestHandler(peer, block, maxHeaders, nodeStatusHolder, blockHeadersStorage, totalDifficultyStorage))
 }
