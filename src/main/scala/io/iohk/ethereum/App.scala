@@ -1,39 +1,20 @@
 package io.iohk.ethereum
 
-import java.io.{File, PrintWriter}
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.ActorSystem
 import akka.agent._
 import io.iohk.ethereum.blockchain.sync.FastSyncController
-import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.network._
 
-import scala.io.Source
-
 object App {
 
   import Config.{Network => NetworkConfig}
 
-  val nodeKey =
-    if(!new File(Config.keysFile).exists()){
-      val keysValuePair = generateKeyPair()
-
-      //Write keys to file
-      val (pub, priv) = AsymmetricCipherKeyPairSerializable.toBytes(keysValuePair)
-      val file = new PrintWriter(Config.keysFile)
-      file.write(pub ++ "\n" ++ priv)
-      file.close()
-
-      keysValuePair
-    } else {
-      val List(pub, priv) = Source.fromFile(Config.keysFile).getLines().toList
-      AsymmetricCipherKeyPairSerializable.fromBytes(pub, priv)
-    }
+  val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile)
 
   def main(args: Array[String]): Unit = {
     val actorSystem = ActorSystem("etc-client_system")

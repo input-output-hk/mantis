@@ -1,5 +1,6 @@
 package io.iohk.ethereum
 
+import java.io.{File, PrintWriter}
 import java.math.BigInteger
 
 import io.iohk.ethereum.crypto._
@@ -7,6 +8,8 @@ import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
 import org.spongycastle.math.ec.ECPoint
 import org.spongycastle.util.encoders.Hex
+
+import scala.io.Source
 
 package object network {
 
@@ -35,6 +38,24 @@ package object network {
       val pub = new ECPublicKeyParameters(publicKeyFromNodeId(publicKey), curve)
       val priv = new ECPrivateKeyParameters(new BigInteger(Hex.decode(privateKey)), curve)
       new AsymmetricCipherKeyPair(pub, priv)
+    }
+
+  }
+
+  def loadAsymmetricCipherKeyPair(filePath: String): AsymmetricCipherKeyPair = {
+    if(!new File(filePath).exists()){
+      val keysValuePair = generateKeyPair()
+
+      //Write keys to file
+      val (pub, priv) = AsymmetricCipherKeyPairSerializable.toBytes(keysValuePair)
+      val file = new PrintWriter(filePath)
+      file.write(pub ++ "\n" ++ priv)
+      file.close()
+
+      keysValuePair
+    } else {
+      val List(pub, priv) = Source.fromFile(filePath).getLines().toList
+      AsymmetricCipherKeyPairSerializable.fromBytes(pub, priv)
     }
   }
 
