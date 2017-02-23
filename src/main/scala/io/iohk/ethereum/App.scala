@@ -5,7 +5,6 @@ import java.io.{File, PrintWriter}
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.ActorSystem
 import akka.agent._
-import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSyncController
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.dataSource.EphemDataSource
@@ -36,17 +35,6 @@ object App {
       fromSerialized(pub, priv)
     }
 
-  def prueba(): Unit = {
-    val keysValuePair = generateKeyPair()
-    val (pub, priv) = getSerialized(keysValuePair)
-    val keysValuePair2 = fromSerialized(pub, priv)
-    val (pub2, priv2) = getSerialized(keysValuePair2)
-    assert(ByteString(pub2) == ByteString(pub))
-    assert(ByteString(priv2) == ByteString(priv))
-  }
-
-  prueba()
-
   def main(args: Array[String]): Unit = {
     val actorSystem = ActorSystem("etc-client_system")
 
@@ -73,7 +61,7 @@ object App {
       new ReceiptStorage(dataSource),
       new EvmCodeStorage(dataSource)), "fast-sync-controller")
 
-//    fastSyncController ! FastSyncController.StartFastSync
+    fastSyncController ! FastSyncController.StartFastSync
   }
 
 }
