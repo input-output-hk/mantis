@@ -23,23 +23,23 @@ class FastSyncBlockHeadersRequestHandler(
   override def handleResponseMsg(blockHeaders: BlockHeaders): Unit = {
     val blockHashes = blockHeaders.headers.map(_.hash)
 
-    val blockHashesObtained = (blockHashes zip blockHeaders.headers).takeWhile{ case (hash, header) =>
+    val (blockHashesObtained, blockHeadersObtained) = (blockHashes zip blockHeaders.headers).takeWhile{ case (hash, header) =>
       val parentTotalDifficulty = totalDifficultyStorage.get(header.parentHash)
       parentTotalDifficulty.foreach{ parentTD =>
         blockHeadersStorage.put(hash, header)
         totalDifficultyStorage.put(hash, parentTD + header.difficulty)
       }
       parentTotalDifficulty.isDefined
-    }.map(_._2)
+    }.unzip
 
-    blockHashesObtained.lastOption foreach { lastHeader =>
+    blockHeadersObtained.lastOption foreach { lastHeader =>
       nodeStatusHolder.send(_.copy(
         blockchainStatus = BlockchainStatus(lastHeader.difficulty, lastHeader.hash, lastHeader.number)))
     }
 
     if (blockHashesObtained.nonEmpty) {
-      fastSyncController ! FastSyncController.EnqueueBlockBodies(blockHashes)
-      fastSyncController ! FastSyncController.EnqueueReceipts(blockHashes)
+      fastSyncController ! FastSyncController.EnqueueBlockBodies(blockHashesObtained)
+      fastSyncController ! FastSyncController.EnqueueReceipts(blockHashesObtained)
     }
 
     if (blockHashesObtained.length != blockHashes.length) fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
