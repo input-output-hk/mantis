@@ -14,21 +14,21 @@ package object crypto {
   val curveParams: X9ECParameters = SECNamedCurves.getByName("secp256k1")
   val curve: ECDomainParameters = new ECDomainParameters(curveParams.getCurve, curveParams.getG, curveParams.getN, curveParams.getH)
 
-  def sha3(input: Array[Byte], start: Int, length: Int): Array[Byte] = {
+  def kec256(input: Array[Byte], start: Int, length: Int): Array[Byte] = {
     val digest = new Keccak256
     digest.update(input, start, length)
     digest.digest
   }
 
-  def sha3(input: Array[Byte] *): Array[Byte] = {
+  def kec256(input: Array[Byte]*): Array[Byte] = {
     val digest: Keccak256 = new Keccak256
     input.foreach(i => digest.update(i))
     digest.digest
   }
 
-  def sha512(input: Array[Byte]): Array[Byte] = {
+  def kec512(input: Array[Byte]*): Array[Byte] = {
     val digest = new Keccak512
-    digest.update(input)
+    input.foreach(i => digest.update(i))
     digest.digest
   }
 

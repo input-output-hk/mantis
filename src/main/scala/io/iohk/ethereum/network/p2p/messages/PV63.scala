@@ -7,7 +7,7 @@ import io.iohk.ethereum.rlp.RLPImplicits.{byteStringEncDec, _}
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode, _}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.crypto.kec256
 
 
 object PV63 {
@@ -105,7 +105,7 @@ object PV63 {
   }
 
   sealed trait MptNode {
-    lazy val hash: ByteString = ByteString(sha3(rlpEncode(this)))
+    lazy val hash: ByteString = ByteString(kec256(rlpEncode(this)))
   }
 
   object NodeData {

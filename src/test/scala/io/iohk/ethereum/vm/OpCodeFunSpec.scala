@@ -1,6 +1,6 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.vm.Generators._
 import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
@@ -95,7 +95,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         val (Seq(offset, size), _) = stateIn.stack.pop(2)
         val (data, mem1) = stateIn.memory.load(offset, size)
         val (result, _) = stateOut.stack.pop
-        result shouldEqual DataWord(sha3(data.toArray))
+        result shouldEqual DataWord(kec256(data.toArray))
 
         val expectedState = stateIn.withStack(stateOut.stack).withMemory(mem1).step()
         stateOut shouldEqual expectedState

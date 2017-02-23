@@ -25,7 +25,7 @@ class FastSyncNodesRequestHandler(
       fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
     }
 
-    val receivedHashes = nodeData.values.map(v => ByteString(sha3(v.toArray[Byte])))
+    val receivedHashes = nodeData.values.map(v => ByteString(kec256(v.toArray[Byte])))
     val remainingHashes = requestedHashes.filterNot(h => receivedHashes.contains(h.v))
     if (remainingHashes.nonEmpty) {
       fastSyncController ! FastSyncController.EnqueueNodes(remainingHashes)
