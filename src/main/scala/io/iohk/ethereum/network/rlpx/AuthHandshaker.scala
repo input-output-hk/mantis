@@ -196,10 +196,10 @@ case class AuthHandshaker(
       val agreedSecret = bigIntegerToBytes(secretScalar, SecretSize)
 
       val sharedSecret =
-        if (isInitiator) sha3(agreedSecret, sha3(remoteNonce.toArray, nonce.toArray))
-        else sha3(agreedSecret, sha3(nonce.toArray, remoteNonce.toArray))
+        if (isInitiator) kec256(agreedSecret, kec256(remoteNonce.toArray, nonce.toArray))
+        else kec256(agreedSecret, kec256(nonce.toArray, remoteNonce.toArray))
 
-      val aesSecret = sha3(agreedSecret, sharedSecret)
+      val aesSecret = kec256(agreedSecret, sharedSecret)
 
       val (egressMacSecret, ingressMacSecret) =
         if (isInitiator) macSecretSetup(agreedSecret, aesSecret, initiatePacket, nonce, responsePacket, remoteNonce)
@@ -207,8 +207,8 @@ case class AuthHandshaker(
 
       AuthHandshakeSuccess(new Secrets(
         aes = aesSecret,
-        mac = sha3(agreedSecret, aesSecret),
-        token = sha3(sharedSecret),
+        mac = kec256(agreedSecret, aesSecret),
+        token = kec256(sharedSecret),
         egressMac = egressMacSecret,
         ingressMac = ingressMacSecret))
     }
@@ -222,7 +222,7 @@ case class AuthHandshaker(
                              initiateNonce: ByteString,
                              responsePacket: ByteString,
                              responseNonce: ByteString) = {
-    val macSecret = sha3(agreedSecret, aesSecret)
+    val macSecret = kec256(agreedSecret, aesSecret)
 
     val mac1 = new KeccakDigest(MacSize)
     mac1.update(xor(macSecret, responseNonce.toArray), 0, macSecret.length)

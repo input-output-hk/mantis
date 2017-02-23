@@ -4,7 +4,7 @@ import java.nio.ByteBuffer
 import java.security.MessageDigest
 
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
@@ -20,7 +20,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
   with ObjectGenerators
   with Logger {
 
-  val hashFn = (input: Array[Byte]) => sha3(input)
+  val hashFn = (input: Array[Byte]) => kec256(input)
 
   val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new NodeStorage(EphemDataSource()), hashFn)
 

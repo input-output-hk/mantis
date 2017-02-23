@@ -6,7 +6,7 @@ import java.security.MessageDigest
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.{EphemDataSource}
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
@@ -20,7 +20,7 @@ import scala.util.{Random, Try}
 class MerklePatriciaTrieSuite extends FunSuite
   with PropertyChecks
   with ObjectGenerators {
-  val hashFn = (input: Array[Byte]) => sha3(input)
+  val hashFn = (input: Array[Byte]) => kec256(input)
 
   val EmptyEphemNodeStorage: NodeStorage = new NodeStorage(EphemDataSource())
 
