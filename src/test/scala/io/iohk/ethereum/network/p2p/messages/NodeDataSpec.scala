@@ -22,7 +22,7 @@ class NodeDataSpec extends FlatSpec with Matchers {
   val accountBalance = 2000
 
   val exampleNibbles = ByteString(bytesToNibbles(Hex.decode("ffddaa")))
-  val exampleHash = ByteString(sha3(Hex.decode("abcd")))
+  val exampleHash = ByteString(kec256(Hex.decode("abcd")))
   val exampleValue = ByteString(Hex.decode("abcdee"))
 
   val account = Account(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)

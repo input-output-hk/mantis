@@ -1,7 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.crypto.kec256
 import GasFee._
 
 // scalastyle:off magic.number
@@ -277,7 +277,7 @@ case object SHA3 extends OpCode(0x20, 2, 1, G_sha3) {
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(addr, size), stack1) = state.stack.pop(2)
     val (input, mem1) = state.memory.load(addr, size)
-    val hash = sha3(input.toArray)
+    val hash = kec256(input.toArray)
     val ret = DataWord(hash)
     val stack2 = stack1.push(ret)
     state.withStack(stack2).withMemory(mem1).step()
