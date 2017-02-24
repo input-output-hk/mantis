@@ -9,10 +9,10 @@ import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.BlockHeadersStorage
+import io.iohk.ethereum.db.storage.{BlockHeadersStorage, TotalDifficultyStorage}
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.utils.{BlockchainStatus, ServerStatus, NodeStatus}
+import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import org.scalatest.{FlatSpec, Matchers}
@@ -64,6 +64,9 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     val dataSource = EphemDataSource()
     val blockHeadersStorage = new BlockHeadersStorage(dataSource)
+    val totalDifficultyStorage = new TotalDifficultyStorage(dataSource){
+      override def get(blockHash: ByteString): Option[BigInt] = Some(BigInt(0))
+    }
 
     val parent = TestProbe()
 
@@ -85,7 +88,8 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
         block,
         maxHeaders,
         nodeStatusHolder,
-        blockHeadersStorage)(time.scheduler))
+        blockHeadersStorage,
+        totalDifficultyStorage)(time.scheduler))
   }
 
 }

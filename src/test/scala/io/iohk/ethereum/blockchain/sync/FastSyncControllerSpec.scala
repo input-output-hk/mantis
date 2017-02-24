@@ -249,6 +249,9 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
       new BlockBodiesStorage(dataSource),
       new ReceiptStorage(dataSource),
       new EvmCodeStorage(dataSource),
+      new TotalDifficultyStorage(dataSource){
+        override def get(blockHash: ByteString): Option[BigInt] = Some(BigInt(0))
+      },
       externalSchedulerOpt = Some(time.scheduler))))
 
     val baseBlockHeader = BlockHeader(

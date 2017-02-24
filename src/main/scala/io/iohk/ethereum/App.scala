@@ -43,7 +43,9 @@ object App {
       new BlockHeadersStorage(dataSource),
       new BlockBodiesStorage(dataSource),
       new ReceiptStorage(dataSource),
-      new EvmCodeStorage(dataSource)), "fast-sync-controller")
+      new EvmCodeStorage(dataSource),
+      new TotalDifficultyStorage(dataSource).put(Config.Blockchain.genesisHash, Config.Blockchain.genesisDifficulty)
+    ), "fast-sync-controller")
 
     fastSyncController ! FastSyncController.StartFastSync
   }
