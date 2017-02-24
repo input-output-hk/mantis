@@ -18,8 +18,7 @@ object VM {
       finalState.returnData,
       finalState.gas,
       context.startGas - finalState.gas,
-      finalState.storages,
-      finalState.internalTransfers.reverse,
+      finalState.world,
       finalState.addressesToDelete,
       finalState.error)
   }
