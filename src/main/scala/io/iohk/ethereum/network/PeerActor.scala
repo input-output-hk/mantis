@@ -6,7 +6,7 @@ import scala.concurrent.duration._
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
@@ -269,14 +269,12 @@ class PeerActor(
       case GetStatus =>
         sender() ! StatusResponse(Handshaked(initialStatus))
 
-      case PeerActor.StartBlockBroadcast(blockHeadersStorage, blockBodiesStorage, totalDifficultyStorage) =>
+      case PeerActor.StartBlockBroadcast(blockchain) =>
         val broadcastActor = BlockBroadcastActor.props(
           nodeStatusHolder,
           self,
           context.parent,
-          blockHeadersStorage,
-          blockBodiesStorage,
-          totalDifficultyStorage)
+          blockchain)
         val blockBroadcastActor = context.actorOf(broadcastActor, "blockbroadcast")
         blockBroadcastActor ! BlockBroadcastActor.StartBlockBroadcast
     }
@@ -334,9 +332,7 @@ object PeerActor {
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
 
-  case class StartBlockBroadcast(blockHeadersStorage: BlockHeadersStorage,
-                                 blockBodiesStorage: BlockBodiesStorage,
-                                 totalDifficultyStorage: TotalDifficultyStorage)
+  case class StartBlockBroadcast(blockchain: Blockchain)
 
   private case object DaoHeaderReceiveTimeout
 

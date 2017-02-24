@@ -2,13 +2,12 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
@@ -17,11 +16,8 @@ import io.iohk.ethereum.utils.{Config, NodeStatus}
 class FastSyncController(
     peerManager: ActorRef,
     nodeStatusHolder: Agent[NodeStatus],
+    blockchain: Blockchain,
     mptNodeStorage: MptNodeStorage,
-    blockHeadersStorage: BlockHeadersStorage,
-    blockBodiesStorage: BlockBodiesStorage,
-    receiptStorage: ReceiptStorage,
-    evmStorage: EvmCodeStorage,
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging with BlacklistSupport {
 
@@ -272,7 +268,7 @@ class FastSyncController(
 
     def requestReceipts(peer: ActorRef): Unit = {
       val (receiptsToGet, remainingReceipts) = receiptsQueue.splitAt(receiptsPerRequest)
-      val handler = context.actorOf(FastSyncReceiptsRequestHandler.props(peer, receiptsToGet.toSeq, receiptStorage))
+      val handler = context.actorOf(FastSyncReceiptsRequestHandler.props(peer, receiptsToGet.toSeq, blockchain))
       context watch handler
       assignedHandlers += (handler -> peer)
       receiptsQueue = remainingReceipts
@@ -280,7 +276,7 @@ class FastSyncController(
 
     def requestBlockBodies(peer: ActorRef): Unit = {
       val (blockBodiesToGet, remainingBlockBodies) = blockBodiesQueue.splitAt(blockBodiesPerRequest)
-      val handler = context.actorOf(FastSyncBlockBodiesRequestHandler.props(peer, blockBodiesToGet.toSeq, blockBodiesStorage))
+      val handler = context.actorOf(FastSyncBlockBodiesRequestHandler.props(peer, blockBodiesToGet.toSeq, blockchain))
       context watch handler
       assignedHandlers += (handler -> peer)
       blockBodiesQueue = remainingBlockBodies
@@ -291,7 +287,7 @@ class FastSyncController(
         peer,
         nodeStatusHolder().blockchainStatus.bestNumber + 1,
         blockHeadersPerRequest,
-        nodeStatusHolder, blockHeadersStorage), blockHeadersHandlerName)
+        nodeStatusHolder, blockchain), blockHeadersHandlerName)
       context watch handler
       assignedHandlers += (handler -> peer)
     }
@@ -300,7 +296,7 @@ class FastSyncController(
       val (nonMptNodesToGet, remainingNonMptNodes) = nonMptNodesQueue.splitAt(nodesPerRequest)
       val (mptNodesToGet, remainingMptNodes) = mptNodesQueue.splitAt(nodesPerRequest - nonMptNodesToGet.size)
       val nodesToGet = nonMptNodesToGet.toSeq ++ mptNodesToGet.toSeq
-      val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, nodesToGet, evmStorage, mptNodeStorage))
+      val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, nodesToGet, blockchain, mptNodeStorage))
       context watch handler
       assignedHandlers += (handler -> peer)
       nonMptNodesQueue = remainingNonMptNodes
@@ -323,11 +319,12 @@ class FastSyncController(
 }
 
 object FastSyncController {
-  def props(peerManager: ActorRef, nodeStatusHolder: Agent[NodeStatus], mptNodeStorage: MptNodeStorage,
-            blockHeadersStorage: BlockHeadersStorage, blockBodiesStorage: BlockBodiesStorage,
-            receiptStorage: ReceiptStorage, evmStorage: EvmCodeStorage): Props =
-    Props(new FastSyncController(peerManager, nodeStatusHolder, mptNodeStorage, blockHeadersStorage,
-      blockBodiesStorage, receiptStorage, evmStorage))
+  def props(
+             peerManager: ActorRef,
+             nodeStatusHolder: Agent[NodeStatus],
+             blockchain: Blockchain,
+             mptNodeStorage: MptNodeStorage):
+  Props = Props(new FastSyncController(peerManager, nodeStatusHolder, blockchain, mptNodeStorage))
 
   case object StartFastSync
 

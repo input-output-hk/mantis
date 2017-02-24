@@ -1,7 +1,7 @@
 package io.iohk.ethereum.network.p2p.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.crypto.{kec256, kec512}
 
@@ -40,11 +40,11 @@ object BlockHeaderValidator {
     * section 4.4.4 of http://paper.gavwood.com/).
     *
     * @param blockHeader BlockHeader to validate.
-    * @param blockHeadersStorage Storage of the BlockHeaders where the header of the parent of the block will be fetched.
+    * @param blockchain from where the header of the parent of the block will be fetched.
     */
-  def validate(blockHeader: BlockHeader, blockHeadersStorage: BlockHeadersStorage): Either[BlockHeaderError, BlockHeader] = {
+  def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] = {
     for {
-      blockHeaderParent <- obtainBlockParentHeader(blockHeader, blockHeadersStorage)
+      blockHeaderParent <- obtainBlockParentHeader(blockHeader, blockchain)
       _ <- validate(blockHeader, blockHeaderParent)
     } yield blockHeader
   }
@@ -167,12 +167,12 @@ object BlockHeaderValidator {
     * Retrieves the header of the parent of a block from the BlockHeadersStorage, if it exists.
     *
     * @param blockHeader BlockHeader whose parent we want to fetch.
-    * @param blockHeadersStorage Storage of the BlockHeaders where the header of the parent of the block will be fetched.
+    * @param blockchain where the header of the parent of the block will be fetched.
     * @return the BlockHeader of the parent if it exists, an [[HeaderParentNotFoundError]] otherwise
     */
   private def obtainBlockParentHeader(blockHeader: BlockHeader,
-                                      blockHeadersStorage: BlockHeadersStorage): Either[BlockHeaderError, BlockHeader] = {
-    blockHeadersStorage.get(blockHeader.parentHash) match{
+                                      blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] = {
+    blockchain.getBlockHeaderByHash(blockHeader.parentHash) match{
       case Some(blockParentHeader) => Right(blockParentHeader)
       case None => Left(HeaderParentNotFoundError)
     }

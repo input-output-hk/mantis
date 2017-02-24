@@ -3,8 +3,7 @@ package io.iohk.ethereum.network
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.agent.Agent
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, TotalDifficultyStorage}
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -21,9 +20,7 @@ class BlockBroadcastActor(
   nodeStatusHolder: Agent[NodeStatus],
   peer: ActorRef,
   peerManagerActor: ActorRef,
-  blockHeadersStorage: BlockHeadersStorage,
-  blockBodiesStorage: BlockBodiesStorage,
-  totalDifficultyStorage: TotalDifficultyStorage) extends Actor with ActorLogging {
+  blockchain: Blockchain) extends Actor with ActorLogging {
 
   import BlockBroadcastActor._
 
@@ -44,7 +41,7 @@ class BlockBroadcastActor(
         if(state.unprocessedBlocks.tail.nonEmpty) self ! ProcessNewBlocks
 
         val blockToProcess = state.unprocessedBlocks.head
-        val blockHeader = BlockHeaderValidator.validate(blockToProcess.header, blockHeadersStorage)
+        val blockHeader = BlockHeaderValidator.validate(blockToProcess.header, blockchain)
 
         blockHeader match {
           case Right(_) =>
@@ -123,14 +120,14 @@ class BlockBroadcastActor(
       state.fetchedBlockHeaders ++
       state.blockHeaders.map(_.hash)).contains(hash)
 
-  private def blockInStorage(hash: BlockHash, state: ProcessingState): Boolean =
-    blockHeadersStorage.get(hash).isDefined && blockBodiesStorage.get(hash).isDefined
+  private def blockInStorage(hash: BlockHash): Boolean =
+    blockchain.getBlockByHash(hash).isDefined
 
-  private def blockToProcess(hash: BlockHash, state: ProcessingState): Boolean = !blockInProgress(hash, state) && !blockInStorage(hash, state)
+  private def blockToProcess(hash: BlockHash, state: ProcessingState): Boolean = !blockInProgress(hash, state) && !blockInStorage(hash)
 
   //FIXME: Decide block propagation algorithm (for now we send block to every peer except the sender) [EC-87]
   private def sendNewBlockMsgToPeers(peers: Seq[Peer], newBlock: Block) = {
-    val blockTd = totalDifficultyStorage.get(newBlock.header.hash)
+    val blockTd = blockchain.getTotalDifficultyByHash(newBlock.header.hash)
       .getOrElse(throw new Exception(s"Block ${Hex.toHexString(newBlock.header.hash.toArray)} total difficulty is not on storage"))
     val newBlockMsg = NewBlock(newBlock, blockTd)
     peers.foreach{ p =>
@@ -151,11 +148,10 @@ class BlockBroadcastActor(
     val blockHash = block.header.hash
 
     //Insert block to storages
-    blockHeadersStorage.put(blockHash, block.header)
-    blockBodiesStorage.put(blockHash, block.body)
-    val parentTd = totalDifficultyStorage.get(block.header.parentHash)
+    blockchain.save(block)
+    val parentTd = blockchain.getTotalDifficultyByHash(block.header.parentHash)
       .getOrElse(throw new Exception(s"Block ${Hex.toHexString(block.header.parentHash.toArray)} total difficulty is not on storage"))
-    totalDifficultyStorage.put(blockHash, parentTd + block.header.difficulty)
+    blockchain.save(blockHash, parentTd + block.header.difficulty)
 
     //Update NodeStatus
     nodeStatusHolder.send(_.copy(
@@ -169,10 +165,8 @@ object BlockBroadcastActor {
   def props(nodeStatusHolder: Agent[NodeStatus],
             peer: ActorRef,
             peerManagerActor: ActorRef,
-            blockHeadersStorage: BlockHeadersStorage,
-            blockBodiesStorage: BlockBodiesStorage,
-            totalDifficultyStorage: TotalDifficultyStorage): Props = {
-    Props(new BlockBroadcastActor(nodeStatusHolder, peer, peerManagerActor, blockHeadersStorage, blockBodiesStorage, totalDifficultyStorage))
+            blockchain: Blockchain): Props = {
+    Props(new BlockBroadcastActor(nodeStatusHolder, peer, peerManagerActor, blockchain))
   }
 
   case object StartBlockBroadcast

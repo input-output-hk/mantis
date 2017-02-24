@@ -50,12 +50,12 @@ object CommonMessages {
         import signedTx._
         import signedTx.tx._
         RLPList(nonce, gasPrice, gasLimit, receivingAddress.toArray, value,
-                payload, pointSign, signatureRandom.toArray[Byte], signature.toArray[Byte])
+          payload, pointSign, signatureRandom.toArray[Byte], signature.toArray[Byte])
       }
 
       override def decode(rlp: RLPEncodeable): SignedTransaction = rlp match {
         case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value,
-                     payload, pointSign, signatureRandom, signature) =>
+        payload, pointSign, signatureRandom, signature) =>
           SignedTransaction(
             Transaction(nonce, gasPrice, gasLimit, Address(receivingAddress.bytes), value, ByteString(payload: Array[Byte])),
             pointSign,

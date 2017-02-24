@@ -4,15 +4,13 @@ import java.net.InetSocketAddress
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-
 import akka.actor.ActorSystem
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, TotalDifficultyStorage}
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
@@ -215,7 +213,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peerProbe.expectMsg(PeerActor.DropPeer(Disconnect.Reasons.UselessPeer))
   }
 
-  trait TestSetup extends BlockUtil {
+  trait TestSetup extends BlockUtil with EphemBlockchainTestSetup {
     implicit val system = ActorSystem("PeerActorSpec_System")
 
     val nodeKey = crypto.generateKeyPair()
@@ -242,10 +240,12 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
       nodeStatusHolder,
       peer.ref,
       peerManager.ref,
-      new BlockHeadersStorage(EphemDataSource()).put(blockParent.header.hash, blockParent.header),
-      new BlockBodiesStorage(EphemDataSource()).put(blockParent.header.hash, blockParent.body),
-      new TotalDifficultyStorage(EphemDataSource()).put(blockParent.header.hash, blockParent.header.difficulty)
+      blockchain
     ))
+
+    //Blockchain setup
+    blockchain.save(blockParent)
+    blockchain.save(blockParent.header.hash, blockParent.header.difficulty)
   }
 
   trait BlockUtil {
