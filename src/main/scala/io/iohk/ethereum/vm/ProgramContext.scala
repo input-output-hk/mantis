@@ -1,28 +1,41 @@
 package io.iohk.ethereum.vm
 
-import akka.util.ByteString
-import io.iohk.ethereum.domain.{Account, BlockHeader, SignedTransaction}
+import io.iohk.ethereum.domain._
 
 
 object ProgramContext {
-  def apply(stx: SignedTransaction, blockHeader: BlockHeader, accounts: AccountRetriever): ProgramContext = {
-    import stx.tx._
-    val maybeAccount = accounts.getAccount(receivingAddress)
+  def apply(stx: SignedTransaction, blockHeader: BlockHeader, world: WorldStateProxy): ProgramContext = {
+    import stx.tx
+
     val senderAddress = stx.recoveredSenderAddress.get // FIXME: get, it should be validated but...
+    val (world1, recipientAddress, program) = callOrCreate(world, tx, senderAddress)
 
-    val (program, storages) = maybeAccount match {
-      case Some(account) =>
-        accounts.getProgram(account) -> Map(account.storageRoot -> accounts.getStorage(account))
+    val env = ExecEnv(recipientAddress, senderAddress, tx.gasPrice, tx.payload, senderAddress,
+      tx.value, program, blockHeader, callDepth = 0)
 
-      case None =>
-        Program(ByteString.empty) -> Map(ByteString.empty -> Storage.Empty)
-    }
-
-    val env = ExecEnv(receivingAddress, senderAddress, gasPrice, payload, senderAddress,
-      value, program, blockHeader, callDepth = 0)
-
-    ProgramContext(env, gasLimit, maybeAccount.getOrElse(Account.Empty), accounts, storages)
+    ProgramContext(env, tx.gasLimit, world1)
   }
+
+  private def callOrCreate(world: WorldStateProxy, tx: Transaction, senderAddress: Address): (WorldStateProxy, Address, Program) = {
+    if (tx.receivingAddress.isEmpty) {
+      // contract create
+      val (address, world1) = world.newAddress(senderAddress)
+      val world2 = world1.saveAccount(address, Account.Empty)
+      val world3 = world2.transfer(senderAddress, address, tx.value)
+      val code = tx.payload
+
+      (world3, address, Program(code))
+
+    } else {
+      // message call
+      val world1 = world.transfer(senderAddress, tx.receivingAddress, tx.value)
+      val account = world1.getGuaranteedAccount(tx.receivingAddress)
+      val code = world1.getCode(account.codeHash)
+
+      (world1, tx.receivingAddress, Program(code))
+    }
+  }
+
 }
 /**
   * Input parameters to a program executed on the EVM. Apart from the code itself
@@ -30,17 +43,9 @@ object ProgramContext {
   *
   * @param env set of constants for the execution
   * @param startGas initial gas for the execution
-  * @param account this contract's account
-  * @param storages the storages of accounts to be modified throughout the execution of the code.
-  *                 If the execution agent is a Transaction this will be a single storage
-  *                 Multiple storages if this is a context of internal (recursive) invocation of the VM
-  *                 via the CALL opcode.
-  *                 The map key is the storage root hash
-  * @param accounts used to retrieve an account's code and storage
+  * @param world provides interactions with world state
   */
 case class ProgramContext(
   env: ExecEnv,
-  startGas: BigInt,
-  account: Account,
-  accounts: AccountRetriever,
-  storages: Map[ByteString, Storage])
+  startGas: BigInt, //TODO: should we move it to ExecEnv
+  world: WorldStateProxy)

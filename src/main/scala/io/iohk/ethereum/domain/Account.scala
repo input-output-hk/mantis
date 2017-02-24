@@ -22,4 +22,10 @@ case class Account(
          |}
        """.stripMargin
   }
+
+  def updateBalance(value: BigInt): Account =
+    copy(balance = balance + value)
+
+  def increaseNonce: Account =
+    copy(nonce = nonce + 1)
 }

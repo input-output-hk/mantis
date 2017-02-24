@@ -43,7 +43,7 @@ object OpCode {
     //CALLER,
     CALLVALUE,
     CALLDATALOAD,
-    //CALLDATASIZE,
+    CALLDATASIZE,
     //CALLDATACOPY,
     //CODESIZE,
     CODECOPY,
@@ -312,6 +312,13 @@ case object CALLDATALOAD extends OpCode(0x35, 1, 1, G_verylow) with ConstGas {
   }
 }
 
+case object CALLDATASIZE extends OpCode(0x36, 0, 1, G_base) with ConstGas {
+  protected def exec(state: ProgramState): ProgramState = {
+    val stack1 = state.stack.push(DataWord(state.inputData.size))
+    state.withStack(stack1).step()
+  }
+}
+
 case object CODECOPY extends OpCode(0x39, 3, 0, G_verylow) {
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(memOffset, codeOffset, size), stack1) = state.stack.pop(3)
@@ -331,8 +338,8 @@ case object CODECOPY extends OpCode(0x39, 3, 0, G_verylow) {
 case object EXTCODESIZE extends OpCode(0x3b, 1, 1, G_extcode) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (addr, stack1) = state.stack.pop
-    val account = state.context.accounts.getAccount(Address(addr)).getOrElse(Account.Empty)
-    val codeSize = state.context.accounts.getProgram(account).code.size
+    val account = state.world.getAccount(Address(addr)).getOrElse(Account.Empty)
+    val codeSize = state.world.getCode(account.codeHash).size
     val stack2 = stack1.push(DataWord(codeSize))
     state.withStack(stack2).step()
   }
@@ -391,7 +398,7 @@ case object MSTORE extends OpCode(0x52, 2, 0, G_verylow) {
 case object SLOAD extends OpCode(0x54, 1, 1, G_sload) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (addr, stack1) = state.stack.pop
-    val value = state.storage.load(addr)
+    val value = state.world.getStorage(state.ownAccount.storageRoot).load(addr)
     val stack2 = stack1.push(value)
     state.withStack(stack2).step()
   }
@@ -583,24 +590,17 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
 
     lazy val result = {
       val toAddr = Address(to)
-      val maybeAccount = state.context.accounts.getAccount(toAddr)
-      val (program, storages) = maybeAccount match {
-        case Some(account) =>
-          state.context.accounts.getProgram(account) -> (
-            if (this != CALL || state.storages.contains(account.storageRoot))
-              state.storages
-            else
-              state.storages + (account.storageRoot -> state.context.accounts.getStorage(account))
-          )
-
-        case None =>
-          Program(ByteString.empty) -> state.storages
+      val (account, world1) = state.world.getAccount(toAddr) match {
+        case Some(acc) => acc -> state.world
+        case None => Account.Empty -> state.world.saveAccount(toAddr, Account.Empty)
       }
 
+      val world2 = if (this == CALL) world1.transfer(state.ownAddress, toAddr, endowment) else world1
+
       val (owner, sender) = this match {
-        case CALL => (Address(to), state.env.ownerAddr)
-        case CALLCODE => (state.env.ownerAddr, state.env.ownerAddr)
-        case DELEGATECALL => (state.env.ownerAddr, state.env.senderAddr)
+        case CALL => (toAddr, state.ownAddress)
+        case CALLCODE => (state.ownAddress, state.ownAddress)
+        case DELEGATECALL => (state.ownAddress, state.env.senderAddr)
       }
 
       val env = state.env.copy(
@@ -608,43 +608,43 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
         senderAddr = sender,
         inputData = inputData,
         value = callValue,
-        program = program,
+        program = Program(world2.getCode(account.codeHash)),
         callDepth = state.env.callDepth + 1)
 
       val context = state.context.copy(
         env = env,
-        account = maybeAccount.get, // FIXME: rethink API
         startGas = startGas,
-        storages = storages)
+        world = world2)
 
       VM.run(context)
     }
 
     val validCall =
       state.env.callDepth < OpCode.MaxCallDepth &&
-      endowment <= state.context.account.balance
+      endowment <= state.ownAccount.balance
 
     if (!validCall || result.error.isDefined) {
       val stack2 = stack1.push(DataWord.Zero)
       val gasAdjustment = if (validCall) BigInt(0) else -startGas
-      state.withStack(stack2).withMemory(mem1).spendGas(gasAdjustment).step()
+
+      state
+        .withStack(stack2)
+        .withMemory(mem1)
+        .spendGas(gasAdjustment)
+        .step()
+
     } else {
       val stack2 = stack1.push(DataWord(1))
       val output = result.returnData.take(outSize.intValue)
       val mem2 = mem1.store(outAddr, result.returnData)
 
-      val resultState =
-        state
-          .spendGas(-result.gasRemaining) // FIXME: meh
-          .withStack(stack2)
-          .withMemory(mem2)
-          .withStorages(result.storages)
-          .step()
-
-      if (this == CALL)
-        resultState.transfer(Address(to), endowment)
-      else
-        resultState
+      state
+        .spendGas(-result.gasRemaining)
+        .withStack(stack2)
+        .withMemory(mem2)
+        .withWorld(result.world)
+        .withAddressesToDelete(result.addressesToDelete)
+        .step()
     }
   }
 
@@ -680,7 +680,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
   }
 
   private def gasExtra(state: ProgramState, endowment: BigInt, to: Address): BigInt = {
-    val c_xfer: BigInt = if (state.context.accounts.getAccount(to).isDefined) 0 else G_newaccount
+    val c_xfer: BigInt = if (state.world.accountExists(to)) 0 else G_newaccount
     val c_new: BigInt = if (endowment == 0) 0 else G_callvalue
     G_call + c_xfer + c_new
   }

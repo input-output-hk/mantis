@@ -1,5 +1,8 @@
 package io.iohk.ethereum.vm
 
+import akka.util.ByteString
+import io.iohk.ethereum.crypto.kec256
+
 object Storage {
 
   def fromSeq(words: Seq[DataWord]): Storage = {
@@ -32,6 +35,10 @@ class Storage private(private val underlying: Map[DataWord, DataWord] = Map()) {
     * Returns a DataWord.Zero if a value for given key does not exist
     */
   def load(addr: DataWord): DataWord = underlying.getOrElse(addr, DataWord.Zero)
+
+  /** Calculates new root hash based on storage contents */
+  def storageRoot: ByteString =
+    ByteString(kec256(toString.getBytes)) // TODO: I'm a mock implementation, change me
 
   def toMap: Map[DataWord, DataWord] = underlying
 
