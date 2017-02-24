@@ -3,13 +3,12 @@ package io.iohk.ethereum.vmrunner
 import java.io.File
 
 import akka.util.ByteString
-import io.circe._
 import io.circe.generic.extras.Configuration
 import io.circe.generic.extras.auto._
 import io.circe.parser._
 import io.iohk.ethereum.vm._
 import io.iohk.ethereum.vmrunner.AST._
-import io.iohk.ethereum.crypto.sha3
+import io.iohk.ethereum.crypto.kec256
 import org.spongycastle.util.encoders.Hex
 
 import scala.io.Source
@@ -53,14 +52,14 @@ object Interpreter {
 
 
   def accountsInfo(): String =
-    State.listAccounts().map { xAcc =>
+    State.world.listAccounts.map { xAcc =>
       f"  ${xAcc.name}%-16s @ ${xAcc.address}"
     }.mkString("\n")
 
   def accountInfo(account: String): Either[RunnerError, String] =
-    State.getXAccount(account).map { xAcc =>
-      val codeSize = State.getProgram(xAcc.acc).code.size
-      val storageSize = State.getStorage(xAcc.acc).toMap.size
+    State.world.getXAccount(account).map { xAcc =>
+      val codeSize = State.world.getCode(xAcc.acc.codeHash).size
+      val storageSize = State.world.getStorage(xAcc.acc.storageRoot).toMap.size
 
       s"""|  address:       ${xAcc.address}
           |  balance:       ${xAcc.acc.balance}
@@ -70,14 +69,14 @@ object Interpreter {
     }.map(Right(_)).getOrElse(Left(UnknownAccount(account)))
 
   def accountCode(account: String): Either[RunnerError, String] =
-    State.getXAccount(account).map { xAccount =>
-      val code = State.getProgram(xAccount.acc).code
+    State.world.getXAccount(account).map { xAccount =>
+      val code = State.world.getCode(xAccount.acc.codeHash)
       printCode(code)
     }.map(Right(_)).getOrElse(Left(UnknownAccount(account)))
 
   def accountStorage(account: String): Either[RunnerError, String] =
-    State.getXAccount(account).map { xAccount =>
-      val storage = State.getStorage(xAccount.acc).toMap.toList.sortBy(_._1)
+    State.world.getXAccount(account).map { xAccount =>
+      val storage = State.world.getStorage(xAccount.acc.storageRoot).toMap.toList.sortBy(_._1)
       if (storage.isEmpty)
         "  empty"
       else
@@ -87,21 +86,21 @@ object Interpreter {
     }.map(Right(_)).getOrElse(Left(UnknownAccount(account)))
 
   def listFunctions(account: String): Either[RunnerError, String] =
-    State.getXAccount(account).map { xAccount =>
+    State.world.getXAccount(account).map { xAccount =>
       xAccount.abis.map(_.fullSignature).mkString("  ", "\n  ", "")
     }.map(Right(_)).getOrElse(Left(UnknownAccount(account)))
 
   def getBalance(account: String): Either[RunnerError, String] =
-    State.getXAccount(account).map { xAccount =>
+    State.world.getXAccount(account).map { xAccount =>
       "  " + xAccount.acc.balance
     }.map(Right(_)).getOrElse(Left(UnknownAccount(account)))
 
   def performFunCall(call: FunCall): Either[RunnerError, String] = for {
-    xAccount <- State.getXAccount(call.target).map(Right(_)).getOrElse(Left(UnknownAccount(call.target)))
+    xAccount <- State.world.getXAccount(call.target).map(Right(_)).getOrElse(Left(UnknownAccount(call.target)))
     abi <- xAccount.abis.find(a => a.name == call.name && a.inputs.size == call.args.size).map(Right(_)).getOrElse(Left(UnknownFunction(call)))
     attr <- getAttributes(call.attrs)
 
-    sig = ByteString(sha3(abi.shortSignature.getBytes)).take(4)
+    sig = ByteString(kec256(abi.shortSignature.getBytes)).take(4)
     args = call.args.map(s => DataWord(BigInt(s)).bytes)
     callData = args.foldLeft(sig)(_ ++ _)
 

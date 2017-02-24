@@ -3,7 +3,6 @@ package io.iohk.ethereum.vmrunner
 
 import scala.annotation.tailrec
 
-// scalastyle:off magic.number
 object EvmRunner extends App {
 
   @tailrec
@@ -13,15 +12,21 @@ object EvmRunner extends App {
         val result = (
           for {
             cmd <- CmdParser(line)
-            result <- Interpreter(cmd)
-          } yield result
+            res <- Interpreter(cmd)
+          } yield res
         ).left.map(_.msg).merge
 
-        println(result)
+        println(withNewLine(result))
+
         loop()
 
       case None =>
     }
+  }
+
+  def withNewLine(s: String): String = {
+    val rightTrimmed = s.reverse.dropWhile(_.isWhitespace).reverse
+    if (rightTrimmed.isEmpty) rightTrimmed else rightTrimmed + "\n"
   }
 
   loop()
