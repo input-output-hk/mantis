@@ -4,10 +4,10 @@ import java.net.{InetSocketAddress, URI}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
+import io.iohk.ethereum.network.PeerActor.FastSyncHostConfiguration
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 class PeerManagerActor(
@@ -71,12 +71,14 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], storage: PeerActor.Storage): Props =
-    Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder, storage)))
+  def props(nodeStatusHolder: Agent[NodeStatus], fastSyncHostConfiguration: FastSyncHostConfiguration, storage: PeerActor.Storage): Props =
+    Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder, fastSyncHostConfiguration, storage)))
 
-  def peerFactory(nodeStatusHolder: Agent[NodeStatus], storage: PeerActor.Storage): (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
-    val id = addr.toString.filterNot(_ == '/')
-    ctx.actorOf(PeerActor.props(nodeStatusHolder, storage), id)
+  def peerFactory(nodeStatusHolder: Agent[NodeStatus], fastSyncHostConfiguration: FastSyncHostConfiguration,
+    storage: PeerActor.Storage): (ActorContext, InetSocketAddress) => ActorRef = {
+    (ctx, addr) =>
+      val id = addr.toString.filterNot(_ == '/')
+      ctx.actorOf(PeerActor.props(nodeStatusHolder, fastSyncHostConfiguration, storage), id)
   }
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)

@@ -19,6 +19,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.network.PeerActor.FastSyncHostConfiguration
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.rlp.encode
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
@@ -58,7 +59,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }, storage)))
+      }, hostConfig, storage)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -474,13 +475,20 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val nodeStatusHolder = Agent(nodeStatus)
 
-    val storage = PeerActor.Storage(
-      new BlockHeadersStorage(EphemDataSource(), new BlockHeadersNumbersStorage(EphemDataSource())),
-      new BlockBodiesStorage(EphemDataSource()),
-      new ReceiptStorage(EphemDataSource()),
-      new MptNodeStorage(EphemDataSource()),
-      new EvmCodeStorage(EphemDataSource())
-    )
+    val hostConfig = new FastSyncHostConfiguration {
+      val maxBlocksHeadersPerMessage: Int = 200
+      val maxBlocksBodiesPerMessage: Int = 200
+      val maxReceiptsPerMessage: Int = 200
+      val maxMptComponentsPerMessage: Int = 200
+    }
+
+    val storage = new PeerActor.Storage{
+      val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(EphemDataSource(), new BlockHeadersNumbersStorage(EphemDataSource()))
+      val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(EphemDataSource())
+      val receiptStorage: ReceiptStorage = new ReceiptStorage(EphemDataSource())
+      val mptNodeStorage: MptNodeStorage = new MptNodeStorage(EphemDataSource())
+      val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(EphemDataSource())
+    }
   }
 
   trait TestSetup extends NodeStatusSetup with BlockUtils {
@@ -517,7 +525,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val rlpxConnection = TestProbe()
 
-    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, storage)))
+    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, hostConfig, storage)))
   }
 
 }

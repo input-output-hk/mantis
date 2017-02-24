@@ -7,6 +7,7 @@ import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.PeerActor.FastSyncHostConfiguration
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
@@ -31,6 +32,7 @@ import scala.concurrent.duration._
 class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
     rlpxConnectionFactory: ActorContext => ActorRef,
+    fastSyncHostConfiguration: FastSyncHostConfiguration,
     storage: PeerActor.Storage)
   extends Actor with ActorLogging {
 
@@ -234,7 +236,7 @@ class PeerActor(
     case RLPxConnectionHandler.MessageReceived(request: GetNodeData) =>
       import io.iohk.ethereum.rlp.encode
 
-      val result: Seq[ByteString] = request.commonMptHashes.slice(0, maxMptComponentsPerMessage).flatMap { hash =>
+      val result: Seq[ByteString] = request.commonMptHashes.slice(0, fastSyncHostConfiguration.maxMptComponentsPerMessage).flatMap { hash =>
         storage.mptNodeStorage.get(hash).map((node: MptNode) => ByteString(encode[MptNode](node)))
           .orElse(storage.evmCodeStorage.get(hash).map((evm: ByteString) => evm))
       }
@@ -244,13 +246,13 @@ class PeerActor(
 
   def handleBlockFastDownload(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(request: GetReceipts) =>
-      val receipts = request.blockHashes.slice(0, maxReceiptsPerMessage)
+      val receipts = request.blockHashes.slice(0, fastSyncHostConfiguration.maxReceiptsPerMessage)
         .flatMap(hash => storage.receiptStorage.get(hash))
 
       rlpxConnection.sendMessage(Receipts(receipts))
 
     case RLPxConnectionHandler.MessageReceived(request: GetBlockBodies) =>
-      val blockBodies = request.hashes.slice(0, maxBlocksBodiesPerMessage)
+      val blockBodies = request.hashes.slice(0, fastSyncHostConfiguration.maxBlocksBodiesPerMessage)
         .flatMap(hash => storage.blockBodiesStorage.get(hash))
 
       rlpxConnection.sendMessage(BlockBodies(blockBodies))
@@ -261,7 +263,11 @@ class PeerActor(
       blockNumber match {
         case Some(startBlockNumber) if startBlockNumber >= 0 && request.maxHeaders >= 0 && request.skip >= 0 =>
 
-          val headersCount: BigInt = if (maxBlocksHeadersPerMessage < request.maxHeaders) maxBlocksHeadersPerMessage else request.maxHeaders
+          val headersCount: BigInt =
+            if (fastSyncHostConfiguration.maxBlocksHeadersPerMessage < request.maxHeaders)
+              fastSyncHostConfiguration.maxBlocksHeadersPerMessage
+            else
+              request.maxHeaders
 
           val range = if (request.reverse) {
             startBlockNumber to (startBlockNumber - (request.skip + 1) * headersCount + 1) by -(request.skip + 1)
@@ -354,8 +360,8 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], storage: PeerActor.Storage): Props =
-    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), storage))
+  def props(nodeStatusHolder: Agent[NodeStatus], fastSyncHostConfiguration: FastSyncHostConfiguration, storage: PeerActor.Storage): Props =
+    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), fastSyncHostConfiguration, storage))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
@@ -367,13 +373,20 @@ object PeerActor {
     }
   }
 
-  case class Storage(
-    blockHeadersStorage: BlockHeadersStorage,
-    blockBodiesStorage: BlockBodiesStorage,
-    receiptStorage: ReceiptStorage,
-    mptNodeStorage: MptNodeStorage,
-    evmCodeStorage: EvmCodeStorage
-  )
+  trait FastSyncHostConfiguration {
+    val maxBlocksHeadersPerMessage: Int
+    val maxBlocksBodiesPerMessage: Int
+    val maxReceiptsPerMessage: Int
+    val maxMptComponentsPerMessage: Int
+  }
+
+  trait Storage {
+    val blockHeadersStorage: BlockHeadersStorage
+    val blockBodiesStorage: BlockBodiesStorage
+    val receiptStorage: ReceiptStorage
+    val mptNodeStorage: MptNodeStorage
+    val evmCodeStorage: EvmCodeStorage
+  }
 
   case class HandleConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
 

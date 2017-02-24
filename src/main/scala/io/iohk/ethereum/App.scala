@@ -31,12 +31,13 @@ object App {
 
     val ds = LevelDBDataSource("/tmp",config)
 
-    val storage = PeerActor.Storage(
-      new BlockHeadersStorage(ds, new BlockHeadersNumbersStorage(ds)),
-      new BlockBodiesStorage(ds),
-      new ReceiptStorage(ds),
-      new MptNodeStorage(ds),
-      new EvmCodeStorage(ds))
+    val storage = new PeerActor.Storage{
+      val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(ds, new BlockHeadersNumbersStorage(ds))
+      val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(ds)
+      val receiptStorage: ReceiptStorage = new ReceiptStorage(ds)
+      val mptNodeStorage: MptNodeStorage = new MptNodeStorage(ds)
+      val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(ds)
+    }
 
     val actorSystem = ActorSystem("etc-client_system")
 
@@ -48,7 +49,7 @@ object App {
 
     val nodeStatusHolder = Agent(nodeStatus)
 
-    val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, storage), "peer-manager")
+    val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, Config.Network.Peer.fastSyncHostConfiguration, storage), "peer-manager")
     val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
     server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
