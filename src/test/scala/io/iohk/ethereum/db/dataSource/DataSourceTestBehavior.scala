@@ -80,6 +80,25 @@ trait DataSourceTestBehavior
         dataSource.destroy()
       }
     }
+
+    it should "allow using multiple namespaces with the same key" in {
+      val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('o'.toByte)
+      val someByteString = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
+      val someValue1 = 1.toByte +: someByteString
+      val someValue2 = 2.toByte +: someByteString
+      withDir { path =>
+        val dataSource = createDataSource(path)
+
+        dataSource.update(OtherNamespace, Seq(), Seq(someByteString -> someValue1))
+        dataSource.update(OtherNamespace2, Seq(), Seq(someByteString -> someValue2))
+
+        assert(dataSource.get(OtherNamespace, someByteString).contains(someValue1))
+
+        assert(dataSource.get(OtherNamespace2, someByteString).contains(someValue2))
+
+        dataSource.destroy()
+      }
+    }
   }
   // scalastyle:on
 
