@@ -1,14 +1,14 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Scheduler, Props, ActorRef}
+import akka.actor.{ActorRef, Props, Scheduler}
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.BlockBodiesStorage
+import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, GetBlockBodies}
 
 class FastSyncBlockBodiesRequestHandler(
     peer: ActorRef,
     requestedHashes: Seq[ByteString],
-    blockBodiesStorage: BlockBodiesStorage)(implicit scheduler: Scheduler)
+    blockchain: Blockchain)(implicit scheduler: Scheduler)
   extends FastSyncRequestHandler[GetBlockBodies, BlockBodies](peer) {
 
   override val requestMsg = GetBlockBodies(requestedHashes)
@@ -16,7 +16,7 @@ class FastSyncBlockBodiesRequestHandler(
 
   override def handleResponseMsg(blockBodies: BlockBodies): Unit = {
     (requestedHashes zip blockBodies.bodies).foreach { case (hash, body) =>
-      blockBodiesStorage.put(hash, body)
+      blockchain.save(hash, body)
     }
 
     if (blockBodies.bodies.isEmpty) {
@@ -46,7 +46,7 @@ class FastSyncBlockBodiesRequestHandler(
 }
 
 object FastSyncBlockBodiesRequestHandler {
-  def props(peer: ActorRef, requestedHashes: Seq[ByteString], blockBodiesStorage: BlockBodiesStorage)
+  def props(peer: ActorRef, requestedHashes: Seq[ByteString], blockchain: Blockchain)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncBlockBodiesRequestHandler(peer, requestedHashes, blockBodiesStorage))
+    Props(new FastSyncBlockBodiesRequestHandler(peer, requestedHashes, blockchain))
 }
