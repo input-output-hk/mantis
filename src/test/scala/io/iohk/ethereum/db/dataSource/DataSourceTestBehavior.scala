@@ -89,12 +89,18 @@ trait DataSourceTestBehavior
       withDir { path =>
         val dataSource = createDataSource(path)
 
+        //Insertion
         dataSource.update(OtherNamespace, Seq(), Seq(someByteString -> someValue1))
         dataSource.update(OtherNamespace2, Seq(), Seq(someByteString -> someValue2))
 
         assert(dataSource.get(OtherNamespace, someByteString).contains(someValue1))
-
         assert(dataSource.get(OtherNamespace2, someByteString).contains(someValue2))
+
+        //Removal
+        dataSource.update(OtherNamespace2, Seq(someByteString), Seq.empty)
+
+        assert(dataSource.get(OtherNamespace, someByteString).contains(someValue1))
+        assert(dataSource.get(OtherNamespace2, someByteString).isEmpty)
 
         dataSource.destroy()
       }
