@@ -254,7 +254,7 @@ class PeerActor(
           val range = if (request.reverse) {
             startBlockNumber to (startBlockNumber - (request.skip + 1) * headersCount + 1) by -(request.skip + 1)
           } else {
-            startBlockNumber to (startBlockNumber + (request.skip + 1) * headersCount) by (request.skip + 1)
+            startBlockNumber to (startBlockNumber + (request.skip + 1) * headersCount - 1) by (request.skip + 1)
           }
 
           val blockHeaders: Seq[BlockHeader] = range.flatMap { a: BigInt => storage.getBlockHeaderByNumber(a) }

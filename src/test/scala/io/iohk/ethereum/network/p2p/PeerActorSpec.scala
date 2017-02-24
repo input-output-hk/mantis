@@ -2,26 +2,25 @@ package io.iohk.ethereum.network.p2p
 
 import java.net.{InetSocketAddress, URI}
 
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, SharedLevelDBDataSources, Storages}
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersNumbersStorage, BlockHeadersStorage, ReceiptStorage}
-import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipt, Receipts}
+import io.iohk.ethereum.network.p2p.messages.WireProtocol._
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
-import org.spongycastle.util.encoders.Hex
 import org.scalatest.{FlatSpec, Matchers}
+import org.spongycastle.util.encoders.Hex
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 class PeerActorSpec extends FlatSpec with Matchers {
 
@@ -259,6 +258,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     blockchain.save(firstHeader)
     blockchain.save(secondHeader)
+    blockchain.save(etcForkBlockHeader.copy(number = 5))
+    blockchain.save(etcForkBlockHeader.copy(number = 6))
 
     setupConnection()
 
@@ -293,6 +294,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     blockchain.save(firstHeader)
     blockchain.save(secondHeader)
+    blockchain.save(etcForkBlockHeader.copy(number = 1))
 
     setupConnection()
 
@@ -310,6 +312,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     blockchain.save(firstHeader)
     blockchain.save(secondHeader)
+    blockchain.save(etcForkBlockHeader.copy(number = 5))
+    blockchain.save(etcForkBlockHeader.copy(number = 6))
 
     setupConnection()
 
@@ -326,12 +330,15 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 5)
 
     blockchain.save(firstHeader)
+    blockchain.save(etcForkBlockHeader.copy(number = 4))
     blockchain.save(secondHeader)
+    blockchain.save(etcForkBlockHeader.copy(number = 6))
+    blockchain.save(etcForkBlockHeader.copy(number = 7))
 
     setupConnection()
 
     //when
-    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Right(firstHeader.hash), 2, 1, reverse = false)))
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Right(firstHeader.hash), maxHeaders = 2, skip = 1, reverse = false)))
 
     //then
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader))))
