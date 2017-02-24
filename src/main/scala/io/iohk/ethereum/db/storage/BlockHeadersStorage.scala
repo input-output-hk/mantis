@@ -13,8 +13,7 @@ import io.iohk.ethereum.utils.Config
   *   Key: hash of the block to which the BlockHeader belong
   *   Value: the block header
   */
-class BlockHeadersStorage(val dataSource: DataSource,
-  val blockHeadersNumbersStorage: BlockHeadersNumbersStorage) extends KeyValueStorage[BlockHeaderHash, BlockHeader] {
+class BlockHeadersStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHeaderHash, BlockHeader] {
   override type T = BlockHeadersStorage
   override val namespace: IndexedSeq[Byte] = Namespaces.HeaderNamespace
 
@@ -26,27 +25,7 @@ class BlockHeadersStorage(val dataSource: DataSource,
   override def valueDeserializer: (IndexedSeq[Byte]) => BlockHeader =
     (encodedBlockHeader: IndexedSeq[Byte]) => rlpDecode[BlockHeader](encodedBlockHeader.toArray)
 
-  override protected def apply(dataSource: DataSource): BlockHeadersStorage =
-    new BlockHeadersStorage(dataSource, blockHeadersNumbersStorage)
-
-  override def get(key: BlockHeaderHash): Option[BlockHeader] = if (key == Config.Blockchain.genesisBlockHeader.hash) {
-    Some(Config.Blockchain.genesisBlockHeader)
-  } else {
-    super.get(key)
-  }
-
-  def get(blockNumber: BigInt): Option[BlockHeader] = if (blockNumber == 0) {
-    Some(Config.Blockchain.genesisBlockHeader)
-  } else {
-    blockHeadersNumbersStorage.get(blockNumber).flatMap(key => super.get(key))
-  }
-
-  override def update(toRemove: Seq[BlockHeaderHash], toUpsert: Seq[(BlockHeaderHash, BlockHeader)]): BlockHeadersStorage = {
-    val numbersToRemove = toRemove.map(get).collect { case Some(block) => block.number }
-    val numberToUpdate = toUpsert.map { case (hash, block) => (block.number, hash) }
-    blockHeadersNumbersStorage.update(numbersToRemove, numberToUpdate)
-    super.update(toRemove, toUpsert)
-  }
+  override protected def apply(dataSource: DataSource): BlockHeadersStorage = new BlockHeadersStorage(dataSource)
 
 }
 

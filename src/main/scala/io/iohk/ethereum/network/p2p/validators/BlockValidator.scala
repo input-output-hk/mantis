@@ -35,7 +35,7 @@ object BlockValidator {
   private def validateOmmers(block: Block): Either[BlockError, Block] = {
     // FIXME Can we avoid encoding ommers again?
     val encodedOmmers = encode(BlockBody.encodeUncles(block.body.uncleNodesList))
-    if (sha3(encodedOmmers) sameElements block.header.ommersHash) Right(block)
+    if (kec256(encodedOmmers) sameElements block.header.ommersHash) Right(block)
     else Left(BlockOmmersHashError)
   }
 

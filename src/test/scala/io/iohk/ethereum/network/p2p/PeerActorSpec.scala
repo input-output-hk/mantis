@@ -2,8 +2,6 @@ package io.iohk.ethereum.network.p2p
 
 import java.net.{InetSocketAddress, URI}
 
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
@@ -14,6 +12,9 @@ import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
+import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.domain.BlockHeader
@@ -22,9 +23,15 @@ import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerActor.FastSyncHostConfiguration
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.rlp.encode
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipt, Receipts}
+import io.iohk.ethereum.network.p2p.messages.WireProtocol._
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
-import org.spongycastle.util.encoders.Hex
 import org.scalatest.{FlatSpec, Matchers}
+import org.spongycastle.util.encoders.Hex
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 class PeerActorSpec extends FlatSpec with Matchers {
 
@@ -59,7 +66,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }, hostConfig, storage)))
+      }, hostConfig, blockchain)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -223,8 +230,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val receipts: Seq[Seq[Receipt]] = Seq(Seq(),Seq())
 
-    storage.receiptStorage.put(receiptsHashes(0), receipts(0))
-    storage.receiptStorage.put(receiptsHashes(1), receipts(1))
+    blockchain.save(receiptsHashes(0), receipts(0))
+    blockchain.save(receiptsHashes(1), receipts(1))
 
     setupConnection()
 
@@ -243,8 +250,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val blockBodies = Seq(blockBody,blockBody)
 
-    storage.blockBodiesStorage.put(blockBodiesHashes(0), blockBodies(0))
-    storage.blockBodiesStorage.put(blockBodiesHashes(1), blockBodies(1))
+    blockchain.save(blockBodiesHashes(0), blockBodies(0))
+    blockchain.save(blockBodiesHashes(1), blockBodies(1))
 
     setupConnection()
 
@@ -260,8 +267,10 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 4)
 
-    storage.blockHeadersStorage.put(firstHeader.hash, firstHeader)
-    storage.blockHeadersStorage.put(secondHeader.hash, secondHeader)
+    blockchain.save(firstHeader)
+    blockchain.save(secondHeader)
+    blockchain.save(etcForkBlockHeader.copy(number = 5))
+    blockchain.save(etcForkBlockHeader.copy(number = 6))
 
     setupConnection()
 
@@ -277,8 +286,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 4)
 
-    storage.blockHeadersStorage.put(firstHeader.hash, firstHeader)
-    storage.blockHeadersStorage.put(secondHeader.hash, secondHeader)
+    blockchain.save(firstHeader)
+    blockchain.save(secondHeader)
 
     setupConnection()
 
@@ -294,8 +303,9 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 2)
 
-    storage.blockHeadersStorage.put(firstHeader.hash, firstHeader)
-    storage.blockHeadersStorage.put(secondHeader.hash, secondHeader)
+    blockchain.save(firstHeader)
+    blockchain.save(secondHeader)
+    blockchain.save(etcForkBlockHeader.copy(number = 1))
 
     setupConnection()
 
@@ -311,8 +321,10 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 4)
 
-    storage.blockHeadersStorage.put(firstHeader.hash, firstHeader)
-    storage.blockHeadersStorage.put(secondHeader.hash, secondHeader)
+    blockchain.save(firstHeader)
+    blockchain.save(secondHeader)
+    blockchain.save(etcForkBlockHeader.copy(number = 5))
+    blockchain.save(etcForkBlockHeader.copy(number = 6))
 
     setupConnection()
 
@@ -328,13 +340,16 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 5)
 
-    storage.blockHeadersStorage.put(firstHeader.hash, firstHeader)
-    storage.blockHeadersStorage.put(secondHeader.hash, secondHeader)
+    blockchain.save(firstHeader)
+    blockchain.save(etcForkBlockHeader.copy(number = 4))
+    blockchain.save(secondHeader)
+    blockchain.save(etcForkBlockHeader.copy(number = 6))
+    blockchain.save(etcForkBlockHeader.copy(number = 7))
 
     setupConnection()
 
     //when
-    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Right(firstHeader.hash), 2, 1, reverse = false)))
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Right(firstHeader.hash), maxHeaders = 2, skip = 1, reverse = false)))
 
     //then
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader))))
@@ -345,8 +360,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 1)
 
-    storage.blockHeadersStorage.put(firstHeader.hash, firstHeader)
-    storage.blockHeadersStorage.put(secondHeader.hash, secondHeader)
+    blockchain.save(firstHeader)
+    blockchain.save(secondHeader)
 
     setupConnection()
 
@@ -362,8 +377,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 3)
     val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 1)
 
-    storage.blockHeadersStorage.put(firstHeader.hash, firstHeader)
-    storage.blockHeadersStorage.put(secondHeader.hash, secondHeader)
+    blockchain.save(firstHeader)
+    blockchain.save(secondHeader)
 
     setupConnection()
 
@@ -379,8 +394,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 4)
     val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 2)
 
-    storage.blockHeadersStorage.put(firstHeader.hash, firstHeader)
-    storage.blockHeadersStorage.put(secondHeader.hash, secondHeader)
+    blockchain.save(firstHeader)
+    blockchain.save(secondHeader)
 
     setupConnection()
 
@@ -394,9 +409,9 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "return evm code for hash" in new TestSetup {
     //given
     val fakeEvmCode = ByteString(Hex.decode("ffddaaffddaaffddaaffddaaffddaa"))
-    val evmCodeHash: ByteString = ByteString(ethereum.crypto.sha3(fakeEvmCode.toArray[Byte]))
+    val evmCodeHash: ByteString = ByteString(ethereum.crypto.kec256(fakeEvmCode.toArray[Byte]))
 
-    storage.evmCodeStorage.put(evmCodeHash, fakeEvmCode)
+    blockchain.save(evmCodeHash, fakeEvmCode)
 
     setupConnection()
 
@@ -410,10 +425,10 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "return mptNode for hash" in new TestSetup {
     //given
     val exampleNibbles = ByteString(bytesToNibbles(Hex.decode("ffddaa")))
-    val exampleValue = ByteString(Hex.decode("abcdee"))
-    val extensionNode: MptNode = MptExtension(exampleNibbles, Right(MptValue(exampleValue)))
+    val exampleHash = ByteString(Hex.decode("ab"*32))
+    val extensionNode: MptNode = MptExtension(exampleNibbles, Left(MptHash(exampleHash)))
 
-    storage.mptNodeStorage.put(extensionNode)
+    blockchain.save(extensionNode)
 
     setupConnection()
 
@@ -475,19 +490,14 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val nodeStatusHolder = Agent(nodeStatus)
 
+    val storagesInstance =  new SharedEphemDataSources with Storages.DefaultStorages
+    val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
+
     val hostConfig = new FastSyncHostConfiguration {
       val maxBlocksHeadersPerMessage: Int = 200
       val maxBlocksBodiesPerMessage: Int = 200
       val maxReceiptsPerMessage: Int = 200
       val maxMptComponentsPerMessage: Int = 200
-    }
-
-    val storage = new PeerActor.Storage{
-      val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(EphemDataSource(), new BlockHeadersNumbersStorage(EphemDataSource()))
-      val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(EphemDataSource())
-      val receiptStorage: ReceiptStorage = new ReceiptStorage(EphemDataSource())
-      val mptNodeStorage: MptNodeStorage = new MptNodeStorage(EphemDataSource())
-      val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(EphemDataSource())
     }
   }
 
@@ -525,7 +535,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val rlpxConnection = TestProbe()
 
-    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, hostConfig, storage)))
+    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, hostConfig, blockchain)))
   }
 
 }

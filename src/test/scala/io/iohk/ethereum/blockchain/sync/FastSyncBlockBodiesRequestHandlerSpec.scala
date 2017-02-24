@@ -1,15 +1,14 @@
 package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration._
-
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.BlockBodiesStorage
+import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, GetBlockBodies, BlockBodies}
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockBody, GetBlockBodies}
 import org.scalatest.{FlatSpec, Matchers}
 
 class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
@@ -24,8 +23,8 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     parent.expectMsg(FastSyncController.EnqueueBlockBodies(requestedHashes.drop(1)))
     parent.expectMsg(FastSyncRequestHandler.Done)
 
-    blockBodiesStorage.get(requestedHashes.head) shouldBe Some(responseBodies.head)
-    blockBodiesStorage.get(requestedHashes(1)) shouldBe None
+    blockchain.getBlockBodyByHash(requestedHashes.head) shouldBe Some(responseBodies.head)
+    blockchain.getBlockBodyByHash(requestedHashes(1)) shouldBe None
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
@@ -57,7 +56,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     peer.expectMsg(PeerActor.Unsubscribe)
   }
 
-  trait TestSetup {
+  trait TestSetup extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("FastSyncBlockBodiesRequestHandlerSpec_System")
 
     val time = new VirtualTime
@@ -66,16 +65,13 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
 
     val requestedHashes = Seq(ByteString("1"), ByteString("2"))
 
-    val dataSource = EphemDataSource()
-    val blockBodiesStorage = new BlockBodiesStorage(dataSource)
-
     val parent = TestProbe()
 
     val fastSyncBlockBodiesRequestHandler =
       parent.childActorOf(FastSyncBlockBodiesRequestHandler.props(
         peer.ref,
         requestedHashes,
-        blockBodiesStorage)(time.scheduler))
+        blockchain)(time.scheduler))
   }
 
 }

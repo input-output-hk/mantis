@@ -8,6 +8,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor.FastSyncHostConfiguration
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
@@ -33,7 +34,7 @@ class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
     rlpxConnectionFactory: ActorContext => ActorRef,
     fastSyncHostConfiguration: FastSyncHostConfiguration,
-    storage: PeerActor.Storage)
+    storage: Blockchain)
   extends Actor with ActorLogging {
 
   import Config.Blockchain._
@@ -236,9 +237,9 @@ class PeerActor(
     case RLPxConnectionHandler.MessageReceived(request: GetNodeData) =>
       import io.iohk.ethereum.rlp.encode
 
-      val result: Seq[ByteString] = request.commonMptHashes.slice(0, fastSyncHostConfiguration.maxMptComponentsPerMessage).flatMap { hash =>
-        storage.mptNodeStorage.get(hash).map((node: MptNode) => ByteString(encode[MptNode](node)))
-          .orElse(storage.evmCodeStorage.get(hash).map((evm: ByteString) => evm))
+      val result: Seq[ByteString] = request.mptElementsHashes.slice(0, fastSyncHostConfiguration.maxMptComponentsPerMessage).flatMap { hash =>
+        storage.getMptNodeByHash(hash).map((node: MptNode) => ByteString(encode[MptNode](node)))
+          .orElse(storage.getEvmCodeByHash(hash).map((evm: ByteString) => evm))
       }
 
       rlpxConnection.sendMessage(NodeData(result))
@@ -247,18 +248,18 @@ class PeerActor(
   def handleBlockFastDownload(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(request: GetReceipts) =>
       val receipts = request.blockHashes.slice(0, fastSyncHostConfiguration.maxReceiptsPerMessage)
-        .flatMap(hash => storage.receiptStorage.get(hash))
+        .flatMap(hash => storage.getReceiptsByHash(hash))
 
       rlpxConnection.sendMessage(Receipts(receipts))
 
     case RLPxConnectionHandler.MessageReceived(request: GetBlockBodies) =>
       val blockBodies = request.hashes.slice(0, fastSyncHostConfiguration.maxBlocksBodiesPerMessage)
-        .flatMap(hash => storage.blockBodiesStorage.get(hash))
+        .flatMap(hash => storage.getBlockBodyByHash(hash))
 
       rlpxConnection.sendMessage(BlockBodies(blockBodies))
 
     case RLPxConnectionHandler.MessageReceived(request: GetBlockHeaders) =>
-      val blockNumber = request.block.fold(a => Some(a), b => storage.blockHeadersStorage.get(b).map(_.number))
+      val blockNumber = request.block.fold(a => Some(a), b => storage.getBlockHeaderByHash(b).map(_.number))
 
       blockNumber match {
         case Some(startBlockNumber) if startBlockNumber >= 0 && request.maxHeaders >= 0 && request.skip >= 0 =>
@@ -272,10 +273,10 @@ class PeerActor(
           val range = if (request.reverse) {
             startBlockNumber to (startBlockNumber - (request.skip + 1) * headersCount + 1) by -(request.skip + 1)
           } else {
-            startBlockNumber to (startBlockNumber + (request.skip + 1) * headersCount) by (request.skip + 1)
+            startBlockNumber to (startBlockNumber + (request.skip + 1) * headersCount - 1) by (request.skip + 1)
           }
 
-          val blockHeaders: Seq[BlockHeader] = range.flatMap { a: BigInt => storage.blockHeadersStorage.get(a) }
+          val blockHeaders: Seq[BlockHeader] = range.flatMap { a: BigInt => storage.getBlockHeaderByNumber(a) }
 
           rlpxConnection.sendMessage(BlockHeaders(blockHeaders))
 
@@ -306,7 +307,7 @@ class PeerActor(
   def handlePeerChainCheck(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(message@GetBlockHeaders(Left(number), _, _, _)) if number == 1920000 =>
       log.info("Received message: {}", message)
-      storage.blockHeadersStorage.get(number) match {
+      storage.getBlockHeaderByNumber(number) match {
         case Some(header) => rlpxConnection.sendMessage(BlockHeaders(Seq(header)))
         case None => rlpxConnection.sendMessage(BlockHeaders(Seq.empty))
       }
@@ -360,7 +361,7 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], fastSyncHostConfiguration: FastSyncHostConfiguration, storage: PeerActor.Storage): Props =
+  def props(nodeStatusHolder: Agent[NodeStatus], fastSyncHostConfiguration: FastSyncHostConfiguration, storage: Blockchain): Props =
     Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), fastSyncHostConfiguration, storage))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>

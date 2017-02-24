@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.p2p.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.crypto.{sha3, sha512}
+import io.iohk.ethereum.crypto.{kec256, kec512}
 
 object BlockHeaderValidator {
 
@@ -143,10 +143,10 @@ object BlockHeaderValidator {
 
   private def calculatePoWValue(blockHeader: BlockHeader): ByteString = {
     val nonceReverted = blockHeader.nonce.reverse
-    val hashBlockWithoutNonce = sha3(BlockHeader.getEncodedWithoutNonce(blockHeader))
-    val seedHash = sha512(hashBlockWithoutNonce ++ nonceReverted)
+    val hashBlockWithoutNonce = kec256(BlockHeader.getEncodedWithoutNonce(blockHeader))
+    val seedHash = kec512(hashBlockWithoutNonce ++ nonceReverted)
 
-    ByteString(sha3(seedHash ++ blockHeader.mixHash))
+    ByteString(kec256(seedHash ++ blockHeader.mixHash))
   }
 }
 

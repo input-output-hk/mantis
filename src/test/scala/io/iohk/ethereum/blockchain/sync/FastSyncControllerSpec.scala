@@ -1,4 +1,3 @@
-
 package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
@@ -227,7 +226,7 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     peer2.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
   }
 
-  trait TestSetup {
+  trait TestSetup extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("FastSyncControllerSpec_System")
 
     val nodeKey = crypto.generateKeyPair()
@@ -245,11 +244,8 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     val dataSource = EphemDataSource()
 
     val fastSyncController = TestActorRef(Props(new FastSyncController(peerManager.ref, nodeStatusHolder,
+      blockchain,
       new MptNodeStorage(dataSource),
-      new BlockHeadersStorage(dataSource, new BlockHeadersNumbersStorage(dataSource)),
-      new BlockBodiesStorage(dataSource),
-      new ReceiptStorage(dataSource),
-      new EvmCodeStorage(dataSource),
       externalSchedulerOpt = Some(time.scheduler))))
 
     val baseBlockHeader = BlockHeader(

@@ -6,12 +6,16 @@ val commonSettings = Seq(
 
 val dep = {
   val akkaVersion = "2.4.17"
+  val akkaHttpVersion = "10.0.3"
 
   Seq(
     "com.typesafe.akka" %% "akka-actor" % akkaVersion,
     "com.typesafe.akka" %% "akka-agent" % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
     "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
+    "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
+    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
+    "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
     "org.consensusresearch" %% "scrypto" % "1.2.0-RC3",
     "com.madgag.spongycastle" % "core" % "1.54.0.0",
     "org.iq80.leveldb" % "leveldb" % "0.9",

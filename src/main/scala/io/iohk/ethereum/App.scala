@@ -1,44 +1,27 @@
 package io.iohk.ethereum
 
+import scala.concurrent.ExecutionContext.Implicits.global
+
 import akka.actor.ActorSystem
 import akka.agent._
-import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSyncController
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.db.dataSource.{LevelDBDataSource, LevelDbConfig}
-import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.network.{PeerActor, PeerManagerActor, ServerActor}
+import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, _}
+import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
+import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
+import io.iohk.ethereum.rpc.JsonRpcServer
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.util.encoders.Hex
-
-import scala.concurrent.ExecutionContext.Implicits.global
 
 object App {
 
   import Config.{Network => NetworkConfig}
 
-  val nodeKey: AsymmetricCipherKeyPair = generateKeyPair()
+  val nodeKey = generateKeyPair()
+
+  val storagesInstance =  new SharedLevelDBDataSources with Storages.DefaultStorages
+  val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
 
   def main(args: Array[String]): Unit = {
-
-    val config = new LevelDbConfig {
-      override val cacheSize: Int = 200
-      override val verifyChecksums: Boolean = true
-      override val paranoidChecks: Boolean = false
-      override val createIfMissing: Boolean = true
-    }
-
-    val ds = LevelDBDataSource("/tmp",config)
-
-    val storage = new PeerActor.Storage{
-      val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(ds, new BlockHeadersNumbersStorage(ds))
-      val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(ds)
-      val receiptStorage: ReceiptStorage = new ReceiptStorage(ds)
-      val mptNodeStorage: MptNodeStorage = new MptNodeStorage(ds)
-      val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(ds)
-    }
-
     val actorSystem = ActorSystem("etc-client_system")
 
     val nodeStatus =
@@ -49,21 +32,28 @@ object App {
 
     val nodeStatusHolder = Agent(nodeStatus)
 
-    val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, Config.Network.Peer.fastSyncHostConfiguration, storage), "peer-manager")
+    val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, Config.Network.Peer.fastSyncHostConfiguration, blockchain), "peer-manager")
     val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
     server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
 
-    val fastSyncController = actorSystem.actorOf(FastSyncController.props(
-      peerManager,
-      nodeStatusHolder,
-      new MptNodeStorage(ds),
-      new BlockHeadersStorage(ds, new BlockHeadersNumbersStorage(ds)),
-      new BlockBodiesStorage(ds),
-      new ReceiptStorage(ds),
-      new EvmCodeStorage(ds)), "fast-sync-controller")
+    if(Config.Network.Rpc.enabled) JsonRpcServer.run(actorSystem, blockchain, Config.Network.Rpc)
+
+    val fastSyncController = actorSystem.actorOf(
+      FastSyncController.props(
+        peerManager,
+        nodeStatusHolder,
+        blockchain,
+        storagesInstance.storages.mptNodeStorage),
+      "fast-sync-controller")
 
     fastSyncController ! FastSyncController.StartFastSync
+
+    Runtime.getRuntime.addShutdownHook(new Thread() {
+      override def run(): Unit = {
+        storagesInstance.dataSources.closeAll
+      }
+    })
   }
 
 }
