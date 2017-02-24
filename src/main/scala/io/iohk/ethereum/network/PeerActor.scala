@@ -3,12 +3,12 @@ package io.iohk.ethereum.network
 import java.net.{InetSocketAddress, URI}
 
 import scala.concurrent.duration._
-
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
@@ -17,6 +17,8 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+
+import scala.util.Try
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
@@ -37,7 +39,7 @@ class PeerActor(
 
   val P2pVersion = 4
 
-  val peerId = self.path.name
+  val peerId: String = self.path.name
 
   val daoForkValidator = ForkValidator(daoForkBlockNumber, daoForkBlockHash)
 
@@ -254,28 +256,43 @@ class PeerActor(
 
   class HandshakedHandler(rlpxConnection: RLPxConnection, initialStatus: msg.Status) {
 
+    var currentPeerMaxBlock: BigInt = 0
+
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
         handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
         log.debug("Received message: {}", message)
+        updateMaxBlock(message)
         notifySubscribers(message)
         processMessage(message)
 
       case s: SendMessage[_] =>
         rlpxConnection.sendMessage(s.message)(s.enc)
 
+      case GetMaxBlockNumber(actor) => actor ! MaxBlockNumber(currentPeerMaxBlock)
+
       case GetStatus =>
         sender() ! StatusResponse(Handshaked(initialStatus))
     }
 
-    def notifySubscribers(message: Message): Unit = {
+    private def updateMaxBlock(message: Message) = message match {
+      case m: BlockHeaders =>
+        val maxBlockNumber = m.headers.map(_.number).fold(0: BigInt) { case (a, b) => if (a > b) a else b }
+        if (maxBlockNumber > currentPeerMaxBlock) {
+          currentPeerMaxBlock = maxBlockNumber
+        }
+      case m: NewBlock => if (m.block.header.number > currentPeerMaxBlock) currentPeerMaxBlock = m.block.header.number
+      case _ =>
+    }
+
+    private def notifySubscribers(message: Message): Unit = {
       val subscribers = messageSubscribers.filter(_.messageCodes.contains(message.code))
       val toNotify = subscribers.map(_.ref).toSet
       toNotify.foreach { _ ! MessageReceived(message) }
     }
 
-    def processMessage(message: Message): Unit = message match {
+    private def processMessage(message: Message): Unit = message match {
       case d: Disconnect =>
         log.info("Received {}. Closing connection", d)
         context stop self
@@ -317,6 +334,10 @@ object PeerActor {
   case class ConnectTo(uri: URI)
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
+
+  case class GetMaxBlockNumber(from: ActorRef)
+
+  case class MaxBlockNumber(number: BigInt)
 
   private case object DaoHeaderReceiveTimeout
 

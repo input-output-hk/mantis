@@ -25,7 +25,7 @@ class PeerManagerActor(
 
   scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
 
-  override val supervisorStrategy =
+  override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
       case _ => Stop
     }
