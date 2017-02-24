@@ -7,7 +7,6 @@ import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.p2p.messages.PV63.{Receipt, Receipts, GetReceipts}
 import org.scalatest.{FlatSpec, Matchers}
@@ -24,8 +23,8 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     parent.expectMsg(FastSyncController.EnqueueReceipts(requestedHashes.drop(1)))
     parent.expectMsg(FastSyncRequestHandler.Done)
 
-    receiptStorage.get(requestedHashes.head) shouldBe Some(responseReceipts.head)
-    receiptStorage.get(requestedHashes(1)) shouldBe None
+    blockchain.getReceiptsByHash(requestedHashes.head) shouldBe Some(responseReceipts.head)
+    blockchain.getReceiptsByHash(requestedHashes(1)) shouldBe None
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
@@ -53,7 +52,7 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     parent.expectMsg(FastSyncRequestHandler.Done)
   }
 
-  trait TestSetup {
+  trait TestSetup extends EphemBlockchainTestSetup  {
     implicit val system = ActorSystem("FastSyncReceiptsRequestHandlerSpec_System")
 
     val time = new VirtualTime
@@ -62,16 +61,13 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
 
     val requestedHashes = Seq(ByteString("1"), ByteString("2"))
 
-    val dataSource = EphemDataSource()
-    val receiptStorage = new ReceiptStorage(dataSource)
-
     val parent = TestProbe()
 
     val fastSyncReceiptsRequestHandler =
       parent.childActorOf(FastSyncReceiptsRequestHandler.props(
         peer.ref,
         requestedHashes,
-        receiptStorage)(time.scheduler))
+        blockchain)(time.scheduler))
   }
 
 }

@@ -12,7 +12,7 @@ import org.spongycastle.util.encoders.Hex
 
 class ReceiptsSpec extends FlatSpec with Matchers {
 
-  val exampleHash = ByteString(sha3((0 until 32).map(_ => 1: Byte).toArray))
+  val exampleHash = ByteString(kec256((0 until 32).map(_ => 1: Byte).toArray))
   val exampleLogsBloom = ByteString((0 until 256).map(_ => 1: Byte).toArray)
 
   val loggerAddress = ByteString(Hex.decode("ff"))

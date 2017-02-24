@@ -4,20 +4,22 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 import akka.actor.ActorSystem
 import akka.agent._
-import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSyncController
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, _}
+import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
+import io.iohk.ethereum.rpc.JsonRpcServer
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
-import org.spongycastle.util.encoders.Hex
 
 object App {
 
   import Config.{Network => NetworkConfig}
 
   val nodeKey = generateKeyPair()
+
+  val storagesInstance =  new SharedLevelDBDataSources with Storages.DefaultStorages
+  val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
 
   def main(args: Array[String]): Unit = {
     val actorSystem = ActorSystem("etc-client_system")
@@ -35,19 +37,23 @@ object App {
 
     server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
 
-    val dataSource = EphemDataSource()
-    val fastSyncController = actorSystem.actorOf(FastSyncController.props(
-      peerManager,
-      nodeStatusHolder,
-      new MptNodeStorage(dataSource),
-      new BlockHeadersStorage(dataSource),
-      new BlockBodiesStorage(dataSource),
-      new ReceiptStorage(dataSource),
-      new EvmCodeStorage(dataSource),
-      new TotalDifficultyStorage(dataSource).put(Config.Blockchain.genesisHash, Config.Blockchain.genesisDifficulty)
-    ), "fast-sync-controller")
+    if(Config.Network.Rpc.enabled) JsonRpcServer.run(actorSystem, blockchain, Config.Network.Rpc)
+
+    val fastSyncController = actorSystem.actorOf(
+      FastSyncController.props(
+        peerManager,
+        nodeStatusHolder,
+        blockchain,
+        storagesInstance.storages.mptNodeStorage),
+      "fast-sync-controller")
 
     fastSyncController ! FastSyncController.StartFastSync
+
+    Runtime.getRuntime.addShutdownHook(new Thread() {
+      override def run(): Unit = {
+        storagesInstance.dataSources.closeAll
+      }
+    })
   }
 
 }

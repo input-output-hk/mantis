@@ -2,19 +2,16 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{ActorRef, Props, Scheduler}
 import akka.agent.Agent
-import akka.util.ByteString
-import io.iohk.ethereum.db.storage.{BlockHeadersStorage, TotalDifficultyStorage}
+import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus}
-import org.spongycastle.util.encoders.Hex
 
 class FastSyncBlockHeadersRequestHandler(
     peer: ActorRef,
     block: BigInt,
     maxHeaders: Int,
     nodeStatusHolder: Agent[NodeStatus],
-    blockHeadersStorage: BlockHeadersStorage,
-    totalDifficultyStorage: TotalDifficultyStorage)(implicit scheduler: Scheduler)
+    blockchain: Blockchain)(implicit scheduler: Scheduler)
   extends FastSyncRequestHandler[GetBlockHeaders, BlockHeaders](peer) {
 
   override val requestMsg = GetBlockHeaders(Left(block), maxHeaders, 0, reverse = false)
@@ -23,13 +20,13 @@ class FastSyncBlockHeadersRequestHandler(
   override def handleResponseMsg(blockHeaders: BlockHeaders): Unit = {
     val blockHashes = blockHeaders.headers.map(_.hash)
 
-    val (blockHashesObtained, blockHeadersObtained) = (blockHashes zip blockHeaders.headers).takeWhile{ case (hash, header) =>
-      val parentTotalDifficulty = totalDifficultyStorage.get(header.parentHash)
-      parentTotalDifficulty.foreach{ parentTD =>
-        blockHeadersStorage.put(hash, header)
-        totalDifficultyStorage.put(hash, parentTD + header.difficulty)
+    val (blockHashesObtained, blockHeadersObtained) = blockHashes.zip(blockHeaders.headers).takeWhile{ case (hash, header) =>
+      val parentTd: Option[BigInt] = blockchain.getTotalDifficultyByHash(header.parentHash)
+      parentTd foreach { parentTotalDifficulty =>
+        blockchain.save(header)
+        blockchain.save(hash, parentTotalDifficulty + header.difficulty)
       }
-      parentTotalDifficulty.isDefined
+      parentTd.isDefined
     }.unzip
 
     blockHeadersObtained.lastOption foreach { lastHeader =>
@@ -61,8 +58,7 @@ class FastSyncBlockHeadersRequestHandler(
 
 object FastSyncBlockHeadersRequestHandler {
   def props(peer: ActorRef, block: BigInt, maxHeaders: Int,
-            nodeStatusHolder: Agent[NodeStatus], blockHeadersStorage: BlockHeadersStorage,
-            totalDifficultyStorage: TotalDifficultyStorage)
+            nodeStatusHolder: Agent[NodeStatus], blockchain: Blockchain)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncBlockHeadersRequestHandler(peer, block, maxHeaders, nodeStatusHolder, blockHeadersStorage, totalDifficultyStorage))
+    Props(new FastSyncBlockHeadersRequestHandler(peer, block, maxHeaders, nodeStatusHolder, blockchain))
 }
