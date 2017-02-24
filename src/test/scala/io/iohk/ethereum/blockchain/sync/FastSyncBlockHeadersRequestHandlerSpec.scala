@@ -34,7 +34,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
       FastSyncController.EnqueueReceipts(Seq(responseHeaders.head.hash)))
     parent.expectMsg(FastSyncRequestHandler.Done)
 
-    blockHeadersStorage.get(responseHeaders.head.hash) shouldBe Some(responseHeaders.head)
+    blockchain.getBlockHeaderByHash(responseHeaders.head.hash) shouldBe Some(responseHeaders.head)
 
     nodeStatusHolder().blockchainStatus.bestNumber shouldBe responseHeaders.last.number
 
@@ -53,7 +53,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     peer.expectMsg(PeerActor.Unsubscribe)
   }
 
-  trait TestSetup {
+  trait TestSetup extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("FastSyncBlockHeadersRequestHandlerSpec_System")
 
     val time = new VirtualTime
@@ -61,9 +61,6 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     val peer = TestProbe()
 
     val requestedHashes = Seq(ByteString("1"), ByteString("2"))
-
-    val dataSource = EphemDataSource()
-    val blockHeadersStorage = new BlockHeadersStorage(dataSource)
 
     val parent = TestProbe()
 
@@ -85,7 +82,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
         block,
         maxHeaders,
         nodeStatusHolder,
-        blockHeadersStorage)(time.scheduler))
+        blockchain)(time.scheduler))
   }
 
 }

@@ -1,14 +1,14 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Scheduler, Props, ActorRef}
+import akka.actor.{ActorRef, Props, Scheduler}
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.ReceiptStorage
-import io.iohk.ethereum.network.p2p.messages.PV63.{Receipts, GetReceipts}
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts}
 
 class FastSyncReceiptsRequestHandler(
     peer: ActorRef,
     requestedHashes: Seq[ByteString],
-    receiptStorage: ReceiptStorage)(implicit scheduler: Scheduler)
+    blockchain: Blockchain)(implicit scheduler: Scheduler)
   extends FastSyncRequestHandler[GetReceipts, Receipts](peer) {
 
   override val requestMsg = GetReceipts(requestedHashes)
@@ -16,7 +16,7 @@ class FastSyncReceiptsRequestHandler(
 
   override def handleResponseMsg(receipts: Receipts): Unit = {
     (requestedHashes zip receipts.receiptsForBlocks).foreach { case (hash, receiptsForBlock) =>
-      receiptStorage.put(hash, receiptsForBlock)
+      blockchain.save(hash, receiptsForBlock)
     }
 
     if (receipts.receiptsForBlocks.isEmpty) {
@@ -45,7 +45,7 @@ class FastSyncReceiptsRequestHandler(
 }
 
 object FastSyncReceiptsRequestHandler {
-  def props(peer: ActorRef, requestedHashes: Seq[ByteString], receiptStorage: ReceiptStorage)
+  def props(peer: ActorRef, requestedHashes: Seq[ByteString], blockchain: Blockchain)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncReceiptsRequestHandler(peer, requestedHashes, receiptStorage))
+    Props(new FastSyncReceiptsRequestHandler(peer, requestedHashes, blockchain))
 }

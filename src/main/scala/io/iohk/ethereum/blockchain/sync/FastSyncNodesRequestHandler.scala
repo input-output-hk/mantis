@@ -1,17 +1,18 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Scheduler, Props, ActorRef}
+import akka.actor.{ActorRef, Props, Scheduler}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSyncController._
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.{EvmCodeStorage, MptNodeStorage}
+import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import org.spongycastle.util.encoders.Hex
 
 class FastSyncNodesRequestHandler(
     peer: ActorRef,
     requestedHashes: Seq[HashType],
-    evmCodeStorage: EvmCodeStorage,
+    blockchain: Blockchain,
     mptNodeStorage: MptNodeStorage)(implicit scheduler: Scheduler)
   extends FastSyncRequestHandler[GetNodeData, NodeData](peer) {
 
@@ -41,7 +42,7 @@ class FastSyncNodesRequestHandler(
 
         case EvmCodeHash(hash) =>
           val evmCode = nodeData.values(idx)
-          evmCodeStorage.put(hash, evmCode)
+          blockchain.save(hash, evmCode)
           Nil
 
         case StorageRootHash(hash) =>
@@ -118,10 +119,9 @@ class FastSyncNodesRequestHandler(
 }
 
 object FastSyncNodesRequestHandler {
-  def props(peer: ActorRef, requestedHashes: Seq[HashType],
-            evmCodeStorage: EvmCodeStorage, mptNodeStorage: MptNodeStorage)
+  def props(peer: ActorRef, requestedHashes: Seq[HashType], blockchain: Blockchain, mptNodeStorage: MptNodeStorage)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncNodesRequestHandler(peer, requestedHashes, evmCodeStorage, mptNodeStorage))
+    Props(new FastSyncNodesRequestHandler(peer, requestedHashes, blockchain, mptNodeStorage))
 
   private val EmptyAccountStorageHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
   private val EmptyAccountEvmCodeHash = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))

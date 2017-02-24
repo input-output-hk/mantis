@@ -151,6 +151,64 @@ trait DataSourceIntegrationTestBehavior
         }
       }
     }
+
+    it should "be able to handle inserts to multiple namespaces with the same key" in {
+      val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('o'.toByte)
+      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+        withDir { path =>
+          val keyList = unFilteredKeyList.take(KeyNumberLimit)
+          val db = createDataSource(path)
+
+          val valList1 = keyList.map(1.toByte +: _)
+          db.update(OtherNamespace, Seq(), keyList.zip(valList1))
+
+          val valList2 = keyList.map(2.toByte +: _)
+          db.update(OtherNamespace2, Seq(), keyList.zip(valList2))
+
+          keyList.zip(valList1).foreach { case (key, value) =>
+            assert(db.get(OtherNamespace, key).contains(value))
+          }
+
+          keyList.zip(valList2).foreach { case (key, value) =>
+            assert(db.get(OtherNamespace2, key).contains(value))
+          }
+
+          db.destroy()
+        }
+      }
+    }
+
+    it should "be able to handle removals from multiple namespaces with the same key" in {
+      val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('o'.toByte)
+      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+        withDir { path =>
+          val keyList = unFilteredKeyList.take(KeyNumberLimit)
+          val db = createDataSource(path)
+
+          val valList1 = keyList.map(1.toByte +: _)
+          db.update(OtherNamespace, Seq(), keyList.zip(valList1))
+
+          val valList2 = keyList.map(2.toByte +: _)
+          db.update(OtherNamespace2, Seq(), keyList.zip(valList2))
+
+          //Removal of keys from the OtherNamespace namespace
+          db.update(OtherNamespace, keyList, Seq.empty)
+
+          keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
+          keyList.zip(valList2).foreach { case (key, value) =>
+            assert(db.get(OtherNamespace2, key).contains(value))
+          }
+
+          //Removal of keys from the OtherNamespace2 namespace
+          db.update(OtherNamespace2, keyList, Seq.empty)
+
+          keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
+          keyList.foreach { key => assert(db.get(OtherNamespace2, key).isEmpty) }
+
+          db.destroy()
+        }
+      }
+    }
   }
   // scalastyle:on
 
