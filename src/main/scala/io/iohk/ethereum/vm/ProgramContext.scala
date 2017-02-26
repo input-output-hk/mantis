@@ -10,7 +10,7 @@ object ProgramContext {
     val senderAddress = stx.recoveredSenderAddress.get // FIXME: get, it should be validated but...
     val (world1, recipientAddress, program) = callOrCreate(world, tx, senderAddress)
 
-    val env = ExecEnv(recipientAddress, senderAddress, tx.gasPrice, tx.payload, senderAddress,
+    val env = ExecEnv(recipientAddress, senderAddress, senderAddress, tx.gasPrice, tx.payload,
       tx.value, program, blockHeader, callDepth = 0)
 
     ProgramContext(env, tx.gasLimit, world1)

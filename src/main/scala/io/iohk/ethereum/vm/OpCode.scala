@@ -37,14 +37,14 @@ object OpCode {
 
     SHA3,
 
-    //ADDRESS,
+    ADDRESS,
     //BALANCE,
-    //ORIGIN,
-    //CALLER,
+    ORIGIN,
+    CALLER,
     CALLVALUE,
     CALLDATALOAD,
     CALLDATASIZE,
-    //CALLDATACOPY,
+    CALLDATACOPY,
     //CODESIZE,
     CODECOPY,
     //GASPRICE,
@@ -157,6 +157,9 @@ object OpCode {
     opcodes.map(op => op.code -> op).toMap
 
   val MaxCallDepth: Int = 1024
+
+  def sliceBytes(bytes: ByteString, offset: Int, size: Int): ByteString =
+    bytes.slice(offset, offset + size).padTo(size, 0.toByte)
 }
 
 /**
@@ -179,7 +182,7 @@ sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val
       if (gas > state.gas)
         state.copy(gas = 0).withError(OutOfGas)
       else
-        exec(state).spendGas(gas)
+        exec(state.spendGas(gas))
     }
   }
 
@@ -225,6 +228,13 @@ sealed abstract class TernaryOp(code: Int, constGas: BigInt)(val f: (DataWord, D
     val res = f(a, b, c)
     val stack2 = stack1.push(res)
     state.withStack(stack2).step()
+  }
+}
+
+sealed abstract class ConstOp(code: Int)(val f: ProgramState => DataWord) extends OpCode(code, 0, 1, G_base) with ConstGas {
+  protected def exec(state: ProgramState): ProgramState = {
+    val stack1 = state.stack.push(f(state))
+    state.withStack(stack1).step()
   }
 }
 
@@ -295,27 +305,38 @@ case object SHA3 extends OpCode(0x20, 2, 1, G_sha3) {
   }
 }
 
-case object CALLVALUE extends OpCode(0x34, 0, 1, G_base) with ConstGas {
-  protected def exec(state: ProgramState): ProgramState = {
-    val stack1 = state.stack.push(DataWord(state.env.value))
-    state.withStack(stack1).step()
-  }
-}
+case object ADDRESS extends ConstOp(0x30)(s => DataWord(s.env.ownerAddr.bytes))
+
+case object ORIGIN extends ConstOp(0x32)(s => DataWord(s.env.originAddr.bytes))
+
+case object CALLER extends ConstOp(0x33)(s => DataWord(s.env.callerAddr.bytes))
+
+case object CALLVALUE extends ConstOp(0x34)(s => DataWord(s.env.value))
 
 case object CALLDATALOAD extends OpCode(0x35, 1, 1, G_verylow) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (offset, stack1) = state.stack.pop
-    val i = offset.intValue
-    val data = state.inputData.slice(i, i + 32).padTo(32, 0.toByte)
+    val data = OpCode.sliceBytes(state.inputData, offset.intValue, 32)
     val stack2 = stack1.push(DataWord(data))
     state.withStack(stack2).step()
   }
 }
 
-case object CALLDATASIZE extends OpCode(0x36, 0, 1, G_base) with ConstGas {
+case object CALLDATASIZE extends ConstOp(0x36)(s => DataWord(s.inputData.size))
+
+case object CALLDATACOPY extends OpCode(0x37, 3, 0, G_verylow) {
   protected def exec(state: ProgramState): ProgramState = {
-    val stack1 = state.stack.push(DataWord(state.inputData.size))
-    state.withStack(stack1).step()
+    val (Seq(memOffset, dataOffset, size), stack1) = state.stack.pop(3)
+    val data = OpCode.sliceBytes(state.inputData, dataOffset.intValue, size.intValue)
+    val mem1 = state.memory.store(memOffset, data)
+    state.withStack(stack1).withMemory(mem1).step()
+  }
+
+  protected def varGas(state: ProgramState): BigInt = {
+    val (Seq(offset, _, size), _) = state.stack.pop(3)
+    val memCost = calcMemCost(state.memory.size, offset, size)
+    val copyCost = G_copy * wordsForBytes(size)
+    memCost + copyCost
   }
 }
 
@@ -348,7 +369,8 @@ case object EXTCODESIZE extends OpCode(0x3b, 1, 1, G_extcode) with ConstGas {
 case object EXTCODECOPY extends OpCode(0x3c, 4, 0, G_extcode) {
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(address, memOffset, codeOffset, size), stack1) = state.stack.pop(4)
-    val codeCopy = ByteString() //TODO: copy external code
+    val codeHash = state.world.getAccount(Address(address)).getOrElse(Account.Empty).codeHash
+    val codeCopy = OpCode.sliceBytes(state.world.getCode(codeHash), codeOffset.intValue, size.intValue)
     val mem1 = state.memory.store(memOffset, codeCopy)
     state.withStack(stack1).withMemory(mem1).step()
   }
@@ -437,12 +459,7 @@ case object JUMPI extends OpCode(0x57, 2, 0, G_high) with ConstGas {
   }
 }
 
-case object GAS extends OpCode(0x5a, 0, 1, G_base) with ConstGas {
-  protected def exec(state: ProgramState): ProgramState = {
-    val stack1 = state.stack.push(DataWord(state.gas))
-    state.withStack(stack1).step()
-  }
-}
+case object GAS extends ConstOp(0x5a)(s => DataWord(s.gas))
 
 case object JUMPDEST extends OpCode(0x5b, 0, 0, G_jumpdest) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
@@ -590,31 +607,36 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
 
     lazy val result = {
       val toAddr = Address(to)
-      val (account, world1) = state.world.getAccount(toAddr) match {
-        case Some(acc) => acc -> state.world
-        case None => Account.Empty -> state.world.saveAccount(toAddr, Account.Empty)
+
+      val (account, world1) = this match {
+        case CALL =>
+          val w = state.world.transfer(state.ownAddress, toAddr, endowment)
+          val acc = w.getGuaranteedAccount(toAddr)
+          (acc, w)
+
+        case _ =>
+          val acc = state.world.getAccount(toAddr).getOrElse(Account.Empty)
+          (acc, state.world)
       }
 
-      val world2 = if (this == CALL) world1.transfer(state.ownAddress, toAddr, endowment) else world1
-
-      val (owner, sender) = this match {
+      val (owner, caller) = this match {
         case CALL => (toAddr, state.ownAddress)
         case CALLCODE => (state.ownAddress, state.ownAddress)
-        case DELEGATECALL => (state.ownAddress, state.env.senderAddr)
+        case DELEGATECALL => (state.ownAddress, state.env.callerAddr)
       }
 
       val env = state.env.copy(
         ownerAddr = owner,
-        senderAddr = sender,
+        callerAddr = caller,
         inputData = inputData,
         value = callValue,
-        program = Program(world2.getCode(account.codeHash)),
+        program = Program(world1.getCode(account.codeHash)),
         callDepth = state.env.callDepth + 1)
 
       val context = state.context.copy(
         env = env,
         startGas = startGas,
-        world = world2)
+        world = world1)
 
       VM.run(context)
     }
@@ -680,8 +702,8 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
   }
 
   private def gasExtra(state: ProgramState, endowment: BigInt, to: Address): BigInt = {
-    val c_xfer: BigInt = if (state.world.accountExists(to)) 0 else G_newaccount
-    val c_new: BigInt = if (endowment == 0) 0 else G_callvalue
+    val c_new: BigInt = if (!state.world.accountExists(to) && this == CALL) G_newaccount else 0
+    val c_xfer: BigInt = if (endowment == 0) 0 else G_callvalue
     G_call + c_xfer + c_new
   }
 }

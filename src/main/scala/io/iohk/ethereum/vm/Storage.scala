@@ -20,16 +20,9 @@ object Storage {
   */
 class Storage private(private val underlying: Map[DataWord, DataWord] = Map()) {
 
-  /** Stores new value in an underlying hashmap.
-    * If DataWord.Zero is passed as a value then a corresponding key is removed from the hashmap
-    */
-  def store(addr: DataWord, value: DataWord): Storage = {
-    val newUnderlying: Map[DataWord, DataWord] = value match {
-      case DataWord.Zero => underlying - addr
-      case dw => underlying + (addr -> value)
-    }
-    new Storage(newUnderlying)
-  }
+  /** Stores new value in an underlying hashmap */
+  def store(addr: DataWord, value: DataWord): Storage =
+    new Storage(underlying + (addr -> value))
 
   /** Retrieves a value from an underlying hashmap for a given key.
     * Returns a DataWord.Zero if a value for given key does not exist
@@ -37,10 +30,12 @@ class Storage private(private val underlying: Map[DataWord, DataWord] = Map()) {
   def load(addr: DataWord): DataWord = underlying.getOrElse(addr, DataWord.Zero)
 
   /** Calculates new root hash based on storage contents */
-  def storageRoot: ByteString =
+  lazy val storageRoot: ByteString =
     ByteString(kec256(toString.getBytes)) // TODO: I'm a mock implementation, change me
 
   def toMap: Map[DataWord, DataWord] = underlying
+
+  def size: Int = underlying.size
 
   override def equals(that: Any): Boolean =
     that match {

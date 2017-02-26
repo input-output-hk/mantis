@@ -48,6 +48,8 @@ case class ProgramState(
 
   def storage: Storage = world.getStorage(ownAccount.storageRoot)
 
+  def gasUsed: BigInt = context.startGas - gas
+
   def withWorld(updated: WorldStateProxy): ProgramState =
     copy(world = updated)
 

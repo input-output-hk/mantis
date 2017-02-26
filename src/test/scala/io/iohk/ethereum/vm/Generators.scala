@@ -2,7 +2,8 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.crypto.kec256
 import org.scalacheck.{Arbitrary, Gen}
 
 // scalastyle:off magic.number
@@ -54,6 +55,9 @@ object Generators extends ObjectGenerators {
   def getStorageGen(maxSize: Int = 0, dataWordGen: Gen[DataWord] = getDataWordGen()): Gen[Storage] =
     getListGen(0, maxSize, dataWordGen).map(Storage.fromSeq)
 
+  val ownerAddr = Address(0x123456)
+  val callerAddr = Address(0xabcdef)
+
   def getProgramStateGen(
     stackGen: Gen[Stack] = getStackGen(),
     memGen: Gen[Memory] = getMemoryGen(),
@@ -68,12 +72,19 @@ object Generators extends ObjectGenerators {
       memory <- memGen
       storage <- storageGen
       gas <- gasGen
-      code <- codeGen
+      program <- codeGen.map(Program.apply)
       inputData <- inputDataGen
       value <- valueGen
-      env = ExecEnv(Address.empty, Address.empty, 0, inputData,
-        Address.empty, value, Program(code), null, 0)
-      context = ProgramContext(env, startGas = gas, storage)
+
+      env = ExecEnv(ownerAddr, callerAddr, callerAddr, 0, inputData,
+        value, program, null, 0)
+
+      world = MockWorldState()
+        .saveCode(program.codeHash, program.code)
+        .saveStorage(storage.storageRoot, storage)
+        .saveAccount(ownerAddr, Account(0, 0, storage.storageRoot, program.codeHash))
+
+      context = ProgramContext(env, startGas = gas, world)
     } yield ProgramState(context).withStack(stack).withMemory(memory)
 
 }

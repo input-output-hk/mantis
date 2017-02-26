@@ -12,6 +12,8 @@ object Address {
 
   def apply(arr: Array[Byte]): Address = Address(ByteString(arr))
 
+  def apply(addr: Long): Address = Address(DataWord(addr))
+
   val empty: Address = Address(ByteString())
 
 }
