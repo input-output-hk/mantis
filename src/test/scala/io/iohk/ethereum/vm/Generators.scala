@@ -28,6 +28,12 @@ object Generators extends ObjectGenerators {
   def getDataWordGen(min: DataWord = DataWord(0), max: DataWord = DataWord.MaxValue): Gen[DataWord] =
     getBigIntGen(min.toBigInt, max.toBigInt).map(DataWord(_))
 
+  def getUInt256Gen(min: BigInt = BigInt(0), max: BigInt = Int256Like.Modulus - 1): Gen[UInt256] =
+    getBigIntGen(min, max).map(UInt256(_))
+
+  def getInt256Gen(min: BigInt = BigInt(0), max: BigInt = Int256Like.Modulus - 1): Gen[Int256] =
+    getBigIntGen(min, max).map(Int256(_))
+
   def getStackGen(minElems: Int = 0, maxElems: Int = testStackMaxSize, dataWordGen: Gen[DataWord] = getDataWordGen(),
     maxSize: Int = testStackMaxSize): Gen[Stack] =
     for {
