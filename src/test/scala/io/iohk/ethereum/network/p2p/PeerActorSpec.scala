@@ -8,9 +8,10 @@ import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.PeerActor.{GetMaxBlockNumber, MaxBlockNumber, SendMessage}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipt, Receipts}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
@@ -396,19 +397,89 @@ class PeerActorSpec extends FlatSpec with Matchers {
   }
 
   it should "update max peer when receiving new block" in new TestSetup {
+    //given
+    val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 4)
+    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Seq.empty, Seq.empty)), 300)
 
+    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 2)
+    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+
+    val probe = TestProbe()
+
+    setupConnection()
+
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(0))
+
+    //when
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(firstBlock))
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(secondBlock))
+
+    //then
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(4))
   }
 
   it should "update max peer when receiving block header" in new TestSetup {
+    //given
+    val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 4)
+    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 2)
+    val probe = TestProbe()
 
+    setupConnection()
+
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(0))
+
+    //when
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(firstHeader, secondHeader, Config.Blockchain.genesisBlockHeader))))
+
+    //then
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(4))
   }
 
   it should "update max peer when sending new block" in new TestSetup {
+    //given
+    val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 4)
+    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Seq.empty, Seq.empty)), 300)
 
+    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 2)
+    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+
+    val probe = TestProbe()
+
+    setupConnection()
+
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(0))
+
+    //when
+    peer ! PeerActor.SendMessage(firstBlock)
+    peer ! PeerActor.SendMessage(secondBlock)
+
+    //then
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(4))
   }
 
   it should "update max peer when sending block header" in new TestSetup {
+    val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 4)
+    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = 2)
+    val probe = TestProbe()
 
+    setupConnection()
+
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(0))
+
+    //when
+    peer ! PeerActor.SendMessage(BlockHeaders(Seq(firstHeader)))
+    peer ! PeerActor.SendMessage(BlockHeaders(Seq(secondHeader)))
+
+    //then
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(4))
   }
 
   trait BlockUtils {

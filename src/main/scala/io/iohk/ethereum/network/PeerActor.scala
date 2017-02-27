@@ -328,7 +328,9 @@ class PeerActor(
         if (maxBlockNumber > currentPeerMaxBlock) {
           currentPeerMaxBlock = maxBlockNumber
         }
-      case m: NewBlock => if (m.block.header.number > currentPeerMaxBlock) currentPeerMaxBlock = m.block.header.number
+      case m: NewBlock =>
+        if (m.block.header.number > currentPeerMaxBlock)
+          currentPeerMaxBlock = m.block.header.number
       case _ =>
     }
 
