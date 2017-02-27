@@ -2,14 +2,11 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import akka.agent.Agent
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{BlockHeadersStorage, TotalDifficultyStorage}
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
@@ -34,7 +31,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
       FastSyncController.EnqueueReceipts(Seq(responseHeaders.head.hash)))
     parent.expectMsg(FastSyncRequestHandler.Done)
 
-    blockHeadersStorage.get(responseHeaders.head.hash) shouldBe Some(responseHeaders.head)
+    blockchain.getBlockHeaderByHash(responseHeaders.head.hash) shouldBe Some(responseHeaders.head)
 
     nodeStatusHolder().blockchainStatus.bestNumber shouldBe responseHeaders.last.number
 
@@ -53,7 +50,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     peer.expectMsg(PeerActor.Unsubscribe)
   }
 
-  trait TestSetup {
+  trait TestSetup extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("FastSyncBlockHeadersRequestHandlerSpec_System")
 
     val time = new VirtualTime
@@ -61,12 +58,6 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     val peer = TestProbe()
 
     val requestedHashes = Seq(ByteString("1"), ByteString("2"))
-
-    val dataSource = EphemDataSource()
-    val blockHeadersStorage = new BlockHeadersStorage(dataSource)
-    val totalDifficultyStorage = new TotalDifficultyStorage(dataSource){
-      override def get(blockHash: ByteString): Option[BigInt] = Some(BigInt(0))
-    }
 
     val parent = TestProbe()
 
@@ -88,8 +79,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
         block,
         maxHeaders,
         nodeStatusHolder,
-        blockHeadersStorage,
-        totalDifficultyStorage)(time.scheduler))
+        blockchain)(time.scheduler))
   }
 
 }

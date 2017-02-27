@@ -6,12 +6,15 @@ import scala.concurrent.duration._
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
+import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
+import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
 import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
@@ -19,6 +22,8 @@ import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 import scala.util.Try
+
+import scala.concurrent.duration._
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
@@ -29,12 +34,13 @@ import scala.util.Try
   */
 class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
-    rlpxConnectionFactory: ActorContext => ActorRef)
+    rlpxConnectionFactory: ActorContext => ActorRef,
+    storage: Blockchain)
   extends Actor with ActorLogging {
 
-  import PeerActor._
-  import Config.Network.Peer._
   import Config.Blockchain._
+  import Config.Network.Peer._
+  import PeerActor._
   import context.{dispatcher, system}
 
   val P2pVersion = 4
@@ -166,7 +172,7 @@ class PeerActor(
 
   def waitingForChainForkCheck(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, timeout: Cancellable): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse handlePeerChainCheck(rlpxConnection) orElse{
+    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse handlePeerChainCheck(rlpxConnection) orElse {
 
     case RLPxConnectionHandler.MessageReceived(msg @ BlockHeaders(blockHeaders)) =>
       timeout.cancel()
@@ -174,7 +180,7 @@ class PeerActor(
       val daoBlockHeaderOpt = blockHeaders.find(_.number == daoForkBlockNumber)
 
       daoBlockHeaderOpt match {
-        case Some(daoBlockHeader) if daoForkValidator.validate(msg).isEmpty =>
+        case Some(_) if daoForkValidator.validate(msg).isEmpty =>
           log.info("Peer is running the ETC chain")
           context become new HandshakedHandler(rlpxConnection, remoteStatus).receive
 
@@ -228,11 +234,46 @@ class PeerActor(
     context become waitingForConnectionResult(newConnection, noRetries)
   }
 
+  def handleBlockFastDownload(rlpxConnection: RLPxConnection): Receive = {
+    case RLPxConnectionHandler.MessageReceived(request: GetReceipts) =>
+      val receipts = request.blockHashes.slice(0, maxReceiptsPerMessage)
+        .flatMap(hash => storage.getReceiptsByHash(hash))
+
+      rlpxConnection.sendMessage(Receipts(receipts))
+
+    case RLPxConnectionHandler.MessageReceived(request: GetBlockBodies) =>
+      val blockBodies = request.hashes.slice(0, maxBlocksBodiesPerMessage)
+        .flatMap(hash => storage.getBlockBodyByHash(hash))
+
+      rlpxConnection.sendMessage(BlockBodies(blockBodies))
+
+    case RLPxConnectionHandler.MessageReceived(request: GetBlockHeaders) =>
+      val blockNumber = request.block.fold(a => Some(a), b => storage.getBlockHeaderByHash(b).map(_.number))
+
+      blockNumber match {
+        case Some(startBlockNumber) if startBlockNumber >= 0 && request.maxHeaders >= 0 && request.skip >= 0 =>
+
+          val headersCount: BigInt = if (maxBlocksHeadersPerMessage < request.maxHeaders) maxBlocksHeadersPerMessage else request.maxHeaders
+
+          val range = if (request.reverse) {
+            startBlockNumber to (startBlockNumber - (request.skip + 1) * headersCount + 1) by -(request.skip + 1)
+          } else {
+            startBlockNumber to (startBlockNumber + (request.skip + 1) * headersCount - 1) by (request.skip + 1)
+          }
+
+          val blockHeaders: Seq[BlockHeader] = range.flatMap { a: BigInt => storage.getBlockHeaderByNumber(a) }
+
+          rlpxConnection.sendMessage(BlockHeaders(blockHeaders))
+
+        case _ => log.info("got request for block headers with invalid block hash/number: {}", request)
+      }
+  }
+
   def handlePingMsg(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(ping: Ping) => rlpxConnection.sendMessage(Pong())
   }
 
-  def handleDisconnectMsg : Receive = {
+  def handleDisconnectMsg: Receive = {
     case RLPxConnectionHandler.MessageReceived(d: Disconnect) =>
       log.info("Received {}. Closing connection", d)
       context stop self
@@ -251,7 +292,10 @@ class PeerActor(
   def handlePeerChainCheck(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(message@GetBlockHeaders(Left(number), _, _, _)) if number == 1920000 =>
       log.info("Received message: {}", message)
-      rlpxConnection.sendMessage(BlockHeaders(Seq())) //stub because we do not have this block yet
+      storage.getBlockHeaderByNumber(number) match {
+        case Some(header) => rlpxConnection.sendMessage(BlockHeaders(Seq(header)))
+        case None => rlpxConnection.sendMessage(BlockHeaders(Seq.empty))
+      }
   }
 
   class HandshakedHandler(rlpxConnection: RLPxConnection, initialStatus: msg.Status) {
@@ -260,7 +304,8 @@ class PeerActor(
 
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-        handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse {
+      handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
+      handleBlockFastDownload(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
         log.debug("Received message: {}", message)
         updateMaxBlock(message)
@@ -317,8 +362,8 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus]): Props =
-    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key)))
+  def props(nodeStatusHolder: Agent[NodeStatus], storage: Blockchain): Props =
+    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), storage))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")

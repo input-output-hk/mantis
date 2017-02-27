@@ -2,19 +2,16 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{ActorRef, Props, Scheduler}
 import akka.agent.Agent
-import akka.util.ByteString
-import io.iohk.ethereum.db.storage.{BlockHeadersStorage, TotalDifficultyStorage}
+import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus}
-import org.spongycastle.util.encoders.Hex
 
 class FastSyncBlockHeadersRequestHandler(
     peer: ActorRef,
     block: BigInt,
     maxHeaders: Int,
     nodeStatusHolder: Agent[NodeStatus],
-    blockHeadersStorage: BlockHeadersStorage,
-    totalDifficultyStorage: TotalDifficultyStorage)(implicit scheduler: Scheduler)
+    blockchain: Blockchain)(implicit scheduler: Scheduler)
   extends FastSyncRequestHandler[GetBlockHeaders, BlockHeaders](peer) {
 
   override val requestMsg = GetBlockHeaders(Left(block), maxHeaders, 0, reverse = false)
@@ -23,28 +20,21 @@ class FastSyncBlockHeadersRequestHandler(
   override def handleResponseMsg(blockHeaders: BlockHeaders): Unit = {
     val blockHashes = blockHeaders.headers.map(_.hash)
 
-    val (blockHashesObtained, blockHeadersObtained) = (blockHashes zip blockHeaders.headers).takeWhile{ case (hash, header) =>
-      val parentTotalDifficulty = totalDifficultyStorage.get(header.parentHash)
-      parentTotalDifficulty.foreach{ parentTD =>
-        blockHeadersStorage.put(hash, header)
-        totalDifficultyStorage.put(hash, parentTD + header.difficulty)
-      }
-      parentTotalDifficulty.isDefined
-    }.unzip
+    blockHeaders.headers.foreach(blockchain.save)
 
-    blockHeadersObtained.lastOption foreach { lastHeader =>
+    blockHeaders.headers.lastOption foreach { lastHeader =>
       nodeStatusHolder.send(_.copy(
         blockchainStatus = BlockchainStatus(lastHeader.difficulty, lastHeader.hash, lastHeader.number)))
     }
 
-    if (blockHashesObtained.nonEmpty) {
-      fastSyncController ! FastSyncController.EnqueueBlockBodies(blockHashesObtained)
-      fastSyncController ! FastSyncController.EnqueueReceipts(blockHashesObtained)
+    if (blockHashes.nonEmpty) {
+      fastSyncController ! FastSyncController.EnqueueBlockBodies(blockHashes)
+      fastSyncController ! FastSyncController.EnqueueReceipts(blockHashes)
+    } else {
+      fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
     }
 
-    if (blockHashesObtained.length != blockHashes.length) fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
-
-    log.info("Received {} block headers in {} ms", blockHashesObtained.size, timeTakenSoFar())
+    log.info("Received {} block headers in {} ms", blockHeaders.headers.size, timeTakenSoFar())
     cleanupAndStop()
   }
 
@@ -61,8 +51,7 @@ class FastSyncBlockHeadersRequestHandler(
 
 object FastSyncBlockHeadersRequestHandler {
   def props(peer: ActorRef, block: BigInt, maxHeaders: Int,
-            nodeStatusHolder: Agent[NodeStatus], blockHeadersStorage: BlockHeadersStorage,
-            totalDifficultyStorage: TotalDifficultyStorage)
+            nodeStatusHolder: Agent[NodeStatus], blockchain: Blockchain)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncBlockHeadersRequestHandler(peer, block, maxHeaders, nodeStatusHolder, blockHeadersStorage, totalDifficultyStorage))
+    Props(new FastSyncBlockHeadersRequestHandler(peer, block, maxHeaders, nodeStatusHolder, blockchain))
 }
