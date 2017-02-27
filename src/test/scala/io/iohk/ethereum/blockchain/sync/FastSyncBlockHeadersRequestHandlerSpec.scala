@@ -7,8 +7,6 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{BlockHeadersNumbersStorage, BlockHeadersStorage}
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
