@@ -2,17 +2,14 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import akka.agent.Agent
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.utils.{BlockchainStatus, ServerStatus, NodeStatus}
+import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import org.scalatest.{FlatSpec, Matchers}

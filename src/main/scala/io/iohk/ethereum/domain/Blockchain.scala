@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
+import io.iohk.ethereum.utils.Config
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
@@ -112,9 +113,17 @@ class BlockchainImpl(
                       protected val evmCodeStorage: EvmCodeStorage
                     ) extends Blockchain {
 
-  override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = blockHeadersStorage.get(hash)
+  override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = if (hash == Config.Blockchain.genesisHash) {
+    Some(Config.Blockchain.genesisBlockHeader)
+  } else {
+    blockHeadersStorage.get(hash)
+  }
 
-  override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] = blockBodiesStorage.get(hash)
+  override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] = if (hash == Config.Blockchain.genesisHash) {
+    Some(Config.Blockchain.genesisBlockBody)
+  } else {
+    blockBodiesStorage.get(hash)
+  }
 
   override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
 
@@ -132,7 +141,11 @@ class BlockchainImpl(
 
   override def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
 
-  override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = blockNumberMappingStorage.get(number)
+  override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = if (number == 0) {
+    Some(Config.Blockchain.genesisHash)
+  } else {
+    blockNumberMappingStorage.get(number)
+  }
 
   private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit = blockNumberMappingStorage.put(number, hash)
 
