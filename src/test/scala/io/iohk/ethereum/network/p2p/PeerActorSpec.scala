@@ -209,6 +209,22 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsg(5.seconds, RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage)))
   }
 
+  it should "update max peer when receiving new block" in new TestSetup {
+
+  }
+
+  it should "update max peer when receiving block header" in new TestSetup {
+
+  }
+
+  it should "update max peer when sending new block" in new TestSetup {
+
+  }
+
+  it should "update max peer when sending block header" in new TestSetup {
+
+  }
+
   trait BlockUtils {
 
     val etcForkBlockHeader =

@@ -268,6 +268,7 @@ class PeerActor(
         processMessage(message)
 
       case s: SendMessage[_] =>
+        updateMaxBlock(s.message)
         rlpxConnection.sendMessage(s.message)(s.enc)
 
       case GetMaxBlockNumber(actor) => actor ! MaxBlockNumber(currentPeerMaxBlock)
