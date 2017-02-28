@@ -20,6 +20,8 @@ trait DataSourcesComponent {
 
     val blockHeightsHashesDataSource: DataSource
 
+    val totalDifficultyDataSource: DataSource
+
     def closeAll: Unit
 
   }

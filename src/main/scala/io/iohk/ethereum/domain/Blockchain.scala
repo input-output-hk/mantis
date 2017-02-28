@@ -73,6 +73,13 @@ trait Blockchain {
   def getEvmCodeByHash(hash: ByteString): Option[ByteString]
 
   /**
+    * Returns the total difficulty based on a block hash
+    * @param blockhash
+    * @return total difficulty if found
+    */
+  def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt]
+
+  /**
     * Persists a block in the underlying Blockchain Database
     *
     * @param block Block to be saved
@@ -95,6 +102,8 @@ trait Blockchain {
 
   def save(hash: ByteString, evmCode: ByteString): Unit
 
+  def save(blockhash: ByteString, totalDifficulty: BigInt): Unit
+
   /**
     * Returns a block hash given a block number
     *
@@ -110,7 +119,8 @@ class BlockchainImpl(
                       protected val blockBodiesStorage: BlockBodiesStorage,
                       protected val blockNumberMappingStorage: BlockNumberMappingStorage,
                       protected val receiptStorage: ReceiptStorage,
-                      protected val evmCodeStorage: EvmCodeStorage
+                      protected val evmCodeStorage: EvmCodeStorage,
+                      protected val totalDifficultyStorage: TotalDifficultyStorage
                     ) extends Blockchain {
 
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = if (hash == Config.Blockchain.genesisHash) {
@@ -129,6 +139,8 @@ class BlockchainImpl(
 
   override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = evmCodeStorage.get(hash)
 
+  override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = totalDifficultyStorage.get(blockhash)
+
   override def save(blockHeader: BlockHeader): Unit = {
     val hash = blockHeader.hash
     blockHeadersStorage.put(hash, blockHeader)
@@ -140,6 +152,8 @@ class BlockchainImpl(
   override def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit = receiptStorage.put(blockHash, receipts)
 
   override def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
+
+  def save(blockhash: ByteString, td: BigInt): Unit = totalDifficultyStorage.put(blockhash, td)
 
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = if (number == 0) {
     Some(Config.Blockchain.genesisHash)
@@ -157,6 +171,7 @@ trait BlockchainStorages {
   val blockNumberMappingStorage: BlockNumberMappingStorage
   val receiptStorage: ReceiptStorage
   val evmCodeStorage: EvmCodeStorage
+  val totalDifficultyStorage: TotalDifficultyStorage
 }
 
 object BlockchainImpl {
@@ -166,6 +181,7 @@ object BlockchainImpl {
       blockBodiesStorage = storages.blockBodiesStorage,
       blockNumberMappingStorage = storages.blockNumberMappingStorage,
       receiptStorage = storages.receiptStorage,
-      evmCodeStorage = storages.evmCodeStorage
+      evmCodeStorage = storages.evmCodeStorage,
+      totalDifficultyStorage = storages.totalDifficultyStorage
     )
 }
