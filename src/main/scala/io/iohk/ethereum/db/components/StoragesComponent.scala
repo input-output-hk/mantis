@@ -21,5 +21,7 @@ trait StoragesComponent {
 
     val evmCodeStorage: EvmCodeStorage
 
+    val totalDifficultyStorage: TotalDifficultyStorage
+
   }
 }

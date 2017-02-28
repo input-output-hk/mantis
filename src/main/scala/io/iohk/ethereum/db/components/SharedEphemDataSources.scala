@@ -19,6 +19,8 @@ trait SharedEphemDataSources extends DataSourcesComponent {
 
     override val blockHeadersDataSource: DataSource = ephemDataSource
 
+    override val totalDifficultyDataSource: DataSource = ephemDataSource
+
     override def closeAll: Unit = ()
   }
 

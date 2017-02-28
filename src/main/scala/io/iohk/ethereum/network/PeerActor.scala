@@ -6,7 +6,6 @@ import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor.FastSyncHostConfiguration
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.Status._

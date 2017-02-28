@@ -81,6 +81,13 @@ trait Blockchain {
 
 
   /**
+    * Returns the total difficulty based on a block hash
+    * @param blockhash
+    * @return total difficulty if found
+    */
+  def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt]
+
+  /**
     * Persists a block in the underlying Blockchain Database
     *
     * @param block Block to be saved
@@ -105,6 +112,8 @@ trait Blockchain {
 
   def save(node: MptNode): Unit
 
+  def save(blockhash: ByteString, totalDifficulty: BigInt): Unit
+
   /**
     * Returns a block hash given a block number
     *
@@ -121,7 +130,8 @@ class BlockchainImpl(
                       protected val blockNumberMappingStorage: BlockNumberMappingStorage,
                       protected val receiptStorage: ReceiptStorage,
                       protected val evmCodeStorage: EvmCodeStorage,
-                      protected val mptNodeStorage: MptNodeStorage
+                      protected val mptNodeStorage: MptNodeStorage,
+                      protected val totalDifficultyStorage: TotalDifficultyStorage
                     ) extends Blockchain {
 
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = if (hash == Config.Blockchain.genesisHash) {
@@ -140,6 +150,8 @@ class BlockchainImpl(
 
   override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = evmCodeStorage.get(hash)
 
+  override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = totalDifficultyStorage.get(blockhash)
+
   override def save(blockHeader: BlockHeader): Unit = {
     val hash = blockHeader.hash
     blockHeadersStorage.put(hash, blockHeader)
@@ -153,6 +165,8 @@ class BlockchainImpl(
   override def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit = receiptStorage.put(blockHash, receipts)
 
   override def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
+
+  def save(blockhash: ByteString, td: BigInt): Unit = totalDifficultyStorage.put(blockhash, td)
 
   override def save(node: MptNode): Unit = mptNodeStorage.put(node)
 
@@ -173,6 +187,7 @@ trait BlockchainStorages {
   val receiptStorage: ReceiptStorage
   val evmCodeStorage: EvmCodeStorage
   val mptNodeStorage: MptNodeStorage
+  val totalDifficultyStorage: TotalDifficultyStorage
 }
 
 object BlockchainImpl {
@@ -183,6 +198,7 @@ object BlockchainImpl {
       blockNumberMappingStorage = storages.blockNumberMappingStorage,
       receiptStorage = storages.receiptStorage,
       evmCodeStorage = storages.evmCodeStorage,
-      mptNodeStorage = storages.mptNodeStorage
+      mptNodeStorage = storages.mptNodeStorage,
+      totalDifficultyStorage = storages.totalDifficultyStorage
     )
 }
