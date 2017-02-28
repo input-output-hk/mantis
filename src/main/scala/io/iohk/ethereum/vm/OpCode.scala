@@ -183,7 +183,7 @@ sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val
       if (gas > state.gas)
         state.copy(gas = 0).withError(OutOfGas)
       else
-        exec(state.spendGas(gas))
+        exec(state).spendGas(gas)
     }
   }
 
@@ -460,7 +460,7 @@ case object JUMPI extends OpCode(0x57, 2, 0, G_high) with ConstGas {
   }
 }
 
-case object GAS extends ConstOp(0x5a)(s => DataWord(s.gas))
+case object GAS extends ConstOp(0x5a)(s => DataWord(s.gas - G_base))
 
 case object JUMPDEST extends OpCode(0x5b, 0, 0, G_jumpdest) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {

@@ -71,7 +71,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       .saveCode(invalidProgram.codeHash, invalidProgram.code)
 
     val env = ExecEnv(ownerAddr, callerAddr, callerAddr, 1, ByteString.empty, 123, Program(ByteString.empty), null, 0)
-    val context = ProgramContext(env, 1000000, worldWithExtAccount)
+    val context = ProgramContext(env, 2 * requiredGas, worldWithExtAccount)
   }
 
   case class CallResult(

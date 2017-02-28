@@ -90,7 +90,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       withStackVerification(op, stateIn, stateOut) {
         val (result, _) = stateOut.stack.pop
-        result shouldEqual op.f(stateIn.spendGas(op.constGas))
+        result shouldEqual op.f(stateIn)
 
         val expectedState = stateIn.withStack(stateOut.stack).step()
         stateOut shouldEqual expectedState
