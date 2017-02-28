@@ -7,6 +7,7 @@ import io.iohk.ethereum.domain.{Account, Address}
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
+// scalastyle:off method.length
 object OpCode {
 
   val opcodes: List[OpCode] = List(
