@@ -5,6 +5,7 @@ import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.BlockBodiesStorage.BlockBodyHash
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
+import io.iohk.ethereum.utils.Config
 
 /**
   * This class is used to store the BlockBody, by using:
@@ -22,6 +23,12 @@ class BlockBodiesStorage(val dataSource: DataSource) extends KeyValueStorage[Blo
 
   override def valueDeserializer: (IndexedSeq[Byte]) => BlockBody =
     (encodedBlockBody: IndexedSeq[Byte]) => rlpDecode[BlockBody](encodedBlockBody.toArray)
+
+  override def get(key: BlockBodyHash): Option[BlockBody] = if (key == Config.Blockchain.genesisBlockHeader.hash) {
+    Some(Config.Blockchain.genesisBlockBody)
+  } else {
+    super.get(key)
+  }
 
   override protected def apply(dataSource: DataSource): BlockBodiesStorage = new BlockBodiesStorage(dataSource)
 }
