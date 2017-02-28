@@ -2,7 +2,6 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
-import scala.concurrent.duration._
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
@@ -20,8 +19,6 @@ import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
-import scala.util.Try
-
 import scala.concurrent.duration._
 
 /**
@@ -34,6 +31,7 @@ import scala.concurrent.duration._
 class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
     rlpxConnectionFactory: ActorContext => ActorRef,
+    supervisor: ActorRef,
     storage: Blockchain)
   extends Actor with ActorLogging {
 
@@ -315,7 +313,10 @@ class PeerActor(
         updateMaxBlock(s.message)
         rlpxConnection.sendMessage(s.message)(s.enc)
 
-      case GetMaxBlockNumber(actor) => actor ! MaxBlockNumber(currentPeerMaxBlock)
+      case Broadcast(newBlock: NewBlock) =>
+        if (newBlock.block.header.number > currentPeerMaxBlock) {
+          rlpxConnection.sendMessage(newBlock)
+        }
 
       case GetStatus =>
         sender() ! StatusResponse(Handshaked(initialStatus))
@@ -330,6 +331,7 @@ class PeerActor(
       case m: NewBlock =>
         if (m.block.header.number > currentPeerMaxBlock)
           currentPeerMaxBlock = m.block.header.number
+          supervisor ! Broadcast(m)
       case _ =>
     }
 
@@ -363,8 +365,8 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], storage: Blockchain): Props =
-    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), storage))
+  def props(nodeStatusHolder: Agent[NodeStatus], supervisor: ActorRef, storage: Blockchain): Props =
+    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), supervisor, storage))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
@@ -382,9 +384,7 @@ object PeerActor {
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
 
-  case class GetMaxBlockNumber(from: ActorRef)
-
-  case class MaxBlockNumber(number: BigInt)
+  case class Broadcast[M <: Message](block: M)
 
   private case object DaoHeaderReceiveTimeout
 

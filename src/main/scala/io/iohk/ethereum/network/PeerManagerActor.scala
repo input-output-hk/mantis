@@ -10,9 +10,8 @@ import akka.agent.Agent
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
-class PeerManagerActor(
+abstract class PeerManagerActor(
     nodeStatusHolder: Agent[NodeStatus],
-    peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging {
 
@@ -48,6 +47,9 @@ class PeerManagerActor(
     case Terminated(ref) =>
       peers -= ref.path.name
 
+    case broadcast: PeerActor.Broadcast[_] =>
+      peers.values.foreach(_.ref ! broadcast)
+
     case ScanBootstrapNodes =>
       val peerAddresses = peers.values.map(_.remoteAddress).toSet
       val nodesToConnect = bootstrapNodes
@@ -68,16 +70,17 @@ class PeerManagerActor(
     peer
   }
 
+  def peerFactory(context: ActorContext, address: InetSocketAddress): ActorRef
 }
 
 object PeerManagerActor {
   def props(nodeStatusHolder: Agent[NodeStatus], storage: Blockchain): Props =
-    Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder, storage)))
-
-  def peerFactory(nodeStatusHolder: Agent[NodeStatus], storage: Blockchain): (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
-    val id = addr.toString.filterNot(_ == '/')
-    ctx.actorOf(PeerActor.props(nodeStatusHolder, storage), id)
-  }
+    Props(new PeerManagerActor(nodeStatusHolder) {
+      override def peerFactory(ctx: ActorContext, addr: InetSocketAddress): ActorRef = {
+        val id = addr.toString.filterNot(_ == '/')
+        ctx.actorOf(PeerActor.props(nodeStatusHolder, this.self, storage), id)
+      }
+    })
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
 
