@@ -37,12 +37,16 @@ object VM {
     }
   }
 
-  private def getOpCode(state: ProgramState): Either[ProgramError, OpCode] = {
-    val byte = state.program.getByte(state.pc)
+  private def getOpCode(state: ProgramState): Either[ProgramError, OpCode] = getOpCode(state, state.pc)
+
+  private def getOpCode(state: ProgramState, pos: Int): Either[ProgramError, OpCode] = {
+    val byte = state.program.getByte(pos)
     OpCode.byteToOpCode.get(byte) match {
       case Some(opcode) => Right(opcode)
       case None => Left(InvalidOpCode(byte))
     }
   }
+
+  def isJumpDest(state: ProgramState, pos: Int): Boolean = getOpCode(state, pos).contains(JUMPDEST)
 
 }

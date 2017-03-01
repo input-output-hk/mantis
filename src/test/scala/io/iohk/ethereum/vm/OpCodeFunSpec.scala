@@ -321,7 +321,9 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       withStackVerification(op, stateIn, stateOut) {
         val (pos, _) = stateIn.stack.pop
-        stateOut shouldEqual stateIn.withStack(stateOut.stack).goto(pos.intValue)
+        if(stateIn.program.getByte(pos.intValue) == JUMPDEST.code)
+          stateOut shouldEqual stateIn.withStack(stateOut.stack).goto(pos.intValue)
+        else stateOut shouldEqual stateIn.withStack(stateOut.stack).withError(InvalidJump)
       }
     }
   }
@@ -339,7 +341,8 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         val (Seq(pos, cond), _) = stateIn.stack.pop(2)
         val expectedState =
           if (!cond.isZero)
-            stateIn.withStack(stateOut.stack).goto(pos.intValue)
+            if (stateIn.program.getByte(pos.intValue) == JUMPDEST.code) stateIn.withStack(stateOut.stack).goto(pos.intValue)
+            else stateIn.withStack(stateOut.stack).withError(InvalidJump)
           else
             stateIn.withStack(stateOut.stack).step()
 
