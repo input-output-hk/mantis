@@ -600,85 +600,78 @@ case object CREATE extends OpCode(0xf0, 3, 0, G_create) {
 
     if (!validCall) {
       val stack2 = stack1.push(DataWord.Zero)
-      state.withStack(stack2)
+      state.withStack(stack2).step()
     } else {
 
       // load code from memory
-      val (initCode, memory1) = state.memory.load(inOffset, inSize) // TODO update memory ?
+      val (initCode, memory1) = state.memory.load(inOffset, inSize)
 
       // create a new address
-      val (newAddress, world1) = state.world.newAddress(state.env.originAddr) // TODO originAddr or ownAddr ?
+      val (newAddress, world1) = state.world.newAddress(state.env.ownerAddr)
 
       // create a new account
       val world2 = world1.saveAccount(newAddress, Account.Empty)
 
       // transfer endowment to a new address
-      val world3 = world2.transfer(state.env.originAddr, newAddress, endowment) // TODO check if account exists (84)
+      val world3 = world2.transfer(state.env.originAddr, newAddress, endowment)
 
-      // run contract initialization code
-      val newEnv = ExecEnv(  // TODO check values
+      // prepare contract initialization environment
+      val newEnv = ExecEnv(
         newAddress,
         state.env.callerAddr,
         state.env.originAddr,
         state.env.gasPrice,
         ByteString.empty,
-        endowment,
+        0,
         Program(initCode),
         state.env.blockHeader,
         state.env.callDepth + 1
       )
-      val programContext = ProgramContext(newEnv, endowment, world3)
-      val result = VM.run(programContext)
+      val programContext = ProgramContext(newEnv, state.gas, world3)
 
-      if (result.error.isDefined) {
-        val stack2 = stack1.push(DataWord.Zero)
-        state.withStack(stack2)
-      } else {
+      // run contract initialization code
+      VM.run(programContext) match {
 
-        // generate code hash
-        val codeHash = kec256(result.returnData)
+        // execution of initialization code failed
+        case result if result.error.isDefined =>
+          val stack2 = stack1.push(DataWord.Zero)
+          state.withStack(stack2).spendGas(state.gas)
 
-        // save new code
-        val world4 = result.world.saveCode(codeHash, result.returnData)
+        // execution of initialization code succeeded
+        case ProgramResult(returnData, _, gasUsed, world, addressesToDelete, None) =>
 
-        // update account
-        world4.getAccount(newAddress) match {
-          case None => ???
-          case Some(acc) =>
-            val world5 = world4.saveAccount(newAddress, acc.withCode(codeHash))
+          // generate hash of a code of the new contract
+          val codeHash = kec256(returnData)
 
-            // push address of a newly created account to stack
-            val stack3 = stack1.push(DataWord(newAddress.bytes))
+          // save code of the new contract
+          val world4 = world.saveCode(codeHash, returnData)
 
-            // return updated program state
-            state
-              .withStack(stack3)
-              .withWorld(world5)
-              .withAddressesToDelete(result.addressesToDelete)
+          // get newly created account
+          val acc = world4.getGuaranteedAccount(newAddress)
 
-        }
+          // update new account with initialized code
+          val world5 = world4.saveAccount(newAddress, acc.withCode(codeHash))
 
+          // push address of a newly created account to stack
+          val stack3 = stack1.push(DataWord(newAddress.bytes))
 
+          // calculate gas for storing code of the new account and running its initialization code
+          val spentGas = returnData.size * G_codedeposit + gasUsed
+
+          // return updated program state
+          state
+            .withStack(stack3)
+            .withWorld(world5)
+            .withAddressesToDelete(addressesToDelete)
+            .withMemory(memory1)
+            .spendGas(spentGas)
+            .step()
       }
-
     }
-
-//    returnData: ByteString,
-//      gasRemaining: BigInt,
-//      gasUsed: BigInt,
-//      world: WorldStateProxy,
-//      addressesToDelete: Seq[Address] = Seq(),
-//    error: Option[ProgramError]
-////
-//    val (ret, mem1) = state.memory.load(addr, size)
-//
-//    state.withStack(stack1).withReturnData(ret).withMemory(mem1).halt
-
-    ???
   }
 
   protected def varGas(state: ProgramState): BigInt = {
-    val (Seq(callValue, inOffset, inSize), _) = state.stack.pop(3)
+    val (Seq(_, inOffset, inSize), _) = state.stack.pop(3)
     calcMemCost(state.memory.size, inOffset, inSize)
   }
 }
@@ -736,7 +729,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
 
     val validCall =
       state.env.callDepth < OpCode.MaxCallDepth &&
-      endowment <= state.ownAccount.balance
+        endowment <= state.ownAccount.balance
 
     if (!validCall || result.error.isDefined) {
       val stack2 = stack1.push(DataWord.Zero)
@@ -802,7 +795,9 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
 }
 
 case object CALL extends CallOp(0xf1, 7, 1)
+
 case object CALLCODE extends CallOp(0xf2, 7, 1)
+
 case object DELEGATECALL extends CallOp(0xf4, 6, 1)
 
 case object RETURN extends OpCode(0xf3, 2, 0, G_zero) {
