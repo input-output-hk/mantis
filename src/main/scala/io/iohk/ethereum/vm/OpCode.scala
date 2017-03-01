@@ -2,8 +2,9 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import GasFee._
 import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.vm.GasFee._
+import io.iohk.ethereum.blockchain.sync.FastSyncNodesRequestHandler._
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
@@ -590,6 +591,100 @@ case object LOG1 extends LogOp(0xa1)
 case object LOG2 extends LogOp(0xa2)
 case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
+
+// TODO eip161
+case object CREATE extends OpCode(0xf0, 3, 0, G_create) {
+  protected def exec(state: ProgramState): ProgramState = {
+    val (Seq(callValue, inOffset, inSize), stack1) = state.stack.pop(3)
+
+    val endowment: BigInt = callValue.toBigInt
+
+    val validCall = state.env.callDepth < OpCode.MaxCallDepth && endowment <= state.ownAccount.balance
+
+    if (!validCall) {
+      val stack2 = stack1.push(DataWord.Zero)
+      state.withStack(stack2)
+    } else {
+
+      // load code from memory
+      val (initCode, memory1) = state.memory.load(inOffset, inSize) // TODO update memory ?
+
+      // create a new address
+      val (newAddress, world1) = state.world.newAddress(state.env.originAddr) // TODO originAddr or ownAddr ?
+
+      // create a new account
+      val world2 = world1.saveAccount(newAddress, Account.Empty)
+
+      // transfer endowment to a new address
+      val world3 = world2.transfer(state.env.originAddr, newAddress, endowment) // TODO check if account exists (84)
+
+      // run contract initialization code
+      val newEnv = ExecEnv(  // TODO check values
+        newAddress,
+        state.env.callerAddr,
+        state.env.originAddr,
+        state.env.gasPrice,
+        ByteString.empty,
+        endowment,
+        Program(initCode),
+        state.env.blockHeader,
+        state.env.callDepth + 1
+      )
+      val programContext = ProgramContext(newEnv, endowment, world3)
+      val result = VM.run(programContext)
+
+      if (result.error.isDefined) {
+        val stack2 = stack1.push(DataWord.Zero)
+        state.withStack(stack2)
+      } else {
+
+        // generate code hash
+        val codeHash = kec256(result.returnData)
+
+        // save new code
+        val world4 = result.world.saveCode(codeHash, result.returnData)
+
+        // update account
+        world4.getAccount(newAddress) match {
+          case None => ???
+          case Some(acc) =>
+            val world5 = world4.saveAccount(newAddress, acc.withCode(codeHash))
+
+            // push address of a newly created account to stack
+            val stack3 = stack1.push(DataWord(newAddress.bytes))
+
+            // return updated program state
+            state
+              .withStack(stack3)
+              .withWorld(world5)
+              .withAddressesToDelete(result.addressesToDelete)
+
+        }
+
+
+      }
+
+    }
+
+//    returnData: ByteString,
+//      gasRemaining: BigInt,
+//      gasUsed: BigInt,
+//      world: WorldStateProxy,
+//      addressesToDelete: Seq[Address] = Seq(),
+//    error: Option[ProgramError]
+////
+//    val (ret, mem1) = state.memory.load(addr, size)
+//
+//    state.withStack(stack1).withReturnData(ret).withMemory(mem1).halt
+
+    ???
+  }
+
+  protected def varGas(state: ProgramState): BigInt = {
+    val (Seq(callValue, inOffset, inSize), _) = state.stack.pop(3)
+    calcMemCost(state.memory.size, inOffset, inSize)
+  }
+}
 
 
 sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, 1, G_zero) {

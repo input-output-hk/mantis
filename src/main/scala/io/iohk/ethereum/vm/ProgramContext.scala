@@ -47,5 +47,5 @@ object ProgramContext {
   */
 case class ProgramContext(
   env: ExecEnv,
-  startGas: BigInt, //TODO: should we move it to ExecEnv
+  startGas: BigInt, //TODO: should we move it to ExecEnv, JZ: yes!
   world: WorldStateProxy)
