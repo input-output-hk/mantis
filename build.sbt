@@ -1,6 +1,7 @@
 import com.typesafe.sbt.packager.SettingsHelper._
 
 enablePlugins(UniversalPlugin)
+enablePlugins(JavaAppPackaging)
 
 val commonSettings = Seq(
   name := "etc-client",
@@ -44,22 +45,8 @@ scalacOptions := Seq("-unchecked", "-deprecation")
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}
 
-//Assembly
-assemblyJarName in assembly := name.value + "-" + version.value +".jar"
-mainClass in (Compile, packageBin) := Some("io.iohk.ethereum.App")
-mainClass in assembly := Some("io.iohk.ethereum.App")
-test in assembly := {}
-scriptClasspath := Seq( (assemblyJarName in assembly).value )
-
-//Universal
-addCommandAlias("dist", "universal:packageBin")
-mappings in Universal <<= (mappings in Universal, assembly in Compile) map { (universalMappings, fatJar) =>
-  universalMappings :+ (fatJar -> ("bin/" + fatJar.getName))
-}
-mappings in Universal <++= (packageBin in Compile, resourceDirectory in Compile ) map { (_, base) =>
-  base.listFiles().toSeq.collect{ case f: File if f.name.endsWith(".conf") =>
-    f -> ("conf/" + f.name)
-  }
-}
-javaOptions in run ++= Seq("-Dconfig.file=../application.conf")
+mappings in Universal ++= (resourceDirectory in Compile).value.listFiles()
+  .find(_.name == "application.conf").toSeq
+  .map { f => f -> ("conf/" + f.name) }
+bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/application.conf""""
 makeDeploymentSettings(Universal, packageBin in Universal, "dist")
