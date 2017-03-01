@@ -6,7 +6,7 @@ import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.network.PeerActor.FastSyncHostConfiguration
+import io.iohk.ethereum.network.PeerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
@@ -32,12 +32,11 @@ import scala.concurrent.duration._
 class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
     rlpxConnectionFactory: ActorContext => ActorRef,
-    fastSyncHostConfiguration: FastSyncHostConfiguration,
+    peerConfiguration: PeerConfiguration,
     storage: Blockchain)
   extends Actor with ActorLogging {
 
   import Config.Blockchain._
-  import Config.Network.Peer._
   import PeerActor._
   import context.{dispatcher, system}
 
@@ -82,7 +81,7 @@ class PeerActor(
     case RLPxConnectionHandler.ConnectionFailed =>
       log.info("Failed to establish RLPx connection")
       rlpxConnection.uriOpt match {
-        case Some(uri) if noRetries < connectMaxRetries =>
+        case Some(uri) if noRetries < peerConfiguration.connectMaxRetries =>
           context unwatch rlpxConnection.ref
           scheduleConnectRetry(uri, noRetries)
         case Some(uri) =>
@@ -111,8 +110,8 @@ class PeerActor(
   }
 
   private def scheduleConnectRetry(uri: URI, noRetries: Int): Unit = {
-    log.info("Scheduling connection retry in {}", connectRetryDelay)
-    system.scheduler.scheduleOnce(connectRetryDelay, self, RetryConnectionTimeout)
+    log.info("Scheduling connection retry in {}", peerConfiguration.connectRetryDelay)
+    system.scheduler.scheduleOnce(peerConfiguration.connectRetryDelay, self, RetryConnectionTimeout)
     context become {
       case RetryConnectionTimeout => reconnect(uri, noRetries + 1)
       case GetStatus => sender() ! StatusResponse(Connecting)
@@ -127,7 +126,7 @@ class PeerActor(
       timeout.cancel()
       if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
         rlpxConnection.sendMessage(createStatusMsg())
-        val statusTimeout = system.scheduler.scheduleOnce(waitForStatusTimeout, self, StatusReceiveTimeout)
+        val statusTimeout = system.scheduler.scheduleOnce(peerConfiguration.waitForStatusTimeout, self, StatusReceiveTimeout)
         context become waitingForNodeStatus(rlpxConnection, statusTimeout)
       } else {
         log.info("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
@@ -158,7 +157,7 @@ class PeerActor(
       timeout.cancel()
       log.info("Peer returned status ({})", status)
       rlpxConnection.sendMessage(GetBlockHeaders(Left(daoForkBlockNumber), maxHeaders = 1, skip = 0, reverse = false))
-      val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
+      val waitingForDaoTimeout = system.scheduler.scheduleOnce(peerConfiguration.waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
       context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
 
     case StatusReceiveTimeout =>
@@ -206,7 +205,7 @@ class PeerActor(
 
   private def disconnectFromPeer(rlpxConnection: RLPxConnection, reason: Int): Unit = {
     rlpxConnection.sendMessage(Disconnect(reason))
-    system.scheduler.scheduleOnce(disconnectPoisonPillTimeout, self, PoisonPill)
+    system.scheduler.scheduleOnce(peerConfiguration.disconnectPoisonPillTimeout, self, PoisonPill)
     context unwatch rlpxConnection.ref
     context become disconnected
   }
@@ -236,7 +235,7 @@ class PeerActor(
     case RLPxConnectionHandler.MessageReceived(request: GetNodeData) =>
       import io.iohk.ethereum.rlp.encode
 
-      val result: Seq[ByteString] = request.mptElementsHashes.slice(0, fastSyncHostConfiguration.maxMptComponentsPerMessage).flatMap { hash =>
+      val result: Seq[ByteString] = request.mptElementsHashes.slice(0, peerConfiguration.fastSyncHostConfiguration.maxMptComponentsPerMessage).flatMap { hash =>
         storage.getMptNodeByHash(hash).map((node: MptNode) => ByteString(encode[MptNode](node)))
           .orElse(storage.getEvmCodeByHash(hash).map((evm: ByteString) => evm))
       }
@@ -246,13 +245,13 @@ class PeerActor(
 
   def handleBlockFastDownload(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(request: GetReceipts) =>
-      val receipts = request.blockHashes.slice(0, fastSyncHostConfiguration.maxReceiptsPerMessage)
+      val receipts = request.blockHashes.slice(0, peerConfiguration.fastSyncHostConfiguration.maxReceiptsPerMessage)
         .flatMap(hash => storage.getReceiptsByHash(hash))
 
       rlpxConnection.sendMessage(Receipts(receipts))
 
     case RLPxConnectionHandler.MessageReceived(request: GetBlockBodies) =>
-      val blockBodies = request.hashes.slice(0, fastSyncHostConfiguration.maxBlocksBodiesPerMessage)
+      val blockBodies = request.hashes.slice(0, peerConfiguration.fastSyncHostConfiguration.maxBlocksBodiesPerMessage)
         .flatMap(hash => storage.getBlockBodyByHash(hash))
 
       rlpxConnection.sendMessage(BlockBodies(blockBodies))
@@ -264,8 +263,8 @@ class PeerActor(
         case Some(startBlockNumber) if startBlockNumber >= 0 && request.maxHeaders >= 0 && request.skip >= 0 =>
 
           val headersCount: BigInt =
-            if (fastSyncHostConfiguration.maxBlocksHeadersPerMessage < request.maxHeaders)
-              fastSyncHostConfiguration.maxBlocksHeadersPerMessage
+            if (peerConfiguration.fastSyncHostConfiguration.maxBlocksHeadersPerMessage < request.maxHeaders)
+              peerConfiguration.fastSyncHostConfiguration.maxBlocksHeadersPerMessage
             else
               request.maxHeaders
 
@@ -360,8 +359,8 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], fastSyncHostConfiguration: FastSyncHostConfiguration, storage: Blockchain): Props =
-    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), fastSyncHostConfiguration, storage))
+  def props(nodeStatusHolder: Agent[NodeStatus], peerConfiguration: PeerConfiguration, storage: Blockchain): Props =
+    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), peerConfiguration, storage))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
@@ -371,6 +370,15 @@ object PeerActor {
     def sendMessage[M <: Message : RLPEncoder](message: M): Unit = {
       ref ! RLPxConnectionHandler.SendMessage(message)
     }
+  }
+
+  trait PeerConfiguration {
+    val connectRetryDelay: FiniteDuration
+    val connectMaxRetries: Int
+    val disconnectPoisonPillTimeout: FiniteDuration
+    val waitForStatusTimeout: FiniteDuration
+    val waitForChainCheckTimeout: FiniteDuration
+    val fastSyncHostConfiguration: FastSyncHostConfiguration
   }
 
   trait FastSyncHostConfiguration {

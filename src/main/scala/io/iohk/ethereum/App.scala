@@ -32,7 +32,7 @@ object App {
 
     val nodeStatusHolder = Agent(nodeStatus)
 
-    val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, Config.Network.Peer.fastSyncHostConfiguration, blockchain), "peer-manager")
+    val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, Config.Network.peer, blockchain), "peer-manager")
     val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
     server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
