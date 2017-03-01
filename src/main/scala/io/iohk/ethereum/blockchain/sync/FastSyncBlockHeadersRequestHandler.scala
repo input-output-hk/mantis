@@ -20,21 +20,28 @@ class FastSyncBlockHeadersRequestHandler(
   override def handleResponseMsg(blockHeaders: BlockHeaders): Unit = {
     val blockHashes = blockHeaders.headers.map(_.hash)
 
-    blockHeaders.headers.foreach(blockchain.save)
+    val (blockHashesObtained, blockHeadersObtained) = blockHashes.zip(blockHeaders.headers).takeWhile{ case (hash, header) =>
+      val parentTd: Option[BigInt] = blockchain.getTotalDifficultyByHash(header.parentHash)
+      parentTd foreach { parentTotalDifficulty =>
+        blockchain.save(header)
+        blockchain.save(hash, parentTotalDifficulty + header.difficulty)
+      }
+      parentTd.isDefined
+    }.unzip
 
-    blockHeaders.headers.lastOption foreach { lastHeader =>
+    blockHeadersObtained.lastOption foreach { lastHeader =>
       nodeStatusHolder.send(_.copy(
         blockchainStatus = BlockchainStatus(lastHeader.difficulty, lastHeader.hash, lastHeader.number)))
     }
 
-    if (blockHashes.nonEmpty) {
-      fastSyncController ! FastSyncController.EnqueueBlockBodies(blockHashes)
-      fastSyncController ! FastSyncController.EnqueueReceipts(blockHashes)
-    } else {
-      fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+    if (blockHashesObtained.nonEmpty) {
+      fastSyncController ! FastSyncController.EnqueueBlockBodies(blockHashesObtained)
+      fastSyncController ! FastSyncController.EnqueueReceipts(blockHashesObtained)
     }
 
-    log.info("Received {} block headers in {} ms", blockHeaders.headers.size, timeTakenSoFar())
+    if (blockHashesObtained.length != blockHashes.length) fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+
+    log.info("Received {} block headers in {} ms", blockHashesObtained.size, timeTakenSoFar())
     cleanupAndStop()
   }
 

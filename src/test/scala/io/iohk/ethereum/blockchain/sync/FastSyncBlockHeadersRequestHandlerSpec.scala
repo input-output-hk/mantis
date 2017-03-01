@@ -2,17 +2,15 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import akka.agent.Agent
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.utils.{BlockchainStatus, ServerStatus, NodeStatus}
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import org.scalatest.{FlatSpec, Matchers}
@@ -20,10 +18,10 @@ import org.scalatest.{FlatSpec, Matchers}
 class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
   "FastSyncBlockHeadersRequestHandler" should "handle successful response (and enqueue remaining receipts)" in new TestSetup {
-    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(block), maxHeaders, 0, false)))
+    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(block), maxHeaders, 0, reverse = false)))
     peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
 
-    val responseHeaders = Seq(BlockHeader(ByteString(""), ByteString(""), ByteString(""),
+    val responseHeaders = Seq(BlockHeader(Config.Blockchain.genesisHash, ByteString(""), ByteString(""),
       ByteString(""), ByteString(""), ByteString(""),
       ByteString(""), 0, 0, 0, 0, 0, ByteString(""), ByteString(""), ByteString("")))
 
@@ -65,7 +63,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     val parent = TestProbe()
 
     val block = BigInt(1)
-    val maxHeaders = 10
+    val maxHeaders = 1
 
     val nodeKey = crypto.generateKeyPair()
 

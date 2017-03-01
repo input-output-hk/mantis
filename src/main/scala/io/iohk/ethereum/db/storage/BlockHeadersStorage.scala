@@ -6,6 +6,7 @@ import io.iohk.ethereum.db.storage.BlockHeadersStorage.BlockHeaderHash
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
+import io.iohk.ethereum.utils.Config
 
 /**
   * This class is used to store the BlockHeader, by using:
@@ -25,6 +26,7 @@ class BlockHeadersStorage(val dataSource: DataSource) extends KeyValueStorage[Bl
     (encodedBlockHeader: IndexedSeq[Byte]) => rlpDecode[BlockHeader](encodedBlockHeader.toArray)
 
   override protected def apply(dataSource: DataSource): BlockHeadersStorage = new BlockHeadersStorage(dataSource)
+
 }
 
 object BlockHeadersStorage {

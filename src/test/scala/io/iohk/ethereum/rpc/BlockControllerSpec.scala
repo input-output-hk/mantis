@@ -66,11 +66,15 @@ trait BlockRouteSetup {
 
     override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = ???
 
+    override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = ???
+
     override def save(block: Block): Unit = ???
 
     override def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit = ???
 
     override def save(hash: ByteString, evmCode: ByteString): Unit = ???
+
+    override def save(hash: ByteString, totalDifficulty: BigInt): Unit = ???
 
     override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = ???
 
