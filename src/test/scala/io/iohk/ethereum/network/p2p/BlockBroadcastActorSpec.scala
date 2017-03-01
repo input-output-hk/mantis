@@ -253,7 +253,11 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     blockchain.save(blockParent.header.hash, blockParent.header.difficulty)
   }
 
+  /**
+    * Blockchain: blockParent -> block -> blockSon -> ...
+    */
   trait BlockUtil {
+    //Genesis block, that is already in the blockchain
     val blockParent = Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
@@ -276,7 +280,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     )
     val blockParentTD: BigInt = blockParent.header.difficulty
 
-    //Block whose parent is in storage
+    //Son of blockParent
     val block = Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("7d7624494a009676b3da30f967c68623e6d940bc53fb8efbbc23369626ef4fac")),
@@ -299,6 +303,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     )
     val blockTD: BigInt = blockParentTD + block.header.difficulty
 
+    //Son of block
     val blockSon = Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("26db59ce5f6b5c43136a75f9c2912adc4129b153182470fd2f52008e1ea590d7")),
