@@ -51,7 +51,7 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
 
       val nodeStatusHolder = Agent(nodeStatus)
 
-      val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder), "peer-manager")
+      val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, blockchain), "peer-manager")
       val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
       if(Config.Network.Rpc.enabled) JsonRpcServer.run(actorSystem, blockchain, Config.Network.Rpc)
