@@ -31,7 +31,6 @@ import scala.concurrent.duration._
 class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
     rlpxConnectionFactory: ActorContext => ActorRef,
-    supervisor: ActorRef,
     storage: Blockchain)
   extends Actor with ActorLogging {
 
@@ -331,7 +330,7 @@ class PeerActor(
       case m: NewBlock =>
         if (m.block.header.number > currentPeerMaxBlock)
           currentPeerMaxBlock = m.block.header.number
-          supervisor ! Broadcast(m)
+          context.parent ! Broadcast(m)
       case _ =>
     }
 
@@ -365,8 +364,8 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], supervisor: ActorRef, storage: Blockchain): Props =
-    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), supervisor, storage))
+  def props(nodeStatusHolder: Agent[NodeStatus], storage: Blockchain): Props =
+    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), storage))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")

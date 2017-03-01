@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.p2p
 
 import java.net.{InetSocketAddress, URI}
 
-import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
@@ -10,7 +10,7 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.PeerActor.{Broadcast, SendMessage}
+import io.iohk.ethereum.network.PeerActor.Broadcast
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipt, Receipts}
@@ -56,7 +56,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }, TestProbe().ref, blockchain)))
+      }, blockchain)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -573,7 +573,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val rlpxConnection = TestProbe()
     val peerManager = TestProbe()
 
-    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, peerManager.ref, blockchain)))
+    val peer: ActorRef = peerManager.childActorOf(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, blockchain)))
   }
 
 }
