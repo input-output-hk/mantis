@@ -2,7 +2,6 @@ package io.iohk.ethereum.network.p2p.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
-import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.crypto.{kec256, kec512}
 
 object BlockHeaderValidator {
@@ -164,7 +163,7 @@ object BlockHeaderValidator {
   }
 
   /**
-    * Retrieves the header of the parent of a block from the BlockHeadersStorage, if it exists.
+    * Retrieves the header of the parent of a block from the Blockchain, if it exists.
     *
     * @param blockHeader BlockHeader whose parent we want to fetch.
     * @param blockchain where the header of the parent of the block will be fetched.
@@ -172,7 +171,7 @@ object BlockHeaderValidator {
     */
   private def obtainBlockParentHeader(blockHeader: BlockHeader,
                                       blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] = {
-    blockchain.getBlockHeaderByHash(blockHeader.parentHash) match{
+    blockchain.getBlockHeaderByHash(blockHeader.parentHash) match {
       case Some(blockParentHeader) => Right(blockParentHeader)
       case None => Left(HeaderParentNotFoundError)
     }

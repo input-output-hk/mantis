@@ -42,10 +42,11 @@ class BlockBroadcastActor(
 
         val blockToProcess = state.unprocessedBlocks.head
         val blockHeader = BlockHeaderValidator.validate(blockToProcess.header, blockchain)
+        val blockParentTotalDifficulty = blockchain.getTotalDifficultyByHash(blockToProcess.header.parentHash)
 
-        blockHeader match {
-          case Right(_) =>
-            importBlockToBlockchain(blockToProcess)
+        (blockHeader, blockParentTotalDifficulty) match {
+          case (Right(_), Some(parentTD)) =>
+            importBlockToBlockchain(blockToProcess, parentTD)
 
             peerManagerActor ! GetPeers
             val newState = state.copy(
@@ -54,19 +55,17 @@ class BlockBroadcastActor(
             )
             context become processMessages(newState)
 
-          case Left(HeaderParentNotFoundError) =>
+          case (Left(HeaderParentNotFoundError), _) | (Right(_), None) =>
             log.info("Block parent not found, block {} will not be broadcasted", Hex.toHexString(blockToProcess.header.hash.toArray))
             context become processMessages(state.copy(unprocessedBlocks = state.unprocessedBlocks.tail))
 
-          case Left(_) =>
-            log.info("Block {} not valid, dropping peer {}", Hex.toHexString(blockToProcess.header.hash.toArray), peer.path.name)
-            peer ! PeerActor.DropPeer(Disconnect.Reasons.UselessPeer)
-            context stop self
+          case (Left(_), _) =>
+            log.info("Block {} not valid", Hex.toHexString(blockToProcess.header.hash.toArray))
+            context become processMessages(state.copy(unprocessedBlocks = state.unprocessedBlocks.tail))
         }
 
       case PeerManagerActor.PeersResponse(peers) if state.toBroadcastBlocks.nonEmpty =>
-        state.toBroadcastBlocks.foreach{ b =>
-          val newBlock = Block(b.header, b.body)
+        state.toBroadcastBlocks.foreach{ newBlock =>
           sendNewBlockMsgToPeers(peers, newBlock)
         }
         context become processMessages(state.copy(toBroadcastBlocks = Seq()))
@@ -75,6 +74,7 @@ class BlockBroadcastActor(
     }
 
   def handleReceivedMessages(state: ProcessingState): Receive = {
+
     case MessageReceived(m: NewBlock) =>
       val newBlock = Block(m.block.header, m.block.body)
       if(blockToProcess(newBlock.header.hash, state)){
@@ -111,7 +111,8 @@ class BlockBroadcastActor(
     log.info("Got NewBlockHashes message {}", newHashes.map( hash => Hex.toHexString(hash.toArray)))
     hashes.foreach{ hash =>
       val getBlockHeadersMsg = GetBlockHeaders(block = Right(hash), maxHeaders = 1, skip = 0, reverse =  false)
-      peer ! PeerActor.SendMessage(getBlockHeadersMsg) }
+      peer ! PeerActor.SendMessage(getBlockHeadersMsg)
+    }
     context become processMessages(state.copy(fetchedBlockHeaders = state.fetchedBlockHeaders ++ hashes))
   }
 
@@ -143,15 +144,12 @@ class BlockBroadcastActor(
       Block(blockHeader, blockBody)
     }
 
-  //FIXME: Replace with importing the block to blockchain
-  private def importBlockToBlockchain(block: Block) = {
+  private def importBlockToBlockchain(block: Block, blockParentTotalDifficulty: BigInt) = {
     val blockHash = block.header.hash
 
-    //Insert block to storages
+    //Insert block to blockchain
     blockchain.save(block)
-    val parentTd = blockchain.getTotalDifficultyByHash(block.header.parentHash)
-      .getOrElse(throw new Exception(s"Block ${Hex.toHexString(block.header.parentHash.toArray)} total difficulty is not on storage"))
-    blockchain.save(blockHash, parentTd + block.header.difficulty)
+    blockchain.save(blockHash, blockParentTotalDifficulty + block.header.difficulty)
 
     //Update NodeStatus
     nodeStatusHolder.send(_.copy(

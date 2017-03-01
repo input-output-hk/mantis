@@ -298,7 +298,7 @@ class PeerActor(
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
       handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
-      handleBlockFastDownload(rlpxConnection) orElse handleDropPeer(rlpxConnection) orElse {
+      handleBlockFastDownload(rlpxConnection) orElse {
       case RLPxConnectionHandler.MessageReceived(message) =>
         log.debug("Received message: {}", message)
         notifySubscribers(message)
@@ -311,12 +311,10 @@ class PeerActor(
         sender() ! StatusResponse(Handshaked(initialStatus))
 
       case PeerActor.StartBlockBroadcast(blockchain) =>
-        val broadcastActor = BlockBroadcastActor.props(
-          nodeStatusHolder,
-          self,
-          context.parent,
-          blockchain)
-        val blockBroadcastActor = context.actorOf(broadcastActor, "blockbroadcast")
+        val blockBroadcastActor = context.actorOf(
+          BlockBroadcastActor.props(nodeStatusHolder, self, context.parent, blockchain),
+          "blockbroadcast"
+        )
         blockBroadcastActor ! BlockBroadcastActor.StartBlockBroadcast
     }
 
@@ -345,10 +343,6 @@ class PeerActor(
       case _ => // nothing
     }
 
-  }
-
-  private def handleDropPeer(rlpxConnection: RLPxConnection): Receive = {
-    case DropPeer(reason: Int) => disconnectFromPeer(rlpxConnection, reason)
   }
 
 }
@@ -382,8 +376,6 @@ object PeerActor {
   private case object StatusReceiveTimeout
 
   private case object RetryConnectionTimeout
-
-  case class DropPeer(reason: Int)
 
   case object GetStatus
   case class StatusResponse(status: Status)

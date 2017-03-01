@@ -33,7 +33,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peerProbe.expectMsg(PeerActor.Subscribe(Set(NewBlock.code, PV61.NewBlockHashes.code, PV62.NewBlockHashes.code, BlockHeaders.code, BlockBodies.code)))
   }
 
-  it should "broadcast only blocks that it hasn't yet received (but not to the sending peer)" in new TestSetup {
+  it should "broadcast new blocks received (but not to the sending peer)" in new TestSetup {
     peerProbe.send(blockBroadcast, BlockBroadcastActor.StartBlockBroadcast)
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
@@ -199,7 +199,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(expectedNewBlockSon)) }
   }
 
-  it should "drop the peer when receiving an invalid block" in new TestSetup {
+  it should "not broadcast an invalid block" in new TestSetup {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
@@ -210,7 +210,12 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
     peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlock))
 
-    peerProbe.expectMsg(PeerActor.DropPeer(Disconnect.Reasons.UselessPeer))
+    time.advance(1.seconds)
+
+    //No message should have been sent
+    assert(!peerManager.msgAvailable)
+    assert(!peerProbe.msgAvailable)
+    peersProbes.foreach { p => assert(!p.msgAvailable) }
   }
 
   trait TestSetup extends BlockUtil with EphemBlockchainTestSetup {

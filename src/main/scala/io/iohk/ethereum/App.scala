@@ -54,9 +54,9 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
       val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, blockchain), "peer-manager")
       val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
-      if(Config.Network.Rpc.enabled) JsonRpcServer.run(actorSystem, blockchain, Config.Network.Rpc)
-
       server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
+
+      if(Config.Network.Rpc.enabled) JsonRpcServer.run(actorSystem, blockchain, Config.Network.Rpc)
 
       val fastSyncController = actorSystem.actorOf(
         FastSyncController.props(
@@ -68,13 +68,13 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
 
       fastSyncController ! FastSyncController.StartFastSync
 
-      context become waitingForFastSyncDone(blockchain, peerManager)
-
       Runtime.getRuntime.addShutdownHook(new Thread() {
         override def run(): Unit = {
           storagesInstance.dataSources.closeAll
         }
       })
+
+      context become waitingForFastSyncDone(blockchain, peerManager)
 
   }
 
