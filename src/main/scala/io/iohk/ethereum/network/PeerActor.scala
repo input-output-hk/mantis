@@ -180,11 +180,11 @@ class PeerActor(
       daoBlockHeaderOpt match {
         case Some(_) if daoForkValidator.validate(msg).isEmpty =>
           log.info("Peer is running the ETC chain")
-          context become new HandshakedHandler(rlpxConnection, remoteStatus).receive
+          context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber).receive
 
         case Some(_) if nodeStatusHolder().blockchainStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
           log.info("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
-          context become new HandshakedHandler(rlpxConnection, remoteStatus).receive
+          context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber).receive
 
         case Some(_) =>
           log.info("Peer is not running the ETC fork, disconnecting")
@@ -192,7 +192,7 @@ class PeerActor(
 
         case None if remoteStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
           log.info("Peer is not at ETC fork yet. Keeping the connection until then.")
-          context become new HandshakedHandler(rlpxConnection, remoteStatus).receive
+          context become new HandshakedHandler(rlpxConnection, remoteStatus, 0).receive
 
         case None =>
           log.info("Peer did not respond with ETC fork block header")
@@ -296,9 +296,7 @@ class PeerActor(
       }
   }
 
-  class HandshakedHandler(rlpxConnection: RLPxConnection, initialStatus: msg.Status) {
-
-    var currentPeerMaxBlock: BigInt = 0
+  class HandshakedHandler(rlpxConnection: RLPxConnection, initialStatus: msg.Status, currentPeerMaxBlock: BigInt) {
 
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
@@ -334,7 +332,7 @@ class PeerActor(
       def update(ns: Seq[BigInt]) = {
         val maxBlockNumber = ns.fold(0: BigInt) { case (a, b) => if (a > b) a else b }
         if (maxBlockNumber > currentPeerMaxBlock) {
-          currentPeerMaxBlock = maxBlockNumber
+          context become new HandshakedHandler(rlpxConnection, initialStatus, maxBlockNumber).receive
         }
       }
     }
