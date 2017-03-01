@@ -181,10 +181,7 @@ sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val
       state.withError(StackOverflow)
     else {
       val gas = constGas + varGas(state)
-      if (gas > state.gas)
-        state.copy(gas = 0).withError(OutOfGas)
-      else
-        exec(state).spendGas(gas)
+      exec(state).spendGas(gas)
     }
   }
 

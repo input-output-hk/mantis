@@ -64,7 +64,10 @@ case class ProgramState(
   def inputData: ByteString = env.inputData
 
   def spendGas(amount: BigInt): ProgramState =
-    copy(gas = gas - amount)
+    if (amount > gas)
+      copy(gas = 0).withError(OutOfGas)
+    else
+      copy(gas = gas - amount)
 
   def refundGas(amount: BigInt): ProgramState =
     copy(gasRefund = gasRefund + amount)
