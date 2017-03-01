@@ -10,7 +10,7 @@ import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
@@ -21,7 +21,6 @@ import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 import scala.util.Try
-
 import scala.concurrent.duration._
 
 /**
@@ -321,16 +320,23 @@ class PeerActor(
         sender() ! StatusResponse(Handshaked(initialStatus))
     }
 
-    private def updateMaxBlock(message: Message) = message match {
-      case m: BlockHeaders =>
-        val maxBlockNumber = m.headers.map(_.number).fold(0: BigInt) { case (a, b) => if (a > b) a else b }
+    private def updateMaxBlock(message: Message) = {
+      message match {
+        case m: BlockHeaders =>
+          update(m.headers.map(_.number))
+        case m: NewBlock =>
+          update(Seq(m.block.header.number))
+        case m: NewBlockHashes =>
+          update(m.hashes.map(_.number))
+        case _ =>
+      }
+
+      def update(ns: Seq[BigInt]) = {
+        val maxBlockNumber = ns.fold(0: BigInt) { case (a, b) => if (a > b) a else b }
         if (maxBlockNumber > currentPeerMaxBlock) {
           currentPeerMaxBlock = maxBlockNumber
         }
-      case m: NewBlock =>
-        if (m.block.header.number > currentPeerMaxBlock)
-          currentPeerMaxBlock = m.block.header.number
-      case _ =>
+      }
     }
 
     private def notifySubscribers(message: Message): Unit = {

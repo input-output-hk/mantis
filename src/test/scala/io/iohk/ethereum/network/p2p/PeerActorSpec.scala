@@ -439,6 +439,25 @@ class PeerActorSpec extends FlatSpec with Matchers {
     probe.expectMsg(MaxBlockNumber(4))
   }
 
+  it should "update max peer when receiving new block hashes" in new TestSetup {
+    //given
+    val firstBlockHash: BlockHash = BlockHash(ByteString(Hex.decode("00" * 32)), 2)
+    val secondBlockHash: BlockHash = BlockHash(ByteString(Hex.decode("00" * 32)), 5)
+    val probe = TestProbe()
+
+    setupConnection()
+
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(0))
+
+    //when
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(NewBlockHashes(Seq(firstBlockHash, secondBlockHash))))
+
+    //then
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(5))
+  }
+
   it should "update max peer when sending new block" in new TestSetup {
     //given
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = 4)
@@ -480,6 +499,26 @@ class PeerActorSpec extends FlatSpec with Matchers {
     //then
     peer ! GetMaxBlockNumber(probe.testActor)
     probe.expectMsg(MaxBlockNumber(4))
+  }
+
+  it should "update max peer when sending new block hashes" in new TestSetup {
+    //given
+    val firstBlockHash: BlockHash = BlockHash(ByteString(Hex.decode("00" * 32)), 2)
+    val secondBlockHash: BlockHash = BlockHash(ByteString(Hex.decode("00" * 32)), 5)
+    val probe = TestProbe()
+
+    setupConnection()
+
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(0))
+
+    //when
+    peer ! PeerActor.SendMessage(NewBlockHashes(Seq(firstBlockHash)))
+    peer ! PeerActor.SendMessage(NewBlockHashes(Seq(secondBlockHash)))
+
+    //then
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(5))
   }
 
   trait BlockUtils {
