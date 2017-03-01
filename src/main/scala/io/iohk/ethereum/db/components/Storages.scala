@@ -29,7 +29,7 @@ object Storages {
 
   /**
     * As IODB required same length keys, we need a specific storage that pads integer values to be used as keys to match
-    * keccak keys. See [[IodbBlockNumberMappingStorage]]
+    * keccak keys. See [[io.iohk.ethereum.db.storage.IodbBlockNumberMappingStorage]]
     */
   trait IodbStorages extends StoragesComponent {
     dataSourcesComp: DataSourcesComponent =>
