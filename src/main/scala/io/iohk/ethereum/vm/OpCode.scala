@@ -4,11 +4,11 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm.GasFee._
-import io.iohk.ethereum.blockchain.sync.FastSyncNodesRequestHandler._
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
 // scalastyle:off method.length
+// scalastyle:off file.size.limit
 object OpCode {
 
   val opcodes: List[OpCode] = List(
