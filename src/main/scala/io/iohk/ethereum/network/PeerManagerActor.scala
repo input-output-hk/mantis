@@ -48,9 +48,6 @@ class PeerManagerActor(
     case Terminated(ref) =>
       peers -= ref.path.name
 
-    case broadcast: PeerActor.Broadcast[_] =>
-      peers.values.foreach(_.ref ! broadcast)
-
     case ScanBootstrapNodes =>
       val peerAddresses = peers.values.map(_.remoteAddress).toSet
       val nodesToConnect = bootstrapNodes

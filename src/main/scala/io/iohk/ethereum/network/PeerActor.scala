@@ -2,6 +2,7 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
+import scala.concurrent.duration._
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
@@ -18,6 +19,8 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+
+import scala.util.Try
 
 import scala.concurrent.duration._
 
@@ -312,10 +315,7 @@ class PeerActor(
         updateMaxBlock(s.message)
         rlpxConnection.sendMessage(s.message)(s.enc)
 
-      case Broadcast(newBlock: NewBlock) =>
-        if (newBlock.block.header.number > currentPeerMaxBlock) {
-          rlpxConnection.sendMessage(newBlock)
-        }
+      case GetMaxBlockNumber(actor) => actor ! MaxBlockNumber(currentPeerMaxBlock)
 
       case GetStatus =>
         sender() ! StatusResponse(Handshaked(initialStatus))
@@ -330,7 +330,6 @@ class PeerActor(
       case m: NewBlock =>
         if (m.block.header.number > currentPeerMaxBlock)
           currentPeerMaxBlock = m.block.header.number
-          context.parent ! Broadcast(m)
       case _ =>
     }
 
@@ -383,7 +382,9 @@ object PeerActor {
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
 
-  case class Broadcast[M <: Message](block: M)
+  case class GetMaxBlockNumber(from: ActorRef)
+
+  case class MaxBlockNumber(number: BigInt)
 
   private case object DaoHeaderReceiveTimeout
 

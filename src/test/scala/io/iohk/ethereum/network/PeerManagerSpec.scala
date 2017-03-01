@@ -59,10 +59,10 @@ class PeerManagerSpec extends FlatSpec with Matchers {
     var createdPeers: Seq[TestProbe] = Nil
 
     val peerFactory: (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
-        val peer = TestProbe()
-        createdPeers :+= peer
-        peer.ref
-      }
+      val peer = TestProbe()
+      createdPeers :+= peer
+      peer.ref
+    }
   }
 
 }
