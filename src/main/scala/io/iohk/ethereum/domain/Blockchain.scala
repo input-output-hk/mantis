@@ -2,8 +2,8 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV63.{MptNode, Receipt}
+import io.iohk.ethereum.network.protocol.PV62.BlockBody
+import io.iohk.ethereum.network.protocol.PV63.{Receipt, MptNode}
 import io.iohk.ethereum.utils.Config
 
 /**

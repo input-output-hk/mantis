@@ -1,6 +1,7 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+import io.iohk.ethereum.vm.Address
 import org.spongycastle.util.encoders.Hex
 
 

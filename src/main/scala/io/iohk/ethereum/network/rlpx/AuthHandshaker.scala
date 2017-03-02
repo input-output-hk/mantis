@@ -5,7 +5,6 @@ import java.nio.ByteBuffer
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.network._
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.utils.ByteUtils._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair

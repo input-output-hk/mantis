@@ -1,11 +1,12 @@
-package io.iohk.ethereum.network.p2p.messages
+package io.iohk.ethereum.network.protocol
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.mpt.HexPrefix.{bytesToNibbles, encode => hpEncode}
-import io.iohk.ethereum.network.p2p.Message.{PV63 => constantPV63, decode => msgDecode}
-import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.network.protocol.MessageDecoder.{PV63 => constantPV63}
+import io.iohk.ethereum.network.protocol.MessageDecoder.{decode => msgDecode}
+import io.iohk.ethereum.network.protocol.PV63._
 import io.iohk.ethereum.rlp.{encode, _}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.scalatest.{FlatSpec, Matchers}
@@ -13,7 +14,7 @@ import org.spongycastle.util.encoders.Hex
 
 class NodeDataSpec extends FlatSpec with Matchers {
 
-  import AccountImplicits._
+  import io.iohk.ethereum.network.protocol.PV63.AccountImplicits._
 
   val emptyEvmHash: ByteString = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
   val emptyStorageRoot: ByteString = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))

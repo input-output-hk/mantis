@@ -7,7 +7,7 @@ import akka.http.scaladsl.server.Route
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Block, Blockchain, SignedTransaction}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+import io.iohk.ethereum.network.protocol.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rpc.customserializers.ByteStringJsonSerializer._
 

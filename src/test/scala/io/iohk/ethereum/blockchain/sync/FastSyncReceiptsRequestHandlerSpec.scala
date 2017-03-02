@@ -8,7 +8,7 @@ import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.p2p.messages.PV63.{Receipt, Receipts, GetReceipts}
+import io.iohk.ethereum.network.protocol.PV63.{Receipt, Receipts, GetReceipts}
 import org.scalatest.{FlatSpec, Matchers}
 
 class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {

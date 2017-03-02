@@ -1,9 +1,9 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.domain.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.validators.BlockHeaderError._
+import io.iohk.ethereum.domain.validators.BlockHeaderError._
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.FunSuite
 import org.spongycastle.util.encoders.Hex

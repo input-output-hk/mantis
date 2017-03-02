@@ -2,7 +2,6 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.Address
 import org.scalacheck.{Arbitrary, Gen}
 
 // scalastyle:off magic.number

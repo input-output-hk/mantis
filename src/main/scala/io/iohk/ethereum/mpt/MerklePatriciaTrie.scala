@@ -7,6 +7,11 @@ import io.iohk.ethereum.rlp.{decode => decodeRLP, encode => encodeRLP, _}
 
 import scala.annotation.tailrec
 
+/*trait NodeStorage[K, V] {
+  def get(id: K): Option[V]
+  def update(removed: Seq[V], updated: Seq[(K,V)]): NodeStorage[K,V]
+}*/
+
 object MerklePatriciaTrie {
 
   case class MPTException(message: String) extends RuntimeException(message)
@@ -42,7 +47,9 @@ object MerklePatriciaTrie {
   private def matchingLength(a: Array[Byte], b: Array[Byte]): Int = a.zip(b).takeWhile(t => t._1 == t._2).length
 
   private def updateNodesInStorage(previousRootHash: Array[Byte], newRootHash: Array[Byte], newRoot: Option[Node],
-                                   toRemove: Seq[Node], toUpdate: Seq[Node], nodeStorage: NodeStorage, hashFn: HashFn): NodeStorage = {
+                                   toRemove: Seq[Node], toUpdate: Seq[Node], nodeStorage: NodeStorage,
+                                   hashFn: HashFn): NodeStorage = {
+
     val rootCapped = newRoot.map(_.capped).getOrElse(Array.emptyByteArray)
     val toBeRemoved = toRemove.filter { node =>
       val nCapped = node.capped

@@ -3,7 +3,7 @@ package io.iohk.ethereum.db.storage
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.MptNodeStorage._
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
+import io.iohk.ethereum.network.protocol.PV63.MptNode
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 
 /**

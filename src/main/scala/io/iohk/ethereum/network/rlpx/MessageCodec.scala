@@ -3,13 +3,23 @@ package io.iohk.ethereum.network.rlpx
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPEncoder
 
 import scala.util.Try
 
-class MessageCodec(frameCodec: FrameCodec, protocolVersion: Int) {
+trait MessageDecoder {
+  type Version = Int
+  def decode(`type`: Int, payload: Array[Byte]): Message
+}
+
+
+trait Message {
+  def code: Int
+}
+
+class MessageCodec(frameCodec: FrameCodec,
+                   decoder: MessageDecoder) {
 
   val MaxFramePayloadSize: Int = Int.MaxValue // no framing
 
@@ -17,10 +27,11 @@ class MessageCodec(frameCodec: FrameCodec, protocolVersion: Int) {
 
   def readMessages(data: ByteString): Seq[Try[Message]] = {
     val frames = frameCodec.readFrames(data)
-    frames map { frame => Try(Message.decode(frame.`type`, frame.payload.toArray, protocolVersion)) }
+    frames map { frame => Try(decoder.decode(frame.`type`, frame.payload.toArray)) }
   }
 
   def encodeMessage[M <: Message : RLPEncoder](message: M): ByteString = {
+
     val encoded = rlp.encode(message)
     val numFrames = Math.ceil(encoded.length / MaxFramePayloadSize.toDouble).toInt
     val contextId = contextIdCounter.incrementAndGet()

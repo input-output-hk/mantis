@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{ActorRef, Props, Scheduler}
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts}
+import io.iohk.ethereum.network.protocol.PV63.{GetReceipts, Receipts}
 
 class FastSyncReceiptsRequestHandler(
     peer: ActorRef,

@@ -1,4 +1,4 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.domain.validators
 
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.crypto.kec256

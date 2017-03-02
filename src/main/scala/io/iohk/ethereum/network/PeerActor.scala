@@ -5,22 +5,21 @@ import java.net.{InetSocketAddress, URI}
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.network.PeerActor.PeerConfiguration
 import io.iohk.ethereum.network.PeerActor.Status._
-import io.iohk.ethereum.network.p2p._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, _}
-import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
-import io.iohk.ethereum.network.p2p.validators.ForkValidator
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 import scala.concurrent.duration._
+import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.network.PeerActor.PeerConfiguration
+import io.iohk.ethereum.network.protocol.PV62.{BlockHeaders, GetBlockHeaders, NewBlockHashes}
+import io.iohk.ethereum.network.protocol.WireProtocol._
+import io.iohk.ethereum.domain.validators.ForkValidator
+import io.iohk.ethereum.network.protocol.CommonMessages.NewBlock
+import io.iohk.ethereum.network.protocol.{MessageDecoder, CommonMessages => msg}
+import io.iohk.ethereum.network.rlpx.{Message, MessageDecoder, RLPxConnectionHandler}
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
@@ -104,7 +103,7 @@ class PeerActor(
     Hello(
       p2pVersion = P2pVersion,
       clientId = Config.clientId,
-      capabilities = Seq(Capability("eth", Message.PV63.toByte)),
+      capabilities = Seq(Capability("eth", MessageDecoder.PV63.toByte)),
       listenPort = listenPort,
       nodeId = ByteString(nodeStatus.nodeId))
   }
@@ -124,12 +123,12 @@ class PeerActor(
     case RLPxConnectionHandler.MessageReceived(hello: Hello) =>
       log.info("Protocol handshake finished with peer ({})", hello)
       timeout.cancel()
-      if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
+      if (hello.capabilities.contains(Capability("eth", MessageDecoder.PV63.toByte))) {
         rlpxConnection.sendMessage(createStatusMsg())
         val statusTimeout = system.scheduler.scheduleOnce(peerConfiguration.waitForStatusTimeout, self, StatusReceiveTimeout)
         context become waitingForNodeStatus(rlpxConnection, statusTimeout)
       } else {
-        log.info("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
+        log.info("Connected peer does not support eth {} protocol. Disconnecting.", MessageDecoder.PV63.toByte)
         disconnectFromPeer(rlpxConnection, Disconnect.Reasons.IncompatibleP2pProtocolVersion)
       }
 
@@ -143,7 +142,7 @@ class PeerActor(
   private def createStatusMsg(): msg.Status = {
     val nodeStatus = nodeStatusHolder()
     msg.Status(
-      protocolVersion = Message.PV63,
+      protocolVersion = MessageDecoder.PV63,
       networkId = Config.Network.networkId,
       totalDifficulty = nodeStatus.blockchainStatus.totalDifficulty,
       bestHash = nodeStatus.blockchainStatus.bestHash,
@@ -335,15 +334,15 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], peerConfiguration: PeerConfiguration, storage: Blockchain): Props =
+  def props(nodeStatusHolder: Agent[NodeStatus], decoder:MessageDecoder, peerConfiguration: PeerConfiguration, storage: Blockchain): Props =
     Props(new PeerActor(
       nodeStatusHolder,
-      rlpxConnectionFactory(nodeStatusHolder().key),
+      rlpxConnectionFactory(nodeStatusHolder().key, decoder),
       peerConfiguration,
       storage))
 
-  def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
-    ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
+  def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair, decoder:MessageDecoder): ActorContext => ActorRef = { ctx =>
+    ctx.actorOf(RLPxConnectionHandler.props(nodeKey, decoder), "rlpx-connection")
   }
 
   case class RLPxConnection(ref: ActorRef, remoteAddress: InetSocketAddress, uriOpt: Option[URI]) {

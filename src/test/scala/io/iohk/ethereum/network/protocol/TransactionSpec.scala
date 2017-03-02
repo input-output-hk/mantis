@@ -1,9 +1,10 @@
-package io.iohk.ethereum.network.p2p.messages
+package io.iohk.ethereum.network.protocol
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
+import io.iohk.ethereum.domain.{SignedTransaction, Transaction}
+import io.iohk.ethereum.vm.Address
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.math.ec.ECPoint
 import org.spongycastle.util.encoders.Hex

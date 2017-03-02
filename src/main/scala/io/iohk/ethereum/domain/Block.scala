@@ -1,7 +1,7 @@
 package io.iohk.ethereum.domain
 
-import io.iohk.ethereum.network.p2p.messages.CommonMessages
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaderImplicits}
+import io.iohk.ethereum.network.protocol.CommonMessages
+import io.iohk.ethereum.network.protocol.PV62.{BlockBody, BlockHeaderImplicits}
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPEncoder, RLPList, encode}
 
 /**

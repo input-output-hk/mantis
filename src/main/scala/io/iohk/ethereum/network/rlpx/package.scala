@@ -1,12 +1,15 @@
-package io.iohk.ethereum
+package io.iohk.ethereum.network
 
 import io.iohk.ethereum.crypto._
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.math.ec.ECPoint
 import org.spongycastle.util.encoders.Hex
 
-package object network {
+package object rlpx {
 
+  // TODO Something ain't right here.
+  // ECPoint is a publicKey but pubKey => ECPublicKeyParameters
+  // I think we need a case class here NodeId to encapsulate
   implicit class ECPublicKeyParametersNodeId(val pubKey: ECPublicKeyParameters) extends AnyVal {
     def toNodeId: Array[Byte] =
       pubKey.asInstanceOf[ECPublicKeyParameters].getQ

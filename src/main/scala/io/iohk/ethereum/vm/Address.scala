@@ -1,7 +1,6 @@
-package io.iohk.ethereum.domain
+package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.vm.DataWord
 
 case object Address {
 

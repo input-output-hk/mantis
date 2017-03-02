@@ -1,12 +1,12 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.domain.validators
 
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Block, SignedTransaction}
 import io.iohk.ethereum.mpt.RLPByteArraySerializable
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
+import io.iohk.ethereum.network.protocol.PV63.Receipt
+import io.iohk.ethereum.network.protocol.CommonMessages.SignedTransactions._
+import io.iohk.ethereum.network.protocol.PV62.BlockBody
 import io.iohk.ethereum.rlp._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 
 object BlockValidator {
   /**

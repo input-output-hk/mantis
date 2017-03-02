@@ -1,13 +1,13 @@
-package io.iohk.ethereum.network.p2p.messages
+package io.iohk.ethereum.network.protocol
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.SignedTransaction
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.CommonMessages._
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.protocol.CommonMessages.SignedTransactions
+import io.iohk.ethereum.network.rlpx.Message
 
 object PV62 {
   object NewBlockHashes {
@@ -23,7 +23,7 @@ object PV62 {
       }
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x01
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x01
   }
 
   case class NewBlockHashes(hashes: Seq[BlockHash]) extends Message {
@@ -51,7 +51,7 @@ object PV62 {
       }
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x03
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x03
   }
 
   object BlockBodies {
@@ -67,7 +67,7 @@ object PV62 {
       }
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x06
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x06
   }
 
   case class BlockBodies(bodies: Seq[BlockBody]) extends Message {
@@ -208,7 +208,7 @@ object PV62 {
       }
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x04
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x04
 
   }
 
@@ -230,7 +230,7 @@ object PV62 {
       }
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x05
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x05
   }
 
   case class GetBlockBodies(hashes: Seq[ByteString]) extends Message {
