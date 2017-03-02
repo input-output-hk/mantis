@@ -6,22 +6,26 @@ import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
+import io.iohk.ethereum
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.PeerActor.{GetMaxBlockNumber, MaxBlockNumber, SendMessage}
+import io.iohk.ethereum.network.PeerActor.{FastSyncHostConfiguration, GetMaxBlockNumber, MaxBlockNumber, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipt, Receipts}
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipt, Receipts, _}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
+import io.iohk.ethereum.rlp.encode
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class PeerActorSpec extends FlatSpec with Matchers {
 
@@ -56,7 +60,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }, blockchain)))
+      }, peerConf, blockchain)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -521,6 +525,39 @@ class PeerActorSpec extends FlatSpec with Matchers {
     probe.expectMsg(MaxBlockNumber(daoForkBlockNumber + 5))
   }
 
+  it should "return evm code for hash" in new TestSetup {
+    //given
+    val fakeEvmCode = ByteString(Hex.decode("ffddaaffddaaffddaaffddaaffddaa"))
+    val evmCodeHash: ByteString = ByteString(ethereum.crypto.kec256(fakeEvmCode.toArray[Byte]))
+
+    blockchain.save(evmCodeHash, fakeEvmCode)
+
+    setupConnection()
+
+    //when
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetNodeData(Seq(evmCodeHash))))
+
+    //then
+    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(NodeData(Seq(fakeEvmCode))))
+  }
+
+  it should "return mptNode for hash" in new TestSetup {
+    //given
+    val exampleNibbles = ByteString(bytesToNibbles(Hex.decode("ffddaa")))
+    val exampleHash = ByteString(Hex.decode("ab"*32))
+    val extensionNode: MptNode = MptExtension(exampleNibbles, Left(MptHash(exampleHash)))
+
+    blockchain.save(extensionNode)
+
+    setupConnection()
+
+    //when
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetNodeData(Seq(extensionNode.hash))))
+
+    //then
+    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(NodeData(Seq(ByteString(encode(extensionNode))))))
+  }
+
   trait BlockUtils {
 
     val blockBody = new BlockBody(Seq(), Seq())
@@ -576,6 +613,21 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
 
     val daoForkBlockNumber = 1920000
+
+    val peerConf = new PeerConfiguration {
+      override val fastSyncHostConfiguration: FastSyncHostConfiguration = new FastSyncHostConfiguration {
+        val maxBlocksHeadersPerMessage: Int = 200
+        val maxBlocksBodiesPerMessage: Int = 200
+        val maxReceiptsPerMessage: Int = 200
+        val maxMptComponentsPerMessage: Int = 200
+      }
+      override val waitForStatusTimeout: FiniteDuration = 30 seconds
+      override val waitForChainCheckTimeout: FiniteDuration = 15 seconds
+      override val connectMaxRetries: Int = 3
+      override val connectRetryDelay: FiniteDuration = 1 second
+      override val disconnectPoisonPillTimeout: FiniteDuration = 5 seconds
+    }
+
   }
 
   trait TestSetup extends NodeStatusSetup with BlockUtils {
@@ -612,7 +664,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val rlpxConnection = TestProbe()
 
-    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, blockchain)))
+    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, peerConf, blockchain)))
   }
 
 }

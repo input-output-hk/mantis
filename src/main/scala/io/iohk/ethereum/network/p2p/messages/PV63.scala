@@ -16,7 +16,7 @@ object PV63 {
     implicit val rlpEncDec = new RLPEncoder[GetNodeData] with RLPDecoder[GetNodeData] {
       override def encode(obj: GetNodeData): RLPEncodeable = {
         import obj._
-        commonMptHashes: RLPList
+        mptElementsHashes: RLPList
       }
 
       override def decode(rlp: RLPEncodeable): GetNodeData = rlp match {
@@ -28,12 +28,12 @@ object PV63 {
     val code: Int = Message.SubProtocolOffset + 0x0d
   }
 
-  case class GetNodeData(commonMptHashes: Seq[ByteString]) extends Message {
+  case class GetNodeData(mptElementsHashes: Seq[ByteString]) extends Message {
     override def code: Int = GetNodeData.code
 
     override def toString: String = {
       s"""GetNodeData{
-         |hashes: ${commonMptHashes.map(e => Hex.toHexString(e.toArray[Byte]))}
+         |hashes: ${mptElementsHashes.map(e => Hex.toHexString(e.toArray[Byte]))}
          |}
        """.stripMargin
     }
