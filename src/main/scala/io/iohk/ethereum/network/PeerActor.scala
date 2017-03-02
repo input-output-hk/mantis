@@ -32,10 +32,9 @@ import scala.concurrent.duration._
 class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
     rlpxConnectionFactory: ActorContext => ActorRef,
-    peerConfiguration: PeerConfiguration,
-    fastUpload: FastUpload,
-    storage: Blockchain)
-  extends Actor with ActorLogging {
+    val peerConfiguration: PeerConfiguration,
+    val storage: Blockchain)
+  extends Actor with ActorLogging with FastUpload {
 
   import Config.Blockchain._
   import PeerActor._
@@ -266,8 +265,8 @@ class PeerActor(
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
       handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
-      fastUpload.handleBlockFastDownload(rlpxConnection, log) orElse
-      fastUpload.handleEvmMptFastDownload(rlpxConnection) orElse {
+      handleBlockFastDownload(rlpxConnection, log) orElse
+      handleEvmMptFastDownload(rlpxConnection) orElse {
 
       case RLPxConnectionHandler.MessageReceived(message) =>
         log.debug("Received message: {}", message)
@@ -316,7 +315,6 @@ object PeerActor {
       nodeStatusHolder,
       rlpxConnectionFactory(nodeStatusHolder().key),
       peerConfiguration,
-      new FastUpload(peerConfiguration.fastSyncHostConfiguration, storage),
       storage))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>

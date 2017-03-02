@@ -60,7 +60,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }, peerConf, fastSyncHost, blockchain)))
+      }, peerConf, blockchain)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -501,7 +501,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
       override val disconnectPoisonPillTimeout: FiniteDuration = 5 seconds
     }
 
-    val fastSyncHost = new FastUpload(peerConf.fastSyncHostConfiguration, blockchain)
   }
 
   trait TestSetup extends NodeStatusSetup with BlockUtils {
@@ -538,7 +537,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val rlpxConnection = TestProbe()
 
-    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, peerConf, fastSyncHost, blockchain)))
+    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, peerConf, blockchain)))
   }
 
 }
