@@ -348,29 +348,29 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
     //Jump to valid destination
     val codeWithValidDestination = ByteString(codeAllJumps.toArray.updated(jumpDest, JUMPDEST.code))
-    val stateInWithValidJumps = stateWithCode(stateWithJumpDestinationGen(jumpDest).sample.get, codeWithValidDestination)
-    val stateOutWithValidDestination = executeOp(op, stateInWithValidJumps)
+    val stateInWithValidDestination = stateWithCode(stateWithJumpDestinationGen(jumpDest).sample.get, codeWithValidDestination)
+    val stateOutWithValidDestination = executeOp(op, stateInWithValidDestination)
 
-    withStackVerification(op, stateInWithValidJumps, stateOutWithValidDestination) {
-      val (pos, _) = stateInWithValidJumps.stack.pop
-      stateOutWithValidDestination shouldEqual stateInWithValidJumps.withStack(stateOutWithValidDestination.stack).goto(pos.intValue)
+    withStackVerification(op, stateInWithValidDestination, stateOutWithValidDestination) {
+      val (pos, _) = stateInWithValidDestination.stack.pop
+      stateOutWithValidDestination shouldEqual stateInWithValidDestination.withStack(stateOutWithValidDestination.stack).goto(pos.intValue)
     }
 
     //Jump to destination not a JUMPDEST
-    val stateInWithInvalidJumps1 = stateWithCode(stateWithJumpDestinationGen(jumpDest).sample.get, codeAllJumps)
-    val stateOutWithInvalidDestination1 = executeOp(op, stateInWithInvalidJumps1)
+    val stateInWithInvalidDestination1 = stateWithCode(stateWithJumpDestinationGen(jumpDest).sample.get, codeAllJumps)
+    val stateOutWithInvalidDestination1 = executeOp(op, stateInWithInvalidDestination1)
 
-    withStackVerification(op, stateInWithInvalidJumps1, stateOutWithInvalidDestination1) {
-      stateOutWithInvalidDestination1 shouldEqual stateInWithInvalidJumps1.withError(InvalidJump)
+    withStackVerification(op, stateInWithInvalidDestination1, stateOutWithInvalidDestination1) {
+      stateOutWithInvalidDestination1 shouldEqual stateInWithInvalidDestination1.withError(InvalidJump)
     }
 
     //Jump to destination inside PUSH
     val codeWithInvalidDestination = ByteString(PUSH31.code +: (0 to 31).map(_ => 0.toByte).toArray)
-    val stateInWithInvalidJumps2 = stateWithCode(stateWithJumpDestinationGen(16).sample.get, codeWithInvalidDestination)
-    val stateOutWithInvalidDestination2 = executeOp(op, stateInWithInvalidJumps2)
+    val stateInWithInvalidDestination2 = stateWithCode(stateWithJumpDestinationGen(16).sample.get, codeWithInvalidDestination)
+    val stateOutWithInvalidDestination2 = executeOp(op, stateInWithInvalidDestination2)
 
-    withStackVerification(op, stateInWithInvalidJumps2, stateOutWithInvalidDestination2) {
-      stateOutWithInvalidDestination2 shouldEqual stateInWithInvalidJumps2.withError(InvalidJump)
+    withStackVerification(op, stateInWithInvalidDestination2, stateOutWithInvalidDestination2) {
+      stateOutWithInvalidDestination2 shouldEqual stateInWithInvalidDestination2.withError(InvalidJump)
     }
   }
 
@@ -405,29 +405,29 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
     //Jump to valid destination
     val codeWithValidDestination = ByteString(codeAllJumps.toArray.updated(jumpDest, JUMPDEST.code))
-    val stateInWithValidJumps = stateWithCode(stateWithJumpDestinationGen(jumpDest).sample.get, codeWithValidDestination)
-    val stateOutWithValidDestination = executeOp(op, stateInWithValidJumps)
+    val stateInWithValidDestination = stateWithCode(stateWithJumpDestinationGen(jumpDest).sample.get, codeWithValidDestination)
+    val stateOutWithValidDestination = executeOp(op, stateInWithValidDestination)
 
-    withStackVerification(op, stateInWithValidJumps, stateOutWithValidDestination) {
-      val (Seq(pos, _), _) = stateInWithValidJumps.stack.pop(2)
-      stateOutWithValidDestination shouldEqual stateInWithValidJumps.withStack(stateOutWithValidDestination.stack).goto(pos.intValue)
+    withStackVerification(op, stateInWithValidDestination, stateOutWithValidDestination) {
+      val (Seq(pos, _), _) = stateInWithValidDestination.stack.pop(2)
+      stateOutWithValidDestination shouldEqual stateInWithValidDestination.withStack(stateOutWithValidDestination.stack).goto(pos.intValue)
     }
 
     //Jump to destination not a JUMPDEST
-    val stateInWithInvalidJumps1 = stateWithCode(stateWithJumpDestinationGen(jumpDest).sample.get, codeAllJumps)
-    val stateOutWithInvalidDestination1 = executeOp(op, stateInWithInvalidJumps1)
+    val stateInWithInvalidDestination1 = stateWithCode(stateWithJumpDestinationGen(jumpDest).sample.get, codeAllJumps)
+    val stateOutWithInvalidDestination1 = executeOp(op, stateInWithInvalidDestination1)
 
-    withStackVerification(op, stateInWithInvalidJumps1, stateOutWithInvalidDestination1) {
-      stateOutWithInvalidDestination1 shouldEqual stateInWithInvalidJumps1.withError(InvalidJump)
+    withStackVerification(op, stateInWithInvalidDestination1, stateOutWithInvalidDestination1) {
+      stateOutWithInvalidDestination1 shouldEqual stateInWithInvalidDestination1.withError(InvalidJump)
     }
 
     //Jump to destination inside PUSH
     val codeWithInvalidDestination = ByteString(PUSH31.code +: (0 to 31).map(_ => 0.toByte).toArray)
-    val stateInWithInvalidJumps2 = stateWithCode(stateWithJumpDestinationGen(16).sample.get, codeWithInvalidDestination)
-    val stateOutWithInvalidDestination2 = executeOp(op, stateInWithInvalidJumps2)
+    val stateInWithInvalidDestination2 = stateWithCode(stateWithJumpDestinationGen(16).sample.get, codeWithInvalidDestination)
+    val stateOutWithInvalidDestination2 = executeOp(op, stateInWithInvalidDestination2)
 
-    withStackVerification(op, stateInWithInvalidJumps2, stateOutWithInvalidDestination2) {
-      stateOutWithInvalidDestination2 shouldEqual stateInWithInvalidJumps2.withError(InvalidJump)
+    withStackVerification(op, stateInWithInvalidDestination2, stateOutWithInvalidDestination2) {
+      stateOutWithInvalidDestination2 shouldEqual stateInWithInvalidDestination2.withError(InvalidJump)
     }
   }
 
