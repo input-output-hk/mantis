@@ -34,8 +34,10 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       PUSH1, valueOffset.intValue,
       SSTORE,
 
-      // return unmodified input data
+      // return first half of unmodified input data
+      PUSH1, 2,
       CALLDATASIZE,
+      DIV,
       PUSH1, 0,
       DUP2,
       DUP2,
@@ -45,6 +47,8 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     )
 
     val inputData = Generators.getDataWordGen().sample.get.bytes
+    val expectedMemCost = calcMemCost(inputData.size, inputData.size, inputData.size / 2)
+
     val initialBalance = 1000
 
     val requiredGas = {
@@ -89,7 +93,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       DataWord.Zero,
       DataWord(inputData.size),
       DataWord(inputData.size),
-      DataWord(inputData.size)
+      DataWord(inputData.size / 2)
     ).reverse
 
     private val paramsForDelegate =
@@ -135,7 +139,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund unused gas)" in {
-        val expectedGas = fxt.requiredGas - G_callstipend + G_call + G_callvalue + calcMemCost(32, 32, 32)
+        val expectedGas = fxt.requiredGas - G_callstipend + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -154,7 +158,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 16)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -172,7 +176,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 16)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -181,7 +185,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       val call = CallResult(op = CALL, value = 0)
 
       "adjust gas cost" in {
-        val expectedGas = fxt.requiredGas + G_call + calcMemCost(32, 32, 32) - (G_sset - G_sreset)
+        val expectedGas = fxt.requiredGas + G_call + fxt.expectedMemCost - (G_sset - G_sreset)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -200,7 +204,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume all call gas" in {
-        val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + calcMemCost(32, 32, 32)
+        val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -220,7 +224,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas, add new account modifier)" in {
-        val expectedGas = G_call + G_callvalue + G_newaccount - G_callstipend + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + G_callvalue + G_newaccount - G_callstipend + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -251,7 +255,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund unused gas)" in {
-        val expectedGas = fxt.requiredGas - G_callstipend + G_call + G_callvalue + calcMemCost(32, 32, 32)
+        val expectedGas = fxt.requiredGas - G_callstipend + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -270,7 +274,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + G_callvalue - G_callstipend + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -288,7 +292,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + G_callvalue - G_callstipend + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -297,7 +301,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       val call = CallResult(op = CALL, value = 0)
 
       "adjust gas cost" in {
-        val expectedGas = fxt.requiredGas + G_call + calcMemCost(32, 32, 32) - (G_sset - G_sreset)
+        val expectedGas = fxt.requiredGas + G_call + fxt.expectedMemCost - (G_sset - G_sreset)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -315,7 +319,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume all call gas" in {
-        val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + calcMemCost(32, 32, 32)
+        val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -333,7 +337,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + G_callvalue - G_callstipend + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -364,7 +368,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund unused gas)" in {
-        val expectedGas = fxt.requiredGas + G_call + calcMemCost(32, 32, 32)
+        val expectedGas = fxt.requiredGas + G_call + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -383,7 +387,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -401,7 +405,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume all call gas" in {
-        val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + calcMemCost(32, 32, 32)
+        val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -419,7 +423,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }

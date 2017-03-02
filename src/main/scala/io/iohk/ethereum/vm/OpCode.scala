@@ -659,7 +659,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
     } else {
       val stack2 = stack1.push(DataWord(1))
       val output = result.returnData.take(outSize.intValue)
-      val mem2 = mem1.store(outAddr, result.returnData)
+      val mem2 = mem1.store(outAddr, output)
 
       state
         .spendGas(-result.gasRemaining)
