@@ -5,11 +5,13 @@ import java.net.{InetSocketAddress, URI}
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
+import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.network.PeerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts}
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
 import io.iohk.ethereum.network.p2p.validators.ForkValidator
@@ -30,11 +32,11 @@ import scala.concurrent.duration._
 class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
     rlpxConnectionFactory: ActorContext => ActorRef,
-    storage: Blockchain)
-  extends Actor with ActorLogging {
+    val peerConfiguration: PeerConfiguration,
+    val storage: Blockchain)
+  extends Actor with ActorLogging with FastSyncHost {
 
   import Config.Blockchain._
-  import Config.Network.Peer._
   import PeerActor._
   import context.{dispatcher, system}
 
@@ -79,7 +81,7 @@ class PeerActor(
     case RLPxConnectionHandler.ConnectionFailed =>
       log.info("Failed to establish RLPx connection")
       rlpxConnection.uriOpt match {
-        case Some(uri) if noRetries < connectMaxRetries =>
+        case Some(uri) if noRetries < peerConfiguration.connectMaxRetries =>
           context unwatch rlpxConnection.ref
           scheduleConnectRetry(uri, noRetries)
         case Some(uri) =>
@@ -108,8 +110,8 @@ class PeerActor(
   }
 
   private def scheduleConnectRetry(uri: URI, noRetries: Int): Unit = {
-    log.info("Scheduling connection retry in {}", connectRetryDelay)
-    system.scheduler.scheduleOnce(connectRetryDelay, self, RetryConnectionTimeout)
+    log.info("Scheduling connection retry in {}", peerConfiguration.connectRetryDelay)
+    system.scheduler.scheduleOnce(peerConfiguration.connectRetryDelay, self, RetryConnectionTimeout)
     context become {
       case RetryConnectionTimeout => reconnect(uri, noRetries + 1)
       case GetStatus => sender() ! StatusResponse(Connecting)
@@ -124,7 +126,7 @@ class PeerActor(
       timeout.cancel()
       if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
         rlpxConnection.sendMessage(createStatusMsg())
-        val statusTimeout = system.scheduler.scheduleOnce(waitForStatusTimeout, self, StatusReceiveTimeout)
+        val statusTimeout = system.scheduler.scheduleOnce(peerConfiguration.waitForStatusTimeout, self, StatusReceiveTimeout)
         context become waitingForNodeStatus(rlpxConnection, statusTimeout)
       } else {
         log.info("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
@@ -155,7 +157,7 @@ class PeerActor(
       timeout.cancel()
       log.info("Peer returned status ({})", status)
       rlpxConnection.sendMessage(GetBlockHeaders(Left(daoForkBlockNumber), maxHeaders = 1, skip = 0, reverse = false))
-      val waitingForDaoTimeout = system.scheduler.scheduleOnce(waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
+      val waitingForDaoTimeout = system.scheduler.scheduleOnce(peerConfiguration.waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
       context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
 
     case StatusReceiveTimeout =>
@@ -203,7 +205,7 @@ class PeerActor(
 
   private def disconnectFromPeer(rlpxConnection: RLPxConnection, reason: Int): Unit = {
     rlpxConnection.sendMessage(Disconnect(reason))
-    system.scheduler.scheduleOnce(disconnectPoisonPillTimeout, self, PoisonPill)
+    system.scheduler.scheduleOnce(peerConfiguration.disconnectPoisonPillTimeout, self, PoisonPill)
     context unwatch rlpxConnection.ref
     context become disconnected
   }
@@ -227,41 +229,6 @@ class PeerActor(
     val newConnection = createRlpxConnection(address, Some(uri))
     newConnection.ref ! RLPxConnectionHandler.ConnectTo(uri)
     context become waitingForConnectionResult(newConnection, noRetries)
-  }
-
-  def handleBlockFastDownload(rlpxConnection: RLPxConnection): Receive = {
-    case RLPxConnectionHandler.MessageReceived(request: GetReceipts) =>
-      val receipts = request.blockHashes.slice(0, maxReceiptsPerMessage)
-        .flatMap(hash => storage.getReceiptsByHash(hash))
-
-      rlpxConnection.sendMessage(Receipts(receipts))
-
-    case RLPxConnectionHandler.MessageReceived(request: GetBlockBodies) =>
-      val blockBodies = request.hashes.slice(0, maxBlocksBodiesPerMessage)
-        .flatMap(hash => storage.getBlockBodyByHash(hash))
-
-      rlpxConnection.sendMessage(BlockBodies(blockBodies))
-
-    case RLPxConnectionHandler.MessageReceived(request: GetBlockHeaders) =>
-      val blockNumber = request.block.fold(a => Some(a), b => storage.getBlockHeaderByHash(b).map(_.number))
-
-      blockNumber match {
-        case Some(startBlockNumber) if startBlockNumber >= 0 && request.maxHeaders >= 0 && request.skip >= 0 =>
-
-          val headersCount: BigInt = if (maxBlocksHeadersPerMessage < request.maxHeaders) maxBlocksHeadersPerMessage else request.maxHeaders
-
-          val range = if (request.reverse) {
-            startBlockNumber to (startBlockNumber - (request.skip + 1) * headersCount + 1) by -(request.skip + 1)
-          } else {
-            startBlockNumber to (startBlockNumber + (request.skip + 1) * headersCount - 1) by (request.skip + 1)
-          }
-
-          val blockHeaders: Seq[BlockHeader] = range.flatMap { a: BigInt => storage.getBlockHeaderByNumber(a) }
-
-          rlpxConnection.sendMessage(BlockHeaders(blockHeaders))
-
-        case _ => log.info("got request for block headers with invalid block hash/number: {}", request)
-      }
   }
 
   def handlePingMsg(rlpxConnection: RLPxConnection): Receive = {
@@ -298,7 +265,9 @@ class PeerActor(
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
       handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
-      handleBlockFastDownload(rlpxConnection) orElse {
+      handleBlockFastDownload(rlpxConnection, log) orElse
+      handleEvmMptFastDownload(rlpxConnection) orElse {
+
       case RLPxConnectionHandler.MessageReceived(message) =>
         log.debug("Received message: {}", message)
         notifySubscribers(message)
@@ -341,8 +310,12 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], storage: Blockchain): Props =
-    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key), storage))
+  def props(nodeStatusHolder: Agent[NodeStatus], peerConfiguration: PeerConfiguration, storage: Blockchain): Props =
+    Props(new PeerActor(
+      nodeStatusHolder,
+      rlpxConnectionFactory(nodeStatusHolder().key),
+      peerConfiguration,
+      storage))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
@@ -352,6 +325,30 @@ object PeerActor {
     def sendMessage[M <: Message : RLPEncoder](message: M): Unit = {
       ref ! RLPxConnectionHandler.SendMessage(message)
     }
+  }
+
+  trait PeerConfiguration {
+    val connectRetryDelay: FiniteDuration
+    val connectMaxRetries: Int
+    val disconnectPoisonPillTimeout: FiniteDuration
+    val waitForStatusTimeout: FiniteDuration
+    val waitForChainCheckTimeout: FiniteDuration
+    val fastSyncHostConfiguration: FastSyncHostConfiguration
+  }
+
+  trait FastSyncHostConfiguration {
+    val maxBlocksHeadersPerMessage: Int
+    val maxBlocksBodiesPerMessage: Int
+    val maxReceiptsPerMessage: Int
+    val maxMptComponentsPerMessage: Int
+  }
+
+  trait Storage {
+    val blockHeadersStorage: BlockHeadersStorage
+    val blockBodiesStorage: BlockBodiesStorage
+    val receiptStorage: ReceiptStorage
+    val mptNodeStorage: MptNodeStorage
+    val evmCodeStorage: EvmCodeStorage
   }
 
   case class HandleConnection(connection: ActorRef, remoteAddress: InetSocketAddress)

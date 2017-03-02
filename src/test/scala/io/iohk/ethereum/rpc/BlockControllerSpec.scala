@@ -8,7 +8,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
+import io.iohk.ethereum.network.p2p.messages.PV63.{MptNode, Receipt}
 import io.iohk.ethereum.rpc.BlockController.BlockView
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -66,6 +66,8 @@ trait BlockRouteSetup {
 
     override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = ???
 
+    override def getMptNodeByHash(hash: ByteString): Option[MptNode] = ???
+
     override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = ???
 
     override def save(block: Block): Unit = ???
@@ -81,7 +83,9 @@ trait BlockRouteSetup {
     override def save(blockHeader: BlockHeader): Unit = ???
 
     override def save(blockHash: ByteString, blockBody: BlockBody): Unit = ???
-  }
+
+    override def save(node: MptNode): Unit = ???
+}
 
   val route: Route = BlockController.route(stubbedBlockchain)
 }
