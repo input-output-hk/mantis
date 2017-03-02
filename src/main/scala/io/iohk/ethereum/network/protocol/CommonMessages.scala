@@ -26,7 +26,7 @@ object CommonMessages {
       }
     }
 
-    val code: Int = MessageEncoder.SubProtocolOffset + 0x00
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x00
   }
 
   case class Status(protocolVersion: Int, networkId: Int, totalDifficulty: BigInt, bestHash: ByteString, genesisHash: ByteString) extends Message {
@@ -80,7 +80,7 @@ object CommonMessages {
 
     }
 
-    val code: Int = MessageEncoder.SubProtocolOffset + 0x02
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x02
   }
 
   case class SignedTransactions(txs: Seq[SignedTransaction]) extends Message {
@@ -118,7 +118,7 @@ object CommonMessages {
 
     }
 
-    val code: Int = MessageEncoder.SubProtocolOffset + 0x07
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x07
   }
 
   case class NewBlock(block: Block, totalDifficulty: BigInt) extends Message {

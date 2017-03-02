@@ -4,8 +4,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.protocol.PV63.{Receipt, Receipts, TransactionLog}
 import org.scalatest.{FlatSpec, Matchers}
-import io.iohk.ethereum.network.protocol.MessageEncoder.{PV63 => constantPV63}
-import io.iohk.ethereum.network.protocol.MessageEncoder.{decode => msgDecode}
+import io.iohk.ethereum.network.protocol.MessageDecoder.{PV63 => constantPV63}
+import io.iohk.ethereum.network.protocol.MessageDecoder.{decode => msgDecode}
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.spongycastle.util.encoders.Hex

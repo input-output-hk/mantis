@@ -20,7 +20,7 @@ object PV61 {
       }
     }
 
-    val code: Int = MessageEncoder.SubProtocolOffset + 0x01
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x01
   }
 
   case class NewBlockHashes(hashes: Seq[ByteString]) extends Message {
@@ -41,7 +41,7 @@ object PV61 {
       }
     }
 
-    val code: Int = MessageEncoder.SubProtocolOffset + 0x08
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x08
   }
 
   case class BlockHashesFromNumber(number: BigInt, maxBlocks: BigInt) extends Message {

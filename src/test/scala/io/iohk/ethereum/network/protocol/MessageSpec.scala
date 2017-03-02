@@ -3,7 +3,7 @@ package io.iohk.ethereum.network.protocol
 import akka.util.ByteString
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.network.protocol.MessageEncoder._
+import io.iohk.ethereum.network.protocol.MessageDecoder._
 
 class MessageSpec extends FlatSpec with Matchers {
 
@@ -25,38 +25,38 @@ class MessageSpec extends FlatSpec with Matchers {
   val hello = WireProtocol.Hello(
     p2pVersion = 4,
     clientId = "etc-client",
-    capabilities = Seq(WireProtocol.Capability("eth", MessageEncoder.PV63.toByte)),
+    capabilities = Seq(WireProtocol.Capability("eth", MessageDecoder.PV63.toByte)),
     listenPort = 3333,
     nodeId = ByteString(Hex.decode("a13f3f0555b5037827c743e40fce29139fcf8c3f2a8f12753872fe906a77ff70f6a7f517be995805ff39ab73af1d53dac1a6c9786eebc5935fc455ac8f41ba67")))
 
   "Message" should "decode message from given version of protocol" in {
-    decode(PV61.NewBlockHashes.code, NewBlockHashesPV61bytes, MessageEncoder.PV61) shouldBe newBlockHashesPV61
+    decode(PV61.NewBlockHashes.code, NewBlockHashesPV61bytes, MessageDecoder.PV61) shouldBe newBlockHashesPV61
   }
 
   it should "decode message redefined in newer version of protocol" in {
-    decode(PV62.NewBlockHashes.code, NewBlockHashesPV62bytes, MessageEncoder.PV62) shouldBe newBlockHashesPV62
-    decode(PV62.NewBlockHashes.code, NewBlockHashesPV62bytes, MessageEncoder.PV63) shouldBe newBlockHashesPV62
+    decode(PV62.NewBlockHashes.code, NewBlockHashesPV62bytes, MessageDecoder.PV62) shouldBe newBlockHashesPV62
+    decode(PV62.NewBlockHashes.code, NewBlockHashesPV62bytes, MessageDecoder.PV63) shouldBe newBlockHashesPV62
   }
 
   it should "decode message available only in older version of protocol" in {
-    decode(PV61.BlockHashesFromNumber.code, BlockHashesFromNumberBytes, MessageEncoder.PV61) shouldBe blockHashesFromNumber
+    decode(PV61.BlockHashesFromNumber.code, BlockHashesFromNumberBytes, MessageDecoder.PV61) shouldBe blockHashesFromNumber
   }
 
   it should "not decode message from older version of protocol as newer version" in {
     assertThrows[RuntimeException] {
-      decode(PV62.NewBlockHashes.code, NewBlockHashesPV61bytes, MessageEncoder.PV62)
+      decode(PV62.NewBlockHashes.code, NewBlockHashesPV61bytes, MessageDecoder.PV62)
     }
   }
 
   it should "not decode message not existing in given protocol" in {
     assertThrows[RuntimeException] {
-      decode(CommonMessages.SignedTransactions.code, BlockHashesFromNumberBytes, MessageEncoder.PV62)
+      decode(CommonMessages.SignedTransactions.code, BlockHashesFromNumberBytes, MessageDecoder.PV62)
     }
   }
 
   it should "decode wire protocol message for all versions of protocol" in {
-    decode(WireProtocol.Hello.code, helloBytes, MessageEncoder.PV61) shouldBe hello
-    decode(WireProtocol.Hello.code, helloBytes, MessageEncoder.PV62) shouldBe hello
-    decode(WireProtocol.Hello.code, helloBytes, MessageEncoder.PV63) shouldBe hello
+    decode(WireProtocol.Hello.code, helloBytes, MessageDecoder.PV61) shouldBe hello
+    decode(WireProtocol.Hello.code, helloBytes, MessageDecoder.PV62) shouldBe hello
+    decode(WireProtocol.Hello.code, helloBytes, MessageDecoder.PV63) shouldBe hello
   }
 }

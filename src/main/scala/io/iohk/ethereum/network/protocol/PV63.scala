@@ -25,7 +25,7 @@ object PV63 {
       }
     }
 
-    val code: Int = MessageEncoder.SubProtocolOffset + 0x0d
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x0d
   }
 
   case class GetNodeData(mptElementsHashes: Seq[ByteString]) extends Message {
@@ -136,7 +136,7 @@ object PV63 {
       }
     }
 
-    val code: Int = MessageEncoder.SubProtocolOffset + 0x0e
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x0e
   }
 
   case class NodeData(values: Seq[ByteString]) extends Message {
@@ -215,7 +215,7 @@ object PV63 {
       }
     }
 
-    val code: Int = MessageEncoder.SubProtocolOffset + 0x0f
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x0f
   }
 
   case class GetReceipts(blockHashes: Seq[ByteString]) extends Message {
@@ -303,7 +303,7 @@ object PV63 {
       }
     }
 
-    val code: Int = MessageEncoder.SubProtocolOffset + 0x10
+    val code: Int = MessageDecoder.SubProtocolOffset + 0x10
   }
 
   case class Receipts(receiptsForBlocks: Seq[Seq[Receipt]]) extends Message {

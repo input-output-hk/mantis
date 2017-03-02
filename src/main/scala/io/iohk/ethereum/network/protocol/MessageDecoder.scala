@@ -12,7 +12,7 @@ import io.iohk.ethereum.rlp
 /**
   * Created by alan on 3/1/17.
   */
-object MessageEncoder {
+object MessageDecoder {
 
   type Version = Int
 

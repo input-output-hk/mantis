@@ -5,8 +5,8 @@ import akka.event.LoggingAdapter
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.{PeerConfiguration, RLPxConnection}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
-import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.network.protocol.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
+import io.iohk.ethereum.network.protocol.PV63._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 
 trait FastSyncHost {

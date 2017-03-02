@@ -1,8 +1,8 @@
 package io.iohk.ethereum.network.rlpx
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.protocol.MessageEncoder.PV63
-import io.iohk.ethereum.network.protocol.MessageEncoder.decode
+import io.iohk.ethereum.network.protocol.MessageDecoder.PV63
+import io.iohk.ethereum.network.protocol.MessageDecoder.decode
 import io.iohk.ethereum.network.protocol.WireProtocol.{Capability, Hello, Ping, Pong}
 import io.iohk.ethereum.rlp
 import org.scalatest.{FlatSpec, Matchers}

@@ -7,7 +7,7 @@ import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
-import io.iohk.ethereum.network.PeerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import io.iohk.ethereum.network.PeerActor.PeerConfiguration
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.rlpx.MessageDecoder
 import io.iohk.ethereum.utils.{Config, NodeStatus}
@@ -80,7 +80,7 @@ object PeerManagerActor {
     storage: Blockchain, decoder: MessageDecoder): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
-      ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, decoder, storage), id)
+      ctx.actorOf(PeerActor.props(nodeStatusHolder, decoder, peerConfiguration, storage), id)
   }
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
