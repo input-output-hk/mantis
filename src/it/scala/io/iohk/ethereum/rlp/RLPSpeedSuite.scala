@@ -3,7 +3,8 @@ package io.iohk.ethereum.rlp
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, Transaction}
-import io.iohk.ethereum.rlp
+import io.iohk.ethereum.network.protocol.CommonMessages.SignedTransactions
+import io.iohk.ethereum.network.protocol.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.vm.Address
 import org.scalacheck.Gen
