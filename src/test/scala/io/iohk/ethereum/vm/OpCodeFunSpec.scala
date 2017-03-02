@@ -252,28 +252,28 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("BLOCKHASH") {
-    // to be implemented
+  test(BLOCKHASH) { op =>
+    to do add test
   }
 
-  ignore("COINBASE") {
-    // to be implemented
+  test(COINBASE) { op =>
+    to do add test
   }
 
-  ignore("TIMESTAMP") {
-    // to be implemented
+  test(TIMESTAMP) { op =>
+    to do add test
   }
 
-  ignore("NUMBER") {
-    // to be implemented
+  test(NUMBER) { op =>
+    to do add test
   }
 
-  ignore("DIFFICULTY") {
-    // to be implemented
+  test(DIFFICULTY) { op =>
+    to do add test
   }
 
-  ignore("GASLIMIT") {
-    // to be implemented
+  test(GASLIMIT) { op =>
+    to do add test
   }
 
   test(POP) { op =>
