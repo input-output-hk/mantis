@@ -1,7 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.domain.{Account, Address, BlockHeader}
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -19,6 +19,7 @@ trait WorldStateProxy {
   def getAccount(address: Address): Option[Account]
   def getCode(codeHash: ByteString): ByteString
   def getStorage(storageRoot: ByteString): Storage
+  def getBlockHeader(number: BigInt): Option[BlockHeader]
 
   def saveAccount(address: Address, account: Account): WS
   def saveCode(codeHash: ByteString, code: ByteString): WS

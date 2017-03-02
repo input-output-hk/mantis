@@ -384,17 +384,53 @@ case object EXTCODECOPY extends OpCode(0x3c, 4, 0, G_extcode) {
   }
 }
 
-case object BLOCKHASH extends OpCode(0x40, 1, 1, G_blockhash) {
+case object BLOCKHASH extends OpCode(0x40, 1, 1, G_blockhash) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
-
     val (blockNumber, stack1) = state.stack.pop
 
-    //todo check
-    //state.context.env.blockHeader.number
+    if (state.context.env.blockHeader.number - blockNumber > 256 || blockNumber > state.context.env.blockHeader.number) {
+      val stack2 = stack1.push(DataWord(0))
+      state.withStack(stack2).step()
+    } else {
+      val result = state.world.getBlockHeader(blockNumber).map(bh => DataWord(bh.hash)).getOrElse(DataWord(0))
+      val stack2 = stack1.push(result)
+      state.withStack(stack2).step()
+    }
+  }
+}
 
-    val blockHash = state.context.blockchain.getBlockHeaderByNumber(blockNumber).map(_.hash).get
-    val stack2 = stack1.push(DataWord(blockHash))
-    state.withStack(stack2).step()
+case object COINBASE extends OpCode(0x41, 0, 1, G_base) with ConstGas {
+  override protected def exec(state: ProgramState): ProgramState = {
+    val stack1 = state.stack.push(DataWord(state.context.env.blockHeader.beneficiary))
+    state.withStack(stack1).step()
+  }
+}
+
+case object TIMESTAMP extends OpCode(0x42, 0, 1, G_base) with ConstGas {
+  override protected def exec(state: ProgramState): ProgramState = {
+    val stack1 = state.stack.push(DataWord(state.context.env.blockHeader.unixTimestamp))
+    state.withStack(stack1).step()
+  }
+}
+
+case object NUMBER extends OpCode(0x43, 0, 1, G_base) with ConstGas {
+  override protected def exec(state: ProgramState): ProgramState = {
+    val stack1 = state.stack.push(DataWord(state.context.env.blockHeader.number))
+    state.withStack(stack1).step()
+  }
+}
+
+case object DIFFICULTY extends OpCode(0x44, 0, 1, G_base) with ConstGas {
+  override protected def exec(state: ProgramState): ProgramState = {
+    val stack1 = state.stack.push(DataWord(state.context.env.blockHeader.difficulty))
+    state.withStack(stack1).step()
+  }
+}
+
+case object GASLIMIT extends OpCode(0x45, 0, 1, G_base) with ConstGas {
+  override protected def exec(state: ProgramState): ProgramState = {
+    val stack1 = state.stack.push(DataWord(state.context.env.blockHeader.gasLimit))
+    state.withStack(stack1).step()
   }
 }
 
