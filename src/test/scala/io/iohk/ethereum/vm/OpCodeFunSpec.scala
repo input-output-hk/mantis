@@ -8,13 +8,14 @@ import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
 
 class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
+  import MockWorldState.PS
 
-  def executeOp(op: OpCode, stateIn: ProgramState): ProgramState = {
+  def executeOp(op: OpCode, stateIn: PS): PS = {
     // gas is not tested in this spec
     op.execute(stateIn).copy(gas = stateIn.gas, gasRefund = stateIn.gasRefund)
   }
 
-  def withStackVerification(op: OpCode, stateIn: ProgramState, stateOut: ProgramState)(body: => Any): Any = {
+  def withStackVerification(op: OpCode, stateIn: PS, stateOut: PS)(body: => Any): Any = {
     if (stateIn.stack.size < op.delta)
       stateOut shouldEqual stateIn.withError(StackUnderflow).halt
     else if (stateIn.stack.size - op.delta + op.alpha > stateIn.stack.maxSize)
@@ -206,8 +207,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       val (addr, stack1) = stateIn.stack.pop
       val program = Program(extCode)
-      val account = Account.Empty.copy(codeHash = program.codeHash)
-      val world1 = stateIn.world.saveCode(program.codeHash, program.code).saveAccount(Address(addr), account)
+      val world1 = stateIn.world.saveCode(Address(addr), program.code)
 
       val stateInWithExtCode = stateIn.withWorld(world1)
       val stateOutWithExtCode = executeOp(op, stateInWithExtCode)
@@ -220,7 +220,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(EXTCODECOPY) { op =>
-    val stateGen: Gen[ProgramState] = for {
+    val stateGen: Gen[PS] = for {
       extCode <- getByteStringGen(0, 256)
 
       stateIn <- getProgramStateGen(
@@ -241,8 +241,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       withStackVerification(op, stateIn, stateOut) {
         val (Seq(addr, memOffset, codeOffset, size), _) = stateIn.stack.pop(4)
-        val codeHash = stateIn.world.getAccount(Address(addr)).getOrElse(Account.Empty).codeHash
-        val code = OpCode.sliceBytes(stateIn.world.getCode(codeHash), codeOffset.intValue, size.intValue)
+        val code = OpCode.sliceBytes(stateIn.world.getCode(Address(addr)), codeOffset.intValue, size.intValue)
         val (storedInMem, _) = stateOut.memory.load(memOffset, size)
         code shouldEqual storedInMem
 
