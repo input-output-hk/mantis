@@ -4,9 +4,9 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.mpt.HexPrefix.{bytesToNibbles, encode => hpEncode}
-import io.iohk.ethereum.network.rlpx.Message.{PV63 => constantPV63, decode => msgDecode}
-import io.iohk.ethereum.network.p2p.messages.PV63._
-import io.iohk.ethereum.network.protocol.PV63.{MptHash, MptNode, NodeData}
+import io.iohk.ethereum.network.protocol.MessageEncoder.{PV63 => constantPV63}
+import io.iohk.ethereum.network.protocol.MessageEncoder.{decode => msgDecode}
+import io.iohk.ethereum.network.protocol.PV63._
 import io.iohk.ethereum.rlp.{encode, _}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.scalatest.{FlatSpec, Matchers}

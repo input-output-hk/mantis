@@ -2,11 +2,10 @@ package io.iohk.ethereum.network.protocol
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.network.p2p.messages.PV63.{Receipt, Receipts, TransactionLog}
-import io.iohk.ethereum.network.protocol.PV63.Receipts
+import io.iohk.ethereum.network.protocol.PV63.{Receipt, Receipts, TransactionLog}
 import org.scalatest.{FlatSpec, Matchers}
-import io.iohk.ethereum.network.rlpx.Message.{PV63 => constantPV63}
-import io.iohk.ethereum.network.rlpx.Message.{decode => msgDecode}
+import io.iohk.ethereum.network.protocol.MessageEncoder.{PV63 => constantPV63}
+import io.iohk.ethereum.network.protocol.MessageEncoder.{decode => msgDecode}
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.spongycastle.util.encoders.Hex

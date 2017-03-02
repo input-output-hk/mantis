@@ -2,7 +2,7 @@ package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.db.dataSource.DataSource
 
-private[storage] trait KeyValueStorage[K, V]  {
+private[storage] trait KeyValueStorage[K, V] {
   type T <: KeyValueStorage[K, V]
 
   val dataSource: DataSource

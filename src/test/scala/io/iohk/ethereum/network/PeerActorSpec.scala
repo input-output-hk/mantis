@@ -1,4 +1,4 @@
-package io.iohk.ethereum.network.p2p
+package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
@@ -9,12 +9,12 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainImpl}
-import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.protocol.CommonMessages.Status
+import io.iohk.ethereum.network.protocol.MessageEncoder
 import io.iohk.ethereum.network.protocol.PV62._
 import io.iohk.ethereum.network.protocol.PV63.{GetReceipts, Receipt, Receipts}
 import io.iohk.ethereum.network.protocol.WireProtocol._
-import io.iohk.ethereum.network.rlpx.{Message, RLPxConnectionHandler}
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -81,12 +81,12 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
 
-    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Message.PV63.toByte)), 9000, ByteString("unused"))
+    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", MessageEncoder.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Hello) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val remoteStatus = Status(
-      protocolVersion = Message.PV63,
+      protocolVersion = MessageEncoder.PV63,
       networkId = 0,
       totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
@@ -112,12 +112,12 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
 
-    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Message.PV63.toByte)), 9000, ByteString("unused"))
+    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", MessageEncoder.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Hello) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val remoteStatus = Status(
-      protocolVersion = Message.PV63,
+      protocolVersion = MessageEncoder.PV63,
       networkId = 0,
       totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
@@ -141,12 +141,12 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
 
-    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Message.PV63.toByte)), 9000, ByteString("unused"))
+    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", MessageEncoder.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Hello) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val remoteStatus = Status(
-      protocolVersion = Message.PV63,
+      protocolVersion = MessageEncoder.PV63,
       networkId = 0,
       totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
@@ -175,12 +175,12 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
 
-    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Message.PV63.toByte)), 9000, ByteString("unused"))
+    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", MessageEncoder.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Hello) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val remoteStatus = Status(
-      protocolVersion = Message.PV63,
+      protocolVersion = MessageEncoder.PV63,
       networkId = 0,
       totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty - 2000000, // remote is before the fork
       bestHash = ByteString("blockhash"),
@@ -462,12 +462,12 @@ class PeerActorSpec extends FlatSpec with Matchers {
       rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
       rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
 
-      val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Message.PV63.toByte)), 9000, ByteString("unused"))
+      val remoteHello = Hello(4, "test-client", Seq(Capability("eth", MessageEncoder.PV63.toByte)), 9000, ByteString("unused"))
       rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Hello) => () }
       rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
       val remoteStatus = Status(
-        protocolVersion = Message.PV63,
+        protocolVersion = MessageEncoder.PV63,
         networkId = 0,
         totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
         bestHash = ByteString("blockhash"),
