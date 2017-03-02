@@ -629,6 +629,8 @@ case object CREATE extends OpCode(0xf0, 3, 0, G_create) {
       )
       val programContext = ProgramContext(newEnv, state.gas, world3)
 
+      val beforeHomestead = false // TODO
+
       // run contract initialization code
       VM.run(programContext) match {
 
@@ -639,8 +641,6 @@ case object CREATE extends OpCode(0xf0, 3, 0, G_create) {
 
         // execution of initialization code succeeded
         case ProgramResult(returnData, _, gasUsed, world, addressesToDelete, None) =>
-
-          val beforeHomestead = false // TODO
 
           // calculate gas for storing code of the new account
           val codeDepositGas = returnData.size * G_codedeposit
