@@ -640,23 +640,35 @@ case object CREATE extends OpCode(0xf0, 3, 0, G_create) {
         // execution of initialization code succeeded
         case ProgramResult(returnData, _, gasUsed, world, addressesToDelete, None) =>
 
-          // generate hash of a code of the new contract
-          val codeHash = kec256(returnData)
+          val beforeHomestead = false // TODO
+
+          // calculate gas for storing code of the new account
+          val codeDepositGas = returnData.size * G_codedeposit
 
           // save code of the new contract
-          val world4 = world.saveCode(codeHash, returnData)
+          val (spentGas, world5) = if (beforeHomestead && gasUsed < codeDepositGas) {
 
-          // get newly created account
-          val acc = world4.getGuaranteedAccount(newAddress)
+            (gasUsed, world)
 
-          // update new account with initialized code
-          val world5 = world4.saveAccount(newAddress, acc.withCode(codeHash))
+          } else {
+
+            // get a newly created account
+            val acc = world.getGuaranteedAccount(newAddress)
+
+            // generate hash of a code of the new contract
+            val codeHash = kec256(returnData)
+
+            // save code and update ther account with a pointer to the contract code
+            val world4 = world
+              .saveCode(codeHash, returnData)
+              .saveAccount(newAddress, acc.withCode(codeHash))
+
+            (gasUsed - codeDepositGas, world4)
+
+          }
 
           // push address of a newly created account to stack
           val stack3 = stack1.push(DataWord(newAddress.bytes))
-
-          // calculate gas for storing code of the new account and running its initialization code
-          val spentGas = returnData.size * G_codedeposit + gasUsed
 
           // return updated program state
           state
