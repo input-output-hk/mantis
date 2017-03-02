@@ -9,7 +9,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, Ge
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 
-trait FastUpload {
+trait FastSyncHost {
   val peerConfiguration: PeerConfiguration
   val storage: Blockchain
 

@@ -34,7 +34,7 @@ class PeerActor(
     rlpxConnectionFactory: ActorContext => ActorRef,
     val peerConfiguration: PeerConfiguration,
     val storage: Blockchain)
-  extends Actor with ActorLogging with FastUpload {
+  extends Actor with ActorLogging with FastSyncHost {
 
   import Config.Blockchain._
   import PeerActor._
