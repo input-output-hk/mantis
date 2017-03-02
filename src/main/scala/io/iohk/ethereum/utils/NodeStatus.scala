@@ -1,9 +1,8 @@
 package io.iohk.ethereum.utils
 
 import java.net.InetSocketAddress
-
+import io.iohk.ethereum.network.rlpx._
 import akka.util.ByteString
-import io.iohk.ethereum.network._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 

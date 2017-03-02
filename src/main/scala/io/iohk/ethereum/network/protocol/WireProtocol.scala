@@ -1,8 +1,8 @@
-package io.iohk.ethereum.network.p2p.messages
+package io.iohk.ethereum.network.protocol
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
+import io.iohk.ethereum.network.protocol.WireProtocol.Disconnect.Reasons
+import io.iohk.ethereum.network.rlpx.Message
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex

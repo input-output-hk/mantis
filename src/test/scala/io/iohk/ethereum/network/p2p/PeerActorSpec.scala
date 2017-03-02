@@ -10,11 +10,11 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipt, Receipts}
-import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
+import io.iohk.ethereum.network.protocol.CommonMessages.Status
+import io.iohk.ethereum.network.protocol.PV62._
+import io.iohk.ethereum.network.protocol.PV63.{GetReceipts, Receipt, Receipts}
+import io.iohk.ethereum.network.protocol.WireProtocol._
+import io.iohk.ethereum.network.rlpx.{Message, RLPxConnectionHandler}
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex

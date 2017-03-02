@@ -1,8 +1,10 @@
 package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.Message._
-import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV61, PV62, WireProtocol}
+import io.iohk.ethereum.network.rlpx.Message._
+import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV61, WireProtocol}
+import io.iohk.ethereum.network.protocol.{CommonMessages, PV61, PV62, WireProtocol}
+import io.iohk.ethereum.network.rlpx.Message
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 

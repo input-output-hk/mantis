@@ -1,12 +1,13 @@
-package io.iohk.ethereum.network.p2p.messages
+package io.iohk.ethereum.network.protocol
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
+import PV62.BlockBody
+import PV62.BlockHeaderImplicits._
+import io.iohk.ethereum.domain.{Block, SignedTransaction, Transaction}
+import io.iohk.ethereum.network.rlpx.Message
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.vm.Address
 import org.spongycastle.util.encoders.Hex
 
 
@@ -25,7 +26,7 @@ object CommonMessages {
       }
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x00
+    val code: Int = MessageEncoder.SubProtocolOffset + 0x00
   }
 
   case class Status(protocolVersion: Int, networkId: Int, totalDifficulty: BigInt, bestHash: ByteString, genesisHash: ByteString) extends Message {
@@ -79,7 +80,7 @@ object CommonMessages {
 
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x02
+    val code: Int = MessageEncoder.SubProtocolOffset + 0x02
   }
 
   case class SignedTransactions(txs: Seq[SignedTransaction]) extends Message {
@@ -117,11 +118,11 @@ object CommonMessages {
 
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x07
+    val code: Int = MessageEncoder.SubProtocolOffset + 0x07
   }
 
   case class NewBlock(block: Block, totalDifficulty: BigInt) extends Message {
-    override def code: Int = NewBlock.code
+    override val code: Int = NewBlock.code
 
     override def toString: String = {
       s"""NewBlock {

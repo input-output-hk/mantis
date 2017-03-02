@@ -15,9 +15,9 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, PeersResponse}
-import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.protocol.PV62._
+import io.iohk.ethereum.network.protocol.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
+import io.iohk.ethereum.network.protocol.CommonMessages.Status
 import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex

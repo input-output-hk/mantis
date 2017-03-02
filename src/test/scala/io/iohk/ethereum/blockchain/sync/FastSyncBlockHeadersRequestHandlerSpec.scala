@@ -12,7 +12,7 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
+import io.iohk.ethereum.network.protocol.PV62.{BlockHeaders, GetBlockHeaders}
 import org.scalatest.{FlatSpec, Matchers}
 
 class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {

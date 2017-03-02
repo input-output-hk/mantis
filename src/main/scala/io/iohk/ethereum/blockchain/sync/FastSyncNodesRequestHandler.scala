@@ -6,7 +6,7 @@ import io.iohk.ethereum.blockchain.sync.FastSyncController._
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.{EvmCodeStorage, MptNodeStorage}
 import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.network.protocol.PV63._
 import org.spongycastle.util.encoders.Hex
 
 class FastSyncNodesRequestHandler(

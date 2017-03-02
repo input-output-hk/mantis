@@ -16,44 +16,21 @@ object App {
 
   import Config.{Network => NetworkConfig}
 
-  val nodeKey = generateKeyPair()
-
-  val storagesInstance =  new SharedLevelDBDataSources with Storages.DefaultStorages
-  val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
 
   def main(args: Array[String]): Unit = {
-    val actorSystem = ActorSystem("etc-client_system")
 
-    val nodeStatus =
-      NodeStatus(
-        key = nodeKey,
-        serverStatus = ServerStatus.NotListening,
-        blockchainStatus = BlockchainStatus(Config.Blockchain.genesisDifficulty, Config.Blockchain.genesisHash, 0))
-
-    val nodeStatusHolder = Agent(nodeStatus)
-
-    val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, blockchain), "peer-manager")
-    val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
-
-    server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
-
-    if(Config.Network.Rpc.enabled) JsonRpcServer.run(actorSystem, blockchain, Config.Network.Rpc)
-
-    val fastSyncController = actorSystem.actorOf(
-      FastSyncController.props(
-        peerManager,
-        nodeStatusHolder,
-        blockchain,
-        storagesInstance.storages.mptNodeStorage),
-      "fast-sync-controller")
-
-    fastSyncController ! FastSyncController.StartFastSync
-
-    Runtime.getRuntime.addShutdownHook(new Thread() {
-      override def run(): Unit = {
+    new nodebuilder.App {
+      override def shutdown(): Unit = {
         storagesInstance.dataSources.closeAll
+        actorSystem.terminate
       }
-    })
+
+      server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
+      fastSyncController ! FastSyncController.StartFastSync
+
+      if(rpcServerConfig.enabled) startJSONRpcServer()
+    }
+
   }
 
 }

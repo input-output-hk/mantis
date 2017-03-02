@@ -1,7 +1,7 @@
-package io.iohk.ethereum.network.p2p.messages
+package io.iohk.ethereum.network.protocol
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.rlpx.Message
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 
@@ -20,7 +20,7 @@ object PV61 {
       }
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x01
+    val code: Int = MessageEncoder.SubProtocolOffset + 0x01
   }
 
   case class NewBlockHashes(hashes: Seq[ByteString]) extends Message {
@@ -41,7 +41,7 @@ object PV61 {
       }
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x08
+    val code: Int = MessageEncoder.SubProtocolOffset + 0x08
   }
 
   case class BlockHashesFromNumber(number: BigInt, maxBlocks: BigInt) extends Message {

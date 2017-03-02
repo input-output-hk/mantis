@@ -1,10 +1,10 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.domain.validators
 
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie, RLPByteArraySerializable}
+import io.iohk.ethereum.mpt.{NodeStorage => MptNodeStorgage, MerklePatriciaTrie, RLPByteArraySerializable}
 
 object MptListValidator {
 
@@ -23,7 +23,7 @@ object MptListValidator {
   def isValid[K](hash: Array[Byte], toValidate: Seq[K], vSerializable: RLPByteArraySerializable[K]): Boolean = {
 
     val trie = MerklePatriciaTrie[Int, K](
-      source = new NodeStorage(EphemDataSource()),
+      source = new NodeStorage(EphemDataSource()) with MptNodeStorgage[Int, Array[Byte]],
       hashFn = (input: Array[Byte]) => kec256(input)
     )(intByteArraySerializable, vSerializable)
     val trieRoot = toValidate.zipWithIndex.foldLeft(trie) { (trie, r) => trie.put(r._2, r._1) }.getRootHash

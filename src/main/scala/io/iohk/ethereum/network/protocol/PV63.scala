@@ -1,13 +1,13 @@
-package io.iohk.ethereum.network.p2p.messages
+package io.iohk.ethereum.network.protocol
 
 import akka.util.ByteString
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
-import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPImplicits.{byteStringEncDec, _}
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode, _}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.network.rlpx.Message
 
 
 object PV63 {
@@ -25,7 +25,7 @@ object PV63 {
       }
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x0d
+    val code: Int = MessageEncoder.SubProtocolOffset + 0x0d
   }
 
   case class GetNodeData(commonMptHashes: Seq[ByteString]) extends Message {
@@ -39,6 +39,7 @@ object PV63 {
     }
   }
 
+  //TODO MOVE OUT OF PROTOCOL amcs
   object AccountImplicits {
     implicit val rlpEncDec = new RLPEncoder[Account] with RLPDecoder[Account] {
       override def encode(obj: Account): RLPEncodeable = {
@@ -135,7 +136,7 @@ object PV63 {
       }
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x0e
+    val code: Int = MessageEncoder.SubProtocolOffset + 0x0e
   }
 
   case class NodeData(values: Seq[ByteString]) extends Message {
@@ -214,7 +215,7 @@ object PV63 {
       }
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x0f
+    val code: Int = MessageEncoder.SubProtocolOffset + 0x0f
   }
 
   case class GetReceipts(blockHashes: Seq[ByteString]) extends Message {
@@ -302,7 +303,7 @@ object PV63 {
       }
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x10
+    val code: Int = MessageEncoder.SubProtocolOffset + 0x10
   }
 
   case class Receipts(receiptsForBlocks: Seq[Seq[Receipt]]) extends Message {

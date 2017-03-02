@@ -1,7 +1,7 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.domain.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders}
+import io.iohk.ethereum.network.protocol.PV62.{BlockHeaders}
 import io.iohk.ethereum.domain.BlockHeader
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex

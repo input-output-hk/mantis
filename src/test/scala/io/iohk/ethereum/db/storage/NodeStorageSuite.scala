@@ -2,7 +2,7 @@ package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
+import io.iohk.ethereum.network.protocol.PV63.MptNode
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 import org.scalacheck.Gen
 import org.scalatest.FunSuite

@@ -2,10 +2,9 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.reflect.ClassTag
-
 import akka.actor._
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.rlpx.Message
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.Config.FastSync._
 

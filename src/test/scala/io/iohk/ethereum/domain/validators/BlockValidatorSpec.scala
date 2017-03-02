@@ -1,10 +1,11 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.domain.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{Receipt, TransactionLog}
-import io.iohk.ethereum.network.p2p.validators.BlockValidator.{BlockLogBloomError, BlockOmmersHashError, BlockReceiptsHashError, BlockTransactionsHashError}
+import io.iohk.ethereum.network.protocol.PV62._
+import io.iohk.ethereum.network.protocol.PV63.{Receipt, TransactionLog}
+import io.iohk.ethereum.domain.validators.BlockValidator.{BlockLogBloomError, BlockOmmersHashError, BlockReceiptsHashError, BlockTransactionsHashError}
+import io.iohk.ethereum.vm.Address
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 

@@ -1,10 +1,10 @@
-package io.iohk.ethereum.network.p2p.messages
+package io.iohk.ethereum.network.protocol
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.{Block, BlockHeader}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import CommonMessages.NewBlock
+import PV62.BlockBody
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.FunSuite
 import io.iohk.ethereum.rlp.{decode, encode}

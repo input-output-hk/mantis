@@ -1,13 +1,21 @@
 package io.iohk.ethereum.mpt
 
-import io.iohk.ethereum.db.storage.NodeStorage
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.HashFn
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.{ArrayByteNodeStorage, HashFn}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => decodeRLP, encode => encodeRLP, _}
 
 import scala.annotation.tailrec
 
+trait NodeStorage[K, V] {
+  def get(id: K): Option[V]
+  def update(removed: Seq[V], updated: Seq[(K,V)]): NodeStorage[K,V]
+}
+
+
+
 object MerklePatriciaTrie {
+
+  type ArrayByteNodeStorage = NodeStorage[Array[Byte], Array[Byte]]
 
   case class MPTException(message: String) extends RuntimeException(message)
 
@@ -24,15 +32,15 @@ object MerklePatriciaTrie {
   private val PairSize: Byte = 2
   private[mpt] val ListSize: Byte = 17
 
-  def apply[K, V](source: NodeStorage, hashFn: HashFn)
+  def apply[K, V](source: ArrayByteNodeStorage, hashFn: HashFn)
                  (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V])
   : MerklePatriciaTrie[K, V] = new MerklePatriciaTrie[K, V](None, source, hashFn)(kSerializer, vSerializer)
 
-  def apply[K, V](rootHash: Array[Byte], source: NodeStorage, hashFn: HashFn)
+  def apply[K, V](rootHash: Array[Byte], source: ArrayByteNodeStorage, hashFn: HashFn)
                  (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V])
   : MerklePatriciaTrie[K, V] = new MerklePatriciaTrie[K, V](Some(rootHash), source, hashFn)(kSerializer, vSerializer)
 
-  private def getNode(nodeId: Array[Byte], source: NodeStorage)(implicit nodeDec: RLPDecoder[Node]): Node = {
+  private def getNode(nodeId: Array[Byte], source: ArrayByteNodeStorage)(implicit nodeDec: RLPDecoder[Node]): Node = {
     val nodeEncoded =
       if (nodeId.length < 32) nodeId
       else source.get(nodeId).getOrElse(throw MPTException("Node not found, trie is inconsistent"))
@@ -42,7 +50,9 @@ object MerklePatriciaTrie {
   private def matchingLength(a: Array[Byte], b: Array[Byte]): Int = a.zip(b).takeWhile(t => t._1 == t._2).length
 
   private def updateNodesInStorage(previousRootHash: Array[Byte], newRootHash: Array[Byte], newRoot: Option[Node],
-                                   toRemove: Seq[Node], toUpdate: Seq[Node], nodeStorage: NodeStorage, hashFn: HashFn): NodeStorage = {
+                                   toRemove: Seq[Node], toUpdate: Seq[Node], nodeStorage: ArrayByteNodeStorage,
+                                   hashFn: HashFn): NodeStorage[Array[Byte], Array[Byte]] = {
+
     val rootCapped = newRoot.map(_.capped).getOrElse(Array.emptyByteArray)
     val toBeRemoved = toRemove.filter { node =>
       val nCapped = node.capped
@@ -55,13 +65,13 @@ object MerklePatriciaTrie {
     nodeStorage.update(toBeRemoved, toBeUpdated)
   }
 
-  private def getNextNode(extensionNode: ExtensionNode, nodeStorage: NodeStorage)(implicit nodeDec: RLPDecoder[Node]): Node =
+  private def getNextNode(extensionNode: ExtensionNode, nodeStorage: ArrayByteNodeStorage)(implicit nodeDec: RLPDecoder[Node]): Node =
     extensionNode.next match {
       case Right(node) => node
       case Left(hash) => MerklePatriciaTrie.getNode(hash, nodeStorage)
     }
 
-  private def getChild(branchNode: BranchNode, pos: Int, nodeStorage: NodeStorage)(implicit nodeDec: RLPDecoder[Node]): Option[Node] =
+  private def getChild(branchNode: BranchNode, pos: Int, nodeStorage: ArrayByteNodeStorage)(implicit nodeDec: RLPDecoder[Node]): Option[Node] =
     branchNode.children(pos) map {
       case Right(node) => node
       case Left(hash) => MerklePatriciaTrie.getNode(hash, nodeStorage)
@@ -93,7 +103,7 @@ object MerklePatriciaTrie {
 }
 
 class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
-                               val nodeStorage: NodeStorage,
+                               val nodeStorage: ArrayByteNodeStorage,
                                private val hashFn: HashFn)
                               (implicit kSerializer: ByteArraySerializable[K], vSerializer: ByteArraySerializable[V]) {
 
@@ -469,7 +479,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     * @throws MPTException if there is any inconsistency in how the trie is build.
     */
   @tailrec
-  private def fix(node: Node, nodeStorage: NodeStorage, notStoredYet: Seq[Node]): Node = node match {
+  private def fix(node: Node, nodeStorage: ArrayByteNodeStorage, notStoredYet: Seq[Node]): Node = node match {
     case BranchNode(children, optStoredValue, _) =>
       val usedIndexes = children.indices.foldLeft[Seq[Int]](Seq.empty) {
         (acc, i) =>

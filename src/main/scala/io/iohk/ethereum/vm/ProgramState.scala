@@ -1,7 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, Transaction}
+import io.iohk.ethereum.domain.Transaction
 
 object ProgramState {
   def apply(context: ProgramContext): ProgramState =

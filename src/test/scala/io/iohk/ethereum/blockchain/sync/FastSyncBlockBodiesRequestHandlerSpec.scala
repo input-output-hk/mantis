@@ -8,7 +8,7 @@ import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockBody, GetBlockBodies}
+import io.iohk.ethereum.network.protocol.PV62.{BlockBodies, BlockBody, GetBlockBodies}
 import org.scalatest.{FlatSpec, Matchers}
 
 class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {

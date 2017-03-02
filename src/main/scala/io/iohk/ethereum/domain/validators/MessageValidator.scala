@@ -1,9 +1,10 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.domain.validators
 
-import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.rlpx.Message
 
 /**
   * Trait to be used to validate messages received from other peers
+ *
   * @tparam M Messate to validate
   * @tparam E Error to be returned if message isn't valid
   */

@@ -6,7 +6,6 @@ import akka.actor._
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
@@ -25,14 +24,14 @@ import scala.util.{Failure, Success, Try}
   *    (depending on who initiated the connection)
   * 4. once handshake is done (and secure connection established) actor can send/receive messages (`handshaked` state)
   */
-class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
+class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair,
+                            encoderDecoder: EncoderDecoder,
+                            protocolVersion: Int)
   extends Actor with ActorLogging {
 
   import AuthHandshaker.{InitiatePacketLength, ResponsePacketLength}
   import RLPxConnectionHandler._
   import context.{dispatcher, system}
-
-  val ProtocolVersion = Message.PV63
 
   val peerId = context.parent.path.name
 
@@ -119,8 +118,8 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
         case AuthHandshakeSuccess(secrets) =>
           log.warning("Auth handshake succeeded")
           context.parent ! ConnectionEstablished
-          val messageCodec = new MessageCodec(new FrameCodec(secrets), ProtocolVersion)
-          val messagesSoFar = messageCodec.readMessages(remainingData)
+          val messageCodec = new MessageCodec(new FrameCodec(secrets), encoderDecoder, protocolVersion)
+          val messagesSoFar: Seq[Try[Message]] = messageCodec.readMessages(remainingData)
           messagesSoFar foreach processMessage
           context become handshaked(messageCodec)
 
@@ -147,7 +146,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
 
         case Received(data) =>
           val messages = messageCodec.readMessages(data)
-          messages foreach processMessage
+          messages.foreach(processMessage)
       }
 
     def handleWriteFailed: Receive = {
@@ -165,8 +164,8 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
 }
 
 object RLPxConnectionHandler {
-  def props(nodeKey: AsymmetricCipherKeyPair): Props =
-    Props(new RLPxConnectionHandler(nodeKey))
+  def props(nodeKey: AsymmetricCipherKeyPair, encoderDecoder: EncoderDecoder, protocolVersion: Int): Props =
+    Props(new RLPxConnectionHandler(nodeKey, encoderDecoder, protocolVersion))
 
   case class ConnectTo(uri: URI)
   case class HandleConnection(connection: ActorRef)

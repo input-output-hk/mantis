@@ -1,8 +1,8 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.domain.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaders
+import io.iohk.ethereum.network.protocol.PV62.BlockHeaders
 
 /**
   * This Validator checks if a given `BlockHeaders` contains a `BlockHeader` having a specific block number and hash
