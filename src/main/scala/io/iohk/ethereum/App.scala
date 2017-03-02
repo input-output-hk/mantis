@@ -51,7 +51,7 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
 
       val nodeStatusHolder = Agent(nodeStatus)
 
-      val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, blockchain), "peer-manager")
+      val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, Config.Network.peer, blockchain), "peer-manager")
       val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
       server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
