@@ -5,6 +5,7 @@ import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.BlockBodiesStorage.BlockBodyHash
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
+import io.iohk.ethereum.utils.Config
 
 /**
   * This class is used to store the BlockBody, by using:
