@@ -11,7 +11,7 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
-import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.network.{FastUpload, PeerActor}
 import io.iohk.ethereum.network.PeerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -60,7 +60,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }, peerConf, blockchain)))
+      }, peerConf, fastSyncHost, blockchain)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -500,6 +500,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
       override val connectRetryDelay: FiniteDuration = 1 second
       override val disconnectPoisonPillTimeout: FiniteDuration = 5 seconds
     }
+
+    val fastSyncHost = new FastUpload(peerConf.fastSyncHostConfiguration, blockchain)
   }
 
   trait TestSetup extends NodeStatusSetup with BlockUtils {
@@ -536,7 +538,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val rlpxConnection = TestProbe()
 
-    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, peerConf, blockchain)))
+    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, peerConf, fastSyncHost, blockchain)))
   }
 
 }
