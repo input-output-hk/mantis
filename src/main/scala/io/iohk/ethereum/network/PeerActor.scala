@@ -260,7 +260,9 @@ class PeerActor(
       }
   }
 
-  class HandshakedHandler(rlpxConnection: RLPxConnection, initialStatus: msg.Status, currentPeerMaxBlock: BigInt) {
+  class HandshakedHandler(rlpxConnection: RLPxConnection, initialStatus: msg.Status, initialMaxBlock: BigInt) {
+
+    var currentMaxBlockNumber: BigInt = initialMaxBlock
 
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
@@ -278,7 +280,7 @@ class PeerActor(
         updateMaxBlock(s.message)
         rlpxConnection.sendMessage(s.message)(s.enc)
 
-      case GetMaxBlockNumber(actor) => actor ! MaxBlockNumber(currentPeerMaxBlock)
+      case GetMaxBlockNumber(actor) => actor ! MaxBlockNumber(currentMaxBlockNumber)
 
       case GetStatus =>
         sender() ! StatusResponse(Handshaked(initialStatus))
@@ -297,7 +299,7 @@ class PeerActor(
 
       def update(ns: Seq[BigInt]) = {
         val maxBlockNumber = ns.fold(0: BigInt) { case (a, b) => if (a > b) a else b }
-        if (maxBlockNumber > currentPeerMaxBlock) {
+        if (maxBlockNumber > currentMaxBlockNumber) {
           context become new HandshakedHandler(rlpxConnection, initialStatus, maxBlockNumber).receive
         }
       }
