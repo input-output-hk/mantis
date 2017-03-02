@@ -50,12 +50,12 @@ object OpCode {
     //EXTCODESIZE,
     EXTCODECOPY,
 
-    //BLOCKHASH,
-    //COINBASE,
-    //TIMESTAMP,
-    //NUMBER,
-    //DIFFICULTY,
-    //GASLIMIT,
+    BLOCKHASH,
+    COINBASE,
+    TIMESTAMP,
+    NUMBER,
+    DIFFICULTY,
+    GASLIMIT,
 
     POP,
     MLOAD,
@@ -337,6 +337,20 @@ case object EXTCODECOPY extends OpCode(0x3c, 4, 0, G_extcode) {
     val memCost = calcMemCost(state.memory.size, addr, size)
     val copyCost = G_copy * wordsForBytes(size)
     memCost + copyCost
+  }
+}
+
+case object BLOCKHASH extends OpCode(0x40, 1, 1, G_blockhash) {
+  protected def exec(state: ProgramState): ProgramState = {
+
+    val (blockNumber, stack1) = state.stack.pop
+
+    //todo check
+    //state.context.env.blockHeader.number
+
+    val blockHash = state.context.blockchain.getBlockHeaderByNumber(blockNumber).map(_.hash).get
+    val stack2 = stack1.push(DataWord(blockHash))
+    state.withStack(stack2).step()
   }
 }
 
