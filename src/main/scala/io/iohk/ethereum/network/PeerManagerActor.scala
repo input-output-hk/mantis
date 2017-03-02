@@ -7,6 +7,7 @@ import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
+import io.iohk.ethereum.network.PeerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.rlpx.MessageDecoder
 import io.iohk.ethereum.utils.{Config, NodeStatus}
@@ -26,7 +27,7 @@ class PeerManagerActor(
 
   scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
 
-  override val supervisorStrategy =
+  override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
       case _ => Stop
     }
@@ -72,14 +73,14 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], storage: Blockchain, decoder:MessageDecoder): Props =
-    Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder, storage, decoder)))
+  def props(nodeStatusHolder: Agent[NodeStatus], peerConfiguration: PeerConfiguration, storage: Blockchain, decoder:MessageDecoder): Props =
+    Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder, peerConfiguration, storage, decoder)))
 
-  def peerFactory(nodeStatusHolder: Agent[NodeStatus],
-                  storage: Blockchain,
-                  decoder:MessageDecoder): (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
-    val id = addr.toString.filterNot(_ == '/')
-    ctx.actorOf(PeerActor.props(nodeStatusHolder, storage, decoder), id)
+  def peerFactory(nodeStatusHolder: Agent[NodeStatus], peerConfiguration: PeerConfiguration,
+    storage: Blockchain, decoder: MessageDecoder): (ActorContext, InetSocketAddress) => ActorRef = {
+    (ctx, addr) =>
+      val id = addr.toString.filterNot(_ == '/')
+      ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, decoder, storage), id)
   }
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
