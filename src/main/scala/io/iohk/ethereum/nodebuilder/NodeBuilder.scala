@@ -30,13 +30,13 @@ trait NodeStatusBuilder {
 
   self : NodeKeyBuilder =>
 
-  val nodeStatus =
+  private lazy val nodeStatus =
     NodeStatus(
       key = nodeKey,
       serverStatus = ServerStatus.NotListening,
       blockchainStatus = BlockchainStatus(Config.Blockchain.genesisDifficulty, Config.Blockchain.genesisHash, 0))
 
-  val nodeStatusHolder = Agent(nodeStatus)
+  lazy val nodeStatusHolder = Agent(nodeStatus)
 }
 
 trait BlockChainBuilder {
@@ -62,7 +62,7 @@ trait PeerManagerActorBuilder {
     with BlockChainBuilder
     with ProtocolBuilder =>
 
-  val peerManager = actorSystem.actorOf(
+  lazy val peerManager = actorSystem.actorOf(
     PeerManagerActor.props(nodeStatusHolder, blockchain, encoderDecoder, protocolVersion), "peer-manager")
 }
 
@@ -74,14 +74,17 @@ trait ServerActorBuilder {
     with ProtocolBuilder
     with PeerManagerActorBuilder =>
 
-  val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
+  lazy val networkConfig = Config.Network
+
+  lazy val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
 }
 
 
 trait JSONRpcServerBuilder {
 
-  self: ActorSystemBuilder  with BlockChainBuilder =>
+  self: ActorSystemBuilder with BlockChainBuilder =>
+
   def startJSONRpcServer(): Unit = JsonRpcServer.run(actorSystem, blockchain, Config.Network.Rpc)
 
   lazy val rpcServerConfig: RpcServerConfig = Config.Network.Rpc
@@ -118,7 +121,7 @@ trait ShutdownHookBuilder {
   })
 }
 
-trait App extends NodeKeyBuilder
+trait Node extends NodeKeyBuilder
   with ActorSystemBuilder
   with ProtocolBuilder
   with StorageBuilder
