@@ -48,6 +48,7 @@ trait WorldStateProxy {
     val creator = getGuaranteedAccount(creatorAddr)
     val hash = kec256(rlp.encode(RLPList(creatorAddr.bytes, creator.nonce)))
     val addr = Address(hash.takeRight(Address.Length))
-    addr -> saveAccount(creatorAddr, creator.increaseNonce)
+    val updated = saveAccount(creatorAddr, creator.increaseNonce)
+    (addr, updated)
   }
 }
