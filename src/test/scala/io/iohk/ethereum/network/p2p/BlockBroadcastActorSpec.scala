@@ -15,12 +15,11 @@ import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.{PV61, PV62}
+import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.{BlockBroadcastActor, PeerActor, PeerManagerActor}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
 
 class BlockBroadcastActorSpec extends FlatSpec with Matchers {
@@ -30,7 +29,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
   "BlockBroadcastActor" should "subscribe for messages" in new TestSetup {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
 
-    peerProbe.expectMsg(PeerActor.Subscribe(Set(NewBlock.code, PV61.NewBlockHashes.code, PV62.NewBlockHashes.code, BlockHeaders.code, BlockBodies.code)))
+    peerProbe.expectMsg(PeerActor.Subscribe(Set(NewBlock.code, PV62.NewBlockHashes.code, BlockHeaders.code, BlockBodies.code)))
   }
 
   it should "broadcast new blocks received (but not to the sending peer)" in new TestSetup {
@@ -85,30 +84,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peersProbes.foreach { p => assert(!p.msgAvailable) }
   }
 
-  it should "request and broadcast a message with a new block hash (PV61)" in new TestSetup {
-    blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
-    peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
-
-    val newBlockHash = PV61.NewBlockHashes(Seq(block.header.hash))
-    peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlockHash))
-
-    val reqHeaderMsg: SendMessage[GetBlockHeaders] = peerProbe.receiveN(1).head.asInstanceOf[SendMessage[GetBlockHeaders]]
-    reqHeaderMsg.message.block shouldBe Right(block.header.hash)
-    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(block.header))))
-
-    val reqBodyMsg: SendMessage[GetBlockBodies] = peerProbe.receiveN(1).head.asInstanceOf[SendMessage[GetBlockBodies]]
-    reqBodyMsg.message.hashes shouldBe Seq(block.header.hash)
-    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(block.body))))
-
-    peerManager.expectMsg(GetPeers)
-    peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
-
-    val expectedNewBlock = NewBlock(block, blockTD)
-    assert(!peerProbe.msgAvailable)
-    peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(expectedNewBlock)) }
-  }
-
-  it should "request and broadcast a message with a new block hash (PV62)" in new TestSetup {
+  it should "request and broadcast a message with a new block hash" in new TestSetup {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 
@@ -131,40 +107,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(expectedNewBlock)) }
   }
 
-  it should "request and broadcast a message with multiple new block hashes (PV61)" in new TestSetup {
-    blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
-    peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
-
-    val newBlockHashes = PV61.NewBlockHashes(Seq(block.header.hash, blockSon.header.hash))
-    blockBroadcast ! PeerActor.MessageReceived(newBlockHashes)
-
-    val reqHeadersMsg: Seq[SendMessage[GetBlockHeaders]] = peerProbe.receiveN(2).asInstanceOf[Seq[SendMessage[GetBlockHeaders]]]
-    reqHeadersMsg(0).message.block shouldBe Right(block.header.hash)
-    reqHeadersMsg(1).message.block shouldBe Right(blockSon.header.hash)
-
-    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(block.header))))
-    peerProbe.reply(PeerActor.MessageReceived(BlockHeaders(Seq(blockSon.header))))
-
-    val reqBodiesMsg: Seq[SendMessage[GetBlockBodies]] = peerProbe.receiveN(2).asInstanceOf[Seq[SendMessage[GetBlockBodies]]]
-    reqBodiesMsg(0).message.hashes shouldBe Seq(block.header.hash)
-    reqBodiesMsg(1).message.hashes shouldBe Seq(blockSon.header.hash)
-
-    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(block.body))))
-    peerProbe.reply(PeerActor.MessageReceived(BlockBodies(Seq(blockSon.body))))
-
-    peerManager.expectMsg(GetPeers)
-    peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
-
-    val expectedNewBlock = NewBlock(block, blockTD)
-    assert(!peerProbe.msgAvailable)
-    peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(expectedNewBlock)) }
-
-    val expectedNewBlockSon = NewBlock(blockSon, blockSonTD)
-    assert(!peerProbe.msgAvailable)
-    peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(expectedNewBlockSon)) }
-  }
-
-  it should "request and broadcast a message with multiple new block hashes (PV62)" in new TestSetup {
+  it should "request and broadcast a message with multiple new block hashes" in new TestSetup {
     blockBroadcast ! BlockBroadcastActor.StartBlockBroadcast
     peerProbe.expectMsgClass(classOf[PeerActor.Subscribe])
 

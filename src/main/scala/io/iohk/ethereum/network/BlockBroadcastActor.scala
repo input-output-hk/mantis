@@ -7,9 +7,8 @@ import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.{PV61, PV62}
+import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.network.p2p.validators.{BlockHeaderValidator, BlockValidator}
 import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus}
@@ -26,7 +25,7 @@ class BlockBroadcastActor(
 
   override def receive: Receive = idle
 
-  private val msgsToSubscribe = Set(NewBlock.code, PV61.NewBlockHashes.code, PV62.NewBlockHashes.code, BlockHeaders.code, BlockBodies.code)
+  private val msgsToSubscribe = Set(NewBlock.code, PV62.NewBlockHashes.code, BlockHeaders.code, BlockBodies.code)
 
   def idle: Receive = {
     case StartBlockBroadcast =>
@@ -83,9 +82,15 @@ class BlockBroadcastActor(
         context become processMessages(state.copy(unprocessedBlocks = state.unprocessedBlocks :+ newBlock))
       }
 
-    case MessageReceived(m: PV61.NewBlockHashes) => processNewBlockHashes(m.hashes, state)
-
-    case MessageReceived(m: PV62.NewBlockHashes) => processNewBlockHashes(m.hashes.map(_.hash), state)
+    case MessageReceived(m: PV62.NewBlockHashes) =>
+      val newHashes = m.hashes.map(_.hash)
+      val newHashesToProcess = newHashes.filter(hash => blockToProcess(hash, state))
+      log.info("Got NewBlockHashes message {}", newHashes.map( hash => Hex.toHexString(hash.toArray)))
+      newHashesToProcess.foreach{ hash =>
+        val getBlockHeadersMsg = GetBlockHeaders(block = Right(hash), maxHeaders = 1, skip = 0, reverse =  false)
+        peer ! PeerActor.SendMessage(getBlockHeadersMsg)
+      }
+      context become processMessages(state.copy(fetchedBlockHeaders = state.fetchedBlockHeaders ++ newHashesToProcess))
 
     case MessageReceived(BlockHeaders(Seq(blockHeader))) if state.fetchedBlockHeaders.contains(blockHeader.hash)=>
       log.info("Got BlockHeaders message {}", blockHeader)
@@ -104,16 +109,6 @@ class BlockBroadcastActor(
         context become processMessages(newState)
       }
 
-  }
-
-  private def processNewBlockHashes(newHashes: Seq[BlockHash], state: ProcessingState) = {
-    val hashes = newHashes.filter(hash => blockToProcess(hash, state))
-    log.info("Got NewBlockHashes message {}", newHashes.map( hash => Hex.toHexString(hash.toArray)))
-    hashes.foreach{ hash =>
-      val getBlockHeadersMsg = GetBlockHeaders(block = Right(hash), maxHeaders = 1, skip = 0, reverse =  false)
-      peer ! PeerActor.SendMessage(getBlockHeadersMsg)
-    }
-    context become processMessages(state.copy(fetchedBlockHeaders = state.fetchedBlockHeaders ++ hashes))
   }
 
   private def blockInProgress(hash: BlockHash, state: ProcessingState): Boolean =
