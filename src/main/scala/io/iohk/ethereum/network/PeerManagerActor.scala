@@ -8,7 +8,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
 import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.network.rlpx.EncoderDecoder
+import io.iohk.ethereum.network.rlpx.MessageDecoder
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 class PeerManagerActor(
@@ -72,15 +72,14 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], storage: Blockchain, encoder:EncoderDecoder, protocolVersion: Int): Props =
-    Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder, storage, encoder, protocolVersion)))
+  def props(nodeStatusHolder: Agent[NodeStatus], storage: Blockchain, decoder:MessageDecoder): Props =
+    Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder, storage, decoder)))
 
   def peerFactory(nodeStatusHolder: Agent[NodeStatus],
                   storage: Blockchain,
-                  encoder:EncoderDecoder,
-                  protocolVersion: Int): (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
+                  decoder:MessageDecoder): (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
     val id = addr.toString.filterNot(_ == '/')
-    ctx.actorOf(PeerActor.props(nodeStatusHolder, storage, protocolVersion, encoder), id)
+    ctx.actorOf(PeerActor.props(nodeStatusHolder, storage, decoder), id)
   }
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)

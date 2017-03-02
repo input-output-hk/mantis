@@ -8,9 +8,18 @@ import io.iohk.ethereum.rlp.RLPEncoder
 
 import scala.util.Try
 
+trait MessageDecoder {
+  type Version = Int
+  def decode(`type`: Int, payload: Array[Byte]): Message
+}
+
+
+trait Message {
+  def code: Int
+}
+
 class MessageCodec(frameCodec: FrameCodec,
-                   encoderDecoder: EncoderDecoder,
-                   protocolVersion: Int) {
+                   decoder: MessageDecoder) {
 
   val MaxFramePayloadSize: Int = Int.MaxValue // no framing
 
@@ -18,7 +27,7 @@ class MessageCodec(frameCodec: FrameCodec,
 
   def readMessages(data: ByteString): Seq[Try[Message]] = {
     val frames = frameCodec.readFrames(data)
-    frames map { frame => Try(encoderDecoder.decode(frame.`type`, frame.payload.toArray, protocolVersion)) }
+    frames map { frame => Try(decoder.decode(frame.`type`, frame.payload.toArray)) }
   }
 
   def encodeMessage[M <: Message : RLPEncoder](message: M): ByteString = {

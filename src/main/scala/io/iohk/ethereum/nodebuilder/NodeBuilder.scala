@@ -7,7 +7,7 @@ import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.protocol.{MessageEncoder, PV63}
-import io.iohk.ethereum.network.rlpx.{EncoderDecoder, Message}
+import io.iohk.ethereum.network.rlpx.{MessageDecoder, Message}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.rpc.{JsonRpcServer, RpcServerConfig}
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
@@ -47,8 +47,8 @@ trait BlockChainBuilder {
 
 trait ProtocolBuilder {
   val protocolVersion: Int = MessageEncoder.PV63
-  val encoderDecoder: EncoderDecoder = new EncoderDecoder {
-    override def decode(`type`: Version, payload: Array[Byte], protocolVersion: Version): Message =
+  val encoderDecoder: MessageDecoder = new MessageDecoder {
+    override def decode(`type`: Version, payload: Array[Byte]): Message =
       MessageEncoder.decode(`type`, payload, protocolVersion)
   }
 }
@@ -63,7 +63,7 @@ trait PeerManagerActorBuilder {
     with ProtocolBuilder =>
 
   lazy val peerManager = actorSystem.actorOf(
-    PeerManagerActor.props(nodeStatusHolder, blockchain, encoderDecoder, protocolVersion), "peer-manager")
+    PeerManagerActor.props(nodeStatusHolder, blockchain, encoderDecoder), "peer-manager")
 }
 
 trait ServerActorBuilder {

@@ -12,7 +12,7 @@ import io.iohk.ethereum.network.protocol.PV63.{GetReceipts, Receipts}
 import io.iohk.ethereum.network.protocol.WireProtocol._
 import io.iohk.ethereum.domain.validators.ForkValidator
 import io.iohk.ethereum.network.protocol.{CommonMessages, MessageEncoder}
-import io.iohk.ethereum.network.rlpx.{EncoderDecoder, Message, RLPxConnectionHandler}
+import io.iohk.ethereum.network.rlpx.{MessageDecoder, Message, RLPxConnectionHandler}
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
@@ -340,11 +340,11 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], storage: Blockchain, protocolVersion:Int, encoder:EncoderDecoder): Props =
-    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key, protocolVersion, encoder:EncoderDecoder), storage))
+  def props(nodeStatusHolder: Agent[NodeStatus], storage: Blockchain, encoder:MessageDecoder): Props =
+    Props(new PeerActor(nodeStatusHolder, rlpxConnectionFactory(nodeStatusHolder().key, encoder), storage))
 
-  def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair, protocolVersion: Int, encoderDecoder:EncoderDecoder): ActorContext => ActorRef = { ctx =>
-    ctx.actorOf(RLPxConnectionHandler.props(nodeKey, encoderDecoder, protocolVersion), "rlpx-connection")
+  def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair, decoder:MessageDecoder): ActorContext => ActorRef = { ctx =>
+    ctx.actorOf(RLPxConnectionHandler.props(nodeKey, decoder), "rlpx-connection")
   }
 
   case class RLPxConnection(ref: ActorRef, remoteAddress: InetSocketAddress, uriOpt: Option[URI]) {

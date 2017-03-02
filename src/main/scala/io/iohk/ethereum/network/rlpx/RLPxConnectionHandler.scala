@@ -25,8 +25,8 @@ import scala.util.{Failure, Success, Try}
   * 4. once handshake is done (and secure connection established) actor can send/receive messages (`handshaked` state)
   */
 class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair,
-                            encoderDecoder: EncoderDecoder,
-                            protocolVersion: Int)
+                            encoderDecoder: MessageDecoder
+                            )
   extends Actor with ActorLogging {
 
   import AuthHandshaker.{InitiatePacketLength, ResponsePacketLength}
@@ -118,7 +118,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair,
         case AuthHandshakeSuccess(secrets) =>
           log.warning("Auth handshake succeeded")
           context.parent ! ConnectionEstablished
-          val messageCodec = new MessageCodec(new FrameCodec(secrets), encoderDecoder, protocolVersion)
+          val messageCodec = new MessageCodec(new FrameCodec(secrets), encoderDecoder)
           val messagesSoFar: Seq[Try[Message]] = messageCodec.readMessages(remainingData)
           messagesSoFar foreach processMessage
           context become handshaked(messageCodec)
@@ -164,8 +164,8 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair,
 }
 
 object RLPxConnectionHandler {
-  def props(nodeKey: AsymmetricCipherKeyPair, encoderDecoder: EncoderDecoder, protocolVersion: Int): Props =
-    Props(new RLPxConnectionHandler(nodeKey, encoderDecoder, protocolVersion))
+  def props(nodeKey: AsymmetricCipherKeyPair, encoderDecoder: MessageDecoder): Props =
+    Props(new RLPxConnectionHandler(nodeKey, encoderDecoder))
 
   case class ConnectTo(uri: URI)
   case class HandleConnection(connection: ActorRef)
