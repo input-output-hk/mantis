@@ -3,9 +3,11 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import GasFee._
+import io.iohk.ethereum.domain.{Account, Address}
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
+// scalastyle:off method.length
 object OpCode {
 
   val opcodes: List[OpCode] = List(
@@ -36,18 +38,18 @@ object OpCode {
 
     SHA3,
 
-    //ADDRESS,
+    ADDRESS,
     //BALANCE,
-    //ORIGIN,
-    //CALLER,
+    ORIGIN,
+    CALLER,
     CALLVALUE,
     CALLDATALOAD,
-    //CALLDATASIZE,
-    //CALLDATACOPY,
+    CALLDATASIZE,
+    CALLDATACOPY,
     //CODESIZE,
     CODECOPY,
     //GASPRICE,
-    //EXTCODESIZE,
+    EXTCODESIZE,
     EXTCODECOPY,
 
     BLOCKHASH,
@@ -67,7 +69,7 @@ object OpCode {
     JUMPI,
     //PC,
     //MSIZE,
-    //GAS,
+    GAS,
     JUMPDEST,
 
     PUSH1,
@@ -144,15 +146,21 @@ object OpCode {
     LOG4,
 
     //CREATE,
-    //CALL,
-    //CALLCODE,
-    RETURN
-    //DELEGATECALL,
+    CALL,
+    CALLCODE,
+    RETURN,
+    DELEGATECALL,
+    INVALID
     //SUICIDE
   )
 
   val byteToOpCode: Map[Byte, OpCode] =
     opcodes.map(op => op.code -> op).toMap
+
+  val MaxCallDepth: Int = 1024
+
+  def sliceBytes(bytes: ByteString, offset: Int, size: Int): ByteString =
+    bytes.slice(offset, offset + size).padTo(size, 0.toByte)
 }
 
 /**
@@ -173,7 +181,7 @@ sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val
     else {
       val gas = constGas + varGas(state)
       if (gas > state.gas)
-        state.withError(OutOfGas)
+        state.copy(gas = 0).withError(OutOfGas)
       else
         exec(state).spendGas(gas)
     }
@@ -221,6 +229,13 @@ sealed abstract class TernaryOp(code: Int, constGas: BigInt)(val f: (DataWord, D
     val res = f(a, b, c)
     val stack2 = stack1.push(res)
     state.withStack(stack2).step()
+  }
+}
+
+sealed abstract class ConstOp(code: Int)(val f: ProgramState => DataWord) extends OpCode(code, 0, 1, G_base) with ConstGas {
+  protected def exec(state: ProgramState): ProgramState = {
+    val stack1 = state.stack.push(f(state))
+    state.withStack(stack1).step()
   }
 }
 
@@ -291,20 +306,38 @@ case object SHA3 extends OpCode(0x20, 2, 1, G_sha3) {
   }
 }
 
-case object CALLVALUE extends OpCode(0x34, 0, 1, G_base) with ConstGas {
-  protected def exec(state: ProgramState): ProgramState = {
-    val stack1 = state.stack.push(DataWord(state.env.value))
-    state.withStack(stack1).step()
-  }
-}
+case object ADDRESS extends ConstOp(0x30)(s => DataWord(s.env.ownerAddr.bytes))
+
+case object ORIGIN extends ConstOp(0x32)(s => DataWord(s.env.originAddr.bytes))
+
+case object CALLER extends ConstOp(0x33)(s => DataWord(s.env.callerAddr.bytes))
+
+case object CALLVALUE extends ConstOp(0x34)(s => DataWord(s.env.value))
 
 case object CALLDATALOAD extends OpCode(0x35, 1, 1, G_verylow) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (offset, stack1) = state.stack.pop
-    val i = offset.intValue
-    val data = state.inputData.slice(i, i + 32).padTo(32, 0.toByte)
+    val data = OpCode.sliceBytes(state.inputData, offset.intValue, 32)
     val stack2 = stack1.push(DataWord(data))
     state.withStack(stack2).step()
+  }
+}
+
+case object CALLDATASIZE extends ConstOp(0x36)(s => DataWord(s.inputData.size))
+
+case object CALLDATACOPY extends OpCode(0x37, 3, 0, G_verylow) {
+  protected def exec(state: ProgramState): ProgramState = {
+    val (Seq(memOffset, dataOffset, size), stack1) = state.stack.pop(3)
+    val data = OpCode.sliceBytes(state.inputData, dataOffset.intValue, size.intValue)
+    val mem1 = state.memory.store(memOffset, data)
+    state.withStack(stack1).withMemory(mem1).step()
+  }
+
+  protected def varGas(state: ProgramState): BigInt = {
+    val (Seq(offset, _, size), _) = state.stack.pop(3)
+    val memCost = calcMemCost(state.memory.size, offset, size)
+    val copyCost = G_copy * wordsForBytes(size)
+    memCost + copyCost
   }
 }
 
@@ -324,10 +357,21 @@ case object CODECOPY extends OpCode(0x39, 3, 0, G_verylow) {
   }
 }
 
+case object EXTCODESIZE extends OpCode(0x3b, 1, 1, G_extcode) with ConstGas {
+  protected def exec(state: ProgramState): ProgramState = {
+    val (addr, stack1) = state.stack.pop
+    val account = state.world.getAccount(Address(addr)).getOrElse(Account.Empty)
+    val codeSize = state.world.getCode(account.codeHash).size
+    val stack2 = stack1.push(DataWord(codeSize))
+    state.withStack(stack2).step()
+  }
+}
+
 case object EXTCODECOPY extends OpCode(0x3c, 4, 0, G_extcode) {
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(address, memOffset, codeOffset, size), stack1) = state.stack.pop(4)
-    val codeCopy = ByteString() //TODO: copy external code
+    val codeHash = state.world.getAccount(Address(address)).getOrElse(Account.Empty).codeHash
+    val codeCopy = OpCode.sliceBytes(state.world.getCode(codeHash), codeOffset.intValue, size.intValue)
     val mem1 = state.memory.store(memOffset, codeCopy)
     state.withStack(stack1).withMemory(mem1).step()
   }
@@ -391,7 +435,7 @@ case object MSTORE extends OpCode(0x52, 2, 0, G_verylow) {
 case object SLOAD extends OpCode(0x54, 1, 1, G_sload) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
     val (addr, stack1) = state.stack.pop
-    val value = state.storage.load(addr)
+    val value = state.world.getStorage(state.ownAccount.storageRoot).load(addr)
     val stack2 = stack1.push(value)
     state.withStack(stack2).step()
   }
@@ -429,6 +473,8 @@ case object JUMPI extends OpCode(0x57, 2, 0, G_high) with ConstGas {
     state.withStack(stack1).goto(nextPos)
   }
 }
+
+case object GAS extends ConstOp(0x5a)(s => DataWord(s.gas - G_base))
 
 case object JUMPDEST extends OpCode(0x5b, 0, 0, G_jumpdest) with ConstGas {
   protected def exec(state: ProgramState): ProgramState = {
@@ -560,6 +606,127 @@ case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
 
+sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, 1, G_zero) {
+
+  protected def exec(state: ProgramState): ProgramState = {
+    val (Seq(gas, to, callValue, inAddr, inSize, outAddr, outSize), stack1) = getParams(state)
+
+    val (inputData, mem1) = state.memory.load(inAddr, inSize)
+    val endowment = if (this == DELEGATECALL) BigInt(0) else callValue.toBigInt
+
+    val startGas = {
+      val gExtra = gasExtra(state, endowment, Address(to))
+      val gCap = gasCap(state, gas, gExtra)
+      if (endowment == 0) gCap else gCap + G_callstipend
+    }
+
+    lazy val result = {
+      val toAddr = Address(to)
+
+      val (account, world1) = this match {
+        case CALL =>
+          val w = state.world.transfer(state.ownAddress, toAddr, endowment)
+          val acc = w.getGuaranteedAccount(toAddr)
+          (acc, w)
+
+        case _ =>
+          val acc = state.world.getAccount(toAddr).getOrElse(Account.Empty)
+          (acc, state.world)
+      }
+
+      val (owner, caller) = this match {
+        case CALL => (toAddr, state.ownAddress)
+        case CALLCODE => (state.ownAddress, state.ownAddress)
+        case DELEGATECALL => (state.ownAddress, state.env.callerAddr)
+      }
+
+      val env = state.env.copy(
+        ownerAddr = owner,
+        callerAddr = caller,
+        inputData = inputData,
+        value = callValue,
+        program = Program(world1.getCode(account.codeHash)),
+        callDepth = state.env.callDepth + 1)
+
+      val context = state.context.copy(
+        env = env,
+        startGas = startGas,
+        world = world1)
+
+      VM.run(context)
+    }
+
+    val validCall =
+      state.env.callDepth < OpCode.MaxCallDepth &&
+      endowment <= state.ownAccount.balance
+
+    if (!validCall || result.error.isDefined) {
+      val stack2 = stack1.push(DataWord.Zero)
+      val gasAdjustment = if (validCall) BigInt(0) else -startGas
+
+      state
+        .withStack(stack2)
+        .withMemory(mem1)
+        .spendGas(gasAdjustment)
+        .step()
+
+    } else {
+      val stack2 = stack1.push(DataWord(1))
+      val output = result.returnData.take(outSize.intValue)
+      val mem2 = mem1.store(outAddr, result.returnData)
+
+      state
+        .spendGas(-result.gasRemaining)
+        .withStack(stack2)
+        .withMemory(mem2)
+        .withWorld(result.world)
+        .withAddressesToDelete(result.addressesToDelete)
+        .step()
+    }
+  }
+
+  protected def varGas(state: ProgramState): BigInt = {
+    val (Seq(gas, to, callValue, inAddr, inSize, outAddr, outSize), _) = getParams(state)
+    val endowment = if (this == DELEGATECALL) BigInt(0) else callValue.toBigInt
+
+    val memCostIn = calcMemCost(state.memory.size, inAddr, inSize)
+    val memCostOut = calcMemCost(state.memory.size, outAddr, outSize)
+    val memCost = memCostIn max memCostOut
+
+    // FIXME: these are calculated twice (for gas and exec), especially account existence. Can we do better?
+    val gExtra = gasExtra(state, endowment, Address(to))
+    val gCap = gasCap(state, gas, gExtra)
+    memCost + gCap + gExtra
+  }
+
+  private def getParams(state: ProgramState): (Seq[DataWord], Stack) = {
+    val (Seq(gas, to), stack1) = state.stack.pop(2)
+    val (value, stack2) = if (this == DELEGATECALL) DataWord(state.env.value) -> stack1 else stack1.pop
+    val (Seq(inAddr, inSize, outAddr, outSize), stack3) = stack2.pop(4)
+    Seq(gas, to, value, inAddr, inSize, outAddr, outSize) -> stack3
+  }
+
+  private def gasCap(state: ProgramState, g: BigInt, gExtra: BigInt): BigInt = {
+    if (state.gas < gExtra)
+      g
+    else {
+      val d = state.gas - gExtra
+      val l = d - d / 64
+      l min g
+    }
+  }
+
+  private def gasExtra(state: ProgramState, endowment: BigInt, to: Address): BigInt = {
+    val c_new: BigInt = if (!state.world.accountExists(to) && this == CALL) G_newaccount else 0
+    val c_xfer: BigInt = if (endowment == 0) 0 else G_callvalue
+    G_call + c_xfer + c_new
+  }
+}
+
+case object CALL extends CallOp(0xf1, 7, 1)
+case object CALLCODE extends CallOp(0xf2, 7, 1)
+case object DELEGATECALL extends CallOp(0xf4, 6, 1)
+
 case object RETURN extends OpCode(0xf3, 2, 0, G_zero) {
   protected def exec(state: ProgramState): ProgramState = {
     val (Seq(addr, size), stack1) = state.stack.pop(2)
@@ -571,4 +738,9 @@ case object RETURN extends OpCode(0xf3, 2, 0, G_zero) {
     val (Seq(addr, size), _) = state.stack.pop(2)
     calcMemCost(state.memory.size, addr, size)
   }
+}
+
+case object INVALID extends OpCode(0xfe, 0, 0, G_zero) with ConstGas {
+  protected def exec(state: ProgramState): ProgramState =
+    state.withError(InvalidOpCode(code))
 }

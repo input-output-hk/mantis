@@ -1,7 +1,10 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import org.spongycastle.util.encoders.Hex
+
+object Account {
+  val Empty = Account(0, 0, ByteString.empty, ByteString.empty)
+}
 
 case class Account(
   nonce: BigInt,
@@ -9,13 +12,15 @@ case class Account(
   storageRoot: ByteString,
   codeHash: ByteString) {
 
-  override def toString: String = {
-    s"""Account{
-         |nonce: $nonce
-         |balance: $balance wei
-         |storageRoot: ${Hex.toHexString(storageRoot.toArray[Byte])}
-         |codeHash: ${Hex.toHexString(codeHash.toArray[Byte])}
-         |}
-       """.stripMargin
-  }
+  def updateBalance(value: BigInt): Account =
+    copy(balance = balance + value)
+
+  def increaseNonce: Account =
+    copy(nonce = nonce + 1)
+
+  def withCode(codeHash: ByteString): Account =
+    copy(codeHash = codeHash)
+
+  def withStorage(storageRoot: ByteString): Account =
+    copy(storageRoot = storageRoot)
 }

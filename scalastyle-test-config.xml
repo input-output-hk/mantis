@@ -24,7 +24,7 @@
             <parameter name="regex"><![CDATA[[A-Z][A-Za-z]*]]></parameter>
         </parameters>
     </check>
-    <check level="error" class="org.scalastyle.scalariform.ObjectNamesChecker" enabled="true">
+    <check level="error" class="org.scalastyle.scalariform.ObjectNamesChecker" enabled="false">
         <parameters>
             <parameter name="regex"><![CDATA[[A-Z][A-Za-z]*]]></parameter>
         </parameters>
