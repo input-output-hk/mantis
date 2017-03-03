@@ -13,10 +13,10 @@ object Account {
 }
 
 case class Account(
-  nonce: BigInt,
-  balance: BigInt,
-  storageRoot: ByteString,
-  codeHash: ByteString) {
+  nonce: BigInt = 0,
+  balance: BigInt = 0,
+  storageRoot: ByteString = Account.EmptyStorageRootHash,
+  codeHash: ByteString = Account.EmptyCodeHash) {
 
   def updateBalance(value: BigInt): Account =
     copy(balance = balance + value)
