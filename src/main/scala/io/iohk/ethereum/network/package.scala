@@ -34,8 +34,7 @@ package object network {
       val (pub, priv) = AsymmetricCipherKeyPairSerializable.toHexStrings(keysValuePair)
       val file = new PrintWriter(filePath)
       try {
-        val keyFileFormat: String = System.getProperty("key-file-format")
-        file.write(keyFileFormat.format(pub, priv))
+        file.write(pub ++ System.getProperty("line.separator") ++ priv)
       } finally {
         file.close()
       }
