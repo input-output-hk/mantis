@@ -1,6 +1,7 @@
 package io.iohk.ethereum.network
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
@@ -23,6 +24,11 @@ class BlockBroadcastActor(
 
   import BlockBroadcastActor._
 
+  override val supervisorStrategy =
+    OneForOneStrategy() {
+      case _ => Stop
+    }
+
   override def receive: Receive = idle
 
   private val msgsToSubscribe = Set(NewBlock.code, PV62.NewBlockHashes.code, BlockHeaders.code, BlockBodies.code)
@@ -30,11 +36,13 @@ class BlockBroadcastActor(
   def idle: Receive = {
     case StartBlockBroadcast =>
       peer ! PeerActor.Subscribe(msgsToSubscribe)
+      context watch sender()
       context become processMessages(ProcessingState(Seq(), Seq(), Seq(), Seq()))
   }
 
   def processMessages(state: ProcessingState): Receive =
-    handleReceivedMessages(state) orElse {
+    handleReceivedMessages(state) orElse
+      handlePeerTerminated orElse {
 
       case ProcessNewBlocks if state.unprocessedBlocks.nonEmpty =>
         if(state.unprocessedBlocks.tail.nonEmpty) self ! ProcessNewBlocks
@@ -45,12 +53,13 @@ class BlockBroadcastActor(
 
         (blockHeader, blockParentTotalDifficulty) match {
           case (Right(_), Some(parentTD)) =>
-            importBlockToBlockchain(blockToProcess, parentTD)
+            val blockToProcessDifficulty = parentTD + blockToProcess.header.difficulty
+            importBlockToBlockchain(blockToProcess, blockToProcessDifficulty)
 
             peerManagerActor ! GetPeers
             val newState = state.copy(
               unprocessedBlocks = state.unprocessedBlocks.tail,
-              toBroadcastBlocks = state.toBroadcastBlocks :+ blockToProcess
+              toBroadcastBlocks = state.toBroadcastBlocks :+ NewBlock(blockToProcess, blockToProcessDifficulty)
             )
             context become processMessages(newState)
 
@@ -64,9 +73,7 @@ class BlockBroadcastActor(
         }
 
       case PeerManagerActor.PeersResponse(peers) if state.toBroadcastBlocks.nonEmpty =>
-        state.toBroadcastBlocks.foreach{ newBlock =>
-          sendNewBlockMsgToPeers(peers, newBlock)
-        }
+        sendNewBlockMsgToPeers(peers, state.toBroadcastBlocks)
         context become processMessages(state.copy(toBroadcastBlocks = Seq()))
 
       case _ => //Nothing
@@ -111,8 +118,13 @@ class BlockBroadcastActor(
 
   }
 
+  private def handlePeerTerminated: Receive = {
+    case Terminated(_) => context stop self
+  }
+
   private def blockInProgress(hash: BlockHash, state: ProcessingState): Boolean =
-    ((state.unprocessedBlocks ++ state.toBroadcastBlocks).map(_.header.hash) ++
+    (state.unprocessedBlocks.map(_.header.hash) ++
+      state.toBroadcastBlocks.map(_.block.header.hash) ++
       state.fetchedBlockHashes ++
       state.blockHeaders.map(_.hash)).contains(hash)
 
@@ -122,14 +134,13 @@ class BlockBroadcastActor(
   private def blockToProcess(hash: BlockHash, state: ProcessingState): Boolean = !blockInProgress(hash, state) && !blockInStorage(hash)
 
   //FIXME: Decide block propagation algorithm (for now we send block to every peer except the sender) [EC-87]
-  private def sendNewBlockMsgToPeers(peers: Seq[Peer], newBlock: Block) = {
-    val blockTd = blockchain.getTotalDifficultyByHash(newBlock.header.hash)
-      .getOrElse(throw new Exception(s"Block ${Hex.toHexString(newBlock.header.hash.toArray)} total difficulty is not on storage"))
-    val newBlockMsg = NewBlock(newBlock, blockTd)
+  private def sendNewBlockMsgToPeers(peers: Seq[Peer], newBlocks: Seq[NewBlock]) = {
     peers.foreach{ p =>
       if(p.id != peer.path.name){
-        log.info("Sending NewBlockMessage {} to {}", newBlockMsg, p.id)
-        p.ref ! PeerActor.SendMessage(newBlockMsg)
+        newBlocks.foreach{ newBlockMsg =>
+          log.info("Sending NewBlockMessage {} to {}", newBlockMsg, p.id)
+          p.ref ! PeerActor.SendMessage(newBlockMsg)
+        }
       }
     }
   }
@@ -139,12 +150,12 @@ class BlockBroadcastActor(
       Block(blockHeader, blockBody)
     }
 
-  private def importBlockToBlockchain(block: Block, blockParentTotalDifficulty: BigInt) = {
+  private def importBlockToBlockchain(block: Block, blockTotalDifficulty: BigInt) = {
     val blockHash = block.header.hash
 
     //Insert block to blockchain
     blockchain.save(block)
-    blockchain.save(blockHash, blockParentTotalDifficulty + block.header.difficulty)
+    blockchain.save(blockHash, blockTotalDifficulty)
 
     //Update NodeStatus
     nodeStatusHolder.send(_.copy(
@@ -166,8 +177,7 @@ object BlockBroadcastActor {
   case object ProcessNewBlocks
 
   case class ProcessingState(unprocessedBlocks: Seq[Block],
-                             toBroadcastBlocks: Seq[Block],
+                             toBroadcastBlocks: Seq[NewBlock],
                              fetchedBlockHashes: Seq[BlockHash],
                              blockHeaders: Seq[BlockHeader])
 }
-
