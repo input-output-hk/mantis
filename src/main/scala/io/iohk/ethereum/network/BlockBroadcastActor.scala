@@ -42,7 +42,7 @@ class BlockBroadcastActor(
 
   def processMessages(state: ProcessingState): Receive =
     handleReceivedMessages(state) orElse
-      handlePeerTerminated orElse {
+    handlePeerTerminated orElse {
 
       case ProcessNewBlocks if state.unprocessedBlocks.nonEmpty =>
         if(state.unprocessedBlocks.tail.nonEmpty) self ! ProcessNewBlocks
@@ -142,6 +142,7 @@ class BlockBroadcastActor(
           p.ref ! PeerActor.SendMessage(newBlockMsg)
         }
       }
+      if(p.id != peer.path.name){ context.actorOf(BlockBroadcastMaxBlockRequestHandler.props(p.ref, newBlocks)) }
     }
   }
 
