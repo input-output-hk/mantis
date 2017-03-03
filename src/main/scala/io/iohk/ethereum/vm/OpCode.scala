@@ -399,40 +399,15 @@ case object BLOCKHASH extends OpCode(0x40, 1, 1, G_blockhash) with ConstGas {
   }
 }
 
-case object COINBASE extends OpCode(0x41, 0, 1, G_base) with ConstGas {
-  override protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val stack1 = state.stack.push(DataWord(state.context.env.blockHeader.beneficiary))
-    state.withStack(stack1).step()
-  }
-}
+case object COINBASE extends ConstOp(0x41)(s => DataWord(s.context.env.blockHeader.beneficiary))
 
-case object TIMESTAMP extends OpCode(0x42, 0, 1, G_base) with ConstGas {
-  override protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val stack1 = state.stack.push(DataWord(state.context.env.blockHeader.unixTimestamp))
-    state.withStack(stack1).step()
-  }
-}
+case object TIMESTAMP extends ConstOp(0x42)(s => DataWord(s.context.env.blockHeader.unixTimestamp))
 
-case object NUMBER extends OpCode(0x43, 0, 1, G_base) with ConstGas {
-  override protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val stack1 = state.stack.push(DataWord(state.context.env.blockHeader.number))
-    state.withStack(stack1).step()
-  }
-}
+case object NUMBER extends ConstOp(0x43)(s => DataWord(s.context.env.blockHeader.number))
 
-case object DIFFICULTY extends OpCode(0x44, 0, 1, G_base) with ConstGas {
-  override protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val stack1 = state.stack.push(DataWord(state.context.env.blockHeader.difficulty))
-    state.withStack(stack1).step()
-  }
-}
+case object DIFFICULTY extends ConstOp(0x44)(s => DataWord(s.context.env.blockHeader.difficulty))
 
-case object GASLIMIT extends OpCode(0x45, 0, 1, G_base) with ConstGas {
-  override protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val stack1 = state.stack.push(DataWord(state.context.env.blockHeader.gasLimit))
-    state.withStack(stack1).step()
-  }
-}
+case object GASLIMIT extends ConstOp(0x45)(s => DataWord(s.context.env.blockHeader.gasLimit))
 
 case object POP extends OpCode(0x50, 1, 0, G_base) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
