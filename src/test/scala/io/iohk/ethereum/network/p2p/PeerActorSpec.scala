@@ -9,11 +9,11 @@ import akka.util.ByteString
 import io.iohk.ethereum
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
-import io.iohk.ethereum.network.{FastSyncHost, PeerActor}
-import io.iohk.ethereum.network.PeerActor.{FastSyncHostConfiguration, PeerConfiguration}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.network.PeerActor.{FastSyncHostConfiguration, GetMaxBlockNumber, MaxBlockNumber, PeerConfiguration}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipt, Receipts, _}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
@@ -400,6 +400,131 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader, Config.Blockchain.genesisBlockHeader))))
   }
 
+  it should "update max peer when receiving new block" in new TestSetup {
+    //given
+    val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 4)
+    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+
+    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 2)
+    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+
+    val probe = TestProbe()
+
+    setupConnection()
+
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(daoForkBlockNumber))
+
+    //when
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(firstBlock))
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(secondBlock))
+
+    //then
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(daoForkBlockNumber + 4))
+  }
+
+  it should "update max peer when receiving block header" in new TestSetup {
+    //given
+    val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 4)
+    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 2)
+    val probe = TestProbe()
+
+    setupConnection()
+
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(daoForkBlockNumber))
+
+    //when
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(firstHeader, secondHeader, Config.Blockchain.genesisBlockHeader))))
+
+    //then
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(daoForkBlockNumber + 4))
+  }
+
+  it should "update max peer when receiving new block hashes" in new TestSetup {
+    //given
+    val firstBlockHash: BlockHash = BlockHash(ByteString(Hex.decode("00" * 32)), daoForkBlockNumber + 2)
+    val secondBlockHash: BlockHash = BlockHash(ByteString(Hex.decode("00" * 32)), daoForkBlockNumber + 5)
+    val probe = TestProbe()
+
+    setupConnection()
+
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(daoForkBlockNumber))
+
+    //when
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(NewBlockHashes(Seq(firstBlockHash, secondBlockHash))))
+
+    //then
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(daoForkBlockNumber + 5))
+  }
+
+  it should "update max peer when sending new block" in new TestSetup {
+    //given
+    val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 4)
+    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+
+    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 2)
+    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+
+    val probe = TestProbe()
+
+    setupConnection()
+
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(daoForkBlockNumber))
+
+    //when
+    peer ! PeerActor.SendMessage(firstBlock)
+    peer ! PeerActor.SendMessage(secondBlock)
+
+    //then
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(daoForkBlockNumber + 4))
+  }
+
+  it should "update max peer when sending block header" in new TestSetup {
+    val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 4)
+    val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 2)
+    val probe = TestProbe()
+
+    setupConnection()
+
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(daoForkBlockNumber))
+
+    //when
+    peer ! PeerActor.SendMessage(BlockHeaders(Seq(firstHeader)))
+    peer ! PeerActor.SendMessage(BlockHeaders(Seq(secondHeader)))
+
+    //then
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(daoForkBlockNumber + 4))
+  }
+
+  it should "update max peer when sending new block hashes" in new TestSetup {
+    //given
+    val firstBlockHash: BlockHash = BlockHash(ByteString(Hex.decode("00" * 32)), daoForkBlockNumber + 2)
+    val secondBlockHash: BlockHash = BlockHash(ByteString(Hex.decode("00" * 32)), daoForkBlockNumber + 5)
+    val probe = TestProbe()
+
+    setupConnection()
+
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(daoForkBlockNumber))
+
+    //when
+    peer ! PeerActor.SendMessage(NewBlockHashes(Seq(firstBlockHash)))
+    peer ! PeerActor.SendMessage(NewBlockHashes(Seq(secondBlockHash)))
+
+    //then
+    peer ! GetMaxBlockNumber(probe.testActor)
+    probe.expectMsg(MaxBlockNumber(daoForkBlockNumber + 5))
+  }
+
   it should "return evm code for hash" in new TestSetup {
     //given
     val fakeEvmCode = ByteString(Hex.decode("ffddaaffddaaffddaaffddaaffddaa"))
@@ -486,6 +611,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val storagesInstance =  new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
+
+    val daoForkBlockNumber = 1920000
 
     val peerConf = new PeerConfiguration {
       override val fastSyncHostConfiguration: FastSyncHostConfiguration = new FastSyncHostConfiguration {
