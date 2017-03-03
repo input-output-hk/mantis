@@ -45,8 +45,4 @@ scalacOptions := Seq("-unchecked", "-deprecation", "-feature")
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}
 
-mappings in Universal ++= (resourceDirectory in Compile).value.listFiles()
-  .find(_.name == "application.conf").toSeq
-  .map { f => f -> ("conf/" + f.name) }
-bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/application.conf""""
 makeDeploymentSettings(Universal, packageBin in Universal, "dist")
