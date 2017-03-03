@@ -43,7 +43,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
     peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
 
-    assert(!peerProbe.msgAvailable)
+    peerProbe.expectNoMsg()
     peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(newBlock)) }
   }
 

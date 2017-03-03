@@ -179,11 +179,11 @@ class PeerActor(
       daoBlockHeaderOpt match {
         case Some(_) if daoForkValidator.validate(msg).isEmpty =>
           log.info("Peer is running the ETC chain")
-          context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber).receive
+          context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, None).receive
 
         case Some(_) if nodeStatusHolder().blockchainStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
           log.info("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
-          context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber).receive
+          context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, None).receive
 
         case Some(_) =>
           log.info("Peer is not running the ETC fork, disconnecting")
@@ -191,7 +191,7 @@ class PeerActor(
 
         case None if remoteStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
           log.info("Peer is not at ETC fork yet. Keeping the connection until then.")
-          context become new HandshakedHandler(rlpxConnection, remoteStatus, 0).receive
+          context become new HandshakedHandler(rlpxConnection, remoteStatus, 0, None).receive
 
         case None =>
           log.info("Peer did not respond with ETC fork block header")
@@ -260,7 +260,8 @@ class PeerActor(
       }
   }
 
-  class HandshakedHandler(rlpxConnection: RLPxConnection, initialStatus: msg.Status, initialMaxBlock: BigInt) {
+  class HandshakedHandler(rlpxConnection: RLPxConnection, initialStatus: msg.Status, initialMaxBlock: BigInt,
+                          blockBroadcastActor: Option[ActorRef]) {
 
     var currentMaxBlockNumber: BigInt = initialMaxBlock
 
@@ -268,7 +269,8 @@ class PeerActor(
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
       handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
       handleBlockFastDownload(rlpxConnection, log) orElse
-      handleEvmMptFastDownload(rlpxConnection) orElse {
+      handleEvmMptFastDownload(rlpxConnection) orElse
+      handleBlockBroadcastActorTerminated orElse {
 
       case RLPxConnectionHandler.MessageReceived(message) =>
         log.debug("Received message: {}", message)
@@ -285,12 +287,7 @@ class PeerActor(
       case GetStatus =>
         sender() ! StatusResponse(Handshaked(initialStatus))
 
-      case PeerActor.StartBlockBroadcast(blockchain) =>
-        val blockBroadcastActor = context.actorOf(
-          BlockBroadcastActor.props(nodeStatusHolder, self, context.parent, blockchain),
-          "blockbroadcast"
-        )
-        blockBroadcastActor ! BlockBroadcastActor.StartBlockBroadcast
+      case PeerActor.StartBlockBroadcast => startNewBlockBroadcastActor()
     }
 
     private def updateMaxBlock(message: Message) = {
@@ -307,9 +304,27 @@ class PeerActor(
       def update(ns: Seq[BigInt]) = {
         val maxBlockNumber = ns.fold(0: BigInt) { case (a, b) => if (a > b) a else b }
         if (maxBlockNumber > currentMaxBlockNumber) {
-          context become new HandshakedHandler(rlpxConnection, initialStatus, maxBlockNumber).receive
+          context become new HandshakedHandler(rlpxConnection, initialStatus, maxBlockNumber, blockBroadcastActor).receive
         }
       }
+    }
+
+    def handleBlockBroadcastActorTerminated: Receive = {
+      case Terminated(peer) if blockBroadcastActor.exists(_.compareTo(peer) == 0) =>
+        startNewBlockBroadcastActor()
+    }
+
+    private def startNewBlockBroadcastActor() = {
+      blockBroadcastActor.foreach{ previousBlockBroadcastActor =>
+        context unwatch previousBlockBroadcastActor
+      }
+      val newBlockBroadcastActor = context.actorOf(
+        BlockBroadcastActor.props(nodeStatusHolder, self, context.parent, storage),
+        "blockbroadcast"
+      )
+      context watch newBlockBroadcastActor
+      newBlockBroadcastActor ! BlockBroadcastActor.StartBlockBroadcast
+      context become new HandshakedHandler(rlpxConnection, initialStatus, currentMaxBlockNumber, Some(newBlockBroadcastActor)).receive
     }
 
     private def notifySubscribers(message: Message): Unit = {
@@ -389,7 +404,7 @@ object PeerActor {
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
 
-  case class StartBlockBroadcast(blockchain: Blockchain)
+  case object StartBlockBroadcast
 
   case class GetMaxBlockNumber(from: ActorRef)
 

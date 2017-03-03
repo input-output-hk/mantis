@@ -85,7 +85,7 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
 
     case PeersResponse(peers) =>
       peers.foreach{ peer =>
-        peer.ref ! PeerActor.StartBlockBroadcast(blockchain)
+        peer.ref ! PeerActor.StartBlockBroadcast
       }
   }
 

@@ -90,13 +90,13 @@ class BlockBroadcastActor(
         val getBlockHeadersMsg = GetBlockHeaders(block = Right(hash), maxHeaders = 1, skip = 0, reverse =  false)
         peer ! PeerActor.SendMessage(getBlockHeadersMsg)
       }
-      context become processMessages(state.copy(fetchedBlockHeaders = state.fetchedBlockHeaders ++ newHashesToProcess))
+      context become processMessages(state.copy(fetchedBlockHashes = state.fetchedBlockHashes ++ newHashesToProcess))
 
-    case MessageReceived(BlockHeaders(Seq(blockHeader))) if state.fetchedBlockHeaders.contains(blockHeader.hash)=>
+    case MessageReceived(BlockHeaders(Seq(blockHeader))) if state.fetchedBlockHashes.contains(blockHeader.hash)=>
       log.info("Got BlockHeaders message {}", blockHeader)
-      val newFetchedBlockHeaders = state.fetchedBlockHeaders.filterNot(_ == blockHeader.hash)
+      val newFetchedBlockHeaders = state.fetchedBlockHashes.filterNot(_ == blockHeader.hash)
       peer ! PeerActor.SendMessage(GetBlockBodies(Seq(blockHeader.hash)))
-      val newState = state.copy(fetchedBlockHeaders = newFetchedBlockHeaders, blockHeaders = state.blockHeaders :+ blockHeader)
+      val newState = state.copy(fetchedBlockHashes = newFetchedBlockHeaders, blockHeaders = state.blockHeaders :+ blockHeader)
       context become processMessages(newState)
 
     case MessageReceived(BlockBodies(Seq(blockBody))) =>
@@ -113,7 +113,7 @@ class BlockBroadcastActor(
 
   private def blockInProgress(hash: BlockHash, state: ProcessingState): Boolean =
     ((state.unprocessedBlocks ++ state.toBroadcastBlocks).map(_.header.hash) ++
-      state.fetchedBlockHeaders ++
+      state.fetchedBlockHashes ++
       state.blockHeaders.map(_.hash)).contains(hash)
 
   private def blockInStorage(hash: BlockHash): Boolean =
@@ -167,7 +167,7 @@ object BlockBroadcastActor {
 
   case class ProcessingState(unprocessedBlocks: Seq[Block],
                              toBroadcastBlocks: Seq[Block],
-                             fetchedBlockHeaders: Seq[BlockHash],
+                             fetchedBlockHashes: Seq[BlockHash],
                              blockHeaders: Seq[BlockHeader])
 }
 
