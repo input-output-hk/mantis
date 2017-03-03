@@ -4,28 +4,28 @@ import java.net.InetSocketAddress
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-
-import akka.actor.{PoisonPill, Terminated, ActorSystem, Props}
+import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
-import akka.testkit.{TestProbe, TestActorRef}
+import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.PeerManagerActor.{Peer, PeersResponse, GetPeers}
+import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, PeersResponse}
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{Receipts, GetReceipts, GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.utils.{BlockchainStatus, ServerStatus, NodeStatus}
-import org.scalatest.{Matchers, FlatSpec}
+import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
+import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 class FastSyncControllerSpec extends FlatSpec with Matchers {
 
   "FastSyncController" should "download target block and request state nodes" in new TestSetup {
+
     val peer1 = TestProbe()(system)
     val peer2 = TestProbe()(system)
 
@@ -264,6 +264,8 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
       extraData = ByteString("unused"),
       mixHash = ByteString("unused"),
       nonce = ByteString("unused"))
+
+    blockchain.save(baseBlockHeader.parentHash, BigInt(0))
   }
 
 }

@@ -1,6 +1,7 @@
 package io.iohk.ethereum.db.components
 
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.utils.Config
 
 object Storages {
 
@@ -23,6 +24,10 @@ object Storages {
       override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
 
       override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeStorage)
+
+      override val totalDifficultyStorage: TotalDifficultyStorage =
+        new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
+          .put(Config.Blockchain.genesisHash, Config.Blockchain.genesisDifficulty)
     }
 
   }
@@ -49,6 +54,10 @@ object Storages {
       override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
 
       override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeStorage)
+
+      override val totalDifficultyStorage: TotalDifficultyStorage =
+        new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
+          .put(Config.Blockchain.genesisHash, Config.Blockchain.genesisDifficulty)
     }
   }
 }

@@ -1,6 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.kec256
 
 /**
   * Holds a program's code and provides utilities for accessing it (defaulting to zeroes when out of scope)
@@ -14,4 +15,7 @@ case class Program(code: ByteString) {
 
   def getBytes(from: Int, size: Int): ByteString =
     code.slice(from, from + size).padTo(size, 0.toByte)
+
+  lazy val codeHash: ByteString =
+    kec256(code)
 }

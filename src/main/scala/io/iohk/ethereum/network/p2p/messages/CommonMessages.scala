@@ -1,8 +1,10 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.spongycastle.util.encoders.Hex
@@ -48,12 +50,12 @@ object CommonMessages {
         import signedTx._
         import signedTx.tx._
         RLPList(nonce, gasPrice, gasLimit, receivingAddress.toArray, value,
-                payload, pointSign, signatureRandom.toArray[Byte], signature.toArray[Byte])
+          payload, pointSign, signatureRandom.toArray[Byte], signature.toArray[Byte])
       }
 
       override def decode(rlp: RLPEncodeable): SignedTransaction = rlp match {
         case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value,
-                     payload, pointSign, signatureRandom, signature) =>
+        payload, pointSign, signatureRandom, signature) =>
           SignedTransaction(
             Transaction(nonce, gasPrice, gasLimit, Address(receivingAddress.bytes), value, ByteString(payload: Array[Byte])),
             pointSign,
@@ -84,4 +86,48 @@ object CommonMessages {
     override def code: Int = SignedTransactions.code
   }
 
+  object NewBlock {
+
+    implicit val rlpEncDec = new RLPEncoder[NewBlock] with RLPDecoder[NewBlock] {
+
+      override def encode(obj: NewBlock): RLPEncodeable = {
+        import obj._
+        RLPList(
+          RLPList(
+            block.header,
+            RLPList(block.body.transactionList.map(SignedTransactions.txRlpEncDec.encode): _*),
+            RLPList(block.body.uncleNodesList.map(headerRlpEncDec.encode): _*)
+          ),
+          totalDifficulty
+        )
+      }
+
+      override def decode(rlp: RLPEncodeable): NewBlock = rlp match {
+        case RLPList(RLPList(blockHeader, (transactionList: RLPList), (uncleNodesList: RLPList)), totalDifficulty) =>
+          NewBlock(
+            Block(
+              headerRlpEncDec.decode(blockHeader),
+              BlockBody(
+                transactionList.items.map(SignedTransactions.txRlpEncDec.decode),
+                uncleNodesList.items.map(headerRlpEncDec.decode))),
+            totalDifficulty
+          )
+        case _ => throw new RuntimeException("Cannot decode NewBlock")
+      }
+
+    }
+
+    val code: Int = Message.SubProtocolOffset + 0x07
+  }
+
+  case class NewBlock(block: Block, totalDifficulty: BigInt) extends Message {
+    override def code: Int = NewBlock.code
+
+    override def toString: String = {
+      s"""NewBlock {
+         |block: $block
+         |totalDifficulty: $totalDifficulty
+         |}""".stripMargin
+    }
+  }
 }
