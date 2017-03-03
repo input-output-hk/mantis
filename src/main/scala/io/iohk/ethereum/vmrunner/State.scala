@@ -3,10 +3,7 @@ package io.iohk.ethereum.vmrunner
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm._
-import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.rlp.RLPImplicits._
+import WorldState.{PC, PR}
 
 object State {
 
@@ -21,15 +18,15 @@ object State {
   def world: WorldState = currentWorld
 
 
-  def createAccount(name: String, balance: BigInt, gas: BigInt, code: ByteString, abis: Seq[ABI]): (Address, ProgramResult) = {
+  def createAccount(name: String, balance: BigInt, gas: BigInt, code: ByteString, abis: Seq[ABI]): (Address, PR) = {
     val (newAddress, _) = world.newAddress(creatorAddress)
     val tx = MockVmInput.transaction(creatorAddress, code, balance, gas)
     val bh = MockVmInput.blockHeader
 
-    val context = ProgramContext(tx, bh, world)
-    val intermediateResult = VM.run(context)
+    val context: PC = ProgramContext(tx, bh, world)
+    val intermediateResult: PR = VM.run(context)
 
-    val result = if (intermediateResult.error.isDefined) intermediateResult else {
+    val result: PR = if (intermediateResult.error.isDefined) intermediateResult else {
       val depositCost = GasFee.G_codedeposit * intermediateResult.returnData.size
       intermediateResult.copy(
         gasRemaining = intermediateResult.gasRemaining - depositCost,
@@ -39,13 +36,12 @@ object State {
     }
 
     if (result.error.isEmpty) {
-      val codeHash = ByteString(kec256(result.returnData.toArray))
-      val account = result.world.getGuaranteedAccount(newAddress).copy(codeHash = codeHash)
+      val account = result.world.getGuaranteedAccount(newAddress)
       val xAccount = XAccount(account, name, newAddress, abis)
 
-      val world1 = result.world.asInstanceOf[WorldState]
+      val world1 = result.world
         .saveXAccount(newAddress, xAccount)
-        .saveCode(codeHash, result.returnData)
+        .saveCode(newAddress, result.returnData)
 
       val world2 = result.addressesToDelete.foldLeft(world1)(_ deleteAccount _)
 
@@ -55,15 +51,15 @@ object State {
     (newAddress, result)
   }
 
-  def runTransaction(xAccount: XAccount, callData: ByteString, gas: BigInt, value: BigInt): ProgramResult = {
+  def runTransaction(xAccount: XAccount, callData: ByteString, gas: BigInt, value: BigInt): PR = {
     val tx = MockVmInput.transaction(creatorAddress, callData, value, gas, receivingAddress = xAccount.address)
     val bh = MockVmInput.blockHeader
 
-    val context = ProgramContext(tx, bh, world)
-    val result = VM.run(context)
+    val context: PC = ProgramContext(tx, bh, world)
+    val result: PR = VM.run(context)
 
     if (result.error.isEmpty) {
-      val world = result.world.asInstanceOf[WorldState]
+      val world = result.world
       val world1 = result.addressesToDelete.foldLeft(world)(_ deleteAccount _)
       currentWorld = world1
     }

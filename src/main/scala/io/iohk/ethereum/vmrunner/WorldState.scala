@@ -2,31 +2,41 @@ package io.iohk.ethereum.vmrunner
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Account, Address}
-import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
+import io.iohk.ethereum.vm._
+
+object WorldState {
+  type PS = ProgramState[WorldState, MapStorage]
+  type PC = ProgramContext[WorldState, MapStorage]
+  type PR = ProgramResult[WorldState, MapStorage]
+}
 
 case class WorldState(
   accounts: Map[Address, XAccount] = Map(),
-  codeRepo: Map[ByteString, ByteString] = Map(),
-  storages: Map[ByteString, Storage] = Map(),
+  codeRepo: Map[Address, ByteString] = Map(),
+  storages: Map[Address, MapStorage] = Map(),
   nonce: Long = 0
-) extends WorldStateProxy {
+) extends WorldStateProxy[WorldState, MapStorage] {
 
   type WS = WorldState
 
   def getAccount(address: Address): Option[Account] =
     getXAccount(address).map(_.acc)
 
-  def getCode(codeHash: ByteString): ByteString =
-    codeRepo.getOrElse(codeHash, ByteString.empty)
 
-  def getStorage(storageRoot: ByteString): Storage =
-    storages.getOrElse(storageRoot, Storage.Empty)
+  override def getGuaranteedAccount(address: Address): Account =
+    super.getGuaranteedAccount(address)
+
+  def getCode(address: Address): ByteString =
+    codeRepo.getOrElse(address, ByteString.empty)
+
+  def getStorage(address: Address): MapStorage =
+    storages.getOrElse(address, MapStorage.Empty)
 
   def saveAccount(address: Address, account: Account): WorldState = {
     getXAccount(address) match {
       case Some(xAcc) =>
-        val abis = if (account.codeHash != xAcc.acc.codeHash) Nil else xAcc.abis
-        val updated = xAcc.copy(acc = account, abis = abis)
+        //val abis = if (account.address != xAcc.acc.address) Nil else xAcc.abis
+        val updated = xAcc.copy(acc = account/*, abis = abis*/)
         saveXAccount(address, updated)
 
       case None =>
@@ -35,11 +45,11 @@ case class WorldState(
     }
   }
 
-  def saveCode(codeHash: ByteString, code: ByteString): WorldState =
-    copy(codeRepo = codeRepo + (codeHash -> code))
+  def saveCode(address: Address, code: ByteString): WorldState =
+    copy(codeRepo = codeRepo + (address -> code))
 
-  def saveStorage(storageRoot: ByteString, storage: Storage): WorldState =
-    copy(storages = storages + (storageRoot -> storage))
+  def saveStorage(address: Address, storage: MapStorage): WorldState =
+    copy(storages = storages + (address -> storage))
 
 
   val accountsNames: Map[String, XAccount] =
@@ -57,14 +67,12 @@ case class WorldState(
   def listAccounts: List[XAccount] =
     accounts.values.toList
 
-  def deleteAccount(address: Address): WorldState = {
-    val acc = getAccount(address).getOrElse(Account.Empty)
+  def deleteAccount(address: Address): WorldState = 
     copy(
       accounts = accounts - address,
-      codeRepo = codeRepo - acc.codeHash,
-      storages = storages - acc.storageRoot
+      codeRepo = codeRepo - address,
+      storages = storages - address
     )
-  }
 
   private def newName: String =
     f"acc$nonce%03d"

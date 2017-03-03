@@ -26,7 +26,7 @@ object Address {
 
 class Address private(val bytes: ByteString) {
 
-  def isEmpty: Boolean = bytes.isEmpty
+  def isEmpty: Boolean = bytes == Address.empty.bytes
 
   def toArray: Array[Byte] = bytes.toArray
 

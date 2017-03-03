@@ -9,6 +9,7 @@ import io.circe.parser._
 import io.iohk.ethereum.vm._
 import io.iohk.ethereum.vmrunner.AST._
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.vmrunner.WorldState.PR
 import org.spongycastle.util.encoders.Hex
 
 import scala.io.Source
@@ -58,8 +59,8 @@ object Interpreter {
 
   def accountInfo(account: String): Either[RunnerError, String] =
     State.world.getXAccount(account).map { xAcc =>
-      val codeSize = State.world.getCode(xAcc.acc.codeHash).size
-      val storageSize = State.world.getStorage(xAcc.acc.storageRoot).toMap.size
+      val codeSize = State.world.getCode(xAcc.address).size
+      val storageSize = State.world.getStorage(xAcc.address).data.size
 
       s"""|  address:       ${xAcc.address}
           |  balance:       ${xAcc.acc.balance}
@@ -70,13 +71,13 @@ object Interpreter {
 
   def accountCode(account: String): Either[RunnerError, String] =
     State.world.getXAccount(account).map { xAccount =>
-      val code = State.world.getCode(xAccount.acc.codeHash)
+      val code = State.world.getCode(xAccount.address)
       printCode(code)
     }.map(Right(_)).getOrElse(Left(UnknownAccount(account)))
 
   def accountStorage(account: String): Either[RunnerError, String] =
     State.world.getXAccount(account).map { xAccount =>
-      val storage = State.world.getStorage(xAccount.acc.storageRoot).toMap.toList.sortBy(_._1)
+      val storage = State.world.getStorage(xAccount.address).data.toList.sortBy(_._1)
       if (storage.isEmpty)
         "  empty"
       else
@@ -172,7 +173,7 @@ object Interpreter {
     }
   }
 
-  def vmSummary(result: ProgramResult): String =
+  def vmSummary(result: PR): String =
     s"""|  gas used:  ${result.gasUsed}
         |  error:     ${result.error.getOrElse("n/a")}
         |  return:    ${Hex.toHexString(result.returnData.toArray)}
