@@ -105,7 +105,7 @@ object Generators extends ObjectGenerators {
       env = ExecEnv(ownerAddr, callerAddr, callerAddr, 0, inputData,
         value, program, blockHeader, 0)
 
-      world = MockWorldState(headers = ((0: BigInt) to blockHeader.number).map(number => number -> blockHeader.copy(number = number)).toMap)
+      world = MockWorldState(headers = ((0: BigInt) to blockHeader.number).map(number => number -> blockHeader.hash).toMap)
         .saveCode(ownerAddr, program.code)
         .saveStorage(ownerAddr, storage)
         .saveAccount(ownerAddr, Account.Empty)

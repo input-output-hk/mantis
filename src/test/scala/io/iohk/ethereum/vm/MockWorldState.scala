@@ -1,7 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Account, Address, BlockHeader}
+import io.iohk.ethereum.domain.{Account, Address}
 
 object MockWorldState {
   type PS = ProgramState[MockWorldState, MockStorage]
@@ -13,7 +13,7 @@ case class MockWorldState(
   accounts: Map[Address, Account] = Map(),
   codeRepo: Map[Address, ByteString] = Map(),
   storages: Map[Address, MockStorage] = Map(),
-  headers: Map[BigInt, BlockHeader] = Map()
+  headers: Map[BigInt, ByteString] = Map()
 ) extends WorldStateProxy[MockWorldState, MockStorage] {
 
   def getAccount(address: Address): Option[Account] =
@@ -29,7 +29,7 @@ case class MockWorldState(
     storages.getOrElse(address, MockStorage.Empty)
 
   def getBlockHash(number: BigInt): Option[ByteString] =
-    headers.get(number).map(_.hash)
+    headers.get(number)
 
   def saveCode(address: Address, code: ByteString): MockWorldState =
     copy(codeRepo = codeRepo + (address -> code))
