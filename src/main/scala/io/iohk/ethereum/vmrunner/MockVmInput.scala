@@ -17,13 +17,14 @@ object MockVmInput {
     override lazy val recoveredSenderAddress: Option[Address] = Some(senderAddress)
   }
 
+  val defaultGasPrice: BigInt = 1000
 
   def transaction(
     senderAddress: Address,
     payload: ByteString,
     value: BigInt,
     gasLimit: BigInt,
-    gasPrice: BigInt = 1000,
+    gasPrice: BigInt = defaultGasPrice,
     receivingAddress: Address = Address.empty,
     nonce: BigInt = 0
   ): SignedTransaction =

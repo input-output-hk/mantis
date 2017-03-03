@@ -16,7 +16,7 @@ object EvmRunner extends App {
           } yield res
         ).left.map(_.msg).merge
 
-        println(withNewLine(result))
+        Shell.printLine(withNewLine(result))
 
         loop()
 

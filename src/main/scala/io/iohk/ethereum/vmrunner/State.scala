@@ -7,7 +7,7 @@ import WorldState.{PC, PR}
 
 object State {
 
-  val creatorAddress = Address(DataWord(0xabcdef))
+  val creatorAddress = Address(DataWord(0xabcdef)) //scalastyle:off magic.number
 
   private var currentWorld = {
     val creatorAcc = Account.Empty.updateBalance(BigInt(10).pow(9))

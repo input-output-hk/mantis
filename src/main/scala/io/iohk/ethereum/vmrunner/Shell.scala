@@ -25,8 +25,16 @@ object Shell {
         None
 
       case int: UserInterruptException =>
-        println()
+        printLine()
         readLine()
     }
   }
+
+  def printLine(x: Any): Unit = {
+    //scalastyle:off regex
+    println(x)
+  }
+
+  def printLine(): Unit =
+    printLine("")
 }

@@ -67,7 +67,7 @@ case class WorldState(
   def listAccounts: List[XAccount] =
     accounts.values.toList
 
-  def deleteAccount(address: Address): WorldState = 
+  def deleteAccount(address: Address): WorldState =
     copy(
       accounts = accounts - address,
       codeRepo = codeRepo - address,
