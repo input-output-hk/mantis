@@ -4,7 +4,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.vm.GasFee._
-import OpCode._
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
@@ -233,7 +232,9 @@ sealed abstract class TernaryOp(code: Int, constGas: BigInt)(val f: (DataWord, D
   }
 }
 
-sealed abstract class ConstOp(code: Int)(val f: ProgramState[_ <: WorldStateProxy[_, _ <: Storage[_]], _ <: Storage[_]] => DataWord) extends OpCode(code, 0, 1, G_base) with ConstGas {
+sealed abstract class ConstOp(code: Int)(val f: ProgramState[_ <: WorldStateProxy[_, _ <: Storage[_]], _ <: Storage[_]] => DataWord)
+  extends OpCode(code, 0, 1, G_base) with ConstGas {
+
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val stack1 = state.stack.push(f(state))
     state.withStack(stack1).step()
