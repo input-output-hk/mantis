@@ -7,6 +7,8 @@ import org.scalacheck.Gen
 import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
 
+import scala.collection.generic.SeqFactory
+
 class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
   import MockWorldState.PS
 
@@ -272,7 +274,15 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val stateOut = executeOp(op, stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
+        val (Seq(blockHeaderNumber), _) = stateIn.stack.pop(1)
+        val (Seq(blockHeaderHash), _) = stateOut.stack.pop(1)
 
+        if (stateIn.context.env.blockHeader.number - blockHeaderNumber.toBigInt <= 256) {
+          val expectedHash: DataWord = stateIn.world.getBlockHeader(blockHeaderNumber).map(bh => DataWord(bh.hash)).getOrElse(DataWord(0))
+          blockHeaderHash shouldBe expectedHash
+        } else {
+          blockHeaderHash shouldBe DataWord(0)
+        }
       }
     }
   }
