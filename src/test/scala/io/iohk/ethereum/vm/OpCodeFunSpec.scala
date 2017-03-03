@@ -253,27 +253,49 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(BLOCKHASH) { op =>
-    to do add test
+    val stateGen: Gen[ProgramState] = for {
+      extCode <- getByteStringGen(0, 256)
+
+      stateIn <- getProgramStateGen(
+        stackGen = getStackGen(maxWord = DataWord(256)),
+        memGen = getMemoryGen(256),
+        codeGen = getByteStringGen(0, 256)
+      )
+
+      doSave <- Gen.oneOf(false, true, true)
+
+      addr = Address(stateIn.stack.pop._1)
+      hash = kec256(extCode)
+      world = if (doSave) stateIn.world.saveAccount(addr, Account.Empty.copy(codeHash = hash)) else stateIn.world
+    } yield stateIn.withWorld(world)
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+
+      }
+    }
   }
 
   test(COINBASE) { op =>
-    to do add test
+    //todo add test
   }
 
   test(TIMESTAMP) { op =>
-    to do add test
+    //todo add test
   }
 
   test(NUMBER) { op =>
-    to do add test
+    //todo add test
   }
 
   test(DIFFICULTY) { op =>
-    to do add test
+    //todo add test
   }
 
   test(GASLIMIT) { op =>
-    to do add test
+    //todo add test
   }
 
   test(POP) { op =>
