@@ -392,7 +392,7 @@ case object BLOCKHASH extends OpCode(0x40, 1, 1, G_blockhash) with ConstGas {
       val stack2 = stack1.push(DataWord(0))
       state.withStack(stack2).step()
     } else {
-      val result = state.world.getBlockHeader(blockNumber).map(bh => DataWord(bh.hash)).getOrElse(DataWord(0))
+      val result = state.world.getBlockHash(blockNumber).map(DataWord(_)).getOrElse(DataWord(0))
       val stack2 = stack1.push(result)
       state.withStack(stack2).step()
     }

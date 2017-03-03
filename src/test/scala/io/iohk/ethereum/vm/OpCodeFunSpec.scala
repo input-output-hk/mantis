@@ -274,14 +274,16 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val stateOut = executeOp(op, stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
-        val (Seq(blockHeaderNumber), _) = stateIn.stack.pop(1)
+        val (Seq(blockHeaderNumber), stack1) = stateIn.stack.pop(1)
         val (Seq(blockHeaderHash), _) = stateOut.stack.pop(1)
 
         if (stateIn.context.env.blockHeader.number - blockHeaderNumber.toBigInt <= 256) {
-          val expectedHash: DataWord = stateIn.world.getBlockHeader(blockHeaderNumber).map(bh => DataWord(bh.hash)).getOrElse(DataWord(0))
-          blockHeaderHash shouldBe expectedHash
+          val expectedHash: DataWord = stateIn.world.getBlockHash(blockHeaderNumber).map(DataWord(_)).getOrElse(DataWord(0))
+          val expectedState = stateIn.withStack(stack1.push(expectedHash)).step()
+          stateOut shouldBe expectedState
         } else {
-          blockHeaderHash shouldBe DataWord(0)
+          val expectedState = stateIn.withStack(stack1.push(DataWord(0))).step()
+          stateOut shouldBe expectedState
         }
       }
     }

@@ -28,8 +28,8 @@ case class MockWorldState(
   def getStorage(address: Address): MockStorage =
     storages.getOrElse(address, MockStorage.Empty)
 
-  def getBlockHeader(number: BigInt): Option[BlockHeader] =
-    headers.get(number)
+  def getBlockHash(number: BigInt): Option[ByteString] =
+    headers.get(number).map(_.hash)
 
   def saveCode(address: Address, code: ByteString): MockWorldState =
     copy(codeRepo = codeRepo + (address -> code))

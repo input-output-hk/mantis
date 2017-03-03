@@ -29,7 +29,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] {
 
   def getCode(address: Address): ByteString
   def getStorage(address: Address): S
-  def getBlockHeader(number: BigInt): Option[BlockHeader]
+  def getBlockHash(number: BigInt): Option[ByteString]
 
   def saveCode(address: Address, code: ByteString): WS
   def saveStorage(address: Address, storage: S): WS
