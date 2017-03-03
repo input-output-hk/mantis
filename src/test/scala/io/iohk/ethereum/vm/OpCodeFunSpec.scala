@@ -277,26 +277,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  test(COINBASE) { op =>
-    //todo add test
-  }
-
-  test(TIMESTAMP) { op =>
-    //todo add test
-  }
-
-  test(NUMBER) { op =>
-    //todo add test
-  }
-
-  test(DIFFICULTY) { op =>
-    //todo add test
-  }
-
-  test(GASLIMIT) { op =>
-    //todo add test
-  }
-
   test(POP) { op =>
     forAll(getProgramStateGen()) { stateIn =>
       val stateOut = executeOp(op, stateIn)

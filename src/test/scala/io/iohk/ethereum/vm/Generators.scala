@@ -3,7 +3,6 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.{Account, Address, BlockHeader}
-import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.vm.MockWorldState._
 import org.scalacheck.{Arbitrary, Gen}
 import org.spongycastle.util.encoders.Hex
@@ -67,7 +66,8 @@ object Generators extends ObjectGenerators {
     gasGen: Gen[BigInt] = getBigIntGen(min = DataWord.MaxValue, max = DataWord.MaxValue),
     codeGen: Gen[ByteString] = getByteStringGen(0, 0),
     inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
-    valueGen: Gen[BigInt] = getBigIntGen()
+    valueGen: Gen[BigInt] = getBigIntGen(),
+    blockNumberGen: Gen[BigInt] = getBigIntGen(0, 300)
   ): Gen[PS] =
     for {
       stack <- stackGen
@@ -77,6 +77,7 @@ object Generators extends ObjectGenerators {
       program <- codeGen.map(Program.apply)
       inputData <- inputDataGen
       value <- valueGen
+      blockNumber <- blockNumberGen
 
       blockHeader = BlockHeader(
         parentHash = ByteString(Hex.decode("d882d5c210bab4cb7ef0b9f3dc2130cb680959afcd9a8f9bf83ee6f13e2f9da3")),
@@ -87,7 +88,7 @@ object Generators extends ObjectGenerators {
         receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
         logsBloom = ByteString(Hex.decode("00" * 256)),
         difficulty = BigInt("989772"),
-        number = 20,
+        number = blockNumber,
         gasLimit = 131620495,
         gasUsed = 0,
         unixTimestamp = 1486752441,
@@ -98,7 +99,7 @@ object Generators extends ObjectGenerators {
       env = ExecEnv(ownerAddr, callerAddr, callerAddr, 0, inputData,
         value, program, blockHeader, 0)
 
-      world = MockWorldState(headers = (0 to 20).map(number => (number: BigInt) -> blockHeader.copy(number = number)).toMap)
+      world = MockWorldState(headers = ((0: BigInt) to blockHeader.number).map(number => number -> blockHeader.copy(number = number)).toMap)
         .saveCode(ownerAddr, program.code)
         .saveStorage(ownerAddr, storage)
         .saveAccount(ownerAddr, Account.Empty)
