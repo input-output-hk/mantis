@@ -5,6 +5,7 @@ import org.scalatest.{Matchers, WordSpec}
 import Assembly._
 import GasFee._
 import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.vm.MockWorldState.PC
 
 class CallOpcodesSpec extends WordSpec with Matchers {
 
@@ -34,8 +35,10 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       PUSH1, valueOffset.intValue,
       SSTORE,
 
-      // return unmodified input data
+      // return first half of unmodified input data
+      PUSH1, 2,
       CALLDATASIZE,
+      DIV,
       PUSH1, 0,
       DUP2,
       DUP2,
@@ -45,6 +48,8 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     )
 
     val inputData = Generators.getDataWordGen().sample.get.bytes
+    val expectedMemCost = calcMemCost(inputData.size, inputData.size, inputData.size / 2)
+
     val initialBalance = 1000
 
     val requiredGas = {
@@ -56,27 +61,24 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     val gasMargin = 13
 
-    val initialOwnerAccount = Account(0, initialBalance, Storage.Empty.storageRoot, ByteString.empty)
+    val initialOwnerAccount = Account(balance = initialBalance)
 
     val extProgram = extCode.program
-    val initialExtAccount = Account(0, 0, Storage.Empty.storageRoot, extProgram.codeHash)
-
     val invalidProgram = Program(extProgram.code.dropRight(1) :+ INVALID.code)
-    val accountWithInvalidProgram = Account(0, 0, Storage.Empty.storageRoot, invalidProgram.codeHash)
 
     val worldWithoutExtAccount = MockWorldState().saveAccount(ownerAddr, initialOwnerAccount)
-    val worldWithExtAccount = worldWithoutExtAccount.saveAccount(extAddr, initialExtAccount)
-      .saveCode(extProgram.codeHash, extProgram.code)
-    val worldWithInvalidProgram = worldWithoutExtAccount.saveAccount(extAddr, accountWithInvalidProgram)
-      .saveCode(invalidProgram.codeHash, invalidProgram.code)
+    val worldWithExtAccount = worldWithoutExtAccount.saveAccount(extAddr, Account.Empty)
+      .saveCode(extAddr, extProgram.code)
+    val worldWithInvalidProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.Empty)
+      .saveCode(extAddr, invalidProgram.code)
 
     val env = ExecEnv(ownerAddr, callerAddr, callerAddr, 1, ByteString.empty, 123, Program(ByteString.empty), null, 0)
-    val context = ProgramContext(env, 2 * requiredGas, worldWithExtAccount)
+    val context: PC = ProgramContext(env, 2 * requiredGas, worldWithExtAccount)
   }
 
   case class CallResult(
     op: CallOp,
-    context: ProgramContext = fxt.context,
+    context: ProgramContext[MockWorldState, MockStorage] = fxt.context,
     inputData: ByteString = fxt.inputData,
     gas: BigInt = fxt.requiredGas + fxt.gasMargin,
     to: Address = fxt.extAddr,
@@ -89,7 +91,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       DataWord.Zero,
       DataWord(inputData.size),
       DataWord(inputData.size),
-      DataWord(inputData.size)
+      DataWord(inputData.size / 2)
     ).reverse
 
     private val paramsForDelegate =
@@ -102,11 +104,11 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     val stateOut = op.execute(stateIn)
     val world = stateOut.world
 
-    val ownAccount = world.getGuaranteedAccount(context.env.ownerAddr)
-    val extAccount = world.getAccount(to).getOrElse(Account.Empty)
+    val ownBalance = world.getBalance(context.env.ownerAddr)
+    val extBalance = world.getBalance(to)
 
-    val ownStorage = world.getStorage(ownAccount.storageRoot)
-    val extStorage = world.getStorage(extAccount.storageRoot)
+    val ownStorage = world.getStorage(context.env.ownerAddr)
+    val extStorage = world.getStorage(to)
   }
 
   "CALL" when {
@@ -115,13 +117,13 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       val call = CallResult(op = CALL)
 
       "update external account's storage" in {
-        call.ownStorage shouldEqual Storage.Empty
-        call.extStorage.toMap.size shouldEqual 3
+        call.ownStorage shouldEqual MockStorage.Empty
+        call.extStorage.data.size shouldEqual 3
       }
 
       "update external account's balance" in {
-        call.extAccount.balance shouldEqual call.value
-        call.ownAccount.balance shouldEqual fxt.initialBalance - call.value
+        call.extBalance shouldEqual call.value
+        call.ownBalance shouldEqual fxt.initialBalance - call.value
       }
 
       "pass correct addresses and value" in {
@@ -135,14 +137,14 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund unused gas)" in {
-        val expectedGas = fxt.requiredGas - G_callstipend + G_call + G_callvalue + calcMemCost(32, 32, 32)
+        val expectedGas = fxt.requiredGas - G_callstipend + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
 
     "call depth limit is reached" should {
 
-      val context = fxt.context.copy(env = fxt.env.copy(callDepth = OpCode.MaxCallDepth))
+      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = OpCode.MaxCallDepth))
       val call = CallResult(op = CALL, context = context)
 
       "not modify world state" in {
@@ -154,7 +156,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 16)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -172,7 +174,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 16)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -181,14 +183,14 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       val call = CallResult(op = CALL, value = 0)
 
       "adjust gas cost" in {
-        val expectedGas = fxt.requiredGas + G_call + calcMemCost(32, 32, 32) - (G_sset - G_sreset)
+        val expectedGas = fxt.requiredGas + G_call + fxt.expectedMemCost - (G_sset - G_sreset)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
 
     "external contract terminates abnormally" should {
 
-      val context = fxt.context.copy(world = fxt.worldWithInvalidProgram)
+      val context: PC = fxt.context.copy(world = fxt.worldWithInvalidProgram)
       val call = CallResult(op = CALL, context)
 
       "not modify world state" in {
@@ -200,19 +202,19 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume all call gas" in {
-        val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + calcMemCost(32, 32, 32)
+        val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
 
     "calling a non-existent account" should {
 
-      val context = fxt.context.copy(world = fxt.worldWithoutExtAccount)
+      val context: PC = fxt.context.copy(world = fxt.worldWithoutExtAccount)
       val call = CallResult(op = CALL, context)
 
       "create new account and add to its balance" in {
-        call.extAccount.balance shouldEqual call.value
-        call.ownAccount.balance shouldEqual fxt.initialBalance - call.value
+        call.extBalance shouldEqual call.value
+        call.ownBalance shouldEqual fxt.initialBalance - call.value
       }
 
       "return 1" in {
@@ -220,7 +222,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas, add new account modifier)" in {
-        val expectedGas = G_call + G_callvalue + G_newaccount - G_callstipend + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + G_callvalue + G_newaccount - G_callstipend + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -231,13 +233,13 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       val call = CallResult(op = CALLCODE)
 
       "update own account's storage" in {
-        call.extStorage shouldEqual Storage.Empty
-        call.ownStorage.toMap.size shouldEqual 3
+        call.extStorage shouldEqual MockStorage.Empty
+        call.ownStorage.data.size shouldEqual 3
       }
 
       "not update any account's balance" in {
-        call.extAccount.balance shouldEqual 0
-        call.ownAccount.balance shouldEqual fxt.initialBalance
+        call.extBalance shouldEqual 0
+        call.ownBalance shouldEqual fxt.initialBalance
       }
 
       "pass correct addresses and value" in {
@@ -251,14 +253,14 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund unused gas)" in {
-        val expectedGas = fxt.requiredGas - G_callstipend + G_call + G_callvalue + calcMemCost(32, 32, 32)
+        val expectedGas = fxt.requiredGas - G_callstipend + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
 
     "call depth limit is reached" should {
 
-      val context = fxt.context.copy(env = fxt.env.copy(callDepth = OpCode.MaxCallDepth))
+      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = OpCode.MaxCallDepth))
       val call = CallResult(op = CALLCODE, context = context)
 
       "not modify world state" in {
@@ -270,7 +272,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + G_callvalue - G_callstipend + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -288,7 +290,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + G_callvalue - G_callstipend + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -297,13 +299,13 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       val call = CallResult(op = CALL, value = 0)
 
       "adjust gas cost" in {
-        val expectedGas = fxt.requiredGas + G_call + calcMemCost(32, 32, 32) - (G_sset - G_sreset)
+        val expectedGas = fxt.requiredGas + G_call + fxt.expectedMemCost - (G_sset - G_sreset)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
 
     "external code terminates abnormally" should {
-      val context = fxt.context.copy(world = fxt.worldWithInvalidProgram)
+      val context: PC = fxt.context.copy(world = fxt.worldWithInvalidProgram)
       val call = CallResult(op = CALLCODE, context)
 
       "not modify world state" in {
@@ -315,13 +317,13 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume all call gas" in {
-        val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + calcMemCost(32, 32, 32)
+        val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
 
     "external account does not exist" should {
-      val context = fxt.context.copy(world = fxt.worldWithoutExtAccount)
+      val context: PC = fxt.context.copy(world = fxt.worldWithoutExtAccount)
       val call = CallResult(op = CALLCODE, context)
 
       "not modify world state" in {
@@ -333,7 +335,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + G_callvalue - G_callstipend + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -344,13 +346,13 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       val call = CallResult(op = DELEGATECALL)
 
       "update own account's storage" in {
-        call.extStorage shouldEqual Storage.Empty
-        call.ownStorage.toMap.size shouldEqual 3
+        call.extStorage shouldEqual MockStorage.Empty
+        call.ownStorage.data.size shouldEqual 3
       }
 
       "not update any account's balance" in {
-        call.extAccount.balance shouldEqual 0
-        call.ownAccount.balance shouldEqual fxt.initialBalance
+        call.extBalance shouldEqual 0
+        call.ownBalance shouldEqual fxt.initialBalance
       }
 
       "pass correct addresses and value" in {
@@ -364,14 +366,14 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund unused gas)" in {
-        val expectedGas = fxt.requiredGas + G_call + calcMemCost(32, 32, 32)
+        val expectedGas = fxt.requiredGas + G_call + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
 
     "call depth limit is reached" should {
 
-      val context = fxt.context.copy(env = fxt.env.copy(callDepth = OpCode.MaxCallDepth))
+      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = OpCode.MaxCallDepth))
       val call = CallResult(op = DELEGATECALL, context = context)
 
       "not modify world state" in {
@@ -383,13 +385,13 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
 
     "external code terminates abnormally" should {
-      val context = fxt.context.copy(world = fxt.worldWithInvalidProgram)
+      val context: PC = fxt.context.copy(world = fxt.worldWithInvalidProgram)
       val call = CallResult(op = DELEGATECALL, context)
 
       "not modify world state" in {
@@ -401,13 +403,13 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume all call gas" in {
-        val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + calcMemCost(32, 32, 32)
+        val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
 
     "external account does not exist" should {
-      val context = fxt.context.copy(world = fxt.worldWithoutExtAccount)
+      val context: PC = fxt.context.copy(world = fxt.worldWithoutExtAccount)
       val call = CallResult(op = DELEGATECALL, context)
 
       "not modify world state" in {
@@ -419,7 +421,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + calcMemCost(32, 32, 32)
+        val expectedGas = G_call + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }

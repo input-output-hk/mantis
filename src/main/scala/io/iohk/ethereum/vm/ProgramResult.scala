@@ -13,9 +13,10 @@ import io.iohk.ethereum.domain.{Address, Transaction}
  * @param addressesToDelete list of addresses of accounts scheduled to be deleted
  * @param error defined when the program terminated abnormally
  */
-case class ProgramResult(returnData: ByteString,
-                         gasRemaining: BigInt,
-                         gasUsed: BigInt,
-                         world: WorldStateProxy,
-                         addressesToDelete: Seq[Address] = Seq(),
-                         error: Option[ProgramError])
+case class ProgramResult[W <: WorldStateProxy[W, S], S <: Storage[S]](
+  returnData: ByteString,
+  gasRemaining: BigInt,
+  gasUsed: BigInt,
+  world: W,
+  addressesToDelete: Seq[Address] = Seq(),
+  error: Option[ProgramError])

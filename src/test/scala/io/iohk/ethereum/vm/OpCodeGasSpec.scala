@@ -4,6 +4,7 @@ import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
 import Generators._
 import GasFee._
+import io.iohk.ethereum.vm.MockWorldState.PS
 
 
 // scalastyle:off magic.number
@@ -54,7 +55,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     JUMPDEST -> G_jumpdest
   ) ++ stackOpsFees ++ constOpsFees
 
-  def verifyGas(expectedGas: BigInt, stateIn: ProgramState, stateOut: ProgramState, allowOOG: Boolean = true): Unit = {
+  def verifyGas(expectedGas: BigInt, stateIn: PS, stateOut: PS, allowOOG: Boolean = true): Unit = {
     if (stateOut.error.contains(OutOfGas) && allowOOG)
       stateIn.gas should be < expectedGas
     else if (stateOut.error.contains(OutOfGas) && !allowOOG)
@@ -353,7 +354,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(SSTORE) { op =>
-    val storage = Storage.Empty.store(DataWord.Zero, DataWord(1))
+    val storage = MockStorage.Empty.store(DataWord.Zero, DataWord(1))
     val table = Table[BigInt, BigInt, BigInt, BigInt](("addr", "value", "expectedGas", "expectedRefund"),
       (0, 1, G_sreset, 0),
       (0, 0, G_sreset, R_sclear),

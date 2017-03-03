@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.{Account, Address, BlockHeader}
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.vm.MockWorldState._
 import org.scalacheck.{Arbitrary, Gen}
 import org.spongycastle.util.encoders.Hex
 
@@ -53,8 +54,8 @@ object Generators extends ObjectGenerators {
   def getMemoryGen(maxSize: Int = 0): Gen[Memory] =
     getByteStringGen(0, maxSize).map(Memory.empty.store(DataWord(0), _))
 
-  def getStorageGen(maxSize: Int = 0, dataWordGen: Gen[DataWord] = getDataWordGen()): Gen[Storage] =
-    getListGen(0, maxSize, dataWordGen).map(Storage.fromSeq)
+  def getStorageGen(maxSize: Int = 0, dataWordGen: Gen[DataWord] = getDataWordGen()): Gen[MockStorage] =
+    getListGen(0, maxSize, dataWordGen).map(MockStorage.fromSeq)
 
   val ownerAddr = Address(0x123456)
   val callerAddr = Address(0xabcdef)
@@ -62,12 +63,12 @@ object Generators extends ObjectGenerators {
   def getProgramStateGen(
     stackGen: Gen[Stack] = getStackGen(),
     memGen: Gen[Memory] = getMemoryGen(),
-    storageGen: Gen[Storage] = getStorageGen(),
+    storageGen: Gen[MockStorage] = getStorageGen(),
     gasGen: Gen[BigInt] = getBigIntGen(min = DataWord.MaxValue, max = DataWord.MaxValue),
     codeGen: Gen[ByteString] = getByteStringGen(0, 0),
     inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
     valueGen: Gen[BigInt] = getBigIntGen()
-  ): Gen[ProgramState] =
+  ): Gen[PS] =
     for {
       stack <- stackGen
       memory <- memGen
@@ -98,11 +99,11 @@ object Generators extends ObjectGenerators {
         value, program, blockHeader, 0)
 
       world = MockWorldState()
-        .saveCode(program.codeHash, program.code)
-        .saveStorage(storage.storageRoot, storage)
-        .saveAccount(ownerAddr, Account(0, 0, storage.storageRoot, program.codeHash))
+        .saveCode(ownerAddr, program.code)
+        .saveStorage(ownerAddr, storage)
+        .saveAccount(ownerAddr, Account.Empty)
 
-      context = ProgramContext(env, startGas = gas, world)
+      context: PC = ProgramContext(env, startGas = gas, world)
     } yield ProgramState(context).withStack(stack).withMemory(memory)
 
 }
