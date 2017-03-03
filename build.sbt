@@ -39,3 +39,6 @@ scalacOptions := Seq("-unchecked", "-deprecation", "-feature")
 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}
+
+fork := true
+javaOptions += "-Dkey-file-format=%s\n%s"

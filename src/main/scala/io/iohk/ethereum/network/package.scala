@@ -1,11 +1,11 @@
 package io.iohk.ethereum
 
 import java.io.{File, PrintWriter}
-import java.math.BigInteger
 
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.utils.AsymmetricCipherKeyPairSerializable
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
+import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.math.ec.ECPoint
 import org.spongycastle.util.encoders.Hex
 
@@ -26,36 +26,24 @@ package object network {
     curve.getCurve.decodePoint(bytes)
   }
 
-  object AsymmetricCipherKeyPairSerializable {
-
-    def toBytes(keysValuePair: AsymmetricCipherKeyPair): (String, String) = {
-      val pubKey = keysValuePair.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
-      val privKey = keysValuePair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD.toByteArray
-      (Hex.toHexString(pubKey), Hex.toHexString(privKey))
-    }
-
-    def fromBytes(publicKey: String, privateKey: String): AsymmetricCipherKeyPair = {
-      val pub = new ECPublicKeyParameters(publicKeyFromNodeId(publicKey), curve)
-      val priv = new ECPrivateKeyParameters(new BigInteger(Hex.decode(privateKey)), curve)
-      new AsymmetricCipherKeyPair(pub, priv)
-    }
-
-  }
-
   def loadAsymmetricCipherKeyPair(filePath: String): AsymmetricCipherKeyPair = {
     if(!new File(filePath).exists()){
       val keysValuePair = generateKeyPair()
 
       //Write keys to file
-      val (pub, priv) = AsymmetricCipherKeyPairSerializable.toBytes(keysValuePair)
+      val (pub, priv) = AsymmetricCipherKeyPairSerializable.toHexStrings(keysValuePair)
       val file = new PrintWriter(filePath)
-      file.write(pub ++ "\n" ++ priv)
-      file.close()
+      try {
+        val keyFileFormat: String = System.getProperty("key-file-format")
+        file.write(keyFileFormat.format(pub, priv))
+      } finally {
+        file.close()
+      }
 
       keysValuePair
     } else {
       val List(pub, priv) = Source.fromFile(filePath).getLines().toList
-      AsymmetricCipherKeyPairSerializable.fromBytes(pub, priv)
+      AsymmetricCipherKeyPairSerializable.fromHexStrings(pub, priv)
     }
   }
 

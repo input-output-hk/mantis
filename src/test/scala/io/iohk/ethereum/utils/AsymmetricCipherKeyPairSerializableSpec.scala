@@ -1,4 +1,4 @@
-package io.iohk.ethereum.network
+package io.iohk.ethereum.utils
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
@@ -11,8 +11,8 @@ class AsymmetricCipherKeyPairSerializableSpec extends FlatSpec with Matchers {
     val keysValuePair = generateKeyPair()
 
     //Deserizaling
-    val (pub, priv) = AsymmetricCipherKeyPairSerializable.toBytes(keysValuePair)
-    val keysValuePairObtained = AsymmetricCipherKeyPairSerializable.fromBytes(pub, priv)
+    val (pub, priv) = AsymmetricCipherKeyPairSerializable.toHexStrings(keysValuePair)
+    val keysValuePairObtained = AsymmetricCipherKeyPairSerializable.fromHexStrings(pub, priv)
 
     val publicKeyParam = keysValuePair.getPublic.asInstanceOf[ECPublicKeyParameters]
     val publicKeyParamObtained = keysValuePairObtained.getPublic.asInstanceOf[ECPublicKeyParameters]
@@ -27,7 +27,7 @@ class AsymmetricCipherKeyPairSerializableSpec extends FlatSpec with Matchers {
     privateKeyParam.isPrivate shouldBe privateKeyParamObtained.isPrivate
 
     //Serializing
-    val (pub2, priv2) = AsymmetricCipherKeyPairSerializable.toBytes(keysValuePairObtained)
+    val (pub2, priv2) = AsymmetricCipherKeyPairSerializable.toHexStrings(keysValuePairObtained)
     ByteString(pub2) shouldBe ByteString(pub)
     ByteString(priv2) shouldBe ByteString(priv)
   }
