@@ -12,11 +12,13 @@ class BlockBroadcastMaxBlockRequestHandler(peer: ActorRef, newBlocks: Seq[NewBlo
 
   override def receive: Receive = {
     case PeerActor.MaxBlockNumber(maxBlockNumber) =>
-      log.info("Sending NewBlockMessage {} to {}", newBlocks, peer.path.name)
       newBlocks.foreach{ newBlockMsg =>
-        if (maxBlockNumber < newBlockMsg.block.header.number) peer ! PeerActor.SendMessage(newBlockMsg)
+        if (maxBlockNumber < newBlockMsg.block.header.number){
+          log.info("Sending NewBlockMessage {} to {}", newBlockMsg, peer.path.name)
+          peer ! PeerActor.SendMessage(newBlockMsg)
+        }
       }
-      context unwatch context.parent
+      context unwatch peer
       context stop self
 
     case Terminated(_) => context stop self
