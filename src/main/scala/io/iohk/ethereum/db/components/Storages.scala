@@ -23,6 +23,8 @@ object Storages {
 
       override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
 
+      override val nodeStorage: NodeStorage = new NodeStorage(dataSources.mptDataSource)
+
       override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSources.fastSyncStateDataSource)
 
       override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeDataSource)
@@ -32,6 +34,7 @@ object Storages {
           .put(Config.Blockchain.genesisHash, Config.Blockchain.genesisDifficulty)
 
       override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
+
     }
 
   }
@@ -56,6 +59,8 @@ object Storages {
       override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
 
       override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
+
+      override val nodeStorage: NodeStorage = new NodeStorage(dataSources.mptDataSource)
 
       override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSources.fastSyncStateDataSource)
 

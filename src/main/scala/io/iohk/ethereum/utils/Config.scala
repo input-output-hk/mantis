@@ -81,6 +81,8 @@ object Config {
 
     val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
 
+    val HomesteadBlock: BigInt = 1150000
+
     val genesisGasLimit = 5000
 
     val genesisBlockHeader: BlockHeader = BlockHeader(

@@ -13,7 +13,9 @@ object ProgramContext {
     val env = ExecEnv(recipientAddress, senderAddress, senderAddress, tx.gasPrice, tx.payload,
       tx.value, program, blockHeader, callDepth = 0)
 
-    ProgramContext(env, tx.gasLimit, world1)
+    val gasLimit = tx.gasLimit - GasFee.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, blockHeader.number)
+
+    ProgramContext(env, gasLimit, world1)
   }
 
   private def callOrCreate[W <: WorldStateProxy[W, S], S <: Storage[S]](world: W, tx: Transaction, senderAddress: Address): (W, Address, Program) = {
