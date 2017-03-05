@@ -11,3 +11,4 @@ project/plugins/project/
 *.sc
 
 *.log
+.evm-runner_history

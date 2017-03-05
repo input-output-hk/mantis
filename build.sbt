@@ -1,3 +1,5 @@
+import java.io.PrintWriter
+
 val commonSettings = Seq(
   name := "etc-client",
   version := "0.1",
@@ -37,13 +39,43 @@ val dep = {
   )
 }
 
+lazy val solidityCompileTask = TaskKey[Unit]("solidityCompile", "Compiles solidity contracts")
+
+solidityCompileTask := {
+  import sys.process._
+
+  val contractsDir = baseDirectory.value / "src" / "evmTest" / "resources" / "solidity"
+  val outDir = baseDirectory.value / "target" / "contracts"
+
+  (contractsDir ** "*.sol").get.foreach { f =>
+    Seq("solc", f.getPath, "--bin", "-o", outDir.getPath).!!
+
+    // this is a temporary workaround, see: https://github.com/ethereum/solidity/issues/1732
+    val abiOut = Seq("solc", f.getPath, "--abi").!!
+    val abisLines = abiOut.split("\n").sliding(4, 4)
+    abisLines.foreach { abiLines =>
+      val contractName = abiLines(1)
+        .replace(f.getPath, "")
+        .dropWhile(_ != ':').drop(1)
+        .takeWhile(_ != ' ')
+      new PrintWriter(outDir / s"$contractName.abi") {
+        write(abiLines.drop(3).mkString); close()
+      }
+    }
+  }
+}
+
 val Integration = config("it") extend Test
+
+val Evm = config("evm") extend Test
 
 val root = project.in(file("."))
     .configs(Integration)
+    .configs(Evm)
     .settings(commonSettings: _*)
     .settings(libraryDependencies ++= dep)
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
+    .settings(inConfig(Evm)(Defaults.testSettings) : _*)
 
 scalacOptions := Seq(
   "-unchecked",
@@ -53,6 +85,9 @@ scalacOptions := Seq(
 )
 
 testOptions in Test += Tests.Argument("-oD")
+
+(test in Evm) := (test in Evm).dependsOn(solidityCompileTask).value
+(sourceDirectory in Evm) := baseDirectory.value / "src" / "evmTest"
 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}
