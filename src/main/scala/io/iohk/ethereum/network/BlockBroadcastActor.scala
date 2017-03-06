@@ -35,7 +35,7 @@ class BlockBroadcastActor(
   def idle: Receive = {
     case StartBlockBroadcast =>
       peer ! PeerActor.Subscribe(msgsToSubscribe)
-      context become processMessages(ProcessingState(Seq(), Seq(), Seq(), Seq()))
+      context become processMessages(ProcessingState(Nil, Nil, Nil, Nil))
   }
 
   def processMessages(state: ProcessingState): Receive =
@@ -71,7 +71,7 @@ class BlockBroadcastActor(
 
       case PeerManagerActor.PeersResponse(peers) if state.toBroadcastBlocks.nonEmpty =>
         sendNewBlockMsgToPeers(peers, state.toBroadcastBlocks)
-        context become processMessages(state.copy(toBroadcastBlocks = Seq()))
+        context become processMessages(state.copy(toBroadcastBlocks = Nil))
 
       case _ => //Nothing
     }

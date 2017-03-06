@@ -3,7 +3,7 @@ package io.iohk.ethereum.network
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 
-class BlockBroadcastMaxBlockRequestHandler(peer: ActorRef, newBlocks: Seq[NewBlock]) extends Actor with ActorLogging  {
+class BlockBroadcastMaxBlockRequestHandler(peer: ActorRef, newBlocks: Seq[NewBlock]) extends Actor with ActorLogging {
 
   override def preStart(): Unit = {
     context watch peer
@@ -21,7 +21,7 @@ class BlockBroadcastMaxBlockRequestHandler(peer: ActorRef, newBlocks: Seq[NewBlo
       context unwatch peer
       context stop self
 
-    case Terminated(_) => context stop self
+    case Terminated(`peer`) => context stop self
   }
 
 }
