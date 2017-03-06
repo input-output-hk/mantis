@@ -1,4 +1,4 @@
-# mkdir -p demo/
+mkdir -p demo/
 sbt "; set test in assembly := {}; assembly"
 cd demo/
 
