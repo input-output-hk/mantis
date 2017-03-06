@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+java -cp "lib/*" io.iohk.ethereum.vmrunner.EvmRunner

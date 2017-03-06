@@ -59,11 +59,3 @@ testOptions in Test += Tests.Argument("-oD")
 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}
-
-mainClass in (Compile, packageBin) := Some("io.iohk.ethereum.vmrunner.EvmRunner")
-
-mainClass in assembly := Some("io.iohk.ethereum.vmrunner.EvmRunner")
-
-assemblyJarName in assembly := "evm-runner.jar"
-
-test in assembly := {}
