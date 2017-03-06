@@ -4,7 +4,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm._
 import WorldState.{PC, PR}
-import org.spongycastle.util.encoders.Hex
 
 object State {
 
@@ -53,7 +52,6 @@ object State {
   }
 
   def runTransaction(xAccount: XAccount, callData: ByteString, gas: BigInt, value: BigInt): PR = {
-    println("call data=" + Hex.toHexString(callData.toArray[Byte]))
     val tx = MockVmInput.transaction(creatorAddress, callData, value, gas, receivingAddress = xAccount.address)
     val bh = MockVmInput.blockHeader
 
