@@ -1,5 +1,5 @@
 # mkdir -p demo/
-# sbt "; set test in assembly := {}; assembly"
+sbt "; set test in assembly := {}; assembly"
 cd demo/
 
 > client-a.conf
