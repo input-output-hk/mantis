@@ -2,19 +2,21 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm.Generators._
 import org.scalacheck.Gen
 import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
 
 class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
+  import MockWorldState.PS
 
-  def executeOp(op: OpCode, stateIn: ProgramState): ProgramState = {
+  def executeOp(op: OpCode, stateIn: PS): PS = {
     // gas is not tested in this spec
     op.execute(stateIn).copy(gas = stateIn.gas, gasRefund = stateIn.gasRefund)
   }
 
-  def withStackVerification(op: OpCode, stateIn: ProgramState, stateOut: ProgramState)(body: => Any): Any = {
+  def withStackVerification(op: OpCode, stateIn: PS, stateOut: PS)(body: => Any): Any = {
     if (stateIn.stack.size < op.delta)
       stateOut shouldEqual stateIn.withError(StackUnderflow).halt
     else if (stateIn.stack.size - op.delta + op.alpha > stateIn.stack.maxSize)
@@ -32,7 +34,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  def stateWithCode(state: ProgramState, code: ByteString): ProgramState = {
+  def stateWithCode(state: PS, code: ByteString): PS = {
     val newProgram = Program(code)
     state.copy(context = state.context.copy(env = state.context.env.copy(program = newProgram)))
   }
@@ -90,6 +92,20 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
+  test(constOps: _*) { op =>
+    forAll(getProgramStateGen()) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val (result, _) = stateOut.stack.pop
+        result shouldEqual op.f(stateIn)
+
+        val expectedState = stateIn.withStack(stateOut.stack).step()
+        stateOut shouldEqual expectedState
+      }
+    }
+  }
+
   test(SHA3) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = DataWord(256)),
@@ -111,36 +127,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("ADDRESS") {
-    // to be implemented
-  }
-
-  ignore("BALANCE") {
-    // to be implemented
-  }
-
-  ignore("ORIGIN") {
-    // to be implemented
-  }
-
-  ignore("CALLER") {
-    // to be implemented
-  }
-
-  test(CALLVALUE) { op =>
-    forAll(getProgramStateGen()) { stateIn =>
-      val stateOut = executeOp(op, stateIn)
-
-      withStackVerification(op, stateIn, stateOut) {
-        val (data, _) = stateOut.stack.pop
-        data shouldEqual DataWord(stateIn.env.value)
-
-        val expectedState = stateIn.withStack(stateOut.stack).step()
-        stateOut shouldEqual expectedState
-      }
-    }
-  }
-
   test(CALLDATALOAD) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = DataWord(256)),
@@ -153,7 +139,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       withStackVerification(op, stateIn, stateOut) {
         val (offset, _) = stateIn.stack.pop
         val (data, _) = stateOut.stack.pop
-        data shouldEqual DataWord(stateIn.inputData.slice(offset.intValue, offset.intValue + 32).padTo(32, 0.toByte))
+        data shouldEqual DataWord(OpCode.sliceBytes(stateIn.inputData, offset.intValue, 32))
 
         val expectedState = stateIn.withStack(stateOut.stack).step()
         stateOut shouldEqual expectedState
@@ -161,12 +147,26 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("CALLDATASIZE") {
-    // to be implemented
-  }
+  test(CALLDATACOPY) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(maxWord = DataWord(256)),
+      memGen = getMemoryGen(256),
+      inputDataGen = getByteStringGen(0, 256)
+    )
 
-  ignore("CALLDATACOPY") {
-    // to be implemented
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val (Seq(memOffset, dataOffset, size), _) = stateIn.stack.pop(3)
+        val data = OpCode.sliceBytes(stateIn.inputData, dataOffset.intValue, size.intValue)
+        val (storedInMem, _) = stateOut.memory.load(memOffset, size)
+        data shouldEqual storedInMem
+
+        val expectedState = stateIn.withStack(stateOut.stack).withMemory(stateOut.memory).step()
+        stateOut shouldEqual expectedState
+      }
+    }
   }
 
   ignore("CODESIZE") {
@@ -199,12 +199,63 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     // to be implemented
   }
 
-  ignore("EXTCODESIZE") {
-    // to be implemented
+  test(EXTCODESIZE) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(maxWord = DataWord(256))
+    )
+    val codeGen = getByteStringGen(0, 512)
+
+    forAll(stateGen, codeGen) { (stateIn, extCode) =>
+      val stateOut = executeOp(op, stateIn)
+      withStackVerification(op, stateIn, stateOut) {
+        val (_, stack1) = stateIn.stack.pop
+        stateOut shouldEqual stateIn.withStack(stack1.push(DataWord.Zero)).step()
+      }
+
+      val (addr, stack1) = stateIn.stack.pop
+      val program = Program(extCode)
+      val world1 = stateIn.world.saveCode(Address(addr), program.code)
+
+      val stateInWithExtCode = stateIn.withWorld(world1)
+      val stateOutWithExtCode = executeOp(op, stateInWithExtCode)
+
+      withStackVerification(op, stateInWithExtCode, stateOutWithExtCode) {
+        val stack2 = stack1.push(DataWord(extCode.size))
+        stateOutWithExtCode shouldEqual stateInWithExtCode.withStack(stack2).step()
+      }
+    }
   }
 
-  ignore(EXTCODECOPY) { op =>
-    // to be implemented
+  test(EXTCODECOPY) { op =>
+    val stateGen: Gen[PS] = for {
+      extCode <- getByteStringGen(0, 256)
+
+      stateIn <- getProgramStateGen(
+        stackGen = getStackGen(maxWord = DataWord(256)),
+        memGen = getMemoryGen(256),
+        codeGen = getByteStringGen(0, 256)
+      )
+
+      doSave <- Gen.oneOf(false, true, true)
+
+      addr = Address(stateIn.stack.pop._1)
+      hash = kec256(extCode)
+      world = if (doSave) stateIn.world.saveAccount(addr, Account.Empty.copy(codeHash = hash)) else stateIn.world
+    } yield stateIn.withWorld(world)
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val (Seq(addr, memOffset, codeOffset, size), _) = stateIn.stack.pop(4)
+        val code = OpCode.sliceBytes(stateIn.world.getCode(Address(addr)), codeOffset.intValue, size.intValue)
+        val (storedInMem, _) = stateOut.memory.load(memOffset, size)
+        code shouldEqual storedInMem
+
+        val expectedState = stateIn.withStack(stateOut.stack).withMemory(stateOut.memory).step()
+        stateOut shouldEqual expectedState
+      }
+    }
   }
 
   ignore("BLOCKHASH") {
@@ -343,7 +394,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
 
     val codeAllJumps = ByteString((0 to Byte.MaxValue).map(_ => JUMP.code).toArray)
-    def stateWithJumpDestinationGen(jumpDestination: Int): Gen[ProgramState] =
+    def stateWithJumpDestinationGen(jumpDestination: Int): Gen[PS] =
       getProgramStateGen(stackGen = getStackGen().map(stack => stack.push(DataWord(jumpDestination))))
 
     //Jump to valid destination
@@ -400,7 +451,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
 
     val codeAllJumps = ByteString((0 to Byte.MaxValue).map(_ => JUMP.code).toArray)
-    def stateWithJumpDestinationGen(jumpDestination: Int): Gen[ProgramState] =
+    def stateWithJumpDestinationGen(jumpDestination: Int): Gen[PS] =
       getProgramStateGen(stackGen = getStackGen().map(stack => stack.push(DataWord(1)).push(DataWord(jumpDestination))))
 
     //Jump to valid destination
@@ -436,10 +487,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   ignore("MSIZE") {
-    // to be implemented
-  }
-
-  ignore("GAS") {
     // to be implemented
   }
 
@@ -500,14 +547,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     // to be implemented
   }
 
-  ignore("CALL") {
-    // to be implemented
-  }
-
-  ignore("CALLCODE") {
-    // to be implemented
-  }
-
   test(RETURN) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = DataWord(256)),
@@ -528,13 +567,18 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("DELEGATECALL") {
-    // to be implemented
+  test(INVALID) { op =>
+    forAll(getProgramStateGen()) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      val expectedState = stateIn.withError(InvalidOpCode(op.code))
+      stateOut shouldEqual expectedState
+    }
   }
 
   ignore("SUICIDE") {
     // to be implemented
   }
 
-  verifyAllOpCodesRegistered()
+  verifyAllOpCodesRegistered(except = CALL, CALLCODE, DELEGATECALL)
 }

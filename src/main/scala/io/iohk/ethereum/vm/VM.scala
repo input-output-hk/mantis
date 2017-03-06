@@ -12,39 +12,30 @@ object VM {
     * @param context context to be executed
     * @return result of the execution
    */
-  def run(context: ProgramContext): ProgramResult = {
-    val finalState = run(ProgramState(context))
-    ProgramResult(
+  def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
+    val finalState = run(ProgramState[W, S](context))
+    ProgramResult[W, S](
       finalState.returnData,
-      finalState.storage,
-      finalState.internalTransactions,
+      finalState.gas,
+      context.startGas - finalState.gas,
+      finalState.world,
       finalState.addressesToDelete,
       finalState.error)
   }
 
   @tailrec
-  private def run(state: ProgramState): ProgramState = {
-    getOpCode(state) match {
-      case Right(opcode) =>
+  private def run[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val byte = state.program.getByte(state.pc)
+    OpCode.byteToOpCode.get(byte) match {
+      case Some(opcode) =>
         val newState = opcode.execute(state)
         if (newState.halted)
           newState
         else
-          run(newState)
+          run[W, S](newState)
 
-      case Left(error) =>
-        state.withError(error).halt
+      case None =>
+        state.withError(InvalidOpCode(byte)).halt
     }
   }
-
-  private def getOpCode(state: ProgramState): Either[ProgramError, OpCode] = getOpCode(state.program, state.pc)
-
-  private[vm] def getOpCode(program: Program, pos: Int): Either[ProgramError, OpCode] = {
-    val byte = program.getByte(pos)
-    OpCode.byteToOpCode.get(byte) match {
-      case Some(opcode) => Right(opcode)
-      case None => Left(InvalidOpCode(byte))
-    }
-  }
-
 }

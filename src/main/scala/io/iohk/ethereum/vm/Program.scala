@@ -1,6 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.kec256
 
 import scala.annotation.tailrec
 
@@ -28,14 +29,19 @@ case class Program(code: ByteString) {
     */
   @tailrec
   private def validJumpDestinationsAfterPosition(pos: Int, accum: Seq[Int] = Seq()): Seq[Int] = {
-    if(pos >= code.length) accum
+    if(pos < 0 || pos >= code.length) accum
     else {
-      val opCode = VM.getOpCode(this, pos)
+      val byte = code(pos)
+      val opCode = OpCode.byteToOpCode.get(byte)
       opCode match {
-        case Right(pushOp: PushOp) => validJumpDestinationsAfterPosition(pos + pushOp.code - PUSH1.code + 2, accum)
-        case Right(JUMPDEST) => validJumpDestinationsAfterPosition(pos + 1, pos +: accum)
+        case Some(pushOp: PushOp) => validJumpDestinationsAfterPosition(pos + pushOp.code - PUSH1.code + 2, accum)
+        case Some(JUMPDEST) => validJumpDestinationsAfterPosition(pos + 1, pos +: accum)
         case _ => validJumpDestinationsAfterPosition(pos + 1, accum)
       }
     }
   }
+
+  lazy val codeHash: ByteString =
+    kec256(code)
+
 }

@@ -16,7 +16,7 @@ class ProgramSpec extends FlatSpec with Matchers with PropertyChecks {
 
   val positionsListGen: Gen[List[Int]] = getListGen(minSize = 0, maxSize = JumpDestPositionsSize, genT = intGen)
 
-  "Program" should "detect all jump destinations if there are no push op" in {
+  it should "detect all jump destinations if there are no push op" in {
     forAll(positionsListGen) { jumpDestLocations =>
       val code = ByteString((0 to CodeSize).map{ i =>
         if(jumpDestLocations.contains(i)) JUMPDEST.code

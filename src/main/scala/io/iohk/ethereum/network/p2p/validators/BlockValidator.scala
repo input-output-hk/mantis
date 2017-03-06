@@ -3,10 +3,12 @@ package io.iohk.ethereum.network.p2p.validators
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Block, SignedTransaction}
 import io.iohk.ethereum.mpt.RLPByteArraySerializable
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
 import io.iohk.ethereum.rlp._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+
+import scala.language.reflectiveCalls
 
 object BlockValidator {
   /**
@@ -76,12 +78,12 @@ object BlockValidator {
   /**
     * This method allows validate a Block. It only perfoms the following validations (stated on
     * section 4.2.2 of http://paper.gavwood.com/):
-    *   - [[BlockValidator.validateTransactionRoot]]
-    *   - [[BlockValidator.validateOmmers]]
-    *   - [[BlockValidator.validateReceipts]]
-    *   - [[BlockValidator.validateLogBloom]]
+    *   - BlockValidator.validateTransactionRoot
+    *   - BlockValidator.validateOmmers
+    *   - BlockValidator.validateReceipts
+    *   - BlockValidator.validateLogBloom
     *
-    * @param block  Block to validate
+    * @param block    Block to validate
     * @param receipts Receipts to be in validation process
     * @return The block if validations are ok, error otherwise
     */

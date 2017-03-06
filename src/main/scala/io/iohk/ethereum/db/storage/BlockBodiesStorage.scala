@@ -24,12 +24,6 @@ class BlockBodiesStorage(val dataSource: DataSource) extends KeyValueStorage[Blo
   override def valueDeserializer: (IndexedSeq[Byte]) => BlockBody =
     (encodedBlockBody: IndexedSeq[Byte]) => rlpDecode[BlockBody](encodedBlockBody.toArray)
 
-  override def get(key: BlockBodyHash): Option[BlockBody] = if (key == Config.Blockchain.genesisBlockHeader.hash) {
-    Some(Config.Blockchain.genesisBlockBody)
-  } else {
-    super.get(key)
-  }
-
   override protected def apply(dataSource: DataSource): BlockBodiesStorage = new BlockBodiesStorage(dataSource)
 }
 
