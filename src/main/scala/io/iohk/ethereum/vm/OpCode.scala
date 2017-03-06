@@ -3,6 +3,7 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.network.p2p.messages.PV63.TransactionLog
 import io.iohk.ethereum.vm.GasFee._
 
 // scalastyle:off magic.number
@@ -594,9 +595,11 @@ sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code, i + 2, 0
   def this(code: Int) = this(code, code - 0xa0)
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val (_, stack1) = state.stack.pop(delta)
-    //TODO: actual logging
-    state.withStack(stack1).step()
+    val ((offset :: size :: topics), stack1) = state.stack.pop(delta)
+    val (data, memory) = state.memory.load(offset, size)
+    val logEntry = new TransactionLog(state.env.ownerAddr.bytes, topics.map(_.bytes), data)
+
+    state.withStack(stack1).withMemory(memory).withLog(logEntry).step()
   }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
