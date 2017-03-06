@@ -18,10 +18,14 @@ class BlockBroadcastMaxBlockRequestHandler(peer: ActorRef, newBlocks: Seq[NewBlo
           peer ! PeerActor.SendMessage(newBlockMsg)
         }
       }
-      context unwatch peer
-      context stop self
+      cleanupAndStop()
 
-    case Terminated(`peer`) => context stop self
+    case Terminated(`peer`) => cleanupAndStop()
+  }
+
+  def cleanupAndStop(): Unit = {
+    context unwatch peer
+    context stop self
   }
 
 }
