@@ -4,7 +4,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.agent._
 import io.iohk.ethereum.blockchain.sync.FastSyncController
-import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, _}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.PeerManagerActor.PeersResponse
@@ -12,10 +11,11 @@ import io.iohk.ethereum.network.{PeerActor, PeerManagerActor, ServerActor}
 import io.iohk.ethereum.rpc.JsonRpcServer
 import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import io.iohk.ethereum.network._
 
 object App {
 
-  val nodeKey = generateKeyPair()
+  val nodeKey: AsymmetricCipherKeyPair = loadAsymmetricCipherKeyPair(Config.keysFile)
 
   val storagesInstance: DataSourcesComponent with StoragesComponent = new SharedLevelDBDataSources with Storages.DefaultStorages
   val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
