@@ -135,7 +135,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     *
     * @param key
     * @return Option object with value if there exists one.
-    * @throws MPTException if there is any inconsistency in how the trie is build.
+    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
     */
   def get(key: K): Option[V] = {
     rootHash flatMap { rootId =>
@@ -151,7 +151,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     * @param key
     * @param value
     * @return New trie with the (key-value) pair inserted.
-    * @throws MPTException if there is any inconsistency in how the trie is build.
+    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
     */
   def put(key: K, value: V): MerklePatriciaTrie[K, V] = {
     val keyNibbles = HexPrefix.bytesToNibbles(kSerializer.toBytes(key))
@@ -182,7 +182,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     *
     * @param key
     * @return New trie with the (key-value) pair associated with the key passed deleted from the trie.
-    * @throws MPTException if there is any inconsistency in how the trie is build.
+    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
     */
   def remove(key: K): MerklePatriciaTrie[K, V] = {
     rootHash map { rootId =>
