@@ -215,7 +215,7 @@ class PeerActor(
   }
 
   def handleTerminated(rlpxConnection: RLPxConnection): Receive = {
-    case Terminated(actor) if actor.compareTo(rlpxConnection.ref) == 0 =>
+    case Terminated(actor) if actor == rlpxConnection.ref =>
       log.info("Connection closed unexpectedly")
       rlpxConnection.uriOpt match {
         case Some(uri) => reconnect(uri, noRetries = 0)
@@ -310,7 +310,7 @@ class PeerActor(
     }
 
     def handleBlockBroadcastActorTerminated: Receive = {
-      case Terminated(actor) if blockBroadcastActor.exists(_.compareTo(actor) == 0) =>
+      case Terminated(actor) if blockBroadcastActor.contains(actor) =>
         startNewBlockBroadcastActor()
     }
 
