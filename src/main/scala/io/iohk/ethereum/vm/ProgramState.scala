@@ -1,8 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.network.p2p.messages.PV63.TransactionLog
+import io.iohk.ethereum.domain.{Address, TransactionLog}
 
 object ProgramState {
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramState[W, S] =

@@ -2,12 +2,12 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.network.p2p.messages.PV63.{Receipt, Receipts, TransactionLog}
-import org.scalatest.{FlatSpec, Matchers}
-import io.iohk.ethereum.network.p2p.Message.{PV63 => constantPV63}
-import io.iohk.ethereum.network.p2p.Message.{decode => msgDecode}
-import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.domain.TransactionLog
+import io.iohk.ethereum.network.p2p.Message.{PV63 => constantPV63, decode => msgDecode}
+import io.iohk.ethereum.network.p2p.messages.PV63.{Receipt, Receipts}
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp._
+import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 class ReceiptsSpec extends FlatSpec with Matchers {

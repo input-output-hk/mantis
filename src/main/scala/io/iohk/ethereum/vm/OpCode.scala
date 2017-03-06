@@ -2,8 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.network.p2p.messages.PV63.TransactionLog
+import io.iohk.ethereum.domain.{Address, TransactionLog}
 import io.iohk.ethereum.vm.GasFee._
 
 // scalastyle:off magic.number

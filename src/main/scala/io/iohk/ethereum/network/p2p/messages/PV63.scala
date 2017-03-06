@@ -1,13 +1,13 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.domain.{Account, TransactionLog}
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPImplicits.{byteStringEncDec, _}
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode, _}
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.crypto.kec256
 
 
 object PV63 {
@@ -228,7 +228,7 @@ object PV63 {
     }
   }
 
-  object TransactionLog {
+  object TransactionLogImplicits {
     implicit val rlpEncDec = new RLPEncoder[TransactionLog] with RLPDecoder[TransactionLog] {
       override def encode(obj: TransactionLog): RLPEncodeable = {
         import obj._
@@ -243,29 +243,18 @@ object PV63 {
     }
   }
 
-  case class TransactionLog(loggerAddress: ByteString, logTopics: Seq[ByteString], data: ByteString) {
-    override def toString: String = {
-      s"""TransactionLog{
-         |loggerAddress: ${Hex.toHexString(loggerAddress.toArray[Byte])}
-         |logTopics: ${logTopics.map(e => Hex.toHexString(e.toArray[Byte]))}
-         |data: ${Hex.toHexString(data.toArray[Byte])}
-         |}
-       """.stripMargin
-    }
-  }
-
   object Receipt {
     implicit val rlpEncDec = new RLPEncoder[Receipt] with RLPDecoder[Receipt] {
       override def encode(obj: Receipt): RLPEncodeable = {
         import obj._
         RLPList(postTransactionStateHash, cumulativeGasUsed,
-          logsBloomFilter, logs)
+          logsBloomFilter, RLPList(logs.map(TransactionLogImplicits.rlpEncDec.encode): _*))
       }
 
       override def decode(rlp: RLPEncodeable): Receipt = rlp match {
         case RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs: RLPList) =>
           Receipt(rlpDecode[ByteString](postTransactionStateHash), cumulativeGasUsed,
-            rlpDecode[ByteString](logsBloomFilter), logs.items.map(rlpDecode[TransactionLog]))
+            rlpDecode[ByteString](logsBloomFilter), logs.items.map(l => rlpDecode[TransactionLog](l)(TransactionLogImplicits.rlpEncDec)))
         case _ => throw new RuntimeException("Cannot decode Receipt")
       }
     }
