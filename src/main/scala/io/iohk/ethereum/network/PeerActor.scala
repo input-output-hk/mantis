@@ -237,7 +237,7 @@ class PeerActor(
 
   def handleDisconnectMsg: Receive = {
     case RLPxConnectionHandler.MessageReceived(d: Disconnect) =>
-      log.info("Received {}. Closing connection", d)
+      log.debug("Received {}. Closing connection", d)
       context stop self
   }
 
@@ -253,7 +253,7 @@ class PeerActor(
 
   def handlePeerChainCheck(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(message@GetBlockHeaders(Left(number), _, _, _)) if number == 1920000 =>
-      log.info("Received message: {}", message)
+      log.debug("Received message: {}", message)
       storage.getBlockHeaderByNumber(number) match {
         case Some(header) => rlpxConnection.sendMessage(BlockHeaders(Seq(header)))
         case None => rlpxConnection.sendMessage(BlockHeaders(Seq.empty))
@@ -313,7 +313,7 @@ class PeerActor(
 
     private def processMessage(message: Message): Unit = message match {
       case d: Disconnect =>
-        log.info("Received {}. Closing connection", d)
+        log.debug("Received {}. Closing connection", d)
         context stop self
 
       case msg @ BlockHeaders(blockHeaders) =>

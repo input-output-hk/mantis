@@ -54,7 +54,7 @@ class FastSyncNodesRequestHandler(
     fastSyncController ! FastSyncController.EnqueueNodes(hashesToRequest.flatten)
     fastSyncController ! FastSyncController.UpdateDownloadedNodesCount(nodeData.values.size)
 
-    log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTakenSoFar())
+    log.debug("Received {} state nodes in {} ms", nodeData.values.size, timeTakenSoFar())
     cleanupAndStop()
   }
 

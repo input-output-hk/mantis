@@ -109,7 +109,7 @@ class FastSyncController(
       val targetBlockHeaderOpt = blockHeaders.headers.find(header => header.number == targetBlockNumber)
       targetBlockHeaderOpt match {
         case Some(targetBlockHeader) =>
-          log.info("Received target block from peer, starting fast sync")
+          log.debug("Received target block from peer, starting fast sync")
 
           scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
           context become new SyncingHandler(targetBlockHeader).receive
