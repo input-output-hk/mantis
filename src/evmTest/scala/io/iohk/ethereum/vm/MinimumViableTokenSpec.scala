@@ -14,19 +14,14 @@ class MinimumViableTokenSpec extends FreeSpec with Matchers {
 
       val (_, contract) = deployContract("MinimumViableToken", creatorAddress = sender, constructorArgs = Seq(150))
 
-      val senderBalanceBeforeRes = contract.balanceOf(sender).call()
-      senderBalanceBeforeRes.returnData shouldBe DataWord(150).bytes
+      contract.balanceOf(sender).call().returnData shouldBe DataWord(150).bytes
 
       val transferRes = contract.transfer(receiver, 40).call(sender = sender)
       transferRes.error shouldBe None
       transferRes.gasUsed shouldBe 26770
 
-      val receiverBalanceAfterRes = contract.balanceOf(receiver).call()
-      receiverBalanceAfterRes.returnData shouldBe DataWord(40).bytes
-
-      val senderBalanceAfterRes = contract.balanceOf(sender).call()
-      senderBalanceAfterRes.returnData shouldBe DataWord(110).bytes
-      senderBalanceAfterRes.gasUsed shouldBe 481 // TODO: why 481? should be 0 as it's read only
+      contract.balanceOf(receiver).call().returnData shouldBe DataWord(40).bytes
+      contract.balanceOf(sender).call().returnData shouldBe DataWord(110).bytes
     }
 
     "should return an error when attempted to transfer more tokens than owned" in new EvmTestEnv {
@@ -36,7 +31,7 @@ class MinimumViableTokenSpec extends FreeSpec with Matchers {
       val (_, contract) = deployContract("MinimumViableToken", creatorAddress = sender, constructorArgs = Seq(100))
 
       val transferRes = contract.transfer(receiver, 200).call(sender = sender)
-      transferRes.error shouldBe Some(StackOverflow) // TODO: why StackOverflow?
+      transferRes.error shouldBe Some(InvalidOpCode)
     }
 
     "should return an error when attempted to deploy and run out of gas" in new EvmTestEnv {
