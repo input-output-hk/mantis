@@ -14,6 +14,10 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
 trait ObjectGenerators {
 
+  def byteGen: Gen[Byte] = Gen.choose(Byte.MinValue, Byte.MaxValue)
+
+  def shortGen: Gen[Short] = Gen.choose(Short.MinValue, Short.MaxValue)
+
   def intGen: Gen[Int] = Gen.choose(Int.MinValue, Int.MaxValue)
 
   def longGen: Gen[Long] = Gen.choose(Long.MinValue, Long.MaxValue)

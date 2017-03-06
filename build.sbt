@@ -37,7 +37,15 @@ val root = project.in(file("."))
   .settings(libraryDependencies ++= dep)
   .settings(inConfig(Integration)(Defaults.testSettings) : _*)
 
-scalacOptions := Seq("-unchecked", "-deprecation", "-feature")
+
+scalacOptions := Seq(
+  "-unchecked",
+  "-deprecation",
+  "-feature",
+  "-Xfatal-warnings"
+)
+
+testOptions in Test += Tests.Argument("-oD")
 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}

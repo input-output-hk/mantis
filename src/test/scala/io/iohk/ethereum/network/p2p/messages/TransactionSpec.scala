@@ -13,7 +13,7 @@ class TransactionSpec extends FlatSpec with Matchers {
   val rawPublicKey: Array[Byte] =
     Hex.decode("044c3eb5e19c71d8245eaaaba21ef8f94a70e9250848d10ade086f893a7a33a06d7063590e9e6ca88f918d7704840d903298fe802b6047fa7f6d09603eba690c39")
   val publicKey: ECPoint = crypto.curve.getCurve.decodePoint(rawPublicKey)
-  val address: Array[Byte] = crypto.kec256(rawPublicKey).slice(12, 32)
+  val address: Address = Address(crypto.kec256(rawPublicKey).slice(12, 32))
 
   val validTx = Transaction(nonce = 172320,
                             gasPrice = BigInt("50000000000"),
@@ -67,8 +67,8 @@ class TransactionSpec extends FlatSpec with Matchers {
   }
 
   it should "recover sender address" in {
-    validTransactionSignatureOldSchema.recoveredAddress.nonEmpty shouldBe true
-    validTransactionSignatureOldSchema.recoveredAddress.get shouldEqual address
+    validTransactionSignatureOldSchema.recoveredSenderAddress.nonEmpty shouldBe true
+    validTransactionSignatureOldSchema.recoveredSenderAddress.get shouldEqual address
   }
 
   it should "recover false sender public key for invalid transaction" in {
@@ -76,8 +76,8 @@ class TransactionSpec extends FlatSpec with Matchers {
   }
 
   it should "recover false sender address for invalid transaction" in {
-    invalidStx.recoveredAddress.nonEmpty shouldBe true
-    invalidStx.recoveredAddress.get shouldNot equal(address)
+    invalidStx.recoveredSenderAddress.nonEmpty shouldBe true
+    invalidStx.recoveredSenderAddress.get shouldNot equal(address)
   }
 
   it should "report as valid the validStx" in {

@@ -2,27 +2,43 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 import io.iohk.ethereum.vm.DataWord
+import io.iohk.ethereum.utils.ByteUtils.padLeft
+import org.spongycastle.util.encoders.Hex
 
-case object Address {
+object Address {
 
   val Length = 20
 
-  def apply(dw: DataWord): Address = Address(dw.bytes.takeRight(Length))
+  def apply(bytes: ByteString): Address = {
+    val truncated = bytes.takeRight(Length)
+    val extended = padLeft(truncated, Length)
+    new Address(extended)
+  }
+
+  def apply(dw: DataWord): Address = Address(dw.bytes)
 
   def apply(arr: Array[Byte]): Address = Address(ByteString(arr))
 
-  val empty: Address = Address(ByteString())
+  def apply(addr: Long): Address = Address(DataWord(addr))
 
+  val empty: Address = Address(ByteString())
 }
 
-case class Address(bytes: ByteString) {
-
-  import Address.Length
-
-  require(bytes.length == Length || bytes.isEmpty, s"Input ByteString has to have exactly $Length bytes or be empty.")
+class Address private(val bytes: ByteString) {
 
   def isEmpty: Boolean = bytes.isEmpty
 
   def toArray: Array[Byte] = bytes.toArray
+
+  override def equals(that: Any): Boolean = that match {
+    case addr: Address => addr.bytes == bytes
+    case other => false
+  }
+
+  override def hashCode: Int =
+    bytes.hashCode
+
+  override def toString: String =
+    s"${getClass.getSimpleName}(${Hex.toHexString(toArray)})"
 
 }

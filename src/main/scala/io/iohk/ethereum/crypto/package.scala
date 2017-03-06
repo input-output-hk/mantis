@@ -2,6 +2,7 @@ package io.iohk.ethereum
 
 import java.security.SecureRandom
 
+import akka.util.ByteString
 import fr.cryptohash.{Keccak256, Keccak512}
 import org.spongycastle.asn1.sec.SECNamedCurves
 import org.spongycastle.asn1.x9.X9ECParameters
@@ -25,6 +26,9 @@ package object crypto {
     input.foreach(i => digest.update(i))
     digest.digest
   }
+
+  def kec256(input: ByteString): ByteString =
+    ByteString(kec256(input.toArray))
 
   def kec512(input: Array[Byte]*): Array[Byte] = {
     val digest = new Keccak512
