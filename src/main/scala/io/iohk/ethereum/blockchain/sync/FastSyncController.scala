@@ -159,7 +159,8 @@ class FastSyncController(
     case Terminated(ref) if handshakedPeers.contains(ref) =>
       removePeer(ref)
 
-    case BlacklistPeer(ref) =>
+    case BlacklistPeer(ref, reason) =>
+      log.info(s"Blacklisting peer: $ref Reason: $reason")
       blacklist(ref, blacklistDuration)
 
     case UnblacklistPeer(ref) =>

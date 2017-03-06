@@ -20,7 +20,7 @@ class FastSyncReceiptsRequestHandler(
     }
 
     if (receipts.receiptsForBlocks.isEmpty) {
-      fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+      fastSyncController ! BlacklistSupport.BlacklistPeer(peer, "Didn't receive any receipts")
     }
 
     val remainingReceipts = requestedHashes.drop(receipts.receiptsForBlocks.size)
@@ -33,7 +33,7 @@ class FastSyncReceiptsRequestHandler(
   }
 
   override def handleTimeout(): Unit = {
-    fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+    fastSyncController ! BlacklistSupport.BlacklistPeer(peer, "Timeout during downloading of receipts")
     fastSyncController ! FastSyncController.EnqueueReceipts(requestedHashes)
     cleanupAndStop()
   }

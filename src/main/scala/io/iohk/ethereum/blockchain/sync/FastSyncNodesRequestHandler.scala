@@ -23,7 +23,7 @@ class FastSyncNodesRequestHandler(
 
   override def handleResponseMsg(nodeData: NodeData): Unit = {
     if (nodeData.values.isEmpty) {
-      fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+      fastSyncController ! BlacklistSupport.BlacklistPeer(peer, "Didn't receive a node data")
     }
 
     val receivedHashes = nodeData.values.map(v => ByteString(kec256(v.toArray[Byte])))
@@ -59,7 +59,7 @@ class FastSyncNodesRequestHandler(
   }
 
   override def handleTimeout(): Unit = {
-    fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+    fastSyncController ! BlacklistSupport.BlacklistPeer(peer, "Timeout during downloading of block bodies")
     fastSyncController ! FastSyncController.EnqueueNodes(requestedHashes)
     cleanupAndStop()
   }
