@@ -30,7 +30,7 @@ trait Blockchain {
     * Allows to query a blockBody by block hash
     *
     * @param hash of the block that's being searched
-    * @return [[BlockBody]] if found
+    * @return [[io.iohk.ethereum.network.p2p.messages.PV62.BlockBody]] if found
     */
   def getBlockBodyByHash(hash: ByteString): Option[BlockBody]
 
