@@ -1,6 +1,3 @@
-import com.typesafe.sbt.packager.SettingsHelper._
-
-enablePlugins(UniversalPlugin)
 enablePlugins(JavaAppPackaging)
 
 val commonSettings = Seq(
@@ -44,5 +41,3 @@ scalacOptions := Seq("-unchecked", "-deprecation", "-feature")
 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}
-
-makeDeploymentSettings(Universal, packageBin in Universal, "dist")
