@@ -1,7 +1,7 @@
 package io.iohk.ethereum.network
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props}
 import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
@@ -15,7 +15,7 @@ import io.iohk.ethereum.network.p2p.validators.{BlockHeaderValidator, BlockValid
 import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus}
 import org.spongycastle.util.encoders.Hex
 
-//FIXME: Handle known blocks to peers [EC-80]
+//FIXME: Handle peers not responding to block headers and bodies request [EC-107]
 class BlockBroadcastActor(
   nodeStatusHolder: Agent[NodeStatus],
   peer: ActorRef,
@@ -36,13 +36,11 @@ class BlockBroadcastActor(
   def idle: Receive = {
     case StartBlockBroadcast =>
       peer ! PeerActor.Subscribe(msgsToSubscribe)
-      context watch sender()
       context become processMessages(ProcessingState(Nil, Nil, Nil, Nil))
   }
 
   def processMessages(state: ProcessingState): Receive =
-    handleReceivedMessages(state) orElse
-      handlePeerTerminated orElse {
+    handleReceivedMessages(state) orElse {
 
       case ProcessNewBlocks if state.unprocessedBlocks.nonEmpty =>
         if(state.unprocessedBlocks.tail.nonEmpty) self ! ProcessNewBlocks
@@ -118,10 +116,6 @@ class BlockBroadcastActor(
 
   }
 
-  private def handlePeerTerminated: Receive = {
-    case Terminated(_) => context stop self
-  }
-
   private def blockInProgress(hash: BlockHash, state: ProcessingState): Boolean =
     (state.unprocessedBlocks.map(_.header.hash) ++
       state.toBroadcastBlocks.map(_.block.header.hash) ++
@@ -136,12 +130,7 @@ class BlockBroadcastActor(
   //FIXME: Decide block propagation algorithm (for now we send block to every peer except the sender) [EC-87]
   private def sendNewBlockMsgToPeers(peers: Seq[Peer], newBlocks: Seq[NewBlock]) = {
     peers.foreach{ p =>
-      if(p.id != peer.path.name){
-        newBlocks.foreach{ newBlockMsg =>
-          log.info("Sending NewBlockMessage {} to {}", newBlockMsg, p.id)
-          p.ref ! PeerActor.SendMessage(newBlockMsg)
-        }
-      }
+      if(p.id != peer.path.name) context.actorOf(BlockBroadcastMaxBlockRequestHandler.props(p.ref, newBlocks))
     }
   }
 

@@ -43,6 +43,8 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
     peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
 
+    respondToGetMaxBlockNumberMsgs()
+
     peerProbe.expectNoMsg()
     peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(newBlock)) }
   }
@@ -60,6 +62,8 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peerProbe.send(blockBroadcast, PeerActor.MessageReceived(newBlock))
 
     peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
+
+    respondToGetMaxBlockNumberMsgs()
 
     assert(!peerProbe.msgAvailable)
     peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(newBlock)) }
@@ -102,6 +106,8 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     peerManager.expectMsg(GetPeers)
     peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
 
+    respondToGetMaxBlockNumberMsgs()
+
     val expectedNewBlock = NewBlock(block, blockTD)
     assert(!peerProbe.msgAvailable)
     peersProbes.foreach { p => p.expectMsg(PeerActor.SendMessage(expectedNewBlock)) }
@@ -132,6 +138,8 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(PeerManagerActor.PeersResponse(allPeers))
+
+    respondToGetMaxBlockNumberMsgs()
 
     val expectedNewBlock = NewBlock(block, blockTD)
     assert(!peerProbe.msgAvailable)
@@ -194,6 +202,13 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
     //Blockchain setup
     blockchain.save(blockParent)
     blockchain.save(blockParent.header.hash, blockParent.header.difficulty)
+
+    def respondToGetMaxBlockNumberMsgs(): Unit = {
+      peersProbes.foreach { p =>
+        p.expectMsgClass(classOf[PeerActor.GetMaxBlockNumber])
+        p.reply(PeerActor.MaxBlockNumber(0))
+      }
+    }
   }
 
   /**
