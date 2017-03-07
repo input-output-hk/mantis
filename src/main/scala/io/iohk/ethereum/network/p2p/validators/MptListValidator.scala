@@ -16,7 +16,7 @@ object MptListValidator {
     *
     * @param hash Hash to expect
     * @param toValidate Items to validate and should match the hash
-    * @param vSerializable [[RLPByteArraySerializable]] to encode Items
+    * @param vSerializable [[io.iohk.ethereum.mpt.RLPByteArraySerializable]] to encode Items
     * @tparam K Type of the items cointained within the Sequence
     * @return true if hash matches trie hash, false otherwise
     */

@@ -5,7 +5,7 @@ import org.spongycastle.util.encoders.Hex
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
 
 /**
-  * Custom Serializer to encode [[ByteString]] in Hex format with leading 0x
+  * Custom Serializer to encode [[akka.util.ByteString]] in Hex format with leading 0x
   */
 object ByteStringJsonSerializer extends DefaultJsonProtocol {
 

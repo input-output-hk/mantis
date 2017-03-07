@@ -1,3 +1,5 @@
+enablePlugins(JavaAppPackaging)
+
 val commonSettings = Seq(
   name := "etc-client",
   version := "0.1",
@@ -30,10 +32,11 @@ val dep = {
 val Integration = config("it") extend Test
 
 val root = project.in(file("."))
-    .configs(Integration)
-    .settings(commonSettings: _*)
-    .settings(libraryDependencies ++= dep)
-    .settings(inConfig(Integration)(Defaults.testSettings) : _*)
+  .configs(Integration)
+  .settings(commonSettings: _*)
+  .settings(libraryDependencies ++= dep)
+  .settings(inConfig(Integration)(Defaults.testSettings) : _*)
+
 
 scalacOptions := Seq(
   "-unchecked",
