@@ -41,3 +41,5 @@ scalacOptions := Seq("-unchecked", "-deprecation", "-feature")
 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}
+
+mainClass in assembly := Some("io.iohk.ethereum.App")

@@ -30,6 +30,6 @@ trait BlacklistSupport {
 }
 
 object BlacklistSupport {
-  case class BlacklistPeer(peer: ActorRef)
+  case class BlacklistPeer(peer: ActorRef, reason: String)
   case class UnblacklistPeer(peer: ActorRef)
 }
