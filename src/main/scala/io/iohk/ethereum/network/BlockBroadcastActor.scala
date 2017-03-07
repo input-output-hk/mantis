@@ -107,7 +107,7 @@ class BlockBroadcastActor(
     case MessageReceived(BlockBodies(Seq(blockBody))) =>
       val block: Option[Block] = matchHeaderAndBody(state.blockHeaders, blockBody)
       block foreach { b =>
-        log.info("Got BlockBodies message {}", blockBody)
+        log.debug("Got BlockBodies message {}", blockBody)
         val newBlockHeaders = state.blockHeaders.filterNot(_.hash == b.header.hash)
         val newState = state.copy(unprocessedBlocks = state.unprocessedBlocks :+ b, blockHeaders = newBlockHeaders)
         self ! ProcessNewBlocks
