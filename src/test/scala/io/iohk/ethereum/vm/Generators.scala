@@ -100,7 +100,7 @@ object Generators extends ObjectGenerators {
       inputData <- inputDataGen
       value <- valueGen
       blockNumber <- blockNumberGen
-      blockPlacement <- getBigIntGen(1, blockNumber)
+      blockPlacement <- getBigIntGen(0, blockNumber)
 
       blockHeader = exampleBlockHeader.copy(number = blockNumber - blockPlacement)
 
