@@ -388,7 +388,7 @@ case object BLOCKHASH extends OpCode(0x40, 1, 1, G_blockhash) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (blockNumber, stack1) = state.stack.pop
 
-    val hash = if (state.context.env.blockHeader.number - blockNumber > 256 || blockNumber > state.context.env.blockHeader.number) {
+    val hash = if (state.context.env.blockHeader.number - blockNumber > 256 || blockNumber >= state.context.env.blockHeader.number) {
       DataWord(0)
     } else {
       state.world.getBlockHash(blockNumber).map(DataWord(_)).getOrElse(DataWord(0))
