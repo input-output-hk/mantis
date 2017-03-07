@@ -254,9 +254,8 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   test(BLOCKHASH) { op =>
     val stateGen: Gen[PS] = for {
       stateIn <- getProgramStateGen(
-        stackGen = getStackGen(maxWord = DataWord(256)),
-        codeGen = getByteStringGen(0, 256),
-        blockNumberGen = getBigIntGen(0, 256)
+        stackGen = getStackGen(maxWord = DataWord(512)),
+        blockNumberGen = getBigIntGen(0, 512)
       )
     } yield stateIn
 
