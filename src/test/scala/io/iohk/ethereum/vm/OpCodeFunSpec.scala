@@ -253,20 +253,11 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   test(BLOCKHASH) { op =>
     val stateGen: Gen[PS] = for {
-      extCode <- getByteStringGen(0, 256)
-
       stateIn <- getProgramStateGen(
-        stackGen = getStackGen(maxWord = DataWord(256)),
-        memGen = getMemoryGen(256),
         codeGen = getByteStringGen(0, 256)
+
       )
-
-      doSave <- Gen.oneOf(false, true, true)
-
-      addr = Address(stateIn.stack.pop._1)
-      hash = kec256(extCode)
-      world = if (doSave) stateIn.world.saveAccount(addr, Account.Empty.copy(codeHash = hash)) else stateIn.world
-    } yield stateIn.withWorld(world)
+    } yield stateIn
 
     forAll(stateGen) { stateIn =>
       val stateOut = executeOp(op, stateIn)
@@ -274,12 +265,14 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       withStackVerification(op, stateIn, stateOut) {
         val (blockHeaderNumber, stack1) = stateIn.stack.pop
 
-        val expectedState = if (stateIn.context.env.blockHeader.number - blockHeaderNumber.toBigInt <= 256) {
-          val expectedHash: DataWord = stateIn.world.getBlockHash(blockHeaderNumber).map(DataWord(_)).getOrElse(DataWord(0))
-          stateIn.withStack(stack1.push(expectedHash)).step()
-        } else {
-          stateIn.withStack(stack1.push(DataWord(0))).step()
-        }
+        val expectedState =
+          if (stateIn.context.env.blockHeader.number - blockHeaderNumber.toBigInt <= 256 &&
+            blockHeaderNumber.toBigInt < stateIn.context.env.blockHeader.number) {
+            val expectedHash: DataWord = stateIn.world.getBlockHash(blockHeaderNumber).map(DataWord(_)).getOrElse(DataWord(0))
+            stateIn.withStack(stack1.push(expectedHash)).step()
+          } else {
+            stateIn.withStack(stack1.push(DataWord(0))).step()
+          }
 
         stateOut shouldBe expectedState
       }
