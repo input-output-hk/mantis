@@ -18,7 +18,7 @@ case class Program(code: ByteString) {
   def getBytes(from: Int, size: Int): ByteString =
     code.slice(from, from + size).padTo(size, 0.toByte)
 
-  lazy val validJumpDestinations: Seq[Int] = validJumpDestinationsAfterPosition(0)
+  lazy val validJumpDestinations: Set[Int] = validJumpDestinationsAfterPosition(0)
 
   /**
     * Returns the valid jump destinations of the program after a given position
@@ -28,14 +28,14 @@ case class Program(code: ByteString) {
     * @param accum with the previously obtained valid jump destinations.
     */
   @tailrec
-  private def validJumpDestinationsAfterPosition(pos: Int, accum: Seq[Int] = Seq()): Seq[Int] = {
+  private def validJumpDestinationsAfterPosition(pos: Int, accum: Set[Int] = Set()): Set[Int] = {
     if(pos < 0 || pos >= code.length) accum
     else {
       val byte = code(pos)
       val opCode = OpCode.byteToOpCode.get(byte)
       opCode match {
         case Some(pushOp: PushOp) => validJumpDestinationsAfterPosition(pos + pushOp.code - PUSH1.code + 2, accum)
-        case Some(JUMPDEST) => validJumpDestinationsAfterPosition(pos + 1, pos +: accum)
+        case Some(JUMPDEST) => validJumpDestinationsAfterPosition(pos + 1, accum + pos)
         case _ => validJumpDestinationsAfterPosition(pos + 1, accum)
       }
     }
