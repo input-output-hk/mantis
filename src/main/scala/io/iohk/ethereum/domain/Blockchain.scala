@@ -181,13 +181,13 @@ class BlockchainImpl(
 }
 
 trait BlockchainStorages {
-  val blockHeadersStorage: BlockHeadersStorage
-  val blockBodiesStorage: BlockBodiesStorage
-  val blockNumberMappingStorage: BlockNumberMappingStorage
-  val receiptStorage: ReceiptStorage
-  val evmCodeStorage: EvmCodeStorage
-  val mptNodeStorage: MptNodeStorage
-  val totalDifficultyStorage: TotalDifficultyStorage
+  def blockHeadersStorage: BlockHeadersStorage
+  def blockBodiesStorage: BlockBodiesStorage
+  def blockNumberMappingStorage: BlockNumberMappingStorage
+  def receiptStorage: ReceiptStorage
+  def evmCodeStorage: EvmCodeStorage
+  def mptNodeStorage: MptNodeStorage
+  def totalDifficultyStorage: TotalDifficultyStorage
 }
 
 object BlockchainImpl {

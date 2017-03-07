@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+
 import akka.actor.ActorSystem
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
@@ -17,10 +18,10 @@ import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.{BlockBroadcastActor, PeerActor, PeerManagerActor}
+import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
 
 class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
@@ -176,8 +177,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
 
     val nodeStatus = NodeStatus(
       key = nodeKey,
-      serverStatus = ServerStatus.NotListening,
-      blockchainStatus = BlockchainStatus(0, ByteString("changeme"), 0))
+      serverStatus = ServerStatus.NotListening)
 
     val nodeStatusHolder = Agent(nodeStatus)
 
@@ -196,6 +196,7 @@ class BlockBroadcastActorSpec extends FlatSpec with Matchers {
       nodeStatusHolder,
       peer.ref,
       peerManager.ref,
+      storagesInstance.storages.appStateStorage,
       blockchain
     ))
 

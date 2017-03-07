@@ -2,11 +2,10 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration._
 
-import akka.actor.{Terminated, PoisonPill, ActorSystem}
+import akka.actor.{PoisonPill, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.p2p.messages.PV63.{Receipt, Receipts, GetReceipts}
 import org.scalatest.{FlatSpec, Matchers}
@@ -67,6 +66,7 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
       parent.childActorOf(FastSyncReceiptsRequestHandler.props(
         peer.ref,
         requestedHashes,
+        storagesInstance.storages.appStateStorage,
         blockchain)(time.scheduler))
   }
 
