@@ -16,16 +16,16 @@ import io.iohk.ethereum.utils.{Config, NodeStatus}
 class FastSyncController(
     peerManager: ActorRef,
     nodeStatusHolder: Agent[NodeStatus],
-    blockchain: Blockchain,
+    val blockchain: Blockchain,
     mptNodeStorage: MptNodeStorage,
     externalSchedulerOpt: Option[Scheduler] = None)
-  extends Actor with ActorLogging with BlacklistSupport {
+  extends Actor with ActorLogging with BlacklistSupport with RegularSyncController {
 
   import BlacklistSupport._
   import Config.FastSync._
   import FastSyncController._
 
-  override val supervisorStrategy =
+  override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
       case _ => Stop
     }
@@ -52,6 +52,10 @@ class FastSyncController(
         log.info("Cannot start fast sync, not enough peers to download from. Scheduling retry in {}", startRetryInterval)
         scheduleStartFastSync(startRetryInterval)
       }
+    case StartRegularSync =>
+      val targetBlockToStartFrom = 42
+      context become (handlePeerUpdates orElse regularSync(targetBlockToStartFrom))
+      self ! StartRegularSync
   }
 
   def waitingForBlockHeaders(waitingFor: Set[ActorRef],
@@ -225,7 +229,9 @@ class FastSyncController(
     }
 
     def processSyncing(): Unit = {
-      if (fullySynced) finish()
+      if (fullySynced)
+        //TODO add save of current target block
+        finish()
       else {
         if (anythingQueued) processQueues()
         else log.debug("No more items to request, waiting for {} responses", assignedHandlers.size)
@@ -235,7 +241,8 @@ class FastSyncController(
     def finish(): Unit = {
       log.info("Fast sync finished")
       context.parent ! FastSyncDone
-      context stop self
+      context become idle
+      self ! StartRegularSync
     }
 
     def processQueues(): Unit = {
@@ -327,6 +334,7 @@ object FastSyncController {
   Props = Props(new FastSyncController(peerManager, nodeStatusHolder, blockchain, mptNodeStorage))
 
   case object StartFastSync
+  case object StartRegularSync
 
   case class EnqueueNodes(hashes: Seq[HashType])
   case class EnqueueBlockBodies(hashes: Seq[ByteString])
