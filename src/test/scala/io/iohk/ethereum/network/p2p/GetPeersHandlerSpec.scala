@@ -11,12 +11,12 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.network.BlockBroadcastActor.StartBlockBroadcast
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, PeersResponse}
-import io.iohk.ethereum.network.PeersHandler.RequestPeers
+import io.iohk.ethereum.network.GetPeersHandler.RequestPeers
 import io.iohk.ethereum.network.{BlockBroadcastActor, PeerActor}
 import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 
-class PeersHandlerSpec extends FlatSpec with Matchers {
+class GetPeersHandlerSpec extends FlatSpec with Matchers {
 
   val NumberPeers = 5
 

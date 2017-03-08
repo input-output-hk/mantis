@@ -4,9 +4,9 @@ import akka.actor.ActorRef
 import io.iohk.ethereum.network.BlockBroadcastActor.ProcessingState
 import io.iohk.ethereum.network.MaxBlockNumberRequestHandler.RequestMaxBlockNumber
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, PeersResponse}
-import io.iohk.ethereum.network.PeersHandler.RequestPeers
+import io.iohk.ethereum.network.GetPeersHandler.RequestPeers
 
-trait PeersHandler { this: BlockBroadcastActor =>
+trait GetPeersHandler { this: BlockBroadcastActor =>
 
   /**
     * This function handles the RequestPeers message by asking the PeerManager for the current peers.
@@ -26,6 +26,6 @@ trait PeersHandler { this: BlockBroadcastActor =>
   }
 }
 
-object PeersHandler {
+object GetPeersHandler {
   case object RequestPeers
 }

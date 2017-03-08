@@ -5,7 +5,7 @@ import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.MessageReceived
-import io.iohk.ethereum.network.PeersHandler.RequestPeers
+import io.iohk.ethereum.network.GetPeersHandler.RequestPeers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -19,7 +19,7 @@ class BlockBroadcastActor(
   nodeStatusHolder: Agent[NodeStatus],
   val peer: ActorRef,
   peerManagerActor: ActorRef,
-  blockchain: Blockchain) extends Actor with ActorLogging with PeersHandler with MaxBlockNumberRequestHandler {
+  blockchain: Blockchain) extends Actor with ActorLogging with GetPeersHandler with MaxBlockNumberRequestHandler {
 
   import BlockBroadcastActor._
 
