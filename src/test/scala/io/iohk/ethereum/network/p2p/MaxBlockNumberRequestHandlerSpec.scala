@@ -14,7 +14,7 @@ import io.iohk.ethereum.network.PeerActor.MaxBlockNumber
 import io.iohk.ethereum.network.{BlockBroadcastActor, PeerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -77,8 +77,7 @@ class MaxBlockNumberRequestHandlerSpec extends FlatSpec with Matchers {
 
     val nodeStatus = NodeStatus(
       key = nodeKey,
-      serverStatus = ServerStatus.NotListening,
-      blockchainStatus = BlockchainStatus(0, ByteString("changeme"), 0))
+      serverStatus = ServerStatus.NotListening)
 
     val nodeStatusHolder = Agent(nodeStatus)
 
@@ -89,6 +88,7 @@ class MaxBlockNumberRequestHandlerSpec extends FlatSpec with Matchers {
     val blockBroadcast = TestActorRef(BlockBroadcastActor.props(nodeStatusHolder,
       peer.ref,
       peerManager.ref,
+      storagesInstance.storages.appStateStorage,
       blockchain))
 
     val newBlocks = Seq(newBlockParent, newBlock)

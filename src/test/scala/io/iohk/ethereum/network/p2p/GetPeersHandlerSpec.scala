@@ -6,14 +6,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.ActorSystem
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
-import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.network.BlockBroadcastActor.StartBlockBroadcast
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, PeersResponse}
 import io.iohk.ethereum.network.GetPeersHandler.RequestPeers
 import io.iohk.ethereum.network.{BlockBroadcastActor, PeerActor}
-import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 
 class GetPeersHandlerSpec extends FlatSpec with Matchers {
@@ -39,8 +38,7 @@ class GetPeersHandlerSpec extends FlatSpec with Matchers {
 
     val nodeStatus = NodeStatus(
       key = nodeKey,
-      serverStatus = ServerStatus.NotListening,
-      blockchainStatus = BlockchainStatus(0, ByteString("changeme"), 0))
+      serverStatus = ServerStatus.NotListening)
 
     val nodeStatusHolder = Agent(nodeStatus)
 
@@ -55,6 +53,7 @@ class GetPeersHandlerSpec extends FlatSpec with Matchers {
     val blockBroadcast = TestActorRef(BlockBroadcastActor.props(nodeStatusHolder,
       peerProbe.ref,
       peerManager.ref,
+      storagesInstance.storages.appStateStorage,
       blockchain))
 
     def blockBroadcastSetup(): Unit = {
