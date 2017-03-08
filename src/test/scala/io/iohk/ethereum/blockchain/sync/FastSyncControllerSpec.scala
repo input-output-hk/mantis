@@ -154,7 +154,9 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     peer2.reply(PeerActor.MessageReceived(NodeData(Seq(stateMptLeafWithAccount))))
     peer2.expectMsg(PeerActor.Unsubscribe)
 
-    watcher.expectMsgPF(2.seconds) { case Terminated(`fastSyncController`) => () }
+    //TODO implement
+    //actor will not terminate but switch to regular sync
+    //watcher.expectMsgPF(2.seconds) { case Terminated(`fastSyncController`) => () }
   }
 
   it should "not use (blacklist) a peer that fails to respond within time limit" in new TestSetup {

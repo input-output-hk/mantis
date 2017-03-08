@@ -54,7 +54,7 @@ class FastSyncController(
       }
     case StartRegularSync =>
       val targetBlockToStartFrom = 42
-      context become (handlePeerUpdates orElse regularSync(targetBlockToStartFrom))
+      context become (handlePeerUpdates orElse regularSync(log))
       self ! StartRegularSync
   }
 
