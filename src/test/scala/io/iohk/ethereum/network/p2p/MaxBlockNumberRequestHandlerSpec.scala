@@ -1,46 +1,102 @@
 package io.iohk.ethereum.network.p2p
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.ActorSystem
-import io.iohk.ethereum.network.{BlockBroadcastMaxBlockRequestHandler, PeerActor}
-import org.scalatest.{FlatSpec, Matchers}
-import akka.testkit.TestProbe
+import akka.agent.Agent
+import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.network.BlockBroadcastActor.StartBlockBroadcast
+import io.iohk.ethereum.network.MaxBlockNumberRequestHandler.RequestMaxBlockNumber
+import io.iohk.ethereum.network.PeerActor.MaxBlockNumber
+import io.iohk.ethereum.network.{BlockBroadcastActor, PeerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
+import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-class BlockBroadcastMaxBlockRequestHandlerSpec extends FlatSpec with Matchers {
+class MaxBlockNumberRequestHandlerSpec extends FlatSpec with Matchers {
+
+  val NumberPeers = 5
 
   it should "handle succesful response" in new TestSetup {
-    peer.expectMsg(PeerActor.GetMaxBlockNumber(blockBroadcastMaxBlockRequestHandler))
-    peer.reply(PeerActor.MaxBlockNumber(BigInt(0)))
+    blockBroadcastSetup()
 
-    peer.expectMsg(PeerActor.SendMessage(newBlockParent))
-    peer.expectMsg(PeerActor.SendMessage(newBlock))
+    blockBroadcast ! RequestMaxBlockNumber(otherPeers.map(_.ref), newBlocks)
+
+    peer.expectNoMsg()
+    otherPeers.foreach{ p =>
+      p.expectMsgClass(classOf[PeerActor.GetMaxBlockNumber])
+      p.reply(PeerActor.MaxBlockNumber(BigInt(0)))
+
+      p.expectMsg(PeerActor.SendMessage(newBlockParent))
+      p.expectMsg(PeerActor.SendMessage(newBlock))
+    }
   }
 
   it should "handle succesful response when some of the new blocks should not be send" in new TestSetup {
-    peer.expectMsg(PeerActor.GetMaxBlockNumber(blockBroadcastMaxBlockRequestHandler))
-    peer.reply(PeerActor.MaxBlockNumber(BigInt(1)))
+    blockBroadcastSetup()
 
-    peer.expectMsg(PeerActor.SendMessage(newBlock))
+    blockBroadcast ! RequestMaxBlockNumber(otherPeers.map(_.ref), newBlocks)
+
     peer.expectNoMsg()
+    otherPeers.foreach{ p =>
+      p.expectMsgClass(classOf[PeerActor.GetMaxBlockNumber])
+      p.reply(PeerActor.MaxBlockNumber(BigInt(1)))
+
+      p.expectMsg(PeerActor.SendMessage(newBlock))
+      p.expectNoMsg()
+    }
   }
 
-  trait TestSetup extends BlockUtil {
-    implicit val system = ActorSystem("BlockBroadcastMaxBlockRequestHandlerSpec_System")
+  it should "not send any messages if there are no blocks to send in response to RequestMaxBlockNumber" in new TestSetup {
+    blockBroadcastSetup()
+
+    blockBroadcast ! RequestMaxBlockNumber(otherPeers.map(_.ref), Seq())
+
+    peer.expectNoMsg()
+    otherPeers.foreach{ p => p.expectNoMsg() }
+  }
+
+  it should "not send any messages if there are no blocks to send in response to MaxBlockNumber" in new TestSetup {
+    blockBroadcastSetup()
+
+    blockBroadcast ! MaxBlockNumber(BigInt(0))
+
+    peer.expectNoMsg()
+    otherPeers.foreach{ p => p.expectNoMsg() }
+  }
+
+  trait TestSetup extends BlockUtil with EphemBlockchainTestSetup {
+    implicit val system = ActorSystem("MaxBlockRequestHandlerSpec_System")
+
+    val nodeKey = crypto.generateKeyPair()
+
+    val nodeStatus = NodeStatus(
+      key = nodeKey,
+      serverStatus = ServerStatus.NotListening,
+      blockchainStatus = BlockchainStatus(0, ByteString("changeme"), 0))
+
+    val nodeStatusHolder = Agent(nodeStatus)
 
     val peer = TestProbe()
+    val otherPeers = (0 to NumberPeers).map(_ => TestProbe())
+    val peerManager = TestProbe()
+
+    val blockBroadcast = TestActorRef(BlockBroadcastActor.props(nodeStatusHolder,
+      peer.ref,
+      peerManager.ref,
+      blockchain))
 
     val newBlocks = Seq(newBlockParent, newBlock)
 
-    val parent = TestProbe()
-
-    val blockBroadcastMaxBlockRequestHandler =
-      parent.childActorOf(BlockBroadcastMaxBlockRequestHandler.props(
-        peer.ref,
-        newBlocks))
+    def blockBroadcastSetup(): Unit = {
+      blockBroadcast ! StartBlockBroadcast
+      peer.expectMsgClass(classOf[PeerActor.Subscribe])
+    }
   }
 
   trait BlockUtil {
