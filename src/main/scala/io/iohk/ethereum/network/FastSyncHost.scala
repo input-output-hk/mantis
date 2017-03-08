@@ -10,8 +10,8 @@ import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 
 trait FastSyncHost {
-  def peerConfiguration: PeerConfiguration
-  def blockchain: Blockchain
+  val peerConfiguration: PeerConfiguration
+  val blockchain: Blockchain
 
   def handleEvmMptFastDownload(rlpxConnection: RLPxConnection): Actor.Receive = {
     case RLPxConnectionHandler.MessageReceived(request: GetNodeData) =>

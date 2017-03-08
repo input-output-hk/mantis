@@ -5,24 +5,24 @@ import io.iohk.ethereum.domain.BlockchainStorages
 
 trait StoragesComponent {
 
-  def storages: Storages
+  val storages: Storages
 
   trait Storages extends BlockchainStorages {
 
-    def blockHeadersStorage: BlockHeadersStorage
+    val blockHeadersStorage: BlockHeadersStorage
 
-    def blockBodiesStorage: BlockBodiesStorage
+    val blockBodiesStorage: BlockBodiesStorage
 
-    def blockNumberMappingStorage: BlockNumberMappingStorage
+    val blockNumberMappingStorage: BlockNumberMappingStorage
 
-    def receiptStorage: ReceiptStorage
+    val receiptStorage: ReceiptStorage
 
-    def mptNodeStorage: MptNodeStorage
+    val mptNodeStorage: MptNodeStorage
 
-    def evmCodeStorage: EvmCodeStorage
+    val evmCodeStorage: EvmCodeStorage
 
-    def totalDifficultyStorage: TotalDifficultyStorage
+    val totalDifficultyStorage: TotalDifficultyStorage
 
-    def appStateStorage: AppStateStorage
+    val appStateStorage: AppStateStorage
   }
 }
