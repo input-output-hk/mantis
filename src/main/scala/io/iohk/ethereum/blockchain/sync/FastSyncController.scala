@@ -1,5 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
+import io.iohk.ethereum.network.PeerActor.Status.Chain
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
@@ -150,11 +152,13 @@ class FastSyncController(
     case PeerManagerActor.PeersResponse(peers) =>
       peers.foreach(_.ref ! PeerActor.GetStatus)
 
-    case PeerActor.StatusResponse(PeerActor.Status.Handshaked(initialStatus)) =>
+    case PeerActor.StatusResponse(PeerActor.Status.Handshaked(initialStatus, Chain.ETC)) =>
       if (!handshakedPeers.contains(sender()) && !isBlacklisted(sender())) {
         handshakedPeers += (sender() -> initialStatus)
         context watch sender()
       }
+
+    case PeerActor.StatusResponse(PeerActor.Status.Handshaked(initialStatus, _)) => // ignore non-etc peers
 
     case PeerActor.StatusResponse(_) =>
       removePeer(sender())

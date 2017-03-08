@@ -27,6 +27,7 @@ import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
+// scalastyle:off magic.number
 class PeerActorSpec extends FlatSpec with Matchers {
 
   "PeerActor" should "create rlpx connection and send hello message" in new TestSetup {

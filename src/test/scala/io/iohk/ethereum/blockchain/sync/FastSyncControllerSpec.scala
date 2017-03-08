@@ -20,6 +20,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
+import io.iohk.ethereum.network.PeerActor.Status.Chain
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -40,11 +41,11 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer1.expectMsg(PeerActor.GetStatus)
-    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status)))
+    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC)))
 
     val peer2Status= Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
-    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status)))
+    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC)))
 
     fastSyncController ! FastSyncController.StartFastSync
 
@@ -97,11 +98,11 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer1.expectMsg(PeerActor.GetStatus)
-    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status)))
+    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC)))
 
     val peer2Status= Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
-    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status)))
+    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC)))
 
     fastSyncController ! FastSyncController.StartFastSync
 
@@ -166,11 +167,11 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer1.expectMsg(PeerActor.GetStatus)
-    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status)))
+    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC)))
 
     val peer2Status= Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
-    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status)))
+    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC)))
 
     val expectedTargetBlock = 399500
     val targetBlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
