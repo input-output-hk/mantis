@@ -1,6 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
-import io.iohk.ethereum.network.PeerActor.Status.Chain
+import io.iohk.ethereum.network.PeerActor.Status.{Handshaked, Chain}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -14,6 +14,7 @@ import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.PeerActor.{Status => PeerStatus}
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 class FastSyncController(
@@ -34,7 +35,7 @@ class FastSyncController(
       case _ => Stop
     }
 
-  var handshakedPeers: Map[ActorRef, Status] = Map.empty
+  var handshakedPeers: Map[ActorRef, PeerStatus.Handshaked] = Map.empty
 
   scheduler.schedule(0.seconds, peersScanInterval, peerManager, PeerManagerActor.GetPeers)
 
@@ -44,14 +45,16 @@ class FastSyncController(
 
   def idle: Receive = handlePeerUpdates orElse {
     case StartFastSync =>
-      if (peersToDownloadFrom.size >= minPeersToChooseTargetBlock) {
-        peersToDownloadFrom.foreach { case (peer, status) =>
+      val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.chain == Chain.ETC)
+
+      if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
+        peersUsedToChooseTarget.foreach { case (peer, Handshaked(status, _)) =>
           peer ! PeerActor.Subscribe(Set(BlockHeaders.code))
           peer ! PeerActor.SendMessage(GetBlockHeaders(Right(status.bestHash), 1, 0, reverse = false))
         }
-        log.info("Asking {} peers for block headers", peersToDownloadFrom.size)
+        log.info("Asking {} peers for block headers", peersUsedToChooseTarget.size)
         val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, BlockHeadersTimeout)
-        context become waitingForBlockHeaders(peersToDownloadFrom.keySet, Map.empty, timeout)
+        context become waitingForBlockHeaders(peersUsedToChooseTarget.keySet, Map.empty, timeout)
       } else {
         log.info("Cannot start fast sync, not enough peers to download from. Scheduling retry in {}", startRetryInterval)
         scheduleStartFastSync(startRetryInterval)
@@ -142,7 +145,8 @@ class FastSyncController(
       context become idle
   }
 
-  def peersToDownloadFrom: Map[ActorRef, Status] = handshakedPeers.filterNot { case (p, s) => isBlacklisted(p) }
+  def peersToDownloadFrom: Map[ActorRef, PeerStatus.Handshaked] =
+    handshakedPeers.filterNot { case (p, s) => isBlacklisted(p) }
 
   def scheduleStartFastSync(interval: FiniteDuration): Unit = {
     scheduler.scheduleOnce(interval, self, StartFastSync)
@@ -152,13 +156,11 @@ class FastSyncController(
     case PeerManagerActor.PeersResponse(peers) =>
       peers.foreach(_.ref ! PeerActor.GetStatus)
 
-    case PeerActor.StatusResponse(PeerActor.Status.Handshaked(initialStatus, Chain.ETC)) =>
+    case PeerActor.StatusResponse(status: PeerStatus.Handshaked) =>
       if (!handshakedPeers.contains(sender()) && !isBlacklisted(sender())) {
-        handshakedPeers += (sender() -> initialStatus)
+        handshakedPeers += (sender() -> status)
         context watch sender()
       }
-
-    case PeerActor.StatusResponse(PeerActor.Status.Handshaked(initialStatus, _)) => // ignore non-etc peers
 
     case PeerActor.StatusResponse(_) =>
       removePeer(sender())
