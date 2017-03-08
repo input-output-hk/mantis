@@ -27,43 +27,38 @@ object Generators extends ObjectGenerators {
     } yield bigInt
   }
 
-  def getDataWordGen(min: DataWord = DataWord(0), max: DataWord = DataWord.MaxValue): Gen[DataWord] =
-    getBigIntGen(min.toBigInt, max.toBigInt).map(DataWord(_))
+  def getUInt256Gen(min: UInt256 = UInt256(0), max: UInt256 = UInt256.MaxValue): Gen[UInt256] =
+    getBigIntGen(min.toBigInt, max.toBigInt).map(UInt256(_))
 
-  def getUInt256Gen(min: BigInt = BigInt(0), max: BigInt = Int256Like.Modulus - 1): Gen[UInt256] =
-    getBigIntGen(min, max).map(UInt256(_))
-
-  def getInt256Gen(min: BigInt = BigInt(0), max: BigInt = Int256Like.Modulus - 1): Gen[Int256] =
-    getBigIntGen(min, max).map(Int256(_))
-
-  def getStackGen(minElems: Int = 0, maxElems: Int = testStackMaxSize, dataWordGen: Gen[DataWord] = getDataWordGen(),
+  def getStackGen(minElems: Int = 0, maxElems: Int = testStackMaxSize, uint256Gen: Gen[UInt256] = getUInt256Gen(),
     maxSize: Int = testStackMaxSize): Gen[Stack] =
     for {
       size <- Gen.choose(minElems, maxElems)
-      list <- Gen.listOfN(size, dataWordGen)
+      list <- Gen.listOfN(size, uint256Gen)
       stack = Stack.empty(maxSize)
     } yield stack.push(list)
 
-  def getStackGen(elems: Int, dataWordGen: Gen[DataWord]): Gen[Stack] =
-    getStackGen(minElems = elems, maxElems = elems, dataWordGen)
+  def getStackGen(elems: Int, uint256Gen: Gen[UInt256]): Gen[Stack] =
+    getStackGen(minElems = elems, maxElems = elems, uint256Gen)
 
   def getStackGen(elems: Int): Gen[Stack] =
-    getStackGen(minElems = elems, maxElems = elems, getDataWordGen())
+    getStackGen(minElems = elems, maxElems = elems, getUInt256Gen())
 
-  def getStackGen(elems: Int, maxWord: DataWord): Gen[Stack] =
-    getStackGen(minElems = elems, maxElems = elems, dataWordGen = getDataWordGen(max = maxWord), maxSize = testStackMaxSize)
+  def getStackGen(elems: Int, maxUInt: UInt256): Gen[Stack] =
+    getStackGen(minElems = elems, maxElems = elems, uint256Gen = getUInt256Gen(max = maxUInt), maxSize = testStackMaxSize)
 
-  def getStackGen(maxWord: DataWord): Gen[Stack] =
-    getStackGen(dataWordGen = getDataWordGen(max = maxWord), maxSize = testStackMaxSize)
+  def getStackGen(maxWord: UInt256): Gen[Stack] =
+    getStackGen(uint256Gen = getUInt256Gen(max = maxWord), maxSize = testStackMaxSize)
 
   def getMemoryGen(maxSize: Int = 0): Gen[Memory] =
-    getByteStringGen(0, maxSize).map(Memory.empty.store(DataWord(0), _))
+    getByteStringGen(0, maxSize).map(Memory.empty.store(UInt256(0), _))
 
-  def getStorageGen(maxSize: Int = 0, dataWordGen: Gen[DataWord] = getDataWordGen()): Gen[MockStorage] =
-    getListGen(0, maxSize, dataWordGen).map(MockStorage.fromSeq)
+  def getStorageGen(maxSize: Int = 0, uint256Gen: Gen[UInt256] = getUInt256Gen()): Gen[MockStorage] =
+    getListGen(0, maxSize, uint256Gen).map(MockStorage.fromSeq)
 
   val ownerAddr = Address(0x123456)
   val callerAddr = Address(0xabcdef)
+
   val exampleBlockHeader = BlockHeader(
     parentHash = ByteString(Hex.decode("d882d5c210bab4cb7ef0b9f3dc2130cb680959afcd9a8f9bf83ee6f13e2f9da3")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -85,11 +80,11 @@ object Generators extends ObjectGenerators {
     stackGen: Gen[Stack] = getStackGen(),
     memGen: Gen[Memory] = getMemoryGen(),
     storageGen: Gen[MockStorage] = getStorageGen(),
-    gasGen: Gen[BigInt] = getBigIntGen(min = DataWord.MaxValue, max = DataWord.MaxValue),
+    gasGen: Gen[UInt256] = getUInt256Gen(min = UInt256.MaxValue, max = UInt256.MaxValue),
     codeGen: Gen[ByteString] = getByteStringGen(0, 0),
     inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
-    valueGen: Gen[BigInt] = getBigIntGen(),
-    blockNumberGen: Gen[BigInt] = getBigIntGen(0, 300)
+    valueGen: Gen[UInt256] = getUInt256Gen(),
+    blockNumberGen: Gen[UInt256] = getUInt256Gen(0, 300)
   ): Gen[PS] =
     for {
       stack <- stackGen
@@ -100,7 +95,7 @@ object Generators extends ObjectGenerators {
       inputData <- inputDataGen
       value <- valueGen
       blockNumber <- blockNumberGen
-      blockPlacement <- getBigIntGen(0, blockNumber)
+      blockPlacement <- getUInt256Gen(0, blockNumber)
 
       blockHeader = exampleBlockHeader.copy(number = blockNumber - blockPlacement)
 
