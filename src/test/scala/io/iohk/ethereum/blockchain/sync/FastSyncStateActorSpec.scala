@@ -38,19 +38,3 @@ class FastSyncStateActorSpec extends AsyncFlatSpec with Matchers with Eventually
   }
 
 }
-///*val dataSource = EphemDataSource()
-//implicit val system = ActorSystem("FastSyncStateActorSpec_System")
-//implicit val timeout: Timeout = 200.millis
-//val syncStateActor = TestActorRef(new FastSyncStateActor)
-//val maxN = 10
-//
-//
-//syncStateActor ! new FastSyncStateStorage(dataSource)
-//(0 to maxN).foreach(n => syncStateActor ! SyncState.empty.copy(downloadedNodesCount = n))
-//
-//eventually {
-//  (syncStateActor ? GetStorage).mapTo[FastSyncStateStorage].map { storage =>
-//  val expected = SyncState.empty.copy(downloadedNodesCount = maxN)
-//  storage.getSyncState() shouldEqual Some(expected)
-//}
-//}*/
