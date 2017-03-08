@@ -35,7 +35,7 @@ class BlockBroadcastActor(
 
   def processMessages(state: ProcessingState = ProcessingState.empty): Receive =
     handleReceivedMessages(state) orElse
-      handleRequestMaxBlockNumber(state) orElse handleMaxBlockNumber(state) orElse
+      handleRequestMaxBlockNumber(state) orElse handlePeerMaxBlockNumber(state) orElse
       handleRequestPeers(state, peerManagerActor) orElse handlePeersResponse(state) orElse {
 
       case ProcessNewBlocks if state.unprocessedBlocks.nonEmpty =>
@@ -63,8 +63,6 @@ class BlockBroadcastActor(
             log.info("Block {} not valid", Hex.toHexString(blockToProcess.header.hash.toArray))
             context become processMessages(state.copy(unprocessedBlocks = state.unprocessedBlocks.tail))
         }
-
-      case Terminated(peerTerminated) => handlePeerTerminated(peerTerminated, state)
 
       case _ => //Nothing
     }
