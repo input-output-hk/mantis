@@ -29,9 +29,9 @@ class FastSyncStateActorSpec extends AsyncFlatSpec with Matchers with Eventually
     (0 to maxN).foreach(n => syncStateActor ! SyncState.empty.copy(downloadedNodesCount = n))
 
     eventually {
-      (syncStateActor ? GetStorage).mapTo[FastSyncStateStorage].map { storage =>
+      (syncStateActor ? GetStorage).mapTo[Option[SyncState]].map { syncState =>
         val expected = SyncState.empty.copy(downloadedNodesCount = maxN)
-        storage.getSyncState() shouldEqual Some(expected)
+        syncState shouldEqual Some(expected)
       }
     }
 

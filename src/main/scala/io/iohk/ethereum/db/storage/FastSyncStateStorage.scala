@@ -19,7 +19,7 @@ class FastSyncStateStorage(val dataSource: DataSource) extends KeyValueStorage[S
 
   import FastSyncStateStorage._
 
-  override val namespace: IndexedSeq[Byte] = Namespaces.NodeHashSetNamespace
+  override val namespace: IndexedSeq[Byte] = Namespaces.FastSyncStateNamespace
 
   implicit val byteStringPickler: Pickler[ByteString] = transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
 

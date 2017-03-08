@@ -11,16 +11,16 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders
 import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class FastSyncController(peerManager: ActorRef,
-                         nodeStatusHolder: Agent[NodeStatus],
-                         appStateStorage: AppStateStorage,
-                         blockchain: Blockchain,
-                         mptNodeStorage: MptNodeStorage,
-                         fastSyncStateStorage: FastSyncStateStorage,
-                         externalSchedulerOpt: Option[Scheduler] = None)
+class FastSyncController(
+    peerManager: ActorRef,
+    nodeStatusHolder: Agent[NodeStatus],
+    appStateStorage: AppStateStorage,
+    blockchain: Blockchain,
+    mptNodeStorage: MptNodeStorage,
+    fastSyncStateStorage: FastSyncStateStorage,
+    externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging with BlacklistSupport {
 
   import BlacklistSupport._
@@ -31,6 +31,8 @@ class FastSyncController(peerManager: ActorRef,
     OneForOneStrategy() {
       case _ => Stop
     }
+
+  import context.dispatcher
 
   var handshakedPeers: Map[ActorRef, Status] = Map.empty
 
@@ -115,7 +117,7 @@ class FastSyncController(peerManager: ActorRef,
 
           scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
 
-          context become new SyncingHandler(targetBlockHeader, fastSyncStateStorage).receive
+          context become new SyncingHandler(targetBlockHeader).receive
 
           self ! EnqueueNodes(Seq(StateMptNodeHash(targetBlockHeader.stateRoot)))
           self ! ProcessSyncing
@@ -176,12 +178,12 @@ class FastSyncController(peerManager: ActorRef,
     handshakedPeers -= peer
   }
 
-  class SyncingHandler(targetBlock: BlockHeader, syncStateStorage: FastSyncStateStorage) {
+  class SyncingHandler(targetBlock: BlockHeader) {
 
     private val blockHeadersHandlerName = "block-headers-request-handler"
 
     private val initialSyncState: SyncState = if (continueAfterRestart)
-      syncStateStorage.getSyncState().getOrElse(SyncState.empty)
+      fastSyncStateStorage.getSyncState().getOrElse(SyncState.empty)
     else
       SyncState.empty
 
@@ -195,15 +197,16 @@ class FastSyncController(peerManager: ActorRef,
     private var assignedHandlers: Map[ActorRef, ActorRef] = Map.empty
     private var bestBlockHeaderNumber: BigInt = appStateStorage.getBestBlockNumber()
 
-    val hashTypeSetPersist: Option[Cancellable] = if (continueAfterRestart) {
-      val syncStateStorageActor: ActorRef = context.actorOf(Props[FastSyncStateActor])
-      syncStateStorageActor ! syncStateStorage
-      val hashTypeSetPersist: Cancellable = scheduler.schedule(
-        persistStateSnapshotInterval,
-        persistStateSnapshotInterval) {
-        syncStateStorageActor ! SyncState(mptNodesQueue, nonMptNodesQueue, blockBodiesQueue, receiptsQueue, downloadedNodesCount)
-      }
-      Some(hashTypeSetPersist)
+    val syncStatePersistCancellable: Option[Cancellable] = if (continueAfterRestart) {
+      val syncStateStorageActor: ActorRef = context.actorOf(Props[FastSyncStateActor], "state-storage")
+      syncStateStorageActor ! fastSyncStateStorage
+      Some(
+        scheduler.schedule(
+          persistStateSnapshotInterval,
+          persistStateSnapshotInterval) {
+          syncStateStorageActor ! SyncState(mptNodesQueue, nonMptNodesQueue, blockBodiesQueue, receiptsQueue, downloadedNodesCount)
+        }
+      )
     } else {
       None
     }
@@ -258,8 +261,8 @@ class FastSyncController(peerManager: ActorRef,
     }
 
     def finish(): Unit = {
-      hashTypeSetPersist.map(_.cancel())
-      syncStateStorage.purge()
+      syncStatePersistCancellable.map(_.cancel())
+      fastSyncStateStorage.purge()
       log.info("Fast sync finished")
       context.parent ! FastSyncDone
       context stop self
@@ -357,7 +360,7 @@ object FastSyncController {
 
   object SyncState {
 
-    def empty: SyncState = SyncState(Set.empty, Set.empty, Set.empty, Set.empty, 0)
+    val empty: SyncState = SyncState(Set.empty, Set.empty, Set.empty, Set.empty, 0)
 
   }
 

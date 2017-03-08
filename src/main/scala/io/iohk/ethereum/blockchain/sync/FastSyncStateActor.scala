@@ -18,8 +18,6 @@ import scala.util.{Failure, Success, Try}
   */
 class FastSyncStateActor extends Actor with ActorLogging {
 
-  override val supervisorStrategy: SupervisorStrategy = OneForOneStrategy(){ case _ => Escalate }
-
   def receive: Receive = {
     // after initialization send a valid Storage reference
     case storage: FastSyncStateStorage => context become idle(storage)
@@ -28,21 +26,21 @@ class FastSyncStateActor extends Actor with ActorLogging {
   def idle(storage: FastSyncStateStorage): Receive = {
     // begin saving of the state to the storage and become busy
     case state: SyncState => persistState(storage, state)
-    //
-    case GetStorage => sender() ! storage
+
+    case GetStorage => sender() ! storage.getSyncState()
   }
 
-  def busy(storage: FastSyncStateStorage, state: Option[SyncState]): Receive = {
+  def busy(storage: FastSyncStateStorage, stateToPersist: Option[SyncState]): Receive = {
     // update state waiting to be persisted later. we only keep newest state
     case state: SyncState => context become busy(storage, Some(state))
     // exception was thrown during persisting of a state. push
     case Failure(e) => throw e
     // state was saved in the storage. become idle
-    case Success(s: FastSyncStateStorage) if state.isEmpty => context become idle(s)
+    case Success(s: FastSyncStateStorage) if stateToPersist.isEmpty => context become idle(s)
     // state was saved in the storage but new state is already waiting to be saved.
-    case Success(s: FastSyncStateStorage) if state.isDefined => state.map(persistState(s, _))
-    //
-    case GetStorage => sender() ! storage
+    case Success(s: FastSyncStateStorage) if stateToPersist.isDefined => stateToPersist.map(persistState(s, _))
+
+    case GetStorage => sender() ! storage.getSyncState()
   }
 
   private def persistState(storage: FastSyncStateStorage, syncState: SyncState): Unit = {
