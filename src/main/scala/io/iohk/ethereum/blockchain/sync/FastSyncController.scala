@@ -2,6 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
@@ -16,6 +17,7 @@ import io.iohk.ethereum.utils.{Config, NodeStatus}
 class FastSyncController(
     peerManager: ActorRef,
     nodeStatusHolder: Agent[NodeStatus],
+    appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
     mptNodeStorage: MptNodeStorage,
     externalSchedulerOpt: Option[Scheduler] = None)
@@ -105,7 +107,7 @@ class FastSyncController(
 
   def waitingForTargetBlock(peer: ActorRef,
                             targetBlockNumber: BigInt,
-                            timeout: Cancellable): Receive =handlePeerUpdates orElse {
+                            timeout: Cancellable): Receive = handlePeerUpdates orElse {
     case PeerActor.MessageReceived(blockHeaders: BlockHeaders) =>
       timeout.cancel()
       peer ! PeerActor.Unsubscribe
@@ -117,6 +119,7 @@ class FastSyncController(
 
           scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
           context become new SyncingHandler(targetBlockHeader).receive
+
           self ! EnqueueNodes(Seq(StateMptNodeHash(targetBlockHeader.stateRoot)))
           self ! ProcessSyncing
 
@@ -190,6 +193,8 @@ class FastSyncController(
 
     private var assignedHandlers: Map[ActorRef, ActorRef] = Map.empty
 
+    private var bestBlockHeaderNumber: BigInt = appStateStorage.getBestBlockNumber()
+
     def receive: Receive = handlePeerUpdates orElse {
       case EnqueueNodes(hashes) =>
         hashes.foreach {
@@ -208,6 +213,9 @@ class FastSyncController(
       case UpdateDownloadedNodesCount(num) =>
         downloadedNodesCount += num
 
+      case UpdateBestBlockHeaderNumber(num) =>
+        bestBlockHeaderNumber = num
+
       case ProcessSyncing =>
         processSyncing()
 
@@ -223,7 +231,7 @@ class FastSyncController(
       case PrintStatus =>
         val totalNodesCount = downloadedNodesCount + mptNodesQueue.size + nonMptNodesQueue.size
         log.info(
-          s"""|Block: ${nodeStatusHolder().blockchainStatus.bestNumber}/${targetBlock.number}.
+          s"""|Block: ${appStateStorage.getBestBlockNumber()}/${targetBlock.number}.
               |Peers: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
               |State: $downloadedNodesCount/$totalNodesCount known nodes.""".stripMargin.replace("\n", " "))
     }
@@ -266,7 +274,7 @@ class FastSyncController(
       } else if (blockBodiesQueue.nonEmpty) {
         requestBlockBodies(peer)
       } else if (context.child(blockHeadersHandlerName).isEmpty &&
-        targetBlock.number > nodeStatusHolder().blockchainStatus.bestNumber) {
+        targetBlock.number > bestBlockHeaderNumber) {
         requestBlockHeaders(peer)
       } else if (nonMptNodesQueue.nonEmpty || mptNodesQueue.nonEmpty) {
         requestNodes(peer)
@@ -275,7 +283,8 @@ class FastSyncController(
 
     def requestReceipts(peer: ActorRef): Unit = {
       val (receiptsToGet, remainingReceipts) = receiptsQueue.splitAt(receiptsPerRequest)
-      val handler = context.actorOf(FastSyncReceiptsRequestHandler.props(peer, receiptsToGet.toSeq, blockchain))
+      val handler = context.actorOf(FastSyncReceiptsRequestHandler.props(
+        peer, receiptsToGet.toSeq, appStateStorage, blockchain))
       context watch handler
       assignedHandlers += (handler -> peer)
       receiptsQueue = remainingReceipts
@@ -283,7 +292,8 @@ class FastSyncController(
 
     def requestBlockBodies(peer: ActorRef): Unit = {
       val (blockBodiesToGet, remainingBlockBodies) = blockBodiesQueue.splitAt(blockBodiesPerRequest)
-      val handler = context.actorOf(FastSyncBlockBodiesRequestHandler.props(peer, blockBodiesToGet.toSeq, blockchain))
+      val handler = context.actorOf(FastSyncBlockBodiesRequestHandler.props(
+        peer, blockBodiesToGet.toSeq, appStateStorage, blockchain))
       context watch handler
       assignedHandlers += (handler -> peer)
       blockBodiesQueue = remainingBlockBodies
@@ -291,10 +301,7 @@ class FastSyncController(
 
     def requestBlockHeaders(peer: ActorRef): Unit = {
       val handler = context.actorOf(FastSyncBlockHeadersRequestHandler.props(
-        peer,
-        nodeStatusHolder().blockchainStatus.bestNumber + 1,
-        blockHeadersPerRequest,
-        nodeStatusHolder, blockchain), blockHeadersHandlerName)
+        peer, bestBlockHeaderNumber + 1, blockHeadersPerRequest, nodeStatusHolder, blockchain), blockHeadersHandlerName)
       context watch handler
       assignedHandlers += (handler -> peer)
     }
@@ -319,7 +326,7 @@ class FastSyncController(
       receiptsQueue.nonEmpty
 
     def fullySynced: Boolean =
-      nodeStatusHolder().blockchainStatus.bestNumber >= targetBlock.number &&
+      bestBlockHeaderNumber >= targetBlock.number &&
       !anythingQueued &&
       assignedHandlers.isEmpty
   }
@@ -329,9 +336,10 @@ object FastSyncController {
   def props(
              peerManager: ActorRef,
              nodeStatusHolder: Agent[NodeStatus],
+             appStateStorage: AppStateStorage,
              blockchain: Blockchain,
              mptNodeStorage: MptNodeStorage):
-  Props = Props(new FastSyncController(peerManager, nodeStatusHolder, blockchain, mptNodeStorage))
+  Props = Props(new FastSyncController(peerManager, nodeStatusHolder, appStateStorage, blockchain, mptNodeStorage))
 
   case object StartFastSync
   case object StartRegularSync
@@ -341,6 +349,7 @@ object FastSyncController {
   case class EnqueueReceipts(hashes: Seq[ByteString])
 
   case class UpdateDownloadedNodesCount(update: Int)
+  case class UpdateBestBlockHeaderNumber(bestBlockHeaderNumber: BigInt)
 
   sealed trait HashType {
     def v: ByteString

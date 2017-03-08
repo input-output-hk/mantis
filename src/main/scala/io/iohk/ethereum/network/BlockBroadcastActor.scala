@@ -4,6 +4,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props}
 import akka.agent.Agent
 import akka.util.ByteString
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
@@ -12,7 +13,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.network.p2p.validators.{BlockHeaderValidator, BlockValidator}
-import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus}
+import io.iohk.ethereum.utils.NodeStatus
 import org.spongycastle.util.encoders.Hex
 
 //FIXME: Handle peers not responding to block headers and bodies request [EC-107]
@@ -20,6 +21,7 @@ class BlockBroadcastActor(
   nodeStatusHolder: Agent[NodeStatus],
   peer: ActorRef,
   peerManagerActor: ActorRef,
+  appStateStorage: AppStateStorage,
   blockchain: Blockchain) extends Actor with ActorLogging {
 
   import BlockBroadcastActor._
@@ -146,9 +148,8 @@ class BlockBroadcastActor(
     blockchain.save(block)
     blockchain.save(blockHash, blockTotalDifficulty)
 
-    //Update NodeStatus
-    nodeStatusHolder.send(_.copy(
-      blockchainStatus = BlockchainStatus(block.header.difficulty, block.header.hash, block.header.number)))
+    //Update best block number in app state
+    appStateStorage.putBestBlockNumber(block.header.number)
   }
 }
 
@@ -158,8 +159,9 @@ object BlockBroadcastActor {
   def props(nodeStatusHolder: Agent[NodeStatus],
             peer: ActorRef,
             peerManagerActor: ActorRef,
+            appStateStorage: AppStateStorage,
             blockchain: Blockchain): Props = {
-    Props(new BlockBroadcastActor(nodeStatusHolder, peer, peerManagerActor, blockchain))
+    Props(new BlockBroadcastActor(nodeStatusHolder, peer, peerManagerActor, appStateStorage, blockchain))
   }
 
   case object StartBlockBroadcast

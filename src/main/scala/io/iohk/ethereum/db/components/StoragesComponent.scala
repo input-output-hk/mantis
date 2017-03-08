@@ -23,5 +23,6 @@ trait StoragesComponent {
 
     val totalDifficultyStorage: TotalDifficultyStorage
 
+    val appStateStorage: AppStateStorage
   }
 }

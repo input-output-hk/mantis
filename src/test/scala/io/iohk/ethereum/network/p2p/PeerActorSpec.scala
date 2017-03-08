@@ -2,6 +2,10 @@ package io.iohk.ethereum.network.p2p
 
 import java.net.{InetSocketAddress, URI}
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
 import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
@@ -19,13 +23,9 @@ import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipt, Receipt
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.encode
-import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import scala.language.postfixOps
 
 class PeerActorSpec extends FlatSpec with Matchers {
 
@@ -60,7 +60,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }, peerConf, blockchain)))
+      }, peerConf, storagesInstance.storages.appStateStorage, blockchain)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -77,10 +77,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
   }
 
   it should "successfully connect to ETC peer" in new TestSetup {
-    nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
-      Config.Blockchain.daoForkBlockTotalDifficulty + 10000000, // we're at some block, after the fork
-      ByteString("unused"), 0)))
-
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
@@ -108,10 +104,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
   }
 
   it should "disconnect from non-ETC peer" in new TestSetup {
-    nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
-      Config.Blockchain.daoForkBlockTotalDifficulty + 10000000, // we're at some block, after the fork
-      ByteString("unused"), 0)))
-
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
@@ -120,6 +112,15 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Message.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Hello) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
+
+    val header = BlockHeader(
+      ByteString("unused"), ByteString("unused"), ByteString("unused"), ByteString("unused"),
+      ByteString("unused"), ByteString("unused"), ByteString("unused"),
+      Config.Blockchain.daoForkBlockTotalDifficulty + 100000, 3000000 ,0, 0, 0,
+      ByteString("unused"),ByteString("unused"),ByteString("unused"))
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(3000000) // after the fork
+    blockchain.save(header)
+    storagesInstance.storages.blockNumberMappingStorage.put(3000000, header.hash)
 
     val remoteStatus = Status(
       protocolVersion = Message.PV63,
@@ -137,10 +138,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
   }
 
   it should "stay connected to non-ETC peer until reaching the fork" in new TestSetup {
-    nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
-      Config.Blockchain.daoForkBlockTotalDifficulty - 10000000, // we're at some block, before the fork
-      ByteString("unused"), 0)))
-
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
@@ -171,10 +168,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
   }
 
   it should "stay connected to pre fork peer until reaching the fork" in new TestSetup {
-    nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
-      Config.Blockchain.daoForkBlockTotalDifficulty - 10000000, // we're at some block, before the fork
-      ByteString("unused"), 0)))
-
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
@@ -604,8 +597,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val nodeStatus = NodeStatus(
       key = nodeKey,
-      serverStatus = ServerStatus.NotListening,
-      blockchainStatus = BlockchainStatus(0, ByteString("123"), 0))
+      serverStatus = ServerStatus.NotListening)
 
     val nodeStatusHolder = Agent(nodeStatus)
 
@@ -633,10 +625,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
   trait TestSetup extends NodeStatusSetup with BlockUtils {
 
     def setupConnection(): Unit = {
-      nodeStatusHolder.send(_.copy(blockchainStatus = BlockchainStatus(
-        Config.Blockchain.daoForkBlockTotalDifficulty + 10000000, // we're at some block, after the fork
-        ByteString("unused"), 0)))
-
       peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
       rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
@@ -664,7 +652,11 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val rlpxConnection = TestProbe()
 
-    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => rlpxConnection.ref, peerConf, blockchain)))
+    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder,
+      _ => rlpxConnection.ref,
+      peerConf,
+      storagesInstance.storages.appStateStorage,
+      blockchain)))
   }
 
 }
