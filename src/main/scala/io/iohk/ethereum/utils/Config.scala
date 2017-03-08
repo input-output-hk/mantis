@@ -109,6 +109,8 @@ object Config {
   object FastSync {
     private val fastSyncConfig = config.getConfig("fast-sync")
 
+    val continueAfterRestart: Boolean = fastSyncConfig.getBoolean("continue-after-restart")
+
     val peersScanInterval: FiniteDuration = fastSyncConfig.getDuration("peers-scan-interval").toMillis.millis
     val blacklistDuration: FiniteDuration = fastSyncConfig.getDuration("blacklist-duration").toMillis.millis
     val startRetryInterval: FiniteDuration = fastSyncConfig.getDuration("start-retry-interval").toMillis.millis
@@ -123,6 +125,8 @@ object Config {
     val nodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
     val minPeersToChooseTargetBlock: Int = fastSyncConfig.getInt("min-peers-to-choose-target-block")
     val targetBlockOffset: Int = fastSyncConfig.getInt("target-block-offset")
+    val persistStateSnapshotInterval: FiniteDuration =
+      fastSyncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis
   }
 
   object Db {
