@@ -1,26 +1,26 @@
 package io.iohk.ethereum.blockchain.sync
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
-class FastSyncController(
-    peerManager: ActorRef,
-    nodeStatusHolder: Agent[NodeStatus],
-    appStateStorage: AppStateStorage,
-    blockchain: Blockchain,
-    mptNodeStorage: MptNodeStorage,
-    externalSchedulerOpt: Option[Scheduler] = None)
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+
+class FastSyncController(peerManager: ActorRef,
+                         nodeStatusHolder: Agent[NodeStatus],
+                         appStateStorage: AppStateStorage,
+                         blockchain: Blockchain,
+                         mptNodeStorage: MptNodeStorage,
+                         fastSyncStateStorage: FastSyncStateStorage,
+                         externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging with BlacklistSupport {
 
   import BlacklistSupport._
@@ -70,7 +70,7 @@ class FastSyncController(
         tryStartSync(newReceived)
       } else context become waitingForBlockHeaders(newWaitingFor, newReceived, timeout)
 
-    case msg @ PeerActor.MessageReceived(BlockHeaders(_)) =>
+    case msg@PeerActor.MessageReceived(BlockHeaders(_)) =>
       sender() ! PeerActor.Unsubscribe
       blacklist(sender(), blacklistDuration)
       context become waitingForBlockHeaders(waitingFor - sender(), received, timeout)
@@ -114,7 +114,8 @@ class FastSyncController(
           log.info("Received target block from peer, starting fast sync")
 
           scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
-          context become new SyncingHandler(targetBlockHeader).receive
+
+          context become new SyncingHandler(targetBlockHeader, fastSyncStateStorage).receive
 
           self ! EnqueueNodes(Seq(StateMptNodeHash(targetBlockHeader.stateRoot)))
           self ! ProcessSyncing
@@ -175,21 +176,37 @@ class FastSyncController(
     handshakedPeers -= peer
   }
 
-  class SyncingHandler(targetBlock: BlockHeader) {
+  class SyncingHandler(targetBlock: BlockHeader, syncStateStorage: FastSyncStateStorage) {
 
     private val blockHeadersHandlerName = "block-headers-request-handler"
 
-    private var nonMptNodesQueue: Set[HashType] = Set.empty
-    private var mptNodesQueue: Set[HashType] = Set.empty
+    private val initialSyncState: SyncState = if (continueAfterRestart)
+      syncStateStorage.getSyncState().getOrElse(SyncState.empty)
+    else
+      SyncState.empty
 
-    private var blockBodiesQueue: Set[ByteString] = Set.empty
-    private var receiptsQueue: Set[ByteString] = Set.empty
 
-    private var downloadedNodesCount: Int = 0
+    private var mptNodesQueue: Set[HashType] = initialSyncState.mptNodesQueue
+    private var nonMptNodesQueue: Set[HashType] = initialSyncState.nonMptNodesQueue
+    private var blockBodiesQueue: Set[ByteString] = initialSyncState.blockBodiesQueue
+    private var receiptsQueue: Set[ByteString] = initialSyncState.receiptsQueue
+    private var downloadedNodesCount: Int = initialSyncState.downloadedNodesCount
 
     private var assignedHandlers: Map[ActorRef, ActorRef] = Map.empty
-
     private var bestBlockHeaderNumber: BigInt = appStateStorage.getBestBlockNumber()
+
+    val hashTypeSetPersist: Option[Cancellable] = if (continueAfterRestart) {
+      val syncStateStorageActor: ActorRef = context.actorOf(Props[FastSyncStateActor])
+      syncStateStorageActor ! syncStateStorage
+      val hashTypeSetPersist: Cancellable = scheduler.schedule(
+        persistStateSnapshotInterval,
+        persistStateSnapshotInterval) {
+        syncStateStorageActor ! SyncState(mptNodesQueue, nonMptNodesQueue, blockBodiesQueue, receiptsQueue, downloadedNodesCount)
+      }
+      Some(hashTypeSetPersist)
+    } else {
+      None
+    }
 
     def receive: Receive = handlePeerUpdates orElse {
       case EnqueueNodes(hashes) =>
@@ -241,6 +258,8 @@ class FastSyncController(
     }
 
     def finish(): Unit = {
+      hashTypeSetPersist.map(_.cancel())
+      syncStateStorage.purge()
       log.info("Fast sync finished")
       context.parent ! FastSyncDone
       context stop self
@@ -314,15 +333,16 @@ class FastSyncController(
 
     def anythingQueued: Boolean =
       nonMptNodesQueue.nonEmpty ||
-      mptNodesQueue.nonEmpty ||
-      blockBodiesQueue.nonEmpty ||
-      receiptsQueue.nonEmpty
+        mptNodesQueue.nonEmpty ||
+        blockBodiesQueue.nonEmpty ||
+        receiptsQueue.nonEmpty
 
     def fullySynced: Boolean =
       bestBlockHeaderNumber >= targetBlock.number &&
-      !anythingQueued &&
-      assignedHandlers.isEmpty
+        !anythingQueued &&
+        assignedHandlers.isEmpty
   }
+
 }
 
 object FastSyncController {
@@ -331,29 +351,54 @@ object FastSyncController {
              nodeStatusHolder: Agent[NodeStatus],
              appStateStorage: AppStateStorage,
              blockchain: Blockchain,
-             mptNodeStorage: MptNodeStorage):
-  Props = Props(new FastSyncController(peerManager, nodeStatusHolder, appStateStorage, blockchain, mptNodeStorage))
+             mptNodeStorage: MptNodeStorage,
+             syncStateStorage: FastSyncStateStorage):
+  Props = Props(new FastSyncController(peerManager, nodeStatusHolder, appStateStorage, blockchain, mptNodeStorage, syncStateStorage))
+
+  object SyncState {
+
+    def empty: SyncState = SyncState(Set.empty, Set.empty, Set.empty, Set.empty, 0)
+
+  }
+
+  case class SyncState(mptNodesQueue: Set[HashType],
+                       nonMptNodesQueue: Set[HashType],
+                       blockBodiesQueue: Set[ByteString],
+                       receiptsQueue: Set[ByteString],
+                       downloadedNodesCount: Int)
 
   case object StartFastSync
 
   case class EnqueueNodes(hashes: Seq[HashType])
+
   case class EnqueueBlockBodies(hashes: Seq[ByteString])
+
   case class EnqueueReceipts(hashes: Seq[ByteString])
 
   case class UpdateDownloadedNodesCount(update: Int)
+
   case class UpdateBestBlockHeaderNumber(bestBlockHeaderNumber: BigInt)
 
   sealed trait HashType {
     def v: ByteString
   }
+
   case class StateMptNodeHash(v: ByteString) extends HashType
+
   case class ContractStorageMptNodeHash(v: ByteString) extends HashType
+
   case class EvmCodeHash(v: ByteString) extends HashType
+
   case class StorageRootHash(v: ByteString) extends HashType
 
   private case object PrintStatus
+
   private case object TargetBlockTimeout
+
   private case object BlockHeadersTimeout
+
   private case object ProcessSyncing
+
   case object FastSyncDone
+
 }
