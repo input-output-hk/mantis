@@ -5,8 +5,6 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockBody, GetBlockBodies}
 import org.scalatest.{FlatSpec, Matchers}
@@ -71,6 +69,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
       parent.childActorOf(FastSyncBlockBodiesRequestHandler.props(
         peer.ref,
         requestedHashes,
+        storagesInstance.storages.appStateStorage,
         blockchain)(time.scheduler))
   }
 
