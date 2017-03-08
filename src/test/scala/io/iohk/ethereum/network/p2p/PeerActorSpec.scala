@@ -5,7 +5,6 @@ import java.net.{InetSocketAddress, URI}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
 import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
@@ -16,7 +15,8 @@ import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.PeerActor.{FastSyncHostConfiguration, GetMaxBlockNumber, MaxBlockNumber, PeerConfiguration}
+import io.iohk.ethereum.network.PeerActor.{GetMaxBlockNumber, MaxBlockNumber}
+import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipt, Receipts, _}

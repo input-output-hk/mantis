@@ -7,7 +7,7 @@ import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import io.iohk.ethereum.rpc.RpcServerConfig
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.PeerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import org.spongycastle.util.encoders.Hex
 

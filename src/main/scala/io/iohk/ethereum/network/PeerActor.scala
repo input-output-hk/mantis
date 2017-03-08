@@ -3,12 +3,10 @@ package io.iohk.ethereum.network
 import java.net.{InetSocketAddress, URI}
 
 import scala.concurrent.duration._
-
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.network.PeerActor.PeerConfiguration
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -20,6 +18,7 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 /**
@@ -395,29 +394,7 @@ object PeerActor {
     }
   }
 
-  trait PeerConfiguration {
-    val connectRetryDelay: FiniteDuration
-    val connectMaxRetries: Int
-    val disconnectPoisonPillTimeout: FiniteDuration
-    val waitForStatusTimeout: FiniteDuration
-    val waitForChainCheckTimeout: FiniteDuration
-    val fastSyncHostConfiguration: FastSyncHostConfiguration
-  }
 
-  trait FastSyncHostConfiguration {
-    val maxBlocksHeadersPerMessage: Int
-    val maxBlocksBodiesPerMessage: Int
-    val maxReceiptsPerMessage: Int
-    val maxMptComponentsPerMessage: Int
-  }
-
-  trait Storage {
-    val blockHeadersStorage: BlockHeadersStorage
-    val blockBodiesStorage: BlockBodiesStorage
-    val receiptStorage: ReceiptStorage
-    val mptNodeStorage: MptNodeStorage
-    val evmCodeStorage: EvmCodeStorage
-  }
 
   case class HandleConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
 

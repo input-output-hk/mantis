@@ -2,15 +2,13 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
-import io.iohk.ethereum.network.PeerActor.PeerConfiguration
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
@@ -89,6 +87,30 @@ object PeerManagerActor {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
       ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain), id)
+  }
+
+  trait PeerConfiguration {
+    val connectRetryDelay: FiniteDuration
+    val connectMaxRetries: Int
+    val disconnectPoisonPillTimeout: FiniteDuration
+    val waitForStatusTimeout: FiniteDuration
+    val waitForChainCheckTimeout: FiniteDuration
+    val fastSyncHostConfiguration: FastSyncHostConfiguration
+  }
+
+  trait FastSyncHostConfiguration {
+    val maxBlocksHeadersPerMessage: Int
+    val maxBlocksBodiesPerMessage: Int
+    val maxReceiptsPerMessage: Int
+    val maxMptComponentsPerMessage: Int
+  }
+
+  trait Storage {
+    val blockHeadersStorage: BlockHeadersStorage
+    val blockBodiesStorage: BlockBodiesStorage
+    val receiptStorage: ReceiptStorage
+    val mptNodeStorage: MptNodeStorage
+    val evmCodeStorage: EvmCodeStorage
   }
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
