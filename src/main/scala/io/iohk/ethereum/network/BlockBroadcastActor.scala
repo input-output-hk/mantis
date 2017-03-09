@@ -167,6 +167,6 @@ object BlockBroadcastActor {
   }
 
   object ProcessingState {
-    def empty: ProcessingState = ProcessingState(Nil, Nil, Map(), Nil, Nil)
+    val empty: ProcessingState = ProcessingState(Nil, Nil, Map(), Nil, Nil)
   }
 }

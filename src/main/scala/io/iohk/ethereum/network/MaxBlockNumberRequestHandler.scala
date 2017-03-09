@@ -17,7 +17,7 @@ trait MaxBlockNumberRequestHandler { this: BlockBroadcastActor =>
   def handleRequestMaxBlockNumber(state: ProcessingState): Receive = {
     case RequestMaxBlockNumber(peers, blocksToSend) =>
       if(blocksToSend.nonEmpty) {
-        val newState = peers.foldLeft(state) { case (recState, peerToSendReq) =>
+        val newState = peers.foldLeft(state) { (recState, peerToSendReq) =>
           requestMaxBlockNumberToPeer(recState, peerToSendReq, blocksToSend)
         }
         context become processMessages(newState)
@@ -48,13 +48,12 @@ trait MaxBlockNumberRequestHandler { this: BlockBroadcastActor =>
           sender() ! PeerActor.SendMessage(newBlockMsg)
         }
       }
-      stopWatchingPeer(sender(), state)
+      handlePeerTerminated(sender(), state)
 
-    case Terminated(terminatedPeer) => stopWatchingPeer(terminatedPeer, state)
+    case Terminated(terminatedPeer) => handlePeerTerminated(terminatedPeer, state)
   }
 
-  private def stopWatchingPeer(terminatedPeer: ActorRef, state: ProcessingState): Unit = {
-    context unwatch terminatedPeer
+  private def handlePeerTerminated(terminatedPeer: ActorRef, state: ProcessingState): Unit = {
     context become processMessages(state.withToBroadcastBlocksToEachPeer(state.toBroadcastBlocksToEachPeer - terminatedPeer))
   }
 }
