@@ -182,31 +182,40 @@ class FastSyncController(
 
     private val blockHeadersHandlerName = "block-headers-request-handler"
 
-    private val initialSyncState: SyncState = if (continueAfterRestart) {
-      fastSyncStateStorage.getSyncState().getOrElse(SyncState.empty)
-    } else {
-      fastSyncStateStorage.purge()
-      SyncState.empty
+    val (initialSyncState, initialFastSyncStateStorage) =
+    (fastSyncStateStorage.getSyncState().getOrElse(SyncState.empty), appStateStorage.getBestBlockNumber()) match {
+      case (state, bestBlockNumber) if continueAfterRestart && state.bestBlockHeaderNumber != bestBlockNumber =>
+        val updatedState = state.copy(bestBlockHeaderNumber = bestBlockNumber)
+        updatedState -> fastSyncStateStorage.putSyncState(updatedState)
+      case (state, _) if continueAfterRestart =>
+        state -> fastSyncStateStorage
+      case _ =>
+        SyncState.empty -> fastSyncStateStorage.purge()
     }
-
 
     private var mptNodesQueue: Set[HashType] = initialSyncState.mptNodesQueue
     private var nonMptNodesQueue: Set[HashType] = initialSyncState.nonMptNodesQueue
     private var blockBodiesQueue: Set[ByteString] = initialSyncState.blockBodiesQueue
     private var receiptsQueue: Set[ByteString] = initialSyncState.receiptsQueue
     private var downloadedNodesCount: Int = initialSyncState.downloadedNodesCount
+    private var bestBlockHeaderNumber: BigInt = initialSyncState.bestBlockHeaderNumber
 
     private var assignedHandlers: Map[ActorRef, ActorRef] = Map.empty
-    private var bestBlockHeaderNumber: BigInt = appStateStorage.getBestBlockNumber()
 
     val syncStatePersistCancellable: Option[Cancellable] = if (continueAfterRestart) {
       val syncStateStorageActor: ActorRef = context.actorOf(Props[FastSyncStateActor], "state-storage")
-      syncStateStorageActor ! fastSyncStateStorage
+      syncStateStorageActor ! initialFastSyncStateStorage
       Some(
         scheduler.schedule(
           persistStateSnapshotInterval,
           persistStateSnapshotInterval) {
-          syncStateStorageActor ! SyncState(mptNodesQueue, nonMptNodesQueue, blockBodiesQueue, receiptsQueue, downloadedNodesCount)
+          syncStateStorageActor ! SyncState(
+            mptNodesQueue,
+            nonMptNodesQueue,
+            blockBodiesQueue,
+            receiptsQueue,
+            downloadedNodesCount,
+            bestBlockHeaderNumber)
         }
       )
     } else {
@@ -362,7 +371,7 @@ object FastSyncController {
 
   object SyncState {
 
-    val empty: SyncState = SyncState(Set.empty, Set.empty, Set.empty, Set.empty, 0)
+    val empty: SyncState = SyncState(Set.empty, Set.empty, Set.empty, Set.empty, 0, BigInt(0))
 
   }
 
@@ -370,7 +379,8 @@ object FastSyncController {
                        nonMptNodesQueue: Set[HashType],
                        blockBodiesQueue: Set[ByteString],
                        receiptsQueue: Set[ByteString],
-                       downloadedNodesCount: Int)
+                       downloadedNodesCount: Int,
+                       bestBlockHeaderNumber: BigInt)
 
   case object StartFastSync
 
