@@ -157,13 +157,13 @@ object BlockBroadcastActor {
                              blockHeaders: Seq[BlockHeader]) {
 
     def withToBroadcastBlocksToEachPeer(newToBroadcastBlocksToPeers: Map[ActorRef, Seq[NewBlock]]): ProcessingState =
-      this.copy(toBroadcastBlocksToEachPeer = newToBroadcastBlocksToPeers)
+      copy(toBroadcastBlocksToEachPeer = newToBroadcastBlocksToPeers)
 
     def withToBroadcastBlocks(newToBroadcastBlocks: Seq[NewBlock]): ProcessingState =
-      this.copy(toBroadcastBlocks = newToBroadcastBlocks)
+      copy(toBroadcastBlocks = newToBroadcastBlocks)
 
     def withUnprocessBlocks(newUnprocessedBlocks: Seq[Block]): ProcessingState =
-      this.copy(unprocessedBlocks = newUnprocessedBlocks)
+      copy(unprocessedBlocks = newUnprocessedBlocks)
   }
 
   object ProcessingState {
