@@ -2,13 +2,13 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorContext, ActorRef, Scheduler}
 import akka.event.LoggingAdapter
+import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSyncController.StartRegularSync
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.{BroadcastBlocks, MessageReceived, SendMessage, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.validators.BlockValidator
 import io.iohk.ethereum.network.p2p.validators.BlockValidator.BlockError
 import io.iohk.ethereum.utils.Config
 
@@ -30,7 +30,7 @@ trait RegularSyncController {
   def scheduler: Scheduler
 
   private var headers: Seq[BlockHeader] = Seq.empty
-  private var totalDifficulty: Option[BigInt] = None
+//  private var totalDifficulty: Option[BigInt] = None
   private var resolvingBranch = false
   private var broadcasting = false
 
@@ -59,9 +59,8 @@ trait RegularSyncController {
       peersToDownloadFrom.keys.foreach(_ ! m)
 
     case ResolveBranch(peer) =>
-      val TODOnumberFromConfig = 100
       resolvingBranch = true
-      peer ! SendMessage(GetBlockHeaders(Right(headers.head.parentHash), TODOnumberFromConfig, skip = 0, reverse = true))
+      peer ! SendMessage(GetBlockHeaders(Right(headers.head.parentHash), blockResolveDepth, skip = 0, reverse = true))
   }
 
   private def askForHeaders(log: LoggingAdapter) = {
@@ -69,7 +68,7 @@ trait RegularSyncController {
     bestPeer match {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
-        totalDifficulty = blockchain.getBlockHeaderByNumber(blockNumber).flatMap(b => blockchain.getTotalDifficultyByHash(b.hash))
+
         peer ! Subscribe(Set(BlockHeaders.code, BlockBodies.code))
         peer ! SendMessage(GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false))
       case None =>
@@ -121,18 +120,21 @@ trait RegularSyncController {
       if (!result.exists(_.isLeft)) {
         val blocks = result.collect { case Right(b) => b }
 
-        totalDifficulty match {
+        blockchain.getBlockHeaderByHash(blocks.head.header.parentHash)
+          .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
           case Some(td) =>
             var currentTd = td
-            val newBlocks = blocks.map{ b =>
+            val newBlocks = blocks.map { b =>
+              val blockHashToDelete = blockchain.getBlockHeaderByNumber(b.header.number).map(_.hash)
               blockchain.save(b)
               appStateStorage.putBestBlockNumber(b.header.number)
               currentTd += b.header.difficulty
               blockchain.save(b.header.hash, currentTd)
-              NewBlock(b, currentTd)
+              (blockHashToDelete, NewBlock(b, currentTd))
             }
 
-            context.self ! BroadcastBlocks(newBlocks)
+            newBlocks.collect { case (Some(hash), _) => hash }.foreach(deleteOldBlock)
+            context.self ! BroadcastBlocks(newBlocks.map(_._2))
           case None =>
             log.error("no total difficulty for latest block")
         }
@@ -151,6 +153,12 @@ trait RegularSyncController {
       //we got empty response for bodies from peer but we got block headers earlier
       resumeWithDifferentPeer()
     }
+  }
+
+  private def deleteOldBlock(blockHash: ByteString) = {
+    blockchain.removeBlockHeader(blockHash)
+    blockchain.removeBlockBody(blockHash)
+    blockchain.removeTotalDifficulty(blockHash)
   }
 
   private def scheduleResume = {

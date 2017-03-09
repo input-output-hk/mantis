@@ -125,6 +125,7 @@ object Config {
     val targetBlockOffset: Int = fastSyncConfig.getInt("target-block-offset")
 
     val checkForNewBlockInterval: FiniteDuration = fastSyncConfig.getDuration("check-for-new-block-interval").toMillis.millis
+    val blockResolveDepth: Int = fastSyncConfig.getInt("block-resolving-depth")
   }
 
   object Db {
