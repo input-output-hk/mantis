@@ -20,7 +20,7 @@ class FastSyncStateActorSpec extends AsyncFlatSpec with Matchers with Eventually
 
     val dataSource = EphemDataSource()
     implicit val system = ActorSystem("FastSyncStateActorSpec_System")
-    implicit val timeout: Timeout = 200.millis
+    implicit val timeout: Timeout = 20.seconds
     val syncStateActor = TestActorRef(new FastSyncStateActor)
     val maxN = 10
     implicit val patienceConfig = PatienceConfig(timeout = Span(3, Seconds))
