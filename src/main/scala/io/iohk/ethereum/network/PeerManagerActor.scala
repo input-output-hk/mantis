@@ -35,7 +35,7 @@ class PeerManagerActor(
   override def receive: Receive = {
     case HandlePeerConnection(connection, remoteAddress) =>
       val peer = createPeer(remoteAddress)
-      log.info("Peer {} handling incoming peer connection from {}", peer.id, remoteAddress)
+      log.debug("Peer {} handling incoming peer connection from {}", peer.id, remoteAddress)
       peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
       sender() ! PeerCreated(peer)
 

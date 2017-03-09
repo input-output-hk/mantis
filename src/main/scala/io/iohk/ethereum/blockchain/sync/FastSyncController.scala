@@ -53,7 +53,7 @@ class FastSyncController(
         val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, BlockHeadersTimeout)
         context become waitingForBlockHeaders(peersToDownloadFrom.keySet, Map.empty, timeout)
       } else {
-        log.info("Cannot start fast sync, not enough peers to download from. Scheduling retry in {}", startRetryInterval)
+        log.warning("Cannot start fast sync, not enough peers to download from. Scheduling retry in {}", startRetryInterval)
         scheduleStartFastSync(startRetryInterval)
       }
     case StartRegularSync =>
@@ -116,7 +116,7 @@ class FastSyncController(
       val targetBlockHeaderOpt = blockHeaders.headers.find(header => header.number == targetBlockNumber)
       targetBlockHeaderOpt match {
         case Some(targetBlockHeader) =>
-          log.info("Received target block from peer, starting fast sync")
+          log.info("Starting fast sync")
 
           scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
           context become new SyncingHandler(targetBlockHeader).receive
@@ -243,7 +243,7 @@ class FastSyncController(
         finish()
       else {
         if (anythingQueued) processQueues()
-        else log.debug("No more items to request, waiting for {} responses", assignedHandlers.size)
+        else log.info("No more items to request, waiting for {} responses", assignedHandlers.size)
       }
     }
 
@@ -257,9 +257,9 @@ class FastSyncController(
     def processQueues(): Unit = {
       if (unassignedPeers.isEmpty) {
         if (assignedHandlers.nonEmpty) {
-          log.info("There are no available peers, waiting for responses")
+          log.warning("There are no available peers, waiting for responses")
         } else {
-          log.info("There are no peers to download from, scheduling a retry in {}", syncRetryInterval)
+          log.warning("There are no peers to download from, scheduling a retry in {}", syncRetryInterval)
           scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
       } else {

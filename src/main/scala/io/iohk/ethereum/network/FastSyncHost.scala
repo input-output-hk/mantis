@@ -61,7 +61,7 @@ trait FastSyncHost {
 
           rlpxConnection.sendMessage(BlockHeaders(blockHeaders))
 
-        case _ => log.info("got request for block headers with invalid block hash/number: {}", request)
+        case _ => log.warning("got request for block headers with invalid block hash/number: {}", request)
       }
   }
 }
