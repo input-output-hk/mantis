@@ -1,18 +1,19 @@
 package io.iohk.ethereum.blockchain.sync
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
-import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaders, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.validators.BlockValidator.BlockError
+import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
 import io.iohk.ethereum.utils.{Config, NodeStatus}
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 class FastSyncController(
     peerManager: ActorRef,
@@ -20,6 +21,7 @@ class FastSyncController(
     val appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
     mptNodeStorage: MptNodeStorage,
+    val blockValidator: (BlockHeader, BlockBody) => Either[BlockError, Block],
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging with BlacklistSupport with RegularSyncController {
 
@@ -337,8 +339,9 @@ object FastSyncController {
              nodeStatusHolder: Agent[NodeStatus],
              appStateStorage: AppStateStorage,
              blockchain: Blockchain,
-             mptNodeStorage: MptNodeStorage):
-  Props = Props(new FastSyncController(peerManager, nodeStatusHolder, appStateStorage, blockchain, mptNodeStorage))
+             mptNodeStorage: MptNodeStorage,
+             blockValidator: (BlockHeader, BlockBody) => Either[BlockError, Block]):
+  Props = Props(new FastSyncController(peerManager, nodeStatusHolder, appStateStorage, blockchain, mptNodeStorage, blockValidator))
 
   case object StartFastSync
   case object StartRegularSync

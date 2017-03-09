@@ -123,6 +123,8 @@ object Config {
     val nodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
     val minPeersToChooseTargetBlock: Int = fastSyncConfig.getInt("min-peers-to-choose-target-block")
     val targetBlockOffset: Int = fastSyncConfig.getInt("target-block-offset")
+
+    val checkForNewBlockInterval: FiniteDuration = fastSyncConfig.getDuration("check-for-new-block-interval").toMillis.millis
   }
 
   object Db {

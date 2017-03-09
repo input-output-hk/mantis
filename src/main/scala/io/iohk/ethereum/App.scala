@@ -1,7 +1,6 @@
 package io.iohk.ethereum
 
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.agent._
 import io.iohk.ethereum.blockchain.sync.FastSyncController
@@ -12,6 +11,7 @@ import io.iohk.ethereum.network.{PeerActor, PeerManagerActor, ServerActor}
 import io.iohk.ethereum.rpc.JsonRpcServer
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.network._
+import io.iohk.ethereum.network.p2p.validators.BlockValidator
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 object App {
@@ -68,7 +68,8 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
           nodeStatusHolder,
           storagesInstance.storages.appStateStorage,
           blockchain,
-          storagesInstance.storages.mptNodeStorage),
+          storagesInstance.storages.mptNodeStorage,
+          BlockValidator.validateHeaderAndBody),
         "fast-sync-controller")
 
       fastSyncController ! FastSyncController.StartFastSync

@@ -4,11 +4,12 @@ import akka.actor.{Actor, ActorContext, ActorRef, Scheduler}
 import akka.event.LoggingAdapter
 import io.iohk.ethereum.blockchain.sync.FastSyncController.StartRegularSync
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.{BroadcastBlocks, MessageReceived, SendMessage, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.validators.BlockValidator
+import io.iohk.ethereum.network.p2p.validators.BlockValidator.BlockError
 import io.iohk.ethereum.utils.Config
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -20,6 +21,7 @@ trait RegularSyncController {
   val appStateStorage: AppStateStorage
   val blockchain: Blockchain
   val context: ActorContext
+  val blockValidator: (BlockHeader, BlockBody) => Either[BlockError, Block]
 
   def blacklist(peer: ActorRef, duration: FiniteDuration)
 
@@ -29,7 +31,8 @@ trait RegularSyncController {
 
   private var headers: Seq[BlockHeader] = Seq.empty
   private var totalDifficulty: Option[BigInt] = None
-  private var resolvingBranche = false
+  private var resolvingBranch = false
+  private var broadcasting = false
 
   import Config.FastSync._
 
@@ -43,18 +46,21 @@ trait RegularSyncController {
     case ResumeRegularSync =>
       askForHeaders(log)
 
-    case MessageReceived(m: BlockHeaders) if !resolvingBranche =>
+    case MessageReceived(m: BlockHeaders) if !resolvingBranch =>
       handleDownload(m, log)
 
-    case MessageReceived(m: BlockHeaders) if resolvingBranche =>
+    case MessageReceived(m: BlockHeaders) if resolvingBranch =>
       handleBlockBranchResolution(m, log)
 
     case MessageReceived(m: BlockBodies) =>
       handleBlockBodies(m, log)
 
+    case m: BroadcastBlocks if broadcasting =>
+      peersToDownloadFrom.keys.foreach(_ ! m)
+
     case ResolveBranch(peer) =>
       val TODOnumberFromConfig = 100
-      resolvingBranche = true
+      resolvingBranch = true
       peer ! SendMessage(GetBlockHeaders(Right(headers.head.parentHash), TODOnumberFromConfig, skip = 0, reverse = true))
   }
 
@@ -66,7 +72,6 @@ trait RegularSyncController {
         totalDifficulty = blockchain.getBlockHeaderByNumber(blockNumber).flatMap(b => blockchain.getTotalDifficultyByHash(b.hash))
         peer ! Subscribe(Set(BlockHeaders.code, BlockBodies.code))
         peer ! SendMessage(GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false))
-        log.info("started regular download")
       case None =>
         log.warning("no peers to download from")
         scheduleResume
@@ -74,20 +79,21 @@ trait RegularSyncController {
   }
 
   private def handleBlockBranchResolution(message: BlockHeaders, log: LoggingAdapter) =
+    //todo limit max branch depth?
     if (message.headers.nonEmpty && message.headers.head.hash == headers.head.parentHash) {
       headers = message.headers.reverse ++ headers
       processBlockHeaders(headers, context.sender(), log)
     } else {
       //we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
-      scheduleResume
-      blacklist(context.sender(), blacklistDuration)
+      resumeWithDifferentPeer()
     }
 
   private def handleDownload(message: BlockHeaders, log: LoggingAdapter) = if (message.headers.nonEmpty) {
     headers = message.headers.sortBy(_.number)
     processBlockHeaders(headers, context.sender(), log)
   } else {
-    //no new headers to process, schedule to ask again in future
+    //no new headers to process, schedule to ask again in future, we are at the top of chain
+    broadcasting = true
     scheduleResume
   }
 
@@ -97,20 +103,20 @@ trait RegularSyncController {
     parentByNumber match {
       case Some(parent) =>
         //we have same chain
-        if (parent.hash == headers.head.parentHash)
+        if (parent.hash == headers.head.parentHash) {
           peer ! SendMessage(GetBlockBodies(headers.take(blockBodiesPerRequest).map(_.hash)))
-        else
+        } else {
           context.self ! ResolveBranch(context.sender())
+        }
       case None =>
-        scheduleResume
-        blacklist(context.sender(), blacklistDuration)
         log.warning("got header that does not have parent")
+        resumeWithDifferentPeer()
     }
   }
 
   private def handleBlockBodies(m: BlockBodies, log: LoggingAdapter) = {
     if (m.bodies.nonEmpty) {
-      val result = headers.zip(m.bodies).map { case (h, b) => BlockValidator.validateHeaderAndBody(h, b) }
+      val result = headers.zip(m.bodies).map { case (h, b) => blockValidator(h, b) }
 
       if (!result.exists(_.isLeft)) {
         val blocks = result.collect { case Right(b) => b }
@@ -126,9 +132,7 @@ trait RegularSyncController {
               NewBlock(b, currentTd)
             }
 
-            peersToDownloadFrom.keys.foreach {
-              _ ! BroadcastBlocks(newBlocks)
-            }
+            context.self ! BroadcastBlocks(newBlocks)
           case None =>
             log.error("no total difficulty for latest block")
         }
@@ -141,22 +145,23 @@ trait RegularSyncController {
         }
       } else {
         //blacklist for errors in blocks
-        blacklist(context.sender(), blacklistDuration)
-        headers == Seq.empty
-        scheduleResume
+        resumeWithDifferentPeer()
       }
     } else {
       //we got empty response for bodies from peer but we got block headers earlier
-      blacklist(context.sender(), blacklistDuration)
-      headers == Seq.empty
-      scheduleResume
+      resumeWithDifferentPeer()
     }
   }
 
   private def scheduleResume = {
-    //todo configure that 16 seconds
     headers = Seq.empty
-    scheduler.scheduleOnce(1.seconds, context.self, ResumeRegularSync)
+    scheduler.scheduleOnce(checkForNewBlockInterval, context.self, ResumeRegularSync)
+  }
+
+  private def resumeWithDifferentPeer() = {
+    blacklist(context.sender(), blacklistDuration)
+    headers == Seq.empty
+    context.self ! ResumeRegularSync
   }
 
   private def bestPeer: Option[ActorRef] = Try(peersToDownloadFrom.maxBy { case (_, status) => status.totalDifficulty }._1).toOption

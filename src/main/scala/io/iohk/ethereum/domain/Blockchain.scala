@@ -93,7 +93,6 @@ trait Blockchain {
     * @param block Block to be saved
     */
   def save(block: Block): Unit = {
-    //todo update latest block if needed
     save(block.header)
     save(block.header.hash, block.body)
   }
