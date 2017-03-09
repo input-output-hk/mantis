@@ -3,6 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{Actor, ActorContext, ActorRef, Scheduler}
 import akka.event.LoggingAdapter
 import io.iohk.ethereum.blockchain.sync.FastSyncController.StartRegularSync
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.{BroadcastBlocks, MessageReceived, SendMessage, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
@@ -16,6 +17,7 @@ import scala.util.Try
 
 trait RegularSyncController {
 
+  val appStateStorage: AppStateStorage
   val blockchain: Blockchain
   val context: ActorContext
 
@@ -28,33 +30,28 @@ trait RegularSyncController {
   private var headers: Seq[BlockHeader] = Seq.empty
   private var totalDifficulty: Option[BigInt] = None
   private var resolvingBranche = false
-  //todo replace with AppStateStorage from feature/resumeStateDownload
-  private val maxBlockNumber = 42
-
 
   import Config.FastSync._
+
+  private implicit val sender: ActorRef = context.self
 
   def regularSync(log: LoggingAdapter): Actor.Receive = {
 
     case StartRegularSync =>
-      peersToDownloadFrom.foreach { case (ref, _) =>
-        ref ! Subscribe(Set(BlockHeaders.code, BlockBodies.code))
-      }
       askForHeaders(log)
 
     case ResumeRegularSync =>
       askForHeaders(log)
 
     case MessageReceived(m: BlockHeaders) if !resolvingBranche =>
-      handleDownload(log, m)
+      handleDownload(m, log)
 
     case MessageReceived(m: BlockHeaders) if resolvingBranche =>
-      handleBlockBranchResolution(log, m)
+      handleBlockBranchResolution(m, log)
 
     case MessageReceived(m: BlockBodies) =>
-      handleBlockBodies(m)
+      handleBlockBodies(m, log)
 
-    //todo move to separate actor to use also in NewBlock broadcast
     case ResolveBranch(peer) =>
       val TODOnumberFromConfig = 100
       resolvingBranche = true
@@ -62,16 +59,21 @@ trait RegularSyncController {
   }
 
   private def askForHeaders(log: LoggingAdapter) = {
+
     bestPeer match {
       case Some(peer) =>
-        peer ! SendMessage(GetBlockHeaders(Left(maxBlockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false))
+        val blockNumber = appStateStorage.getBestBlockNumber()
+        totalDifficulty = blockchain.getBlockHeaderByNumber(blockNumber).flatMap(b => blockchain.getTotalDifficultyByHash(b.hash))
+        peer ! Subscribe(Set(BlockHeaders.code, BlockBodies.code))
+        peer ! SendMessage(GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false))
+        log.info("started regular download")
       case None =>
         log.warning("no peers to download from")
         scheduleResume
     }
   }
 
-  private def handleBlockBranchResolution(log: LoggingAdapter, message: BlockHeaders) =
+  private def handleBlockBranchResolution(message: BlockHeaders, log: LoggingAdapter) =
     if (message.headers.nonEmpty && message.headers.head.hash == headers.head.parentHash) {
       headers = message.headers.reverse ++ headers
       processBlockHeaders(headers, context.sender(), log)
@@ -81,12 +83,11 @@ trait RegularSyncController {
       blacklist(context.sender(), blacklistDuration)
     }
 
-  private def handleDownload(log: LoggingAdapter, message: BlockHeaders) = if (message.headers.nonEmpty) {
+  private def handleDownload(message: BlockHeaders, log: LoggingAdapter) = if (message.headers.nonEmpty) {
     headers = message.headers.sortBy(_.number)
     processBlockHeaders(headers, context.sender(), log)
   } else {
-    //no new headers to process
-    //TODO should we stop regular sync and swith to block broadcast?
+    //no new headers to process, schedule to ask again in future
     scheduleResume
   }
 
@@ -107,30 +108,45 @@ trait RegularSyncController {
     }
   }
 
-  private def handleBlockBodies(m: BlockBodies) = {
+  private def handleBlockBodies(m: BlockBodies, log: LoggingAdapter) = {
     if (m.bodies.nonEmpty) {
       val result = headers.zip(m.bodies).map { case (h, b) => BlockValidator.validateHeaderAndBody(h, b) }
 
       if (!result.exists(_.isLeft)) {
         val blocks = result.collect { case Right(b) => b }
 
-        blockchain.getTotalDifficultyByHash(blocks.head.header.parentHash)
+        totalDifficulty match {
+          case Some(td) =>
+            var currentTd = td
+            val newBlocks = blocks.map{ b =>
+              blockchain.save(b)
+              appStateStorage.putBestBlockNumber(b.header.number)
+              currentTd += b.header.difficulty
+              blockchain.save(b.header.hash, currentTd)
+              NewBlock(b, currentTd)
+            }
 
-        val newBlocks = blocks.flatMap { b =>
-          blockchain.save(b)
-          totalDifficulty = totalDifficulty.map(_ + b.header.difficulty)
-          totalDifficulty.map(td => NewBlock(b, td))
+            peersToDownloadFrom.keys.foreach {
+              _ ! BroadcastBlocks(newBlocks)
+            }
+          case None =>
+            log.error("no total difficulty for latest block")
         }
 
-        peersToDownloadFrom.keys.foreach {
-          _ ! BroadcastBlocks(newBlocks)
+        headers = headers.drop(result.length)
+        if (headers.nonEmpty) {
+          context.sender() ! SendMessage(GetBlockBodies(headers.take(blockBodiesPerRequest).map(_.hash)))
+        } else {
+          context.self ! ResumeRegularSync
         }
       } else {
+        //blacklist for errors in blocks
+        blacklist(context.sender(), blacklistDuration)
         headers == Seq.empty
         scheduleResume
       }
     } else {
-      //we got empty response from peer
+      //we got empty response for bodies from peer but we got block headers earlier
       blacklist(context.sender(), blacklistDuration)
       headers == Seq.empty
       scheduleResume
@@ -140,7 +156,7 @@ trait RegularSyncController {
   private def scheduleResume = {
     //todo configure that 16 seconds
     headers = Seq.empty
-    scheduler.scheduleOnce(16.seconds, context.self, ResumeRegularSync)
+    scheduler.scheduleOnce(1.seconds, context.self, ResumeRegularSync)
   }
 
   private def bestPeer: Option[ActorRef] = Try(peersToDownloadFrom.maxBy { case (_, status) => status.totalDifficulty }._1).toOption

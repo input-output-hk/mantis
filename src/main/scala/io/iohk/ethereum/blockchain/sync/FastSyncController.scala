@@ -17,7 +17,7 @@ import io.iohk.ethereum.utils.{Config, NodeStatus}
 class FastSyncController(
     peerManager: ActorRef,
     nodeStatusHolder: Agent[NodeStatus],
-    appStateStorage: AppStateStorage,
+    val appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
     mptNodeStorage: MptNodeStorage,
     externalSchedulerOpt: Option[Scheduler] = None)
@@ -55,7 +55,6 @@ class FastSyncController(
         scheduleStartFastSync(startRetryInterval)
       }
     case StartRegularSync =>
-      val targetBlockToStartFrom = 42
       context become (handlePeerUpdates orElse regularSync(log))
       self ! StartRegularSync
   }
