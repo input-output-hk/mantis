@@ -224,7 +224,7 @@ class PeerActor(
     case Terminated(actor) if actor == rlpxConnection.ref =>
       log.info("Connection closed unexpectedly")
       rlpxConnection.uriOpt match {
-        case Some(uri) => reconnect(uri, noRetries = 0)
+        case Some(uri) => scheduleConnectRetry(uri, noRetries = 0)
         case None => context stop self
       }
   }
