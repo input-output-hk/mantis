@@ -182,10 +182,12 @@ class FastSyncController(
 
     private val blockHeadersHandlerName = "block-headers-request-handler"
 
-    private val initialSyncState: SyncState = if (continueAfterRestart)
+    private val initialSyncState: SyncState = if (continueAfterRestart) {
       fastSyncStateStorage.getSyncState().getOrElse(SyncState.empty)
-    else
+    } else {
+      fastSyncStateStorage.purge()
       SyncState.empty
+    }
 
 
     private var mptNodesQueue: Set[HashType] = initialSyncState.mptNodesQueue
