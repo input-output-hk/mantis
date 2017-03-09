@@ -186,11 +186,11 @@ class FastSyncController(
     (fastSyncStateStorage.getSyncState().getOrElse(SyncState.empty), appStateStorage.getBestBlockNumber()) match {
       case (state, bestBlockNumber) if continueAfterRestart && state.bestBlockHeaderNumber != bestBlockNumber =>
         val updatedState = state.copy(bestBlockHeaderNumber = bestBlockNumber)
-        updatedState -> fastSyncStateStorage.putSyncState(updatedState)
+        (updatedState, fastSyncStateStorage.putSyncState(updatedState))
       case (state, _) if continueAfterRestart =>
-        state -> fastSyncStateStorage
+        (state, fastSyncStateStorage)
       case _ =>
-        SyncState.empty -> fastSyncStateStorage.purge()
+        (SyncState.empty, fastSyncStateStorage.purge())
     }
 
     private var mptNodesQueue: Set[HashType] = initialSyncState.mptNodesQueue
