@@ -83,16 +83,16 @@ class PeerActor(
       context become waitingForHello(rlpxConnection, timeout)
 
     case RLPxConnectionHandler.ConnectionFailed =>
-      log.info("Failed to establish RLPx connection")
+      log.warning("Failed to establish RLPx connection")
       rlpxConnection.uriOpt match {
         case Some(uri) if noRetries < peerConfiguration.connectMaxRetries =>
           context unwatch rlpxConnection.ref
           scheduleConnectRetry(uri, noRetries)
         case Some(uri) =>
-          log.info("No more reconnect attempts left, removing peer")
+          log.warning("No more reconnect attempts left, removing peer")
           context stop self
         case None =>
-          log.info("Connection was initiated by remote peer, not attempting to reconnect")
+          log.warning("Connection was initiated by remote peer, not attempting to reconnect")
           context stop self
       }
 
@@ -133,7 +133,7 @@ class PeerActor(
         val statusTimeout = scheduler.scheduleOnce(peerConfiguration.waitForStatusTimeout, self, StatusReceiveTimeout)
         context become waitingForNodeStatus(rlpxConnection, statusTimeout)
       } else {
-        log.info("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
+        log.warning("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
         disconnectFromPeer(rlpxConnection, Disconnect.Reasons.IncompatibleP2pProtocolVersion)
       }
 
@@ -191,11 +191,11 @@ class PeerActor(
           context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, None).receive
 
         case Some(_) if getBestBlockHeader().difficulty < daoForkBlockTotalDifficulty =>
-          log.info("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
+          log.warning("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
           context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, None).receive
 
         case Some(_) =>
-          log.info("Peer is not running the ETC fork, disconnecting")
+          log.warning("Peer is not running the ETC fork, disconnecting")
           disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
 
         case None if remoteStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
@@ -203,7 +203,7 @@ class PeerActor(
           context become new HandshakedHandler(rlpxConnection, remoteStatus, 0, None).receive
 
         case None =>
-          log.info("Peer did not respond with ETC fork block header")
+          log.warning("Peer did not respond with ETC fork block header")
           disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
       }
 
@@ -225,7 +225,7 @@ class PeerActor(
 
   def handleTerminated(rlpxConnection: RLPxConnection): Receive = {
     case Terminated(actor) if actor == rlpxConnection.ref =>
-      log.info("Connection closed unexpectedly")
+      log.error("Connection closed unexpectedly")
       rlpxConnection.uriOpt match {
         case Some(uri) => scheduleConnectRetry(uri, noRetries = 0)
         case None => context stop self
@@ -262,7 +262,7 @@ class PeerActor(
 
   def handlePeerChainCheck(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(message@GetBlockHeaders(Left(number), _, _, _)) if number == 1920000 =>
-      log.info("Received message: {}", message)
+      log.debug("Received message: {}", message)
       blockchain.getBlockHeaderByNumber(number) match {
         case Some(header) => rlpxConnection.sendMessage(BlockHeaders(Seq(header)))
         case None => rlpxConnection.sendMessage(BlockHeaders(Seq.empty))
@@ -353,7 +353,7 @@ class PeerActor(
         daoBlockHeaderOpt foreach { daoBlockHeader =>
           log.info("Reached the ETC fork block header")
           if (daoForkValidator.validate(msg).nonEmpty) {
-            log.info("Peer is not running the ETC fork, disconnecting")
+            log.warning("Peer is not running the ETC fork, disconnecting")
             disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
           }
         }
