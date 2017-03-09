@@ -2,12 +2,15 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
+import io.iohk.ethereum.db.storage.AppStateStorage
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
-import io.iohk.ethereum.network.PeerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import io.iohk.ethereum.network.PeerActor.PeerConfiguration
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
@@ -72,14 +75,20 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], peerConfiguration: PeerConfiguration, storage: Blockchain): Props =
-    Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder, peerConfiguration, storage)))
+  def props(nodeStatusHolder: Agent[NodeStatus],
+            peerConfiguration: PeerConfiguration,
+            appStateStorage: AppStateStorage,
+            blockchain: Blockchain): Props =
+    Props(new PeerManagerActor(nodeStatusHolder,
+      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain)))
 
-  def peerFactory(nodeStatusHolder: Agent[NodeStatus], peerConfiguration: PeerConfiguration,
-    storage: Blockchain): (ActorContext, InetSocketAddress) => ActorRef = {
+  def peerFactory(nodeStatusHolder: Agent[NodeStatus],
+                  peerConfiguration: PeerConfiguration,
+                  appStateStorage: AppStateStorage,
+                  blockchain: Blockchain): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
-      ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, storage), id)
+      ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain), id)
   }
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)

@@ -2,10 +2,11 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
+import scala.concurrent.duration._
+
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.PeerActor.PeerConfiguration
 import io.iohk.ethereum.network.PeerActor.Status._
@@ -18,9 +19,8 @@ import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.db.storage._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
-
-import scala.concurrent.duration._
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
@@ -33,12 +33,16 @@ class PeerActor(
     nodeStatusHolder: Agent[NodeStatus],
     rlpxConnectionFactory: ActorContext => ActorRef,
     val peerConfiguration: PeerConfiguration,
-    val storage: Blockchain)
+    appStateStorage: AppStateStorage,
+    val blockchain: Blockchain,
+    externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging with FastSyncHost {
 
   import Config.Blockchain._
   import PeerActor._
   import context.{dispatcher, system}
+
+  def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
 
   val P2pVersion = 4
 
@@ -75,7 +79,7 @@ class PeerActor(
     case RLPxConnectionHandler.ConnectionEstablished =>
       log.info("RLPx connection established, sending Hello")
       rlpxConnection.sendMessage(createHelloMsg())
-      val timeout = system.scheduler.scheduleOnce(3.seconds, self, ProtocolHandshakeTimeout)
+      val timeout = scheduler.scheduleOnce(3.seconds, self, ProtocolHandshakeTimeout)
       context become waitingForHello(rlpxConnection, timeout)
 
     case RLPxConnectionHandler.ConnectionFailed =>
@@ -111,7 +115,7 @@ class PeerActor(
 
   private def scheduleConnectRetry(uri: URI, noRetries: Int): Unit = {
     log.info("Scheduling connection retry in {}", peerConfiguration.connectRetryDelay)
-    system.scheduler.scheduleOnce(peerConfiguration.connectRetryDelay, self, RetryConnectionTimeout)
+    scheduler.scheduleOnce(peerConfiguration.connectRetryDelay, self, RetryConnectionTimeout)
     context become {
       case RetryConnectionTimeout => reconnect(uri, noRetries + 1)
       case GetStatus => sender() ! StatusResponse(Connecting)
@@ -126,7 +130,7 @@ class PeerActor(
       timeout.cancel()
       if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
         rlpxConnection.sendMessage(createStatusMsg())
-        val statusTimeout = system.scheduler.scheduleOnce(peerConfiguration.waitForStatusTimeout, self, StatusReceiveTimeout)
+        val statusTimeout = scheduler.scheduleOnce(peerConfiguration.waitForStatusTimeout, self, StatusReceiveTimeout)
         context become waitingForNodeStatus(rlpxConnection, statusTimeout)
       } else {
         log.warning("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
@@ -140,13 +144,18 @@ class PeerActor(
     case GetStatus => sender() ! StatusResponse(Handshaking)
   }
 
+  private def getBestBlockHeader() = {
+    val bestBlockNumber = appStateStorage.getBestBlockNumber()
+    blockchain.getBlockHeaderByNumber(bestBlockNumber).getOrElse(Config.Blockchain.genesisBlockHeader)
+  }
+
   private def createStatusMsg(): msg.Status = {
-    val nodeStatus = nodeStatusHolder()
+    val bestBlockHeader = getBestBlockHeader()
     msg.Status(
       protocolVersion = Message.PV63,
       networkId = Config.Network.networkId,
-      totalDifficulty = nodeStatus.blockchainStatus.totalDifficulty,
-      bestHash = nodeStatus.blockchainStatus.bestHash,
+      totalDifficulty = bestBlockHeader.difficulty,
+      bestHash = bestBlockHeader.hash,
       genesisHash = genesisHash)
   }
 
@@ -157,7 +166,7 @@ class PeerActor(
       timeout.cancel()
       log.info("Peer returned status ({})", status)
       rlpxConnection.sendMessage(GetBlockHeaders(Left(daoForkBlockNumber), maxHeaders = 1, skip = 0, reverse = false))
-      val waitingForDaoTimeout = system.scheduler.scheduleOnce(peerConfiguration.waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
+      val waitingForDaoTimeout = scheduler.scheduleOnce(peerConfiguration.waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
       context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
 
     case StatusReceiveTimeout =>
@@ -181,7 +190,7 @@ class PeerActor(
           log.info("Peer is running the ETC chain")
           context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, None).receive
 
-        case Some(_) if nodeStatusHolder().blockchainStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
+        case Some(_) if getBestBlockHeader().difficulty < daoForkBlockTotalDifficulty =>
           log.warning("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
           context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, None).receive
 
@@ -205,7 +214,7 @@ class PeerActor(
 
   private def disconnectFromPeer(rlpxConnection: RLPxConnection, reason: Int): Unit = {
     rlpxConnection.sendMessage(Disconnect(reason))
-    system.scheduler.scheduleOnce(peerConfiguration.disconnectPoisonPillTimeout, self, PoisonPill)
+    scheduler.scheduleOnce(peerConfiguration.disconnectPoisonPillTimeout, self, PoisonPill)
     context unwatch rlpxConnection.ref
     context become disconnected
   }
@@ -218,7 +227,7 @@ class PeerActor(
     case Terminated(actor) if actor == rlpxConnection.ref =>
       log.error("Connection closed unexpectedly")
       rlpxConnection.uriOpt match {
-        case Some(uri) => reconnect(uri, noRetries = 0)
+        case Some(uri) => scheduleConnectRetry(uri, noRetries = 0)
         case None => context stop self
       }
   }
@@ -254,7 +263,7 @@ class PeerActor(
   def handlePeerChainCheck(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(message@GetBlockHeaders(Left(number), _, _, _)) if number == 1920000 =>
       log.debug("Received message: {}", message)
-      storage.getBlockHeaderByNumber(number) match {
+      blockchain.getBlockHeaderByNumber(number) match {
         case Some(header) => rlpxConnection.sendMessage(BlockHeaders(Seq(header)))
         case None => rlpxConnection.sendMessage(BlockHeaders(Seq.empty))
       }
@@ -319,7 +328,7 @@ class PeerActor(
         context unwatch previousBlockBroadcastActor
       }
       val newBlockBroadcastActor = context.actorOf(
-        BlockBroadcastActor.props(nodeStatusHolder, self, context.parent, storage),
+        BlockBroadcastActor.props(nodeStatusHolder, self, context.parent, appStateStorage, blockchain),
         "blockbroadcast"
       )
       context watch newBlockBroadcastActor
@@ -357,12 +366,16 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], peerConfiguration: PeerConfiguration, storage: Blockchain): Props =
+  def props(nodeStatusHolder: Agent[NodeStatus],
+            peerConfiguration: PeerConfiguration,
+            appStateStorage: AppStateStorage,
+            blockchain: Blockchain): Props =
     Props(new PeerActor(
       nodeStatusHolder,
       rlpxConnectionFactory(nodeStatusHolder().key),
       peerConfiguration,
-      storage))
+      appStateStorage,
+      blockchain))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")

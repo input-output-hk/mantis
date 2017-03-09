@@ -15,13 +15,15 @@ trait SharedIodbDataSources extends DataSourcesComponent {
 
     override val blockHeadersDataSource: DataSource = dataSource
 
-    override val evmCodeStorage: DataSource = dataSource
+    override val evmCodeDataSource: DataSource = dataSource
 
     override val mptDataSource: DataSource = dataSource
 
     override val receiptsDataSource: DataSource = dataSource
 
     override val totalDifficultyDataSource: DataSource = dataSource
+
+    override val appStateDataSource: DataSource = dataSource
 
     override def closeAll: Unit = dataSource.close()
   }
