@@ -13,7 +13,6 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.PeerActor.{Status => PeerStatus}
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
