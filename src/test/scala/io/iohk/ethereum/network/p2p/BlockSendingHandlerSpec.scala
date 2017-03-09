@@ -9,7 +9,7 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.BlockBroadcastActor.StartBlockBroadcast
-import io.iohk.ethereum.network.MaxBlockNumberRequestHandler.RequestMaxBlockNumber
+import io.iohk.ethereum.network.BlockSendingHandler.SendBlocksToPeers
 import io.iohk.ethereum.network.PeerActor.MaxBlockNumber
 import io.iohk.ethereum.network.{BlockBroadcastActor, PeerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -18,14 +18,14 @@ import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-class MaxBlockNumberRequestHandlerSpec extends FlatSpec with Matchers {
+class BlockSendingHandlerSpec extends FlatSpec with Matchers {
 
   val NumberPeers = 5
 
   it should "handle succesful response" in new TestSetup {
     blockBroadcastSetup()
 
-    blockBroadcast ! RequestMaxBlockNumber(otherPeers.map(_.ref), newBlocks)
+    blockBroadcast ! SendBlocksToPeers(otherPeers.map(_.ref), newBlocks)
 
     peer.expectNoMsg()
     otherPeers.foreach{ p =>
@@ -40,7 +40,7 @@ class MaxBlockNumberRequestHandlerSpec extends FlatSpec with Matchers {
   it should "handle succesful response when some of the new blocks should not be send" in new TestSetup {
     blockBroadcastSetup()
 
-    blockBroadcast ! RequestMaxBlockNumber(otherPeers.map(_.ref), newBlocks)
+    blockBroadcast ! SendBlocksToPeers(otherPeers.map(_.ref), newBlocks)
 
     peer.expectNoMsg()
     otherPeers.foreach{ p =>
@@ -55,7 +55,7 @@ class MaxBlockNumberRequestHandlerSpec extends FlatSpec with Matchers {
   it should "not send any messages if there are no blocks to send in response to RequestMaxBlockNumber" in new TestSetup {
     blockBroadcastSetup()
 
-    blockBroadcast ! RequestMaxBlockNumber(otherPeers.map(_.ref), Seq())
+    blockBroadcast ! SendBlocksToPeers(otherPeers.map(_.ref), Seq())
 
     peer.expectNoMsg()
     otherPeers.foreach{ p => p.expectNoMsg() }

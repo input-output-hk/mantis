@@ -21,7 +21,7 @@ class BlockBroadcastActor(
   val peer: ActorRef,
   peerManagerActor: ActorRef,
   appStateStorage: AppStateStorage,
-  blockchain: Blockchain) extends Actor with ActorLogging with GetPeersHandler with MaxBlockNumberRequestHandler {
+  blockchain: Blockchain) extends Actor with ActorLogging with GetPeersHandler with BlockSendingHandler {
 
   import BlockBroadcastActor._
 
@@ -37,7 +37,7 @@ class BlockBroadcastActor(
 
   def processMessages(state: ProcessingState = ProcessingState.empty): Receive =
     handleReceivedMessages(state) orElse
-      handleRequestMaxBlockNumber(state) orElse handlePeerMaxBlockNumber(state) orElse
+      handleSendBlocksToPeers(state) orElse handlePeerMaxBlockNumber(state) orElse
       handleRequestPeers(state, peerManagerActor) orElse handlePeersResponse(state) orElse {
 
       case ProcessNewBlocks if state.unprocessedBlocks.nonEmpty =>
@@ -124,6 +124,7 @@ class BlockBroadcastActor(
       Block(blockHeader, blockBody)
     }
 
+  //FIXME: Currently any block is saved to blockchain without handling possible forks
   private def importBlockToBlockchain(block: Block, blockTotalDifficulty: BigInt) = {
     val blockHash = block.header.hash
 

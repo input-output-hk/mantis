@@ -2,29 +2,29 @@ package io.iohk.ethereum.network
 
 import akka.actor.{ActorRef, Terminated}
 import io.iohk.ethereum.network.BlockBroadcastActor.ProcessingState
-import io.iohk.ethereum.network.MaxBlockNumberRequestHandler.{PeerTerminated, RequestMaxBlockNumber}
+import io.iohk.ethereum.network.BlockSendingHandler.{PeerTerminated, SendBlocksToPeers}
 import io.iohk.ethereum.network.PeerActor.{GetMaxBlockNumber, MaxBlockNumber}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 
 //FIXME: Decide block propagation algorithm (for now we send block to every peer except the sender) [EC-87]
-trait MaxBlockNumberRequestHandler { this: BlockBroadcastActor =>
+trait BlockSendingHandler { this: BlockBroadcastActor =>
 
   /**
-    * This function handles the RequestMaxBlockNumber message:
+    * This function handles the [[SendBlocksToPeers]] message:
     *   - It requests the MaxBlockNumber from each peer that didn't send the blocks
     *   - Modifies the state to keep the blocks that need to could sent to each peer (if they don't already know of them)
     */
-  def handleRequestMaxBlockNumber(state: ProcessingState): Receive = {
-    case RequestMaxBlockNumber(peers, blocksToSend) =>
+  def handleSendBlocksToPeers(state: ProcessingState): Receive = {
+    case SendBlocksToPeers(peers, blocksToSend) =>
       if(blocksToSend.nonEmpty) {
         val newState = peers.foldLeft(state) { (recState, peerToSendReq) =>
-          requestMaxBlockNumberToPeer(recState, peerToSendReq, blocksToSend)
+          requestMaxBlockNumberFromPeer(recState, peerToSendReq, blocksToSend)
         }
         context become processMessages(newState)
       }
   }
 
-  private def requestMaxBlockNumberToPeer(state: ProcessingState, peerToSendReq: ActorRef, blocksToSend: Seq[NewBlock]): ProcessingState = {
+  private def requestMaxBlockNumberFromPeer(state: ProcessingState, peerToSendReq: ActorRef, blocksToSend: Seq[NewBlock]): ProcessingState = {
     if(peerToSendReq != this.peer) {
       if(!state.toBroadcastBlocksToEachPeer.contains(peerToSendReq)) context watch peerToSendReq
       peerToSendReq ! GetMaxBlockNumber(self)
@@ -37,7 +37,7 @@ trait MaxBlockNumberRequestHandler { this: BlockBroadcastActor =>
   }
 
   /**
-    * This function handles the MaxBlockNumber message, by sending to the peer that sent it the new blocks that it doesn't know.
+    * This function handles the [[MaxBlockNumber]] message, by sending to the peer that sent it the new blocks that it doesn't know.
     */
   def handlePeerMaxBlockNumber(state: ProcessingState): Receive = {
     case MaxBlockNumber(maxBlockNumber) =>
@@ -58,7 +58,7 @@ trait MaxBlockNumberRequestHandler { this: BlockBroadcastActor =>
   }
 }
 
-object MaxBlockNumberRequestHandler {
-  case class RequestMaxBlockNumber(peers: Seq[ActorRef], blocksToSend: Seq[NewBlock])
+object BlockSendingHandler {
+  case class SendBlocksToPeers(peers: Seq[ActorRef], blocksToSend: Seq[NewBlock])
   case class PeerTerminated(peer: ActorRef, state: ProcessingState)
 }
