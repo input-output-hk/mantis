@@ -2,6 +2,8 @@ package io.iohk.ethereum.network.p2p
 
 import java.net.{InetSocketAddress, URI}
 
+import com.miguno.akka.testing.VirtualTime
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -46,6 +48,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.watch(peer)
 
     (0 to 3) foreach { _ =>
+      time.advance(5.seconds)
       rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
       rlpxConnection.reply(RLPxConnectionHandler.ConnectionFailed)
     }
@@ -56,11 +59,13 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "try to reconnect on broken rlpx connection" in new NodeStatusSetup {
     implicit val system = ActorSystem("PeerActorSpec_System")
 
+    val time = new VirtualTime
+
     var rlpxConnection = TestProbe() // var as we actually need new instances
     val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }, peerConf, storagesInstance.storages.appStateStorage, blockchain)))
+      }, peerConf, storagesInstance.storages.appStateStorage, blockchain, Some(time.scheduler))))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -73,6 +78,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     rlpxConnection.ref ! PoisonPill
     peer.unwatch(rlpxConnection.ref)
+    time.advance(2.seconds)
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
   }
 
@@ -205,7 +211,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.HandleConnection])
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Hello) => () }
-
+    time.advance(5.seconds)
     rlpxConnection.expectMsg(5.seconds, RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage)))
   }
 
@@ -652,11 +658,14 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val rlpxConnection = TestProbe()
 
+    val time = new VirtualTime
+
     val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder,
       _ => rlpxConnection.ref,
       peerConf,
       storagesInstance.storages.appStateStorage,
-      blockchain)))
+      blockchain,
+      Some(time.scheduler))))
   }
 
 }
