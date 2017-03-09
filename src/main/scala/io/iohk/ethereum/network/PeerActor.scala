@@ -178,7 +178,7 @@ class PeerActor(
 
       daoBlockHeaderOpt match {
         case Some(_) if daoForkValidator.validate(msg).isEmpty =>
-          log.warning("Peer is running the ETC chain")
+          log.info("Peer is running the ETC chain")
           context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, None).receive
 
         case Some(_) if nodeStatusHolder().blockchainStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
@@ -190,7 +190,7 @@ class PeerActor(
           disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
 
         case None if remoteStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
-          log.warning("Peer is not at ETC fork yet. Keeping the connection until then.")
+          log.info("Peer is not at ETC fork yet. Keeping the connection until then.")
           context become new HandshakedHandler(rlpxConnection, remoteStatus, 0, None).receive
 
         case None =>
