@@ -1,7 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.SupervisorStrategy.Escalate
-import akka.actor.{Actor, ActorLogging, OneForOneStrategy, SupervisorStrategy}
+import akka.actor.{Actor, ActorLogging}
 import akka.pattern.pipe
 import io.iohk.ethereum.blockchain.sync.FastSyncController.SyncState
 import io.iohk.ethereum.blockchain.sync.FastSyncStateActor.GetStorage
