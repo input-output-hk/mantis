@@ -29,7 +29,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 // scalastyle:off magic.number
-class FastSyncControllerSpec extends FlatSpec with Matchers {
+class SyncControllerSpec extends FlatSpec with Matchers {
 
   "FastSyncController" should "download target block and request state nodes" in new TestSetup {
 
