@@ -48,8 +48,12 @@ trait RegularSyncController {
       peersToDownloadFrom.keys.foreach(_ ! m)
 
     case ResolveBranch(peer) =>
-      resolvingBranch = true
-      peer ! SendMessage(GetBlockHeaders(Right(headers.head.parentHash), blockResolveDepth, skip = 0, reverse = true))
+      requestHeadersForNewBranch(peer)
+  }
+
+  private def requestHeadersForNewBranch(peer: ActorRef) = {
+    resolvingBranch = true
+    peer ! SendMessage(GetBlockHeaders(Right(headers.head.parentHash), blockResolveDepth, skip = 0, reverse = true))
   }
 
   private def askForHeaders() = {
