@@ -12,6 +12,7 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.network.PeerActor.Status.Chain
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, PeersResponse}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
@@ -44,11 +45,11 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer1.expectMsg(PeerActor.GetStatus)
-    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status)))
+    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC)))
 
     val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
-    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status)))
+    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC)))
 
     fastSyncController ! FastSyncController.StartFastSync
 
@@ -101,11 +102,11 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer1.expectMsg(PeerActor.GetStatus)
-    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status)))
+    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC)))
 
     val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
-    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status)))
+    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC)))
 
     fastSyncController ! FastSyncController.StartFastSync
 
@@ -172,11 +173,11 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer1.expectMsg(PeerActor.GetStatus)
-    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status)))
+    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC)))
 
     val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
-    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status)))
+    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC)))
 
     val expectedTargetBlock = 399500
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
@@ -235,7 +236,7 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer.expectMsg(PeerActor.GetStatus)
-    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status)))
+    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC)))
 
 
     val expectedMaxBlock = 399500
@@ -276,7 +277,7 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer.expectMsg(PeerActor.GetStatus)
-    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status)))
+    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC)))
 
 
     val expectedMaxBlock = 399500
@@ -328,6 +329,57 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     blockchain.getBlockHeaderByHash(maxBlockHeader.hash) shouldBe None
     blockchain.getBlockBodyByHash(maxBlockHeader.hash) shouldBe None
     blockchain.getTotalDifficultyByHash(maxBlockHeader.hash) shouldBe None
+  }
+
+  it should "only use ETC peer to choose target block" in new TestSetup {
+    val peer1 = TestProbe()(system)
+    val peer2 = TestProbe()(system)
+    val peer3 = TestProbe()(system)
+    val peer4 = TestProbe()(system)
+
+    time.advance(1.seconds)
+
+    peerManager.expectMsg(GetPeers)
+    peerManager.reply(PeersResponse(Seq(
+      Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref),
+      Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref),
+      Peer(new InetSocketAddress("127.0.0.1", 0), peer3.ref),
+      Peer(new InetSocketAddress("127.0.0.1", 0), peer4.ref))))
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    peer1.expectMsg(PeerActor.GetStatus)
+    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC)))
+
+    val peer2Status= Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
+    peer2.expectMsg(PeerActor.GetStatus)
+    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETH)))
+
+    val peer3Status= Status(1, 1, 1, ByteString("peer3_bestHash"), ByteString("unused"))
+    peer3.expectMsg(PeerActor.GetStatus)
+    peer3.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer3Status, Chain.Unknown)))
+
+    val peer4Status= Status(1, 1, 1, ByteString("peer4_bestHash"), ByteString("unused"))
+    peer4.expectMsg(PeerActor.GetStatus)
+    peer4.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer4Status, Chain.ETC)))
+
+    val expectedTargetBlock = 399500
+    val targetBlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(targetBlockHeader.number)
+
+    fastSyncController ! FastSyncController.StartFastSync
+
+    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
+    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))
+    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq(baseBlockHeader.copy(number = 300000)))))
+    peer1.expectMsg(PeerActor.Unsubscribe)
+
+    peer2.expectNoMsg()
+    peer3.expectNoMsg()
+
+    peer4.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
+    peer4.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer4_bestHash")), 1, 0, reverse = false)))
+    peer4.reply(PeerActor.MessageReceived(BlockHeaders(Seq(baseBlockHeader.copy(number = 300000)))))
+    peer4.expectMsg(PeerActor.Unsubscribe)
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {

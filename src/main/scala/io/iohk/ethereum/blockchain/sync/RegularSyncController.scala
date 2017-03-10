@@ -4,8 +4,10 @@ import akka.actor._
 import io.iohk.ethereum.blockchain.sync.FastSyncController.StartRegularSync
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
-import io.iohk.ethereum.network.PeerActor.{BroadcastBlocks, MessageReceived, SendMessage, Subscribe}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
+import io.iohk.ethereum.network.PeerActor.Status.{Chain, Handshaked}
+import io.iohk.ethereum.network.PeerActor._
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
+import io.iohk.ethereum.network.PeerActor.{Status => PeerStatus}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.validators.BlockValidator.BlockError
 import io.iohk.ethereum.utils.Config
@@ -19,7 +21,7 @@ trait RegularSyncController {
   val appStateStorage: AppStateStorage
   val blockchain: Blockchain
   val blockValidator: (BlockHeader, BlockBody) => Either[BlockError, Block]
-  def peersToDownloadFrom: Map[ActorRef, Status]
+  def peersToDownloadFrom: Map[ActorRef, PeerStatus.Handshaked]
 
   private var headers: Seq[BlockHeader] = Seq.empty
   private var resolvingBranch = false
@@ -162,7 +164,9 @@ trait RegularSyncController {
   private def checkHeaders(headers: Seq[BlockHeader]): Boolean =
     headers.zip(headers.tail).forall { case (parent, child) => parent.hash == child.parentHash && parent.number + 1 == child.number }
 
-  private def bestPeer: Option[ActorRef] = Try(peersToDownloadFrom.maxBy { case (_, status) => status.totalDifficulty }._1).toOption
+  private def bestPeer: Option[ActorRef] = Try(peersToDownloadFrom.maxBy {
+    case (_, Handshaked(status, Chain.ETC)) => status.totalDifficulty
+  }._1).toOption
 
   private case object ResumeRegularSync
 
