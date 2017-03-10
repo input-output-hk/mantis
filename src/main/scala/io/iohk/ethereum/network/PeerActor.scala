@@ -188,11 +188,11 @@ class PeerActor(
       daoBlockHeaderOpt match {
         case Some(_) if daoForkValidator.validate(msg).isEmpty =>
           log.info("Peer is running the ETC chain")
-          context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, None).receive
+          context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, Chain.ETC).receive
 
         case Some(_) if getBestBlockHeader().difficulty < daoForkBlockTotalDifficulty =>
           log.warning("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
-          context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, None).receive
+          context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, Chain.ETH).receive
 
         case Some(_) =>
           log.warning("Peer is not running the ETC fork, disconnecting")
@@ -200,7 +200,7 @@ class PeerActor(
 
         case None if remoteStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
           log.info("Peer is not at ETC fork yet. Keeping the connection until then.")
-          context become new HandshakedHandler(rlpxConnection, remoteStatus, 0, None).receive
+          context become new HandshakedHandler(rlpxConnection, remoteStatus, 0, Chain.Unknown).receive
 
         case None =>
           log.warning("Peer did not respond with ETC fork block header")
@@ -269,10 +269,12 @@ class PeerActor(
       }
   }
 
-  class HandshakedHandler(rlpxConnection: RLPxConnection, initialStatus: msg.Status, initialMaxBlock: BigInt,
-                          blockBroadcastActor: Option[ActorRef]) {
+  class HandshakedHandler(rlpxConnection: RLPxConnection,
+                          initialStatus: msg.Status,
+                          var currentMaxBlockNumber: BigInt,
+                          var chain: Chain) {
 
-    var currentMaxBlockNumber: BigInt = initialMaxBlock
+    var blockBroadcastActor: Option[ActorRef] = None
 
     def receive: Receive =
       handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
@@ -294,7 +296,7 @@ class PeerActor(
       case GetMaxBlockNumber(actor) => actor ! MaxBlockNumber(currentMaxBlockNumber)
 
       case GetStatus =>
-        sender() ! StatusResponse(Handshaked(initialStatus))
+        sender() ! StatusResponse(Handshaked(initialStatus, chain))
 
       case PeerActor.StartBlockBroadcast => startNewBlockBroadcastActor()
     }
@@ -313,7 +315,7 @@ class PeerActor(
       def update(ns: Seq[BigInt]) = {
         val maxBlockNumber = ns.fold(0: BigInt) { case (a, b) => if (a > b) a else b }
         if (maxBlockNumber > currentMaxBlockNumber) {
-          context become new HandshakedHandler(rlpxConnection, initialStatus, maxBlockNumber, blockBroadcastActor).receive
+          currentMaxBlockNumber = maxBlockNumber
         }
       }
     }
@@ -333,7 +335,7 @@ class PeerActor(
       )
       context watch newBlockBroadcastActor
       newBlockBroadcastActor ! BlockBroadcastActor.StartBlockBroadcast
-      context become new HandshakedHandler(rlpxConnection, initialStatus, currentMaxBlockNumber, Some(newBlockBroadcastActor)).receive
+      blockBroadcastActor = Some(newBlockBroadcastActor)
     }
 
     private def notifySubscribers(message: Message): Unit = {
@@ -355,6 +357,8 @@ class PeerActor(
           if (daoForkValidator.validate(msg).nonEmpty) {
             log.warning("Peer is not running the ETC fork, disconnecting")
             disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
+          } else {
+            chain = Chain.ETC
           }
         }
 
@@ -436,10 +440,17 @@ object PeerActor {
 
   sealed trait Status
   object Status {
+    sealed trait Chain
+    object Chain {
+      case object ETC extends Chain
+      case object ETH extends Chain
+      case object Unknown extends Chain
+    }
+
     case object Idle extends Status
     case object Connecting extends Status
     case object Handshaking extends Status
-    case class Handshaked(initialStatus: msg.Status) extends Status
+    case class Handshaked(initialStatus: msg.Status, chain: Chain) extends Status
     case object Disconnected extends Status
   }
 
