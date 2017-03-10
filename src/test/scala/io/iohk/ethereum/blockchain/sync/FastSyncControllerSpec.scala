@@ -100,11 +100,11 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
       Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref),
       Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref))))
 
-    val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    val peer1Status = Status(1, 1, 10, ByteString("peer1_bestHash"), ByteString("unused"))
     peer1.expectMsg(PeerActor.GetStatus)
     peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC)))
 
-    val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
+    val peer2Status = Status(1, 1, 20, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
     peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC)))
 
@@ -155,9 +155,9 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     peer2.reply(PeerActor.MessageReceived(NodeData(Seq(stateMptLeafWithAccount))))
     peer2.expectMsg(PeerActor.Unsubscribe)
 
-    //TODO implement
-    //actor will not terminate but switch to regular sync
-    //watcher.expectMsgPF(2.seconds) { case Terminated(`fastSyncController`) => () }
+    //switch to regular download
+    peer2.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code, BlockBodies.code)))
+    peer2.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(targetBlockHeader.number + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
   }
 
   it should "not use (blacklist) a peer that fails to respond within time limit" in new TestSetup {
