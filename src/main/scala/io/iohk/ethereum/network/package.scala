@@ -33,7 +33,7 @@ package object network {
 
       //Write keys to file
       val (pub, priv) = AsymmetricCipherKeyPairSerializable.toHexStrings(keysValuePair)
-      assert(file.getParentFile.mkdirs(), "Error while creating folder to store keyPair")
+      file.getParentFile.mkdirs()
       val writer = new PrintWriter(filePath)
       try {
         writer.write(pub ++ System.getProperty("line.separator") ++ priv)
