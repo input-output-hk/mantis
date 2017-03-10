@@ -23,6 +23,8 @@ object Storages {
 
       override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
 
+      override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSources.fastSyncStateDataSource)
+
       override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeDataSource)
 
       override val totalDifficultyStorage: TotalDifficultyStorage =
@@ -54,6 +56,8 @@ object Storages {
       override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
 
       override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
+
+      override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSources.fastSyncStateDataSource)
 
       override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeDataSource)
 

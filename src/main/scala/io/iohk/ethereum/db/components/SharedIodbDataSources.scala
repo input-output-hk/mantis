@@ -19,6 +19,8 @@ trait SharedIodbDataSources extends DataSourcesComponent {
 
     override val mptDataSource: DataSource = dataSource
 
+    override val fastSyncStateDataSource: DataSource = dataSource
+
     override val receiptsDataSource: DataSource = dataSource
 
     override val totalDifficultyDataSource: DataSource = dataSource

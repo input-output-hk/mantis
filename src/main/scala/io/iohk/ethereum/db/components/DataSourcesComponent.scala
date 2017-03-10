@@ -24,6 +24,8 @@ trait DataSourcesComponent {
 
     val appStateDataSource: DataSource
 
+    val fastSyncStateDataSource: DataSource
+
     def closeAll: Unit
 
   }
