@@ -4,6 +4,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props}
 import akka.agent.Agent
 import akka.util.ByteString
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.MessageReceived
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
@@ -12,7 +13,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.network.p2p.validators.{BlockHeaderValidator, BlockValidator}
-import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus}
+import io.iohk.ethereum.utils.NodeStatus
 import org.spongycastle.util.encoders.Hex
 
 //FIXME: Handle peers not responding to block headers and bodies request [EC-107]
@@ -20,6 +21,7 @@ class BlockBroadcastActor(
   nodeStatusHolder: Agent[NodeStatus],
   peer: ActorRef,
   peerManagerActor: ActorRef,
+  appStateStorage: AppStateStorage,
   blockchain: Blockchain) extends Actor with ActorLogging {
 
   import BlockBroadcastActor._
@@ -62,11 +64,11 @@ class BlockBroadcastActor(
             context become processMessages(newState)
 
           case (Left(HeaderParentNotFoundError), _) | (Right(_), None) =>
-            log.info("Block parent not found, block {} will not be broadcasted", Hex.toHexString(blockToProcess.header.hash.toArray))
+            log.warning("Block parent not found, block {} will not be broadcasted", Hex.toHexString(blockToProcess.header.hash.toArray))
             context become processMessages(state.copy(unprocessedBlocks = state.unprocessedBlocks.tail))
 
           case (Left(_), _) =>
-            log.info("Block {} not valid", Hex.toHexString(blockToProcess.header.hash.toArray))
+            log.warning("Block {} not valid", Hex.toHexString(blockToProcess.header.hash.toArray))
             context become processMessages(state.copy(unprocessedBlocks = state.unprocessedBlocks.tail))
         }
 
@@ -82,7 +84,7 @@ class BlockBroadcastActor(
     case MessageReceived(m: NewBlock) =>
       val newBlock = Block(m.block.header, m.block.body)
       if(blockToProcess(newBlock.header.hash, state)){
-        log.info("Got NewBlock message {}", Hex.toHexString(newBlock.header.hash.toArray))
+        log.debug("Got NewBlock message {}", Hex.toHexString(newBlock.header.hash.toArray))
         self ! ProcessNewBlocks
         context become processMessages(state.copy(unprocessedBlocks = state.unprocessedBlocks :+ newBlock))
       }
@@ -90,7 +92,7 @@ class BlockBroadcastActor(
     case MessageReceived(m: PV62.NewBlockHashes) =>
       val newHashes = m.hashes.map(_.hash)
       val newHashesToProcess = newHashes.filter(hash => blockToProcess(hash, state))
-      log.info("Got NewBlockHashes message {}", newHashes.map( hash => Hex.toHexString(hash.toArray)))
+      log.debug("Got NewBlockHashes message {}", newHashes.map( hash => Hex.toHexString(hash.toArray)))
       newHashesToProcess.foreach{ hash =>
         val getBlockHeadersMsg = GetBlockHeaders(block = Right(hash), maxHeaders = 1, skip = 0, reverse =  false)
         peer ! PeerActor.SendMessage(getBlockHeadersMsg)
@@ -98,7 +100,7 @@ class BlockBroadcastActor(
       context become processMessages(state.copy(fetchedBlockHashes = state.fetchedBlockHashes ++ newHashesToProcess))
 
     case MessageReceived(BlockHeaders(Seq(blockHeader))) if state.fetchedBlockHashes.contains(blockHeader.hash)=>
-      log.info("Got BlockHeaders message {}", blockHeader)
+      log.debug("Got BlockHeaders message {}", blockHeader)
       val newFetchedBlockHeaders = state.fetchedBlockHashes.filterNot(_ == blockHeader.hash)
       peer ! PeerActor.SendMessage(GetBlockBodies(Seq(blockHeader.hash)))
       val newState = state.copy(fetchedBlockHashes = newFetchedBlockHeaders, blockHeaders = state.blockHeaders :+ blockHeader)
@@ -107,7 +109,7 @@ class BlockBroadcastActor(
     case MessageReceived(BlockBodies(Seq(blockBody))) =>
       val block: Option[Block] = matchHeaderAndBody(state.blockHeaders, blockBody)
       block foreach { b =>
-        log.info("Got BlockBodies message {}", blockBody)
+        log.debug("Got BlockBodies message {}", blockBody)
         val newBlockHeaders = state.blockHeaders.filterNot(_.hash == b.header.hash)
         val newState = state.copy(unprocessedBlocks = state.unprocessedBlocks :+ b, blockHeaders = newBlockHeaders)
         self ! ProcessNewBlocks
@@ -146,9 +148,8 @@ class BlockBroadcastActor(
     blockchain.save(block)
     blockchain.save(blockHash, blockTotalDifficulty)
 
-    //Update NodeStatus
-    nodeStatusHolder.send(_.copy(
-      blockchainStatus = BlockchainStatus(block.header.difficulty, block.header.hash, block.header.number)))
+    //Update best block number in app state
+    appStateStorage.putBestBlockNumber(block.header.number)
   }
 }
 
@@ -158,8 +159,9 @@ object BlockBroadcastActor {
   def props(nodeStatusHolder: Agent[NodeStatus],
             peer: ActorRef,
             peerManagerActor: ActorRef,
+            appStateStorage: AppStateStorage,
             blockchain: Blockchain): Props = {
-    Props(new BlockBroadcastActor(nodeStatusHolder, peer, peerManagerActor, blockchain))
+    Props(new BlockBroadcastActor(nodeStatusHolder, peer, peerManagerActor, appStateStorage, blockchain))
   }
 
   case object StartBlockBroadcast

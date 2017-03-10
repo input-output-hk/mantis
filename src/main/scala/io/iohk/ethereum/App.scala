@@ -1,6 +1,7 @@
 package io.iohk.ethereum
 
 import scala.concurrent.ExecutionContext.Implicits.global
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.agent._
 import io.iohk.ethereum.blockchain.sync.FastSyncController
@@ -9,9 +10,9 @@ import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.PeerManagerActor.PeersResponse
 import io.iohk.ethereum.network.{PeerActor, PeerManagerActor, ServerActor}
 import io.iohk.ethereum.rpc.JsonRpcServer
-import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.network._
+import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 object App {
 
@@ -46,12 +47,15 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
       val nodeStatus =
         NodeStatus(
           key = nodeKey,
-          serverStatus = ServerStatus.NotListening,
-          blockchainStatus = BlockchainStatus(Config.Blockchain.genesisDifficulty, Config.Blockchain.genesisHash, 0))
+          serverStatus = ServerStatus.NotListening)
 
       val nodeStatusHolder = Agent(nodeStatus)
 
-      val peerManager = actorSystem.actorOf(PeerManagerActor.props(nodeStatusHolder, Config.Network.peer, blockchain), "peer-manager")
+      val peerManager = actorSystem.actorOf(PeerManagerActor.props(
+        nodeStatusHolder,
+        Config.Network.peer,
+        storagesInstance.storages.appStateStorage,
+        blockchain), "peer-manager")
       val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
       server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
@@ -62,8 +66,10 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
         FastSyncController.props(
           peerManager,
           nodeStatusHolder,
+          storagesInstance.storages.appStateStorage,
           blockchain,
-          storagesInstance.storages.mptNodeStorage),
+          storagesInstance.storages.mptNodeStorage,
+          storagesInstance.storages.fastSyncStateStorage),
         "fast-sync-controller")
 
       fastSyncController ! FastSyncController.StartFastSync
