@@ -68,7 +68,8 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
           nodeStatusHolder,
           storagesInstance.storages.appStateStorage,
           blockchain,
-          storagesInstance.storages.mptNodeStorage),
+          storagesInstance.storages.mptNodeStorage,
+          storagesInstance.storages.fastSyncStateStorage),
         "fast-sync-controller")
 
       fastSyncController ! FastSyncController.StartFastSync

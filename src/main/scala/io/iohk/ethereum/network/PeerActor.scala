@@ -34,12 +34,15 @@ class PeerActor(
     rlpxConnectionFactory: ActorContext => ActorRef,
     val peerConfiguration: PeerConfiguration,
     appStateStorage: AppStateStorage,
-    val blockchain: Blockchain)
+    val blockchain: Blockchain,
+    externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging with FastSyncHost {
 
   import Config.Blockchain._
   import PeerActor._
   import context.{dispatcher, system}
+
+  def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
 
   val P2pVersion = 4
 
@@ -76,20 +79,20 @@ class PeerActor(
     case RLPxConnectionHandler.ConnectionEstablished =>
       log.info("RLPx connection established, sending Hello")
       rlpxConnection.sendMessage(createHelloMsg())
-      val timeout = system.scheduler.scheduleOnce(3.seconds, self, ProtocolHandshakeTimeout)
+      val timeout = scheduler.scheduleOnce(3.seconds, self, ProtocolHandshakeTimeout)
       context become waitingForHello(rlpxConnection, timeout)
 
     case RLPxConnectionHandler.ConnectionFailed =>
-      log.info("Failed to establish RLPx connection")
+      log.warning("Failed to establish RLPx connection")
       rlpxConnection.uriOpt match {
         case Some(uri) if noRetries < peerConfiguration.connectMaxRetries =>
           context unwatch rlpxConnection.ref
           scheduleConnectRetry(uri, noRetries)
         case Some(uri) =>
-          log.info("No more reconnect attempts left, removing peer")
+          log.warning("No more reconnect attempts left, removing peer")
           context stop self
         case None =>
-          log.info("Connection was initiated by remote peer, not attempting to reconnect")
+          log.warning("Connection was initiated by remote peer, not attempting to reconnect")
           context stop self
       }
 
@@ -112,7 +115,7 @@ class PeerActor(
 
   private def scheduleConnectRetry(uri: URI, noRetries: Int): Unit = {
     log.info("Scheduling connection retry in {}", peerConfiguration.connectRetryDelay)
-    system.scheduler.scheduleOnce(peerConfiguration.connectRetryDelay, self, RetryConnectionTimeout)
+    scheduler.scheduleOnce(peerConfiguration.connectRetryDelay, self, RetryConnectionTimeout)
     context become {
       case RetryConnectionTimeout => reconnect(uri, noRetries + 1)
       case GetStatus => sender() ! StatusResponse(Connecting)
@@ -127,10 +130,10 @@ class PeerActor(
       timeout.cancel()
       if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
         rlpxConnection.sendMessage(createStatusMsg())
-        val statusTimeout = system.scheduler.scheduleOnce(peerConfiguration.waitForStatusTimeout, self, StatusReceiveTimeout)
+        val statusTimeout = scheduler.scheduleOnce(peerConfiguration.waitForStatusTimeout, self, StatusReceiveTimeout)
         context become waitingForNodeStatus(rlpxConnection, statusTimeout)
       } else {
-        log.info("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
+        log.warning("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
         disconnectFromPeer(rlpxConnection, Disconnect.Reasons.IncompatibleP2pProtocolVersion)
       }
 
@@ -163,7 +166,7 @@ class PeerActor(
       timeout.cancel()
       log.info("Peer returned status ({})", status)
       rlpxConnection.sendMessage(GetBlockHeaders(Left(daoForkBlockNumber), maxHeaders = 1, skip = 0, reverse = false))
-      val waitingForDaoTimeout = system.scheduler.scheduleOnce(peerConfiguration.waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
+      val waitingForDaoTimeout = scheduler.scheduleOnce(peerConfiguration.waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
       context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
 
     case StatusReceiveTimeout =>
@@ -188,11 +191,11 @@ class PeerActor(
           context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, Chain.ETC).receive
 
         case Some(_) if getBestBlockHeader().difficulty < daoForkBlockTotalDifficulty =>
-          log.info("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
+          log.warning("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
           context become new HandshakedHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, Chain.ETH).receive
 
         case Some(_) =>
-          log.info("Peer is not running the ETC fork, disconnecting")
+          log.warning("Peer is not running the ETC fork, disconnecting")
           disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
 
         case None if remoteStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
@@ -200,7 +203,7 @@ class PeerActor(
           context become new HandshakedHandler(rlpxConnection, remoteStatus, 0, Chain.Unknown).receive
 
         case None =>
-          log.info("Peer did not respond with ETC fork block header")
+          log.warning("Peer did not respond with ETC fork block header")
           disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
       }
 
@@ -211,7 +214,7 @@ class PeerActor(
 
   private def disconnectFromPeer(rlpxConnection: RLPxConnection, reason: Int): Unit = {
     rlpxConnection.sendMessage(Disconnect(reason))
-    system.scheduler.scheduleOnce(peerConfiguration.disconnectPoisonPillTimeout, self, PoisonPill)
+    scheduler.scheduleOnce(peerConfiguration.disconnectPoisonPillTimeout, self, PoisonPill)
     context unwatch rlpxConnection.ref
     context become disconnected
   }
@@ -222,9 +225,9 @@ class PeerActor(
 
   def handleTerminated(rlpxConnection: RLPxConnection): Receive = {
     case Terminated(actor) if actor == rlpxConnection.ref =>
-      log.info("Connection closed unexpectedly")
+      log.error("Connection closed unexpectedly")
       rlpxConnection.uriOpt match {
-        case Some(uri) => reconnect(uri, noRetries = 0)
+        case Some(uri) => scheduleConnectRetry(uri, noRetries = 0)
         case None => context stop self
       }
   }
@@ -259,7 +262,7 @@ class PeerActor(
 
   def handlePeerChainCheck(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(message@GetBlockHeaders(Left(number), _, _, _)) if number == 1920000 =>
-      log.info("Received message: {}", message)
+      log.debug("Received message: {}", message)
       blockchain.getBlockHeaderByNumber(number) match {
         case Some(header) => rlpxConnection.sendMessage(BlockHeaders(Seq(header)))
         case None => rlpxConnection.sendMessage(BlockHeaders(Seq.empty))
@@ -352,7 +355,7 @@ class PeerActor(
         daoBlockHeaderOpt foreach { daoBlockHeader =>
           log.info("Reached the ETC fork block header")
           if (daoForkValidator.validate(msg).nonEmpty) {
-            log.info("Peer is not running the ETC fork, disconnecting")
+            log.warning("Peer is not running the ETC fork, disconnecting")
             disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
           } else {
             chain = Chain.ETC

@@ -11,6 +11,8 @@ trait SharedEphemDataSources extends DataSourcesComponent {
 
     override val mptDataSource: DataSource = ephemDataSource
 
+    override val fastSyncStateDataSource: DataSource = ephemDataSource
+
     override val receiptsDataSource: DataSource = ephemDataSource
 
     override val blockBodiesDataSource: DataSource = ephemDataSource
