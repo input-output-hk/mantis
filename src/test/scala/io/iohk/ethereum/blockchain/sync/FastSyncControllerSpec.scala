@@ -100,11 +100,11 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
       Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref),
       Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref))))
 
-    val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    val peer1Status = Status(1, 1, 10, ByteString("peer1_bestHash"), ByteString("unused"))
     peer1.expectMsg(PeerActor.GetStatus)
     peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC, peer1Status.totalDifficulty)))
 
-    val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
+    val peer2Status = Status(1, 1, 20, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
     peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC, peer1Status.totalDifficulty)))
 
@@ -155,9 +155,9 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     peer2.reply(PeerActor.MessageReceived(NodeData(Seq(stateMptLeafWithAccount))))
     peer2.expectMsg(PeerActor.Unsubscribe)
 
-    //TODO implement
-    //actor will not terminate but switch to regular sync
-    //watcher.expectMsgPF(2.seconds) { case Terminated(`fastSyncController`) => () }
+    //switch to regular download
+    peer2.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code, BlockBodies.code)))
+    peer2.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(targetBlockHeader.number + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
   }
 
   it should "not use (blacklist) a peer that fails to respond within time limit" in new TestSetup {
@@ -289,6 +289,7 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
 
     val newBlockHeaderParent: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock, parentHash = commonRoot.hash, difficulty = newBlockDifficulty)
     val newBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock + 1, parentHash = newBlockHeaderParent.hash, difficulty = newBlockDifficulty)
+    val nextNewBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock + 2, parentHash = newBlockHeader.hash, difficulty = newBlockDifficulty)
 
     storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
 
@@ -317,6 +318,9 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     //start next download cycle
     peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code, BlockBodies.code)))
     peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(nextNewBlockHeader))))
+    peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(nextNewBlockHeader.hash))))
+    peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Seq.empty, Seq.empty)))))
 
     blockchain.getBlockByNumber(expectedMaxBlock) shouldBe Some(Block(newBlockHeaderParent, BlockBody(Seq.empty, Seq.empty)))
     blockchain.getTotalDifficultyByHash(newBlockHeaderParent.hash) shouldBe Some(commonRootTotalDifficulty + newBlockHeaderParent.difficulty)
@@ -324,7 +328,10 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(newBlockHeader, BlockBody(Seq.empty, Seq.empty)))
     blockchain.getTotalDifficultyByHash(newBlockHeader.hash) shouldBe Some(commonRootTotalDifficulty + newBlockHeaderParent.difficulty + newBlockHeader.difficulty)
 
-    storagesInstance.storages.appStateStorage.getBestBlockNumber() shouldBe newBlockHeader.number
+    blockchain.getBlockByNumber(expectedMaxBlock + 2) shouldBe Some(Block(nextNewBlockHeader, BlockBody(Seq.empty, Seq.empty)))
+    blockchain.getTotalDifficultyByHash(nextNewBlockHeader.hash) shouldBe Some(commonRootTotalDifficulty + newBlockHeaderParent.difficulty + newBlockHeader.difficulty + nextNewBlockHeader.difficulty)
+
+    storagesInstance.storages.appStateStorage.getBestBlockNumber() shouldBe nextNewBlockHeader.number
 
     blockchain.getBlockHeaderByHash(maxBlockHeader.hash) shouldBe None
     blockchain.getBlockBodyByHash(maxBlockHeader.hash) shouldBe None
