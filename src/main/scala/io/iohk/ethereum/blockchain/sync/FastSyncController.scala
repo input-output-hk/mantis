@@ -57,7 +57,7 @@ class FastSyncController(
         scheduleStartFastSync(startRetryInterval)
       }
     case StartRegularSync =>
-      context become (handlePeerUpdates orElse regularSync(log))
+      context become (handlePeerUpdates orElse regularSync())
       self ! StartRegularSync
   }
 

@@ -1,8 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor, ActorContext, ActorRef, Scheduler}
-import akka.event.LoggingAdapter
-import akka.util.ByteString
+import akka.actor._
 import io.iohk.ethereum.blockchain.sync.FastSyncController.StartRegularSync
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
@@ -13,47 +11,38 @@ import io.iohk.ethereum.network.p2p.validators.BlockValidator.BlockError
 import io.iohk.ethereum.utils.Config
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
 import scala.util.Try
 
 trait RegularSyncController {
+  self: Actor with ActorLogging with BlacklistSupport =>
 
   val appStateStorage: AppStateStorage
   val blockchain: Blockchain
-  val context: ActorContext
   val blockValidator: (BlockHeader, BlockBody) => Either[BlockError, Block]
-
-  def blacklist(peer: ActorRef, duration: FiniteDuration)
-
   def peersToDownloadFrom: Map[ActorRef, Status]
 
-  def scheduler: Scheduler
-
   private var headers: Seq[BlockHeader] = Seq.empty
-//  private var totalDifficulty: Option[BigInt] = None
   private var resolvingBranch = false
   private var broadcasting = false
 
   import Config.FastSync._
 
-  private implicit val sender: ActorRef = context.self
-
-  def regularSync(log: LoggingAdapter): Actor.Receive = {
+  def regularSync(): Receive = {
 
     case StartRegularSync =>
-      askForHeaders(log)
+      askForHeaders()
 
     case ResumeRegularSync =>
-      askForHeaders(log)
+      askForHeaders()
 
     case MessageReceived(m: BlockHeaders) if !resolvingBranch =>
-      handleDownload(m, log)
+      handleDownload(m)
 
     case MessageReceived(m: BlockHeaders) if resolvingBranch =>
-      handleBlockBranchResolution(m, log)
+      handleBlockBranchResolution(m)
 
     case MessageReceived(m: BlockBodies) =>
-      handleBlockBodies(m, log)
+      handleBlockBodies(m)
 
     case m: BroadcastBlocks if broadcasting =>
       peersToDownloadFrom.keys.foreach(_ ! m)
@@ -63,7 +52,7 @@ trait RegularSyncController {
       peer ! SendMessage(GetBlockHeaders(Right(headers.head.parentHash), blockResolveDepth, skip = 0, reverse = true))
   }
 
-  private def askForHeaders(log: LoggingAdapter) = {
+  private def askForHeaders() = {
 
     bestPeer match {
       case Some(peer) =>
@@ -77,26 +66,26 @@ trait RegularSyncController {
     }
   }
 
-  private def handleBlockBranchResolution(message: BlockHeaders, log: LoggingAdapter) =
+  private def handleBlockBranchResolution(message: BlockHeaders) =
     //todo limit max branch depth?
     if (message.headers.nonEmpty && message.headers.head.hash == headers.head.parentHash) {
       headers = message.headers.reverse ++ headers
-      processBlockHeaders(headers, context.sender(), log)
+      processBlockHeaders(headers, sender())
     } else {
       //we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
       resumeWithDifferentPeer()
     }
 
-  private def handleDownload(message: BlockHeaders, log: LoggingAdapter) = if (message.headers.nonEmpty) {
+  private def handleDownload(message: BlockHeaders) = if (message.headers.nonEmpty) {
     headers = message.headers
-    processBlockHeaders(headers, context.sender(), log)
+    processBlockHeaders(headers, sender())
   } else {
     //no new headers to process, schedule to ask again in future, we are at the top of chain
     broadcasting = true
     scheduleResume
   }
 
-  private def processBlockHeaders(headers: Seq[BlockHeader], peer: ActorRef, log: LoggingAdapter) = {
+  private def processBlockHeaders(headers: Seq[BlockHeader], peer: ActorRef) = {
     val parentByNumber = blockchain.getBlockHeaderByNumber(headers.head.number - 1)
 
     parentByNumber match {
@@ -105,7 +94,7 @@ trait RegularSyncController {
         if (parent.hash == headers.head.parentHash) {
           peer ! SendMessage(GetBlockBodies(headers.take(blockBodiesPerRequest).map(_.hash)))
         } else {
-          context.self ! ResolveBranch(context.sender())
+          context.self ! ResolveBranch(sender())
         }
       case None =>
         log.warning("got header that does not have parent")
@@ -113,7 +102,7 @@ trait RegularSyncController {
     }
   }
 
-  private def handleBlockBodies(m: BlockBodies, log: LoggingAdapter) = {
+  private def handleBlockBodies(m: BlockBodies) = {
     if (m.bodies.nonEmpty) {
       val result = headers.zip(m.bodies).map { case (h, b) => blockValidator(h, b) }
 
@@ -141,7 +130,7 @@ trait RegularSyncController {
 
         headers = headers.drop(result.length)
         if (headers.nonEmpty) {
-          context.sender() ! SendMessage(GetBlockBodies(headers.take(blockBodiesPerRequest).map(_.hash)))
+          sender() ! SendMessage(GetBlockBodies(headers.take(blockBodiesPerRequest).map(_.hash)))
         } else {
           context.self ! ResumeRegularSync
         }
@@ -161,7 +150,7 @@ trait RegularSyncController {
   }
 
   private def resumeWithDifferentPeer() = {
-    blacklist(context.sender(), blacklistDuration)
+    blacklist(sender(), blacklistDuration)
     headers = Seq.empty
     context.self ! ResumeRegularSync
   }
