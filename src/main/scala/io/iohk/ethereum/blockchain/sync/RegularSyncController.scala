@@ -9,6 +9,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.validators.BlockValidator.BlockError
 import io.iohk.ethereum.utils.Config
+import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Try
@@ -128,6 +129,8 @@ trait RegularSyncController {
 
             newBlocks.collect { case (Some(hash), _) => hash }.foreach(blockchain.removeBlock)
             context.self ! BroadcastBlocks(newBlocks.map(_._2))
+            log.info(s"got new blocks up till block: ${newBlocks.last._2.block.header.number} " +
+              s"with hash ${Hex.toHexString(newBlocks.last._2.block.header.hash.toArray[Byte])}")
           case None =>
             log.error("no total difficulty for latest block")
         }
@@ -136,6 +139,7 @@ trait RegularSyncController {
         if (headers.nonEmpty) {
           sender() ! SendMessage(GetBlockBodies(headers.take(blockBodiesPerRequest).map(_.hash)))
         } else {
+          resolvingBranch = false
           context.self ! ResumeRegularSync
         }
       } else {
