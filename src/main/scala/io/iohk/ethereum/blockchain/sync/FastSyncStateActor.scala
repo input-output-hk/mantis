@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging}
 import akka.pattern.pipe
-import io.iohk.ethereum.blockchain.sync.FastSyncController.SyncState
+import io.iohk.ethereum.blockchain.sync.SyncController.SyncState
 import io.iohk.ethereum.blockchain.sync.FastSyncStateActor.GetStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 

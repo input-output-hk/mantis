@@ -30,8 +30,8 @@ class FastSyncBlockHeadersRequestHandler(
     }.unzip
 
     if (blockHashesObtained.nonEmpty) {
-      fastSyncController ! FastSyncController.EnqueueBlockBodies(blockHashesObtained)
-      fastSyncController ! FastSyncController.EnqueueReceipts(blockHashesObtained)
+      fastSyncController ! SyncController.EnqueueBlockBodies(blockHashesObtained)
+      fastSyncController ! SyncController.EnqueueReceipts(blockHashesObtained)
     }
 
     if (blockHeadersObtained.headOption.exists(_.number == block)) {
@@ -39,7 +39,7 @@ class FastSyncBlockHeadersRequestHandler(
         if (nextHeader.number == currentHeader.number + 1) nextHeader
         else currentHeader
       }
-      fastSyncController ! FastSyncController.UpdateBestBlockHeaderNumber(lastHeader.number)
+      fastSyncController ! SyncController.UpdateBestBlockHeaderNumber(lastHeader.number)
     }
 
     if (blockHashesObtained.length != blockHashes.length) fastSyncController ! BlacklistSupport.BlacklistPeer(peer)

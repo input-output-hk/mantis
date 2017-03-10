@@ -20,7 +20,7 @@ import scala.concurrent.duration._
 
 import scala.concurrent.duration._
 
-class FastSyncController(
+class SyncController(
     peerManager: ActorRef,
     nodeStatusHolder: Agent[NodeStatus],
     val appStateStorage: AppStateStorage,
@@ -33,7 +33,7 @@ class FastSyncController(
 
   import BlacklistSupport._
   import Config.FastSync._
-  import FastSyncController._
+  import SyncController._
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
@@ -273,10 +273,10 @@ class FastSyncController(
     }
 
     def processSyncing(): Unit = {
-      if (fullySynced)
-        //TODO add save of current target block
+      if (fullySynced) {
         finish()
-      else {
+        startRegularSync()
+      } else {
         if (anythingQueued) processQueues()
         else log.info("No more items to request, waiting for {} responses", assignedHandlers.size)
       }
@@ -287,6 +287,9 @@ class FastSyncController(
       fastSyncStateStorage.purge()
       log.info("Fast sync finished")
       context.parent ! FastSyncDone
+    }
+
+    private def startRegularSync() = {
       context become idle
       self ! StartRegularSync
     }
@@ -371,7 +374,7 @@ class FastSyncController(
 
 }
 
-object FastSyncController {
+object SyncController {
   def props(
              peerManager: ActorRef,
              nodeStatusHolder: Agent[NodeStatus],
@@ -380,7 +383,7 @@ object FastSyncController {
              mptNodeStorage: MptNodeStorage,
              syncStateStorage: FastSyncStateStorage,
              blockValidator: (BlockHeader, BlockBody) => Either[BlockError, Block]):
-  Props = Props(new FastSyncController(peerManager, nodeStatusHolder, appStateStorage, blockchain, mptNodeStorage, syncStateStorage, blockValidator))
+  Props = Props(new SyncController(peerManager, nodeStatusHolder, appStateStorage, blockchain, mptNodeStorage, syncStateStorage, blockValidator))
 
   object SyncState {
 

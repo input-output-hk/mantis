@@ -7,7 +7,7 @@ import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.blockchain.sync.FastSyncController.SyncState
+import io.iohk.ethereum.blockchain.sync.SyncController.SyncState
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.{Block, BlockHeader}
@@ -51,7 +51,7 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     peer2.expectMsg(PeerActor.GetStatus)
     peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC)))
 
-    fastSyncController ! FastSyncController.StartFastSync
+    fastSyncController ! SyncController.StartFastSync
 
     peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))
@@ -108,7 +108,7 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     peer2.expectMsg(PeerActor.GetStatus)
     peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC)))
 
-    fastSyncController ! FastSyncController.StartFastSync
+    fastSyncController ! SyncController.StartFastSync
 
     peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))
@@ -184,7 +184,7 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
 
     storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState.empty.copy(bestBlockHeaderNumber = targetBlockHeader.number))
 
-    fastSyncController ! FastSyncController.StartFastSync
+    fastSyncController ! SyncController.StartFastSync
 
     peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))
@@ -250,7 +250,7 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
     storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, maxBlocTotalDifficulty)
 
-    fastSyncController ! FastSyncController.StartRegularSync
+    fastSyncController ! SyncController.StartRegularSync
 
     peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code, BlockBodies.code)))
     peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
@@ -303,7 +303,7 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     storagesInstance.storages.totalDifficultyStorage.put(commonRoot.hash, commonRootTotalDifficulty)
     storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, commonRootTotalDifficulty + maxBlockHeader.difficulty)
 
-    fastSyncController ! FastSyncController.StartRegularSync
+    fastSyncController ! SyncController.StartRegularSync
 
     peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code, BlockBodies.code)))
     peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
@@ -373,7 +373,7 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     val targetBlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
     storagesInstance.storages.appStateStorage.putBestBlockNumber(targetBlockHeader.number)
 
-    fastSyncController ! FastSyncController.StartFastSync
+    fastSyncController ! SyncController.StartFastSync
 
     peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))
@@ -405,7 +405,7 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
 
     val dataSource = EphemDataSource()
 
-    val fastSyncController = TestActorRef(Props(new FastSyncController(peerManager.ref, nodeStatusHolder,
+    val fastSyncController = TestActorRef(Props(new SyncController(peerManager.ref, nodeStatusHolder,
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages.mptNodeStorage,

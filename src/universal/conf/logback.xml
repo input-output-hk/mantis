@@ -37,6 +37,6 @@
     <logger name="io.iohk.ethereum.network" level="WARN" additivity="false">
         <appender-ref ref="FILE"/>
     </logger>
-    <logger name="io.iohk.ethereum.blockchain.sync.FastSyncController" level="INFO" />
+    <logger name="io.iohk.ethereum.blockchain.sync.SyncController" level="INFO" />
 
 </configuration>

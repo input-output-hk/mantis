@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.pattern._
 import akka.testkit.TestActorRef
 import akka.util.Timeout
-import io.iohk.ethereum.blockchain.sync.FastSyncController.SyncState
+import io.iohk.ethereum.blockchain.sync.SyncController.SyncState
 import io.iohk.ethereum.blockchain.sync.FastSyncStateActor.GetStorage
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.FastSyncStateStorage

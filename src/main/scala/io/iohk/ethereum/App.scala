@@ -3,7 +3,7 @@ package io.iohk.ethereum
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.agent._
-import io.iohk.ethereum.blockchain.sync.FastSyncController
+import io.iohk.ethereum.blockchain.sync.SyncController
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, _}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.PeerManagerActor.PeersResponse
@@ -63,7 +63,7 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
       if(Config.Network.Rpc.enabled) JsonRpcServer.run(actorSystem, blockchain, Config.Network.Rpc)
 
       val fastSyncController = actorSystem.actorOf(
-        FastSyncController.props(
+        SyncController.props(
           peerManager,
           nodeStatusHolder,
           storagesInstance.storages.appStateStorage,
@@ -73,7 +73,7 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
           BlockValidator.validateHeaderAndBody),
         "fast-sync-controller")
 
-      fastSyncController ! FastSyncController.StartFastSync
+      fastSyncController ! SyncController.StartFastSync
 
       Runtime.getRuntime.addShutdownHook(new Thread() {
         override def run(): Unit = {
@@ -86,7 +86,7 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
   }
 
   def waitingForFastSyncDone(blockchain: Blockchain, peerManager: ActorRef): Receive = {
-    case FastSyncController.FastSyncDone =>
+    case SyncController.FastSyncDone =>
       //Ask for peers to start block broadcast
       peerManager ! PeerManagerActor.GetPeers
 

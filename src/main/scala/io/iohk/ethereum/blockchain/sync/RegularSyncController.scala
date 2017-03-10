@@ -1,15 +1,12 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
-import io.iohk.ethereum.blockchain.sync.FastSyncController.StartRegularSync
-import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
+import io.iohk.ethereum.blockchain.sync.SyncController.StartRegularSync
+import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor.Status.{Chain, Handshaked}
 import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.PeerActor.{Status => PeerStatus}
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.validators.BlockValidator.BlockError
 import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
 
@@ -17,12 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Try
 
 trait RegularSyncController {
-  self: Actor with ActorLogging with BlacklistSupport =>
-
-  val appStateStorage: AppStateStorage
-  val blockchain: Blockchain
-  val blockValidator: (BlockHeader, BlockBody) => Either[BlockError, Block]
-  def peersToDownloadFrom: Map[ActorRef, PeerStatus.Handshaked]
+  self: SyncController =>
 
   private var headers: Seq[BlockHeader] = Seq.empty
   private var resolvingBranch = false
@@ -69,7 +61,7 @@ trait RegularSyncController {
         peer ! SendMessage(GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false))
       case None =>
         log.warning("no peers to download from")
-        scheduleResume
+        scheduleResume()
     }
   }
 
@@ -89,7 +81,7 @@ trait RegularSyncController {
   } else {
     //no new headers to process, schedule to ask again in future, we are at the top of chain
     broadcasting = true
-    scheduleResume
+    scheduleResume()
   }
 
   private def processBlockHeaders(headers: Seq[BlockHeader], peer: ActorRef) = {
@@ -103,7 +95,7 @@ trait RegularSyncController {
         } else {
           context.self ! ResolveBranch(sender())
         }
-      case None =>
+      case _ =>
         log.warning("got header that does not have parent")
         resumeWithDifferentPeer()
     }
@@ -154,7 +146,7 @@ trait RegularSyncController {
     }
   }
 
-  private def scheduleResume = {
+  private def scheduleResume() = {
     headers = Seq.empty
     scheduler.scheduleOnce(checkForNewBlockInterval, context.self, ResumeRegularSync)
   }

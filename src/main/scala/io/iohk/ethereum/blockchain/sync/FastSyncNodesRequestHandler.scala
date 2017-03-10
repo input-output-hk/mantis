@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{ActorRef, Props, Scheduler}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.FastSyncController._
+import io.iohk.ethereum.blockchain.sync.SyncController._
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.{EvmCodeStorage, MptNodeStorage}
 import io.iohk.ethereum.domain.Blockchain
@@ -29,7 +29,7 @@ class FastSyncNodesRequestHandler(
     val receivedHashes = nodeData.values.map(v => ByteString(kec256(v.toArray[Byte])))
     val remainingHashes = requestedHashes.filterNot(h => receivedHashes.contains(h.v))
     if (remainingHashes.nonEmpty) {
-      fastSyncController ! FastSyncController.EnqueueNodes(remainingHashes)
+      fastSyncController ! SyncController.EnqueueNodes(remainingHashes)
     }
 
     val hashesToRequest = (nodeData.values.indices zip receivedHashes) flatMap { case (idx, valueHash) =>
@@ -51,8 +51,8 @@ class FastSyncNodesRequestHandler(
       }
     }
 
-    fastSyncController ! FastSyncController.EnqueueNodes(hashesToRequest.flatten)
-    fastSyncController ! FastSyncController.UpdateDownloadedNodesCount(nodeData.values.size)
+    fastSyncController ! SyncController.EnqueueNodes(hashesToRequest.flatten)
+    fastSyncController ! SyncController.UpdateDownloadedNodesCount(nodeData.values.size)
 
     log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTakenSoFar())
     cleanupAndStop()
@@ -60,12 +60,12 @@ class FastSyncNodesRequestHandler(
 
   override def handleTimeout(): Unit = {
     fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
-    fastSyncController ! FastSyncController.EnqueueNodes(requestedHashes)
+    fastSyncController ! SyncController.EnqueueNodes(requestedHashes)
     cleanupAndStop()
   }
 
   override def handleTerminated(): Unit = {
-    fastSyncController ! FastSyncController.EnqueueNodes(requestedHashes)
+    fastSyncController ! SyncController.EnqueueNodes(requestedHashes)
     cleanupAndStop()
   }
 
