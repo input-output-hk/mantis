@@ -88,7 +88,7 @@ trait RegularSyncController {
     }
 
   private def handleDownload(message: BlockHeaders, log: LoggingAdapter) = if (message.headers.nonEmpty) {
-    headers = message.headers.sortBy(_.number)
+    headers = message.headers
     processBlockHeaders(headers, context.sender(), log)
   } else {
     //no new headers to process, schedule to ask again in future, we are at the top of chain
@@ -100,7 +100,7 @@ trait RegularSyncController {
     val parentByNumber = blockchain.getBlockHeaderByNumber(headers.head.number - 1)
 
     parentByNumber match {
-      case Some(parent) =>
+      case Some(parent) if checkHeaders(headers) =>
         //we have same chain
         if (parent.hash == headers.head.parentHash) {
           peer ! SendMessage(GetBlockBodies(headers.take(blockBodiesPerRequest).map(_.hash)))
@@ -125,7 +125,7 @@ trait RegularSyncController {
           case Some(td) =>
             var currentTd = td
             val newBlocks = blocks.map { b =>
-              val blockHashToDelete = blockchain.getBlockHeaderByNumber(b.header.number).map(_.hash)
+              val blockHashToDelete = blockchain.getBlockHeaderByNumber(b.header.number).map(_.hash).filter(_ != b.header.hash)
               blockchain.save(b)
               appStateStorage.putBestBlockNumber(b.header.number)
               currentTd += b.header.difficulty
@@ -133,7 +133,7 @@ trait RegularSyncController {
               (blockHashToDelete, NewBlock(b, currentTd))
             }
 
-            newBlocks.collect { case (Some(hash), _) => hash }.foreach(deleteOldBlock)
+            newBlocks.collect { case (Some(hash), _) => hash }.foreach(blockchain.removeBlock)
             context.self ! BroadcastBlocks(newBlocks.map(_._2))
           case None =>
             log.error("no total difficulty for latest block")
@@ -155,12 +155,6 @@ trait RegularSyncController {
     }
   }
 
-  private def deleteOldBlock(blockHash: ByteString) = {
-    blockchain.removeBlockHeader(blockHash)
-    blockchain.removeBlockBody(blockHash)
-    blockchain.removeTotalDifficulty(blockHash)
-  }
-
   private def scheduleResume = {
     headers = Seq.empty
     scheduler.scheduleOnce(checkForNewBlockInterval, context.self, ResumeRegularSync)
@@ -168,9 +162,12 @@ trait RegularSyncController {
 
   private def resumeWithDifferentPeer() = {
     blacklist(context.sender(), blacklistDuration)
-    headers == Seq.empty
+    headers = Seq.empty
     context.self ! ResumeRegularSync
   }
+
+  private def checkHeaders(headers: Seq[BlockHeader]): Boolean =
+    headers.zip(headers.tail).forall { case (parent, child) => parent.hash == child.parentHash && parent.number + 1 == child.number }
 
   private def bestPeer: Option[ActorRef] = Try(peersToDownloadFrom.maxBy { case (_, status) => status.totalDifficulty }._1).toOption
 

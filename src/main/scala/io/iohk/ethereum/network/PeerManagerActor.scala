@@ -105,14 +105,6 @@ object PeerManagerActor {
     val maxMptComponentsPerMessage: Int
   }
 
-  trait Storage {
-    val blockHeadersStorage: BlockHeadersStorage
-    val blockBodiesStorage: BlockBodiesStorage
-    val receiptStorage: ReceiptStorage
-    val mptNodeStorage: MptNodeStorage
-    val evmCodeStorage: EvmCodeStorage
-  }
-
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
 
   case class ConnectToPeer(uri: URI)
