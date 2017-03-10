@@ -69,6 +69,7 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
           storagesInstance.storages.appStateStorage,
           blockchain,
           storagesInstance.storages.mptNodeStorage,
+          storagesInstance.storages.fastSyncStateStorage,
           BlockValidator.validateHeaderAndBody),
         "fast-sync-controller")
 

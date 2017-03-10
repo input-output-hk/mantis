@@ -24,11 +24,6 @@ class AppStateStorage(val dataSource: DataSource) extends KeyValueStorage[Key, V
   def putBestBlockNumber(bestBlockNumber: BigInt): AppStateStorage =
     put(Keys.BestBlockNumber, bestBlockNumber.toString)
 
-  def getFastSyncTargetBlockNumber(): Option[BigInt] =
-    get(Keys.FastSyncTargetBlock).map(BigInt.apply)
-
-  def putFastSyncTargetBlockNumber(fastSyncTargetBlockNumber: BigInt): AppStateStorage =
-    put(Keys.FastSyncTargetBlock, fastSyncTargetBlockNumber.toString)
 }
 
 object AppStateStorage {
@@ -38,6 +33,5 @@ object AppStateStorage {
 
   object Keys {
     val BestBlockNumber = Key("BestBlockNumber")
-    val FastSyncTargetBlock = Key("FastSyncTargetBlock")
   }
 }

@@ -7,9 +7,9 @@ import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.blockchain.sync.FastSyncController.SyncState
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, PeersResponse}
@@ -17,6 +17,10 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
+import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -38,11 +42,11 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
       Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref),
       Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref))))
 
-    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer1.expectMsg(PeerActor.GetStatus)
     peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status)))
 
-    val peer2Status= Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
+    val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
     peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status)))
 
@@ -86,7 +90,7 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
       number = expectedTargetBlock,
       stateRoot = ByteString(Hex.decode("deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc")))
 
-    storagesInstance.storages.appStateStorage.putBestBlockNumber(targetBlockHeader.number - 1)
+    storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState.empty.copy(bestBlockHeaderNumber = targetBlockHeader.number - 1))
 
     time.advance(1.seconds)
 
@@ -95,11 +99,11 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
       Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref),
       Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref))))
 
-    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer1.expectMsg(PeerActor.GetStatus)
     peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status)))
 
-    val peer2Status= Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
+    val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
     peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status)))
 
@@ -166,17 +170,18 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
       Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref),
       Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref))))
 
-    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer1.expectMsg(PeerActor.GetStatus)
     peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status)))
 
-    val peer2Status= Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
+    val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
     peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status)))
 
     val expectedTargetBlock = 399500
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
-    storagesInstance.storages.appStateStorage.putBestBlockNumber(targetBlockHeader.number)
+
+    storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState.empty.copy(bestBlockHeaderNumber = targetBlockHeader.number))
 
     fastSyncController ! FastSyncController.StartFastSync
 
@@ -344,7 +349,8 @@ class FastSyncControllerSpec extends FlatSpec with Matchers {
     val fastSyncController = TestActorRef(Props(new FastSyncController(peerManager.ref, nodeStatusHolder,
       storagesInstance.storages.appStateStorage,
       blockchain,
-      new MptNodeStorage(dataSource),
+      storagesInstance.storages.mptNodeStorage,
+      storagesInstance.storages.fastSyncStateStorage,
       (h, b) => Right(Block(h, b)),
       externalSchedulerOpt = Some(time.scheduler))))
 
