@@ -55,7 +55,7 @@ class FastSyncController(
       val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.chain == Chain.ETC)
 
       if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
-        peersUsedToChooseTarget.foreach { case (peer, Handshaked(status, _)) =>
+        peersUsedToChooseTarget.foreach { case (peer, Handshaked(status, _, _)) =>
           peer ! PeerActor.Subscribe(Set(BlockHeaders.code))
           peer ! PeerActor.SendMessage(GetBlockHeaders(Right(status.bestHash), 1, 0, reverse = false))
         }

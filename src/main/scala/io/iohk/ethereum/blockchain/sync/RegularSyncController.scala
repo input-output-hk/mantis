@@ -165,7 +165,7 @@ trait RegularSyncController {
     headers.zip(headers.tail).forall { case (parent, child) => parent.hash == child.parentHash && parent.number + 1 == child.number }
 
   private def bestPeer: Option[ActorRef] = Try(peersToDownloadFrom.maxBy {
-    case (_, Handshaked(status, Chain.ETC)) => status.totalDifficulty
+    case (_, Handshaked(_, Chain.ETC, totalDifficulty)) => totalDifficulty
   }._1).toOption
 
   private case object ResumeRegularSync

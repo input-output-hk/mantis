@@ -277,6 +277,8 @@ class PeerActor(
 
     var blockBroadcastActor: Option[ActorRef] = None
 
+    var totalDifficulty = initialStatus.totalDifficulty
+
     /**
       * main behavior of actor that handles peer communication and subscriptions for messages
       */
@@ -301,7 +303,7 @@ class PeerActor(
       case GetMaxBlockNumber(actor) => actor ! MaxBlockNumber(currentMaxBlockNumber)
 
       case GetStatus =>
-        sender() ! StatusResponse(Handshaked(initialStatus, chain))
+        sender() ! StatusResponse(Handshaked(initialStatus, chain, totalDifficulty))
 
       case BroadcastBlocks(blocks) =>
         blocks.foreach{b =>
@@ -317,6 +319,7 @@ class PeerActor(
         case m: BlockHeaders =>
           update(m.headers.map(_.number))
         case m: NewBlock =>
+
           update(Seq(m.block.header.number))
         case m: NewBlockHashes =>
           update(m.hashes.map(_.number))
@@ -359,6 +362,9 @@ class PeerActor(
       case d: Disconnect =>
         log.info("Received {}. Closing connection", d)
         context stop self
+
+      case newBlock: NewBlock =>
+        totalDifficulty = newBlock.totalDifficulty
 
       case msg @ BlockHeaders(blockHeaders) =>
         val daoBlockHeaderOpt = blockHeaders.find(_.number == daoForkBlockNumber)
@@ -439,7 +445,7 @@ object PeerActor {
     case object Idle extends Status
     case object Connecting extends Status
     case object Handshaking extends Status
-    case class Handshaked(initialStatus: msg.Status, chain: Chain) extends Status
+    case class Handshaked(initialStatus: msg.Status, chain: Chain, totalDifficulty: BigInt) extends Status
     case object Disconnected extends Status
   }
 
