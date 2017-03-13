@@ -85,7 +85,9 @@ trait BlockRouteSetup {
     override def save(blockHash: ByteString, blockBody: BlockBody): Unit = ???
 
     override def save(node: MptNode): Unit = ???
-}
+
+    override def removeBlock(hash: ByteString): Unit = ???
+  }
 
   val route: Route = BlockController.route(stubbedBlockchain)
 }

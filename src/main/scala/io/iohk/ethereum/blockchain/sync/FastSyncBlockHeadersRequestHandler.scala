@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, Props, Scheduler}
 import akka.agent.Agent
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
-import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus}
+import io.iohk.ethereum.utils.NodeStatus
 
 class FastSyncBlockHeadersRequestHandler(
     peer: ActorRef,
@@ -29,14 +29,17 @@ class FastSyncBlockHeadersRequestHandler(
       parentTd.isDefined
     }.unzip
 
-    blockHeadersObtained.lastOption foreach { lastHeader =>
-      nodeStatusHolder.send(_.copy(
-        blockchainStatus = BlockchainStatus(lastHeader.difficulty, lastHeader.hash, lastHeader.number)))
+    if (blockHashesObtained.nonEmpty) {
+      fastSyncController ! SyncController.EnqueueBlockBodies(blockHashesObtained)
+      fastSyncController ! SyncController.EnqueueReceipts(blockHashesObtained)
     }
 
-    if (blockHashesObtained.nonEmpty) {
-      fastSyncController ! FastSyncController.EnqueueBlockBodies(blockHashesObtained)
-      fastSyncController ! FastSyncController.EnqueueReceipts(blockHashesObtained)
+    if (blockHeadersObtained.headOption.exists(_.number == block)) {
+      val lastHeader = blockHeadersObtained.foldLeft(blockHeadersObtained.head) { (currentHeader, nextHeader) =>
+        if (nextHeader.number == currentHeader.number + 1) nextHeader
+        else currentHeader
+      }
+      fastSyncController ! SyncController.UpdateBestBlockHeaderNumber(lastHeader.number)
     }
 
     if (blockHashesObtained.length != blockHashes.length) fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
@@ -58,7 +61,8 @@ class FastSyncBlockHeadersRequestHandler(
 
 object FastSyncBlockHeadersRequestHandler {
   def props(peer: ActorRef, block: BigInt, maxHeaders: Int,
-            nodeStatusHolder: Agent[NodeStatus], blockchain: Blockchain)
+            nodeStatusHolder: Agent[NodeStatus],
+            blockchain: Blockchain)
            (implicit scheduler: Scheduler): Props =
     Props(new FastSyncBlockHeadersRequestHandler(peer, block, maxHeaders, nodeStatusHolder, blockchain))
 }

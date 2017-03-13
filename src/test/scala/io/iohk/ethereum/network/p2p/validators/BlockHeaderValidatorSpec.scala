@@ -2,27 +2,28 @@ package io.iohk.ethereum.network.p2p.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.validators.BlockHeaderError._
 import org.scalatest.prop.PropertyChecks
-import org.scalatest.FunSuite
+import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-class BlockHeaderValidatorSpec extends FunSuite with PropertyChecks with ObjectGenerators {
+class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
   val ExtraDataSizeLimit = 20
 
   //BlockHeader member's lengths obtained from Yellow paper
   val NonceLength = 8 //64bit
   val MixHashLength = 32 //256bit
 
-  test("BlockHeaderValidator should validate correctly formed BlockHeaders") {
+  "BlockHeaderValidator" should "validate correctly formed BlockHeaders" in {
     BlockHeaderValidator.validate(validBlockHeader, validBlockParent) match {
       case Right(validated) if validated equals validBlockHeader => succeed
       case _ => fail
     }
   }
 
-  test("BlockHeaderValidator should return a failure if created based on invalid extra data") {
+  it should "return a failure if created based on invalid extra data" in {
     forAll(randomSizeByteStringGen(
       BlockHeaderValidator.MaxExtraDataSize + 1,
       BlockHeaderValidator.MaxExtraDataSize + ExtraDataSizeLimit)
@@ -32,7 +33,7 @@ class BlockHeaderValidatorSpec extends FunSuite with PropertyChecks with ObjectG
     }
   }
 
-  test("BlockHeaderValidator should return a failure if created based on invalid timestamp") {
+  it should "return a failure if created based on invalid timestamp" in {
     forAll(longGen) { timestamp =>
       val blockHeader = validBlockHeader.copy(unixTimestamp = timestamp)
       val validateResult = BlockHeaderValidator.validate(blockHeader, validBlockParent)
@@ -44,7 +45,7 @@ class BlockHeaderValidatorSpec extends FunSuite with PropertyChecks with ObjectG
     }
   }
 
-  test("BlockHeader return a failure if created based on invalid difficulty") {
+  it should "return a failure if created based on invalid difficulty" in {
     forAll(bigIntGen) { difficulty =>
       val blockHeader = validBlockHeader.copy(difficulty = difficulty)
       val validateResult = BlockHeaderValidator.validate(blockHeader, validBlockParent)
@@ -53,7 +54,7 @@ class BlockHeaderValidatorSpec extends FunSuite with PropertyChecks with ObjectG
     }
   }
 
-  test("BlockHeader should return a failure if created based on invalid gas used") {
+  it should "return a failure if created based on invalid gas used" in {
     forAll(bigIntGen) { gasUsed =>
       val blockHeader = validBlockHeader.copy(gasUsed = gasUsed)
       val validateResult = BlockHeaderValidator.validate(blockHeader, validBlockParent)
@@ -62,7 +63,7 @@ class BlockHeaderValidatorSpec extends FunSuite with PropertyChecks with ObjectG
     }
   }
 
-  test("BlockHeader should return a failure if created based on invalid gas limit") {
+  it should "return a failure if created based on invalid gas limit" in {
     val LowerGasLimit = BlockHeaderValidator.MinGasLimit.max(
       validBlockParent.gasLimit - validBlockParent.gasLimit / BlockHeaderValidator.GasLimitBoundDivisor + 1)
     val UpperGasLimit = validBlockParent.gasLimit + validBlockParent.gasLimit / BlockHeaderValidator.GasLimitBoundDivisor - 1
@@ -76,7 +77,7 @@ class BlockHeaderValidatorSpec extends FunSuite with PropertyChecks with ObjectG
     }
   }
 
-  test("BlockHeader should return a failure if created based on invalid number") {
+  it should "return a failure if created based on invalid number" in {
     forAll(bigIntGen) { number =>
       val blockHeader = validBlockHeader.copy(number = number)
       val validateResult = BlockHeaderValidator.validate(blockHeader, validBlockParent)
@@ -86,12 +87,27 @@ class BlockHeaderValidatorSpec extends FunSuite with PropertyChecks with ObjectG
     }
   }
 
-  test("BlockHeader should return a failure if created based on invalid nonce/mixHash") {
+  it should "return a failure if created based on invalid nonce/mixHash" in {
     forAll(byteStringOfLengthNGen(NonceLength), byteStringOfLengthNGen(MixHashLength)) { case (nonce, mixHash) =>
       val blockHeader =validBlockHeader.copy(nonce = nonce, mixHash = mixHash)
       val validateResult = BlockHeaderValidator.validate(blockHeader, validBlockParent)
       if(nonce != validBlockHeader.nonce || mixHash != validBlockHeader.mixHash) assert(validateResult == Left(HeaderPoWError))
       else assert(validateResult == Right(blockHeader))
+    }
+  }
+
+  it should "validate correctly a block whose parent is in storage" in new EphemBlockchainTestSetup {
+    blockchain.save(validBlockParent)
+    BlockHeaderValidator.validate(validBlockHeader, blockchain) match {
+      case Right(validated) if validated equals validBlockHeader => succeed
+      case _ => fail
+    }
+  }
+
+  it should "return a failure if the parent's header is not in storage" in new EphemBlockchainTestSetup {
+    BlockHeaderValidator.validate(validBlockHeader, blockchain) match {
+      case Left(HeaderParentNotFoundError) => succeed
+      case _ => fail
     }
   }
 

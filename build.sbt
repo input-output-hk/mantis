@@ -18,6 +18,7 @@ val dep = {
     "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
+    "io.suzaku" %% "boopickle" % "1.2.6",
     "org.consensusresearch" %% "scrypto" % "1.2.0-RC3",
     "com.madgag.spongycastle" % "core" % "1.54.0.0",
     "org.iq80.leveldb" % "leveldb" % "0.9",

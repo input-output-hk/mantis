@@ -97,6 +97,8 @@ trait Blockchain {
     save(block.header.hash, block.body)
   }
 
+  def removeBlock(hash: ByteString): Unit
+
   /**
     * Persists a block header in the underlying Blockchain Database
     *
@@ -178,6 +180,12 @@ class BlockchainImpl(
 
   private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit = blockNumberMappingStorage.put(number, hash)
 
+  override def removeBlock(blockHash: ByteString): Unit = {
+    blockHeadersStorage.remove(blockHash)
+    blockBodiesStorage.remove(blockHash)
+    totalDifficultyStorage.remove(blockHash)
+    receiptStorage.remove(blockHash)
+  }
 }
 
 trait BlockchainStorages {
