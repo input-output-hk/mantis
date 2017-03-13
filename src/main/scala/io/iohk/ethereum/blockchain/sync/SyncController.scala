@@ -232,8 +232,8 @@ class SyncController(
         hashes.foreach {
           case h: EvmCodeHash => nonMptNodesQueue += h
           case h: StorageRootHash => nonMptNodesQueue += h
-          case h: StateMptNodeHash => h +: mptNodesQueue
-          case h: ContractStorageMptNodeHash => h +: mptNodesQueue
+          case h: StateMptNodeHash => mptNodesQueue = h +: mptNodesQueue
+          case h: ContractStorageMptNodeHash => mptNodesQueue = h +: mptNodesQueue
         }
 
       case EnqueueBlockBodies(hashes) =>
