@@ -51,6 +51,7 @@ trait RegularSyncController {
 
     case PeerTimeOut(peer) =>
       blacklist(peer, blacklistDuration)
+      resolvingBranch = false
       askForHeaders()
   }
 
@@ -176,6 +177,7 @@ trait RegularSyncController {
   private def resumeWithDifferentPeer() = {
     blacklist(sender(), blacklistDuration)
     headersQueue = Seq.empty
+    resolvingBranch = false
     self ! ResumeRegularSync
   }
 
