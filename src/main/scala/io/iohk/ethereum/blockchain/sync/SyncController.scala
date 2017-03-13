@@ -198,7 +198,7 @@ class SyncController(
       else
         (SyncState.empty, fastSyncStateStorage.purge())
 
-    private var mptNodesQueue: Set[HashType] = initialSyncState.mptNodesQueue
+    private var mptNodesQueue: Seq[HashType] = initialSyncState.mptNodesQueue
     private var nonMptNodesQueue: Set[HashType] = initialSyncState.nonMptNodesQueue
     private var blockBodiesQueue: Set[ByteString] = initialSyncState.blockBodiesQueue
     private var receiptsQueue: Set[ByteString] = initialSyncState.receiptsQueue
@@ -232,8 +232,8 @@ class SyncController(
         hashes.foreach {
           case h: EvmCodeHash => nonMptNodesQueue += h
           case h: StorageRootHash => nonMptNodesQueue += h
-          case h: StateMptNodeHash => mptNodesQueue += h
-          case h: ContractStorageMptNodeHash => mptNodesQueue += h
+          case h: StateMptNodeHash => h +: mptNodesQueue
+          case h: ContractStorageMptNodeHash => h +: mptNodesQueue
         }
 
       case EnqueueBlockBodies(hashes) =>
@@ -383,11 +383,11 @@ object SyncController {
 
   object SyncState {
 
-    val empty: SyncState = SyncState(Set.empty, Set.empty, Set.empty, Set.empty, 0, BigInt(0))
+    val empty: SyncState = SyncState(Seq.empty, Set.empty, Set.empty, Set.empty, 0, BigInt(0))
 
   }
 
-  case class SyncState(mptNodesQueue: Set[HashType],
+  case class SyncState(mptNodesQueue: Seq[HashType],
                        nonMptNodesQueue: Set[HashType],
                        blockBodiesQueue: Set[ByteString],
                        receiptsQueue: Set[ByteString],
