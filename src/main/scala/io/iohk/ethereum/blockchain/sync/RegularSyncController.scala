@@ -127,10 +127,7 @@ trait RegularSyncController {
               appStateStorage.putBestBlockNumber(b.header.number)
               currentTd += b.header.difficulty
               blockchain.save(b.header.hash, currentTd)
-              blockHashToDelete match {
-                case Some(hash) => blockchain.removeBlock(hash)
-                case _ =>
-              }
+              blockHashToDelete.foreach(blockchain.removeBlock)
 
               NewBlock(b, currentTd)
             }
