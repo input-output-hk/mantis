@@ -15,7 +15,7 @@ object ProgramContext {
 
     val gasLimit = tx.gasLimit - GasFee.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, blockHeader.number)
 
-    ProgramContext(env, UInt256(gasLimit), world1)
+    ProgramContext(env, recipientAddress, UInt256(gasLimit), world1)
   }
 
   private def callOrCreate[W <: WorldStateProxy[W, S], S <: Storage[S]](world: W, tx: Transaction, senderAddress: Address): (W, Address, Program) = {
@@ -43,10 +43,13 @@ object ProgramContext {
   * it should have all (interfaces to) the data accessible from the EVM.
   *
   * @param env set of constants for the execution
+  * @param receivingAddr used for determining whether a precompiled contract is being called (potentially
+  *                      different from the addresses defined in env)
   * @param startGas initial gas for the execution
   * @param world provides interactions with world state
   */
 case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
   env: ExecEnv,
-  startGas: UInt256, //TODO: should we move it to ExecEnv
+  receivingAddr: Address,
+  startGas: UInt256,
   world: W)

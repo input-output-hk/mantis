@@ -85,6 +85,7 @@ trait EvmTestEnv {
     case b: BigInt => UInt256(b).bytes
     case a: Array[Byte] => UInt256(a).bytes
     case i: Int => UInt256(i).bytes
+    case b: Byte => UInt256(b).bytes
     case a: Address => UInt256(a.bytes).bytes
     case other => throw new RuntimeException("Invalid call argument")
   }

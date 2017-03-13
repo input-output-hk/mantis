@@ -5,8 +5,10 @@ import java.math.BigInteger
 import akka.util.ByteString
 import org.spongycastle.asn1.x9.X9IntegerConverter
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.spongycastle.crypto.digests.SHA256Digest
 import org.spongycastle.crypto.params.ECPublicKeyParameters
-import org.spongycastle.math.ec.{ECAlgorithms, ECPoint, ECCurve}
+import org.spongycastle.crypto.signers.{ECDSASigner, HMacDSAKCalculator}
+import org.spongycastle.math.ec.{ECAlgorithms, ECCurve, ECPoint}
 import org.spongycastle.util.BigIntegers._
 
 object ECDSASignature {
@@ -29,6 +31,14 @@ object ECDSASignature {
     if (v >= 31) (v - 31).toByte
     else (v - 27).toByte
   }
+
+  def recoverPubBytes(h: ByteString, v: ByteString, r: ByteString, s: ByteString): Option[ByteString] =
+    recoverPubBytes(
+      new BigInteger(1, r.toArray),
+      new BigInteger(1, s.toArray),
+      recIdFromSignatureV(BigInt(v.toArray).toInt),
+      h.toArray
+    ).map(ByteString(_))
 
   def recoverPubBytes(r: BigInteger, s: BigInteger, recId: Int, message: Array[Byte]): Option[Array[Byte]] = {
     def decompressKey(xBN: BigInteger, yBit: Boolean): ECPoint = {
@@ -72,16 +82,35 @@ object ECDSASignature {
     else s
   }
 
+  def sign(message: Array[Byte], keyPair: AsymmetricCipherKeyPair): ECDSASignature = {
+    val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
+    signer.init(true, keyPair.getPrivate)
+    val components = signer.generateSignature(message)
+    val r = components(0)
+    val s = ECDSASignature.canonicalise(components(1))
+    val v = ECDSASignature
+      .calculateV(r, s, keyPair, message)
+      .getOrElse(throw new RuntimeException("Failed to calculate signature rec id"))
+
+    ECDSASignature(r, s, v)
+  }
+
 }
 
 case class ECDSASignature(r: BigInteger, s: BigInteger, v: Byte) {
 
+  import ECDSASignature._
+
   lazy val encoded: ByteString = {
-    import ECDSASignature.{RLength, SLength}
     ByteString(
       asUnsignedByteArray(r).reverse.padTo(RLength, 0.toByte).reverse ++
-      asUnsignedByteArray(s).reverse.padTo(SLength, 0.toByte).reverse ++
-      Array(ECDSASignature.recIdFromSignatureV(v)))
+        asUnsignedByteArray(s).reverse.padTo(SLength, 0.toByte).reverse ++
+        Array(recIdFromSignatureV(v)))
   }
 
+  def recoverPubBytes(message: Array[Byte]): Option[Array[Byte]] =
+    ECDSASignature.recoverPubBytes(r, s, recIdFromSignatureV(v), message)
+
+  def recoverPubBytes(message: ByteString): Option[ByteString] =
+    recoverPubBytes(message.toArray).map(ByteString(_))
 }

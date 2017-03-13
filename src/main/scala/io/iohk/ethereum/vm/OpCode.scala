@@ -695,6 +695,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
 
       val context: ProgramContext[W, S] = state.context.copy(
         env = env,
+        receivingAddr = toAddr,
         startGas = startGas,
         world = world1)
 

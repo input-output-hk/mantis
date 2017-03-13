@@ -10,6 +10,7 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.Blockchain
+import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
 
 
@@ -23,6 +24,24 @@ object SignedTransaction {
   val newPositivePointSign = 36
   val valueForEmptyR = 0
   val valueForEmptyS = 0
+
+  def apply(tx: Transaction, keyPair: AsymmetricCipherKeyPair): SignedTransaction = {
+    val bytes = crypto.kec256(
+      rlpEncode(RLPList(
+        tx.nonce,
+        tx.gasPrice,
+        tx.gasLimit,
+        tx.receivingAddress.toArray,
+        tx.value,
+        tx.payload,
+        Config.Blockchain.chainId,
+        valueForEmptyR,
+        valueForEmptyS)))
+
+    val sig = ECDSASignature.sign(bytes, keyPair)
+    val pointSign: Byte = (sig.v + Config.Blockchain.chainId * 2 + 8).toByte
+    SignedTransaction(tx, pointSign, ByteString(sig.r.toByteArray), ByteString(sig.s.toByteArray))
+  }
 }
 
 case class SignedTransaction(

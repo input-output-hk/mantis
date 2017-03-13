@@ -180,6 +180,7 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
     //add zero if odd number of digits
     val extraZero = if (hex.length % 2 == 0) "" else "0"
     s"0x$extraZero$hex"
+    n.toString
   }
 
 
