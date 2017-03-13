@@ -41,7 +41,7 @@ class FastSyncBlockHeadersRequestHandler(
 
     if (blockHashesObtained.length != blockHashes.length) fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
 
-    log.info("Received {} block headers in {} ms", blockHashesObtained.size, timeTakenSoFar())
+    log.debug("Received {} block headers in {} ms", blockHashesObtained.size, timeTakenSoFar())
     cleanupAndStop()
   }
 
