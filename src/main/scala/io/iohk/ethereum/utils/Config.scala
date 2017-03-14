@@ -109,7 +109,7 @@ object Config {
   object FastSync {
     private val fastSyncConfig = config.getConfig("fast-sync")
 
-    val continueAfterRestart: Boolean = fastSyncConfig.getBoolean("continue-after-restart")
+    val doFastSync: Boolean = fastSyncConfig.getBoolean("do-fast-sync")
 
     val peersScanInterval: FiniteDuration = fastSyncConfig.getDuration("peers-scan-interval").toMillis.millis
     val blacklistDuration: FiniteDuration = fastSyncConfig.getDuration("blacklist-duration").toMillis.millis

@@ -25,7 +25,7 @@ trait RegularSyncController {
 
   def regularSync(): Receive = {
 
-    case StartRegularSync =>
+    case StartSyncing =>
       askForHeaders()
 
     case ResumeRegularSync =>
@@ -189,4 +189,5 @@ trait RegularSyncController {
   private case class PeerTimeOut(peer:ActorRef)
   private case class ResolveBranch(peer: ActorRef)
 
+  case object StartSyncing
 }

@@ -14,10 +14,8 @@ import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerActor.Status.Chain
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, PeersResponse}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
-import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
@@ -51,7 +49,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer2.expectMsg(PeerActor.GetStatus)
     peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC, peer1Status.totalDifficulty)))
 
-    fastSyncController ! SyncController.StartFastSync
+    fastSyncController ! SyncController.StartSync
 
     peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))
@@ -108,7 +106,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer2.expectMsg(PeerActor.GetStatus)
     peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC, peer1Status.totalDifficulty)))
 
-    fastSyncController ! SyncController.StartFastSync
+    fastSyncController ! SyncController.StartSync
 
     peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))
@@ -184,7 +182,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState.empty.copy(bestBlockHeaderNumber = targetBlockHeader.number))
 
-    fastSyncController ! SyncController.StartFastSync
+    fastSyncController ! SyncController.StartSync
 
     peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))
@@ -250,7 +248,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
     storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, maxBlocTotalDifficulty)
 
-    fastSyncController ! SyncController.StartRegularSync
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    fastSyncController ! SyncController.StartSync
 
     peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code, BlockBodies.code)))
     peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
@@ -303,7 +303,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     storagesInstance.storages.totalDifficultyStorage.put(commonRoot.hash, commonRootTotalDifficulty)
     storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, commonRootTotalDifficulty + maxBlockHeader.difficulty)
 
-    fastSyncController ! SyncController.StartRegularSync
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    fastSyncController ! SyncController.StartSync
 
     peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code, BlockBodies.code)))
     peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
@@ -373,7 +375,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val targetBlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
     storagesInstance.storages.appStateStorage.putBestBlockNumber(targetBlockHeader.number)
 
-    fastSyncController ! SyncController.StartFastSync
+    fastSyncController ! SyncController.StartSync
 
     peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))

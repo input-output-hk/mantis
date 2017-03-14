@@ -36,8 +36,6 @@ class SyncController(
       case _ => Stop
     }
 
-  import context.dispatcher
-
   var handshakedPeers: Map[ActorRef, PeerStatus.Handshaked] = Map.empty
 
   scheduler.schedule(0.seconds, peersScanInterval, peerManager, PeerManagerActor.GetPeers)
@@ -47,7 +45,19 @@ class SyncController(
   override def receive: Receive = idle
 
   def idle: Receive = handlePeerUpdates orElse {
-    case StartFastSync =>
+
+    case StartSync =>
+      (appStateStorage.isFastSyncDone(), doFastSync) match {
+        case (false, true) =>
+          self ! StartFastSync
+        case (true, _) =>
+          self ! StartRegularSync
+        case (false, false) =>
+          fastSyncStateStorage.purge()
+          self ! StartRegularSync
+      }
+
+    case StartFastSync if !appStateStorage.isFastSyncDone()  =>
       val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.chain == Chain.ETC)
 
       if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
@@ -62,9 +72,10 @@ class SyncController(
         log.warning("Cannot start fast sync, not enough peers to download from. Scheduling retry in {}", startRetryInterval)
         scheduleStartFastSync(startRetryInterval)
       }
+
     case StartRegularSync =>
       context become (handlePeerUpdates orElse regularSync())
-      self ! StartRegularSync
+      self ! StartSyncing
   }
 
   def waitingForBlockHeaders(waitingFor: Set[ActorRef],
@@ -192,11 +203,8 @@ class SyncController(
 
     private val blockHeadersHandlerName = "block-headers-request-handler"
 
-    val (initialSyncState, initialFastSyncStateStorage) =
-      if (continueAfterRestart)
-        (fastSyncStateStorage.getSyncState().getOrElse(SyncState.empty), fastSyncStateStorage)
-      else
-        (SyncState.empty, fastSyncStateStorage.purge())
+    val initialSyncState: SyncState = fastSyncStateStorage.getSyncState().getOrElse(SyncState.empty)
+    val initialFastSyncStateStorage: FastSyncStateStorage = fastSyncStateStorage
 
     private var mptNodesQueue: Seq[HashType] = initialSyncState.mptNodesQueue
     private var nonMptNodesQueue: Set[HashType] = initialSyncState.nonMptNodesQueue
@@ -207,24 +215,20 @@ class SyncController(
 
     private var assignedHandlers: Map[ActorRef, ActorRef] = Map.empty
 
-    val syncStatePersistCancellable: Option[Cancellable] = if (continueAfterRestart) {
+    val syncStatePersistCancellable: Cancellable = {
       val syncStateStorageActor: ActorRef = context.actorOf(Props[FastSyncStateActor], "state-storage")
       syncStateStorageActor ! initialFastSyncStateStorage
-      Some(
-        scheduler.schedule(
-          persistStateSnapshotInterval,
-          persistStateSnapshotInterval) {
-          syncStateStorageActor ! SyncState(
-            mptNodesQueue,
-            nonMptNodesQueue,
-            blockBodiesQueue,
-            receiptsQueue,
-            downloadedNodesCount,
-            bestBlockHeaderNumber)
-        }
-      )
-    } else {
-      None
+      scheduler.schedule(
+        persistStateSnapshotInterval,
+        persistStateSnapshotInterval) {
+        syncStateStorageActor ! SyncState(
+          mptNodesQueue,
+          nonMptNodesQueue,
+          blockBodiesQueue,
+          receiptsQueue,
+          downloadedNodesCount,
+          bestBlockHeaderNumber)
+      }
     }
 
     def receive: Receive = handlePeerUpdates orElse {
@@ -279,9 +283,10 @@ class SyncController(
     }
 
     def finish(): Unit = {
-      syncStatePersistCancellable.map(_.cancel())
+      syncStatePersistCancellable.cancel()
       fastSyncStateStorage.purge()
       log.info("Fast sync finished")
+      appStateStorage.fastSyncDone()
       context.parent ! FastSyncDone
     }
 
@@ -394,8 +399,9 @@ object SyncController {
                        downloadedNodesCount: Int,
                        bestBlockHeaderNumber: BigInt)
 
-  case object StartFastSync
-  case object StartRegularSync
+  case object StartSync
+  protected case object StartFastSync
+  protected case object StartRegularSync
 
   case class EnqueueNodes(hashes: Seq[HashType])
 
