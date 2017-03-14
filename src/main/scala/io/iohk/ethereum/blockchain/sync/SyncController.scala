@@ -30,7 +30,6 @@ class SyncController(
   import BlacklistSupport._
   import Config.FastSync._
   import SyncController._
-  import context.dispatcher
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
@@ -293,6 +292,7 @@ class SyncController(
       syncStatePersistCancellable.cancel()
       syncStateStorageActor ! PoisonPill
 
+      fastSyncStateStorage.purge()
       appStateStorage.fastSyncDone()
 
       log.info("Fast sync finished")
@@ -404,7 +404,7 @@ object SyncController {
       downloadedNodesCount: Int = 0,
       bestBlockHeaderNumber: BigInt = 0)
 
-case object StartSync
+  case object StartSync
   protected case object StartFastSync
   protected case object StartRegularSync
 
