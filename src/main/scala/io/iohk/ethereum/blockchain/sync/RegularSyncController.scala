@@ -44,6 +44,7 @@ trait RegularSyncController {
       handleBlockBodies(m)
 
     case m: BroadcastBlocks if broadcasting =>
+      //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
       peersToDownloadFrom.keys.foreach(_ ! m)
 
     case ResolveBranch(peer) =>

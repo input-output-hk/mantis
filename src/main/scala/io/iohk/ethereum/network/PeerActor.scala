@@ -275,8 +275,6 @@ class PeerActor(
                           var currentMaxBlockNumber: BigInt,
                           var chain: Chain) {
 
-    var blockBroadcastActor: Option[ActorRef] = None
-
     var totalDifficulty = initialStatus.totalDifficulty
 
     /**
@@ -287,8 +285,7 @@ class PeerActor(
       handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
       handleBlockFastDownload(rlpxConnection, log) orElse
       handleEvmMptFastDownload(rlpxConnection) orElse
-      handleTerminated(rlpxConnection) orElse
-      handleBlockBroadcastActorTerminated orElse {
+      handleTerminated(rlpxConnection) orElse {
 
       case RLPxConnectionHandler.MessageReceived(message) =>
         log.debug("Received message: {}", message)
@@ -311,7 +308,6 @@ class PeerActor(
             self ! SendMessage(b)
         }
 
-      case PeerActor.StartBlockBroadcast => startNewBlockBroadcastActor()
     }
 
     private def updateMaxBlock(message: Message) = {
@@ -332,24 +328,6 @@ class PeerActor(
           currentMaxBlockNumber = maxBlockNumber
         }
       }
-    }
-
-    def handleBlockBroadcastActorTerminated: Receive = {
-      case Terminated(actor) if blockBroadcastActor.contains(actor) =>
-        startNewBlockBroadcastActor()
-    }
-
-    private def startNewBlockBroadcastActor() = {
-      blockBroadcastActor.foreach{ previousBlockBroadcastActor =>
-        context unwatch previousBlockBroadcastActor
-      }
-      val newBlockBroadcastActor = context.actorOf(
-        BlockBroadcastActor.props(nodeStatusHolder, self, context.parent, appStateStorage, blockchain),
-        "blockbroadcast"
-      )
-      context watch newBlockBroadcastActor
-      newBlockBroadcastActor ! BlockBroadcastActor.StartBlockBroadcast
-      blockBroadcastActor = Some(newBlockBroadcastActor)
     }
 
     private def notifySubscribers(message: Message): Unit = {
@@ -413,8 +391,6 @@ object PeerActor {
   case class ConnectTo(uri: URI)
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
-
-  case object StartBlockBroadcast
 
   case class GetMaxBlockNumber(from: ActorRef)
 
