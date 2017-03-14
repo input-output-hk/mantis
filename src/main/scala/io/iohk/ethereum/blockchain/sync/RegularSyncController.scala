@@ -61,11 +61,9 @@ trait RegularSyncController {
   }
 
   private def askForHeaders() = {
-
     bestPeer match {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
-
         peer ! Subscribe(Set(BlockHeaders.code, BlockBodies.code))
         sendWithTimeout(peer, SendMessage(GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)))
       case None =>

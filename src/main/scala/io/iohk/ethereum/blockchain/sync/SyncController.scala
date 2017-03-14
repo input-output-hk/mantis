@@ -47,7 +47,7 @@ class SyncController(
 
   def idle: Receive = handlePeerUpdates orElse {
 
-case StartSync =>
+    case StartSync =>
       (appStateStorage.isFastSyncDone(), doFastSync) match {
         case (false, true) =>
           self ! StartFastSync
@@ -66,7 +66,7 @@ case StartSync =>
 
     case StartRegularSync =>
       context become (handlePeerUpdates orElse regularSync())
-      self ! StartRegularSync
+      self ! StartSyncing
   }
 
   def startFastSyncFromScratch(): Unit = {
@@ -222,10 +222,12 @@ case StartSync =>
 
     private var assignedHandlers: Map[ActorRef, ActorRef] = Map.empty
 
-    private val (syncStateStorageActor, syncStatePersistCancellable) = {
-      val syncStateStorageActor: ActorRef = context.actorOf(Props[FastSyncStateActor], "state-storage")
-      syncStateStorageActor ! fastSyncStateStorage
-      (syncStateStorageActor, scheduler.schedule(persistStateSnapshotInterval, persistStateSnapshotInterval) {
+    private val syncStateStorageActor= context.actorOf(Props[FastSyncStateActor], "state-storage")
+
+    syncStateStorageActor ! fastSyncStateStorage
+
+    private val syncStatePersistCancellable =
+      scheduler.schedule(persistStateSnapshotInterval, persistStateSnapshotInterval) {
         syncStateStorageActor ! SyncState(
           initialSyncState.targetBlock,
           mptNodesQueue,
@@ -234,8 +236,7 @@ case StartSync =>
           receiptsQueue,
           downloadedNodesCount,
           bestBlockHeaderNumber)
-      })
-    }
+      }
 
     def receive: Receive = handlePeerUpdates orElse {
       case EnqueueNodes(hashes) =>
