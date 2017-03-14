@@ -50,7 +50,10 @@ class SyncController(
       (appStateStorage.isFastSyncDone(), doFastSync) match {
         case (false, true) =>
           self ! StartFastSync
-        case (true, _) =>
+        case (true, true) =>
+          log.warning(s"do-fast-sync is set to $doFastSync but fast sync cannot start because regular sync was executed")
+          self ! StartRegularSync
+        case (true, false) =>
           self ! StartRegularSync
         case (false, false) =>
           fastSyncStateStorage.purge()
@@ -64,6 +67,7 @@ class SyncController(
       }
 
     case StartRegularSync =>
+      appStateStorage.fastSyncDone()
       context become (handlePeerUpdates orElse regularSync())
       self ! StartSyncing
   }
