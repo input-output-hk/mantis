@@ -1,0 +1,64 @@
+package io.iohk.ethereum.network
+
+import akka.actor.{ActorRef, Terminated}
+import io.iohk.ethereum.network.BlockBroadcastActor.ProcessingState
+import io.iohk.ethereum.network.BlockSendingHandler.{PeerTerminated, SendBlocksToPeers}
+import io.iohk.ethereum.network.PeerActor.{GetMaxBlockNumber, MaxBlockNumber}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
+
+//FIXME: Decide block propagation algorithm (for now we send block to every peer except the sender) [EC-87]
+trait BlockSendingHandler { this: BlockBroadcastActor =>
+
+  /**
+    * This function handles the [[SendBlocksToPeers]] message:
+    *   - It requests the MaxBlockNumber from each peer that didn't send the blocks
+    *   - Modifies the state to keep the blocks that need to could sent to each peer (if they don't already know of them)
+    */
+  def handleSendBlocksToPeers(state: ProcessingState): Receive = {
+    case SendBlocksToPeers(peers, blocksToSend) =>
+      if(blocksToSend.nonEmpty) {
+        val newState = peers.foldLeft(state) { (recState, peerToSendReq) =>
+          requestMaxBlockNumberFromPeer(recState, peerToSendReq, blocksToSend)
+        }
+        context become processMessages(newState)
+      }
+  }
+
+  private def requestMaxBlockNumberFromPeer(state: ProcessingState, peerToSendReq: ActorRef, blocksToSend: Seq[NewBlock]): ProcessingState = {
+    if(peerToSendReq != this.peer) {
+      if(!state.toBroadcastBlocksToEachPeer.contains(peerToSendReq)) context watch peerToSendReq
+      peerToSendReq ! GetMaxBlockNumber(self)
+
+      val prevToBroadcastBlocksToEachPeer = state.toBroadcastBlocksToEachPeer.getOrElse(peerToSendReq, Nil)
+      val newToBroadcastBlocksToEachPeer = state.toBroadcastBlocksToEachPeer + (peerToSendReq -> (prevToBroadcastBlocksToEachPeer ++ blocksToSend))
+      state.withToBroadcastBlocksToEachPeer(newToBroadcastBlocksToEachPeer)
+    }
+    else state
+  }
+
+  /**
+    * This function handles the [[MaxBlockNumber]] message, by sending to the peer that sent it the new blocks that it doesn't know.
+    */
+  def handlePeerMaxBlockNumber(state: ProcessingState): Receive = {
+    case MaxBlockNumber(maxBlockNumber) =>
+      val blocksToSend = state.toBroadcastBlocksToEachPeer.getOrElse(sender(), Nil)
+      blocksToSend.foreach { newBlockMsg =>
+        if(maxBlockNumber < newBlockMsg.block.header.number){
+          log.info("Sending NewBlockMessage {} to {}", newBlockMsg, sender().path.name)
+          sender() ! PeerActor.SendMessage(newBlockMsg)
+        }
+      }
+      handlePeerTerminated(sender(), state)
+
+    case Terminated(terminatedPeer) => handlePeerTerminated(terminatedPeer, state)
+  }
+
+  private def handlePeerTerminated(terminatedPeer: ActorRef, state: ProcessingState): Unit = {
+    context become processMessages(state.withToBroadcastBlocksToEachPeer(state.toBroadcastBlocksToEachPeer - terminatedPeer))
+  }
+}
+
+object BlockSendingHandler {
+  case class SendBlocksToPeers(peers: Seq[ActorRef], blocksToSend: Seq[NewBlock])
+  case class PeerTerminated(peer: ActorRef, state: ProcessingState)
+}

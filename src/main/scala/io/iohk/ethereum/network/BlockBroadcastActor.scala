@@ -1,13 +1,12 @@
 package io.iohk.ethereum.network
 
-import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.MessageReceived
-import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer}
+import io.iohk.ethereum.network.GetPeersHandler.RequestPeers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -19,17 +18,12 @@ import org.spongycastle.util.encoders.Hex
 //FIXME: Handle peers not responding to block headers and bodies request [EC-107]
 class BlockBroadcastActor(
   nodeStatusHolder: Agent[NodeStatus],
-  peer: ActorRef,
+  val peer: ActorRef,
   peerManagerActor: ActorRef,
   appStateStorage: AppStateStorage,
-  blockchain: Blockchain) extends Actor with ActorLogging {
+  blockchain: Blockchain) extends Actor with ActorLogging with GetPeersHandler with BlockSendingHandler {
 
   import BlockBroadcastActor._
-
-  override val supervisorStrategy =
-    OneForOneStrategy() {
-      case _ => Stop
-    }
 
   override def receive: Receive = idle
 
@@ -38,11 +32,13 @@ class BlockBroadcastActor(
   def idle: Receive = {
     case StartBlockBroadcast =>
       peer ! PeerActor.Subscribe(msgsToSubscribe)
-      context become processMessages(ProcessingState(Nil, Nil, Nil, Nil))
+      context become processMessages()
   }
 
-  def processMessages(state: ProcessingState): Receive =
-    handleReceivedMessages(state) orElse {
+  def processMessages(state: ProcessingState = ProcessingState.empty): Receive =
+    handleReceivedMessages(state) orElse
+      handleSendBlocksToPeers(state) orElse handlePeerMaxBlockNumber(state) orElse
+      handleRequestPeers(state, peerManagerActor) orElse handlePeersResponse(state) orElse {
 
       case ProcessNewBlocks if state.unprocessedBlocks.nonEmpty =>
         if(state.unprocessedBlocks.tail.nonEmpty) self ! ProcessNewBlocks
@@ -56,11 +52,9 @@ class BlockBroadcastActor(
             val blockToProcessDifficulty = parentTD + blockToProcess.header.difficulty
             importBlockToBlockchain(blockToProcess, blockToProcessDifficulty)
 
-            peerManagerActor ! GetPeers
-            val newState = state.copy(
-              unprocessedBlocks = state.unprocessedBlocks.tail,
-              toBroadcastBlocks = state.toBroadcastBlocks :+ NewBlock(blockToProcess, blockToProcessDifficulty)
-            )
+            val newBlockMsg = NewBlock(blockToProcess, blockToProcessDifficulty)
+            val newState = state.withUnprocessBlocks(state.unprocessedBlocks.tail).withToBroadcastBlocks(state.toBroadcastBlocks :+ newBlockMsg)
+            self ! RequestPeers
             context become processMessages(newState)
 
           case (Left(HeaderParentNotFoundError), _) | (Right(_), None) =>
@@ -71,10 +65,6 @@ class BlockBroadcastActor(
             log.warning("Block {} not valid", Hex.toHexString(blockToProcess.header.hash.toArray))
             context become processMessages(state.copy(unprocessedBlocks = state.unprocessedBlocks.tail))
         }
-
-      case PeerManagerActor.PeersResponse(peers) if state.toBroadcastBlocks.nonEmpty =>
-        sendNewBlockMsgToPeers(peers, state.toBroadcastBlocks)
-        context become processMessages(state.copy(toBroadcastBlocks = Nil))
 
       case _ => //Nothing
     }
@@ -129,18 +119,12 @@ class BlockBroadcastActor(
 
   private def blockToProcess(hash: BlockHash, state: ProcessingState): Boolean = !blockInProgress(hash, state) && !blockInStorage(hash)
 
-  //FIXME: Decide block propagation algorithm (for now we send block to every peer except the sender) [EC-87]
-  private def sendNewBlockMsgToPeers(peers: Seq[Peer], newBlocks: Seq[NewBlock]) = {
-    peers.foreach{ p =>
-      if(p.id != peer.path.name) context.actorOf(BlockBroadcastMaxBlockRequestHandler.props(p.ref, newBlocks))
-    }
-  }
-
   private def matchHeaderAndBody(blockHeaders: Seq[BlockHeader], blockBody: BlockBody): Option[Block] =
     blockHeaders.collectFirst{ case blockHeader if BlockValidator.validateHeaderAndBody(blockHeader, blockBody).isRight =>
       Block(blockHeader, blockBody)
     }
 
+  //FIXME: Currently any block is saved to blockchain without handling possible forks
   private def importBlockToBlockchain(block: Block, blockTotalDifficulty: BigInt) = {
     val blockHash = block.header.hash
 
@@ -169,6 +153,21 @@ object BlockBroadcastActor {
 
   case class ProcessingState(unprocessedBlocks: Seq[Block],
                              toBroadcastBlocks: Seq[NewBlock],
+                             toBroadcastBlocksToEachPeer: Map[ActorRef, Seq[NewBlock]],
                              fetchedBlockHashes: Seq[BlockHash],
-                             blockHeaders: Seq[BlockHeader])
+                             blockHeaders: Seq[BlockHeader]) {
+
+    def withToBroadcastBlocksToEachPeer(newToBroadcastBlocksToPeers: Map[ActorRef, Seq[NewBlock]]): ProcessingState =
+      copy(toBroadcastBlocksToEachPeer = newToBroadcastBlocksToPeers)
+
+    def withToBroadcastBlocks(newToBroadcastBlocks: Seq[NewBlock]): ProcessingState =
+      copy(toBroadcastBlocks = newToBroadcastBlocks)
+
+    def withUnprocessBlocks(newUnprocessedBlocks: Seq[Block]): ProcessingState =
+      copy(unprocessedBlocks = newUnprocessedBlocks)
+  }
+
+  object ProcessingState {
+    val empty: ProcessingState = ProcessingState(Nil, Nil, Map(), Nil, Nil)
+  }
 }
