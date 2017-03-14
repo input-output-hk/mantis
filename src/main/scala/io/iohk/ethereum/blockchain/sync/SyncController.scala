@@ -198,10 +198,10 @@ class SyncController(
       else
         (SyncState.empty, fastSyncStateStorage.purge())
 
-    private var mptNodesQueue: Set[HashType] = initialSyncState.mptNodesQueue
-    private var nonMptNodesQueue: Set[HashType] = initialSyncState.nonMptNodesQueue
-    private var blockBodiesQueue: Set[ByteString] = initialSyncState.blockBodiesQueue
-    private var receiptsQueue: Set[ByteString] = initialSyncState.receiptsQueue
+    private var mptNodesQueue: Seq[HashType] = initialSyncState.mptNodesQueue
+    private var nonMptNodesQueue: Seq[HashType] = initialSyncState.nonMptNodesQueue
+    private var blockBodiesQueue: Seq[ByteString] = initialSyncState.blockBodiesQueue
+    private var receiptsQueue: Seq[ByteString] = initialSyncState.receiptsQueue
     private var downloadedNodesCount: Int = initialSyncState.downloadedNodesCount
     private var bestBlockHeaderNumber: BigInt = initialSyncState.bestBlockHeaderNumber
 
@@ -230,10 +230,10 @@ class SyncController(
     def receive: Receive = handlePeerUpdates orElse {
       case EnqueueNodes(hashes) =>
         hashes.foreach {
-          case h: EvmCodeHash => nonMptNodesQueue += h
-          case h: StorageRootHash => nonMptNodesQueue += h
-          case h: StateMptNodeHash => mptNodesQueue += h
-          case h: ContractStorageMptNodeHash => mptNodesQueue += h
+          case h: EvmCodeHash => nonMptNodesQueue = h +: nonMptNodesQueue
+          case h: StorageRootHash => nonMptNodesQueue = h +: nonMptNodesQueue
+          case h: StateMptNodeHash => mptNodesQueue = h +: mptNodesQueue
+          case h: ContractStorageMptNodeHash => mptNodesQueue = h +: mptNodesQueue
         }
 
       case EnqueueBlockBodies(hashes) =>
@@ -383,14 +383,14 @@ object SyncController {
 
   object SyncState {
 
-    val empty: SyncState = SyncState(Set.empty, Set.empty, Set.empty, Set.empty, 0, BigInt(0))
+    val empty: SyncState = SyncState(List.empty, List.empty, List.empty, List.empty, 0, BigInt(0))
 
   }
 
-  case class SyncState(mptNodesQueue: Set[HashType],
-                       nonMptNodesQueue: Set[HashType],
-                       blockBodiesQueue: Set[ByteString],
-                       receiptsQueue: Set[ByteString],
+  case class SyncState(mptNodesQueue: Seq[HashType],
+                       nonMptNodesQueue: Seq[HashType],
+                       blockBodiesQueue: Seq[ByteString],
+                       receiptsQueue: Seq[ByteString],
                        downloadedNodesCount: Int,
                        bestBlockHeaderNumber: BigInt)
 
