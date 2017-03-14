@@ -73,7 +73,7 @@ class AppActor(nodeKey: AsymmetricCipherKeyPair,
           BlockValidator.validateHeaderAndBody),
         "fast-sync-controller")
 
-      fastSyncController ! SyncController.StartFastSync
+      fastSyncController ! SyncController.StartSync
 
       Runtime.getRuntime.addShutdownHook(new Thread() {
         override def run(): Unit = {

@@ -96,8 +96,8 @@ object BlockValidator {
   /**
     * This method allows validate that a BlockHeader matches a BlockBody. It only perfoms the following validations (stated on
     * section 4.2.2 of http://paper.gavwood.com/):
-    *   - [[BlockValidator.validateTransactionRoot]]
-    *   - [[BlockValidator.validateOmmers]]
+    *   - BlockValidator.validateTransactionRoot
+    *   - BlockValidator.validateOmmers
     *
     * @param blockHeader to validate
     * @param blockBody to validate
