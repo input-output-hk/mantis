@@ -52,12 +52,12 @@ object OpCode {
     EXTCODESIZE,
     EXTCODECOPY,
 
-    //BLOCKHASH,
-    //COINBASE,
-    //TIMESTAMP,
-    //NUMBER,
-    //DIFFICULTY,
-    //GASLIMIT,
+    BLOCKHASH,
+    COINBASE,
+    TIMESTAMP,
+    NUMBER,
+    DIFFICULTY,
+    GASLIMIT,
 
     POP,
     MLOAD,
@@ -383,6 +383,32 @@ case object EXTCODECOPY extends OpCode(0x3c, 4, 0, G_extcode) {
     memCost + copyCost
   }
 }
+
+case object BLOCKHASH extends OpCode(0x40, 1, 1, G_blockhash) with ConstGas {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val (blockNumber, stack1) = state.stack.pop
+
+    val hash = if (state.context.env.blockHeader.number - blockNumber > 256 || blockNumber >= state.context.env.blockHeader.number) {
+      DataWord(0)
+    } else {
+      state.world.getBlockHash(blockNumber).map(DataWord(_)).getOrElse(DataWord(0))
+    }
+
+    val stack2 = stack1.push(hash)
+    state.withStack(stack2).step()
+
+  }
+}
+
+case object COINBASE extends ConstOp(0x41)(s => DataWord(s.context.env.blockHeader.beneficiary))
+
+case object TIMESTAMP extends ConstOp(0x42)(s => DataWord(s.context.env.blockHeader.unixTimestamp))
+
+case object NUMBER extends ConstOp(0x43)(s => DataWord(s.context.env.blockHeader.number))
+
+case object DIFFICULTY extends ConstOp(0x44)(s => DataWord(s.context.env.blockHeader.difficulty))
+
+case object GASLIMIT extends ConstOp(0x45)(s => DataWord(s.context.env.blockHeader.gasLimit))
 
 case object POP extends OpCode(0x50, 1, 0, G_base) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {

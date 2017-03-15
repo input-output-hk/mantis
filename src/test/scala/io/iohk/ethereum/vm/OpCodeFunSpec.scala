@@ -258,28 +258,32 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("BLOCKHASH") {
-    // to be implemented
-  }
+  test(BLOCKHASH) { op =>
+    val stateGen: Gen[PS] = for {
+      stateIn <- getProgramStateGen(
+        stackGen = getStackGen(maxWord = DataWord(512)),
+        blockNumberGen = getBigIntGen(0, 512)
+      )
+    } yield stateIn
 
-  ignore("COINBASE") {
-    // to be implemented
-  }
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
 
-  ignore("TIMESTAMP") {
-    // to be implemented
-  }
+      withStackVerification(op, stateIn, stateOut) {
+        val (blockHeaderNumber, stack1) = stateIn.stack.pop
 
-  ignore("NUMBER") {
-    // to be implemented
-  }
+        val expectedState =
+          if (stateIn.context.env.blockHeader.number - blockHeaderNumber.toBigInt <= 256 &&
+            blockHeaderNumber.toBigInt < stateIn.context.env.blockHeader.number) {
+            val expectedHash: DataWord = stateIn.world.getBlockHash(blockHeaderNumber).map(DataWord(_)).getOrElse(DataWord(0))
+            stateIn.withStack(stack1.push(expectedHash)).step()
+          } else {
+            stateIn.withStack(stack1.push(DataWord(0))).step()
+          }
 
-  ignore("DIFFICULTY") {
-    // to be implemented
-  }
-
-  ignore("GASLIMIT") {
-    // to be implemented
+        stateOut shouldBe expectedState
+      }
+    }
   }
 
   test(POP) { op =>
