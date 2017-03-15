@@ -180,9 +180,12 @@ trait RegularSyncController {
   private def checkHeaders(headers: Seq[BlockHeader]): Boolean =
     headers.zip(headers.tail).forall { case (parent, child) => parent.hash == child.parentHash && parent.number + 1 == child.number }
 
-  private def bestPeer: Option[ActorRef] = Try(peersToDownloadFrom.maxBy {
-    case (_, Handshaked(_, Chain.ETC, totalDifficulty)) => totalDifficulty
-  }._1).toOption
+  private def bestPeer: Option[ActorRef] = Try {
+    peersToDownloadFrom
+      .collect { case (ref, Handshaked(_, Chain.ETC, totalDifficulty)) => (ref, totalDifficulty) }
+      .maxBy { case (_, td) => td }
+      ._1
+  }.toOption
 
   private case object ResumeRegularSync
   private case class PeerTimeOut(peer:ActorRef)
