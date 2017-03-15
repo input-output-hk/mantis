@@ -109,7 +109,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
 
     def handleTimeout: Receive = {
       case AuthHandshakeTimeout =>
-        log.info("Auth handshake timeout")
+        log.debug("Auth handshake timeout")
         context.parent ! ConnectionFailed
         context stop self
     }
@@ -117,7 +117,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
     def processHandshakeResult(result: AuthHandshakeResult, remainingData: ByteString): Unit =
       result match {
         case AuthHandshakeSuccess(secrets) =>
-          log.warning("Auth handshake succeeded")
+          log.debug("Auth handshake succeeded")
           context.parent ! ConnectionEstablished
           val messageCodec = new MessageCodec(new FrameCodec(secrets), ProtocolVersion)
           val messagesSoFar = messageCodec.readMessages(remainingData)
@@ -125,7 +125,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
           context become handshaked(messageCodec)
 
         case AuthHandshakeError =>
-          log.warning("Auth handshake failed")
+          log.debug("Auth handshake failed")
           context.parent ! ConnectionFailed
           context stop self
       }
@@ -158,7 +158,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
 
     def handleConnectionClosed: Receive = {
       case _: ConnectionClosed =>
-        log.info("Connection closed")
+        log.debug("Connection closed")
         context stop self
     }
   }

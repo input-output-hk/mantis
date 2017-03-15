@@ -7,9 +7,11 @@ trait SharedEphemDataSources extends DataSourcesComponent {
 
   val dataSources = new DataSources {
 
-    override val evmCodeStorage: DataSource = ephemDataSource
+    override val evmCodeDataSource: DataSource = ephemDataSource
 
     override val mptDataSource: DataSource = ephemDataSource
+
+    override val fastSyncStateDataSource: DataSource = ephemDataSource
 
     override val receiptsDataSource: DataSource = ephemDataSource
 
@@ -20,6 +22,8 @@ trait SharedEphemDataSources extends DataSourcesComponent {
     override val blockHeadersDataSource: DataSource = ephemDataSource
 
     override val totalDifficultyDataSource: DataSource = ephemDataSource
+
+    override val appStateDataSource: DataSource = ephemDataSource
 
     override def closeAll: Unit = ()
   }
