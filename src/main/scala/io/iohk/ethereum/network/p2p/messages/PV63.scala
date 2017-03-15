@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, TransactionLog}
+import io.iohk.ethereum.domain.{Account, Address, TxLogEntry}
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPImplicits.{byteStringEncDec, _}
@@ -228,16 +228,20 @@ object PV63 {
     }
   }
 
-  object TransactionLogImplicits {
-    implicit val rlpEncDec = new RLPEncoder[TransactionLog] with RLPDecoder[TransactionLog] {
-      override def encode(obj: TransactionLog): RLPEncodeable = {
+  object TxLogEntryImplicits {
+    implicit val rlpEncDec = new RLPEncoder[TxLogEntry] with RLPDecoder[TxLogEntry] {
+      override def encode(obj: TxLogEntry): RLPEncodeable = {
         import obj._
-        RLPList(loggerAddress, logTopics, data)
+        RLPList(loggerAddress.bytes, logTopics, data)
       }
 
-      override def decode(rlp: RLPEncodeable): TransactionLog = rlp match {
+      override def decode(rlp: RLPEncodeable): TxLogEntry = rlp match {
         case RLPList(loggerAddress, logTopics: RLPList, data) =>
-          TransactionLog(rlpDecode[ByteString](loggerAddress), logTopics.items.map(rlpDecode[ByteString]), rlpDecode[ByteString](data))
+          TxLogEntry(
+            Address(rlpDecode[ByteString](loggerAddress)),
+            logTopics.items.map(rlpDecode[ByteString]),
+            rlpDecode[ByteString](data))
+
         case _ => throw new RuntimeException("Cannot decode TransactionLog")
       }
     }
@@ -248,13 +252,13 @@ object PV63 {
       override def encode(obj: Receipt): RLPEncodeable = {
         import obj._
         RLPList(postTransactionStateHash, cumulativeGasUsed,
-          logsBloomFilter, RLPList(logs.map(TransactionLogImplicits.rlpEncDec.encode): _*))
+          logsBloomFilter, RLPList(logs.map(TxLogEntryImplicits.rlpEncDec.encode): _*))
       }
 
       override def decode(rlp: RLPEncodeable): Receipt = rlp match {
         case RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs: RLPList) =>
           Receipt(rlpDecode[ByteString](postTransactionStateHash), cumulativeGasUsed,
-            rlpDecode[ByteString](logsBloomFilter), logs.items.map(l => rlpDecode[TransactionLog](l)(TransactionLogImplicits.rlpEncDec)))
+            rlpDecode[ByteString](logsBloomFilter), logs.items.map(l => rlpDecode[TxLogEntry](l)(TxLogEntryImplicits.rlpEncDec)))
         case _ => throw new RuntimeException("Cannot decode Receipt")
       }
     }
@@ -264,7 +268,7 @@ object PV63 {
     postTransactionStateHash: ByteString,
     cumulativeGasUsed: BigInt,
     logsBloomFilter: ByteString,
-    logs: Seq[TransactionLog]
+    logs: Seq[TxLogEntry]
   ) {
     override def toString: String = {
       s"""

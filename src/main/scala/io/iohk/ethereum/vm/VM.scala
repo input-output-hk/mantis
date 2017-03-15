@@ -20,6 +20,7 @@ object VM {
       context.startGas - finalState.gas,
       finalState.world,
       finalState.addressesToDelete,
+      finalState.logs,
       finalState.error)
   }
 
