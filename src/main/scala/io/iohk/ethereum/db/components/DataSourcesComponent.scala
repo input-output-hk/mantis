@@ -8,7 +8,7 @@ trait DataSourcesComponent {
 
   trait DataSources {
 
-    val evmCodeStorage: DataSource
+    val evmCodeDataSource: DataSource
 
     val mptDataSource: DataSource
 
@@ -21,6 +21,10 @@ trait DataSourcesComponent {
     val blockHeightsHashesDataSource: DataSource
 
     val totalDifficultyDataSource: DataSource
+
+    val appStateDataSource: DataSource
+
+    val fastSyncStateDataSource: DataSource
 
     def closeAll: Unit
 

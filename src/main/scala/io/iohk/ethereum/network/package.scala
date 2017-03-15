@@ -27,16 +27,18 @@ package object network {
   }
 
   def loadAsymmetricCipherKeyPair(filePath: String): AsymmetricCipherKeyPair = {
-    if(!new File(filePath).exists()){
+    val file = new File(filePath)
+    if(!file.exists()){
       val keysValuePair = generateKeyPair()
 
       //Write keys to file
       val (pub, priv) = AsymmetricCipherKeyPairSerializable.toHexStrings(keysValuePair)
-      val file = new PrintWriter(filePath)
+      file.getParentFile.mkdirs()
+      val writer = new PrintWriter(filePath)
       try {
-        file.write(pub ++ System.getProperty("line.separator") ++ priv)
+        writer.write(pub ++ System.getProperty("line.separator") ++ priv)
       } finally {
-        file.close()
+        writer.close()
       }
 
       keysValuePair
