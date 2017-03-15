@@ -66,5 +66,7 @@ object Namespaces {
   val NodeNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('n'.toByte)
   val CodeNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('c'.toByte)
   val TotalDifficultyNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('t'.toByte)
+  val AppStateNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('s'.toByte)
   val HeightsNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('i'.toByte)
+  val FastSyncStateNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('h'.toByte)
 }
