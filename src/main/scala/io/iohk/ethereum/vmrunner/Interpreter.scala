@@ -102,7 +102,7 @@ object Interpreter {
     attr <- getAttributes(call.attrs)
 
     sig = ByteString(kec256(abi.shortSignature.getBytes)).take(4)
-    args = call.args.map(s => DataWord(BigInt(s)).bytes)
+    args = call.args.map(s => UInt256(BigInt(s)).bytes)
     callData = args.foldLeft(sig)(_ ++ _)
 
     result = State.runTransaction(xAccount, callData, attr.gas, attr.value)

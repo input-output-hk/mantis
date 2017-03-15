@@ -35,10 +35,8 @@ object UInt256 {
   def apply(b: Boolean): UInt256 =
     if (b) One else Zero
 
-  def apply[N: Integral](n: N): UInt256 = {
-    val num = implicitly[Integral[N]]
-    apply(BigInt(num.toLong(n)))
-  }
+  def apply(n: Long): UInt256 =
+    apply(BigInt(n))
 
 
 

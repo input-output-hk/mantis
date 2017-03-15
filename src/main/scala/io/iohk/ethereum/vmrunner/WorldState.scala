@@ -1,6 +1,7 @@
 package io.iohk.ethereum.vmrunner
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm._
 
@@ -77,6 +78,6 @@ case class WorldState(
   private def newName: String =
     f"acc$nonce%03d"
 
-  def getBlockHash(number: BigInt): Option[ByteString] =
-    None
+  def getBlockHash(number: UInt256): Option[UInt256] =
+    Some(UInt256(kec256(number.bytes)))
 }
