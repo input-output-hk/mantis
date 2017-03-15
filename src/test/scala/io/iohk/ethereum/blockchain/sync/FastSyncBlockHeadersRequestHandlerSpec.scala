@@ -10,7 +10,7 @@ import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.utils.{BlockchainStatus, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import org.scalatest.{FlatSpec, Matchers}
@@ -23,18 +23,18 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     val responseHeaders = Seq(BlockHeader(Config.Blockchain.genesisHash, ByteString(""), ByteString(""),
       ByteString(""), ByteString(""), ByteString(""),
-      ByteString(""), 0, 0, 0, 0, 0, ByteString(""), ByteString(""), ByteString("")))
+      ByteString(""), 0, block, 0, 0, 0, ByteString(""), ByteString(""), ByteString("")))
 
     peer.reply(PeerActor.MessageReceived(BlockHeaders(responseHeaders)))
 
     parent.expectMsgAllOf(
-      FastSyncController.EnqueueBlockBodies(Seq(responseHeaders.head.hash)),
-      FastSyncController.EnqueueReceipts(Seq(responseHeaders.head.hash)))
+      SyncController.EnqueueBlockBodies(Seq(responseHeaders.head.hash)),
+      SyncController.EnqueueReceipts(Seq(responseHeaders.head.hash)),
+      SyncController.UpdateBestBlockHeaderNumber(responseHeaders.last.number))
+
     parent.expectMsg(FastSyncRequestHandler.Done)
 
     blockchain.getBlockHeaderByHash(responseHeaders.head.hash) shouldBe Some(responseHeaders.head)
-
-    nodeStatusHolder().blockchainStatus.bestNumber shouldBe responseHeaders.last.number
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
@@ -69,8 +69,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     val nodeStatus = NodeStatus(
       key = nodeKey,
-      serverStatus = ServerStatus.NotListening,
-      blockchainStatus = BlockchainStatus(0, ByteString("123"), 0))
+      serverStatus = ServerStatus.NotListening)
 
     val nodeStatusHolder = Agent(nodeStatus)
 
