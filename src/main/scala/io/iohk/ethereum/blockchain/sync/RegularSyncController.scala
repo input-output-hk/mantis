@@ -1,7 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
-import io.iohk.ethereum.blockchain.sync.SyncController.StartRegularSync
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor.Status.{Chain, Handshaked}
 import io.iohk.ethereum.network.PeerActor._
@@ -51,9 +50,7 @@ trait RegularSyncController {
       requestHeadersForNewBranch(peer)
 
     case PeerTimeOut(peer) =>
-      blacklist(peer, blacklistDuration)
-      resolvingBranch = false
-      askForHeaders()
+      resumeWithDifferentPeer(peer)
   }
 
   private def requestHeadersForNewBranch(peer: ActorRef) = {
@@ -82,7 +79,7 @@ trait RegularSyncController {
       processBlockHeaders(headersQueue, sender())
     } else {
       //we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
-      resumeWithDifferentPeer()
+      resumeWithDifferentPeer(sender())
     }
 
   private def handleDownload(message: BlockHeaders) = if (message.headers.nonEmpty) {
@@ -107,7 +104,7 @@ trait RegularSyncController {
         }
       case _ =>
         log.warning("got header that does not have parent")
-        resumeWithDifferentPeer()
+        resumeWithDifferentPeer(peer)
     }
   }
 
@@ -149,11 +146,11 @@ trait RegularSyncController {
         }
       } else {
         //blacklist for errors in blocks
-        resumeWithDifferentPeer()
+        resumeWithDifferentPeer(sender())
       }
     } else {
       //we got empty response for bodies from peer but we got block headers earlier
-      resumeWithDifferentPeer()
+      resumeWithDifferentPeer(sender())
     }
   }
 
@@ -172,8 +169,9 @@ trait RegularSyncController {
     scheduler.scheduleOnce(checkForNewBlockInterval, self, ResumeRegularSync)
   }
 
-  private def resumeWithDifferentPeer() = {
-    blacklist(sender(), blacklistDuration)
+  private def resumeWithDifferentPeer(toBlackList:ActorRef) = {
+    toBlackList ! Unsubscribe
+    blacklist(toBlackList, blacklistDuration)
     headersQueue = Seq.empty
     resolvingBranch = false
     self ! ResumeRegularSync

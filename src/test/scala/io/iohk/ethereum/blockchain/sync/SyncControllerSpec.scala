@@ -159,8 +159,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
   }
 
   it should "not use (blacklist) a peer that fails to respond within time limit" in new TestSetup {
-    val peer1 = TestProbe()(system)
-    val peer2 = TestProbe()(system)
+    val peer1: TestProbe = TestProbe()(system)
+    val peer2: TestProbe = TestProbe()(system)
 
     time.advance(1.seconds)
 
@@ -232,10 +232,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peerManager.expectMsg(GetPeers)
     peerManager.reply(PeersResponse(Seq(Peer(new InetSocketAddress("127.0.0.1", 0), peer.ref))))
 
-    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    val peerStatus = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer.expectMsg(PeerActor.GetStatus)
-    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC, peer1Status.totalDifficulty)))
-
+    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peerStatus, Chain.ETC, peerStatus.totalDifficulty)))
 
     val expectedMaxBlock = 399500
     val newBlockDifficulty = 23
@@ -267,6 +266,42 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     blockchain.getTotalDifficultyByHash(newBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + newBlockHeader.difficulty)
   }
 
+  it should "handle case when peer respond with empty block bodies" in new TestSetup {
+    val peer: TestProbe = TestProbe()(system)
+
+    time.advance(1.seconds)
+
+    peerManager.expectMsg(GetPeers)
+    peerManager.reply(PeersResponse(Seq(Peer(new InetSocketAddress("127.0.0.1", 0), peer.ref))))
+
+    val peerStatus = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    peer.expectMsg(PeerActor.GetStatus)
+    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peerStatus, Chain.ETC, peerStatus.totalDifficulty)))
+
+    val expectedMaxBlock = 399500
+    val newBlockDifficulty = 23
+    val maxBlocTotalDifficulty = 12340
+    val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock)
+    val newBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock + 1, parentHash = maxBlockHeader.hash, difficulty = newBlockDifficulty)
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
+    storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
+    storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
+    storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, maxBlocTotalDifficulty)
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    fastSyncController ! SyncController.StartSync
+
+    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code, BlockBodies.code)))
+    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeader))))
+
+    peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash))))
+    peer.reply(PeerActor.MessageReceived(BlockBodies(Seq())))
+
+    peer.expectMsg(PeerActor.Unsubscribe)
+  }
+
   it should "resolve branch conflict" in new TestSetup {
     val peer: TestProbe = TestProbe()(system)
 
@@ -275,9 +310,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peerManager.expectMsg(GetPeers)
     peerManager.reply(PeersResponse(Seq(Peer(new InetSocketAddress("127.0.0.1", 0), peer.ref))))
 
-    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    val peerStatus = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer.expectMsg(PeerActor.GetStatus)
-    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC, peer1Status.totalDifficulty)))
+    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peerStatus, Chain.ETC, peerStatus.totalDifficulty)))
 
 
     val expectedMaxBlock = 399500
