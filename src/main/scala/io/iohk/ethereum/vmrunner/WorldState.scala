@@ -76,4 +76,7 @@ case class WorldState(
 
   private def newName: String =
     f"acc$nonce%03d"
+
+  def getBlockHash(number: BigInt): Option[ByteString] =
+    None
 }
