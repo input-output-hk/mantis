@@ -107,6 +107,7 @@ trait FastSyncControllerBuilder {
     "fast-sync-controller")
 
 }
+
 trait ShutdownHookBuilder {
 
   def shutdown()
