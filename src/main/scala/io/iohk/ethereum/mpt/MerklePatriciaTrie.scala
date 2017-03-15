@@ -41,8 +41,8 @@ object MerklePatriciaTrie {
 
   private def matchingLength(a: Array[Byte], b: Array[Byte]): Int = a.zip(b).takeWhile(t => t._1 == t._2).length
 
-  private def updateNodesInStorage(previousRootHash: Array[Byte], newRoot: Option[Node],
-                                   toRemove: Seq[Node], toUpdate: Seq[Node], nodeStorage: NodeStorage): NodeStorage = {
+  private def updateNodesInStorage(previousRootHash: Array[Byte], newRootHash: Array[Byte], newRoot: Option[Node],
+                                   toRemove: Seq[Node], toUpdate: Seq[Node], nodeStorage: NodeStorage, hashFn: HashFn): NodeStorage = {
     val rootCapped = newRoot.map(_.capped).getOrElse(Array.emptyByteArray)
     val toBeRemoved = toRemove.filter { node =>
       val nCapped = node.capped
