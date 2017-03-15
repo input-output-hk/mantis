@@ -1,7 +1,7 @@
 package io.iohk.ethereum.network.p2p.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.crypto.{kec256, kec512}
 
 object BlockHeaderValidator {
@@ -32,6 +32,19 @@ object BlockHeaderValidator {
       _ <- validateGasLimit(blockHeader, parentHeader)
       _ <- validateNumber(blockHeader, parentHeader)
       _ <- validatePoW(blockHeader)
+    } yield blockHeader
+  }
+
+  /** This method allows validate a BlockHeader (stated on
+    * section 4.4.4 of http://paper.gavwood.com/).
+    *
+    * @param blockHeader BlockHeader to validate.
+    * @param blockchain from where the header of the parent of the block will be fetched.
+    */
+  def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] = {
+    for {
+      blockHeaderParent <- obtainBlockParentHeader(blockHeader, blockchain)
+      _ <- validate(blockHeader, blockHeaderParent)
     } yield blockHeader
   }
 
@@ -148,11 +161,27 @@ object BlockHeaderValidator {
 
     ByteString(kec256(seedHash ++ blockHeader.mixHash))
   }
+
+  /**
+    * Retrieves the header of the parent of a block from the Blockchain, if it exists.
+    *
+    * @param blockHeader BlockHeader whose parent we want to fetch.
+    * @param blockchain where the header of the parent of the block will be fetched.
+    * @return the BlockHeader of the parent if it exists, an [[HeaderParentNotFoundError]] otherwise
+    */
+  private def obtainBlockParentHeader(blockHeader: BlockHeader,
+                                      blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] = {
+    blockchain.getBlockHeaderByHash(blockHeader.parentHash) match {
+      case Some(blockParentHeader) => Right(blockParentHeader)
+      case None => Left(HeaderParentNotFoundError)
+    }
+  }
 }
 
 sealed trait BlockHeaderError
 
 object BlockHeaderError {
+  case object HeaderParentNotFoundError extends BlockHeaderError
   case object HeaderExtraDataError extends BlockHeaderError
   case object HeaderTimestampError extends BlockHeaderError
   case object HeaderDifficultyError extends BlockHeaderError
