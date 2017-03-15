@@ -16,6 +16,8 @@ import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 object App {
 
+  import Config.{Network => NetworkConfig}
+
   val nodeKey: AsymmetricCipherKeyPair = loadAsymmetricCipherKeyPair(Config.keysFile)
 
   val storagesInstance: DataSourcesComponent with StoragesComponent = new SharedLevelDBDataSources with Storages.DefaultStorages
@@ -24,85 +26,42 @@ object App {
   def main(args: Array[String]): Unit = {
     val actorSystem = ActorSystem("etc-client_system")
 
-    val appActor = actorSystem.actorOf(AppActor.props(nodeKey, blockchain, storagesInstance, actorSystem), "app")
+    val nodeStatus =
+      NodeStatus(
+        key = nodeKey,
+        serverStatus = ServerStatus.NotListening)
 
-    appActor ! AppActor.StartApp
-  }
+    val nodeStatusHolder = Agent(nodeStatus)
 
-}
+    val peerManager = actorSystem.actorOf(PeerManagerActor.props(
+      nodeStatusHolder,
+      Config.Network.peer,
+      storagesInstance.storages.appStateStorage,
+      blockchain), "peer-manager")
+    val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
-class AppActor(nodeKey: AsymmetricCipherKeyPair,
-               blockchain: Blockchain,
-               storagesInstance: DataSourcesComponent with StoragesComponent,
-               actorSystem: ActorSystem) extends Actor {
+    server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
 
-  import Config.{Network => NetworkConfig}
-  import AppActor._
+    if (Config.Network.Rpc.enabled) JsonRpcServer.run(actorSystem, blockchain, Config.Network.Rpc)
 
-  override def receive: Receive = idle
-
-  def idle: Receive = {
-
-    case StartApp =>
-      val nodeStatus =
-        NodeStatus(
-          key = nodeKey,
-          serverStatus = ServerStatus.NotListening)
-
-      val nodeStatusHolder = Agent(nodeStatus)
-
-      val peerManager = actorSystem.actorOf(PeerManagerActor.props(
+    val fastSyncController = actorSystem.actorOf(
+      SyncController.props(
+        peerManager,
         nodeStatusHolder,
-        Config.Network.peer,
         storagesInstance.storages.appStateStorage,
-        blockchain), "peer-manager")
-      val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
+        blockchain,
+        storagesInstance.storages.mptNodeStorage,
+        storagesInstance.storages.fastSyncStateStorage,
+        BlockValidator.validateHeaderAndBody),
+      "fast-sync-controller")
 
-      server ! ServerActor.StartServer(NetworkConfig.Server.listenAddress)
+    fastSyncController ! SyncController.StartSync
 
-      if(Config.Network.Rpc.enabled) JsonRpcServer.run(actorSystem, blockchain, Config.Network.Rpc)
-
-      val fastSyncController = actorSystem.actorOf(
-        SyncController.props(
-          peerManager,
-          nodeStatusHolder,
-          storagesInstance.storages.appStateStorage,
-          blockchain,
-          storagesInstance.storages.mptNodeStorage,
-          storagesInstance.storages.fastSyncStateStorage,
-          BlockValidator.validateHeaderAndBody),
-        "fast-sync-controller")
-
-      fastSyncController ! SyncController.StartSync
-
-      Runtime.getRuntime.addShutdownHook(new Thread() {
-        override def run(): Unit = {
-          storagesInstance.dataSources.closeAll
-        }
-      })
-
-      context become waitingForFastSyncDone(blockchain, peerManager)
-
-  }
-
-  def waitingForFastSyncDone(blockchain: Blockchain, peerManager: ActorRef): Receive = {
-    case SyncController.FastSyncDone =>
-      //Ask for peers to start block broadcast
-      peerManager ! PeerManagerActor.GetPeers
-
-    case PeersResponse(peers) =>
-      peers.foreach{ peer =>
-        peer.ref ! PeerActor.StartBlockBroadcast
+    Runtime.getRuntime.addShutdownHook(new Thread() {
+      override def run(): Unit = {
+        storagesInstance.dataSources.closeAll
       }
+    })
+
   }
-
-}
-
-object AppActor {
-  def props(nodeKey: AsymmetricCipherKeyPair, blockchain: Blockchain,
-            storagesInstance: DataSourcesComponent with StoragesComponent, actorSystem: ActorSystem): Props = {
-    Props(new AppActor(nodeKey, blockchain, storagesInstance, actorSystem))
-  }
-
-  case object StartApp
 }

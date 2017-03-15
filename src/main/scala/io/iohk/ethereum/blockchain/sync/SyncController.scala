@@ -298,9 +298,7 @@ class SyncController(
 
       fastSyncStateStorage.purge()
       appStateStorage.fastSyncDone()
-
       log.info("Fast sync finished")
-      context.parent ! FastSyncDone // TODO: is this still needed (seems to be used for BlockBroadcastActor)
     }
 
     private def startRegularSync() = {
@@ -441,7 +439,5 @@ object SyncController {
   private case object BlockHeadersTimeout
 
   private case object ProcessSyncing
-
-  case object FastSyncDone
 
 }
