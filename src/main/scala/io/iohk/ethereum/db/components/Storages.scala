@@ -23,11 +23,15 @@ object Storages {
 
       override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
 
-      override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeStorage)
+      override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSources.fastSyncStateDataSource)
+
+      override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeDataSource)
 
       override val totalDifficultyStorage: TotalDifficultyStorage =
         new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
           .put(Config.Blockchain.genesisHash, Config.Blockchain.genesisDifficulty)
+
+      override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
     }
 
   }
@@ -53,11 +57,15 @@ object Storages {
 
       override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
 
-      override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeStorage)
+      override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSources.fastSyncStateDataSource)
+
+      override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeDataSource)
 
       override val totalDifficultyStorage: TotalDifficultyStorage =
         new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
           .put(Config.Blockchain.genesisHash, Config.Blockchain.genesisDifficulty)
+
+      override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
     }
   }
 }
