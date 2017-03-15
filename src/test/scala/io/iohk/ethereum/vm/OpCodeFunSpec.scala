@@ -393,7 +393,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         if(stateIn.program.validJumpDestinations.contains(pos.intValue))
           stateOut shouldEqual stateIn.withStack(stateOut.stack).goto(pos.intValue)
         else
-          stateOut shouldEqual stateIn.withError(InvalidJump)
+          stateOut shouldEqual stateIn.withError(InvalidJump(pos.intValue))
       }
     }
 
@@ -416,16 +416,17 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val stateOutWithInvalidDestination1 = executeOp(op, stateInWithInvalidDestination1)
 
     withStackVerification(op, stateInWithInvalidDestination1, stateOutWithInvalidDestination1) {
-      stateOutWithInvalidDestination1 shouldEqual stateInWithInvalidDestination1.withError(InvalidJump)
+      stateOutWithInvalidDestination1 shouldEqual stateInWithInvalidDestination1.withError(InvalidJump(jumpDest.toInt))
     }
 
     //Jump to destination inside PUSH
+    val jumpDestInsidePush = 16
     val codeWithInvalidDestination = ByteString(PUSH31.code +: (0 to 31).map(_ => 0.toByte).toArray)
-    val stateInWithInvalidDestination2 = stateWithCode(stateWithJumpDestinationGen(16).sample.get, codeWithInvalidDestination)
+    val stateInWithInvalidDestination2 = stateWithCode(stateWithJumpDestinationGen(jumpDestInsidePush).sample.get, codeWithInvalidDestination)
     val stateOutWithInvalidDestination2 = executeOp(op, stateInWithInvalidDestination2)
 
     withStackVerification(op, stateInWithInvalidDestination2, stateOutWithInvalidDestination2) {
-      stateOutWithInvalidDestination2 shouldEqual stateInWithInvalidDestination2.withError(InvalidJump)
+      stateOutWithInvalidDestination2 shouldEqual stateInWithInvalidDestination2.withError(InvalidJump(jumpDestInsidePush))
     }
   }
 
@@ -446,7 +447,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
             if (stateIn.program.validJumpDestinations.contains(pos.intValue))
               stateIn.withStack(stateOut.stack).goto(pos.intValue)
             else
-              stateIn.withError(InvalidJump)
+              stateIn.withError(InvalidJump(pos.intValue))
           else
             stateIn.withStack(stateOut.stack).step()
 
@@ -473,16 +474,17 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val stateOutWithInvalidDestination1 = executeOp(op, stateInWithInvalidDestination1)
 
     withStackVerification(op, stateInWithInvalidDestination1, stateOutWithInvalidDestination1) {
-      stateOutWithInvalidDestination1 shouldEqual stateInWithInvalidDestination1.withError(InvalidJump)
+      stateOutWithInvalidDestination1 shouldEqual stateInWithInvalidDestination1.withError(InvalidJump(jumpDest.toInt))
     }
 
     //Jump to destination inside PUSH
+    val jumpDestInsidePush = 16
     val codeWithInvalidDestination = ByteString(PUSH31.code +: (0 to 31).map(_ => 0.toByte).toArray)
-    val stateInWithInvalidDestination2 = stateWithCode(stateWithJumpDestinationGen(16).sample.get, codeWithInvalidDestination)
+    val stateInWithInvalidDestination2 = stateWithCode(stateWithJumpDestinationGen(jumpDestInsidePush).sample.get, codeWithInvalidDestination)
     val stateOutWithInvalidDestination2 = executeOp(op, stateInWithInvalidDestination2)
 
     withStackVerification(op, stateInWithInvalidDestination2, stateOutWithInvalidDestination2) {
-      stateOutWithInvalidDestination2 shouldEqual stateInWithInvalidDestination2.withError(InvalidJump)
+      stateOutWithInvalidDestination2 shouldEqual stateInWithInvalidDestination2.withError(InvalidJump(jumpDestInsidePush))
     }
   }
 

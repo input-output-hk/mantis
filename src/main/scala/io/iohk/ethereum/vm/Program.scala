@@ -34,7 +34,7 @@ case class Program(code: ByteString) {
       val byte = code(pos)
       val opCode = OpCode.byteToOpCode.get(byte)
       opCode match {
-        case Some(pushOp: PushOp) => validJumpDestinationsAfterPosition(pos + pushOp.code - PUSH1.code + 2, accum)
+        case Some(pushOp: PushOp) => validJumpDestinationsAfterPosition(pos + pushOp.i + 2, accum)
         case Some(JUMPDEST) => validJumpDestinationsAfterPosition(pos + 1, accum + pos)
         case _ => validJumpDestinationsAfterPosition(pos + 1, accum)
       }
