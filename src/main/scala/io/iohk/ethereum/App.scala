@@ -9,10 +9,14 @@ import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.PeerManagerActor.PeersResponse
 import io.iohk.ethereum.network.{PeerActor, PeerManagerActor, ServerActor}
 import io.iohk.ethereum.rpc.JsonRpcServer
-import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.{Config, Logger, NodeStatus, ServerStatus}
 import io.iohk.ethereum.network._
 import io.iohk.ethereum.network.p2p.validators.BlockValidator
+import io.iohk.ethereum.nodebuilder.Node
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+
+import scala.concurrent.Await
+import scala.util.{Failure, Success, Try}
 
 object App {
 
@@ -24,7 +28,26 @@ object App {
   val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
 
   def main(args: Array[String]): Unit = {
-    val actorSystem = ActorSystem("etc-client_system")
+
+    new Node with Logger {
+
+      def tryAndLogFailure(f: () => Any): Unit = Try(f()) match {
+        case Failure(e) => log.warn("Error while shutting down...", e)
+        case Success(_) =>
+      }
+
+      override def shutdown(): Unit = {
+        tryAndLogFailure(() => storagesInstance.dataSources.closeAll)
+        tryAndLogFailure(() => Await.ready(actorSystem.terminate, shutdownTimeoutDuration))
+      }
+
+      server ! ServerActor.StartServer(networkConfig.Server.listenAddress)
+      fastSyncController ! SyncController.StartSync
+
+      if(rpcServerConfig.enabled) startJSONRpcServer()
+    }
+
+    /*val actorSystem = ActorSystem("etc-client_system")
 
     val nodeStatus =
       NodeStatus(
@@ -61,7 +84,7 @@ object App {
       override def run(): Unit = {
         storagesInstance.dataSources.closeAll
       }
-    })
+    })*/
 
   }
 }

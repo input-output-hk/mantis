@@ -2,17 +2,17 @@ package io.iohk.ethereum.nodebuilder
 
 import akka.actor.ActorSystem
 import akka.agent.Agent
-import io.iohk.ethereum.blockchain.sync.FastSyncController
+import io.iohk.ethereum.blockchain.sync.{SyncController}
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.rpc.{JsonRpcServer, RpcServerConfig}
-import io.iohk.ethereum.utils.{BlockchainStatus, Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
+import io.iohk.ethereum.network.p2p.validators.BlockValidator
 
-import scala.concurrent.duration.Duration
 
 trait NodeKeyBuilder {
   lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile)
@@ -30,11 +30,10 @@ trait NodeStatusBuilder {
 
   self : NodeKeyBuilder =>
 
-  private lazy val nodeStatus =
+  private val nodeStatus =
     NodeStatus(
       key = nodeKey,
-      serverStatus = ServerStatus.NotListening,
-      blockchainStatus = BlockchainStatus(Config.Blockchain.genesisDifficulty, Config.Blockchain.genesisHash, 0))
+      serverStatus = ServerStatus.NotListening)
 
   lazy val nodeStatusHolder = Agent(nodeStatus)
 }
@@ -50,12 +49,17 @@ trait PeerManagerActorBuilder {
 
   self: ActorSystemBuilder
     with NodeStatusBuilder
+    with StorageBuilder
     with BlockChainBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
-  lazy val peerManager = actorSystem.actorOf(
-    PeerManagerActor.props(nodeStatusHolder, peerConfiguration, blockchain), "peer-manager")
+  lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props(
+    nodeStatusHolder,
+    Config.Network.peer,
+    storagesInstance.storages.appStateStorage,
+    blockchain), "peer-manager")
+
 }
 
 trait ServerActorBuilder {
@@ -91,13 +95,15 @@ trait FastSyncControllerBuilder {
     PeerManagerActorBuilder with
     StorageBuilder =>
 
-
   lazy val fastSyncController = actorSystem.actorOf(
-    FastSyncController.props(
+    SyncController.props(
       peerManager,
       nodeStatusHolder,
+      storagesInstance.storages.appStateStorage,
       blockchain,
-      storagesInstance.storages.mptNodeStorage),
+      storagesInstance.storages.mptNodeStorage,
+      storagesInstance.storages.fastSyncStateStorage,
+      BlockValidator.validateHeaderAndBody),
     "fast-sync-controller")
 
 }
