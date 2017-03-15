@@ -52,7 +52,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] {
   def newAddress(creatorAddr: Address): (Address, WS) = {
     val creator = getGuaranteedAccount(creatorAddr)
     val hash = kec256(rlp.encode(RLPList(creatorAddr.bytes, creator.nonce)))
-    val addr = Address(hash.takeRight(Address.Length))
+    val addr = Address(hash)
     val updated = saveAccount(creatorAddr, creator.increaseNonce)
     (addr, updated)
   }

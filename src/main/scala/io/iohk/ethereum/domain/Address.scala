@@ -26,7 +26,7 @@ object Address {
 
 class Address private(val bytes: ByteString) {
 
-  def isEmpty: Boolean = bytes.isEmpty
+  def isEmpty: Boolean = bytes == Address.empty.bytes
 
   def toArray: Array[Byte] = bytes.toArray
 
@@ -41,6 +41,6 @@ class Address private(val bytes: ByteString) {
     bytes.hashCode
 
   override def toString: String =
-    s"${getClass.getSimpleName}(${Hex.toHexString(toArray)})"
+    s"0x${Hex.toHexString(toArray)}"
 
 }
