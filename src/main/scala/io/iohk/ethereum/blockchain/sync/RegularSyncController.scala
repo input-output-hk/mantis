@@ -113,7 +113,7 @@ trait RegularSyncController {
     if (m.bodies.nonEmpty) {
       val result = headersQueue.zip(m.bodies).map { case (h, b) => blockValidator(h, b) }
 
-      if (!result.exists(_.isLeft)) {
+      if (!result.exists(_.isLeft) && result.nonEmpty) {
         val blocks = result.collect { case Right(b) => b }
 
         blockchain.getBlockHeaderByHash(blocks.head.header.parentHash)
