@@ -36,8 +36,6 @@ class SyncController(
       case _ => Stop
     }
 
-  import context.dispatcher
-
   var handshakedPeers: Map[ActorRef, PeerStatus.Handshaked] = Map.empty
 
   scheduler.schedule(0.seconds, peersScanInterval, peerManager, PeerManagerActor.GetPeers)
@@ -47,24 +45,54 @@ class SyncController(
   override def receive: Receive = idle
 
   def idle: Receive = handlePeerUpdates orElse {
-    case StartFastSync =>
-      val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.chain == Chain.ETC)
 
-      if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
-        peersUsedToChooseTarget.foreach { case (peer, Handshaked(status, _, _)) =>
-          peer ! PeerActor.Subscribe(Set(BlockHeaders.code))
-          peer ! PeerActor.SendMessage(GetBlockHeaders(Right(status.bestHash), 1, 0, reverse = false))
-        }
-        log.info("Asking {} peers for block headers", peersUsedToChooseTarget.size)
-        val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, BlockHeadersTimeout)
-        context become waitingForBlockHeaders(peersUsedToChooseTarget.keySet, Map.empty, timeout)
-      } else {
-        log.warning("Cannot start fast sync, not enough peers to download from. Scheduling retry in {}", startRetryInterval)
-        scheduleStartFastSync(startRetryInterval)
+    case StartSync =>
+      (appStateStorage.isFastSyncDone(), doFastSync) match {
+        case (false, true) =>
+          self ! StartFastSync
+        case (true, true) =>
+          log.warning(s"do-fast-sync is set to $doFastSync but fast sync cannot start because regular sync was executed")
+          self ! StartRegularSync
+        case (true, false) =>
+          self ! StartRegularSync
+        case (false, false) =>
+          fastSyncStateStorage.purge()
+          self ! StartRegularSync
       }
+
+    case StartFastSync if !appStateStorage.isFastSyncDone()  =>
+      fastSyncStateStorage.getSyncState() match {
+        case Some(syncState) => startFastSync(syncState)
+        case None => startFastSyncFromScratch()
+      }
+
     case StartRegularSync =>
+      appStateStorage.fastSyncDone()
       context become (handlePeerUpdates orElse regularSync())
-      self ! StartRegularSync
+      self ! StartSyncing
+  }
+
+  def startFastSyncFromScratch(): Unit = {
+    val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.chain == Chain.ETC)
+
+    if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
+      peersUsedToChooseTarget.foreach { case (peer, Handshaked(status, _, _)) =>
+        peer ! PeerActor.Subscribe(Set(BlockHeaders.code))
+        peer ! PeerActor.SendMessage(GetBlockHeaders(Right(status.bestHash), 1, 0, reverse = false))
+      }
+      log.info("Asking {} peers for block headers", peersUsedToChooseTarget.size)
+      val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, BlockHeadersTimeout)
+      context become waitingForBlockHeaders(peersUsedToChooseTarget.keySet, Map.empty, timeout)
+    } else {
+      log.warning("Cannot start fast sync, not enough peers to download from. Scheduling retry in {}", startRetryInterval)
+      scheduleStartFastSync(startRetryInterval)
+    }
+  }
+
+  def startFastSync(syncState: SyncState): Unit = {
+    scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
+    context become new SyncingHandler(syncState).receive
+    self ! ProcessSyncing
   }
 
   def waitingForBlockHeaders(waitingFor: Set[ActorRef],
@@ -123,13 +151,9 @@ class SyncController(
       targetBlockHeaderOpt match {
         case Some(targetBlockHeader) =>
           log.info("Received target block from peer, starting fast sync")
-
-          scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
-
-          context become new SyncingHandler(targetBlockHeader).receive
-
-          self ! EnqueueNodes(Seq(StateMptNodeHash(targetBlockHeader.stateRoot)))
-          self ! ProcessSyncing
+          val initialSyncState = SyncState(targetBlockHeader,
+            mptNodesQueue = Seq(StateMptNodeHash(targetBlockHeader.stateRoot)))
+          startFastSync(initialSyncState)
 
         case None =>
           log.info("Peer ({}) did not respond with target block header, blacklisting and scheduling retry in {}",
@@ -188,15 +212,9 @@ class SyncController(
     handshakedPeers -= peer
   }
 
-  class SyncingHandler(targetBlock: BlockHeader) {
+  class SyncingHandler(initialSyncState: SyncState) {
 
     private val blockHeadersHandlerName = "block-headers-request-handler"
-
-    val (initialSyncState, initialFastSyncStateStorage) =
-      if (continueAfterRestart)
-        (fastSyncStateStorage.getSyncState().getOrElse(SyncState.empty), fastSyncStateStorage)
-      else
-        (SyncState.empty, fastSyncStateStorage.purge())
 
     private var mptNodesQueue: Seq[HashType] = initialSyncState.mptNodesQueue
     private var nonMptNodesQueue: Seq[HashType] = initialSyncState.nonMptNodesQueue
@@ -207,25 +225,21 @@ class SyncController(
 
     private var assignedHandlers: Map[ActorRef, ActorRef] = Map.empty
 
-    val syncStatePersistCancellable: Option[Cancellable] = if (continueAfterRestart) {
-      val syncStateStorageActor: ActorRef = context.actorOf(Props[FastSyncStateActor], "state-storage")
-      syncStateStorageActor ! initialFastSyncStateStorage
-      Some(
-        scheduler.schedule(
-          persistStateSnapshotInterval,
-          persistStateSnapshotInterval) {
-          syncStateStorageActor ! SyncState(
-            mptNodesQueue,
-            nonMptNodesQueue,
-            blockBodiesQueue,
-            receiptsQueue,
-            downloadedNodesCount,
-            bestBlockHeaderNumber)
-        }
-      )
-    } else {
-      None
-    }
+    private val syncStateStorageActor= context.actorOf(Props[FastSyncStateActor], "state-storage")
+
+    syncStateStorageActor ! fastSyncStateStorage
+
+    private val syncStatePersistCancellable =
+      scheduler.schedule(persistStateSnapshotInterval, persistStateSnapshotInterval) {
+        syncStateStorageActor ! SyncState(
+          initialSyncState.targetBlock,
+          mptNodesQueue,
+          nonMptNodesQueue,
+          blockBodiesQueue,
+          receiptsQueue,
+          downloadedNodesCount,
+          bestBlockHeaderNumber)
+      }
 
     def receive: Receive = handlePeerUpdates orElse {
       case EnqueueNodes(hashes) =>
@@ -263,26 +277,28 @@ class SyncController(
       case PrintStatus =>
         val totalNodesCount = downloadedNodesCount + mptNodesQueue.size + nonMptNodesQueue.size
         log.info(
-          s"""|Block: ${appStateStorage.getBestBlockNumber()}/${targetBlock.number}.
+          s"""|Block: ${appStateStorage.getBestBlockNumber()}/${initialSyncState.targetBlock.number}.
               |Peers: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
               |State: $downloadedNodesCount/$totalNodesCount known nodes.""".stripMargin.replace("\n", " "))
     }
 
     def processSyncing(): Unit = {
       if (fullySynced) {
-        finish()
+        finishFastSync()
         startRegularSync()
       } else {
-        if (anythingQueued) processQueues()
+        if (anythingQueued || bestBlockHeaderNumber < initialSyncState.targetBlock.number) processQueues()
         else log.info("No more items to request, waiting for {} responses", assignedHandlers.size)
       }
     }
 
-    def finish(): Unit = {
-      syncStatePersistCancellable.map(_.cancel())
+    def finishFastSync(): Unit = {
+      syncStatePersistCancellable.cancel()
+      syncStateStorageActor ! PoisonPill
+
       fastSyncStateStorage.purge()
+      appStateStorage.fastSyncDone()
       log.info("Fast sync finished")
-      context.parent ! FastSyncDone
     }
 
     private def startRegularSync() = {
@@ -311,7 +327,7 @@ class SyncController(
       } else if (blockBodiesQueue.nonEmpty) {
         requestBlockBodies(peer)
       } else if (context.child(blockHeadersHandlerName).isEmpty &&
-        targetBlock.number > bestBlockHeaderNumber) {
+        initialSyncState.targetBlock.number > bestBlockHeaderNumber) {
         requestBlockHeaders(peer)
       } else if (nonMptNodesQueue.nonEmpty || mptNodesQueue.nonEmpty) {
         requestNodes(peer)
@@ -358,44 +374,41 @@ class SyncController(
 
     def anythingQueued: Boolean =
       nonMptNodesQueue.nonEmpty ||
-        mptNodesQueue.nonEmpty ||
-        blockBodiesQueue.nonEmpty ||
-        receiptsQueue.nonEmpty
+      mptNodesQueue.nonEmpty ||
+      blockBodiesQueue.nonEmpty ||
+      receiptsQueue.nonEmpty
 
-    def fullySynced: Boolean =
-      bestBlockHeaderNumber >= targetBlock.number &&
-        !anythingQueued &&
-        assignedHandlers.isEmpty
+    def fullySynced: Boolean = {
+      bestBlockHeaderNumber >= initialSyncState.targetBlock.number &&
+      !anythingQueued &&
+      assignedHandlers.isEmpty
+    }
   }
 
 }
 
 object SyncController {
-  def props(
-             peerManager: ActorRef,
-             nodeStatusHolder: Agent[NodeStatus],
-             appStateStorage: AppStateStorage,
-             blockchain: Blockchain,
-             mptNodeStorage: MptNodeStorage,
-             syncStateStorage: FastSyncStateStorage,
-             blockValidator: (BlockHeader, BlockBody) => Either[BlockError, Block]):
+  def props(peerManager: ActorRef,
+            nodeStatusHolder: Agent[NodeStatus],
+            appStateStorage: AppStateStorage,
+            blockchain: Blockchain,
+            mptNodeStorage: MptNodeStorage,
+            syncStateStorage: FastSyncStateStorage,
+            blockValidator: (BlockHeader, BlockBody) => Either[BlockError, Block]):
   Props = Props(new SyncController(peerManager, nodeStatusHolder, appStateStorage, blockchain, mptNodeStorage, syncStateStorage, blockValidator))
 
-  object SyncState {
+  case class SyncState(
+      targetBlock: BlockHeader,
+      mptNodesQueue: Seq[HashType] = Nil,
+      nonMptNodesQueue: Seq[HashType] = Nil,
+      blockBodiesQueue: Seq[ByteString] = Nil,
+      receiptsQueue: Seq[ByteString] = Nil,
+      downloadedNodesCount: Int = 0,
+      bestBlockHeaderNumber: BigInt = 0)
 
-    val empty: SyncState = SyncState(List.empty, List.empty, List.empty, List.empty, 0, BigInt(0))
-
-  }
-
-  case class SyncState(mptNodesQueue: Seq[HashType],
-                       nonMptNodesQueue: Seq[HashType],
-                       blockBodiesQueue: Seq[ByteString],
-                       receiptsQueue: Seq[ByteString],
-                       downloadedNodesCount: Int,
-                       bestBlockHeaderNumber: BigInt)
-
-  case object StartFastSync
-  case object StartRegularSync
+  case object StartSync
+  protected case object StartFastSync
+  protected case object StartRegularSync
 
   case class EnqueueNodes(hashes: Seq[HashType])
 
@@ -426,7 +439,5 @@ object SyncController {
   private case object BlockHeadersTimeout
 
   private case object ProcessSyncing
-
-  case object FastSyncDone
 
 }

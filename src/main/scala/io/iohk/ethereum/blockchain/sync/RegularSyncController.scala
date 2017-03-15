@@ -25,7 +25,7 @@ trait RegularSyncController {
 
   def regularSync(): Receive = {
 
-    case StartRegularSync =>
+    case StartSyncing =>
       askForHeaders()
 
     case ResumeRegularSync =>
@@ -44,6 +44,7 @@ trait RegularSyncController {
       handleBlockBodies(m)
 
     case m: BroadcastBlocks if broadcasting =>
+      //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
       peersToDownloadFrom.keys.foreach(_ ! m)
 
     case ResolveBranch(peer) =>
@@ -61,11 +62,9 @@ trait RegularSyncController {
   }
 
   private def askForHeaders() = {
-
     bestPeer match {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
-
         peer ! Subscribe(Set(BlockHeaders.code, BlockBodies.code))
         sendWithTimeout(peer, SendMessage(GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)))
       case None =>
@@ -189,4 +188,5 @@ trait RegularSyncController {
   private case class PeerTimeOut(peer:ActorRef)
   private case class ResolveBranch(peer: ActorRef)
 
+  case object StartSyncing
 }
