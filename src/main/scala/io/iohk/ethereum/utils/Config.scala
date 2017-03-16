@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 
 object Config {
 
-  private val config = ConfigFactory.load().getConfig("etc-client")
+  private val config = ConfigFactory.load().withFallback(ConfigFactory.defaultOverrides()).getConfig("etc-client")
 
   val clientId: String = config.getString("client-id")
 
