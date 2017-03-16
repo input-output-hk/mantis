@@ -1,16 +1,13 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{ActorRef, Props, Scheduler}
-import akka.agent.Agent
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
-import io.iohk.ethereum.utils.NodeStatus
 
 class FastSyncBlockHeadersRequestHandler(
     peer: ActorRef,
     block: BigInt,
     maxHeaders: Int,
-    nodeStatusHolder: Agent[NodeStatus],
     blockchain: Blockchain)(implicit scheduler: Scheduler)
   extends FastSyncRequestHandler[GetBlockHeaders, BlockHeaders](peer) {
 
@@ -30,8 +27,8 @@ class FastSyncBlockHeadersRequestHandler(
     }.unzip
 
     if (blockHashesObtained.nonEmpty) {
-      fastSyncController ! SyncController.EnqueueBlockBodies(blockHashesObtained)
-      fastSyncController ! SyncController.EnqueueReceipts(blockHashesObtained)
+      fastSyncController ! FastSync.EnqueueBlockBodies(blockHashesObtained)
+      fastSyncController ! FastSync.EnqueueReceipts(blockHashesObtained)
     }
 
     if (blockHeadersObtained.headOption.exists(_.number == block)) {
@@ -39,7 +36,7 @@ class FastSyncBlockHeadersRequestHandler(
         if (nextHeader.number == currentHeader.number + 1) nextHeader
         else currentHeader
       }
-      fastSyncController ! SyncController.UpdateBestBlockHeaderNumber(lastHeader.number)
+      fastSyncController ! FastSync.UpdateBestBlockHeaderNumber(lastHeader.number)
     }
 
     if (blockHashesObtained.length != blockHashes.length) fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
@@ -61,8 +58,7 @@ class FastSyncBlockHeadersRequestHandler(
 
 object FastSyncBlockHeadersRequestHandler {
   def props(peer: ActorRef, block: BigInt, maxHeaders: Int,
-            nodeStatusHolder: Agent[NodeStatus],
             blockchain: Blockchain)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncBlockHeadersRequestHandler(peer, block, maxHeaders, nodeStatusHolder, blockchain))
+    Props(new FastSyncBlockHeadersRequestHandler(peer, block, maxHeaders, blockchain))
 }

@@ -1,16 +1,12 @@
 package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
-import akka.agent.Agent
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.crypto
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import org.scalatest.{FlatSpec, Matchers}
@@ -28,9 +24,9 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     peer.reply(PeerActor.MessageReceived(BlockHeaders(responseHeaders)))
 
     parent.expectMsgAllOf(
-      SyncController.EnqueueBlockBodies(Seq(responseHeaders.head.hash)),
-      SyncController.EnqueueReceipts(Seq(responseHeaders.head.hash)),
-      SyncController.UpdateBestBlockHeaderNumber(responseHeaders.last.number))
+      FastSync.EnqueueBlockBodies(Seq(responseHeaders.head.hash)),
+      FastSync.EnqueueReceipts(Seq(responseHeaders.head.hash)),
+      FastSync.UpdateBestBlockHeaderNumber(responseHeaders.last.number))
 
     parent.expectMsg(FastSyncRequestHandler.Done)
 
@@ -65,20 +61,11 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     val block = BigInt(1)
     val maxHeaders = 1
 
-    val nodeKey = crypto.generateKeyPair()
-
-    val nodeStatus = NodeStatus(
-      key = nodeKey,
-      serverStatus = ServerStatus.NotListening)
-
-    val nodeStatusHolder = Agent(nodeStatus)
-
     val fastSyncBlockHeadersRequestHandler =
       parent.childActorOf(FastSyncBlockHeadersRequestHandler.props(
         peer.ref,
         block,
         maxHeaders,
-        nodeStatusHolder,
         blockchain)(time.scheduler))
   }
 
