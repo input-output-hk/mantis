@@ -42,14 +42,19 @@ class FastSyncBlockHeadersRequestHandler(
       fastSyncController ! SyncController.UpdateBestBlockHeaderNumber(lastHeader.number)
     }
 
-    if (blockHashesObtained.length != blockHashes.length) fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+    if (blockHashesObtained.length != blockHashes.length)
+      fastSyncController ! BlacklistSupport.BlacklistPeer(
+        peer,
+        s"Peer responded with ${blockHashesObtained.length} block hashes instead of expected ${blockHashes.length}")
 
     log.info("Received {} block headers in {} ms", blockHashesObtained.size, timeTakenSoFar())
     cleanupAndStop()
   }
 
   override def handleTimeout(): Unit = {
-    fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+    fastSyncController ! BlacklistSupport.BlacklistPeer(
+      peer,
+      "Peer didn't respond with a list of block headers (timeout)")
     cleanupAndStop()
   }
 

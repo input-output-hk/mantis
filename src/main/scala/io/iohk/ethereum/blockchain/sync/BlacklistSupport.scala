@@ -1,35 +1,43 @@
 package io.iohk.ethereum.blockchain.sync
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.ExecutionContext.Implicits.global
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Scheduler}
 
-import akka.actor.{Scheduler, Cancellable, ActorRef, Actor}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.FiniteDuration
 
 trait BlacklistSupport {
-  selfActor: Actor =>
+  selfActor: Actor with ActorLogging =>
 
   import BlacklistSupport._
 
   def scheduler: Scheduler
 
-  var blacklistedPeers: Seq[(ActorRef, Cancellable)] = Nil
+  var blacklistedPeers: Seq[BlacklistedPeer] = Nil
 
-  def blacklist(peer: ActorRef, duration: FiniteDuration): Unit = {
+  def blacklist(peer: ActorRef, duration: FiniteDuration, reason: String): Unit = {
     undoBlacklist(peer)
     val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(peer))
-    blacklistedPeers :+= (peer, unblacklistCancellable)
+    log.info(s"Blacklisting peer. Reason: $reason")
+    blacklistedPeers :+= BlacklistedPeer(peer, unblacklistCancellable, reason)
   }
 
   def undoBlacklist(peer: ActorRef): Unit = {
-    blacklistedPeers.find(_._1 == peer).foreach(_._2.cancel())
-    blacklistedPeers = blacklistedPeers.filterNot(_._1 == peer)
+    blacklistedPeers.find(_.peer == peer).foreach {
+      case BlacklistedPeer(_, cancellable, reason) =>
+        log.info(s"Removing peer from blacklist. Original reason was: $reason")
+        cancellable.cancel()
+    }
+    blacklistedPeers = blacklistedPeers.filterNot(_.peer == peer)
   }
 
   def isBlacklisted(peer: ActorRef): Boolean =
-    blacklistedPeers.exists(_._1 == peer)
+    blacklistedPeers.exists(_.peer == peer)
 }
 
 object BlacklistSupport {
-  case class BlacklistPeer(peer: ActorRef)
+
+  case class BlacklistPeer(peer: ActorRef, reason: String)
   case class UnblacklistPeer(peer: ActorRef)
+
+  case class BlacklistedPeer(peer: ActorRef, cancellable: Cancellable, reason: String)
 }

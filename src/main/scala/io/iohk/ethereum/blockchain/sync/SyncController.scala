@@ -13,8 +13,8 @@ import io.iohk.ethereum.network.p2p.validators.BlockValidator.BlockError
 import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 class SyncController(
     peerManager: ActorRef,
@@ -91,6 +91,11 @@ class SyncController(
 
   def startFastSync(syncState: SyncState): Unit = {
     scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
+    val targetBlockAge = (System.currentTimeMillis() - syncState.targetBlock.unixTimestamp).milliseconds
+    if (targetBlockAge > warnIfTargetBlockOlderThan && targetBlockAge != 0) {
+      log.warning(s"Target block is more than ${targetBlockAge.toHours} hours old. " +
+        "Consider purging the database and starting a fastsync from scratch")
+    }
     context become new SyncingHandler(syncState).receive
     self ! ProcessSyncing
   }
@@ -109,15 +114,18 @@ class SyncController(
         tryStartSync(newReceived)
       } else context become waitingForBlockHeaders(newWaitingFor, newReceived, timeout)
 
-    case msg@PeerActor.MessageReceived(BlockHeaders(_)) =>
+    case PeerActor.MessageReceived(BlockHeaders(blockHeaders)) =>
       sender() ! PeerActor.Unsubscribe
-      blacklist(sender(), blacklistDuration)
+      blacklist(
+        sender(),
+        blacklistDuration,
+        s"Received invalid number of block headers ${blockHeaders.size} instead of 1")
       context become waitingForBlockHeaders(waitingFor - sender(), received, timeout)
 
     case BlockHeadersTimeout =>
       waitingFor.foreach { peer =>
         peer ! PeerActor.Unsubscribe
-        blacklist(peer, blacklistDuration)
+        blacklist(peer, blacklistDuration, "Peer did not respond with list of block headers (timeout)")
       }
       tryStartSync(received)
   }
@@ -156,21 +164,13 @@ class SyncController(
           startFastSync(initialSyncState)
 
         case None =>
-          log.info("Peer ({}) did not respond with target block header, blacklisting and scheduling retry in {}",
-            sender().path.name,
-            startRetryInterval)
-
-          blacklist(sender(), blacklistDuration)
+          blacklist(sender(), blacklistDuration, "Peer did not respond with a target block header")
           scheduleStartFastSync(startRetryInterval)
           context become idle
       }
 
     case TargetBlockTimeout =>
-      log.info("Peer ({}) did not respond with target block header (timeout), blacklisting and scheduling retry in {}",
-        sender().path.name,
-        startRetryInterval)
-
-      blacklist(sender(), blacklistDuration)
+      blacklist(sender(), blacklistDuration, "Peer did not respond with target block header (timeout)")
       peer ! PeerActor.Unsubscribe
       scheduleStartFastSync(startRetryInterval)
       context become idle
@@ -199,8 +199,8 @@ class SyncController(
     case Terminated(ref) if handshakedPeers.contains(ref) =>
       removePeer(ref)
 
-    case BlacklistPeer(ref) =>
-      blacklist(ref, blacklistDuration)
+    case BlacklistPeer(ref, reason) =>
+      blacklist(ref, blacklistDuration, reason)
 
     case UnblacklistPeer(ref) =>
       undoBlacklist(ref)
@@ -214,6 +214,8 @@ class SyncController(
 
   class SyncingHandler(initialSyncState: SyncState) {
 
+    import SyncingHandler._
+
     private val blockHeadersHandlerName = "block-headers-request-handler"
 
     private var mptNodesQueue: Seq[HashType] = initialSyncState.mptNodesQueue
@@ -225,7 +227,9 @@ class SyncController(
 
     private var assignedHandlers: Map[ActorRef, ActorRef] = Map.empty
 
-    private val syncStateStorageActor= context.actorOf(Props[FastSyncStateActor], "state-storage")
+    private var healthCheck: HealthCheck = HealthCheck(0, 0, 0)
+
+    private val syncStateStorageActor = context.actorOf(Props[FastSyncStateActor], "state-storage")
 
     syncStateStorageActor ! fastSyncStateStorage
 
@@ -275,11 +279,7 @@ class SyncController(
         assignedHandlers -= ref
 
       case PrintStatus =>
-        val totalNodesCount = downloadedNodesCount + mptNodesQueue.size + nonMptNodesQueue.size
-        log.info(
-          s"""|Block: ${appStateStorage.getBestBlockNumber()}/${initialSyncState.targetBlock.number}.
-              |Peers: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
-              |State: $downloadedNodesCount/$totalNodesCount known nodes.""".stripMargin.replace("\n", " "))
+        printStatus()
     }
 
     def processSyncing(): Unit = {
@@ -362,7 +362,7 @@ class SyncController(
     def requestNodes(peer: ActorRef): Unit = {
       val (nonMptNodesToGet, remainingNonMptNodes) = nonMptNodesQueue.splitAt(nodesPerRequest)
       val (mptNodesToGet, remainingMptNodes) = mptNodesQueue.splitAt(nodesPerRequest - nonMptNodesToGet.size)
-      val nodesToGet = nonMptNodesToGet.toSeq ++ mptNodesToGet.toSeq
+      val nodesToGet = nonMptNodesToGet ++ mptNodesToGet
       val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, nodesToGet, blockchain, mptNodeStorage))
       context watch handler
       assignedHandlers += (handler -> peer)
@@ -383,6 +383,44 @@ class SyncController(
       !anythingQueued &&
       assignedHandlers.isEmpty
     }
+
+    def printStatus(): Unit = {
+
+      val totalNodesCount = downloadedNodesCount + mptNodesQueue.size + nonMptNodesQueue.size
+      val bestBlockNumber = appStateStorage.getBestBlockNumber()
+
+      log.info(
+        s"""|Block: ${bestBlockNumber}/${initialSyncState.targetBlock.number}
+            |Peers: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted)
+            |State: $downloadedNodesCount/$totalNodesCount known nodes"""
+          .stripMargin.replace("\n", " "))
+
+      healthCheck = healthCheck match {
+        case HealthCheck(lastDownloadedNodesCount, lastBestBlockNumber, lastUpdate) =>
+
+          val now = System.currentTimeMillis()
+          val stalledDownloadDuration = (now - lastUpdate).milliseconds
+
+          if (downloadedNodesCount == lastDownloadedNodesCount &&
+            bestBlockNumber == lastBestBlockNumber &&
+            (downloadedNodesCount != totalNodesCount || bestBlockNumber != initialSyncState.targetBlock.number) &&
+            stalledDownloadDuration > stalledSyncWarningDuration) {
+            log.warning(s"Fastsync appears to have stalled ${stalledDownloadDuration.toSeconds} seconds ago")
+            healthCheck
+          } else {
+            HealthCheck(downloadedNodesCount, bestBlockNumber, now)
+          }
+      }
+
+    }
+  }
+
+  object SyncingHandler {
+
+    case class HealthCheck(lastDownloadedNodesCount: Int,
+                           lastBestBlockNumber: BigInt,
+                           lastUpdate: Long)
+
   }
 
 }
@@ -407,7 +445,9 @@ object SyncController {
       bestBlockHeaderNumber: BigInt = 0)
 
   case object StartSync
+
   protected case object StartFastSync
+
   protected case object StartRegularSync
 
   case class EnqueueNodes(hashes: Seq[HashType])
