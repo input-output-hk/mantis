@@ -5,7 +5,7 @@ import java.math.BigInteger
 import akka.util.ByteString
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import io.iohk.ethereum.network.p2p.messages.PV63._
-import io.iohk.ethereum.vm.DataWord
+import io.iohk.ethereum.vm.UInt256
 import org.scalacheck.{Arbitrary, Gen}
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -25,8 +25,6 @@ trait ObjectGenerators {
   def longGen: Gen[Long] = Gen.choose(Long.MinValue, Long.MaxValue)
 
   def bigIntGen: Gen[BigInt] = byteArrayOfNItemsGen(32).map(b => new BigInteger(1, b))
-
-  def dataWordGen: Gen[DataWord] = bigIntGen.map(DataWord(_))
 
   def randomSizeByteArrayGen(minSize: Int, maxSize: Int): Gen[Array[Byte]] = Gen.choose(minSize, maxSize).flatMap(byteArrayOfNItemsGen(_))
 

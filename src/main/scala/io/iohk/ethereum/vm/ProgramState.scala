@@ -27,14 +27,14 @@ object ProgramState {
   */
 case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   context: ProgramContext[W, S],
-  gas: BigInt,
+  gas: UInt256,
   world: W,
   stack: Stack = Stack.empty(),
   memory: Memory = Memory.empty,
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
   //TODO: investigate whether we need this or should refunds be simply added to current gas
-  gasRefund: BigInt = 0,
+  gasRefund: UInt256 = 0,
   addressesToDelete: Seq[Address] = Seq(),
   halted: Boolean = false,
   error: Option[ProgramError] = None
@@ -44,11 +44,11 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def ownAddress: Address = env.ownerAddr
 
-  def ownBalance: BigInt = world.getBalance(ownAddress)
+  def ownBalance: UInt256 = world.getBalance(ownAddress)
 
   def storage: S = world.getStorage(ownAddress)
 
-  def gasUsed: BigInt = context.startGas - gas
+  def gasUsed: UInt256 = context.startGas - gas
 
   def withWorld(updated: W): ProgramState[W, S] =
     copy(world = updated)
@@ -60,10 +60,10 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def inputData: ByteString = env.inputData
 
-  def spendGas(amount: BigInt): ProgramState[W, S] =
+  def spendGas(amount: UInt256): ProgramState[W, S] =
     copy(gas = gas - amount)
 
-  def refundGas(amount: BigInt): ProgramState[W, S] =
+  def refundGas(amount: UInt256): ProgramState[W, S] =
     copy(gasRefund = gasRefund + amount)
 
   def step(i: Int = 1): ProgramState[W, S] =

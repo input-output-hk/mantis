@@ -10,10 +10,10 @@ object ProgramContext {
     val senderAddress = stx.recoveredSenderAddress.get // FIXME: get, it should be validated but...
     val (world1, recipientAddress, program) = callOrCreate[W, S](world, tx, senderAddress)
 
-    val env = ExecEnv(recipientAddress, senderAddress, senderAddress, tx.gasPrice, tx.payload,
-      tx.value, program, blockHeader, callDepth = 0)
+    val env = ExecEnv(recipientAddress, senderAddress, senderAddress, UInt256(tx.gasPrice), tx.payload,
+      UInt256(tx.value), program, blockHeader, callDepth = 0)
 
-    ProgramContext(env, tx.gasLimit, world1)
+    ProgramContext(env, UInt256(tx.gasLimit), world1)
   }
 
   private def callOrCreate[W <: WorldStateProxy[W, S], S <: Storage[S]](world: W, tx: Transaction, senderAddress: Address): (W, Address, Program) = {
@@ -21,14 +21,14 @@ object ProgramContext {
       // contract create
       val (address, world1) = world.newAddress(senderAddress)
       val world2 = world1.newEmptyAccount(address)
-      val world3 = world2.transfer(senderAddress, address, tx.value)
+      val world3 = world2.transfer(senderAddress, address, UInt256(tx.value))
       val code = tx.payload
 
       (world3, address, Program(code))
 
     } else {
       // message call
-      val world1 = world.transfer(senderAddress, tx.receivingAddress, tx.value)
+      val world1 = world.transfer(senderAddress, tx.receivingAddress, UInt256(tx.value))
       val code = world1.getCode(tx.receivingAddress)
 
       (world1, tx.receivingAddress, Program(code))
@@ -46,5 +46,5 @@ object ProgramContext {
   */
 case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
   env: ExecEnv,
-  startGas: BigInt, //TODO: should we move it to ExecEnv
+  startGas: UInt256, //TODO: should we move it to ExecEnv
   world: W)
