@@ -262,7 +262,7 @@ class PeerActor(
   }
 
   def handlePeerChainCheck(rlpxConnection: RLPxConnection): Receive = {
-    case RLPxConnectionHandler.MessageReceived(message@GetBlockHeaders(Left(number), _, _, _)) if number == 1920000 =>
+    case RLPxConnectionHandler.MessageReceived(message@GetBlockHeaders(Left(number), _, _, _)) if number == Config.Blockchain.daoForkBlockNumber =>
       log.debug("Received message: {}", message)
       blockchain.getBlockHeaderByNumber(number) match {
         case Some(header) => rlpxConnection.sendMessage(BlockHeaders(Seq(header)))

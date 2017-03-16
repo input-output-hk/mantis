@@ -18,5 +18,5 @@ case class ProgramResult[W <: WorldStateProxy[W, S], S <: Storage[S]](
   gasRemaining: UInt256,
   gasUsed: UInt256,
   world: W,
-  addressesToDelete: Seq[Address] = Seq(),
+  addressesToDelete: Seq[Address] = Seq.empty,
   error: Option[ProgramError])

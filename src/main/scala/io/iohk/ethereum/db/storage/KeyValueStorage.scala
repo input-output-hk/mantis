@@ -46,7 +46,7 @@ private[storage] trait KeyValueStorage[K, V] {
     * @param value
     * @return the new KeyValueStorage after the insertion was done.
     */
-  def put(key: K, value: V): T = update(Seq(), Seq(key -> value))
+  def put(key: K, value: V): T = update(Seq.empty, Seq(key -> value))
 
   /**
     * This function updates the KeyValueStorage by deleting the (key-value) associated with the passed key
@@ -55,7 +55,7 @@ private[storage] trait KeyValueStorage[K, V] {
     * @param key
     * @return the new KeyValueStorage after the deletion was done.
     */
-  def remove(key: K): T = update(Seq(key), Seq())
+  def remove(key: K): T = update(Seq(key), Seq.empty)
 
 }
 

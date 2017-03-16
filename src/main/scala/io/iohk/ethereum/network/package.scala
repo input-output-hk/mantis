@@ -43,8 +43,13 @@ package object network {
 
       keysValuePair
     } else {
-      val List(pub, priv) = Source.fromFile(filePath).getLines().toList
-      AsymmetricCipherKeyPairSerializable.fromHexStrings(pub, priv)
+      val reader = Source.fromFile(filePath)
+      try {
+        val List(pub, priv) = reader.getLines().toList
+        AsymmetricCipherKeyPairSerializable.fromHexStrings(pub, priv)
+      } finally {
+        reader.close()
+      }
     }
   }
 

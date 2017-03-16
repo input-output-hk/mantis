@@ -35,7 +35,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   returnData: ByteString = ByteString.empty,
   //TODO: investigate whether we need this or should refunds be simply added to current gas
   gasRefund: UInt256 = 0,
-  addressesToDelete: Seq[Address] = Seq(),
+  addressesToDelete: Seq[Address] = Seq.empty,
   halted: Boolean = false,
   error: Option[ProgramError] = None
 ) {

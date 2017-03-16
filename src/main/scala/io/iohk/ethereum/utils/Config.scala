@@ -103,7 +103,7 @@ object Config {
 
     //this is according to yellow papers but ETH has ~8000 transactions in genesis
     //do we want to ask for them?
-    val genesisBlockBody: BlockBody = BlockBody(Seq(), Seq())
+    val genesisBlockBody: BlockBody = BlockBody(Seq.empty, Seq.empty)
   }
 
   object FastSync {

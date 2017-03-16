@@ -47,7 +47,6 @@ object App {
     val fastSyncController = actorSystem.actorOf(
       SyncController.props(
         peerManager,
-        nodeStatusHolder,
         storagesInstance.storages.appStateStorage,
         blockchain,
         storagesInstance.storages.mptNodeStorage,

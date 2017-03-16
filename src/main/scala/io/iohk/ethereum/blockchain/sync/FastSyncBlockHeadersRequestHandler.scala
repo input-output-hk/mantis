@@ -10,7 +10,6 @@ class FastSyncBlockHeadersRequestHandler(
     peer: ActorRef,
     block: BigInt,
     maxHeaders: Int,
-    nodeStatusHolder: Agent[NodeStatus],
     blockchain: Blockchain)(implicit scheduler: Scheduler)
   extends FastSyncRequestHandler[GetBlockHeaders, BlockHeaders](peer) {
 
@@ -61,8 +60,7 @@ class FastSyncBlockHeadersRequestHandler(
 
 object FastSyncBlockHeadersRequestHandler {
   def props(peer: ActorRef, block: BigInt, maxHeaders: Int,
-            nodeStatusHolder: Agent[NodeStatus],
             blockchain: Blockchain)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncBlockHeadersRequestHandler(peer, block, maxHeaders, nodeStatusHolder, blockchain))
+    Props(new FastSyncBlockHeadersRequestHandler(peer, block, maxHeaders, blockchain))
 }
