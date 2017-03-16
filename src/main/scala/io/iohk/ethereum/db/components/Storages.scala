@@ -23,18 +23,22 @@ object Storages {
 
       override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
 
-      override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeStorage)
+      override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSources.fastSyncStateDataSource)
+
+      override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeDataSource)
 
       override val totalDifficultyStorage: TotalDifficultyStorage =
         new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
           .put(Config.Blockchain.genesisHash, Config.Blockchain.genesisDifficulty)
+
+      override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
     }
 
   }
 
   /**
     * As IODB required same length keys, we need a specific storage that pads integer values to be used as keys to match
-    * keccak keys. See [[IodbBlockNumberMappingStorage]]
+    * keccak keys. See [[io.iohk.ethereum.db.storage.IodbBlockNumberMappingStorage]]
     */
   trait IodbStorages extends StoragesComponent {
     dataSourcesComp: DataSourcesComponent =>
@@ -53,11 +57,15 @@ object Storages {
 
       override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
 
-      override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeStorage)
+      override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSources.fastSyncStateDataSource)
+
+      override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSources.evmCodeDataSource)
 
       override val totalDifficultyStorage: TotalDifficultyStorage =
         new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
           .put(Config.Blockchain.genesisHash, Config.Blockchain.genesisDifficulty)
+
+      override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
     }
   }
 }

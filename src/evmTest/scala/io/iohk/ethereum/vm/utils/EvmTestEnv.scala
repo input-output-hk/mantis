@@ -80,11 +80,11 @@ trait EvmTestEnv {
   }
 
   private def parseArg(arg: Any): ByteString = arg match {
-    case b: ByteString => DataWord.apply(b).bytes
-    case b: BigInt => DataWord.apply(b).bytes
-    case a: Array[Byte] => DataWord.apply(a).bytes
-    case i: Int => DataWord.apply(i).bytes
-    case a: Address => DataWord.apply(a.bytes).bytes
+    case b: ByteString => UInt256(b).bytes
+    case b: BigInt => UInt256(b).bytes
+    case a: Array[Byte] => UInt256(a).bytes
+    case i: Int => UInt256(i).bytes
+    case a: Address => UInt256(a.bytes).bytes
     case other => throw new RuntimeException("Invalid call argument")
   }
 

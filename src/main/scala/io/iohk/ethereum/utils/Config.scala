@@ -7,6 +7,7 @@ import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import io.iohk.ethereum.rpc.RpcServerConfig
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import org.spongycastle.util.encoders.Hex
 
@@ -18,6 +19,8 @@ object Config {
   private val config = ConfigFactory.load().getConfig("etc-client")
 
   val clientId: String = config.getString("client-id")
+
+  val keysFile: String = config.getString("keys-file")
 
   object Network {
     private val networkConfig = config.getConfig("network")
@@ -39,7 +42,7 @@ object Config {
       val bootstrapNodesScanInterval = discoveryConfig.getDuration("bootstrap-nodes-scan-interval").toMillis.millis
     }
 
-    object Peer {
+    val peer = new PeerConfiguration {
       private val peerConfig = networkConfig.getConfig("peer")
 
       val connectRetryDelay: FiniteDuration = peerConfig.getDuration("connect-retry-delay").toMillis.millis
@@ -48,9 +51,12 @@ object Config {
       val waitForStatusTimeout: FiniteDuration = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
       val waitForChainCheckTimeout: FiniteDuration = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
 
-      val maxBlocksHeadersPerMessage: Int = peerConfig.getInt("max-blocks-headers-per-message")
-      val maxBlocksBodiesPerMessage: Int = peerConfig.getInt("max-blocks-bodies-per-message")
-      val maxReceiptsPerMessage: Int = peerConfig.getInt("max-receipts-per-message")
+      val fastSyncHostConfiguration = new FastSyncHostConfiguration {
+        val maxBlocksHeadersPerMessage: Int = peerConfig.getInt("max-blocks-headers-per-message")
+        val maxBlocksBodiesPerMessage: Int = peerConfig.getInt("max-blocks-bodies-per-message")
+        val maxReceiptsPerMessage: Int = peerConfig.getInt("max-receipts-per-message")
+        val maxMptComponentsPerMessage: Int = peerConfig.getInt("max-mpt-components-per-message")
+      }
     }
 
     object Rpc extends RpcServerConfig {
@@ -103,6 +109,8 @@ object Config {
   object FastSync {
     private val fastSyncConfig = config.getConfig("fast-sync")
 
+    val doFastSync: Boolean = fastSyncConfig.getBoolean("do-fast-sync")
+
     val peersScanInterval: FiniteDuration = fastSyncConfig.getDuration("peers-scan-interval").toMillis.millis
     val blacklistDuration: FiniteDuration = fastSyncConfig.getDuration("blacklist-duration").toMillis.millis
     val startRetryInterval: FiniteDuration = fastSyncConfig.getDuration("start-retry-interval").toMillis.millis
@@ -117,6 +125,11 @@ object Config {
     val nodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
     val minPeersToChooseTargetBlock: Int = fastSyncConfig.getInt("min-peers-to-choose-target-block")
     val targetBlockOffset: Int = fastSyncConfig.getInt("target-block-offset")
+    val persistStateSnapshotInterval: FiniteDuration =
+      fastSyncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis
+
+    val checkForNewBlockInterval: FiniteDuration = fastSyncConfig.getDuration("check-for-new-block-interval").toMillis.millis
+    val blockResolveDepth: Int = fastSyncConfig.getInt("block-resolving-depth")
   }
 
   object Db {

@@ -14,7 +14,7 @@ class FibonacciSpec extends FreeSpec with Matchers {
       val result = contract.getNewFib(5).call()
 
       result.error shouldBe None
-      result.returnData shouldBe DataWord(5).bytes
+      result.returnData shouldBe UInt256(5).bytes
     }
 
     "should allow storage write/read" in new EvmTestEnv {
@@ -23,12 +23,12 @@ class FibonacciSpec extends FreeSpec with Matchers {
       val getNewRes = contract.getNewFib(6).call()
 
       getNewRes.error shouldBe None
-      contract.storage.load(DataWord(0)) shouldBe DataWord(8)
+      contract.storage.load(UInt256(0)) shouldBe UInt256(8)
 
       val getStoredRes = contract.getStoredFib().call()
 
       getStoredRes.error shouldBe None
-      getStoredRes.returnData shouldBe DataWord(8).bytes
+      getStoredRes.returnData shouldBe UInt256(8).bytes
     }
   }
 

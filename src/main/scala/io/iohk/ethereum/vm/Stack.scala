@@ -16,30 +16,30 @@ object Stack {
   * The Stack doesn't handle overflow and underflow errors. Any operations that trascend given stack bounds will
   * return the stack unchanged. Pop will always return zeroes in such case.
   */
-class Stack private(private val underlying: Vector[DataWord], val maxSize: Int) {
+class Stack private(private val underlying: Vector[UInt256], val maxSize: Int) {
 
-  def pop: (DataWord, Stack) = underlying.lastOption match {
+  def pop: (UInt256, Stack) = underlying.lastOption match {
     case Some(word) =>
       val updated = underlying.dropRight(1)
       (word, copy(updated))
 
     case None =>
-      (DataWord.Zero, this)
+      (UInt256.Zero, this)
   }
 
   /**
     * Pop n elements from the stack. The first element in the resulting sequence will be the top-most element
     * in the current stack
     */
-  def pop(n: Int): (Seq[DataWord], Stack) = {
+  def pop(n: Int): (Seq[UInt256], Stack) = {
     val (updated, popped) = underlying.splitAt(underlying.length - n)
     if (popped.length == n)
       (popped.reverse, copy(updated))
     else
-      (Seq.fill(n)(DataWord.Zero), this)
+      (Seq.fill(n)(UInt256.Zero), this)
   }
 
-  def push(word: DataWord): Stack = {
+  def push(word: UInt256): Stack = {
     val updated = underlying :+ word
     if (updated.length <= maxSize)
       copy(updated)
@@ -51,7 +51,7 @@ class Stack private(private val underlying: Vector[DataWord], val maxSize: Int) 
     * Push a sequence of elements to the stack. That last element of the sequence will be the top-most element
     * in the resulting stack
     */
-  def push(words: Seq[DataWord]): Stack = {
+  def push(words: Seq[UInt256]): Stack = {
     val updated = underlying ++ words
     if (updated.length > maxSize)
       this
@@ -93,7 +93,7 @@ class Stack private(private val underlying: Vector[DataWord], val maxSize: Int) 
     * @return the elements of the stack as a sequence, with the top-most element of the stack
     *         as the first element in the sequence
     */
-  def toSeq: Seq[DataWord] = underlying.reverse
+  def toSeq: Seq[UInt256] = underlying.reverse
 
   override def equals(that: Any): Boolean = that match {
     case that: Stack => this.underlying == that.underlying
@@ -105,6 +105,6 @@ class Stack private(private val underlying: Vector[DataWord], val maxSize: Int) 
   override def toString: String =
     underlying.reverse.mkString("Stack(", ",", ")")
 
-  private def copy(updated: Vector[DataWord]): Stack =
+  private def copy(updated: Vector[UInt256]): Stack =
     new Stack(updated, maxSize)
 }

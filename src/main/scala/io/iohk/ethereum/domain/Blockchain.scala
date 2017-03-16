@@ -3,7 +3,7 @@ package io.iohk.ethereum.domain
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
+import io.iohk.ethereum.network.p2p.messages.PV63.{MptNode, Receipt}
 import io.iohk.ethereum.utils.Config
 
 /**
@@ -30,7 +30,7 @@ trait Blockchain {
     * Allows to query a blockBody by block hash
     *
     * @param hash of the block that's being searched
-    * @return [[BlockBody]] if found
+    * @return [[io.iohk.ethereum.network.p2p.messages.PV62.BlockBody]] if found
     */
   def getBlockBodyByHash(hash: ByteString): Option[BlockBody]
 
@@ -73,6 +73,14 @@ trait Blockchain {
   def getEvmCodeByHash(hash: ByteString): Option[ByteString]
 
   /**
+    * Returns MPT node searched by it's hash
+    * @param hash Node Hash
+    * @return MPT node
+    */
+  def getMptNodeByHash(hash: ByteString): Option[MptNode]
+
+
+  /**
     * Returns the total difficulty based on a block hash
     * @param blockhash
     * @return total difficulty if found
@@ -89,6 +97,8 @@ trait Blockchain {
     save(block.header.hash, block.body)
   }
 
+  def removeBlock(hash: ByteString): Unit
+
   /**
     * Persists a block header in the underlying Blockchain Database
     *
@@ -101,6 +111,8 @@ trait Blockchain {
   def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit
 
   def save(hash: ByteString, evmCode: ByteString): Unit
+
+  def save(node: MptNode): Unit
 
   def save(blockhash: ByteString, totalDifficulty: BigInt): Unit
 
@@ -120,6 +132,7 @@ class BlockchainImpl(
                       protected val blockNumberMappingStorage: BlockNumberMappingStorage,
                       protected val receiptStorage: ReceiptStorage,
                       protected val evmCodeStorage: EvmCodeStorage,
+                      protected val mptNodeStorage: MptNodeStorage,
                       protected val totalDifficultyStorage: TotalDifficultyStorage
                     ) extends Blockchain {
 
@@ -147,6 +160,8 @@ class BlockchainImpl(
     saveBlockNumberMapping(blockHeader.number, hash)
   }
 
+  override def getMptNodeByHash(hash: ByteString): Option[MptNode] = mptNodeStorage.get(hash)
+
   override def save(blockHash: ByteString, blockBody: BlockBody): Unit = blockBodiesStorage.put(blockHash, blockBody)
 
   override def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit = receiptStorage.put(blockHash, receipts)
@@ -154,6 +169,8 @@ class BlockchainImpl(
   override def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
 
   def save(blockhash: ByteString, td: BigInt): Unit = totalDifficultyStorage.put(blockhash, td)
+
+  override def save(node: MptNode): Unit = mptNodeStorage.put(node)
 
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = if (number == 0) {
     Some(Config.Blockchain.genesisHash)
@@ -163,6 +180,12 @@ class BlockchainImpl(
 
   private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit = blockNumberMappingStorage.put(number, hash)
 
+  override def removeBlock(blockHash: ByteString): Unit = {
+    blockHeadersStorage.remove(blockHash)
+    blockBodiesStorage.remove(blockHash)
+    totalDifficultyStorage.remove(blockHash)
+    receiptStorage.remove(blockHash)
+  }
 }
 
 trait BlockchainStorages {
@@ -171,6 +194,7 @@ trait BlockchainStorages {
   val blockNumberMappingStorage: BlockNumberMappingStorage
   val receiptStorage: ReceiptStorage
   val evmCodeStorage: EvmCodeStorage
+  val mptNodeStorage: MptNodeStorage
   val totalDifficultyStorage: TotalDifficultyStorage
 }
 
@@ -182,6 +206,7 @@ object BlockchainImpl {
       blockNumberMappingStorage = storages.blockNumberMappingStorage,
       receiptStorage = storages.receiptStorage,
       evmCodeStorage = storages.evmCodeStorage,
+      mptNodeStorage = storages.mptNodeStorage,
       totalDifficultyStorage = storages.totalDifficultyStorage
     )
 }

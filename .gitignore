@@ -5,7 +5,7 @@ project/boot/
 project/plugins/project/
 .ensime
 .ensime_cache/
-
+nodeId.keys
 
 # intellij scala worksheet
 *.sc

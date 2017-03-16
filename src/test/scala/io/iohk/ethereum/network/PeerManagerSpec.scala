@@ -7,10 +7,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
-import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.utils.{Config, BlockchainStatus, ServerStatus, NodeStatus}
+import io.iohk.ethereum.utils.{Config, ServerStatus, NodeStatus}
 import org.scalatest.{FlatSpec, Matchers}
 
 class PeerManagerSpec extends FlatSpec with Matchers {
@@ -51,8 +50,7 @@ class PeerManagerSpec extends FlatSpec with Matchers {
 
     val nodeStatus = NodeStatus(
       key = nodeKey,
-      serverStatus = ServerStatus.NotListening,
-      blockchainStatus = BlockchainStatus(0, ByteString("123"), 0))
+      serverStatus = ServerStatus.NotListening)
 
     val nodeStatusHolder = Agent(nodeStatus)
 

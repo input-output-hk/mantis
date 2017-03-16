@@ -2,6 +2,8 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
+import io.iohk.ethereum.db.storage._
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
@@ -25,7 +27,7 @@ class PeerManagerActor(
 
   scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
 
-  override val supervisorStrategy =
+  override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
       case _ => Stop
     }
@@ -33,7 +35,7 @@ class PeerManagerActor(
   override def receive: Receive = {
     case HandlePeerConnection(connection, remoteAddress) =>
       val peer = createPeer(remoteAddress)
-      log.info("Peer {} handling incoming peer connection from {}", peer.id, remoteAddress)
+      log.debug("Peer {} handling incoming peer connection from {}", peer.id, remoteAddress)
       peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
       sender() ! PeerCreated(peer)
 
@@ -71,12 +73,36 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], storage: Blockchain): Props =
-    Props(new PeerManagerActor(nodeStatusHolder, peerFactory(nodeStatusHolder, storage)))
+  def props(nodeStatusHolder: Agent[NodeStatus],
+            peerConfiguration: PeerConfiguration,
+            appStateStorage: AppStateStorage,
+            blockchain: Blockchain): Props =
+    Props(new PeerManagerActor(nodeStatusHolder,
+      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain)))
 
-  def peerFactory(nodeStatusHolder: Agent[NodeStatus], storage: Blockchain): (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
-    val id = addr.toString.filterNot(_ == '/')
-    ctx.actorOf(PeerActor.props(nodeStatusHolder, storage), id)
+  def peerFactory(nodeStatusHolder: Agent[NodeStatus],
+                  peerConfiguration: PeerConfiguration,
+                  appStateStorage: AppStateStorage,
+                  blockchain: Blockchain): (ActorContext, InetSocketAddress) => ActorRef = {
+    (ctx, addr) =>
+      val id = addr.toString.filterNot(_ == '/')
+      ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain), id)
+  }
+
+  trait PeerConfiguration {
+    val connectRetryDelay: FiniteDuration
+    val connectMaxRetries: Int
+    val disconnectPoisonPillTimeout: FiniteDuration
+    val waitForStatusTimeout: FiniteDuration
+    val waitForChainCheckTimeout: FiniteDuration
+    val fastSyncHostConfiguration: FastSyncHostConfiguration
+  }
+
+  trait FastSyncHostConfiguration {
+    val maxBlocksHeadersPerMessage: Int
+    val maxBlocksBodiesPerMessage: Int
+    val maxReceiptsPerMessage: Int
+    val maxMptComponentsPerMessage: Int
   }
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)

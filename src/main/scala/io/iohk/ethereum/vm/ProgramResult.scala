@@ -15,8 +15,8 @@ import io.iohk.ethereum.domain.{Address, Transaction}
  */
 case class ProgramResult[W <: WorldStateProxy[W, S], S <: Storage[S]](
   returnData: ByteString,
-  gasRemaining: BigInt,
-  gasUsed: BigInt,
+  gasRemaining: UInt256,
+  gasUsed: UInt256,
   world: W,
   addressesToDelete: Seq[Address] = Seq(),
   error: Option[ProgramError])

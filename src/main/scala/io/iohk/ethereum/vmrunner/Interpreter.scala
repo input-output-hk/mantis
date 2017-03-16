@@ -96,8 +96,7 @@ object Interpreter {
     attr <- getAttributes(call.attrs)
 
     sig = ByteString(kec256(abi.shortSignature.getBytes)).take(4)
-
-    args = call.args.map(s => DataWord(BigInt(s)).bytes)
+    args = call.args.map(s => UInt256(BigInt(s)).bytes)
     callData = args.foldLeft(sig)(_ ++ _)
 
     result = State.runTransaction(xAccount, callData, attr.gas, attr.value)
@@ -145,17 +144,19 @@ object Interpreter {
   def printCode(code: ByteString, i: Int = 0): String = {
     if (i >= code.size)
       ""
-    else OpCode.byteToOpCode.get(code(i)) match {
-      case Some(op: PushOp) =>
-        val skip = op.code - PUSH1.code + 1
-        val data = code.slice(i + 1, i + skip + 1).map(b => f"$b%02x").mkString(" ")
-        s"  $op $data\n" + printCode(code, i + skip + 1)
+    else {
+      OpCode.byteToOpCode.get(code(i)) match {
+        case Some(op: PushOp) =>
+          val skip = op.code - PUSH1.code + 1
+          val data = code.slice(i + 1, i + skip + 1).map(b => f"$b%02x").mkString(" ")
+          s"$op $data\n" + printCode(code, i + skip + 1)
 
-      case Some(op) =>
-        s"  $op\n" + printCode(code, i + 1)
+        case Some(op) =>
+          s"  $op\n" + printCode(code, i + 1)
 
-      case None =>
-        f"  0x${code(i)}%02x\n" + printCode(code, i + 1)
+        case None =>
+          f"  0x${code(i)}%02x\n" + printCode(code, i + 1)
+      }
     }
   }
 

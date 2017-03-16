@@ -15,7 +15,7 @@ class CallerSpec extends FreeSpec with Matchers {
       val callRes = caller.makeACall(callee.address, 123).call()
       callRes.error shouldBe None
 
-      callee.getFoo().call().returnData shouldBe DataWord(123).bytes
+      callee.getFoo().call().returnData shouldBe UInt256(123).bytes
     }
   }
 

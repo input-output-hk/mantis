@@ -14,11 +14,11 @@ class MutualRecursionSpec extends FreeSpec with Matchers {
       val isOddRes = contract.isOdd(9).call()
 
       isOddRes.error shouldBe None
-      isOddRes.returnData shouldBe DataWord(true).bytes
+      isOddRes.returnData shouldBe UInt256(true).bytes
 
       val isEvenRes = contract.isEven(99).call()
       isEvenRes.error shouldBe None
-      isEvenRes.returnData shouldBe DataWord(false).bytes
+      isEvenRes.returnData shouldBe UInt256(false).bytes
     }
   }
 

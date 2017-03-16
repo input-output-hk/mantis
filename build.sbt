@@ -1,5 +1,7 @@
 import java.io.PrintWriter
 
+enablePlugins(JavaAppPackaging)
+
 val commonSettings = Seq(
   name := "etc-client",
   version := "0.1",
@@ -19,6 +21,7 @@ val dep = {
     "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
+    "io.suzaku" %% "boopickle" % "1.2.6",
     "org.consensusresearch" %% "scrypto" % "1.2.0-RC3",
     "com.madgag.spongycastle" % "core" % "1.54.0.0",
     "org.iq80.leveldb" % "leveldb" % "0.9",
@@ -91,11 +94,3 @@ testOptions in Test += Tests.Argument("-oD")
 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}
-
-mainClass in (Compile, packageBin) := Some("io.iohk.ethereum.vmrunner.EvmRunner")
-
-mainClass in assembly := Some("io.iohk.ethereum.vmrunner.EvmRunner")
-
-assemblyJarName in assembly := "evm-runner.jar"
-
-test in assembly := {}

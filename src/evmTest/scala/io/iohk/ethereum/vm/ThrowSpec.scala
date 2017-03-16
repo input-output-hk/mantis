@@ -13,7 +13,7 @@ class ThrowSpec extends FreeSpec with Matchers {
 
       val result = contract.justThrow().call()
 
-      result.error shouldBe Some(InvalidOpCode)
+      result.error shouldBe Some(InvalidOpCode) // TODO: change to invalid jump destination
     }
   }
 

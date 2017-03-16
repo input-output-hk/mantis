@@ -11,12 +11,12 @@ class ContractCallingItselfSpec extends FreeSpec with Matchers {
     "should handle a call to itself" in new EvmTestEnv {
       val (_, contract) = deployContract("ContractCallingItself")
 
-      contract.getSomeVar().call().returnData shouldBe DataWord(10).bytes
+      contract.getSomeVar().call().returnData shouldBe UInt256(10).bytes
 
       val result = contract.doubleSomeVar().call()
       result.error shouldBe None
 
-      contract.getSomeVar().call().returnData shouldBe DataWord(20).bytes
+      contract.getSomeVar().call().returnData shouldBe UInt256(20).bytes
     }
   }
 
