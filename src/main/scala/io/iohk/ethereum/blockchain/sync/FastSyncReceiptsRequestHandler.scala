@@ -25,7 +25,7 @@ class FastSyncReceiptsRequestHandler(
     updateBestBlockIfNeeded(receivedHashes)
 
     if (receipts.receiptsForBlocks.isEmpty) {
-      fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+      fastSyncController ! BlacklistSupport.BlacklistPeer(peer, "Peer responded with an mepty list of receipts")
     }
 
     val remainingReceipts = requestedHashes.drop(receipts.receiptsForBlocks.size)
@@ -54,7 +54,7 @@ class FastSyncReceiptsRequestHandler(
   }
 
   override def handleTimeout(): Unit = {
-    fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+    fastSyncController ! BlacklistSupport.BlacklistPeer(peer, "Peer didn't respond (timeout)")
     fastSyncController ! SyncController.EnqueueReceipts(requestedHashes)
     cleanupAndStop()
   }

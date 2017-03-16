@@ -51,7 +51,7 @@ trait RegularSyncController {
       requestHeadersForNewBranch(peer)
 
     case PeerTimeOut(peer) =>
-      blacklist(peer, blacklistDuration)
+      blacklist(peer, blacklistDuration, "Peer didn't respond (timeout)")
       resolvingBranch = false
       askForHeaders()
   }
@@ -73,15 +73,16 @@ trait RegularSyncController {
     }
   }
 
-  private def handleBlockBranchResolution(message: BlockHeaders) =
-    //todo limit max branch depth?
-    if (message.headers.nonEmpty && message.headers.head.hash == headersQueue.head.parentHash) {
-      headersQueue = message.headers.reverse ++ headersQueue
+  private def handleBlockBranchResolution(message: BlockHeaders) = message match {
+    case BlockHeaders(Nil) =>
+      resumeWithDifferentPeer("Peer sent an empty list of block headers during block branch resolution")
+    case (BlockHeaders(h :: _)) if h.hash != headersQueue.head.parentHash =>
+      resumeWithDifferentPeer("Peer sent an unexpected list of block headers during block branch resolution")
+    case BlockHeaders(headers) =>
+      //todo limit max branch depth?
+      headersQueue = headers.reverse ++ headersQueue
       processBlockHeaders(headersQueue, sender())
-    } else {
-      //we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
-      resumeWithDifferentPeer()
-    }
+  }
 
   private def handleDownload(message: BlockHeaders) = if (message.headers.nonEmpty) {
     headersQueue = message.headers
@@ -104,8 +105,7 @@ trait RegularSyncController {
           self ! ResolveBranch(peer)
         }
       case _ =>
-        log.warning("got header that does not have parent")
-        resumeWithDifferentPeer()
+        resumeWithDifferentPeer("Peer sent header which doesn't have a parent")
     }
   }
 
@@ -146,12 +146,10 @@ trait RegularSyncController {
           self ! ResumeRegularSync
         }
       } else {
-        //blacklist for errors in blocks
-        resumeWithDifferentPeer()
+        resumeWithDifferentPeer("Peer sent block bodies with errors")
       }
     } else {
-      //we got empty response for bodies from peer but we got block headers earlier
-      resumeWithDifferentPeer()
+      resumeWithDifferentPeer("Peer did not sentd block bodies for already received block headers")
     }
   }
 
@@ -170,8 +168,8 @@ trait RegularSyncController {
     scheduler.scheduleOnce(checkForNewBlockInterval, self, ResumeRegularSync)
   }
 
-  private def resumeWithDifferentPeer() = {
-    blacklist(sender(), blacklistDuration)
+  private def resumeWithDifferentPeer(reason: String) = {
+    blacklist(sender(), blacklistDuration, reason)
     headersQueue = Seq.empty
     resolvingBranch = false
     self ! ResumeRegularSync

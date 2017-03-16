@@ -130,6 +130,9 @@ object Config {
 
     val checkForNewBlockInterval: FiniteDuration = fastSyncConfig.getDuration("check-for-new-block-interval").toMillis.millis
     val blockResolveDepth: Int = fastSyncConfig.getInt("block-resolving-depth")
+
+    val stalledSyncWarningDuration: FiniteDuration = fastSyncConfig.getDuration("stalled-sync-warning-duration").toMillis.millis
+    val warnIfTargetBlockOlderThan: FiniteDuration = fastSyncConfig.getDuration("warn-if-target-block-older-than").toMillis.millis
   }
 
   object Db {

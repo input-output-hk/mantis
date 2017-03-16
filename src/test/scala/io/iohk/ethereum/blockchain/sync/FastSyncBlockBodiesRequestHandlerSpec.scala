@@ -34,7 +34,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     val responseBodies = Nil
     peer.reply(PeerActor.MessageReceived(BlockBodies(responseBodies)))
 
-    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
+    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref, "Peer sent an empty list of block bodies"))
     parent.expectMsg(SyncController.EnqueueBlockBodies(requestedHashes))
     parent.expectMsg(FastSyncRequestHandler.Done)
 
@@ -47,7 +47,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
 
     time.advance(10.seconds)
 
-    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
+    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref, "Peer didn't respond with a list of block bodies (timeout)"))
     parent.expectMsg(SyncController.EnqueueBlockBodies(requestedHashes))
     parent.expectMsg(FastSyncRequestHandler.Done)
 

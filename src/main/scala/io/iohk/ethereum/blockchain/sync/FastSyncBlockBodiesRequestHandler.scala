@@ -25,7 +25,7 @@ class FastSyncBlockBodiesRequestHandler(
     updateBestBlockIfNeeded(receivedHashes)
 
     if (blockBodies.bodies.isEmpty) {
-      fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+      fastSyncController ! BlacklistSupport.BlacklistPeer(peer, "Peer sent an empty list of block bodies")
     }
 
     val remainingBlockBodies = requestedHashes.drop(blockBodies.bodies.size)
@@ -52,7 +52,10 @@ class FastSyncBlockBodiesRequestHandler(
   }
 
   override def handleTimeout(): Unit = {
-    fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+    fastSyncController ! BlacklistSupport.BlacklistPeer(
+      peer,
+      "Peer didn't respond with a list of block bodies (timeout)"
+    )
     fastSyncController ! SyncController.EnqueueBlockBodies(requestedHashes)
     cleanupAndStop()
   }

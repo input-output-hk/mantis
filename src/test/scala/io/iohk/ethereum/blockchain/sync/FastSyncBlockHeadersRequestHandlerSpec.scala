@@ -45,7 +45,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     time.advance(10.seconds)
 
-    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
+    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref, "Peer didn't respond with a list of block headers (timeout)"))
     parent.expectMsg(FastSyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
