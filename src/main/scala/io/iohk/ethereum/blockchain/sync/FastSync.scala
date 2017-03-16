@@ -57,7 +57,6 @@ trait FastSync {
                              received: Map[ActorRef, BlockHeader],
                              timeout: Cancellable): Receive = handlePeerUpdates orElse {
     case PeerActor.MessageReceived(BlockHeaders(blockHeaders)) if blockHeaders.size == 1 =>
-      println("received headers, unsubscribe!")
       sender() ! PeerActor.Unsubscribe
 
       val newWaitingFor = waitingFor - sender()
