@@ -11,7 +11,7 @@ case class  InvalidOpCode(code: Byte) extends ProgramError {
 case object OutOfGas extends ProgramError
 case class InvalidJump(dest: Int) extends ProgramError {
   override def toString: String =
-    f"${getClass.getSimpleName}(0x${dest}%04x)"
+    f"${getClass.getSimpleName}(0x$dest%04x)"
 }
 
 sealed trait StackError extends ProgramError

@@ -35,7 +35,17 @@ class ProgramSpec extends FlatSpec with Matchers with PropertyChecks {
         else nonPushOp
       }.toArray)
       val program = Program(code)
-      val jumpDestLocationsWithoutPushBefore = jumpDestLocations.filterNot(i => pushOpLocations.contains(i - 1))
+
+      //Removing the PUSH1 that would be used as a parameter of another PUSH1
+      //  Example: In "PUSH1 PUSH1 JUMPDEST", the JUMPDEST is a valid jump destination
+      val pushOpLocationsNotParameters = pushOpLocations.toList.sorted
+        .foldLeft(List.empty[Int]){case (recPushOpLocations, i) =>
+          if(recPushOpLocations.lastOption.contains(i - 1)) recPushOpLocations else recPushOpLocations :+ i
+        }
+
+      val jumpDestLocationsWithoutPushBefore = jumpDestLocations
+        .filterNot(i => pushOpLocationsNotParameters.contains(i - 1))
+        .filter(i => 0 <= i && i <= CodeSize)
       program.validJumpDestinations shouldBe jumpDestLocationsWithoutPushBefore
     }
   }
