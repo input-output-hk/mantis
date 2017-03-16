@@ -23,11 +23,11 @@ abstract class FastSyncRequestHandler[RequestMsg <: Message : RLPEncoder,
   def handleTimeout(): Unit
   def handleTerminated(): Unit
 
-  val fastSyncController = context.parent
+  val fastSyncController: ActorRef = context.parent
 
-  val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, Timeout)
+  val timeout: Cancellable = scheduler.scheduleOnce(peerResponseTimeout, self, Timeout)
 
-  val startTime = System.currentTimeMillis()
+  val startTime: Long = System.currentTimeMillis()
 
   def timeTakenSoFar(): Long = System.currentTimeMillis() - startTime
 

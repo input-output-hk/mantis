@@ -259,8 +259,8 @@ class SyncController(
       case UpdateDownloadedNodesCount(num) =>
         downloadedNodesCount += num
 
-      case UpdateBestBlockHeaderNumber(num) =>
-        bestBlockHeaderNumber = num
+      //case UpdateBestBlockHeaderNumber(num) =>
+      //  bestBlockHeaderNumber = num
 
       case ProcessSyncing =>
         processSyncing()
@@ -337,7 +337,7 @@ class SyncController(
     def requestReceipts(peer: ActorRef): Unit = {
       val (receiptsToGet, remainingReceipts) = receiptsQueue.splitAt(receiptsPerRequest)
       val handler = context.actorOf(FastSyncReceiptsRequestHandler.props(
-        peer, receiptsToGet.toSeq, appStateStorage, blockchain))
+        peer, receiptsToGet, appStateStorage, blockchain))
       context watch handler
       assignedHandlers += (handler -> peer)
       receiptsQueue = remainingReceipts
@@ -346,15 +346,15 @@ class SyncController(
     def requestBlockBodies(peer: ActorRef): Unit = {
       val (blockBodiesToGet, remainingBlockBodies) = blockBodiesQueue.splitAt(blockBodiesPerRequest)
       val handler = context.actorOf(FastSyncBlockBodiesRequestHandler.props(
-        peer, blockBodiesToGet.toSeq, appStateStorage, blockchain))
+        peer, blockBodiesToGet, appStateStorage, blockchain))
       context watch handler
       assignedHandlers += (handler -> peer)
       blockBodiesQueue = remainingBlockBodies
     }
 
     def requestBlockHeaders(peer: ActorRef): Unit = {
-      val handler = context.actorOf(FastSyncBlockHeadersRequestHandler.props(
-        peer, bestBlockHeaderNumber + 1, blockHeadersPerRequest, nodeStatusHolder, blockchain), blockHeadersHandlerName)
+      val request = GetBlockHeaders(Left(bestBlockHeaderNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
+      val handler = context.actorOf(FastSyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false, blockchain), blockHeadersHandlerName)
       context watch handler
       assignedHandlers += (handler -> peer)
     }
@@ -362,7 +362,7 @@ class SyncController(
     def requestNodes(peer: ActorRef): Unit = {
       val (nonMptNodesToGet, remainingNonMptNodes) = nonMptNodesQueue.splitAt(nodesPerRequest)
       val (mptNodesToGet, remainingMptNodes) = mptNodesQueue.splitAt(nodesPerRequest - nonMptNodesToGet.size)
-      val nodesToGet = nonMptNodesToGet.toSeq ++ mptNodesToGet.toSeq
+      val nodesToGet = nonMptNodesToGet ++ mptNodesToGet
       val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, nodesToGet, blockchain, mptNodeStorage))
       context watch handler
       assignedHandlers += (handler -> peer)
@@ -411,6 +411,10 @@ object SyncController {
   protected case object StartRegularSync
 
   case class EnqueueNodes(hashes: Seq[HashType])
+
+  case class BlockHeadersToResolve(peer:ActorRef, headers: Seq[BlockHeader])
+
+  case class BlockHeadersReceived(headers: Seq[BlockHeader])
 
   case class EnqueueBlockBodies(hashes: Seq[ByteString])
 

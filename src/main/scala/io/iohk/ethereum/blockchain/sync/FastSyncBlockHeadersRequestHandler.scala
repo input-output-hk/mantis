@@ -1,50 +1,51 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{ActorRef, Props, Scheduler}
-import akka.agent.Agent
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
-import io.iohk.ethereum.utils.NodeStatus
 
 class FastSyncBlockHeadersRequestHandler(
     peer: ActorRef,
-    block: BigInt,
-    maxHeaders: Int,
-    nodeStatusHolder: Agent[NodeStatus],
+    val requestMsg: GetBlockHeaders,
+    resolveBranches: Boolean,
     blockchain: Blockchain)(implicit scheduler: Scheduler)
   extends FastSyncRequestHandler[GetBlockHeaders, BlockHeaders](peer) {
 
-  override val requestMsg = GetBlockHeaders(Left(block), maxHeaders, 0, reverse = false)
-  override val responseMsgCode = BlockHeaders.code
+  override val responseMsgCode: Int = BlockHeaders.code
 
   override def handleResponseMsg(blockHeaders: BlockHeaders): Unit = {
-    val blockHashes = blockHeaders.headers.map(_.hash)
+    val parentExists = blockHeaders.headers.headOption.flatMap(h => blockchain.getBlockByHash(h.parentHash)).nonEmpty
 
-    val (blockHashesObtained, blockHeadersObtained) = blockHashes.zip(blockHeaders.headers).takeWhile{ case (hash, header) =>
-      val parentTd: Option[BigInt] = blockchain.getTotalDifficultyByHash(header.parentHash)
-      parentTd foreach { parentTotalDifficulty =>
-        blockchain.save(header)
-        blockchain.save(hash, parentTotalDifficulty + header.difficulty)
-      }
-      parentTd.isDefined
-    }.unzip
+    val headers = if (requestMsg.reverse)
+      blockHeaders.headers.reverse
+     else
+      blockHeaders.headers
 
-    if (blockHashesObtained.nonEmpty) {
-      fastSyncController ! SyncController.EnqueueBlockBodies(blockHashesObtained)
-      fastSyncController ! SyncController.EnqueueReceipts(blockHashesObtained)
+    val consistentHeaders = checkHeaders(headers)
+
+    (parentExists, resolveBranches, consistentHeaders) match {
+      case (false, false, true) =>
+        fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+
+      case (true, false, true) if headers.nonEmpty =>
+        val blockHashes = headers.map(_.hash)
+        fastSyncController ! SyncController.BlockHeadersReceived(headers)
+        fastSyncController ! SyncController.EnqueueBlockBodies(blockHashes)
+        fastSyncController ! SyncController.EnqueueReceipts(blockHashes)
+        log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
+
+      case (_, true, true) if headers.nonEmpty =>
+        fastSyncController ! SyncController.BlockHeadersToResolve(peer, blockHeaders.headers)
+        log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
+
+      case (_, _, false) =>
+        fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+
+      case _ if headers.isEmpty =>
+        fastSyncController ! SyncController.BlockHeadersReceived(Seq.empty)
+        log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
     }
 
-    if (blockHeadersObtained.headOption.exists(_.number == block)) {
-      val lastHeader = blockHeadersObtained.foldLeft(blockHeadersObtained.head) { (currentHeader, nextHeader) =>
-        if (nextHeader.number == currentHeader.number + 1) nextHeader
-        else currentHeader
-      }
-      fastSyncController ! SyncController.UpdateBestBlockHeaderNumber(lastHeader.number)
-    }
-
-    if (blockHashesObtained.length != blockHashes.length) fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
-
-    log.info("Received {} block headers in {} ms", blockHashesObtained.size, timeTakenSoFar())
     cleanupAndStop()
   }
 
@@ -57,12 +58,12 @@ class FastSyncBlockHeadersRequestHandler(
     cleanupAndStop()
   }
 
+  private def checkHeaders(headers: Seq[BlockHeader]): Boolean =
+    headers.zip(headers.tail).forall { case (parent, child) => parent.hash == child.parentHash && parent.number + 1 == child.number }
 }
 
 object FastSyncBlockHeadersRequestHandler {
-  def props(peer: ActorRef, block: BigInt, maxHeaders: Int,
-            nodeStatusHolder: Agent[NodeStatus],
-            blockchain: Blockchain)
+  def props(peer: ActorRef, requestMsg: GetBlockHeaders, resolveBranches: Boolean, blockchain: Blockchain)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncBlockHeadersRequestHandler(peer, block, maxHeaders, nodeStatusHolder, blockchain))
+    Props(new FastSyncBlockHeadersRequestHandler(peer, requestMsg, resolveBranches, blockchain))
 }
