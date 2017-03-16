@@ -25,7 +25,7 @@ object App {
       }
 
       server ! ServerActor.StartServer(networkConfig.Server.listenAddress)
-      fastSyncController ! SyncController.StartSync
+      syncController ! SyncController.StartSync
 
       if(rpcServerConfig.enabled) startJSONRpcServer()
     }

@@ -95,7 +95,7 @@ trait FastSyncControllerBuilder {
     PeerManagerActorBuilder with
     StorageBuilder =>
 
-  lazy val fastSyncController = actorSystem.actorOf(
+  lazy val syncController = actorSystem.actorOf(
     SyncController.props(
       peerManager,
       nodeStatusHolder,
@@ -104,13 +104,13 @@ trait FastSyncControllerBuilder {
       storagesInstance.storages.mptNodeStorage,
       storagesInstance.storages.fastSyncStateStorage,
       BlockValidator.validateHeaderAndBody),
-    "fast-sync-controller")
+    "sync-controller")
 
 }
 
 trait ShutdownHookBuilder {
 
-  def shutdown()
+  def shutdown(): Unit
 
   lazy val shutdownTimeoutDuration = Config.shutdownTimeout
 
