@@ -69,8 +69,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
       parent.childActorOf(FastSyncBlockBodiesRequestHandler.props(
         peer.ref,
         requestedHashes,
-        storagesInstance.storages.appStateStorage,
-        blockchain)(time.scheduler))
+        storagesInstance.storages.appStateStorage)(time.scheduler))
   }
 
 }

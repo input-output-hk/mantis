@@ -47,18 +47,19 @@ class SyncController(
   def idle: Receive = handlePeerUpdates orElse {
 
     case StartSync =>
-      (appStateStorage.isFastSyncDone(), doFastSync) match {
-        case (false, true) =>
-          self ! StartFastSync
-        case (true, true) =>
-          log.warning(s"do-fast-sync is set to $doFastSync but fast sync cannot start because regular sync was executed")
-          self ! StartRegularSync
-        case (true, false) =>
-          self ! StartRegularSync
-        case (false, false) =>
-          fastSyncStateStorage.purge()
-          self ! StartRegularSync
-      }
+      self ! StartRegularSync
+//      (appStateStorage.isFastSyncDone(), doFastSync) match {
+//        case (false, true) =>
+//          self ! StartFastSync
+//        case (true, true) =>
+//          log.warning(s"do-fast-sync is set to $doFastSync but fast sync cannot start because regular sync was executed")
+//          self ! StartRegularSync
+//        case (true, false) =>
+//          self ! StartRegularSync
+//        case (false, false) =>
+//          fastSyncStateStorage.purge()
+//          self ! StartRegularSync
+//      }
 
     case StartFastSync if !appStateStorage.isFastSyncDone()  =>
       fastSyncStateStorage.getSyncState() match {
@@ -346,7 +347,7 @@ class SyncController(
     def requestBlockBodies(peer: ActorRef): Unit = {
       val (blockBodiesToGet, remainingBlockBodies) = blockBodiesQueue.splitAt(blockBodiesPerRequest)
       val handler = context.actorOf(FastSyncBlockBodiesRequestHandler.props(
-        peer, blockBodiesToGet, appStateStorage, blockchain))
+        peer, blockBodiesToGet, appStateStorage))
       context watch handler
       assignedHandlers += (handler -> peer)
       blockBodiesQueue = remainingBlockBodies
@@ -354,7 +355,7 @@ class SyncController(
 
     def requestBlockHeaders(peer: ActorRef): Unit = {
       val request = GetBlockHeaders(Left(bestBlockHeaderNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
-      val handler = context.actorOf(FastSyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false, blockchain), blockHeadersHandlerName)
+      val handler = context.actorOf(FastSyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false), blockHeadersHandlerName)
       context watch handler
       assignedHandlers += (handler -> peer)
     }
@@ -412,11 +413,13 @@ object SyncController {
 
   case class EnqueueNodes(hashes: Seq[HashType])
 
-  case class BlockHeadersToResolve(peer:ActorRef, headers: Seq[BlockHeader])
+  case class BlockHeadersToResolve(peer: ActorRef, headers: Seq[BlockHeader])
 
-  case class BlockHeadersReceived(headers: Seq[BlockHeader])
+  case class BlockHeadersReceived(peer: ActorRef, headers: Seq[BlockHeader])
 
   case class EnqueueBlockBodies(hashes: Seq[ByteString])
+
+  case class BlockBodiesReceived(peer: ActorRef, requestedHashes: Seq[ByteString], bodies: Seq[BlockBody])
 
   case class EnqueueReceipts(hashes: Seq[ByteString])
 

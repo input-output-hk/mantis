@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.agent.Agent
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
@@ -73,13 +73,13 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     val nodeStatusHolder = Agent(nodeStatus)
 
-    val fastSyncBlockHeadersRequestHandler =
+    val fastSyncBlockHeadersRequestHandler: ActorRef = {
+      val request = GetBlockHeaders(Left(block), maxHeaders, skip = 0, reverse = false)
       parent.childActorOf(FastSyncBlockHeadersRequestHandler.props(
         peer.ref,
-        block,
-        maxHeaders,
-        nodeStatusHolder,
-        blockchain)(time.scheduler))
+        request,
+        resolveBranches = false)(time.scheduler))
+    }
   }
 
 }
