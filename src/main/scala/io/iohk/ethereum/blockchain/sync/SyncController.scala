@@ -47,19 +47,18 @@ class SyncController(
   def idle: Receive = handlePeerUpdates orElse {
 
     case StartSync =>
-      self ! StartRegularSync
-//      (appStateStorage.isFastSyncDone(), doFastSync) match {
-//        case (false, true) =>
-//          self ! StartFastSync
-//        case (true, true) =>
-//          log.warning(s"do-fast-sync is set to $doFastSync but fast sync cannot start because regular sync was executed")
-//          self ! StartRegularSync
-//        case (true, false) =>
-//          self ! StartRegularSync
-//        case (false, false) =>
-//          fastSyncStateStorage.purge()
-//          self ! StartRegularSync
-//      }
+      (appStateStorage.isFastSyncDone(), doFastSync) match {
+        case (false, true) =>
+          self ! StartFastSync
+        case (true, true) =>
+          log.warning(s"do-fast-sync is set to $doFastSync but fast sync cannot start because regular sync was executed")
+          self ! StartRegularSync
+        case (true, false) =>
+          self ! StartRegularSync
+        case (false, false) =>
+          fastSyncStateStorage.purge()
+          self ! StartRegularSync
+      }
 
     case StartFastSync if !appStateStorage.isFastSyncDone()  =>
       fastSyncStateStorage.getSyncState() match {
@@ -110,7 +109,7 @@ class SyncController(
         tryStartSync(newReceived)
       } else context become waitingForBlockHeaders(newWaitingFor, newReceived, timeout)
 
-    case msg@PeerActor.MessageReceived(BlockHeaders(_)) =>
+    case PeerActor.MessageReceived(BlockHeaders(_)) =>
       sender() ! PeerActor.Unsubscribe
       blacklist(sender(), blacklistDuration)
       context become waitingForBlockHeaders(waitingFor - sender(), received, timeout)
@@ -178,7 +177,7 @@ class SyncController(
   }
 
   def peersToDownloadFrom: Map[ActorRef, PeerStatus.Handshaked] =
-    handshakedPeers.filterNot { case (p, s) => isBlacklisted(p) }
+    handshakedPeers.filterNot { case (p, _) => isBlacklisted(p) }
 
   def scheduleStartFastSync(interval: FiniteDuration): Unit = {
     scheduler.scheduleOnce(interval, self, StartFastSync)
@@ -260,8 +259,11 @@ class SyncController(
       case UpdateDownloadedNodesCount(num) =>
         downloadedNodesCount += num
 
-      //case UpdateBestBlockHeaderNumber(num) =>
-      //  bestBlockHeaderNumber = num
+      case BlockBodiesReceived(_, requestedHashes, blockBodies) =>
+        insertBlocks(requestedHashes, blockBodies)
+
+      case BlockHeadersReceived(peer, headers) =>
+        insertHeaders(headers)
 
       case ProcessSyncing =>
         processSyncing()
@@ -281,6 +283,39 @@ class SyncController(
           s"""|Block: ${appStateStorage.getBestBlockNumber()}/${initialSyncState.targetBlock.number}.
               |Peers: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
               |State: $downloadedNodesCount/$totalNodesCount known nodes.""".stripMargin.replace("\n", " "))
+    }
+
+    private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
+      //todo this is moved from FastSyncBlockBodiesRequestHandler.scala we should add block validation here
+      //load header from chain by hash and check consistency with BlockValidator.validateHeaderAndBody
+      //if invalid blacklist peer
+      (requestedHashes zip blockBodies).foreach { case (hash, body) =>
+        blockchain.save(hash, body)
+      }
+
+      val receivedHashes = requestedHashes.take(blockBodies.size)
+      updateBestBlockIfNeeded(receivedHashes)
+      val remainingBlockBodies = requestedHashes.drop(blockBodies.size)
+      if (remainingBlockBodies.nonEmpty) {
+        self ! SyncController.EnqueueBlockBodies(remainingBlockBodies)
+      }
+    }
+
+    private def insertHeaders(headers: Seq[BlockHeader]): Unit = {
+      val blockHeadersObtained = headers.takeWhile { header =>
+        val parentTd: Option[BigInt] = blockchain.getTotalDifficultyByHash(header.parentHash)
+        parentTd foreach { parentTotalDifficulty =>
+          blockchain.save(header)
+          blockchain.save(header.hash, parentTotalDifficulty + header.difficulty)
+        }
+        parentTd.isDefined
+      }
+
+      blockHeadersObtained.lastOption.foreach { lastHeader =>
+        if (lastHeader.number > bestBlockHeaderNumber) {
+          bestBlockHeaderNumber = lastHeader.number
+        }
+      }
     }
 
     def processSyncing(): Unit = {
@@ -386,6 +421,19 @@ class SyncController(
     }
   }
 
+  private def updateBestBlockIfNeeded(receivedHashes: Seq[ByteString]): Unit = {
+    val fullBlocks = receivedHashes.flatMap { hash =>
+      for {
+        header <- blockchain.getBlockHeaderByHash(hash)
+        _ <- blockchain.getReceiptsByHash(hash)
+      } yield header
+    }
+
+    if (fullBlocks.nonEmpty) {
+      val bestReceivedBlock = fullBlocks.maxBy(_.number)
+      appStateStorage.putBestBlockNumber(bestReceivedBlock.number)
+    }
+  }
 }
 
 object SyncController {
@@ -424,8 +472,6 @@ object SyncController {
   case class EnqueueReceipts(hashes: Seq[ByteString])
 
   case class UpdateDownloadedNodesCount(update: Int)
-
-  case class UpdateBestBlockHeaderNumber(bestBlockHeaderNumber: BigInt)
 
   sealed trait HashType {
     def v: ByteString

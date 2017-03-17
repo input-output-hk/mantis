@@ -5,6 +5,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.blockchain.sync.SyncController.BlockBodiesReceived
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockBody, GetBlockBodies}
 import org.scalatest.{FlatSpec, Matchers}
@@ -18,11 +19,8 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     val responseBodies = Seq(BlockBody(Nil, Nil))
     peer.reply(PeerActor.MessageReceived(BlockBodies(responseBodies)))
 
-    parent.expectMsg(SyncController.EnqueueBlockBodies(requestedHashes.drop(1)))
+    parent.expectMsg(BlockBodiesReceived(peer.ref, requestedHashes, responseBodies))
     parent.expectMsg(FastSyncRequestHandler.Done)
-
-    blockchain.getBlockBodyByHash(requestedHashes.head) shouldBe Some(responseBodies.head)
-    blockchain.getBlockBodyByHash(requestedHashes(1)) shouldBe None
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
@@ -35,7 +33,6 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     peer.reply(PeerActor.MessageReceived(BlockBodies(responseBodies)))
 
     parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
-    parent.expectMsg(SyncController.EnqueueBlockBodies(requestedHashes))
     parent.expectMsg(FastSyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)

@@ -18,9 +18,9 @@ class FastSyncBlockBodiesRequestHandler(
   override def handleResponseMsg(blockBodies: BlockBodies): Unit = {
     if (blockBodies.bodies.isEmpty) {
       fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+    } else {
+      fastSyncController ! BlockBodiesReceived(peer, requestedHashes, blockBodies.bodies)
     }
-
-    fastSyncController ! BlockBodiesReceived(peer, requestedHashes, blockBodies.bodies)
 
     log.info("Received {} block bodies in {} ms", blockBodies.bodies.size, timeTakenSoFar())
     cleanupAndStop()

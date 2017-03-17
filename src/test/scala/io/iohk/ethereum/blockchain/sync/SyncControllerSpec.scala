@@ -26,6 +26,10 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
+//TODO add check for
+// blockchain.getBlockHeaderByHash(responseHeaders.head.hash) shouldBe Some(responseHeaders.head)
+//blockchain.getBlockBodyByHash(requestedHashes.head) shouldBe Some(responseBodies.head)
+//blockchain.getBlockBodyByHash(requestedHashes(1)) shouldBe None
 // scalastyle:off magic.number
 class SyncControllerSpec extends FlatSpec with Matchers {
 

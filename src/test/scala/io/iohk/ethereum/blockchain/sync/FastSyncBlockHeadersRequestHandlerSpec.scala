@@ -14,6 +14,7 @@ import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import org.scalatest.{FlatSpec, Matchers}
+import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
@@ -28,19 +29,43 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     peer.reply(PeerActor.MessageReceived(BlockHeaders(responseHeaders)))
 
     parent.expectMsgAllOf(
+      SyncController.BlockHeadersReceived(peer.ref, responseHeaders),
       SyncController.EnqueueBlockBodies(Seq(responseHeaders.head.hash)),
-      SyncController.EnqueueReceipts(Seq(responseHeaders.head.hash)),
-      SyncController.UpdateBestBlockHeaderNumber(responseHeaders.last.number))
+      SyncController.EnqueueReceipts(Seq(responseHeaders.head.hash)))
 
     parent.expectMsg(FastSyncRequestHandler.Done)
-
-    blockchain.getBlockHeaderByHash(responseHeaders.head.hash) shouldBe Some(responseHeaders.head)
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
 
+  it should "handle block header resolution request" in new TestSetup {
+    val request = GetBlockHeaders(Left(block), maxHeaders, skip = 0, reverse = true)
+    val resolverPeer = TestProbe()
+    val resolver: ActorRef = {
+      parent.childActorOf(FastSyncBlockHeadersRequestHandler.props(
+        resolverPeer.ref,
+        request,
+        resolveBranches = true)(time.scheduler))
+    }
+
+    resolverPeer.expectMsg(PeerActor.SendMessage(request))
+    resolverPeer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
+
+    val responseHeaders = Seq(BlockHeader(Config.Blockchain.genesisHash, ByteString(""), ByteString(""),
+      ByteString(""), ByteString(""), ByteString(""),
+      ByteString(""), 0, block, 0, 0, 0, ByteString(""), ByteString(""), ByteString("")))
+
+    resolverPeer.reply(PeerActor.MessageReceived(BlockHeaders(responseHeaders)))
+
+    parent.expectMsg(SyncController.BlockHeadersToResolve(resolverPeer.ref, responseHeaders))
+
+    parent.expectMsg(FastSyncRequestHandler.Done)
+
+    resolverPeer.expectMsg(PeerActor.Unsubscribe)
+  }
+
   it should "handle timeout" in new TestSetup {
-    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(block), maxHeaders, 0, false)))
+    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(block), maxHeaders, 0, reverse = false)))
     peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
 
     time.advance(10.seconds)
@@ -65,7 +90,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     val block = BigInt(1)
     val maxHeaders = 1
 
-    val nodeKey = crypto.generateKeyPair()
+    val nodeKey: AsymmetricCipherKeyPair = crypto.generateKeyPair()
 
     val nodeStatus = NodeStatus(
       key = nodeKey,
