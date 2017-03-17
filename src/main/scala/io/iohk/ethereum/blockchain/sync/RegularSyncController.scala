@@ -123,6 +123,7 @@ trait RegularSyncController {
             context.self ! BroadcastBlocks(newBlocks)
             log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
+            log.info(s"Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).")
           case None =>
             log.error("no total difficulty for latest block")
         }
