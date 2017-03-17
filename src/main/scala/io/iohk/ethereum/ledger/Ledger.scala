@@ -3,8 +3,10 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.network.p2p.validators.SignedTransactionValidator
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.vm.{GasFee, _}
+import io.iohk.ethereum.utils.Config
 
 object Ledger extends Logger {
 
@@ -118,25 +120,14 @@ object Ledger extends Logger {
     accumGasLimit: BigInt,
     block: Block): Either[String, SignedTransaction] = {
     for {
-      _ <- checkSyntacticValidity(stx)
-      _ <- validateSignature(stx)
+      _ <- SignedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = block.header.number < Config.Blockchain.HomesteadBlock)
+        .left.map(_.toString)
       _ <- validateNonce(stx, worldState)
       _ <- validateGas(stx, block.header)
       _ <- validateAccountHasEnoughGasToPayUpfrontCost(stx, worldState)
       _ <- validateGasLimit(stx, accumGasLimit, block.header.gasLimit)
     } yield stx
   }
-
-  private def checkSyntacticValidity(stx: SignedTransaction): Either[String, SignedTransaction] =
-    if (stx.syntacticValidity) Right(stx) else Left("Transaction is not well formed")
-
-  /**
-    * Validates if the transaction signature is valid
-    *
-    * @param stx Transaction to validate
-    * @return Either the validated transaction or an error description
-    */
-  private def validateSignature(stx: SignedTransaction): Either[String, SignedTransaction] = Right(stx) //TODO
 
   /**
     * Validates if the transaction nonce matches current sender account's nonce
@@ -145,7 +136,7 @@ object Ledger extends Logger {
     * @return Either the validated transaction or an error description
     */
   private def validateNonce(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): Either[String, SignedTransaction] = {
-    if (worldStateProxy.getGuaranteedAccount(stx.recoveredSenderAddress.get).nonce == stx.tx.nonce) Right(stx)
+    if (worldStateProxy.getAccount(stx.recoveredSenderAddress.get).map(_.nonce).contains(stx.tx.nonce)) Right(stx)
     else Left("Account nonce is different from TX sender nonce")
   }
 

@@ -79,38 +79,4 @@ class TransactionSpec extends FlatSpec with Matchers {
     invalidStx.recoveredSenderAddress.nonEmpty shouldBe true
     invalidStx.recoveredSenderAddress.get shouldNot equal(address)
   }
-
-  it should "report as valid the validStx" in {
-    validTransactionSignatureOldSchema.syntacticValidity shouldBe true
-  }
-
-  it should "report as invalid a tx with long nonce" in {
-    val invalidNonce = (0 until Transaction.NonceLength + 1).map(_ => 1.toByte).toArray
-    validTransactionSignatureOldSchema.copy(tx = validTx.copy(nonce = BigInt(invalidNonce))).syntacticValidity shouldBe false
-  }
-
-  it should "report as invalid a tx with long gas limit" in {
-    val invalidGasLimit = (0 until Transaction.GasLength + 1).map(_ => 1.toByte).toArray
-    validTransactionSignatureOldSchema.copy(tx = validTx.copy(gasLimit = BigInt(invalidGasLimit))).syntacticValidity shouldBe false
-  }
-
-  it should "report as invalid a tx with long gas price" in {
-    val invalidGasPrice = (0 until Transaction.GasLength + 1).map(_ => 1.toByte).toArray
-    validTransactionSignatureOldSchema.copy(tx = validTx.copy(gasPrice = BigInt(invalidGasPrice))).syntacticValidity shouldBe false
-  }
-
-  it should "report as invalid a tx with long value" in {
-    val invalidValue = (0 until Transaction.ValueLength + 1).map(_ => 1.toByte).toArray
-    validTransactionSignatureOldSchema.copy(tx = validTx.copy(value = BigInt(invalidValue))).syntacticValidity shouldBe false
-  }
-
-  it should "report as invalid a tx with long signature" in {
-    val invalidSignature = (0 until ECDSASignature.SLength + 1).map(_ => 1.toByte).toArray
-    validTransactionSignatureOldSchema.copy(signature = ByteString(invalidSignature)).syntacticValidity shouldBe false
-  }
-
-  it should "report as invalid a tx with long signature random" in {
-    val invalidSignatureRandom = (0 until ECDSASignature.RLength + 1).map(_ => 1.toByte).toArray
-    validTransactionSignatureOldSchema.copy(signatureRandom = ByteString(invalidSignatureRandom)).syntacticValidity shouldBe false
-  }
 }

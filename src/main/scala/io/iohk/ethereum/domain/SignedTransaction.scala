@@ -87,24 +87,6 @@ case class SignedTransaction(
     )
   }
 
-  lazy val syntacticValidity: Boolean = {
-
-    import tx._
-    import Transaction._
-
-    def byteLength(b: BigInt): Int = b.toByteArray.length
-
-    byteLength(nonce) <= NonceLength &&
-    //FIXME: the below doesn't make sense, an exception will be thrown if the condition is not met
-    //(receivingAddress.bytes.isEmpty || receivingAddress.bytes.length == AddressLength) &&
-    byteLength(gasLimit) <= GasLength &&
-    byteLength(gasPrice) <= GasLength &&
-    byteLength(value) <= ValueLength &&
-    signatureRandom.length <= ECDSASignature.RLength &&
-    signature.length <= ECDSASignature.SLength &&
-    recoveredSenderAddress.isDefined
-  }
-
   override def toString: String = {
     s"""SignedTransaction {
          |tx: $tx
