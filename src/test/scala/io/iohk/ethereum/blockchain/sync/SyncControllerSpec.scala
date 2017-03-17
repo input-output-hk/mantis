@@ -13,6 +13,7 @@ import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerActor.Status.Chain
+import io.iohk.ethereum.network.PeerActor.Unsubscribe
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, PeersResponse}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.utils.Config
@@ -139,8 +140,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer2.expectMsg(PeerActor.Unsubscribe)
 
     //switch to regular download
-    peer2.expectMsgAllOf(PeerActor.Subscribe(Set(BlockHeaders.code, BlockBodies.code)))
     peer2.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(targetBlockHeader.number + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    peer2.expectMsgAllOf(PeerActor.Subscribe(Set(BlockHeaders.code)))
   }
 
   it should "not use (blacklist) a peer that fails to respond within time limit" in new TestSetup {
@@ -213,16 +214,19 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     fastSyncController ! SyncController.StartSync
 
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code, BlockBodies.code)))
     peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeader))))
 
     peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash))))
+    peer.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
     peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Seq.empty, Seq.empty)))))
 
-    //start next download cycle
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code, BlockBodies.code)))
-    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    peer.expectMsgAllOf(10.seconds,
+      Unsubscribe,
+      Unsubscribe,
+      PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
+      PeerActor.Subscribe(Set(BlockHeaders.code)))
 
     blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(newBlockHeader, BlockBody(Seq.empty, Seq.empty)))
     blockchain.getTotalDifficultyByHash(newBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + newBlockHeader.difficulty)
@@ -268,21 +272,27 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     fastSyncController ! SyncController.StartSync
 
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code, BlockBodies.code)))
+    peer.ignoreMsg { case u => u == Unsubscribe }
+
     peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeader))))
 
     peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(newBlockHeader.parentHash), Config.FastSync.blockResolveDepth, 0, reverse = true)))
+    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeaderParent))))
 
     peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeaderParent.hash, newBlockHeader.hash))))
+    peer.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
     peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Seq.empty, Seq.empty), BlockBody(Seq.empty, Seq.empty)))))
 
     //start next download cycle
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code, BlockBodies.code)))
+
     peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(nextNewBlockHeader))))
     peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(nextNewBlockHeader.hash))))
+    peer.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
     peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Seq.empty, Seq.empty)))))
 
     blockchain.getBlockByNumber(expectedMaxBlock) shouldBe Some(Block(newBlockHeaderParent, BlockBody(Seq.empty, Seq.empty)))
