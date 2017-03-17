@@ -50,6 +50,7 @@ trait FastSync {
     } else {
       log.warning("Cannot start fast sync, not enough peers to download from. Scheduling retry in {}", startRetryInterval)
       scheduleStartRetry(startRetryInterval)
+      context become startingFastSync
     }
   }
 

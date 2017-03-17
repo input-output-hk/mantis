@@ -23,6 +23,7 @@ trait RegularSync {
 
   def startRegularSync(): Unit = {
     log.info("Starting regular sync")
+    appStateStorage.fastSyncDone()
     context become (handlePeerUpdates orElse regularSync())
     askForHeaders()
   }
