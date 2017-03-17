@@ -9,7 +9,7 @@ import scala.concurrent.duration._
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -22,6 +22,32 @@ import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.db.storage._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+
+trait ForkResolver {
+  type Fork
+
+  def forkBlockNumber: BigInt
+  def recognizeFork(blockHeader: BlockHeader): Fork
+  def isAccepted(fork: Fork): Boolean
+}
+
+object ForkResolver {
+
+  val EtcForkResolver = new ForkResolver {
+    sealed trait Fork
+    case object Etc extends Fork
+    case object Eth extends Fork
+
+    override def forkBlockNumber: BigInt = 1920000 // TODO: from config
+
+    override def isAccepted(fork: Fork): Boolean = fork == Etc
+
+    override def recognizeFork(blockHeader: BlockHeader): Fork = {
+
+    }
+  }
+
+}
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
