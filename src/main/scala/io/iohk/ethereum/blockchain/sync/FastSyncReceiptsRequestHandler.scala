@@ -33,7 +33,7 @@ class FastSyncReceiptsRequestHandler(
       fastSyncController ! SyncController.EnqueueReceipts(remainingReceipts)
     }
 
-    log.info("Received {} receipts in {} ms", receipts.receiptsForBlocks.size, timeTakenSoFar())
+    log.debug("Received {} receipts in {} ms", receipts.receiptsForBlocks.size, timeTakenSoFar())
     cleanupAndStop()
   }
 

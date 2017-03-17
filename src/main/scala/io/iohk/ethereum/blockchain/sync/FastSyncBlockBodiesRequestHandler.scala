@@ -33,7 +33,7 @@ class FastSyncBlockBodiesRequestHandler(
       fastSyncController ! SyncController.EnqueueBlockBodies(remainingBlockBodies)
     }
 
-    log.info("Received {} block bodies in {} ms", blockBodies.bodies.size, timeTakenSoFar())
+    log.debug("Received {} block bodies in {} ms", blockBodies.bodies.size, timeTakenSoFar())
     cleanupAndStop()
   }
 
