@@ -15,11 +15,11 @@ class NodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
       val initialNodeStorage = new NodeStorage(EphemDataSource())
       val nodeStorage = mptNodes.foldLeft(initialNodeStorage){
         case (recNodeStorage, node) =>
-          recNodeStorage.put(node.hash.toArray, rlpEncode(node))
+          recNodeStorage.put(node.hash, rlpEncode(node))
       }
 
       mptNodes.foreach{ node =>
-        val obtainedNode = nodeStorage.get(node.hash.toArray).map(rlpDecode[MptNode])
+        val obtainedNode = nodeStorage.get(node.hash).map(rlpDecode[MptNode])
         assert(obtainedNode.contains(node))
       }
     }
@@ -33,20 +33,20 @@ class NodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
       val initialNodeStorage = new NodeStorage(EphemDataSource())
       val nodeStorage = mptNodes.foldLeft(initialNodeStorage){
         case (recNodeStorage, node) =>
-          recNodeStorage.put(node.hash.toArray, rlpEncode(node))
+          recNodeStorage.put(node.hash, rlpEncode(node))
       }
 
       //Nodes are deleted
       val (toDelete, toLeave) = mptNodes.splitAt(Gen.choose(0, mptNodes.size).sample.get)
       val nodeStorageAfterDelete = toDelete.foldLeft(nodeStorage){
         case (recNodeStorage, node) =>
-          recNodeStorage.remove(node.hash.toArray)
+          recNodeStorage.remove(node.hash)
       }
 
       toLeave.foreach{ node =>
-        val obtainedNode = nodeStorageAfterDelete.get(node.hash.toArray).map(rlpDecode[MptNode])
+        val obtainedNode = nodeStorageAfterDelete.get(node.hash).map(rlpDecode[MptNode])
         assert(obtainedNode.contains(node)) }
-      toDelete.foreach{ node => assert(nodeStorageAfterDelete.get(node.hash.toArray).isEmpty) }
+      toDelete.foreach{ node => assert(nodeStorageAfterDelete.get(node.hash).isEmpty) }
     }
   }
 }

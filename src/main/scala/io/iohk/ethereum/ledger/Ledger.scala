@@ -22,11 +22,10 @@ object Ledger extends Logger {
       val (resultingWorldStateProxy, gasUsed) = executeBlockTransactions(block, storages, stateStorage)
       log.debug(s"All txs from block ${block.header} were executed")
 
-      val payBlockRewardFn = (payBlockReward _).curried(block)
-      val commitedWorld = (payBlockRewardFn andThen InMemoryWorldStateProxy.commitState)(resultingWorldStateProxy)
-      val afterExecutionBlockError = validateBlockAfterExecution(block, commitedWorld)
+      val worldToPersist = payBlockReward(block, resultingWorldStateProxy)
+      val afterExecutionBlockError = validateBlockAfterExecution(block, worldToPersist)
       if (afterExecutionBlockError.isEmpty) {
-        InMemoryWorldStateProxy.persist(commitedWorld)
+        InMemoryWorldStateProxy.persistIfHashMatches(block.header.stateRoot, worldToPersist)
         log.debug(s"Block ${block.header} txs state changes persisted")
       } else throw new RuntimeException(afterExecutionBlockError.get)
 
@@ -47,7 +46,7 @@ object Ledger extends Logger {
   ExecResult = {
     val blockchain = BlockchainImpl(storages)
     val initialWorldStateProxy = InMemoryWorldStateProxy(storages, stateStorage,
-      blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot).getOrElse(ByteString.empty)
+      blockchain.getBlockHeaderByHash(block.header.hash).map(_.stateRoot)
     )
     block.body.transactionList.foldLeft[ExecResult](initialWorldStateProxy -> 0) {
       case ((worldStateProxy, acumGas), stx) =>
@@ -74,10 +73,7 @@ object Ledger extends Logger {
 
   private def validateBlockBeforeExecution(block: Block): Option[String] = None
 
-  private def validateBlockAfterExecution(block: Block, worldStateProxy: InMemoryWorldStateProxy): Option[String] = {
-    // HINT if (worldStateProxy.stateRoothash != block.header.stateRoot)
-    None
-  }
+  private def validateBlockAfterExecution(block: Block, worldStateProxy: InMemoryWorldStateProxy): Option[String] = None
 
   /**
     * This function updates state in order to pay rewards based on YP section 11.3

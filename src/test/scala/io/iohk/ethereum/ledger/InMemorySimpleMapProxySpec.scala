@@ -67,7 +67,7 @@ class InMemorySimpleMapProxySpec extends FlatSpec with Matchers {
     assertContains(updatedProxy, 2, 3)
   }
 
-  "InMemoryTrieProxy" should "handle ba1tc operations" in new TestSetup {
+  "InMemoryTrieProxy" should "handle batch operations" in new TestSetup {
     val updatedProxy = InMemorySimpleMapProxy.wrap(mpt).update(Seq(1), Seq((2, 2), (2, 3)))
     assertNotContainsKey(updatedProxy, 1)
     assertContains(updatedProxy, 2, 3)
