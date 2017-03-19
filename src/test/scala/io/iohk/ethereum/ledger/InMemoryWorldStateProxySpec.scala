@@ -46,7 +46,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val value = Generators.dataWordGen.sample.getOrElse(DataWord.MaxValue)
     val code = Generators.getByteStringGen(1, 100).sample.get
 
-    val validateWorld = (ws: InMemoryWorldStateProxy) => {
+    val validateInitialWorld = (ws: InMemoryWorldStateProxy) => {
       ws.accountExists(address1) shouldEqual true
       ws.accountExists(address2) shouldEqual true
       ws.getCode(address1) shouldEqual code
@@ -55,6 +55,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
       ws.getGuaranteedAccount(address2).balance shouldEqual account.balance
     }
 
+    // Update WS with some data
     val afterUpdatesWorldState = worldState
       .saveAccount(address1, account)
       .saveCode(address1, code)
@@ -64,18 +65,31 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
       .newEmptyAccount(address2)
       .transfer(address1, address2, account.balance)
 
-    validateWorld(afterUpdatesWorldState)
+    validateInitialWorld(afterUpdatesWorldState)
 
+    // Persist and check
     val persistedWorldState = InMemoryWorldStateProxy.persist(afterUpdatesWorldState)
-    validateWorld(persistedWorldState)
+    validateInitialWorld(persistedWorldState)
 
+    // Create a new WS instance based on storages and new root state and check
     val newWorldState = InMemoryWorldStateProxy(
       storagesInstance.storages,
       storagesInstance.storages.nodeStorage,
       Some(persistedWorldState.stateRootHash)
     )
+    validateInitialWorld(newWorldState)
 
-    validateWorld(newWorldState)
+    // Update this new WS check everything is ok
+    val updatedNewWorldState = newWorldState.transfer(address2, address1, account.balance)
+    updatedNewWorldState.getGuaranteedAccount(address1).balance shouldEqual account.balance
+    updatedNewWorldState.getGuaranteedAccount(address2).balance shouldEqual 0
+    persistedNewWorldState.getStorage(address1).load(addr) shouldEqual value
+
+    // Persist and check again
+    val persistedNewWorldState = InMemoryWorldStateProxy.persist(updatedNewWorldState)
+    persistedNewWorldState.getGuaranteedAccount(address1).balance shouldEqual account.balance
+    persistedNewWorldState.getGuaranteedAccount(address2).balance shouldEqual 0
+    persistedNewWorldState.getStorage(address1).load(addr) shouldEqual value
 
   }
 
