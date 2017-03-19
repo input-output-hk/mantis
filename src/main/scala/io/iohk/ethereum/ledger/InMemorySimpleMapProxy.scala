@@ -41,7 +41,7 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V]] private(val inner: Wrap
     */
   def persist(): InMemorySimpleMapProxy[K, V, I] = {
     val changesToApply = changes
-    new InMemorySimpleMapProxy[K, V, I](inner.update(changesToApply._1, changesToApply._2), Map())
+    new InMemorySimpleMapProxy[K, V, I](inner.update(changesToApply._1, changesToApply._2), Map.empty)
   }
 
   /**
@@ -49,7 +49,7 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V]] private(val inner: Wrap
     *
     * @return Updated proxy
     */
-  def rollback: InMemorySimpleMapProxy[K, V, I] = new InMemorySimpleMapProxy[K, V, I](inner, Map())
+  def rollback: InMemorySimpleMapProxy[K, V, I] = new InMemorySimpleMapProxy[K, V, I](inner, Map.empty)
 
   /**
     * This function obtains the value asociated with the key passed, if there exists one.
