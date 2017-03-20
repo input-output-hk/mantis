@@ -3,6 +3,7 @@ package io.iohk.ethereum.network
 import java.net.{InetSocketAddress, URI}
 
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.utils.Config.Blockchain._
 
 import scala.concurrent.duration._
 
@@ -38,13 +39,14 @@ object ForkResolver {
     case object Etc extends Fork
     case object Eth extends Fork
 
-    override def forkBlockNumber: BigInt = 1920000 // TODO: from config
-
-    override def isAccepted(fork: Fork): Boolean = fork == Etc
+    override def forkBlockNumber: BigInt = daoForkBlockNumber
 
     override def recognizeFork(blockHeader: BlockHeader): Fork = {
-
+      if (blockHeader.hash == daoForkBlockHash) Etc
+      else Eth
     }
+
+    override def isAccepted(fork: Fork): Boolean = fork == Etc
   }
 
 }
@@ -62,7 +64,8 @@ class PeerActor(
     val peerConfiguration: PeerConfiguration,
     appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
-    externalSchedulerOpt: Option[Scheduler] = None)
+    externalSchedulerOpt: Option[Scheduler] = None,
+    forkResolverOpt: Option[ForkResolver])
   extends Actor with ActorLogging with FastSyncHost {
 
   import Config.Blockchain._
@@ -74,8 +77,6 @@ class PeerActor(
   val P2pVersion = 4
 
   val peerId: String = self.path.name
-
-  val daoForkValidator = ForkValidator(daoForkBlockNumber, daoForkBlockHash)
 
   private var messageSubscribers: Seq[Subscriber] = Nil
 
@@ -192,9 +193,15 @@ class PeerActor(
     case RLPxConnectionHandler.MessageReceived(status: msg.Status) =>
       timeout.cancel()
       log.info("Peer returned status ({})", status)
-      rlpxConnection.sendMessage(GetBlockHeaders(Left(daoForkBlockNumber), maxHeaders = 1, skip = 0, reverse = false))
-      val waitingForDaoTimeout = scheduler.scheduleOnce(peerConfiguration.waitForChainCheckTimeout, self, DaoHeaderReceiveTimeout)
-      context become waitingForChainForkCheck(rlpxConnection, status, waitingForDaoTimeout)
+
+      forkResolverOpt match {
+        case Some(forkResolver) =>
+          rlpxConnection.sendMessage(GetBlockHeaders(Left(forkResolver.forkBlockNumber), maxHeaders = 1, skip = 0, reverse = false))
+          val timeout = scheduler.scheduleOnce(peerConfiguration.waitForChainCheckTimeout, self, ForkHeaderReceiveTimeout)
+          context become waitingForForkHeader(rlpxConnection, status, timeout, forkResolver)
+        case None =>
+          context become new MessageHandler(rlpxConnection, status, 0, Chain.Unknown).receive
+      }
 
     case StatusReceiveTimeout =>
       log.warning("Timeout while waiting status")
@@ -203,14 +210,17 @@ class PeerActor(
     case GetStatus => sender() ! StatusResponse(Handshaking)
   }
 
-  def waitingForChainForkCheck(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, timeout: Cancellable): Receive =
+  def waitingForForkHeader(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, timeout: Cancellable,
+                           forkResolver: ForkResolver): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
     handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse handlePeerChainCheck(rlpxConnection) orElse {
 
     case RLPxConnectionHandler.MessageReceived(msg @ BlockHeaders(blockHeaders)) =>
       timeout.cancel()
 
-      val daoBlockHeaderOpt = blockHeaders.find(_.number == daoForkBlockNumber)
+      val forkBlockHeaderOpt = blockHeaders.find(_.number == forkResolver.forkBlockNumber)
+
+
 
       daoBlockHeaderOpt match {
         case Some(_) if daoForkValidator.validate(msg).isEmpty =>
@@ -234,7 +244,7 @@ class PeerActor(
           disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
       }
 
-    case DaoHeaderReceiveTimeout => disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
+    case ForkHeaderReceiveTimeout => disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
 
     case GetStatus => sender() ! StatusResponse(Handshaking)
   }
@@ -424,7 +434,7 @@ object PeerActor {
 
   case class BroadcastBlocks(blocks: Seq[NewBlock])
 
-  private case object DaoHeaderReceiveTimeout
+  private case object ForkHeaderReceiveTimeout
 
   private case object ProtocolHandshakeTimeout
 
