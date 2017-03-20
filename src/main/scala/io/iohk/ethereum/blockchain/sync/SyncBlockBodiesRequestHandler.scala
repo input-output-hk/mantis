@@ -10,7 +10,7 @@ class SyncBlockBodiesRequestHandler(
     peer: ActorRef,
     requestedHashes: Seq[ByteString],
     appStateStorage: AppStateStorage)(implicit scheduler: Scheduler)
-  extends FastSyncRequestHandler[GetBlockBodies, BlockBodies](peer) {
+  extends SyncRequestHandler[GetBlockBodies, BlockBodies](peer) {
 
   override val requestMsg = GetBlockBodies(requestedHashes)
   override val responseMsgCode: Int = BlockBodies.code

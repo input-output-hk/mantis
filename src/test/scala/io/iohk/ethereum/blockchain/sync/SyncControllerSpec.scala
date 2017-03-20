@@ -88,9 +88,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(
       number = expectedTargetBlock,
       stateRoot = ByteString(Hex.decode("deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc")))
-
+    val bestBlockHeaderNumber: BigInt = targetBlockHeader.number - 1
     storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState(targetBlockHeader)
-      .copy(bestBlockHeaderNumber = targetBlockHeader.number - 1,
+      .copy(bestBlockHeaderNumber = bestBlockHeaderNumber,
         mptNodesQueue = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
 
     time.advance(1.seconds)
@@ -106,7 +106,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     fastSyncController ! SyncController.StartSync
 
     peer2.expectMsgAllOf(
-      PeerActor.SendMessage(GetBlockHeaders(Left(targetBlockHeader.number), 10, 0, false)),
+      PeerActor.SendMessage(GetBlockHeaders(Left(targetBlockHeader.number), expectedTargetBlock - bestBlockHeaderNumber, 0, reverse = false)),
       PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer2.reply(PeerActor.MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
     peer2.expectMsg(PeerActor.Unsubscribe)
@@ -210,6 +210,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     fastSyncController ! SyncController.StartSync
 
+    peer.ignoreMsg { case u => u == Unsubscribe }
+
     peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
     peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeader))))
@@ -219,8 +221,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Seq.empty, Seq.empty)))))
 
     peer.expectMsgAllOf(10.seconds,
-      Unsubscribe,
-      Unsubscribe,
       PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
       PeerActor.Subscribe(Set(BlockHeaders.code)))
 

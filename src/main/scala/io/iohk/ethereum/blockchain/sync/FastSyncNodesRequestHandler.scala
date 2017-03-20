@@ -14,7 +14,7 @@ class FastSyncNodesRequestHandler(
     requestedHashes: Seq[HashType],
     blockchain: Blockchain,
     mptNodeStorage: MptNodeStorage)(implicit scheduler: Scheduler)
-  extends FastSyncRequestHandler[GetNodeData, NodeData](peer) {
+  extends SyncRequestHandler[GetNodeData, NodeData](peer) {
 
   import FastSyncNodesRequestHandler._
 

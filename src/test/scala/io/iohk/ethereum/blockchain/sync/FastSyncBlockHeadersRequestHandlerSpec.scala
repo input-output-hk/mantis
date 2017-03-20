@@ -33,7 +33,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
       FastSync.EnqueueBlockBodies(Seq(responseHeaders.head.hash)),
       FastSync.EnqueueReceipts(Seq(responseHeaders.head.hash)))
 
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
@@ -59,7 +59,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     parent.expectMsg(SyncController.BlockHeadersToResolve(resolverPeer.ref, responseHeaders))
 
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(SyncRequestHandler.Done)
 
     resolverPeer.expectMsg(PeerActor.Unsubscribe)
   }
@@ -71,7 +71,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     time.advance(10.seconds)
 
     parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }

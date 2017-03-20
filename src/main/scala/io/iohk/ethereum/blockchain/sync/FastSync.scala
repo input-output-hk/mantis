@@ -193,7 +193,7 @@ trait FastSync {
       case ProcessSyncing =>
         processSyncing()
 
-      case FastSyncRequestHandler.Done =>
+      case SyncRequestHandler.Done =>
         context unwatch sender()
         assignedHandlers -= sender()
         processSyncing()
@@ -313,7 +313,12 @@ trait FastSync {
     }
 
     def requestBlockHeaders(peer: ActorRef): Unit = {
-      val request = GetBlockHeaders(Left(bestBlockHeaderNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
+      val limit: BigInt = if (blockHeadersPerRequest < (initialSyncState.targetBlock.number - bestBlockHeaderNumber))
+        blockHeadersPerRequest
+      else
+        initialSyncState.targetBlock.number - bestBlockHeaderNumber
+
+      val request = GetBlockHeaders(Left(bestBlockHeaderNumber + 1), limit, skip = 0, reverse = false)
       val handler = context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false), blockHeadersHandlerName)
       context watch handler
       assignedHandlers += (handler -> peer)

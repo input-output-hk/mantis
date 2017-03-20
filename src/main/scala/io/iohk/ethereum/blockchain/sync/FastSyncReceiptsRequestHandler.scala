@@ -11,7 +11,7 @@ class FastSyncReceiptsRequestHandler(
     requestedHashes: Seq[ByteString],
     appStateStorage: AppStateStorage,
     blockchain: Blockchain)(implicit scheduler: Scheduler)
-  extends FastSyncRequestHandler[GetReceipts, Receipts](peer) {
+  extends SyncRequestHandler[GetReceipts, Receipts](peer) {
 
   override val requestMsg = GetReceipts(requestedHashes)
   override val responseMsgCode = Receipts.code

@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
+import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor.Status.{Chain, Handshaked}
@@ -17,6 +18,7 @@ trait RegularSync {
 
   private var headersQueue: Seq[BlockHeader] = Seq.empty
   private var broadcasting = false
+  private var waitingForActor: Option[ActorRef] = None
 
   import Config.FastSync._
 
@@ -32,12 +34,15 @@ trait RegularSync {
       askForHeaders()
 
     case BlockHeadersToResolve(peer, headers) =>
+      waitingForActor = None
       handleBlockBranchResolution(peer, headers)
 
     case BlockHeadersReceived(peer, headers) =>
+      waitingForActor = None
       handleDownload(peer, headers)
 
     case BlockBodiesReceived(peer, _, blockBodies) =>
+      waitingForActor = None
       handleBlockBodies(peer, blockBodies)
 
     case block: BroadcastBlocks if broadcasting =>
@@ -46,6 +51,12 @@ trait RegularSync {
 
     case PrintStatus =>
       log.info(s"Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).")
+
+    case Done =>
+      if (waitingForActor == Option(sender())) {
+        //actor is done and we did not get response
+        scheduleResume()
+      }
   }
 
   private def askForHeaders() = {
@@ -53,7 +64,7 @@ trait RegularSync {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
         val request = GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
-        context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false))
+        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false)))
       case None =>
         log.warning("no peers to download from")
         scheduleResume()
@@ -87,10 +98,10 @@ trait RegularSync {
         //we have same chain
         if (parent.hash == headers.head.parentHash) {
           val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage))
+          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage)))
         } else {
           val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
-          context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = true))
+          waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = true)))
         }
       case _ =>
         log.warning("got header that does not have parent")
@@ -102,7 +113,7 @@ trait RegularSync {
     if (m.nonEmpty) {
       val result = headersQueue.zip(m).map { case (h, b) => blockValidator(h, b) }
 
-      if (!result.exists(_.isLeft)) {
+      if (!result.exists(_.isLeft) && result.nonEmpty) {
         val blocks = result.collect { case Right(b) => b }
 
         blockchain.getBlockHeaderByHash(blocks.head.header.parentHash)
@@ -130,7 +141,7 @@ trait RegularSync {
         headersQueue = headersQueue.drop(result.length)
         if (headersQueue.nonEmpty) {
           val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage))
+          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage)))
         } else {
           context.self ! ResumeRegularSync
         }

@@ -20,7 +20,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     peer.reply(PeerActor.MessageReceived(BlockBodies(responseBodies)))
 
     parent.expectMsg(BlockBodiesReceived(peer.ref, requestedHashes, responseBodies))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
@@ -33,7 +33,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     peer.reply(PeerActor.MessageReceived(BlockBodies(responseBodies)))
 
     parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
@@ -46,7 +46,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
 
     parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
     parent.expectMsg(FastSync.EnqueueBlockBodies(requestedHashes))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }

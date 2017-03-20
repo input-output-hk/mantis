@@ -8,7 +8,7 @@ class SyncBlockHeadersRequestHandler(
     peer: ActorRef,
     val requestMsg: GetBlockHeaders,
     resolveBranches: Boolean)(implicit scheduler: Scheduler)
-  extends FastSyncRequestHandler[GetBlockHeaders, BlockHeaders](peer) {
+  extends SyncRequestHandler[GetBlockHeaders, BlockHeaders](peer) {
 
   override val responseMsgCode: Int = BlockHeaders.code
 

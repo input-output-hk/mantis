@@ -9,12 +9,12 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.Config.FastSync._
 
-abstract class FastSyncRequestHandler[RequestMsg <: Message : RLPEncoder,
+abstract class SyncRequestHandler[RequestMsg <: Message : RLPEncoder,
                                       ResponseMsg <: Message : ClassTag](peer: ActorRef)
                                                                         (implicit scheduler: Scheduler)
   extends Actor with ActorLogging {
 
-  import FastSyncRequestHandler._
+  import SyncRequestHandler._
 
   def requestMsg: RequestMsg
   def responseMsgCode: Int
@@ -57,7 +57,7 @@ abstract class FastSyncRequestHandler[RequestMsg <: Message : RLPEncoder,
   }
 }
 
-object FastSyncRequestHandler {
+object SyncRequestHandler {
   case object Done
 
   private case object Timeout
