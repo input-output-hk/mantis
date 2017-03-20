@@ -23,7 +23,7 @@ abstract class SyncRequestHandler[RequestMsg <: Message : RLPEncoder,
   def handleTimeout(): Unit
   def handleTerminated(): Unit
 
-  val fastSyncController: ActorRef = context.parent
+  val syncController: ActorRef = context.parent
 
   val timeout: Cancellable = scheduler.scheduleOnce(peerResponseTimeout, self, Timeout)
 
@@ -52,7 +52,7 @@ abstract class SyncRequestHandler[RequestMsg <: Message : RLPEncoder,
     timeout.cancel()
     context unwatch peer
     peer ! PeerActor.Unsubscribe
-    fastSyncController ! Done
+    syncController ! Done
     context stop self
   }
 }

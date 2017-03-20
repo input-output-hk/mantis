@@ -17,9 +17,9 @@ class SyncBlockBodiesRequestHandler(
 
   override def handleResponseMsg(blockBodies: BlockBodies): Unit = {
     if (blockBodies.bodies.isEmpty) {
-      fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+      syncController ! BlacklistSupport.BlacklistPeer(peer)
     } else {
-      fastSyncController ! BlockBodiesReceived(peer, requestedHashes, blockBodies.bodies)
+      syncController ! BlockBodiesReceived(peer, requestedHashes, blockBodies.bodies)
     }
 
     log.info("Received {} block bodies in {} ms", blockBodies.bodies.size, timeTakenSoFar())
@@ -27,13 +27,13 @@ class SyncBlockBodiesRequestHandler(
   }
 
   override def handleTimeout(): Unit = {
-    fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
-    fastSyncController ! FastSync.EnqueueBlockBodies(requestedHashes)
+    syncController ! BlacklistSupport.BlacklistPeer(peer)
+    syncController ! FastSync.EnqueueBlockBodies(requestedHashes)
     cleanupAndStop()
   }
 
   override def handleTerminated(): Unit = {
-    fastSyncController ! FastSync.EnqueueBlockBodies(requestedHashes)
+    syncController ! FastSync.EnqueueBlockBodies(requestedHashes)
     cleanupAndStop()
   }
 

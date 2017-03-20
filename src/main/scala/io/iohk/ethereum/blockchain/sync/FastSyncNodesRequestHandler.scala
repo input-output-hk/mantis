@@ -23,13 +23,13 @@ class FastSyncNodesRequestHandler(
 
   override def handleResponseMsg(nodeData: NodeData): Unit = {
     if (nodeData.values.isEmpty) {
-      fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+      syncController ! BlacklistSupport.BlacklistPeer(peer)
     }
 
     val receivedHashes = nodeData.values.map(v => ByteString(kec256(v.toArray[Byte])))
     val remainingHashes = requestedHashes.filterNot(h => receivedHashes.contains(h.v))
     if (remainingHashes.nonEmpty) {
-      fastSyncController ! FastSync.EnqueueNodes(remainingHashes)
+      syncController ! FastSync.EnqueueNodes(remainingHashes)
     }
 
     val hashesToRequest = (nodeData.values.indices zip receivedHashes) flatMap { case (idx, valueHash) =>
@@ -51,21 +51,21 @@ class FastSyncNodesRequestHandler(
       }
     }
 
-    fastSyncController ! FastSync.EnqueueNodes(hashesToRequest.flatten)
-    fastSyncController ! FastSync.UpdateDownloadedNodesCount(nodeData.values.size)
+    syncController ! FastSync.EnqueueNodes(hashesToRequest.flatten)
+    syncController ! FastSync.UpdateDownloadedNodesCount(nodeData.values.size)
 
     log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTakenSoFar())
     cleanupAndStop()
   }
 
   override def handleTimeout(): Unit = {
-    fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
-    fastSyncController ! FastSync.EnqueueNodes(requestedHashes)
+    syncController ! BlacklistSupport.BlacklistPeer(peer)
+    syncController ! FastSync.EnqueueNodes(requestedHashes)
     cleanupAndStop()
   }
 
   override def handleTerminated(): Unit = {
-    fastSyncController ! FastSync.EnqueueNodes(requestedHashes)
+    syncController ! FastSync.EnqueueNodes(requestedHashes)
     cleanupAndStop()
   }
 

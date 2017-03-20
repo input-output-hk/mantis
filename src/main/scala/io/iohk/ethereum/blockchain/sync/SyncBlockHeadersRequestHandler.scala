@@ -22,24 +22,24 @@ class SyncBlockHeadersRequestHandler(
 
     if (consistentHeaders) {
       if (resolveBranches) {
-        fastSyncController ! SyncController.BlockHeadersToResolve(peer, blockHeaders.headers)
+        syncController ! SyncController.BlockHeadersToResolve(peer, blockHeaders.headers)
         log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
       } else {
         val blockHashes = headers.map(_.hash)
-        fastSyncController ! SyncController.BlockHeadersReceived(peer, headers)
-        fastSyncController ! FastSync.EnqueueBlockBodies(blockHashes)
-        fastSyncController ! FastSync.EnqueueReceipts(blockHashes)
+        syncController ! SyncController.BlockHeadersReceived(peer, headers)
+        syncController ! FastSync.EnqueueBlockBodies(blockHashes)
+        syncController ! FastSync.EnqueueReceipts(blockHashes)
         log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
       }
     } else {
-      fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+      syncController ! BlacklistSupport.BlacklistPeer(peer)
     }
 
     cleanupAndStop()
   }
 
   override def handleTimeout(): Unit = {
-    fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+    syncController ! BlacklistSupport.BlacklistPeer(peer)
     cleanupAndStop()
   }
 
