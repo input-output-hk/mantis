@@ -19,7 +19,7 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     val responseReceipts = Seq(Seq(Receipt(ByteString(""), 0, ByteString(""), Nil)))
     peer.reply(PeerActor.MessageReceived(Receipts(responseReceipts)))
 
-    parent.expectMsg(SyncController.EnqueueReceipts(requestedHashes.drop(1)))
+    parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes.drop(1)))
     parent.expectMsg(FastSyncRequestHandler.Done)
 
     blockchain.getReceiptsByHash(requestedHashes.head) shouldBe Some(responseReceipts.head)
@@ -35,7 +35,7 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     time.advance(10.seconds)
 
     parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
-    parent.expectMsg(SyncController.EnqueueReceipts(requestedHashes))
+    parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes))
     parent.expectMsg(FastSyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
@@ -47,7 +47,7 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
 
     peer.ref ! PoisonPill
 
-    parent.expectMsg(SyncController.EnqueueReceipts(requestedHashes))
+    parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes))
     parent.expectMsg(FastSyncRequestHandler.Done)
   }
 

@@ -1,14 +1,14 @@
 package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration._
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.blockchain.sync.SyncController.BlockBodiesReceived
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockBody, GetBlockBodies}
 import org.scalatest.{FlatSpec, Matchers}
+import io.iohk.ethereum.blockchain.sync.SyncController.BlockBodiesReceived
 
 class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
 
@@ -45,7 +45,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     time.advance(10.seconds)
 
     parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
-    parent.expectMsg(SyncController.EnqueueBlockBodies(requestedHashes))
+    parent.expectMsg(FastSync.EnqueueBlockBodies(requestedHashes))
     parent.expectMsg(FastSyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
@@ -62,7 +62,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
 
     val parent = TestProbe()
 
-    val fastSyncBlockBodiesRequestHandler =
+    val fastSyncBlockBodiesRequestHandler: ActorRef =
       parent.childActorOf(SyncBlockBodiesRequestHandler.props(
         peer.ref,
         requestedHashes,

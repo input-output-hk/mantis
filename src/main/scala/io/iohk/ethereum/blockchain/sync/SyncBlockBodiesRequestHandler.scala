@@ -28,12 +28,12 @@ class SyncBlockBodiesRequestHandler(
 
   override def handleTimeout(): Unit = {
     fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
-    fastSyncController ! SyncController.EnqueueBlockBodies(requestedHashes)
+    fastSyncController ! FastSync.EnqueueBlockBodies(requestedHashes)
     cleanupAndStop()
   }
 
   override def handleTerminated(): Unit = {
-    fastSyncController ! SyncController.EnqueueBlockBodies(requestedHashes)
+    fastSyncController ! FastSync.EnqueueBlockBodies(requestedHashes)
     cleanupAndStop()
   }
 

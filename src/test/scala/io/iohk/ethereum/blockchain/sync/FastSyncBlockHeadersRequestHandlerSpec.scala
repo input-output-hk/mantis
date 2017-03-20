@@ -1,20 +1,20 @@
 package io.iohk.ethereum.blockchain.sync
 
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
-import akka.agent.Agent
 import akka.actor.{ActorRef, ActorSystem}
+import akka.agent.Agent
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
+import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
@@ -30,8 +30,8 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     parent.expectMsgAllOf(
       SyncController.BlockHeadersReceived(peer.ref, responseHeaders),
-      SyncController.EnqueueBlockBodies(Seq(responseHeaders.head.hash)),
-      SyncController.EnqueueReceipts(Seq(responseHeaders.head.hash)))
+      FastSync.EnqueueBlockBodies(Seq(responseHeaders.head.hash)),
+      FastSync.EnqueueReceipts(Seq(responseHeaders.head.hash)))
 
     parent.expectMsg(FastSyncRequestHandler.Done)
 

@@ -13,19 +13,22 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-trait RegularSyncController {
-  self: SyncController =>
+trait RegularSync {
+  selfSyncController: SyncController =>
 
   private var headersQueue: Seq[BlockHeader] = Seq.empty
   private var broadcasting = false
 
   import Config.FastSync._
 
+  def startRegularSync(): Unit = {
+    log.info("Starting regular sync")
+    appStateStorage.fastSyncDone()
+    context become (handlePeerUpdates orElse regularSync())
+    askForHeaders()
+  }
+
   def regularSync(): Receive = {
-
-    case StartSyncing =>
-      askForHeaders()
-
     case ResumeRegularSync =>
       askForHeaders()
 
@@ -167,6 +170,4 @@ trait RegularSyncController {
 
   private case object ResumeRegularSync
   private case class ResolveBranch(peer: ActorRef)
-
-  case object StartSyncing
 }
