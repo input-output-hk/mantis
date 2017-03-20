@@ -59,11 +59,10 @@ object SignedTransactionValidator {
   private def validateSignature(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransaction] = {
     val r: BigInt = BigInt(new BigInteger(1, stx.signatureRandom.toArray[Byte]))
     val s: BigInt = BigInt(new BigInteger(1, stx.signature.toArray[Byte]))
-    val v: Byte = ECDSASignature.recIdFromSignatureV(stx.pointSign)
 
     val validR = r > 0 && r < secp256k1n
     val validS = s > 0 && s < (if(fromBeforeHomestead) secp256k1n else secp256k1n / 2)
-    val validV = v == 0 || v == 1
+    val validV = stx.recoveredPointSign.isDefined
 
     if(validR && validS && validV && stx.recoveredSenderAddress.isDefined) Right(stx)
     else Left(TransactionSignatureError)
