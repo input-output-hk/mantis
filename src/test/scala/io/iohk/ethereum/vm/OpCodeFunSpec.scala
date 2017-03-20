@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.domain.{Account, Address, TxLogEntry}
 import io.iohk.ethereum.vm.Generators._
 import org.scalacheck.Gen
 import org.scalatest.{FunSuite, Matchers}
@@ -549,8 +549,25 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore(logOps: _*) { op =>
-    // to be implemented
+  test(logOps: _*) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(maxWord = UInt256(256)),
+      memGen = getMemoryGen(maxSize = 256)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val (Seq(offset, size, topics @ _*), stack1) = stateIn.stack.pop(op.delta)
+        val (data, mem1) = stateIn.memory.load(offset, size)
+        val logEntry = TxLogEntry(stateIn.env.ownerAddr, topics.map(_.bytes), data)
+        val expectedState = stateIn.withStack(stack1).withMemory(mem1).withLog(logEntry).step()
+
+        logEntry.logTopics.size shouldEqual op.i
+        stateOut shouldEqual expectedState
+      }
+    }
   }
 
   ignore("CREATE") {
