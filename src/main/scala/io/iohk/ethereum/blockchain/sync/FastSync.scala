@@ -281,7 +281,6 @@ trait FastSync {
     }
 
     def assignWork(peer: ActorRef): Unit = {
-      //fastSyncStateStorage.putSyncState(initialSyncState.copy(bestBlockHeaderNumber = 3395264))
       if (receiptsQueue.nonEmpty) {
         requestReceipts(peer)
       } else if (blockBodiesQueue.nonEmpty) {
