@@ -1,6 +1,5 @@
 package io.iohk.ethereum.blockchain.sync
 
-import scala.concurrent.duration._
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
@@ -282,6 +281,7 @@ trait FastSync {
     }
 
     def assignWork(peer: ActorRef): Unit = {
+      //fastSyncStateStorage.putSyncState(initialSyncState.copy(bestBlockHeaderNumber = 3395264))
       if (receiptsQueue.nonEmpty) {
         requestReceipts(peer)
       } else if (blockBodiesQueue.nonEmpty) {
@@ -363,7 +363,9 @@ trait FastSync {
 
     if (fullBlocks.nonEmpty) {
       val bestReceivedBlock = fullBlocks.maxBy(_.number)
-      appStateStorage.putBestBlockNumber(bestReceivedBlock.number)
+      if (appStateStorage.getBestBlockNumber() < bestReceivedBlock.number) {
+        appStateStorage.putBestBlockNumber(bestReceivedBlock.number)
+      }
     }
   }
 }
@@ -389,7 +391,6 @@ object FastSync {
   case class EnqueueReceipts(hashes: Seq[ByteString])
 
   case class UpdateDownloadedNodesCount(update: Int)
-  case class UpdateBestBlockHeaderNumber(bestBlockHeaderNumber: BigInt)
 
   sealed trait HashType {
     def v: ByteString
