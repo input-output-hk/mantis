@@ -63,7 +63,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     val parent = TestProbe()
 
     val fastSyncBlockBodiesRequestHandler =
-      parent.childActorOf(FastSyncBlockBodiesRequestHandler.props(
+      parent.childActorOf(SyncBlockBodiesRequestHandler.props(
         peer.ref,
         requestedHashes,
         storagesInstance.storages.appStateStorage)(time.scheduler))

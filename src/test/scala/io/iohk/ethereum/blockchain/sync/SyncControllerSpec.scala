@@ -291,6 +291,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
     peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Seq.empty, Seq.empty)))))
 
+    //wait for actor to insert data
+    Thread.sleep(3.seconds.toMillis)
+
     blockchain.getBlockByNumber(expectedMaxBlock) shouldBe Some(Block(newBlockHeaderParent, BlockBody(Seq.empty, Seq.empty)))
     blockchain.getTotalDifficultyByHash(newBlockHeaderParent.hash) shouldBe Some(commonRootTotalDifficulty + newBlockHeaderParent.difficulty)
 

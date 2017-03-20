@@ -47,6 +47,7 @@ class SyncController(
   def idle: Receive = handlePeerUpdates orElse {
 
     case StartSync =>
+      scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
       (appStateStorage.isFastSyncDone(), doFastSync) match {
         case (false, true) =>
           self ! StartFastSync
@@ -90,7 +91,6 @@ class SyncController(
   }
 
   def startFastSync(syncState: SyncState): Unit = {
-    scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
     context become new SyncingHandler(syncState).receive
     self ! ProcessSyncing
   }
@@ -381,7 +381,7 @@ class SyncController(
 
     def requestBlockBodies(peer: ActorRef): Unit = {
       val (blockBodiesToGet, remainingBlockBodies) = blockBodiesQueue.splitAt(blockBodiesPerRequest)
-      val handler = context.actorOf(FastSyncBlockBodiesRequestHandler.props(
+      val handler = context.actorOf(SyncBlockBodiesRequestHandler.props(
         peer, blockBodiesToGet, appStateStorage))
       context watch handler
       assignedHandlers += (handler -> peer)
@@ -390,7 +390,7 @@ class SyncController(
 
     def requestBlockHeaders(peer: ActorRef): Unit = {
       val request = GetBlockHeaders(Left(bestBlockHeaderNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
-      val handler = context.actorOf(FastSyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false), blockHeadersHandlerName)
+      val handler = context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false), blockHeadersHandlerName)
       context watch handler
       assignedHandlers += (handler -> peer)
     }

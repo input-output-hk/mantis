@@ -6,7 +6,7 @@ import io.iohk.ethereum.blockchain.sync.SyncController.BlockBodiesReceived
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, GetBlockBodies}
 
-class FastSyncBlockBodiesRequestHandler(
+class SyncBlockBodiesRequestHandler(
     peer: ActorRef,
     requestedHashes: Seq[ByteString],
     appStateStorage: AppStateStorage)(implicit scheduler: Scheduler)
@@ -39,8 +39,8 @@ class FastSyncBlockBodiesRequestHandler(
 
 }
 
-object FastSyncBlockBodiesRequestHandler {
+object SyncBlockBodiesRequestHandler {
   def props(peer: ActorRef, requestedHashes: Seq[ByteString], appStateStorage: AppStateStorage)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncBlockBodiesRequestHandler(peer, requestedHashes, appStateStorage))
+    Props(new SyncBlockBodiesRequestHandler(peer, requestedHashes, appStateStorage))
 }

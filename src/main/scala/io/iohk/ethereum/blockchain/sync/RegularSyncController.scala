@@ -24,7 +24,6 @@ trait RegularSyncController {
   def regularSync(): Receive = {
 
     case StartSyncing =>
-      scheduler.schedule(0.seconds, printStatusInterval, context.self, PrintStatus)
       askForHeaders()
 
     case ResumeRegularSync =>
@@ -52,7 +51,7 @@ trait RegularSyncController {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
         val request = GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
-        context.actorOf(FastSyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false))
+        context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false))
       case None =>
         log.warning("no peers to download from")
         scheduleResume()
@@ -86,10 +85,10 @@ trait RegularSyncController {
         //we have same chain
         if (parent.hash == headers.head.parentHash) {
           val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          context.actorOf(FastSyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage))
+          context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage))
         } else {
           val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
-          context.actorOf(FastSyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = true))
+          context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = true))
         }
       case _ =>
         log.warning("got header that does not have parent")
@@ -129,7 +128,7 @@ trait RegularSyncController {
         headersQueue = headersQueue.drop(result.length)
         if (headersQueue.nonEmpty) {
           val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          context.actorOf(FastSyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage))
+          context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage))
         } else {
           context.self ! ResumeRegularSync
         }

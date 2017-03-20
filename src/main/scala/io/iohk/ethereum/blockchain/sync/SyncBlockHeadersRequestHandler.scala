@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, Props, Scheduler}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 
-class FastSyncBlockHeadersRequestHandler(
+class SyncBlockHeadersRequestHandler(
     peer: ActorRef,
     val requestMsg: GetBlockHeaders,
     resolveBranches: Boolean)(implicit scheduler: Scheduler)
@@ -55,8 +55,8 @@ class FastSyncBlockHeadersRequestHandler(
   }
 }
 
-object FastSyncBlockHeadersRequestHandler {
+object SyncBlockHeadersRequestHandler {
   def props(peer: ActorRef, requestMsg: GetBlockHeaders, resolveBranches: Boolean)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncBlockHeadersRequestHandler(peer, requestMsg, resolveBranches))
+    Props(new SyncBlockHeadersRequestHandler(peer, requestMsg, resolveBranches))
 }
