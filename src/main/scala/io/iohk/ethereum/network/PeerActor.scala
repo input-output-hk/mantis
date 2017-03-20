@@ -25,7 +25,7 @@ import io.iohk.ethereum.db.storage._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 trait ForkResolver {
-  type Fork
+  type Fork <: ForkResolver.Fork
 
   def forkBlockNumber: BigInt
   def recognizeFork(blockHeader: BlockHeader): Fork
@@ -33,6 +33,8 @@ trait ForkResolver {
 }
 
 object ForkResolver {
+
+  trait Fork
 
   val EtcForkResolver = new ForkResolver {
     sealed trait Fork
@@ -200,7 +202,7 @@ class PeerActor(
           val timeout = scheduler.scheduleOnce(peerConfiguration.waitForChainCheckTimeout, self, ForkHeaderReceiveTimeout)
           context become waitingForForkHeader(rlpxConnection, status, timeout, forkResolver)
         case None =>
-          context become new MessageHandler(rlpxConnection, status, 0, Chain.Unknown).receive
+          context become new MessageHandler(rlpxConnection, status, 0, None).receive
       }
 
     case StatusReceiveTimeout =>
@@ -220,28 +222,23 @@ class PeerActor(
 
       val forkBlockHeaderOpt = blockHeaders.find(_.number == forkResolver.forkBlockNumber)
 
+      forkBlockHeaderOpt match {
+        case Some(forkBlockHeader) if forkBlockHeader.number == forkResolver.forkBlockNumber =>
+          val fork = forkResolver.recognizeFork(forkBlockHeader)
 
+          log.info("Peer is running the {} fork", fork)
 
-      daoBlockHeaderOpt match {
-        case Some(_) if daoForkValidator.validate(msg).isEmpty =>
-          log.info("Peer is running the ETC chain")
-          context become new MessageHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, Chain.ETC).receive
-
-        case Some(_) if getBestBlockHeader().difficulty < daoForkBlockTotalDifficulty =>
-          log.warning("Peer is not running the ETC fork, but we're not there yet. Keeping the connection until then.")
-          context become new MessageHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, Chain.ETH).receive
-
-        case Some(_) =>
-          log.warning("Peer is not running the ETC fork, disconnecting")
-          disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
-
-        case None if remoteStatus.totalDifficulty < daoForkBlockTotalDifficulty =>
-          log.info("Peer is not at ETC fork yet. Keeping the connection until then.")
-          context become new MessageHandler(rlpxConnection, remoteStatus, 0, Chain.Unknown).receive
+          if (forkResolver.isAccepted(fork)) {
+            log.info("Fork is accepted")
+            context become new MessageHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, Some(fork)).receive
+          } else {
+            log.warning("Fork is not accepted")
+            disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
+          }
 
         case None =>
-          log.warning("Peer did not respond with ETC fork block header")
-          disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
+          log.info("Peer did not respond with fork block header")
+          context become new MessageHandler(rlpxConnection, remoteStatus, 0, None).receive
       }
 
     case ForkHeaderReceiveTimeout => disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
@@ -309,7 +306,7 @@ class PeerActor(
   class MessageHandler(rlpxConnection: RLPxConnection,
                           initialStatus: msg.Status,
                           var currentMaxBlockNumber: BigInt,
-                          var chain: Chain) {
+                          var fork: Option[ForkResolver.Fork]) {
 
     var totalDifficulty = initialStatus.totalDifficulty
 
@@ -336,7 +333,7 @@ class PeerActor(
       case GetMaxBlockNumber(actor) => actor ! MaxBlockNumber(currentMaxBlockNumber)
 
       case GetStatus =>
-        sender() ! StatusResponse(Handshaked(initialStatus, chain, totalDifficulty))
+        sender() ! StatusResponse(Handshaked(initialStatus, fork, totalDifficulty))
 
       case BroadcastBlocks(blocks) =>
         blocks.foreach{b =>
@@ -380,22 +377,22 @@ class PeerActor(
       case newBlock: NewBlock =>
         totalDifficulty = newBlock.totalDifficulty
 
-      case msg @ BlockHeaders(blockHeaders) =>
-        val daoBlockHeaderOpt = blockHeaders.find(_.number == daoForkBlockNumber)
+      case msg@BlockHeaders(blockHeaders) =>
+        for {
+          forkResolver <- forkResolverOpt
+          forkBlockHeader <- blockHeaders.find(_.number == forkResolver.forkBlockNumber)
+        } {
+          val newFork = forkResolver.recognizeFork(forkBlockHeader)
+          log.info("Received fork block header with fork: {}", newFork)
 
-        daoBlockHeaderOpt foreach { daoBlockHeader =>
-          log.info("Reached the ETC fork block header")
-          if (daoForkValidator.validate(msg).nonEmpty) {
-            log.warning("Peer is not running the ETC fork, disconnecting")
+          if (!forkResolver.isAccepted(newFork)) {
+            log.warning("Peer is not running the accepted fork, disconnecting")
             disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
           } else {
-            chain = Chain.ETC
+            fork = Some(newFork)
           }
         }
-
-      case _ => // nothing
     }
-
   }
 
 }
@@ -404,13 +401,15 @@ object PeerActor {
   def props(nodeStatusHolder: Agent[NodeStatus],
             peerConfiguration: PeerConfiguration,
             appStateStorage: AppStateStorage,
-            blockchain: Blockchain): Props =
+            blockchain: Blockchain,
+            forkResolverOpt: Option[ForkResolver]): Props =
     Props(new PeerActor(
       nodeStatusHolder,
       rlpxConnectionFactory(nodeStatusHolder().key),
       peerConfiguration,
       appStateStorage,
-      blockchain))
+      blockchain,
+      forkResolverOpt = forkResolverOpt))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
@@ -447,17 +446,10 @@ object PeerActor {
 
   sealed trait Status
   object Status {
-    sealed trait Chain
-    object Chain {
-      case object ETC extends Chain
-      case object ETH extends Chain
-      case object Unknown extends Chain
-    }
-
     case object Idle extends Status
     case object Connecting extends Status
     case object Handshaking extends Status
-    case class Handshaked(initialStatus: msg.Status, chain: Chain, totalDifficulty: BigInt) extends Status
+    case class Handshaked(initialStatus: msg.Status, fork: Option[ForkResolver.Fork], totalDifficulty: BigInt) extends Status
     case object Disconnected extends Status
   }
 
