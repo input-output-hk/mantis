@@ -20,20 +20,19 @@ class SyncBlockHeadersRequestHandler(
 
     val consistentHeaders = checkHeaders(headers)
 
-    (resolveBranches, consistentHeaders) match {
-      case (false, true) =>
+    if (consistentHeaders) {
+      if (resolveBranches) {
+        fastSyncController ! SyncController.BlockHeadersToResolve(peer, blockHeaders.headers)
+        log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
+      } else {
         val blockHashes = headers.map(_.hash)
         fastSyncController ! SyncController.BlockHeadersReceived(peer, headers)
         fastSyncController ! FastSync.EnqueueBlockBodies(blockHashes)
         fastSyncController ! FastSync.EnqueueReceipts(blockHashes)
         log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
-
-      case (true, true) =>
-        fastSyncController ! SyncController.BlockHeadersToResolve(peer, blockHeaders.headers)
-        log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
-
-      case _ =>
-        fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+      }
+    } else {
+      fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
     }
 
     cleanupAndStop()
