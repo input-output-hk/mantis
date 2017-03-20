@@ -36,7 +36,7 @@ object ForkResolver {
 
   trait Fork
 
-  val EtcForkResolver = new ForkResolver {
+  object EtcForkResolver extends ForkResolver {
     sealed trait Fork extends ForkResolver.Fork
     case object Etc extends Fork
     case object Eth extends Fork
@@ -392,6 +392,8 @@ class PeerActor(
             fork = Some(newFork)
           }
         }
+
+      case _ => // nothing
     }
   }
 

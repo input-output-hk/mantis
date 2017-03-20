@@ -16,7 +16,7 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
-import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.network.{ForkResolver, PeerActor}
 import io.iohk.ethereum.network.PeerActor.{GetMaxBlockNumber, MaxBlockNumber}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
@@ -65,7 +65,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }, peerConf, storagesInstance.storages.appStateStorage, blockchain, Some(time.scheduler))))
+      }, peerConf, storagesInstance.storages.appStateStorage, blockchain, Some(time.scheduler),
+        Some(ForkResolver.EtcForkResolver))))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -143,7 +144,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.UselessPeer)))
   }
 
-  it should "stay connected to non-ETC peer until reaching the fork" in new TestSetup {
+  it should "disconnect from non-ETC peer (even though node is before fork)" in new TestSetup {
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
@@ -166,10 +167,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeaders) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(nonEtcForkBlockHeader))))
 
-    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(Ping()))
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Pong) => () }
-
-    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(nonEtcForkBlockHeader))))
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.UselessPeer)))
   }
 
@@ -665,7 +662,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
       peerConf,
       storagesInstance.storages.appStateStorage,
       blockchain,
-      Some(time.scheduler))))
+      Some(time.scheduler),
+      Some(ForkResolver.EtcForkResolver))))
   }
 
 }

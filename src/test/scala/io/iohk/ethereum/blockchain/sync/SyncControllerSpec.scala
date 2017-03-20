@@ -11,8 +11,7 @@ import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.{Block, BlockHeader}
-import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.PeerActor.Status.Chain
+import io.iohk.ethereum.network.{ForkResolver, PeerActor}
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, PeersResponse}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.utils.Config
@@ -43,11 +42,11 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer1.expectMsg(PeerActor.GetStatus)
-    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC, peer1Status.totalDifficulty)))
+    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Some(ForkResolver.EtcForkResolver.Etc), peer1Status.totalDifficulty)))
 
     val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
-    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC, peer1Status.totalDifficulty)))
+    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Some(ForkResolver.EtcForkResolver.Etc), peer1Status.totalDifficulty)))
 
     fastSyncController ! SyncController.StartSync
 
@@ -100,7 +99,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer2Status = Status(1, 1, 20, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
-    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC, peer2Status.totalDifficulty)))
+    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Some(ForkResolver.EtcForkResolver.Etc), peer2Status.totalDifficulty)))
 
     fastSyncController ! SyncController.StartSync
 
@@ -150,7 +149,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
-    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETC, peer2Status.totalDifficulty)))
+    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Some(ForkResolver.EtcForkResolver.Etc), peer2Status.totalDifficulty)))
 
     val expectedTargetBlock = 399500
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
@@ -191,7 +190,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer.expectMsg(PeerActor.GetStatus)
-    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC, peer1Status.totalDifficulty)))
+    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Some(ForkResolver.EtcForkResolver.Etc), peer1Status.totalDifficulty)))
 
 
     val expectedMaxBlock = 399500
@@ -234,7 +233,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer.expectMsg(PeerActor.GetStatus)
-    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC, peer1Status.totalDifficulty)))
+    peer.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Some(ForkResolver.EtcForkResolver.Etc), peer1Status.totalDifficulty)))
 
 
     val expectedMaxBlock = 399500
@@ -314,19 +313,19 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     peer1.expectMsg(PeerActor.GetStatus)
-    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Chain.ETC, peer1Status.totalDifficulty)))
+    peer1.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer1Status, Some(ForkResolver.EtcForkResolver.Etc), peer1Status.totalDifficulty)))
 
     val peer2Status= Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
     peer2.expectMsg(PeerActor.GetStatus)
-    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, Chain.ETH, peer1Status.totalDifficulty)))
+    peer2.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer2Status, None, peer1Status.totalDifficulty)))
 
     val peer3Status= Status(1, 1, 1, ByteString("peer3_bestHash"), ByteString("unused"))
     peer3.expectMsg(PeerActor.GetStatus)
-    peer3.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer3Status, Chain.Unknown, peer1Status.totalDifficulty)))
+    peer3.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer3Status, None, peer1Status.totalDifficulty)))
 
     val peer4Status= Status(1, 1, 1, ByteString("peer4_bestHash"), ByteString("unused"))
     peer4.expectMsg(PeerActor.GetStatus)
-    peer4.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer4Status, Chain.ETC, peer1Status.totalDifficulty)))
+    peer4.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer4Status, Some(ForkResolver.EtcForkResolver.Etc), peer1Status.totalDifficulty)))
 
     val expectedTargetBlock = 399500
     val targetBlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
