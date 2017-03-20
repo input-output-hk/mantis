@@ -8,7 +8,7 @@ import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.PeerActor.Status.{Handshaked, Chain}
+import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.p2p.messages.PV62.{GetBlockHeaders, BlockHeaders}
 import io.iohk.ethereum.utils.Config.FastSync._
 
@@ -37,7 +37,7 @@ trait FastSync {
   }
 
   private def startFastSyncFromScratch(): Unit = {
-    val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.chain == Chain.ETC)
+    val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.fork.isDefined)
 
     if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
       peersUsedToChooseTarget.foreach { case (peer, Handshaked(status, _, _)) =>

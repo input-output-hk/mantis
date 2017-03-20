@@ -37,7 +37,7 @@ object ForkResolver {
   trait Fork
 
   val EtcForkResolver = new ForkResolver {
-    sealed trait Fork
+    sealed trait Fork extends ForkResolver.Fork
     case object Etc extends Fork
     case object Eth extends Fork
 

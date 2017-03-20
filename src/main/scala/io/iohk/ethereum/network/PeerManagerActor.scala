@@ -86,7 +86,7 @@ object PeerManagerActor {
                   blockchain: Blockchain): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
-      ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain), id)
+      ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, Some(ForkResolver.EtcForkResolver)), id)
   }
 
   trait PeerConfiguration {

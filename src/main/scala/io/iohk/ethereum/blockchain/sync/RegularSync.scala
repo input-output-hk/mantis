@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.PeerActor.Status.{Chain, Handshaked}
+import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -183,7 +183,9 @@ trait RegularSync {
 
   private def bestPeer: Option[ActorRef] = {
     val peersToUse = peersToDownloadFrom
-      .collect { case (ref, Handshaked(_, Chain.ETC, totalDifficulty)) => (ref, totalDifficulty) }
+      .collect {
+        case (ref, Handshaked(_, fork, totalDifficulty)) if fork.isDefined => (ref, totalDifficulty)
+      }
 
     if (peersToUse.nonEmpty) Some(peersToUse.maxBy { case (_, td) => td }._1)
     else None
