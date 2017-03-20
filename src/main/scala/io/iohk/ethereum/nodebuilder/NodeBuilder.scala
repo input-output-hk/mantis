@@ -98,7 +98,6 @@ trait FastSyncControllerBuilder {
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
       peerManager,
-      nodeStatusHolder,
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages.mptNodeStorage,

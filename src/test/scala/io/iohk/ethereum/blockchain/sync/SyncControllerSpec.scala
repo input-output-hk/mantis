@@ -7,7 +7,7 @@ import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.blockchain.sync.SyncController.{StateMptNodeHash, SyncState}
+import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.{Block, BlockHeader}
@@ -364,7 +364,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val dataSource = EphemDataSource()
 
-    val fastSyncController = TestActorRef(Props(new SyncController(peerManager.ref, nodeStatusHolder,
+    val fastSyncController = TestActorRef(Props(new SyncController(peerManager.ref,
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages.mptNodeStorage,

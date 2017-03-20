@@ -1,7 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
-import io.iohk.ethereum.blockchain.sync.SyncController.StartRegularSync
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor.Status.{Chain, Handshaked}
 import io.iohk.ethereum.network.PeerActor._
@@ -11,10 +10,9 @@ import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.Try
 
-trait RegularSyncController {
-  self: SyncController =>
+trait RegularSync {
+  selfSyncController: SyncController =>
 
   private var headersQueue: Seq[BlockHeader] = Seq.empty
   private var resolvingBranch = false
@@ -23,11 +21,14 @@ trait RegularSyncController {
 
   import Config.FastSync._
 
+  def startRegularSync(): Unit = {
+    log.info("Starting regular sync")
+    appStateStorage.fastSyncDone()
+    context become (handlePeerUpdates orElse regularSync())
+    askForHeaders()
+  }
+
   def regularSync(): Receive = {
-
-    case StartSyncing =>
-      askForHeaders()
-
     case ResumeRegularSync =>
       askForHeaders()
 
@@ -191,6 +192,4 @@ trait RegularSyncController {
   private case object ResumeRegularSync
   private case class PeerTimeOut(peer:ActorRef)
   private case class ResolveBranch(peer: ActorRef)
-
-  case object StartSyncing
 }
