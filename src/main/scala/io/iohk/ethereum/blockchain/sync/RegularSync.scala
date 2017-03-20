@@ -10,7 +10,6 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 trait RegularSync {
@@ -32,18 +31,18 @@ trait RegularSync {
     case ResumeRegularSync =>
       askForHeaders()
 
-    case BlockHeadersToResolve(peer, m) =>
-      handleBlockBranchResolution(peer, m)
+    case BlockHeadersToResolve(peer, headers) =>
+      handleBlockBranchResolution(peer, headers)
 
-    case BlockHeadersReceived(peer, m) =>
-      handleDownload(peer, m)
+    case BlockHeadersReceived(peer, headers) =>
+      handleDownload(peer, headers)
 
-    case BlockBodiesReceived(peer, _, m) =>
-      handleBlockBodies(peer, m)
+    case BlockBodiesReceived(peer, _, blockBodies) =>
+      handleBlockBodies(peer, blockBodies)
 
-    case m: BroadcastBlocks if broadcasting =>
+    case block: BroadcastBlocks if broadcasting =>
       //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
-      peersToDownloadFrom.keys.foreach(_ ! m)
+      peersToDownloadFrom.keys.foreach(_ ! block)
 
     case PrintStatus =>
       log.info(s"Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).")
@@ -151,7 +150,6 @@ trait RegularSync {
   }
 
   private def resumeWithDifferentPeer(currentPeer: ActorRef) = {
-    //todo blacklist elswhere?
     blacklist(currentPeer, blacklistDuration)
     headersQueue = Seq.empty
     context.self ! ResumeRegularSync
