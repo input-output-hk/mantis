@@ -83,7 +83,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val updatedNewWorldState = newWorldState.transfer(address2, address1, account.balance)
     updatedNewWorldState.getGuaranteedAccount(address1).balance shouldEqual account.balance
     updatedNewWorldState.getGuaranteedAccount(address2).balance shouldEqual 0
-    persistedNewWorldState.getStorage(address1).load(addr) shouldEqual value
+    updatedNewWorldState.getStorage(address1).load(addr) shouldEqual value
 
     // Persist and check again
     val persistedNewWorldState = InMemoryWorldStateProxy.persist(updatedNewWorldState)
