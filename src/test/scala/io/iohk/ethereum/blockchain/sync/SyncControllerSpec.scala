@@ -22,22 +22,18 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
+import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-//TODO add check for
-// blockchain.getBlockHeaderByHash(responseHeaders.head.hash) shouldBe Some(responseHeaders.head)
-//blockchain.getBlockBodyByHash(requestedHashes.head) shouldBe Some(responseBodies.head)
-//blockchain.getBlockBodyByHash(requestedHashes(1)) shouldBe None
-// scalastyle:off magic.number
 class SyncControllerSpec extends FlatSpec with Matchers {
 
   "FastSyncController" should "download target block and request state nodes" in new TestSetup {
 
-    val peer1 = TestProbe()(system)
-    val peer2 = TestProbe()(system)
+    val peer1: TestProbe = TestProbe()(system)
+    val peer2: TestProbe = TestProbe()(system)
 
     time.advance(1.seconds)
 
@@ -70,7 +66,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peer1.expectNoMsg()
 
-    val targetBlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
+    val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
     peer2.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer2.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedTargetBlock), 1, 0, reverse = false)))
     peer2.reply(PeerActor.MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
@@ -86,10 +82,10 @@ class SyncControllerSpec extends FlatSpec with Matchers {
   }
 
   it should "download target block, request state, blocks and finish when downloaded" in new TestSetup {
-    val peer2 = TestProbe()(system)
+    val peer2: TestProbe = TestProbe()(system)
 
     val expectedTargetBlock = 399500
-    val targetBlockHeader = baseBlockHeader.copy(
+    val targetBlockHeader: BlockHeader = baseBlockHeader.copy(
       number = expectedTargetBlock,
       stateRoot = ByteString(Hex.decode("deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc")))
 
@@ -145,7 +141,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
   }
 
   it should "not use (blacklist) a peer that fails to respond within time limit" in new TestSetup {
-    val peer2 = TestProbe()(system)
+    val peer2: TestProbe = TestProbe()(system)
 
     time.advance(1.seconds)
 
@@ -312,10 +308,10 @@ class SyncControllerSpec extends FlatSpec with Matchers {
   }
 
   it should "only use ETC peer to choose target block" in new TestSetup {
-    val peer1 = TestProbe()(system)
-    val peer2 = TestProbe()(system)
-    val peer3 = TestProbe()(system)
-    val peer4 = TestProbe()(system)
+    val peer1: TestProbe = TestProbe()(system)
+    val peer2: TestProbe = TestProbe()(system)
+    val peer3: TestProbe = TestProbe()(system)
+    val peer4: TestProbe = TestProbe()(system)
 
     time.advance(1.seconds)
 
@@ -343,7 +339,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer4.reply(PeerActor.StatusResponse(PeerActor.Status.Handshaked(peer4Status, Chain.ETC, peer1Status.totalDifficulty)))
 
     val expectedTargetBlock = 399500
-    val targetBlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
+    val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
     storagesInstance.storages.appStateStorage.putBestBlockNumber(targetBlockHeader.number)
 
     fastSyncController ! SyncController.StartSync
@@ -365,7 +361,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
   trait TestSetup extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("FastSyncControllerSpec_System")
 
-    val nodeKey = crypto.generateKeyPair()
+    val nodeKey: AsymmetricCipherKeyPair = crypto.generateKeyPair()
 
     val nodeStatus = NodeStatus(
       key = nodeKey,

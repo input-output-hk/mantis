@@ -485,7 +485,7 @@ object SyncController {
 
   case class StorageRootHash(v: ByteString) extends HashType
 
-  private case object PrintStatus
+  case object PrintStatus
 
   private case object TargetBlockTimeout
 

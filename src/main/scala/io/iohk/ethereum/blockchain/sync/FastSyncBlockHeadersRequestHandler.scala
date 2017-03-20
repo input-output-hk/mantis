@@ -21,14 +21,14 @@ class FastSyncBlockHeadersRequestHandler(
     val consistentHeaders = checkHeaders(headers)
 
     (resolveBranches, consistentHeaders) match {
-      case (false, true) if headers.nonEmpty =>
+      case (false, true) =>
         val blockHashes = headers.map(_.hash)
         fastSyncController ! SyncController.BlockHeadersReceived(peer, headers)
         fastSyncController ! SyncController.EnqueueBlockBodies(blockHashes)
         fastSyncController ! SyncController.EnqueueReceipts(blockHashes)
         log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
 
-      case (true, true) if headers.nonEmpty =>
+      case (true, true) =>
         fastSyncController ! SyncController.BlockHeadersToResolve(peer, blockHeaders.headers)
         log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
 
@@ -48,8 +48,11 @@ class FastSyncBlockHeadersRequestHandler(
     cleanupAndStop()
   }
 
-  private def checkHeaders(headers: Seq[BlockHeader]): Boolean =
+  private def checkHeaders(headers: Seq[BlockHeader]): Boolean = if (headers.length > 1) {
     headers.zip(headers.tail).forall { case (parent, child) => parent.hash == child.parentHash && parent.number + 1 == child.number }
+  } else {
+    true
+  }
 }
 
 object FastSyncBlockHeadersRequestHandler {

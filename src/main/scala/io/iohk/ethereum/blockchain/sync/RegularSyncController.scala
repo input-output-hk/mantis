@@ -1,7 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
-import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve}
+import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor.Status.{Chain, Handshaked}
 import io.iohk.ethereum.network.PeerActor._
@@ -10,6 +10,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
 
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 trait RegularSyncController {
@@ -23,6 +24,7 @@ trait RegularSyncController {
   def regularSync(): Receive = {
 
     case StartSyncing =>
+      scheduler.schedule(0.seconds, printStatusInterval, context.self, PrintStatus)
       askForHeaders()
 
     case ResumeRegularSync =>
@@ -41,11 +43,8 @@ trait RegularSyncController {
       //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
       peersToDownloadFrom.keys.foreach(_ ! m)
 
-  }
-
-  private def requestHeadersForNewBranch(peer: ActorRef) = {
-    val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
-    context.actorOf(FastSyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = true))
+    case PrintStatus =>
+      log.info(s"Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).")
   }
 
   private def askForHeaders() = {
@@ -123,7 +122,6 @@ trait RegularSyncController {
             context.self ! BroadcastBlocks(newBlocks)
             log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
-            log.info(s"Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).")
           case None =>
             log.error("no total difficulty for latest block")
         }
