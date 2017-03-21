@@ -80,13 +80,13 @@ class GenesisDataLoader(dataSource: DataSource, blockchain: Blockchain) extends 
     }
 
     val header = BlockHeader(
-      parentHash = zeroes(hashLength),
+      parentHash = zeros(hashLength),
       ommersHash = ByteString(crypto.kec256(rlp.encode(RLPList()))),
       beneficiary = genesisData.coinbase,
       stateRoot = ByteString(stateMpt.getRootHash),
       transactionsRoot = emptyTrieRootHash,
       receiptsRoot = emptyTrieRootHash,
-      logsBloom = zeroes(bloomLength),
+      logsBloom = zeros(bloomLength),
       difficulty = BigInt(genesisData.difficulty.replace("0x", ""), 16),
       number = 0,
       gasLimit = BigInt(genesisData.gasLimit.replace("0x", ""), 16),
@@ -114,7 +114,7 @@ class GenesisDataLoader(dataSource: DataSource, blockchain: Blockchain) extends 
     }
   }
 
-  private def zeroes(length: Int) =
+  private def zeros(length: Int) =
     ByteString(Hex.decode(List.fill(length)("0").mkString))
 
 }

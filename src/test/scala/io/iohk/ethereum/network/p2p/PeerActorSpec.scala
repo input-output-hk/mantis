@@ -144,7 +144,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.UselessPeer)))
   }
 
-  it should "disconnect from non-ETC peer (even though node is before fork)" in new TestSetup {
+  it should "disconnect from non-ETC peer (when node is before fork)" in new TestSetup {
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])

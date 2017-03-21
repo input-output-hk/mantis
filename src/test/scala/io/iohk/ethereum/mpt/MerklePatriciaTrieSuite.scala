@@ -1,15 +1,13 @@
 package io.iohk.ethereum.mpt
 
-import java.io.File
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.db.dataSource.{EphemDataSource}
+import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage
-import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
@@ -25,14 +23,6 @@ class MerklePatriciaTrieSuite extends FunSuite
 
   val EmptyEphemNodeStorage: NodeStorage = new NodeStorage(EphemDataSource())
 
-  implicit val accountSerializer = new ByteArraySerializable[Account] {
-    override def toBytes(input: Account): Array[Byte] = ???
-
-    override def fromBytes(bytes: Array[Byte]): Account = ???
-  }
-
-
-  val EmptyTrieAcc = MerklePatriciaTrie[Array[Byte], Account](EmptyEphemNodeStorage, hashFn)
   val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](EmptyEphemNodeStorage, hashFn)
 
   implicit val intByteArraySerializable = new ByteArraySerializable[Int] {
