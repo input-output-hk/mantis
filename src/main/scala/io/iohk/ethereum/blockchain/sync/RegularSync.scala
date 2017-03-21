@@ -1,6 +1,8 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
+import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
+import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor.Status.{Chain, Handshaked}
 import io.iohk.ethereum.network.PeerActor._
@@ -15,9 +17,8 @@ trait RegularSync {
   selfSyncController: SyncController =>
 
   private var headersQueue: Seq[BlockHeader] = Seq.empty
-  private var resolvingBranch = false
   private var broadcasting = false
-  private var timeout: Option[Cancellable] = None
+  private var waitingForActor: Option[ActorRef] = None
 
   import Config.FastSync._
 
@@ -32,89 +33,87 @@ trait RegularSync {
     case ResumeRegularSync =>
       askForHeaders()
 
-    case MessageReceived(m: BlockHeaders) if !resolvingBranch =>
-      cancelTimeout()
-      handleDownload(m)
+    case BlockHeadersToResolve(peer, headers) =>
+      waitingForActor = None
+      handleBlockBranchResolution(peer, headers)
 
-    case MessageReceived(m: BlockHeaders) if resolvingBranch =>
-      cancelTimeout()
-      handleBlockBranchResolution(m)
+    case BlockHeadersReceived(peer, headers) =>
+      waitingForActor = None
+      handleDownload(peer, headers)
 
-    case MessageReceived(m: BlockBodies) =>
-      cancelTimeout()
-      handleBlockBodies(m)
+    case BlockBodiesReceived(peer, _, blockBodies) =>
+      waitingForActor = None
+      handleBlockBodies(peer, blockBodies)
 
-    case m: BroadcastBlocks if broadcasting =>
+    case block: BroadcastBlocks if broadcasting =>
       //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
-      peersToDownloadFrom.keys.foreach(_ ! m)
+      peersToDownloadFrom.keys.foreach(_ ! block)
 
-    case ResolveBranch(peer) =>
-      requestHeadersForNewBranch(peer)
+    case PrintStatus =>
+      log.info(s"Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).")
 
-    case PeerTimeOut(peer) =>
-      blacklist(peer, blacklistDuration)
-      resolvingBranch = false
-      askForHeaders()
-  }
-
-  private def requestHeadersForNewBranch(peer: ActorRef) = {
-    resolvingBranch = true
-    sendWithTimeout(peer, SendMessage(GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)))
+    case Done =>
+      if (waitingForActor == Option(sender())) {
+        //actor is done and we did not get response
+        scheduleResume()
+      }
   }
 
   private def askForHeaders() = {
     bestPeer match {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
-        peer ! Subscribe(Set(BlockHeaders.code, BlockBodies.code))
-        sendWithTimeout(peer, SendMessage(GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)))
+        val request = GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
+        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false)))
       case None =>
         log.warning("no peers to download from")
         scheduleResume()
     }
   }
 
-  private def handleBlockBranchResolution(message: BlockHeaders) =
+  private def handleBlockBranchResolution(peer: ActorRef, message: Seq[BlockHeader]) =
     //todo limit max branch depth?
-    if (message.headers.nonEmpty && message.headers.head.hash == headersQueue.head.parentHash) {
-      headersQueue = message.headers.reverse ++ headersQueue
-      processBlockHeaders(headersQueue, sender())
+    if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
+      headersQueue = message ++ headersQueue
+      processBlockHeaders(peer, headersQueue)
     } else {
       //we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
-      resumeWithDifferentPeer()
+      resumeWithDifferentPeer(peer)
     }
 
-  private def handleDownload(message: BlockHeaders) = if (message.headers.nonEmpty) {
-    headersQueue = message.headers
-    processBlockHeaders(headersQueue, sender())
+  private def handleDownload(peer: ActorRef, message: Seq[BlockHeader]) = if (message.nonEmpty) {
+    headersQueue = message
+    processBlockHeaders(peer, message)
   } else {
     //no new headers to process, schedule to ask again in future, we are at the top of chain
     broadcasting = true
     scheduleResume()
   }
 
-  private def processBlockHeaders(headers: Seq[BlockHeader], peer: ActorRef) = {
+  private def processBlockHeaders(peer: ActorRef, headers: Seq[BlockHeader]) = {
     val parentByNumber = blockchain.getBlockHeaderByNumber(headers.head.number - 1)
 
     parentByNumber match {
       case Some(parent) if checkHeaders(headers) =>
         //we have same chain
         if (parent.hash == headers.head.parentHash) {
-          sendWithTimeout(peer, SendMessage(GetBlockBodies(headers.take(blockBodiesPerRequest).map(_.hash))))
+          val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
+          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage)))
         } else {
-          self ! ResolveBranch(peer)
+          val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
+          waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = true)))
         }
       case _ =>
         log.warning("got header that does not have parent")
-        resumeWithDifferentPeer()
+        resumeWithDifferentPeer(peer)
     }
   }
 
-  private def handleBlockBodies(m: BlockBodies) = {
-    if (m.bodies.nonEmpty) {
-      val result = headersQueue.zip(m.bodies).map { case (h, b) => blockValidator(h, b) }
+  private def handleBlockBodies(peer: ActorRef, m: Seq[BlockBody]) = {
+    if (m.nonEmpty) {
+      val result = headersQueue.zip(m).map { case (h, b) => blockValidator(h, b) }
 
-      if (!result.exists(_.isLeft)) {
+      if (!result.exists(_.isLeft) && result.nonEmpty) {
         val blocks = result.collect { case Right(b) => b }
 
         blockchain.getBlockHeaderByHash(blocks.head.header.parentHash)
@@ -132,7 +131,7 @@ trait RegularSync {
               NewBlock(b, currentTd)
             }
 
-            self ! BroadcastBlocks(newBlocks)
+            context.self ! BroadcastBlocks(newBlocks)
             log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
           case None =>
@@ -141,41 +140,30 @@ trait RegularSync {
 
         headersQueue = headersQueue.drop(result.length)
         if (headersQueue.nonEmpty) {
-          sender() ! SendMessage(GetBlockBodies(headersQueue.take(blockBodiesPerRequest).map(_.hash)))
+          val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
+          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage)))
         } else {
-          resolvingBranch = false
-          self ! ResumeRegularSync
+          context.self ! ResumeRegularSync
         }
       } else {
         //blacklist for errors in blocks
-        resumeWithDifferentPeer()
+        resumeWithDifferentPeer(peer)
       }
     } else {
       //we got empty response for bodies from peer but we got block headers earlier
-      resumeWithDifferentPeer()
+      resumeWithDifferentPeer(peer)
     }
-  }
-
-  private def sendWithTimeout(peer: ActorRef, m: SendMessage[_]) = {
-    peer ! m
-    timeout = Some(scheduler.scheduleOnce(peerResponseTimeout, self, PeerTimeOut(peer)))
-  }
-
-  private def cancelTimeout() = {
-    timeout.foreach(_.cancel())
-    timeout = None
   }
 
   private def scheduleResume() = {
     headersQueue = Seq.empty
-    scheduler.scheduleOnce(checkForNewBlockInterval, self, ResumeRegularSync)
+    scheduler.scheduleOnce(checkForNewBlockInterval, context.self, ResumeRegularSync)
   }
 
-  private def resumeWithDifferentPeer() = {
-    blacklist(sender(), blacklistDuration)
+  private def resumeWithDifferentPeer(currentPeer: ActorRef) = {
+    blacklist(currentPeer, blacklistDuration)
     headersQueue = Seq.empty
-    resolvingBranch = false
-    self ! ResumeRegularSync
+    context.self ! ResumeRegularSync
   }
 
   private def checkHeaders(headers: Seq[BlockHeader]): Boolean =
@@ -190,6 +178,5 @@ trait RegularSync {
   }
 
   private case object ResumeRegularSync
-  private case class PeerTimeOut(peer:ActorRef)
   private case class ResolveBranch(peer: ActorRef)
 }

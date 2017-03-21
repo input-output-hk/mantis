@@ -11,7 +11,7 @@ class FastSyncReceiptsRequestHandler(
     requestedHashes: Seq[ByteString],
     appStateStorage: AppStateStorage,
     blockchain: Blockchain)(implicit scheduler: Scheduler)
-  extends FastSyncRequestHandler[GetReceipts, Receipts](peer) {
+  extends SyncRequestHandler[GetReceipts, Receipts](peer) {
 
   override val requestMsg = GetReceipts(requestedHashes)
   override val responseMsgCode = Receipts.code
@@ -25,12 +25,12 @@ class FastSyncReceiptsRequestHandler(
     updateBestBlockIfNeeded(receivedHashes)
 
     if (receipts.receiptsForBlocks.isEmpty) {
-      fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+      syncController ! BlacklistSupport.BlacklistPeer(peer)
     }
 
     val remainingReceipts = requestedHashes.drop(receipts.receiptsForBlocks.size)
     if (remainingReceipts.nonEmpty) {
-      fastSyncController ! FastSync.EnqueueReceipts(remainingReceipts)
+      syncController ! FastSync.EnqueueReceipts(remainingReceipts)
     }
 
     log.info("Received {} receipts in {} ms", receipts.receiptsForBlocks.size, timeTakenSoFar())
@@ -54,13 +54,13 @@ class FastSyncReceiptsRequestHandler(
   }
 
   override def handleTimeout(): Unit = {
-    fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
-    fastSyncController ! FastSync.EnqueueReceipts(requestedHashes)
+    syncController ! BlacklistSupport.BlacklistPeer(peer)
+    syncController ! FastSync.EnqueueReceipts(requestedHashes)
     cleanupAndStop()
   }
 
   override def handleTerminated(): Unit = {
-    fastSyncController ! FastSync.EnqueueReceipts(requestedHashes)
+    syncController ! FastSync.EnqueueReceipts(requestedHashes)
     cleanupAndStop()
   }
 }
