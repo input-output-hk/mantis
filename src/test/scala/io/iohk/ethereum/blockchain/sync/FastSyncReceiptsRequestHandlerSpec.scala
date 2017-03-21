@@ -20,7 +20,7 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     peer.reply(PeerActor.MessageReceived(Receipts(responseReceipts)))
 
     parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes.drop(1)))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(SyncRequestHandler.Done)
 
     blockchain.getReceiptsByHash(requestedHashes.head) shouldBe Some(responseReceipts.head)
     blockchain.getReceiptsByHash(requestedHashes(1)) shouldBe None
@@ -36,7 +36,7 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
 
     parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
     parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
@@ -48,7 +48,7 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     peer.ref ! PoisonPill
 
     parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(SyncRequestHandler.Done)
   }
 
   trait TestSetup extends EphemBlockchainTestSetup  {

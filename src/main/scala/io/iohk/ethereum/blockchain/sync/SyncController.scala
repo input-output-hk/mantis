@@ -2,9 +2,9 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
+import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.{Status => PeerStatus}
@@ -46,6 +46,7 @@ class SyncController(
 
   def idle: Receive = handlePeerUpdates orElse {
     case StartSync =>
+      scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
       (appStateStorage.isFastSyncDone(), doFastSync) match {
         case (false, true) =>
           startFastSync()
@@ -105,7 +106,15 @@ object SyncController {
             blockValidator: (BlockHeader, BlockBody) => Either[BlockError, Block]):
   Props = Props(new SyncController(peerManager, appStateStorage, blockchain, mptNodeStorage, syncStateStorage, blockValidator))
 
+  case class BlockHeadersToResolve(peer: ActorRef, headers: Seq[BlockHeader])
+
+  case class BlockHeadersReceived(peer: ActorRef, headers: Seq[BlockHeader])
+
+  case class BlockBodiesReceived(peer: ActorRef, requestedHashes: Seq[ByteString], bodies: Seq[BlockBody])
+
   case object StartSync
+
+  case object PrintStatus
 
   case object FastSyncDone
 }
