@@ -19,3 +19,4 @@ object JsonRpcServer {
     Http().bindAndHandle(BlockController.route(blockchain), config.interface, config.port)
   }
 }
+

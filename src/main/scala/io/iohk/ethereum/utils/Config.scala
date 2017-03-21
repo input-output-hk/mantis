@@ -13,6 +13,7 @@ import org.spongycastle.util.encoders.Hex
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
+import scala.util.Try
 
 object Config {
 
@@ -74,8 +75,10 @@ object Config {
   object Blockchain {
     private val blockchainConfig = config.getConfig("blockchain")
 
-    val genesisDifficulty: Long = blockchainConfig.getLong("genesis-difficulty")
-    val genesisHash = ByteString(Hex.decode(blockchainConfig.getString("genesis-hash")))
+    val customGenesisFileOpt = Try(blockchainConfig.getString("custom-genesis-file")).toOption
+
+    // val genesisDifficulty: Long = blockchainConfig.getLong("genesis-difficulty")
+    // val genesisHash = ByteString(Hex.decode(blockchainConfig.getString("genesis-hash")))
 
     val daoForkBlockNumber = BigInt(blockchainConfig.getString("dao-fork-block-number"))
     val daoForkBlockTotalDifficulty = BigInt(blockchainConfig.getString("dao-fork-block-total-difficulty"))
@@ -83,8 +86,9 @@ object Config {
 
     val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
 
-    val genesisGasLimit = 5000
+//    val genesisGasLimit = 5000
 
+    /*
     val genesisBlockHeader: BlockHeader = BlockHeader(
       parentHash = ByteString(Hex.decode("00" * 32)),
       ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -102,10 +106,11 @@ object Config {
       mixHash = ByteString(Hex.decode("00" * 32)),
       nonce = ByteString(Hex.decode("0000000000000042"))
     )
+*/
 
     //this is according to yellow papers but ETH has ~8000 transactions in genesis
     //do we want to ask for them?
-    val genesisBlockBody: BlockBody = BlockBody(Seq(), Seq())
+    // val genesisBlockBody: BlockBody = BlockBody(Seq(), Seq())
   }
 
   object FastSync {

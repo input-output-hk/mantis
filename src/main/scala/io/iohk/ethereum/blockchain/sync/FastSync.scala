@@ -37,7 +37,7 @@ trait FastSync {
   }
 
   private def startFastSyncFromScratch(): Unit = {
-    val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.fork.isDefined)
+    val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.forkAccepted)
 
     if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
       peersUsedToChooseTarget.foreach { case (peer, Handshaked(status, _, _)) =>

@@ -14,10 +14,13 @@ class FastSyncBlockHeadersRequestHandler(
   override val requestMsg = GetBlockHeaders(Left(block), maxHeaders, 0, reverse = false)
   override val responseMsgCode = BlockHeaders.code
 
+  log.info(s"Asking for block headers block=$block")
+
   override def handleResponseMsg(blockHeaders: BlockHeaders): Unit = {
+    log.info(s"Received block headers response, ")
     val blockHashes = blockHeaders.headers.map(_.hash)
 
-    val (blockHashesObtained, blockHeadersObtained) = blockHashes.zip(blockHeaders.headers).takeWhile{ case (hash, header) =>
+    val (blockHashesObtained, blockHeadersObtained) = blockHashes.zip(blockHeaders.headers).takeWhile { case (hash, header) =>
       val parentTd: Option[BigInt] = blockchain.getTotalDifficultyByHash(header.parentHash)
       parentTd foreach { parentTotalDifficulty =>
         blockchain.save(header)

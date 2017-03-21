@@ -3,55 +3,24 @@ package io.iohk.ethereum.network
 import java.net.{InetSocketAddress, URI}
 
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.utils.Config.Blockchain._
 
 import scala.concurrent.duration._
 
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
+import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, _}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
-import io.iohk.ethereum.network.p2p.validators.ForkValidator
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.db.storage._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
-
-trait ForkResolver {
-  type Fork <: ForkResolver.Fork
-
-  def forkBlockNumber: BigInt
-  def recognizeFork(blockHeader: BlockHeader): Fork
-  def isAccepted(fork: Fork): Boolean
-}
-
-object ForkResolver {
-
-  trait Fork
-
-  object EtcForkResolver extends ForkResolver {
-    sealed trait Fork extends ForkResolver.Fork
-    case object Etc extends Fork
-    case object Eth extends Fork
-
-    override def forkBlockNumber: BigInt = daoForkBlockNumber
-
-    override def recognizeFork(blockHeader: BlockHeader): Fork = {
-      if (blockHeader.hash == daoForkBlockHash) Etc
-      else Eth
-    }
-
-    override def isAccepted(fork: Fork): Boolean = fork == Etc
-  }
-
-}
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
@@ -176,7 +145,7 @@ class PeerActor(
 
   private def getBestBlockHeader() = {
     val bestBlockNumber = appStateStorage.getBestBlockNumber()
-    blockchain.getBlockHeaderByNumber(bestBlockNumber).getOrElse(Config.Blockchain.genesisBlockHeader)
+    blockchain.getBlockHeaderByNumber(bestBlockNumber).getOrElse(blockchain.genesisHeader)
   }
 
   private def createStatusMsg(): msg.Status = {
@@ -186,7 +155,7 @@ class PeerActor(
       networkId = Config.Network.networkId,
       totalDifficulty = bestBlockHeader.difficulty,
       bestHash = bestBlockHeader.hash,
-      genesisHash = genesisHash)
+      genesisHash = blockchain.genesisHeader.hash)
   }
 
   def waitingForNodeStatus(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
@@ -202,7 +171,7 @@ class PeerActor(
           val timeout = scheduler.scheduleOnce(peerConfiguration.waitForChainCheckTimeout, self, ForkHeaderReceiveTimeout)
           context become waitingForForkHeader(rlpxConnection, status, timeout, forkResolver)
         case None =>
-          context become new MessageHandler(rlpxConnection, status, 0, None).receive
+          context become new MessageHandler(rlpxConnection, status, 0, true).receive
       }
 
     case StatusReceiveTimeout =>
@@ -230,7 +199,7 @@ class PeerActor(
 
           if (forkResolver.isAccepted(fork)) {
             log.info("Fork is accepted")
-            context become new MessageHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, Some(fork)).receive
+            context become new MessageHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, true).receive
           } else {
             log.warning("Fork is not accepted")
             disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
@@ -238,7 +207,7 @@ class PeerActor(
 
         case None =>
           log.info("Peer did not respond with fork block header")
-          context become new MessageHandler(rlpxConnection, remoteStatus, 0, None).receive
+          context become new MessageHandler(rlpxConnection, remoteStatus, 0, false).receive
       }
 
     case ForkHeaderReceiveTimeout => disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
@@ -306,7 +275,7 @@ class PeerActor(
   class MessageHandler(rlpxConnection: RLPxConnection,
                           initialStatus: msg.Status,
                           var currentMaxBlockNumber: BigInt,
-                          var fork: Option[ForkResolver.Fork]) {
+                          var forkAccepted: Boolean) {
 
     var totalDifficulty = initialStatus.totalDifficulty
 
@@ -333,7 +302,7 @@ class PeerActor(
       case GetMaxBlockNumber(actor) => actor ! MaxBlockNumber(currentMaxBlockNumber)
 
       case GetStatus =>
-        sender() ! StatusResponse(Handshaked(initialStatus, fork, totalDifficulty))
+        sender() ! StatusResponse(Handshaked(initialStatus, forkAccepted, totalDifficulty))
 
       case BroadcastBlocks(blocks) =>
         blocks.foreach{b =>
@@ -389,7 +358,7 @@ class PeerActor(
             log.warning("Peer is not running the accepted fork, disconnecting")
             disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
           } else {
-            fork = Some(newFork)
+            forkAccepted = true
           }
         }
 
@@ -451,7 +420,7 @@ object PeerActor {
     case object Idle extends Status
     case object Connecting extends Status
     case object Handshaking extends Status
-    case class Handshaked(initialStatus: msg.Status, fork: Option[ForkResolver.Fork], totalDifficulty: BigInt) extends Status
+    case class Handshaked(initialStatus: msg.Status, forkAccepted: Boolean, totalDifficulty: BigInt) extends Status
     case object Disconnected extends Status
   }
 

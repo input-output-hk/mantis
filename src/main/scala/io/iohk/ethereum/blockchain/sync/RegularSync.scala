@@ -184,7 +184,7 @@ trait RegularSync {
   private def bestPeer: Option[ActorRef] = {
     val peersToUse = peersToDownloadFrom
       .collect {
-        case (ref, Handshaked(_, fork, totalDifficulty)) if fork.isDefined => (ref, totalDifficulty)
+        case (ref, Handshaked(_, true, totalDifficulty)) => (ref, totalDifficulty)
       }
 
     if (peersToUse.nonEmpty) Some(peersToUse.maxBy { case (_, td) => td }._1)
