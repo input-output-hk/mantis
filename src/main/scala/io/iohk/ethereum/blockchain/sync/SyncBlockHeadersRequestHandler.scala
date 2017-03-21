@@ -22,7 +22,7 @@ class SyncBlockHeadersRequestHandler(
 
     if (consistentHeaders) {
       if (resolveBranches) {
-        syncController ! SyncController.BlockHeadersToResolve(peer, blockHeaders.headers)
+        syncController ! SyncController.BlockHeadersToResolve(peer, headers)
         log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
       } else {
         val blockHashes = headers.map(_.hash)

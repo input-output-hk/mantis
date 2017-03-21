@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
+import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
 import io.iohk.ethereum.domain.BlockHeader
@@ -161,7 +162,7 @@ trait RegularSync {
   }
 
   private def resumeWithDifferentPeer(currentPeer: ActorRef) = {
-    blacklist(currentPeer, blacklistDuration)
+    self ! BlacklistPeer(currentPeer)
     headersQueue = Seq.empty
     context.self ! ResumeRegularSync
   }
