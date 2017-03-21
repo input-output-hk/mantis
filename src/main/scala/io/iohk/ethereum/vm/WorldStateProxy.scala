@@ -29,7 +29,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] {
 
   def getCode(address: Address): ByteString
   def getStorage(address: Address): S
-  def getBlockHash(number: BigInt): Option[ByteString]
+  def getBlockHash(number: UInt256): Option[UInt256]
 
   def saveCode(address: Address, code: ByteString): WS
   def saveStorage(address: Address, storage: S): WS
@@ -40,11 +40,11 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] {
   def accountExists(address: Address): Boolean =
     getAccount(address).isDefined
 
-  def getBalance(address: Address): BigInt =
-    getAccount(address).map(_.balance).getOrElse(0)
+  def getBalance(address: Address): UInt256 =
+    getAccount(address).map(a => UInt256(a.balance)).getOrElse(UInt256.Zero)
 
-  def transfer(from: Address, to: Address, value: BigInt): WS = {
-    val debited = getGuaranteedAccount(from).updateBalance(-value)
+  def transfer(from: Address, to: Address, value: UInt256): WS = {
+    val debited = getGuaranteedAccount(from).updateBalance(-value.toBigInt)
     val credited = getAccount(to).getOrElse(Account.Empty).updateBalance(value)
     saveAccount(from, debited).saveAccount(to, credited)
   }
@@ -52,7 +52,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] {
   def newAddress(creatorAddr: Address): (Address, WS) = {
     val creator = getGuaranteedAccount(creatorAddr)
     val hash = kec256(rlp.encode(RLPList(creatorAddr.bytes, creator.nonce)))
-    val addr = Address(hash.takeRight(Address.Length))
+    val addr = Address(hash)
     val updated = saveAccount(creatorAddr, creator.increaseNonce)
     (addr, updated)
   }

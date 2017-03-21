@@ -22,6 +22,8 @@ object Config {
 
   val keysFile: String = config.getString("keys-file")
 
+  val shutdownTimeout: Duration = config.getDuration("shutdown-timeout").toMillis.millis
+
   object Network {
     private val networkConfig = config.getConfig("network")
 

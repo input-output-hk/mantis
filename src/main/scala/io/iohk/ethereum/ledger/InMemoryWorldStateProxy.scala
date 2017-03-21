@@ -14,22 +14,22 @@ import io.iohk.ethereum.mpt.{MerklePatriciaTrie, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPEncoder, decode => rlpDecode}
-import io.iohk.ethereum.vm.{DataWord, Storage, WorldStateProxy}
+import io.iohk.ethereum.vm.{UInt256, Storage, WorldStateProxy}
 
 object InMemoryWorldStateProxy {
 
   //FIXME Move it to somewhere else
-  implicit val dataWordRLPEncDec = new RLPEncoder[DataWord] with RLPDecoder[DataWord] {
-    override def encode(obj: DataWord): RLPEncodeable = obj.bytes
+  implicit val dataWordRLPEncDec = new RLPEncoder[UInt256] with RLPDecoder[UInt256] {
+    override def encode(obj: UInt256): RLPEncodeable = obj.bytes
 
-    override def decode(rlp: RLPEncodeable): DataWord = DataWord(rlpDecode[ByteString](rlp))
+    override def decode(rlp: RLPEncodeable): UInt256 = UInt256(rlpDecode[ByteString](rlp))
   }
 
-  val byteArrayDataWordSerializer = new ByteArrayEncoder[DataWord] {
-    override def toBytes(input: DataWord): Array[Byte] = input.bytes.toArray[Byte]
+  val byteArrayUInt256Serializer = new ByteArrayEncoder[UInt256] {
+    override def toBytes(input: UInt256): Array[Byte] = input.bytes.toArray[Byte]
   }
 
-  val rlpDataWordSerializer = new RLPByteArraySerializable[DataWord]
+  val rlpUInt256Serializer = new RLPByteArraySerializable[UInt256]
   implicit val accountSerializer = new RLPByteArraySerializable[Account]
 
   def apply(
@@ -156,15 +156,15 @@ object InMemoryWorldStateProxy {
     * @return Proxied Contract Storage Trie
     */
   private def createProxiedContractStorageTrie(contractStorage: InMemorySimpleMapProxy[NodeHash, NodeEncoded, NodeStorage], storageRoot: ByteString):
-  InMemorySimpleMapProxy[DataWord, DataWord, ProxiedMerklePatriciaTrie[DataWord, DataWord]] =
+  InMemorySimpleMapProxy[UInt256, UInt256, ProxiedMerklePatriciaTrie[UInt256, UInt256]] =
     InMemorySimpleMapProxy.wrap(
       new StorageMPTWrappedMap(
-        new ProxiedMerklePatriciaTrie[DataWord, DataWord](
+        new ProxiedMerklePatriciaTrie[UInt256, UInt256](
           storageRoot.toArray[Byte],
           contractStorage,
           kec256(_: Array[Byte]),
-          HashByteArraySerializable(byteArrayDataWordSerializer),
-          rlpDataWordSerializer
+          HashByteArraySerializable(byteArrayUInt256Serializer),
+          rlpUInt256Serializer
         )
       )
     )
@@ -204,12 +204,12 @@ private class StorageMPTWrappedMap[K, V](mpt: ProxiedMerklePatriciaTrie[K, V]) e
   }
 }
 
-class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[DataWord, DataWord, ProxiedMerklePatriciaTrie[DataWord, DataWord]])
+class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[UInt256, UInt256, ProxiedMerklePatriciaTrie[UInt256, UInt256]])
   extends Storage[InMemoryWorldStateProxyStorage] {
 
-  override def store(addr: DataWord, value: DataWord): InMemoryWorldStateProxyStorage = new InMemoryWorldStateProxyStorage(wrapped.put(addr, value))
+  override def store(addr: UInt256, value: UInt256): InMemoryWorldStateProxyStorage = new InMemoryWorldStateProxyStorage(wrapped.put(addr, value))
 
-  override def load(addr: DataWord): DataWord = wrapped.get(addr).getOrElse(DataWord.Zero)
+  override def load(addr: UInt256): UInt256 = wrapped.get(addr).getOrElse(UInt256.Zero)
 }
 
 class InMemoryWorldStateProxy private(
@@ -218,7 +218,7 @@ class InMemoryWorldStateProxy private(
   val stateStorage: InMemorySimpleMapProxy[NodeHash, NodeEncoded, NodeStorage],
   val accountsStateTrie: InMemorySimpleMapProxy[ByteString, Account, ProxiedMerklePatriciaTrie[Code, Account]],
   // Contract Storage Proxies by Address
-  val contractStorages: Map[Address, InMemorySimpleMapProxy[DataWord, DataWord, ProxiedMerklePatriciaTrie[DataWord, DataWord]]],
+  val contractStorages: Map[Address, InMemorySimpleMapProxy[UInt256, UInt256, ProxiedMerklePatriciaTrie[UInt256, UInt256]]],
   //It's easier to use the storage instead of the blockchain here (because of proxy wrapping). We might need to reconsider this
   val evmCodeStorage: InMemorySimpleMapProxy[CodeHash, Code, EvmCodeStorage],
   // Account's code by Address
@@ -266,7 +266,7 @@ class InMemoryWorldStateProxy private(
   private def copyWith(
     stateStorage: InMemorySimpleMapProxy[NodeHash, NodeEncoded, NodeStorage] = stateStorage,
     accountsStateTrie: InMemorySimpleMapProxy[ByteString, Account, ProxiedMerklePatriciaTrie[Code, Account]] = accountsStateTrie,
-    contractStorages: Map[Address, InMemorySimpleMapProxy[DataWord, DataWord, ProxiedMerklePatriciaTrie[DataWord, DataWord]]] = contractStorages,
+    contractStorages: Map[Address, InMemorySimpleMapProxy[UInt256, UInt256, ProxiedMerklePatriciaTrie[UInt256, UInt256]]] = contractStorages,
     evmCodeStorage: InMemorySimpleMapProxy[CodeHash, Code, EvmCodeStorage] = evmCodeStorage,
     accountCodes: Map[Address, Code] = accountCodes
   ): InMemoryWorldStateProxy =
@@ -279,6 +279,6 @@ class InMemoryWorldStateProxy private(
       getBlockByNumber
     )
 
-  override def getBlockHash(number: BigInt): Option[ByteString] = getBlockByNumber(number)
+  override def getBlockHash(number: UInt256): Option[UInt256] = getBlockByNumber(number).map(UInt256(_))
 }
 

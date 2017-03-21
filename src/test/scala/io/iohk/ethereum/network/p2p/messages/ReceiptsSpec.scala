@@ -2,12 +2,12 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.network.p2p.messages.PV63.{Receipt, Receipts, TransactionLog}
-import org.scalatest.{FlatSpec, Matchers}
-import io.iohk.ethereum.network.p2p.Message.{PV63 => constantPV63}
-import io.iohk.ethereum.network.p2p.Message.{decode => msgDecode}
-import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.domain.{Address, TxLogEntry}
+import io.iohk.ethereum.network.p2p.Message.{PV63 => constantPV63, decode => msgDecode}
+import io.iohk.ethereum.network.p2p.messages.PV63.{Receipt, Receipts}
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp._
+import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 class ReceiptsSpec extends FlatSpec with Matchers {
@@ -15,11 +15,11 @@ class ReceiptsSpec extends FlatSpec with Matchers {
   val exampleHash = ByteString(kec256((0 until 32).map(_ => 1: Byte).toArray))
   val exampleLogsBloom = ByteString((0 until 256).map(_ => 1: Byte).toArray)
 
-  val loggerAddress = ByteString(Hex.decode("ff"))
+  val loggerAddress = Address(0xff)
   val logData = ByteString(Hex.decode("bb"))
   val logTopics = Seq(ByteString(Hex.decode("dd")), ByteString(Hex.decode("aa")))
 
-  val exampleLog = TransactionLog(loggerAddress, logTopics, logData)
+  val exampleLog = TxLogEntry(loggerAddress, logTopics, logData)
 
   val cumulativeGas: BigInt = 0
 
@@ -38,7 +38,7 @@ class ReceiptsSpec extends FlatSpec with Matchers {
         exampleHash,
         cumulativeGas,
         exampleLogsBloom,
-        RLPList(RLPList(loggerAddress, logTopics, logData))
+        RLPList(RLPList(loggerAddress.bytes, logTopics, logData))
       )))
 
   "Receipts" should "encode receipts" in {

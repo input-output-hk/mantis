@@ -19,6 +19,7 @@ object VM {
       finalState.gas,
       finalState.world,
       finalState.addressesToDelete,
+      finalState.logs,
       finalState.error)
   }
 

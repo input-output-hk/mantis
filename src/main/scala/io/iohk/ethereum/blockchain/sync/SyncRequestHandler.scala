@@ -9,12 +9,12 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.Config.FastSync._
 
-abstract class FastSyncRequestHandler[RequestMsg <: Message : RLPEncoder,
+abstract class SyncRequestHandler[RequestMsg <: Message : RLPEncoder,
                                       ResponseMsg <: Message : ClassTag](peer: ActorRef)
                                                                         (implicit scheduler: Scheduler)
   extends Actor with ActorLogging {
 
-  import FastSyncRequestHandler._
+  import SyncRequestHandler._
 
   def requestMsg: RequestMsg
   def responseMsgCode: Int
@@ -23,11 +23,11 @@ abstract class FastSyncRequestHandler[RequestMsg <: Message : RLPEncoder,
   def handleTimeout(): Unit
   def handleTerminated(): Unit
 
-  val fastSyncController = context.parent
+  val syncController: ActorRef = context.parent
 
-  val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, Timeout)
+  val timeout: Cancellable = scheduler.scheduleOnce(peerResponseTimeout, self, Timeout)
 
-  val startTime = System.currentTimeMillis()
+  val startTime: Long = System.currentTimeMillis()
 
   def timeTakenSoFar(): Long = System.currentTimeMillis() - startTime
 
@@ -52,12 +52,12 @@ abstract class FastSyncRequestHandler[RequestMsg <: Message : RLPEncoder,
     timeout.cancel()
     context unwatch peer
     peer ! PeerActor.Unsubscribe
-    fastSyncController ! Done
+    syncController ! Done
     context stop self
   }
 }
 
-object FastSyncRequestHandler {
+object SyncRequestHandler {
   case object Done
 
   private case object Timeout
