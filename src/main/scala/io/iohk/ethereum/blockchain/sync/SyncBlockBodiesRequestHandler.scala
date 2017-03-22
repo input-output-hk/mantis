@@ -18,9 +18,8 @@ class SyncBlockBodiesRequestHandler(
 
   override def handleResponseMsg(blockBodies: BlockBodies): Unit = {
     if (blockBodies.bodies.isEmpty) {
-      log.info(s"Blacklisting peer (${peer.path.name}), " +
-        s"got empty block bodies response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}")
-      syncController ! BlacklistSupport.BlacklistPeer(peer)
+      val reason = s"got empty block bodies response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
+      syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
     } else {
       syncController ! BlockBodiesReceived(peer, requestedHashes, blockBodies.bodies)
     }
@@ -30,9 +29,8 @@ class SyncBlockBodiesRequestHandler(
   }
 
   override def handleTimeout(): Unit = {
-    log.info(s"Blacklisting peer (${peer.path.name}), " +
-      s"time out on block bodies response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}")
-    syncController ! BlacklistSupport.BlacklistPeer(peer)
+    val reason = s"time out on block bodies response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
+    syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
     syncController ! FastSync.EnqueueBlockBodies(requestedHashes)
     cleanupAndStop()
   }

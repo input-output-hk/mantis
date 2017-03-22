@@ -26,9 +26,8 @@ class FastSyncReceiptsRequestHandler(
     updateBestBlockIfNeeded(receivedHashes)
 
     if (receipts.receiptsForBlocks.isEmpty) {
-      log.info(s"Blacklisting peer (${peer.path.name}), " +
-        s"got empty receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}")
-      syncController ! BlacklistSupport.BlacklistPeer(peer)
+      val reason = s"got empty receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
+      syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
     }
 
     val remainingReceipts = requestedHashes.drop(receipts.receiptsForBlocks.size)
@@ -57,9 +56,8 @@ class FastSyncReceiptsRequestHandler(
   }
 
   override def handleTimeout(): Unit = {
-    log.info(s"Blacklisting peer (${peer.path.name}), " +
-      s"time out on receipts response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}")
-    syncController ! BlacklistSupport.BlacklistPeer(peer)
+    val reason = s"time out on receipts response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
+    syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
     syncController ! FastSync.EnqueueReceipts(requestedHashes)
     cleanupAndStop()
   }

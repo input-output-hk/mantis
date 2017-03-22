@@ -23,9 +23,8 @@ class FastSyncNodesRequestHandler(
 
   override def handleResponseMsg(nodeData: NodeData): Unit = {
     if (nodeData.values.isEmpty) {
-      log.info(s"Blacklisting peer (${peer.path.name}), " +
-        s"got empty mpt node response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
-      syncController ! BlacklistSupport.BlacklistPeer(peer)
+      val reason = s"got empty mpt node response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}"
+      syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
     }
 
     val receivedHashes = nodeData.values.map(v => ByteString(kec256(v.toArray[Byte])))
@@ -61,9 +60,8 @@ class FastSyncNodesRequestHandler(
   }
 
   override def handleTimeout(): Unit = {
-    log.info(s"Blacklisting peer (${peer.path.name}), " +
-      s"time out on mpt node response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
-    syncController ! BlacklistSupport.BlacklistPeer(peer)
+    val reason = s"time out on mpt node response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}"
+    syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
     syncController ! FastSync.EnqueueNodes(requestedHashes)
     cleanupAndStop()
   }

@@ -32,16 +32,16 @@ class SyncBlockHeadersRequestHandler(
         log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
       }
     } else {
-      log.info(s"Blacklisting peer (${peer.path.name}), got error in block headers response for request: $requestMsg")
-      syncController ! BlacklistSupport.BlacklistPeer(peer)
+      val reason = s"got error in block headers response for requested: ${requestMsg.block}"
+      syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
     }
 
     cleanupAndStop()
   }
 
   override def handleTimeout(): Unit = {
-    log.info(s"Blacklisting peer (${peer.path.name}), got time out waiting for block headers response for request: $requestMsg")
-    syncController ! BlacklistSupport.BlacklistPeer(peer)
+    val reason = s"got time out waiting for block headers response for requested: ${requestMsg.block}"
+    syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
     cleanupAndStop()
   }
 
