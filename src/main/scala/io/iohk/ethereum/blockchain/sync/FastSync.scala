@@ -65,15 +65,15 @@ trait FastSync {
         tryStartFastSync(newReceived)
       } else context become waitingForBlockHeaders(newWaitingFor, newReceived, timeout)
 
-    case PeerActor.MessageReceived(BlockHeaders(_)) =>
+    case PeerActor.MessageReceived(BlockHeaders(blockHeaders)) =>
       sender() ! PeerActor.Unsubscribe
-      blacklist(sender(), blacklistDuration)
+      blacklist(sender(), blacklistDuration,s"did not respond with 1 header but with ${blockHeaders.size}, blacklisting for $blacklistDuration")
       context become waitingForBlockHeaders(waitingFor - sender(), received, timeout)
 
     case BlockHeadersTimeout =>
       waitingFor.foreach { peer =>
         peer ! PeerActor.Unsubscribe
-        blacklist(peer, blacklistDuration)
+        blacklist(peer, blacklistDuration, s"did not respond within required time with block header, blacklisting for $blacklistDuration")
       }
       tryStartFastSync(received)
   }
@@ -120,21 +120,13 @@ trait FastSync {
           startFastSync(initialSyncState)
 
         case None =>
-          log.info("Peer ({}) did not respond with target block header, blacklisting and scheduling retry in {}",
-            sender().path.name,
-            startRetryInterval)
-
-          blacklist(sender(), blacklistDuration)
+          blacklist(sender(), blacklistDuration,s"did not respond with target block header, blacklisting and scheduling retry in $startRetryInterval")
           scheduleStartRetry(startRetryInterval)
           context become startingFastSync
       }
 
     case TargetBlockTimeout =>
-      log.info("Peer ({}) did not respond with target block header (timeout), blacklisting and scheduling retry in {}",
-        sender().path.name,
-        startRetryInterval)
-
-      blacklist(sender(), blacklistDuration)
+      blacklist(sender(), blacklistDuration, s"did not respond with target block header (timeout), blacklisting and scheduling retry in $startRetryInterval")
       peer ! PeerActor.Unsubscribe
       scheduleStartRetry(startRetryInterval)
       context become startingFastSync
