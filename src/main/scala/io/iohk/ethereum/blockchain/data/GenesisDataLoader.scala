@@ -57,7 +57,7 @@ class GenesisDataLoader(dataSource: DataSource, blockchain: Blockchain) extends 
         try {
           src.getLines().mkString
         } finally {
-          src.clone()
+          src.close()
         }
     }
 
