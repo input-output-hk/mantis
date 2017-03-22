@@ -65,14 +65,21 @@ trait FastSync {
         tryStartFastSync(newReceived)
       } else context become waitingForBlockHeaders(newWaitingFor, newReceived, timeout)
 
-    case PeerActor.MessageReceived(BlockHeaders(_)) =>
+    case PeerActor.MessageReceived(BlockHeaders(blockHeaders)) =>
       sender() ! PeerActor.Unsubscribe
+      log.info("Peer ({}) did not respond with 1 header but with {}, blacklisting for {}",
+        sender().path.name,
+        blockHeaders.size,
+        blacklistDuration)
       blacklist(sender(), blacklistDuration)
       context become waitingForBlockHeaders(waitingFor - sender(), received, timeout)
 
     case BlockHeadersTimeout =>
       waitingFor.foreach { peer =>
         peer ! PeerActor.Unsubscribe
+        log.info("Peer ({}) did not respond within required time with block header, blacklisting for {}",
+          peer.path.name,
+          blacklistDuration)
         blacklist(peer, blacklistDuration)
       }
       tryStartFastSync(received)

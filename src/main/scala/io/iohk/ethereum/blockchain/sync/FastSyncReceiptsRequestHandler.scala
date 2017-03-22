@@ -5,6 +5,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts}
+import org.spongycastle.util.encoders.Hex
 
 class FastSyncReceiptsRequestHandler(
     peer: ActorRef,
@@ -14,7 +15,7 @@ class FastSyncReceiptsRequestHandler(
   extends SyncRequestHandler[GetReceipts, Receipts](peer) {
 
   override val requestMsg = GetReceipts(requestedHashes)
-  override val responseMsgCode = Receipts.code
+  override val responseMsgCode: Int = Receipts.code
 
   override def handleResponseMsg(receipts: Receipts): Unit = {
     (requestedHashes zip receipts.receiptsForBlocks).foreach { case (hash, receiptsForBlock) =>
@@ -25,6 +26,8 @@ class FastSyncReceiptsRequestHandler(
     updateBestBlockIfNeeded(receivedHashes)
 
     if (receipts.receiptsForBlocks.isEmpty) {
+      log.info(s"Blacklisting peer (${peer.path.name}), " +
+        s"got empty receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}")
       syncController ! BlacklistSupport.BlacklistPeer(peer)
     }
 
@@ -54,6 +57,8 @@ class FastSyncReceiptsRequestHandler(
   }
 
   override def handleTimeout(): Unit = {
+    log.info(s"Blacklisting peer (${peer.path.name}), " +
+      s"time out on receipts response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}")
     syncController ! BlacklistSupport.BlacklistPeer(peer)
     syncController ! FastSync.EnqueueReceipts(requestedHashes)
     cleanupAndStop()
