@@ -73,7 +73,7 @@ object InMemoryWorldStateProxy {
     * @param worldState Proxy to commit
     * @return Updated world
     */
-  private def commitState(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  def commitState(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     def commitCode(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
       worldState.accountCodes.foldLeft(worldState) {
         case (updatedWorldState, (address, code)) =>

@@ -7,6 +7,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
 import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.utils.ByteUtils.or
 
 import scala.language.reflectiveCalls
 
@@ -68,9 +69,7 @@ object BlockValidator {
     * @return
     */
   private def validateLogBloom(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block] = {
-    val logsBloomOr = receipts.foldLeft(Array.fill(block.header.logsBloom.size)(0.toByte)) { (or: Array[Byte], receipt: Receipt) =>
-      or.zip(receipt.logsBloomFilter.toArray[Byte]).map(b => (b._1 | b._2).toByte)
-    }
+    val logsBloomOr = or(receipts.map(_.logsBloomFilter.toArray): _*)
     if (logsBloomOr sameElements block.header.logsBloom.toArray[Byte]) Right(block)
     else Left(BlockLogBloomError)
   }
