@@ -1,9 +1,8 @@
 package io.iohk.ethereum.ledger
 
-import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.vm.{GasFee, _}
 
 object Ledger extends Logger {
@@ -22,7 +21,7 @@ object Ledger extends Logger {
       val (resultingWorldStateProxy, gasUsed) = executeBlockTransactions(block, storages, stateStorage)
       log.debug(s"All txs from block ${block.header} were executed")
 
-      val worldToPersist = payBlockReward(block, resultingWorldStateProxy)
+      val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
       val afterExecutionBlockError = validateBlockAfterExecution(block, worldToPersist)
       if (afterExecutionBlockError.isEmpty) {
         InMemoryWorldStateProxy.persistIfHashMatches(block.header.stateRoot, worldToPersist)
@@ -82,7 +81,31 @@ object Ledger extends Logger {
     * @param worldStateProxy
     * @return
     */
-  private def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = worldStateProxy
+  private[ledger] def payBlockReward(minerRewardAmount: BigInt, block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+
+    def getAccountToPay(address: Address, ws: InMemoryWorldStateProxy): Account = ws.getAccount(address).getOrElse(Account.Empty)
+
+    // YP - eq 148
+    def calcMinerReward(unclesCount: Int): BigInt = minerRewardAmount + (minerRewardAmount * unclesCount) / 32
+
+    // YP - eq 149
+    def calcOmmerReward(blockHeader: BlockHeader, ommerBlockHeader: BlockHeader) =
+      minerRewardAmount + (minerRewardAmount * (ommerBlockHeader.number - blockHeader.number)) / 8
+
+    val minerAddress = Address(block.header.beneficiary)
+    val minerAccount = getAccountToPay(minerAddress, worldStateProxy)
+    val minerReward = calcMinerReward(block.body.uncleNodesList.size)
+    val afterMinerReward = worldStateProxy.saveAccount(minerAddress, minerAccount.updateBalance(minerReward))
+    log.debug(s"Paying block ${block.header.number} reward of $minerReward to miner with account address $minerAddress")
+
+    block.body.uncleNodesList.foldLeft(afterMinerReward) { (ws, uncle) =>
+      val uncleAddress = Address(uncle.beneficiary)
+      val account = getAccountToPay(uncleAddress, ws)
+      val uncleReward = calcOmmerReward(block.header, uncle)
+      log.debug(s"Paying block ${uncle.number} reward of $uncleReward to ommer with account address $uncleAddress")
+      ws.saveAccount(uncleAddress, account.updateBalance(uncleReward))
+    }
+  }
 
   /**
     * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)

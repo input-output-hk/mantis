@@ -87,6 +87,9 @@ object Config {
 
     val genesisGasLimit = 5000
 
+    // YP eq 150
+    val BlockReward = BigInt("5000000000000000000")
+
     val genesisBlockHeader: BlockHeader = BlockHeader(
       parentHash = ByteString(Hex.decode("00" * 32)),
       ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
