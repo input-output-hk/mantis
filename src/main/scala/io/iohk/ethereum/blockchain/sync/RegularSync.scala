@@ -162,7 +162,7 @@ trait RegularSync {
   }
 
   private def resumeWithDifferentPeer(currentPeer: ActorRef) = {
-    self ! BlacklistPeer(currentPeer)
+    self ! BlacklistPeer(currentPeer, "because of error in response")
     headersQueue = Seq.empty
     context.self ! ResumeRegularSync
   }

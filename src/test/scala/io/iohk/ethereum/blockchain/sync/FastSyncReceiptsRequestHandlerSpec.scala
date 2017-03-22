@@ -34,7 +34,7 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
 
     time.advance(10.seconds)
 
-    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
+    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref, "time out on receipts response for known hashes: List(31, 32)"))
     parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes))
     parent.expectMsg(SyncRequestHandler.Done)
 
