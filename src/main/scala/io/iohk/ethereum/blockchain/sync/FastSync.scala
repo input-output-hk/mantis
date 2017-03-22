@@ -84,11 +84,19 @@ trait FastSync {
       val (mostUpToDatePeer, mostUpToDateBlockHeader) = receivedHeaders.maxBy(_._2.number)
       val targetBlock = mostUpToDateBlockHeader.number - targetBlockOffset
 
-      log.info("Starting fast sync. Asking peer {} for target block header ({})", mostUpToDatePeer.path.name, targetBlock)
-      mostUpToDatePeer ! PeerActor.Subscribe(Set(BlockHeaders.code))
-      mostUpToDatePeer ! PeerActor.SendMessage(GetBlockHeaders(Left(targetBlock), 1, 0, reverse = false))
-      val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
-      context become waitingForTargetBlock(mostUpToDatePeer, targetBlock, timeout)
+      if (targetBlock < 1) {
+        log.info("Target block is less than 1, starting regular sync")
+        appStateStorage.fastSyncDone()
+        context become idle
+        self ! FastSyncDone
+      } else {
+        log.info("Starting fast sync. Asking peer {} for target block header ({})", mostUpToDatePeer.path.name, targetBlock)
+        mostUpToDatePeer ! PeerActor.Subscribe(Set(BlockHeaders.code))
+        mostUpToDatePeer ! PeerActor.SendMessage(GetBlockHeaders(Left(targetBlock), 1, 0, reverse = false))
+        val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
+        context become waitingForTargetBlock(mostUpToDatePeer, targetBlock, timeout)
+      }
+
     } else {
       log.info("Did not receive enough status block headers to start fast sync. Retry in {}", startRetryInterval)
       scheduleStartRetry(startRetryInterval)

@@ -39,16 +39,26 @@ class GenesisDataLoader(dataSource: DataSource, blockchain: Blockchain) extends 
     val genesisJson = customGenesisFileOpt match {
       case Some(customGenesisFile) =>
         log.debug(s"Trying to load custom genesis data from file: $customGenesisFile")
-        Try(Source.fromFile(customGenesisFile).getLines().mkString) match {
+
+        Try(Source.fromFile(customGenesisFile)) match {
           case Success(customGenesis) =>
             log.info(s"Using custom genesis data from file: $customGenesisFile")
-            customGenesis
+            try {
+              customGenesis.getLines().mkString
+            } finally {
+              customGenesis.close()
+            }
           case Failure(ex) =>
             log.error(s"Cannot load custom genesis data from file: $customGenesisFile", ex)
-            sys.exit(1)
+            throw ex
         }
       case None =>
-        Source.fromResource("blockchain/default-genesis.json").getLines().mkString
+        val src = Source.fromResource("blockchain/default-genesis.json")
+        try {
+          src.getLines().mkString
+        } finally {
+          src.clone()
+        }
     }
 
     loadGenesisData(genesisJson) match {
@@ -56,7 +66,7 @@ class GenesisDataLoader(dataSource: DataSource, blockchain: Blockchain) extends 
         log.info("Genesis data successfully loaded")
       case Failure(ex) =>
         log.error("Unable to load genesis data", ex)
-        sys.exit(1)
+        throw ex
     }
   }
 
@@ -133,7 +143,8 @@ object GenesisDataLoader {
         case other => deserializationError("Expected hex string, but got: " + other)
       }
 
-      override def write(obj: ByteString): JsValue = ??? /* not used */
+      override def write(obj: ByteString): JsValue =
+        throw new RuntimeException("ByteStringJsonFormat.write should never be called")
     }
 
     implicit val allocAccountFormat = jsonFormat1(AllocAccount)
