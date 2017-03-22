@@ -101,9 +101,9 @@ class GenesisDataLoader(dataSource: DataSource, blockchain: Blockchain) extends 
       number = 0,
       gasLimit = BigInt(genesisData.gasLimit.replace("0x", ""), 16),
       gasUsed = 0,
-      unixTimestamp = genesisData.timestamp,
+      unixTimestamp = BigInt(genesisData.timestamp.replace("0x", ""), 16).toLong,
       extraData = genesisData.extraData,
-      mixHash = genesisData.mixHash,
+      mixHash = genesisData.mixHash.getOrElse(zeros(hashLength)),
       nonce = genesisData.nonce)
 
     blockchain.getBlockHeaderByNumber(0) match {
@@ -135,7 +135,10 @@ object GenesisDataLoader {
     implicit object ByteStringJsonFormat extends RootJsonFormat[ByteString] {
       def read(value: JsValue): ByteString = value match {
         case s: JsString =>
-          val inp = s.value.replace("0x", "")
+          val noPrefix = s.value.replace("0x", "")
+          val inp =
+            if (noPrefix.length % 2 == 0) noPrefix
+            else "0" ++ noPrefix
           Try(ByteString(Hex.decode(inp))) match {
             case Success(bs) => bs
             case Failure(ex) => deserializationError("Cannot parse hex string: " + s)

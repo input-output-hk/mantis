@@ -6,10 +6,10 @@ case class AllocAccount(balance: String)
 
 case class GenesisData(
     nonce: ByteString,
-    mixHash: ByteString,
+    mixHash: Option[ByteString],
     difficulty: String,
     extraData: ByteString,
     gasLimit: String,
     coinbase: ByteString,
-    timestamp: Long,
+    timestamp: String,
     alloc: Map[String, AllocAccount])
