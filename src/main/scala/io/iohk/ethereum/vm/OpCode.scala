@@ -150,8 +150,9 @@ object OpCode {
     CALLCODE,
     RETURN,
     DELEGATECALL,
-    INVALID
-    //SUICIDE
+    INVALID,
+    SELFDESTRUCT
+
   )
 
   val byteToOpCode: Map[Byte, OpCode] =
@@ -756,3 +757,28 @@ case object INVALID extends OpCode(0xfe, 0, 0, G_zero) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] =
     state.withError(InvalidOpCode(code))
 }
+
+case object SELFDESTRUCT extends OpCode(0xff, 1, 0, G_selfdestruct) {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val (refundDW, stack1) = state.stack.pop
+    val refundAddr: Address = Address(refundDW)
+    val gasRefund = if (state.addressesToDelete contains state.ownAddress) UInt256.Zero else R_selfdestruct
+    val world = state.world.transfer(state.ownAddress, refundAddr, state.ownBalance)
+    state
+      .withWorld(world)
+      .refundGas(gasRefund)
+      .withAddressToDelete(state.ownAddress)
+      .withStack(stack1)
+      .halt
+  }
+
+  // Assumes that EIP-161 is not in use on ETC network
+  // https://github.com/ethereum/EIPs/issues/161
+  // I copied the logic from etc geth
+  // https://github.com/ethereumproject/go-ethereum/blob/9fe9368c69f2fb6d7449a4504c71d1af87552957/core/vm/vm.go#L260-L265
+  protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
+    val (Seq(_, accDW), _) = state.stack.pop(2)
+    if (state.world.accountExists(Address(accDW))) UInt256.Zero else G_newaccount
+  }
+}
+

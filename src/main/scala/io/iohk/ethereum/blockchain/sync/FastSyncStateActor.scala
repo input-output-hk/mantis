@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging}
 import akka.pattern.pipe
-import io.iohk.ethereum.blockchain.sync.SyncController.SyncState
+import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.blockchain.sync.FastSyncStateActor.GetStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 
@@ -37,7 +37,7 @@ class FastSyncStateActor extends Actor with ActorLogging {
     // state was saved in the storage. become idle
     case Success(s: FastSyncStateStorage) if stateToPersist.isEmpty => context become idle(s)
     // state was saved in the storage but new state is already waiting to be saved.
-    case Success(s: FastSyncStateStorage) if stateToPersist.isDefined => stateToPersist.map(persistState(s, _))
+    case Success(s: FastSyncStateStorage) if stateToPersist.isDefined => stateToPersist.foreach(persistState(s, _))
 
     case GetStorage => sender() ! storage.getSyncState()
   }
@@ -63,7 +63,5 @@ class FastSyncStateActor extends Actor with ActorLogging {
 }
 
 object FastSyncStateActor {
-
   case object GetStorage
-
 }

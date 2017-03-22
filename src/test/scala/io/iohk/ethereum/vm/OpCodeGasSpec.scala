@@ -4,7 +4,8 @@ import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
 import Generators._
 import GasFee._
-import UInt256.{Zero, One, Two}
+import UInt256.{One, Two, Zero}
+import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm.MockWorldState.PS
 
 
@@ -443,6 +444,46 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       verifyGas(expectedGas, stateIn, stateOut)
     }
+  }
+
+  test(SELFDESTRUCT) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(elems = 2)
+    )
+
+    // Sending refund to a non-existent account
+    forAll(stateGen) { stateIn =>
+      val (Seq(_, refund), _) = stateIn.stack.pop(2)
+      whenever(stateIn.world.getAccount(Address(refund)).isEmpty) {
+        val stateOut = op.execute(stateIn)
+        stateOut.gasRefund shouldEqual R_selfdestruct
+        verifyGas(G_selfdestruct + G_newaccount, stateIn, stateOut)
+      }
+    }
+
+    // Sending refund to an already existing account
+    forAll(stateGen) { (stateIn) =>
+      val (Seq(_, refund), _) = stateIn.stack.pop(2)
+      val world = stateIn.world.saveAccount(
+        Address(refund),
+        Account.Empty)
+      val updatedStateIn = stateIn.withWorld(world)
+      val stateOut = op.execute(updatedStateIn)
+      verifyGas(G_selfdestruct, updatedStateIn, stateOut)
+      stateOut.gasRefund shouldEqual R_selfdestruct
+    }
+
+    // Owner account was already selfdestructed
+    forAll(stateGen) { stateIn =>
+      val (Seq(_, refund), _) = stateIn.stack.pop(2)
+      whenever(stateIn.world.getAccount(Address(refund)).isEmpty) {
+        val updatedStateIn = stateIn.withAddressToDelete(stateIn.context.env.ownerAddr)
+        val stateOut = op.execute(updatedStateIn)
+        verifyGas(G_selfdestruct + G_newaccount, updatedStateIn, stateOut)
+        stateOut.gasRefund shouldEqual 0
+      }
+    }
+
   }
 
   verifyAllOpCodesRegistered(except = CALL, CALLCODE, DELEGATECALL, INVALID)

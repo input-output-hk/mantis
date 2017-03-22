@@ -5,10 +5,11 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address, TxLogEntry}
 import io.iohk.ethereum.vm.Generators._
 import org.scalacheck.Gen
-import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
+import org.scalatest.{FunSuite, Matchers}
 
 class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
+
   import MockWorldState.PS
 
   def executeOp(op: OpCode, stateIn: PS): PS = {
@@ -603,9 +604,28 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("SUICIDE") {
-    // to be implemented
+  test(SELFDESTRUCT) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(elems = 2)
+    )
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+      withStackVerification(op, stateIn, stateOut) {
+        val (refundDW, stack1) = stateIn.stack.pop
+        val world1 = stateIn.world
+          .transfer(stateIn.ownAddress, Address(refundDW), stateIn.ownBalance)
+          .saveAccount(Address(refundDW), Account.Empty)
+        val expectedState = stateIn
+          .withWorld(world1)
+          .withAddressToDelete(stateIn.context.env.ownerAddr)
+          .withStack(stack1)
+          .halt
+        stateOut shouldEqual expectedState
+      }
+    }
   }
 
   verifyAllOpCodesRegistered(except = CALL, CALLCODE, DELEGATECALL)
+
 }
+
