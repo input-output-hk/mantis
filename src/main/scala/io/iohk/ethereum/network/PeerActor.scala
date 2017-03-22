@@ -192,7 +192,7 @@ class PeerActor(
       val forkBlockHeaderOpt = blockHeaders.find(_.number == forkResolver.forkBlockNumber)
 
       forkBlockHeaderOpt match {
-        case Some(forkBlockHeader) if forkBlockHeader.number == forkResolver.forkBlockNumber =>
+        case Some(forkBlockHeader) =>
           val fork = forkResolver.recognizeFork(forkBlockHeader)
 
           log.info("Peer is running the {} fork", fork)
