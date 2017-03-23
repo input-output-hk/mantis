@@ -141,6 +141,8 @@ object RLPImplicits {
 
   implicit def bigIntFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[BigInt]): BigInt = dec.decode(rlp)
 
+  implicit def uInt256FromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[UInt256]): UInt256 = dec.decode(rlp)
+
   implicit def longFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Long]): Long = dec.decode(rlp)
 
   implicit def stringFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[String]): String = dec.decode(rlp)

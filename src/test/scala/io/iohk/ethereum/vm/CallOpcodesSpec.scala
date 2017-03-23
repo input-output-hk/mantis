@@ -82,12 +82,12 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     inputData: ByteString = fxt.inputData,
     gas: BigInt = fxt.requiredGas + fxt.gasMargin,
     to: Address = fxt.extAddr,
-    value: BigInt = fxt.initialBalance / 2
+    value: UInt256 = UInt256(fxt.initialBalance / 2)
   ) {
     private val params = Seq(
       DataWord(gas),
       DataWord(to.bytes),
-      DataWord(value),
+      DataWord(value.n),
       DataWord.Zero,
       DataWord(inputData.size),
       DataWord(inputData.size),
@@ -100,15 +100,15 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     private val stack = Stack.empty().push(if (op == DELEGATECALL) params.take(4) ++ params.drop(5) else params)
     private val mem = Memory.empty.store(DataWord.Zero, inputData)
 
-    val stateIn = ProgramState(context).withStack(stack).withMemory(mem)
-    val stateOut = op.execute(stateIn)
-    val world = stateOut.world
+    val stateIn: ProgramState[MockWorldState, MockStorage] = ProgramState(context).withStack(stack).withMemory(mem)
+    val stateOut: ProgramState[MockWorldState, MockStorage] = op.execute(stateIn)
+    val world: MockWorldState = stateOut.world
 
-    val ownBalance = world.getBalance(context.env.ownerAddr)
-    val extBalance = world.getBalance(to)
+    val ownBalance: UInt256 = world.getBalance(context.env.ownerAddr)
+    val extBalance: UInt256 = world.getBalance(to)
 
-    val ownStorage = world.getStorage(context.env.ownerAddr)
-    val extStorage = world.getStorage(to)
+    val ownStorage: MockStorage = world.getStorage(context.env.ownerAddr)
+    val extStorage: MockStorage = world.getStorage(to)
   }
 
   "CALL" when {
@@ -351,7 +351,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "not update any account's balance" in {
-        call.extBalance shouldEqual 0
+        call.extBalance shouldEqual UInt256.Zero
         call.ownBalance shouldEqual fxt.initialBalance
       }
 

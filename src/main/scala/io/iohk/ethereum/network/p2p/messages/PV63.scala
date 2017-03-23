@@ -49,7 +49,7 @@ object PV63 {
 
       override def decode(rlp: RLPEncodeable): Account = rlp match {
         case RLPList(nonce, balance, storageRoot, codeHash) =>
-          Account(nonce: UInt256, balance: UInt256, byteStringEncDec.decode(storageRoot), byteStringEncDec.decode(codeHash))
+          Account(nonce, balance, byteStringEncDec.decode(storageRoot), byteStringEncDec.decode(codeHash))
         case _ => throw new RuntimeException("Cannot decode Account")
       }
     }
