@@ -17,10 +17,11 @@ object Ledger extends Logger {
     storages: BlockchainStorages,
     stateStorage: NodeStorage): Unit = {
 
-    val blockError = validateBlockBeforeExecution(block, BlockchainImpl(storages))
+    val blockchain = BlockchainImpl(storages)
+    val blockError = validateBlockBeforeExecution(block, blockchain)
     if (blockError.isEmpty) {
       log.debug(s"About to execute txs from block ${block.header}")
-      val (resultingWorldStateProxy, gasUsed) = executeBlockTransactions(block, storages, stateStorage)
+      val (resultingWorldStateProxy, gasUsed) = executeBlockTransactions(block, blockchain, storages, stateStorage)
       log.debug(s"All txs from block ${block.header} were executed")
 
       val worldToPersist = payBlockReward(block, resultingWorldStateProxy)
@@ -42,10 +43,10 @@ object Ledger extends Logger {
     */
   private def executeBlockTransactions(
     block: Block,
+    blockchain: Blockchain,
     storages: BlockchainStorages,
     stateStorage: NodeStorage):
   ExecResult = {
-    val blockchain = BlockchainImpl(storages)
     val initialWorldStateProxy = InMemoryWorldStateProxy(storages, stateStorage,
       blockchain.getBlockHeaderByHash(block.header.hash).map(_.stateRoot)
     )

@@ -26,10 +26,10 @@ object OmmersValidator {
   def validate(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Seq[BlockHeader]] = {
     for {
       _ <- validateOmmersLength(ommers)
+      _ <- validateDuplicatedOmmers(ommers)
       _ <- validateOmmersHeaders(ommers, blockchain)
       _ <- validateOmmersAncestors(blockNumber, ommers, blockchain)
       _ <- validateOmmersNotUsed(blockNumber, ommers, blockchain)
-      _ <- validateDuplicatedOmmers(ommers)
     } yield ommers
   }
 
@@ -68,15 +68,15 @@ object OmmersValidator {
     * @return ommers if valid, an [[OmmersUsedBeforeError]] otherwise
     */
   private def validateOmmersAncestors(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Seq[BlockHeader]] = {
-    val ancestors = getAncestors(blockNumber, OmmerGenerationLimit, blockchain)
+    val ancestorsOpt = collectAncestors(blockNumber, OmmerGenerationLimit, blockchain)
 
-    val validOmmersAncestors: Seq[BlockHeader] => Boolean = anc =>
+    val validOmmersAncestors: Seq[BlockHeader] => Boolean = ancestors =>
       ommers.forall{ ommer =>
-        val ommerIsNotAncestor = anc.forall(_.hash != ommer.hash)
-        val ommersParentIsAncestor = anc.exists(_.parentHash == ommer.parentHash)
+        val ommerIsNotAncestor = ancestors.forall(_.hash != ommer.hash)
+        val ommersParentIsAncestor = ancestors.exists(_.parentHash == ommer.parentHash)
         ommerIsNotAncestor && ommersParentIsAncestor
       }
-    if(ancestors.exists(validOmmersAncestors(_))) Right(ommers)
+    if(ancestorsOpt.exists(validOmmersAncestors)) Right(ommers)
     else Left(OmmersAncestorsError)
   }
 
@@ -90,11 +90,9 @@ object OmmersValidator {
     * @return ommers if valid, an [[OmmersUsedBeforeError]] otherwise
     */
   private def validateOmmersNotUsed(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Seq[BlockHeader]] = {
-    val usedOmmersHashes = getUsedOmmers(blockNumber, OmmerGenerationLimit, blockchain)
+    val ommersFromAncestorsOpt = collectOmmersFromAncestors(blockNumber, OmmerGenerationLimit, blockchain)
 
-    val allOmmersUnused: Seq[BlockHeader] => Boolean = usedOmmHashes =>
-      ommers.intersect(usedOmmHashes).isEmpty
-    if(usedOmmersHashes.exists(allOmmersUnused(_))) Right(ommers)
+    if(ommersFromAncestorsOpt.exists(ommers.intersect(_).isEmpty)) Right(ommers)
     else Left(OmmersUsedBeforeError)
   }
 
@@ -110,21 +108,25 @@ object OmmersValidator {
     else Left(OmmersDuplicatedError)
   }
 
-  private def getAncestors(blockNumber: BigInt, numberOfBlocks: Int, blockchain: Blockchain): Option[Seq[BlockHeader]] = {
-    val ancestors: Seq[Option[BlockHeader]] = (1 to numberOfBlocks)
-      .collect{ case i if blockNumber - i >= 0 => blockNumber - i }
+  private def collectAncestors(blockNumber: BigInt, numberOfBlocks: Int, blockchain: Blockchain): Option[Seq[BlockHeader]] = {
+    val ancestors: Seq[Option[BlockHeader]] = ancestorsBlockNumbers(blockNumber, numberOfBlocks)
       .map{ num => blockchain.getBlockHeaderByNumber(num) }
+
     if(ancestors.exists(_.isEmpty)) None
     else Some(ancestors.flatten)
   }
 
-  private def getUsedOmmers(blockNumber: BigInt, numberOfBlocks: Int, blockchain: Blockchain): Option[Seq[BlockHeader]] = {
-    val usedOmmers: Seq[Option[Seq[BlockHeader]]] = (1 to numberOfBlocks)
-      .collect{ case i if blockNumber - i >= 0 => blockNumber - i }
-      .map{ num => blockchain.getBlockByNumber(num).map(_.body.uncleNodesList) }
-    if(usedOmmers.exists(_.isEmpty)) None
-    else Some(usedOmmers.flatten.flatten)
+  private def collectOmmersFromAncestors(blockNumber: BigInt, numberOfBlocks: Int, blockchain: Blockchain): Option[Seq[BlockHeader]] = {
+    val ancestorsNumbers = ancestorsBlockNumbers(blockNumber, numberOfBlocks)
+    val ommersFromAncestors: Seq[Seq[BlockHeader]] = ancestorsNumbers
+      .flatMap{ num => blockchain.getBlockByNumber(num).map(_.body.uncleNodesList) }
+
+    if(ommersFromAncestors.length == ancestorsNumbers.length) Some(ommersFromAncestors.flatten)
+    else None
   }
+
+  private def ancestorsBlockNumbers(blockNumber: BigInt, numberOfBlocks: Int): Seq[BigInt] =
+    (blockNumber - numberOfBlocks).max(0) until blockNumber
 
   sealed trait OmmersError
 
