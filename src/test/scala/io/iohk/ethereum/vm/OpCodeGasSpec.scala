@@ -62,7 +62,8 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       stateIn.gas should be < expectedGas
     else if (stateOut.error.contains(OutOfGas) && !allowOOG)
       fail(s"Unexpected $OutOfGas error")
-    else if (stateOut.error.isDefined)
+    else if (stateOut.error.isDefined && stateOut.error.collect{ case InvalidJump(dest) => dest }.isEmpty)
+      //Found error that is not an InvalidJump
       fail(s"Unexpected ${stateOut.error.get} error")
     else
       stateOut.gas shouldEqual (stateIn.gas - expectedGas)
