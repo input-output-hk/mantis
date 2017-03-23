@@ -11,3 +11,4 @@ project/plugins/project/
 *.sc
 
 *.log
+*.log.zip
