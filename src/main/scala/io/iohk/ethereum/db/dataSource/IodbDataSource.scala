@@ -48,7 +48,7 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
   }
 
   private def asStorables(keyValues: Seq[(Key, Value)]): Seq[(ByteArrayWrapper, ByteArrayWrapper)] =
-    keyValues.map(kv => ByteArrayWrapper(kv._1.toArray) -> ByteArrayWrapper(kv._2.toArray))
+    keyValues.map{ case (key, value) => ByteArrayWrapper(key.toArray) -> ByteArrayWrapper(value.toArray) }
 }
 
 
