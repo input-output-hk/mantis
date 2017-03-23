@@ -44,7 +44,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def ownAddress: Address = env.ownerAddr
 
-  def ownBalance: BigInt = world.getBalance(ownAddress)
+  def ownBalance: UInt256 = world.getBalance(ownAddress)
 
   def storage: S = world.getStorage(ownAddress)
 

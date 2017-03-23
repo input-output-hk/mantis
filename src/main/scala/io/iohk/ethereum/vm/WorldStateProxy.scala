@@ -40,8 +40,8 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] {
   def accountExists(address: Address): Boolean =
     getAccount(address).isDefined
 
-  def getBalance(address: Address): BigInt =
-    getAccount(address).map(_.balance).getOrElse(0)
+  def getBalance(address: Address): UInt256 =
+    getAccount(address).map(_.balance).getOrElse(UInt256.Zero)
 
   def transfer(from: Address, to: Address, value: BigInt): WS = {
     val debited = getGuaranteedAccount(from).updateBalance(-value)

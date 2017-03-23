@@ -8,6 +8,7 @@ import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode, _}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.vm.UInt256
 
 
 object PV63 {
@@ -48,7 +49,7 @@ object PV63 {
 
       override def decode(rlp: RLPEncodeable): Account = rlp match {
         case RLPList(nonce, balance, storageRoot, codeHash) =>
-          Account(nonce, balance, byteStringEncDec.decode(storageRoot), byteStringEncDec.decode(codeHash))
+          Account(nonce: UInt256, balance: UInt256, byteStringEncDec.decode(storageRoot), byteStringEncDec.decode(codeHash))
         case _ => throw new RuntimeException("Cannot decode Account")
       }
     }
