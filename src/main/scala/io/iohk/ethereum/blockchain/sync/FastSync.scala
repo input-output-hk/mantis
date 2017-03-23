@@ -304,8 +304,7 @@ trait FastSync {
 
     def requestBlockBodies(peer: ActorRef): Unit = {
       val (blockBodiesToGet, remainingBlockBodies) = blockBodiesQueue.splitAt(blockBodiesPerRequest)
-      val handler = context.actorOf(SyncBlockBodiesRequestHandler.props(
-        peer, blockBodiesToGet, appStateStorage))
+      val handler = context.actorOf(SyncBlockBodiesRequestHandler.props(peer, blockBodiesToGet))
       context watch handler
       assignedHandlers += (handler -> peer)
       blockBodiesQueue = remainingBlockBodies

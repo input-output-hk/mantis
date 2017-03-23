@@ -51,7 +51,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     peer.expectMsg(PeerActor.Unsubscribe)
   }
 
-  trait TestSetup extends EphemBlockchainTestSetup {
+  trait TestSetup {
     implicit val system = ActorSystem("FastSyncBlockBodiesRequestHandlerSpec_System")
 
     val time = new VirtualTime
@@ -65,8 +65,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     val fastSyncBlockBodiesRequestHandler: ActorRef =
       parent.childActorOf(SyncBlockBodiesRequestHandler.props(
         peer.ref,
-        requestedHashes,
-        storagesInstance.storages.appStateStorage)(time.scheduler))
+        requestedHashes)(time.scheduler))
   }
 
 }

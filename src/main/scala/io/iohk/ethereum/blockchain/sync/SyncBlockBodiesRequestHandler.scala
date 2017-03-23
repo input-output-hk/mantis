@@ -8,8 +8,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, GetBlockBodies}
 
 class SyncBlockBodiesRequestHandler(
     peer: ActorRef,
-    requestedHashes: Seq[ByteString],
-    appStateStorage: AppStateStorage)(implicit scheduler: Scheduler)
+    requestedHashes: Seq[ByteString])(implicit scheduler: Scheduler)
   extends SyncRequestHandler[GetBlockBodies, BlockBodies](peer) {
 
   override val requestMsg = GetBlockBodies(requestedHashes)
@@ -40,7 +39,7 @@ class SyncBlockBodiesRequestHandler(
 }
 
 object SyncBlockBodiesRequestHandler {
-  def props(peer: ActorRef, requestedHashes: Seq[ByteString], appStateStorage: AppStateStorage)
+  def props(peer: ActorRef, requestedHashes: Seq[ByteString])
            (implicit scheduler: Scheduler): Props =
-    Props(new SyncBlockBodiesRequestHandler(peer, requestedHashes, appStateStorage))
+    Props(new SyncBlockBodiesRequestHandler(peer, requestedHashes))
 }

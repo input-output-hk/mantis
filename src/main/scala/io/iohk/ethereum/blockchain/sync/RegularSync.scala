@@ -98,7 +98,7 @@ trait RegularSync {
         //we have same chain
         if (parent.hash == headers.head.parentHash) {
           val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage)))
+          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
         } else {
           val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
           waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = true)))
@@ -141,7 +141,7 @@ trait RegularSync {
         headersQueue = headersQueue.drop(result.length)
         if (headersQueue.nonEmpty) {
           val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage)))
+          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
         } else {
           context.self ! ResumeRegularSync
         }
