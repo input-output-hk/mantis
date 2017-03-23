@@ -15,8 +15,7 @@ import org.spongycastle.util.encoders.Hex
 object SignedTransaction {
 
   val FirstByteOfAddress = 12
-  val AddressLength = 20
-  val LastByteOfAddress: Int = FirstByteOfAddress + AddressLength
+  val LastByteOfAddress: Int = FirstByteOfAddress + Address.Length
   val negativePointSign = 27
   val newNegativePointSign = 35
   val positivePointSign = 28
@@ -59,8 +58,12 @@ case class SignedTransaction(
   }
 
 
-  lazy val recoveredAddress: Option[Array[Byte]] =
-    recoveredPublicKey.map(key => crypto.kec256(key).slice(FirstByteOfAddress, LastByteOfAddress))
+  lazy val recoveredSenderAddress: Option[Address] =
+    for {
+      key <- recoveredPublicKey
+      addrBytes = crypto.kec256(key).slice(FirstByteOfAddress, LastByteOfAddress)
+      if addrBytes.length == Address.Length
+    } yield Address(addrBytes)
 
   /**
     * new formula for calculating point sign post EIP 155 adoption
@@ -92,13 +95,14 @@ case class SignedTransaction(
     def byteLength(b: BigInt): Int = b.toByteArray.length
 
     byteLength(nonce) <= NonceLength &&
-    (receivingAddress.bytes.isEmpty || receivingAddress.bytes.length == AddressLength) &&
+    //FIXME: the below doesn't make sense, an exception will be thrown if the condition is not met
+    //(receivingAddress.bytes.isEmpty || receivingAddress.bytes.length == AddressLength) &&
     byteLength(gasLimit) <= GasLength &&
     byteLength(gasPrice) <= GasLength &&
     byteLength(value) <= ValueLength &&
     signatureRandom.length <= ECDSASignature.RLength &&
     signature.length <= ECDSASignature.SLength &&
-    recoveredAddress.isDefined && recoveredAddress.get.length == AddressLength
+    recoveredSenderAddress.isDefined
   }
 
   override def toString: String = {
@@ -109,7 +113,7 @@ case class SignedTransaction(
          |signature: ${Hex.toHexString(signature.toArray[Byte])}
          |bytesToSign: ${Hex.toHexString(bytesToSign)}
          |recoveredPublicKey: ${recoveredPublicKey.map(Hex.toHexString)}
-         |recoveredAddress: ${recoveredAddress.map(Hex.toHexString)}
+         |recoveredAddress: $recoveredSenderAddress
          |}""".stripMargin
   }
 }

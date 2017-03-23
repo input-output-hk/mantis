@@ -4,14 +4,15 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.{ Address, BlockHeader }
 
 /** Execution environment constants of an EVM program.
- *  See section 9.3 in Yellow Paper for more detail.
-*/
+  *  See section 9.3 in Yellow Paper for more detail.
+  *  @param ownerAddr address of accounts that owns the code
+  */
 case class ExecEnv(ownerAddr: Address,
-                   senderAddr: Address,
-                   gasPrice: BigInt,
+                   callerAddr: Address,
+                   originAddr: Address,
+                   gasPrice: UInt256,
                    inputData: ByteString,
-                   execAddr: Address,
-                   value: BigInt,
+                   value: UInt256,
                    program: Program,
                    blockHeader: BlockHeader,
                    callDepth: Int)

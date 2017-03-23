@@ -22,6 +22,8 @@ object Config {
 
   val keysFile: String = config.getString("keys-file")
 
+  val shutdownTimeout: Duration = config.getDuration("shutdown-timeout").toMillis.millis
+
   object Network {
     private val networkConfig = config.getConfig("network")
 
@@ -109,7 +111,7 @@ object Config {
   object FastSync {
     private val fastSyncConfig = config.getConfig("fast-sync")
 
-    val continueAfterRestart: Boolean = fastSyncConfig.getBoolean("continue-after-restart")
+    val doFastSync: Boolean = fastSyncConfig.getBoolean("do-fast-sync")
 
     val peersScanInterval: FiniteDuration = fastSyncConfig.getDuration("peers-scan-interval").toMillis.millis
     val blacklistDuration: FiniteDuration = fastSyncConfig.getDuration("blacklist-duration").toMillis.millis

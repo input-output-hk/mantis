@@ -9,7 +9,7 @@ class StackSpec extends FunSuite with Matchers with PropertyChecks {
   val maxStackSize = 32
   val stackGen = Generators.getStackGen(maxSize = maxStackSize)
   val intGen = Gen.choose(0, maxStackSize).filter(_ >= 0)
-  val dataWordGen = Generators.getDataWordGen()
+  val dataWordGen = Generators.getUInt256Gen()
   val dataWordListGen = Generators.getListGen(0, 16, dataWordGen)
 
   test("pop single element") {
@@ -32,7 +32,7 @@ class StackSpec extends FunSuite with Matchers with PropertyChecks {
         vs shouldEqual stack.toSeq.take(i)
         stack1.toSeq shouldEqual stack.toSeq.drop(i)
       } else {
-        vs shouldEqual Seq.fill(i)(DataWord.Zero)
+        vs shouldEqual Seq.fill(i)(UInt256.Zero)
         stack1 shouldEqual stack
       }
     }
