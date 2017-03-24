@@ -50,7 +50,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     val inputData = Generators.getDataWordGen().sample.get.bytes
     val expectedMemCost = calcMemCost(inputData.size, inputData.size, inputData.size / 2)
 
-    val initialBalance = 1000
+    val initialBalance = UInt256(1000)
 
     val requiredGas = {
       val storageCost = 3 * G_sset
@@ -82,7 +82,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     inputData: ByteString = fxt.inputData,
     gas: BigInt = fxt.requiredGas + fxt.gasMargin,
     to: Address = fxt.extAddr,
-    value: UInt256 = UInt256(fxt.initialBalance / 2)
+    value: UInt256 = fxt.initialBalance div UInt256(2)
   ) {
     private val params = Seq(
       DataWord(gas),
@@ -129,7 +129,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       "pass correct addresses and value" in {
         Address(call.extStorage.load(fxt.ownerOffset)) shouldEqual fxt.extAddr
         Address(call.extStorage.load(fxt.callerOffset)) shouldEqual fxt.ownerAddr
-        call.extStorage.load(fxt.valueOffset) shouldEqual call.value
+        call.extStorage.load(fxt.valueOffset) shouldEqual DataWord(call.value.n)
       }
 
       "return 1" in {
@@ -238,14 +238,14 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "not update any account's balance" in {
-        call.extBalance shouldEqual 0
+        call.extBalance shouldEqual UInt256.Zero
         call.ownBalance shouldEqual fxt.initialBalance
       }
 
       "pass correct addresses and value" in {
         Address(call.ownStorage.load(fxt.ownerOffset)) shouldEqual fxt.ownerAddr
         Address(call.ownStorage.load(fxt.callerOffset)) shouldEqual fxt.ownerAddr
-        call.ownStorage.load(fxt.valueOffset) shouldEqual call.value
+        call.ownStorage.load(fxt.valueOffset) shouldEqual DataWord(call.value.n)
       }
 
       "return 1" in {
