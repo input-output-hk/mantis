@@ -15,7 +15,8 @@ import scala.util.Try
 
 object Config {
 
-  private val config = ConfigFactory.load().getConfig("etc-client")
+  private val unresolvedReference = ConfigFactory.parseResources("reference.conf")
+  private val config = ConfigFactory.defaultApplication().withFallback(unresolvedReference).resolve().getConfig("etc-client")
 
   val clientId: String = config.getString("client-id")
 
