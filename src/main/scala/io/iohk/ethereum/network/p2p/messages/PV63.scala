@@ -72,13 +72,12 @@ object PV63 {
           case n: MptExtension =>
             import n._
             RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = false)),
-              child.fold({ hash => byteStringEncDec.encode(hash.hash) }, { node => encode(node) })
+              child.fold(hash => hash.hash, node => encode(node))
             )
           case n: MptBranch =>
             import n._
             RLPList(children.map { e =>
-              e.fold(
-                { mptHash => byteStringEncDec.encode(mptHash.hash) }, { node => encode(node) })
+              e.fold(mptHash => toEncodeable(mptHash.hash), node => encode(node))
             } :+ (value: RLPEncodeable): _*)
         }
       }
@@ -89,7 +88,7 @@ object PV63 {
         case RLPList(hpEncoded, value) =>
           hpDecode(hpEncoded: Array[Byte]) match {
             case (decoded, true) =>
-              MptLeaf(ByteString(decoded), rlpDecode[ByteString](value))
+              MptLeaf(ByteString(decoded), value)
             case (decoded, false) =>
               MptExtension(ByteString(decoded), decodeChild(value))
           }
@@ -102,7 +101,7 @@ object PV63 {
 
         rlp match {
           case bytes: RLPValue if bytes.bytes.length == HashLength || bytes.bytes.length == 0 =>
-            Left(MptHash(rlpDecode[ByteString](bytes)))
+            Left(MptHash(bytes))
 
           case list: RLPList if (list.items.length == ExtensionNodeLength || list.items.length == LeafNodeLength) && encodedLength <= MaxNodeValueSize =>
             Right(decode(list))
@@ -129,9 +128,7 @@ object PV63 {
 
       override def decode(rlp: RLPEncodeable): NodeData = rlp match {
         case rlpList: RLPList =>
-          NodeData(rlpList.items.map { e =>
-            ByteString(e: Array[Byte])
-          })
+          NodeData(rlpList.items.map { e => e: ByteString })
         case _ => throw new RuntimeException("Cannot decode NodeData")
       }
     }
@@ -210,7 +207,7 @@ object PV63 {
       }
 
       override def decode(rlp: RLPEncodeable): GetReceipts = rlp match {
-        case rlpList: RLPList => GetReceipts(rlpList.items.map(rlpDecode[ByteString]))
+        case rlpList: RLPList => GetReceipts(fromEncodeableList[ByteString](rlpList))
         case _ => throw new RuntimeException("Cannot decode GetReceipts")
       }
     }
@@ -238,10 +235,7 @@ object PV63 {
 
       override def decode(rlp: RLPEncodeable): TxLogEntry = rlp match {
         case RLPList(loggerAddress, logTopics: RLPList, data) =>
-          TxLogEntry(
-            Address(rlpDecode[ByteString](loggerAddress)),
-            logTopics.items.map(rlpDecode[ByteString]),
-            rlpDecode[ByteString](data))
+          TxLogEntry(Address(loggerAddress: ByteString), fromEncodeableList[ByteString](logTopics), data)
 
         case _ => throw new RuntimeException("Cannot decode TransactionLog")
       }
@@ -252,14 +246,12 @@ object PV63 {
     implicit val rlpEncDec = new RLPEncoder[Receipt] with RLPDecoder[Receipt] {
       override def encode(obj: Receipt): RLPEncodeable = {
         import obj._
-        RLPList(postTransactionStateHash, cumulativeGasUsed,
-          logsBloomFilter, RLPList(logs.map(TxLogEntryImplicits.rlpEncDec.encode): _*))
+        RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, toEncodeableList[TxLogEntry](logs)(TxLogEntryImplicits.rlpEncDec))
       }
 
       override def decode(rlp: RLPEncodeable): Receipt = rlp match {
         case RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs: RLPList) =>
-          Receipt(rlpDecode[ByteString](postTransactionStateHash), cumulativeGasUsed,
-            rlpDecode[ByteString](logsBloomFilter), logs.items.map(l => rlpDecode[TxLogEntry](l)(TxLogEntryImplicits.rlpEncDec)))
+          Receipt(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, fromEncodeableList[TxLogEntry](logs)(TxLogEntryImplicits.rlpEncDec))
         case _ => throw new RuntimeException("Cannot decode Receipt")
       }
     }
@@ -287,11 +279,11 @@ object PV63 {
     implicit val rlpEncDec = new RLPEncoder[Receipts] with RLPDecoder[Receipts] {
       override def encode(obj: Receipts): RLPEncodeable = {
         import obj._
-        RLPList(receiptsForBlocks.map(r => r:RLPList): _*)
+        RLPList(receiptsForBlocks.map(toEncodeableList[Receipt]): _*)
       }
 
       override def decode(rlp: RLPEncodeable): Receipts = rlp match {
-        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => r.items.map(rlpDecode[Receipt]) })
+        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => fromEncodeableList[Receipt](r) })
         case _ => throw new RuntimeException("Cannot decode Receipts")
       }
     }

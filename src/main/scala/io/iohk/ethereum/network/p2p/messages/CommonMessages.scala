@@ -66,11 +66,11 @@ object CommonMessages {
 
       override def encode(obj: SignedTransactions): RLPEncodeable = {
         import obj._
-        RLPList(txs.map(txRlpEncDec.encode): _*)
+        toEncodeableList(txs)
       }
 
       override def decode(rlp: RLPEncodeable): SignedTransactions = rlp match {
-        case rlpList: RLPList => SignedTransactions(rlpList.items.map(txRlpEncDec.decode))
+        case rlpList: RLPList => SignedTransactions(fromEncodeableList[SignedTransaction](rlpList))
         case _ => throw new RuntimeException("Cannot decode SignedTransactions")
       }
 
@@ -85,6 +85,8 @@ object CommonMessages {
 
   object NewBlock {
 
+    import SignedTransactions.txRlpEncDec
+
     implicit val rlpEncDec = new RLPEncoder[NewBlock] with RLPDecoder[NewBlock] {
 
       override def encode(obj: NewBlock): RLPEncodeable = {
@@ -92,8 +94,8 @@ object CommonMessages {
         RLPList(
           RLPList(
             block.header,
-            RLPList(block.body.transactionList.map(SignedTransactions.txRlpEncDec.encode): _*),
-            RLPList(block.body.uncleNodesList.map(headerRlpEncDec.encode): _*)
+            toEncodeableList(block.body.transactionList),
+            toEncodeableList(block.body.uncleNodesList)
           ),
           totalDifficulty
         )
@@ -105,8 +107,8 @@ object CommonMessages {
             Block(
               headerRlpEncDec.decode(blockHeader),
               BlockBody(
-                transactionList.items.map(SignedTransactions.txRlpEncDec.decode),
-                uncleNodesList.items.map(headerRlpEncDec.decode))),
+                fromEncodeableList[SignedTransaction](transactionList),
+                fromEncodeableList[BlockHeader](uncleNodesList))),
             totalDifficulty
           )
         case _ => throw new RuntimeException("Cannot decode NewBlock")
