@@ -22,7 +22,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(block), maxHeaders, 0, reverse = false)))
     peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
 
-    val responseHeaders = Seq(BlockHeader(Config.Blockchain.genesisHash, ByteString(""), ByteString(""),
+    val responseHeaders = Seq(BlockHeader(testGenesisHash, ByteString(""), ByteString(""),
       ByteString(""), ByteString(""), ByteString(""),
       ByteString(""), 0, block, 0, 0, 0, ByteString(""), ByteString(""), ByteString("")))
 
@@ -51,7 +51,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     resolverPeer.expectMsg(PeerActor.SendMessage(request))
     resolverPeer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
 
-    val responseHeaders = Seq(BlockHeader(Config.Blockchain.genesisHash, ByteString(""), ByteString(""),
+    val responseHeaders = Seq(BlockHeader(testGenesisHash, ByteString(""), ByteString(""),
       ByteString(""), ByteString(""), ByteString(""),
       ByteString(""), 0, block, 0, 0, 0, ByteString(""), ByteString(""), ByteString("")))
 
@@ -70,7 +70,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     time.advance(10.seconds)
 
-    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
+    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref, "got time out waiting for block headers response for requested: Left(1)"))
     parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
@@ -78,6 +78,9 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
   trait TestSetup extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("FastSyncBlockHeadersRequestHandlerSpec_System")
+
+    val testGenesisHash = ByteString("123")
+    blockchain.save(testGenesisHash, 123)
 
     val time = new VirtualTime
 

@@ -1,10 +1,11 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
+import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.PeerActor.Status.{Chain, Handshaked}
+import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -161,7 +162,7 @@ trait RegularSync {
   }
 
   private def resumeWithDifferentPeer(currentPeer: ActorRef) = {
-    blacklist(currentPeer, blacklistDuration)
+    self ! BlacklistPeer(currentPeer, "because of error in response")
     headersQueue = Seq.empty
     context.self ! ResumeRegularSync
   }
@@ -171,7 +172,9 @@ trait RegularSync {
 
   private def bestPeer: Option[ActorRef] = {
     val peersToUse = peersToDownloadFrom
-      .collect { case (ref, Handshaked(_, Chain.ETC, totalDifficulty)) => (ref, totalDifficulty) }
+      .collect {
+        case (ref, Handshaked(_, true, totalDifficulty)) => (ref, totalDifficulty)
+      }
 
     if (peersToUse.nonEmpty) Some(peersToUse.maxBy { case (_, td) => td }._1)
     else None

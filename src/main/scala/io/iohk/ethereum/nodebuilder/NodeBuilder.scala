@@ -2,6 +2,7 @@ package io.iohk.ethereum.nodebuilder
 
 import akka.actor.ActorSystem
 import akka.agent.Agent
+import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{SyncController}
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
@@ -120,6 +121,13 @@ trait ShutdownHookBuilder {
   })
 }
 
+trait GenesisDataLoaderBuilder {
+  self: BlockChainBuilder
+    with StorageBuilder =>
+
+  lazy val genesisDataLoader = new GenesisDataLoader(storagesInstance.dataSource, blockchain)
+}
+
 trait Node extends NodeKeyBuilder
   with ActorSystemBuilder
   with StorageBuilder
@@ -130,3 +138,4 @@ trait Node extends NodeKeyBuilder
   with FastSyncControllerBuilder
   with JSONRpcServerBuilder
   with ShutdownHookBuilder
+  with GenesisDataLoaderBuilder
