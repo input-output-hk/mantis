@@ -2,31 +2,33 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{ActorRef, Props, Scheduler}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.SyncController._
+import io.iohk.ethereum.blockchain.sync.FastSync._
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.MptNodeStorage
 import io.iohk.ethereum.domain.{Account, Blockchain}
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import org.spongycastle.util.encoders.Hex
 
 class FastSyncNodesRequestHandler(
     peer: ActorRef,
     requestedHashes: Seq[HashType],
     blockchain: Blockchain,
     mptNodeStorage: MptNodeStorage)(implicit scheduler: Scheduler)
-  extends FastSyncRequestHandler[GetNodeData, NodeData](peer) {
+  extends SyncRequestHandler[GetNodeData, NodeData](peer) {
 
   override val requestMsg = GetNodeData(requestedHashes.map(_.v))
-  override val responseMsgCode = NodeData.code
+  override val responseMsgCode: Int = NodeData.code
 
   override def handleResponseMsg(nodeData: NodeData): Unit = {
     if (nodeData.values.isEmpty) {
-      fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+      val reason = s"got empty mpt node response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}"
+      syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
     }
 
     val receivedHashes = nodeData.values.map(v => ByteString(kec256(v.toArray[Byte])))
     val remainingHashes = requestedHashes.filterNot(h => receivedHashes.contains(h.v))
     if (remainingHashes.nonEmpty) {
-      fastSyncController ! SyncController.EnqueueNodes(remainingHashes)
+      syncController ! FastSync.EnqueueNodes(remainingHashes)
     }
 
     val hashesToRequest = (nodeData.values.indices zip receivedHashes) flatMap { case (idx, valueHash) =>
@@ -48,21 +50,22 @@ class FastSyncNodesRequestHandler(
       }
     }
 
-    fastSyncController ! SyncController.EnqueueNodes(hashesToRequest.flatten)
-    fastSyncController ! SyncController.UpdateDownloadedNodesCount(nodeData.values.size)
+    syncController ! FastSync.EnqueueNodes(hashesToRequest.flatten)
+    syncController ! FastSync.UpdateDownloadedNodesCount(nodeData.values.size)
 
     log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTakenSoFar())
     cleanupAndStop()
   }
 
   override def handleTimeout(): Unit = {
-    fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
-    fastSyncController ! SyncController.EnqueueNodes(requestedHashes)
+    val reason = s"time out on mpt node response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}"
+    syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
+    syncController ! FastSync.EnqueueNodes(requestedHashes)
     cleanupAndStop()
   }
 
   override def handleTerminated(): Unit = {
-    fastSyncController ! SyncController.EnqueueNodes(requestedHashes)
+    syncController ! FastSync.EnqueueNodes(requestedHashes)
     cleanupAndStop()
   }
 

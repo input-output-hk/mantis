@@ -1,7 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.{Address, TxLogEntry}
 
 object ProgramState {
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramState[W, S] =
@@ -36,6 +36,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   //TODO: investigate whether we need this or should refunds be simply added to current gas
   gasRefund: UInt256 = 0,
   addressesToDelete: Seq[Address] = Seq(),
+  logs: Vector[TxLogEntry] = Vector(),
   halted: Boolean = false,
   error: Option[ProgramError] = None
 ) {
@@ -89,6 +90,9 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def withAddressesToDelete(addresses: Seq[Address]): ProgramState[W, S] =
     copy(addressesToDelete = addressesToDelete ++ addresses)
+
+  def withLog(log: TxLogEntry): ProgramState[W, S] =
+    copy(logs = logs :+ log)
 
   def halt: ProgramState[W, S] =
     copy(halted = true)
