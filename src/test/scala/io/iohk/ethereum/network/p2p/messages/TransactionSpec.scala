@@ -105,12 +105,12 @@ class TransactionSpec extends FlatSpec with Matchers {
   }
 
   it should "report as invalid a tx with long signature" in {
-    val invalidSignature = (0 until ECDSASignature.SLength + 1).map(_ => 1.toByte).toArray
+    val invalidSignature = (0 until ECDSASignature.SLength + 2).map(_ => 1.toByte).toArray
     validTransactionSignatureOldSchema.copy(signature = ByteString(invalidSignature)).syntacticValidity shouldBe false
   }
 
   it should "report as invalid a tx with long signature random" in {
-    val invalidSignatureRandom = (0 until ECDSASignature.RLength + 1).map(_ => 1.toByte).toArray
+    val invalidSignatureRandom = (0 until ECDSASignature.RLength + 2).map(_ => 1.toByte).toArray
     validTransactionSignatureOldSchema.copy(signatureRandom = ByteString(invalidSignatureRandom)).syntacticValidity shouldBe false
   }
 }

@@ -6,9 +6,9 @@ import org.spongycastle.util.encoders.Hex
 
 object Transaction {
 
-  val NonceLength = 32
-  val GasLength = 32
-  val ValueLength = 32
+  val NonceLength = 33
+  val GasLength = 33
+  val ValueLength = 33
 
 }
 
