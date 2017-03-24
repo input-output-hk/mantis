@@ -1,13 +1,13 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.txRlpEncDec
-import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.domain.BlockHeader
 
 import scala.language.implicitConversions
 
@@ -39,11 +39,11 @@ object PV62 {
     implicit val rlpEncDec = new RLPEncoder[NewBlockHashes] with RLPDecoder[NewBlockHashes] {
       override def encode(obj: NewBlockHashes): RLPEncodeable = {
         import obj._
-        toEncodeableList(hashes)
+        toRlpList(hashes)
       }
 
       override def decode(rlp: RLPEncodeable): NewBlockHashes = rlp match {
-        case rlpList: RLPList => NewBlockHashes(fromEncodeableList[BlockHash](rlpList))
+        case rlpList: RLPList => NewBlockHashes(fromRlpList[BlockHash](rlpList))
         case _ => throw new RuntimeException("Cannot decode NewBlockHashes")
       }
     }
@@ -106,15 +106,15 @@ object PV62 {
       override def encode(obj: BlockBody): RLPEncodeable = {
         import obj._
         RLPList(
-          toEncodeableList(transactionList),
-          toEncodeableList(uncleNodesList))
+          toRlpList(transactionList),
+          toRlpList(uncleNodesList))
       }
 
       override def decode(rlp: RLPEncodeable): BlockBody = rlp match {
         case RLPList((transactions: RLPList), (uncles: RLPList)) =>
           BlockBody(
-            fromEncodeableList[SignedTransaction](transactions),
-            fromEncodeableList[BlockHeader](uncles))
+            fromRlpList[SignedTransaction](transactions),
+            fromRlpList[BlockHeader](uncles))
         case _ => throw new RuntimeException("Cannot decode BlockBody")
       }
     }
@@ -133,11 +133,11 @@ object PV62 {
     implicit val rlpEncDec = new RLPEncoder[BlockBodies] with RLPDecoder[BlockBodies] {
       override def encode(obj: BlockBodies): RLPEncodeable = {
         import obj._
-        toEncodeableList(bodies)
+        toRlpList(bodies)
       }
 
       override def decode(rlp: RLPEncodeable): BlockBodies = rlp match {
-        case rlpList: RLPList => BlockBodies(fromEncodeableList[BlockBody](rlpList))
+        case rlpList: RLPList => BlockBodies(fromRlpList[BlockBody](rlpList))
         case _ => throw new RuntimeException("Cannot decode BlockBodies")
       }
     }
@@ -170,11 +170,11 @@ object PV62 {
     implicit val headersRlpEncDec = new RLPEncoder[BlockHeaders] with RLPDecoder[BlockHeaders] {
       override def encode(obj: BlockHeaders): RLPEncodeable = {
         import obj._
-        toEncodeableList(headers)
+        toRlpList(headers)
       }
 
       override def decode(rlp: RLPEncodeable): BlockHeaders = rlp match {
-        case rlpList: RLPList => BlockHeaders(fromEncodeableList[BlockHeader](rlpList))
+        case rlpList: RLPList => BlockHeaders(fromRlpList[BlockHeader](rlpList))
 
         case _ => throw new RuntimeException("Cannot decode BlockHeaders")
       }
@@ -192,11 +192,11 @@ object PV62 {
     implicit val rlpEncDec = new RLPEncoder[GetBlockBodies] with RLPDecoder[GetBlockBodies] {
       override def encode(obj: GetBlockBodies): RLPEncodeable = {
         import obj._
-        toEncodeableList(hashes)
+        toRlpList(hashes)
       }
 
       override def decode(rlp: RLPEncodeable): GetBlockBodies = rlp match {
-        case rlpList: RLPList => GetBlockBodies(fromEncodeableList[ByteString](rlpList))
+        case rlpList: RLPList => GetBlockBodies(fromRlpList[ByteString](rlpList))
 
         case _ => throw new RuntimeException("Cannot decode BlockHeaders")
       }

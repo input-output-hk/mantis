@@ -5,8 +5,9 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
-import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
 
 
@@ -66,11 +67,11 @@ object CommonMessages {
 
       override def encode(obj: SignedTransactions): RLPEncodeable = {
         import obj._
-        toEncodeableList(txs)
+        toRlpList(txs)
       }
 
       override def decode(rlp: RLPEncodeable): SignedTransactions = rlp match {
-        case rlpList: RLPList => SignedTransactions(fromEncodeableList[SignedTransaction](rlpList))
+        case rlpList: RLPList => SignedTransactions(fromRlpList[SignedTransaction](rlpList))
         case _ => throw new RuntimeException("Cannot decode SignedTransactions")
       }
 
@@ -94,8 +95,8 @@ object CommonMessages {
         RLPList(
           RLPList(
             block.header,
-            toEncodeableList(block.body.transactionList),
-            toEncodeableList(block.body.uncleNodesList)
+            toRlpList(block.body.transactionList),
+            toRlpList(block.body.uncleNodesList)
           ),
           totalDifficulty
         )
@@ -107,8 +108,8 @@ object CommonMessages {
             Block(
               headerRlpEncDec.decode(blockHeader),
               BlockBody(
-                fromEncodeableList[SignedTransaction](transactionList),
-                fromEncodeableList[BlockHeader](uncleNodesList))),
+                fromRlpList[SignedTransaction](transactionList),
+                fromRlpList[BlockHeader](uncleNodesList))),
             totalDifficulty
           )
         case _ => throw new RuntimeException("Cannot decode NewBlock")

@@ -1,14 +1,14 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, TxLogEntry}
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.domain.{Account, Address, TxLogEntry}
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode, _}
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.crypto.kec256
 
 
 object PV63 {
@@ -17,11 +17,11 @@ object PV63 {
     implicit val rlpEncDec = new RLPEncoder[GetNodeData] with RLPDecoder[GetNodeData] {
       override def encode(obj: GetNodeData): RLPEncodeable = {
         import obj._
-        toEncodeableList(mptElementsHashes)
+        toRlpList(mptElementsHashes)
       }
 
       override def decode(rlp: RLPEncodeable): GetNodeData = rlp match {
-        case rlpList: RLPList => GetNodeData(fromEncodeableList[ByteString](rlpList))
+        case rlpList: RLPList => GetNodeData(fromRlpList[ByteString](rlpList))
         case _ => throw new RuntimeException("Cannot decode GetNodeData")
       }
     }
@@ -207,7 +207,7 @@ object PV63 {
       }
 
       override def decode(rlp: RLPEncodeable): GetReceipts = rlp match {
-        case rlpList: RLPList => GetReceipts(fromEncodeableList[ByteString](rlpList))
+        case rlpList: RLPList => GetReceipts(fromRlpList[ByteString](rlpList))
         case _ => throw new RuntimeException("Cannot decode GetReceipts")
       }
     }
@@ -235,7 +235,7 @@ object PV63 {
 
       override def decode(rlp: RLPEncodeable): TxLogEntry = rlp match {
         case RLPList(loggerAddress, logTopics: RLPList, data) =>
-          TxLogEntry(Address(loggerAddress: ByteString), fromEncodeableList[ByteString](logTopics), data)
+          TxLogEntry(Address(loggerAddress: ByteString), fromRlpList[ByteString](logTopics), data)
 
         case _ => throw new RuntimeException("Cannot decode TransactionLog")
       }
@@ -246,12 +246,12 @@ object PV63 {
     implicit val rlpEncDec = new RLPEncoder[Receipt] with RLPDecoder[Receipt] {
       override def encode(obj: Receipt): RLPEncodeable = {
         import obj._
-        RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, toEncodeableList[TxLogEntry](logs)(TxLogEntryImplicits.rlpEncDec))
+        RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, toRlpList[TxLogEntry](logs)(TxLogEntryImplicits.rlpEncDec))
       }
 
       override def decode(rlp: RLPEncodeable): Receipt = rlp match {
         case RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs: RLPList) =>
-          Receipt(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, fromEncodeableList[TxLogEntry](logs)(TxLogEntryImplicits.rlpEncDec))
+          Receipt(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, fromRlpList[TxLogEntry](logs)(TxLogEntryImplicits.rlpEncDec))
         case _ => throw new RuntimeException("Cannot decode Receipt")
       }
     }
@@ -279,11 +279,11 @@ object PV63 {
     implicit val rlpEncDec = new RLPEncoder[Receipts] with RLPDecoder[Receipts] {
       override def encode(obj: Receipts): RLPEncodeable = {
         import obj._
-        RLPList(receiptsForBlocks.map(toEncodeableList[Receipt]): _*)
+        RLPList(receiptsForBlocks.map(toRlpList[Receipt]): _*)
       }
 
       override def decode(rlp: RLPEncodeable): Receipts = rlp match {
-        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => fromEncodeableList[Receipt](r) })
+        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => fromRlpList[Receipt](r) })
         case _ => throw new RuntimeException("Cannot decode Receipts")
       }
     }

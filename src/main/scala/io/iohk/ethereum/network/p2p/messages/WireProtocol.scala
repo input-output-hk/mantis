@@ -3,6 +3,7 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
@@ -34,7 +35,7 @@ object WireProtocol {
 
       override def decode(rlp: RLPEncodeable): Hello = rlp match {
         case RLPList(p2pVersion, clientId, (capabilities: RLPList), listenPort, nodeId, _*) =>
-          Hello(p2pVersion, clientId, fromEncodeableList[Capability](capabilities), listenPort, nodeId)
+          Hello(p2pVersion, clientId, fromRlpList[Capability](capabilities), listenPort, nodeId)
         case _ => throw new RuntimeException("Cannot decode Hello")
       }
     }

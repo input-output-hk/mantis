@@ -2,6 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 
@@ -11,11 +12,11 @@ object PV61 {
     implicit val rlpEncDec = new RLPEncoder[NewBlockHashes] with RLPDecoder[NewBlockHashes] {
       override def encode(obj: NewBlockHashes): RLPEncodeable = {
         import obj._
-        toEncodeableList(hashes)
+        toRlpList(hashes)
       }
 
       override def decode(rlp: RLPEncodeable): NewBlockHashes = rlp match {
-        case rlpList: RLPList => NewBlockHashes(fromEncodeableList[ByteString](rlpList))
+        case rlpList: RLPList => NewBlockHashes(fromRlpList[ByteString](rlpList))
         case _ => throw new RuntimeException("Cannot decode NewBlockHashes")
       }
     }

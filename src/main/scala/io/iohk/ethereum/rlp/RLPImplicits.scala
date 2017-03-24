@@ -1,7 +1,6 @@
 package io.iohk.ethereum.rlp
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.rlp.RLP._
 import io.iohk.ethereum.vm.UInt256
 
@@ -127,35 +126,4 @@ object RLPImplicits {
       }
   }
 
-
-
-  implicit def toEncodeable[T](value: T)(implicit enc: RLPEncoder[T]): RLPEncodeable = enc.encode(value)
-
-  def fromEncodeable[T](value: RLPEncodeable)(implicit dec: RLPDecoder[T]): T = dec.decode(value)
-
-  implicit def toEncodeableList[T](values: Seq[T])(implicit enc: RLPEncoder[T]): RLPList =
-    RLPList(values.map(v => toEncodeable[T](v)): _*)
-
-  def fromEncodeableList[T](rlpList: RLPList)(implicit dec: RLPDecoder[T]): Seq[T] =
-    rlpList.items.map(dec.decode)
-
-  implicit def byteStringToEncodeable = toEncodeable[ByteString] _
-
-  implicit def byteFromEncodeable = fromEncodeable[Byte] _
-
-  implicit def shortFromEncodeable = fromEncodeable[Short] _
-
-  implicit def intFromEncodeable = fromEncodeable[Int] _
-
-  implicit def bigIntFromEncodeable = fromEncodeable[BigInt] _
-
-  implicit def uInt256FromEncodeable= fromEncodeable[UInt256] _
-
-  implicit def byteStringFromEncodeable= fromEncodeable[ByteString] _
-
-  implicit def longFromEncodeable= fromEncodeable[Long] _
-
-  implicit def stringFromEncodeable= fromEncodeable[String] _
-
-  implicit def byteArrayFromEncodeable= fromEncodeable[Array[Byte]] _
 }
