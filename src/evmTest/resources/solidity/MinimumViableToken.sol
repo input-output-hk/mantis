@@ -1,4 +1,4 @@
-pragma solidity ^0.4.9;
+pragma solidity ^0.4.10;
 
 contract MinimumViableToken {
     /* This creates an array with all balances */
