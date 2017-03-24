@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{ActorRef, Props, Scheduler}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.FastSyncController._
+import io.iohk.ethereum.blockchain.sync.FastSync._
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.MptNodeStorage
 import io.iohk.ethereum.domain.{Account, Blockchain}
@@ -13,20 +13,20 @@ class FastSyncNodesRequestHandler(
     requestedHashes: Seq[HashType],
     blockchain: Blockchain,
     mptNodeStorage: MptNodeStorage)(implicit scheduler: Scheduler)
-  extends FastSyncRequestHandler[GetNodeData, NodeData](peer) {
+  extends SyncRequestHandler[GetNodeData, NodeData](peer) {
 
   override val requestMsg = GetNodeData(requestedHashes.map(_.v))
   override val responseMsgCode = NodeData.code
 
   override def handleResponseMsg(nodeData: NodeData): Unit = {
     if (nodeData.values.isEmpty) {
-      fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
+      syncController ! BlacklistSupport.BlacklistPeer(peer)
     }
 
     val receivedHashes = nodeData.values.map(v => ByteString(kec256(v.toArray[Byte])))
     val remainingHashes = requestedHashes.filterNot(h => receivedHashes.contains(h.v))
     if (remainingHashes.nonEmpty) {
-      fastSyncController ! FastSyncController.EnqueueNodes(remainingHashes)
+      syncController ! FastSync.EnqueueNodes(remainingHashes)
     }
 
     val hashesToRequest = (nodeData.values.indices zip receivedHashes) flatMap { case (idx, valueHash) =>
@@ -48,21 +48,21 @@ class FastSyncNodesRequestHandler(
       }
     }
 
-    fastSyncController ! FastSyncController.EnqueueNodes(hashesToRequest.flatten)
-    fastSyncController ! FastSyncController.UpdateDownloadedNodesCount(nodeData.values.size)
+    syncController ! FastSync.EnqueueNodes(hashesToRequest.flatten)
+    syncController ! FastSync.UpdateDownloadedNodesCount(nodeData.values.size)
 
     log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTakenSoFar())
     cleanupAndStop()
   }
 
   override def handleTimeout(): Unit = {
-    fastSyncController ! BlacklistSupport.BlacklistPeer(peer)
-    fastSyncController ! FastSyncController.EnqueueNodes(requestedHashes)
+    syncController ! BlacklistSupport.BlacklistPeer(peer)
+    syncController ! FastSync.EnqueueNodes(requestedHashes)
     cleanupAndStop()
   }
 
   override def handleTerminated(): Unit = {
-    fastSyncController ! FastSyncController.EnqueueNodes(requestedHashes)
+    syncController ! FastSync.EnqueueNodes(requestedHashes)
     cleanupAndStop()
   }
 

@@ -3,7 +3,7 @@ package io.iohk.ethereum.network.p2p.validators
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{Receipt, TransactionLog}
+import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
 import io.iohk.ethereum.network.p2p.validators.BlockValidator.{BlockLogBloomError, BlockOmmersHashError, BlockReceiptsHashError, BlockTransactionsHashError}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -42,6 +42,27 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
   "Block" should "return a failure if created based on invalid log bloom header" in {
     BlockValidator.validate(Block(wrongLogBloomBlockHeader, validBlockBody), validReceipts) match {
       case Left(BlockLogBloomError) => succeed
+      case _ => fail
+    }
+  }
+
+  "Block" should "return a block when verifing if a block body corresponds to a block header" in {
+    BlockValidator.validateHeaderAndBody(validBlockHeader, validBlockBody) match {
+      case Right(block) if block equals Block(validBlockHeader, validBlockBody) => succeed
+      case _ => fail
+    }
+  }
+
+  "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong tx hash" in {
+    BlockValidator.validateHeaderAndBody(wrongTransactionsRootHeader, validBlockBody) match {
+      case Left(BlockTransactionsHashError) => succeed
+      case _ => fail
+    }
+  }
+
+  "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong ommers hash" in {
+    BlockValidator.validateHeaderAndBody(wrongOmmersHashHeader, validBlockBody) match {
+      case Left(BlockOmmersHashError) => succeed
       case _ => fail
     }
   }
@@ -125,25 +146,25 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
       postTransactionStateHash = ByteString(Hex.decode("ce0ac687bb90d457b6573d74e4a25ea7c012fee329eb386dbef161c847f9842d")),
       cumulativeGasUsed = 21000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
-      logs = Seq[TransactionLog]()
+      logs = Seq[TxLogEntry]()
     ),
     Receipt(
       postTransactionStateHash = ByteString(Hex.decode("b927d361126302acaa1fa5e93d0b7e349e278231fe2fc2846bfd54f50377f20a")),
       cumulativeGasUsed = 42000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
-      logs = Seq[TransactionLog]()
+      logs = Seq[TxLogEntry]()
     ),
     Receipt(
       postTransactionStateHash = ByteString(Hex.decode("1e913d6bdd412d71292173d7908f8792adcf958b84c89575bc871a1decaee56d")),
       cumulativeGasUsed = 63000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
-      logs = Seq[TransactionLog]()
+      logs = Seq[TxLogEntry]()
     ),
     Receipt(
       postTransactionStateHash = ByteString(Hex.decode("0c6e052bc83482bafaccffc4217adad49f3a9533c69c820966d75ed0154091e6")),
       cumulativeGasUsed = 84000,
       logsBloomFilter = ByteString(Hex.decode("0" * 512)),
-      logs = Seq[TransactionLog]()
+      logs = Seq[TxLogEntry]()
     )
   )
 
