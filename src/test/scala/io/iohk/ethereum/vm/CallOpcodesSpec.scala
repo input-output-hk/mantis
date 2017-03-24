@@ -5,7 +5,7 @@ import org.scalatest.{Matchers, WordSpec}
 import Assembly._
 import GasFee._
 import io.iohk.ethereum.domain.{Account, Address}
-import io.iohk.ethereum.vm.MockWorldState.PC
+import io.iohk.ethereum.vm.MockWorldState._
 
 class CallOpcodesSpec extends WordSpec with Matchers {
 
@@ -82,7 +82,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     inputData: ByteString = fxt.inputData,
     gas: UInt256 = fxt.requiredGas + fxt.gasMargin,
     to: Address = fxt.extAddr,
-    value: UInt256 = fxt.initialBalance div UInt256(2)
+    value: UInt256 = fxt.initialBalance / 2
   ) {
     private val params = Seq(
       gas,
@@ -100,8 +100,8 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     private val stack = Stack.empty().push(if (op == DELEGATECALL) params.take(4) ++ params.drop(5) else params)
     private val mem = Memory.empty.store(UInt256.Zero, inputData)
 
-    val stateIn: ProgramState[MockWorldState, MockStorage] = ProgramState(context).withStack(stack).withMemory(mem)
-    val stateOut: ProgramState[MockWorldState, MockStorage] = op.execute(stateIn)
+    val stateIn: PS = ProgramState(context).withStack(stack).withMemory(mem)
+    val stateOut: PS = op.execute(stateIn)
     val world: MockWorldState = stateOut.world
 
     val ownBalance: UInt256 = world.getBalance(context.env.ownerAddr)
