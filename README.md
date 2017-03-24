@@ -6,9 +6,9 @@
 [![Coverage Status](https://coveralls.io/repos/github/input-output-hk/etc-client/badge.svg?branch=master)](https://coveralls.io/github/input-output-hk/etc-client?branch=master)
 
 
-##A Scala based client for Ethereum Classic 
+## A Scala based client for Ethereum Classic 
 
-###Milestone 1 - **blockSync**.
+### Milestone 1 - blockSync
 
 **This version of the code only supports downloading the blockchain from remote peers.**
 
