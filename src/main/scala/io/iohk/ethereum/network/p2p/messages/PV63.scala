@@ -1,16 +1,14 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, TxLogEntry}
+import io.iohk.ethereum.domain.{Address, TxLogEntry}
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.rlp.RLPImplicits.{byteStringEncDec, _}
+import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode, _}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.vm.UInt256
 
 
 object PV63 {
@@ -19,11 +17,11 @@ object PV63 {
     implicit val rlpEncDec = new RLPEncoder[GetNodeData] with RLPDecoder[GetNodeData] {
       override def encode(obj: GetNodeData): RLPEncodeable = {
         import obj._
-        mptElementsHashes: RLPList
+        toEncodeableList(mptElementsHashes)
       }
 
       override def decode(rlp: RLPEncodeable): GetNodeData = rlp match {
-        case rlpList: RLPList => GetNodeData(rlpList.items.map(rlpDecode[ByteString]))
+        case rlpList: RLPList => GetNodeData(fromEncodeableList[ByteString](rlpList))
         case _ => throw new RuntimeException("Cannot decode GetNodeData")
       }
     }
@@ -46,12 +44,12 @@ object PV63 {
     implicit val rlpEncDec = new RLPEncoder[Account] with RLPDecoder[Account] {
       override def encode(obj: Account): RLPEncodeable = {
         import obj._
-        RLPList(nonce, balance, byteStringEncDec.encode(storageRoot), byteStringEncDec.encode(codeHash))
+        RLPList(nonce, balance, storageRoot, codeHash)
       }
 
       override def decode(rlp: RLPEncodeable): Account = rlp match {
         case RLPList(nonce, balance, storageRoot, codeHash) =>
-          Account(nonce, balance, byteStringEncDec.decode(storageRoot), byteStringEncDec.decode(codeHash))
+          Account(nonce, balance, storageRoot, codeHash)
         case _ => throw new RuntimeException("Cannot decode Account")
       }
     }

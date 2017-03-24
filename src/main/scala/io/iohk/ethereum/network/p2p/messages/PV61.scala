@@ -11,11 +11,11 @@ object PV61 {
     implicit val rlpEncDec = new RLPEncoder[NewBlockHashes] with RLPDecoder[NewBlockHashes] {
       override def encode(obj: NewBlockHashes): RLPEncodeable = {
         import obj._
-        RLPList(hashes.map(e => RLPValue(e.toArray[Byte])): _*)
+        toEncodeableList(hashes)
       }
 
       override def decode(rlp: RLPEncodeable): NewBlockHashes = rlp match {
-        case rlpList: RLPList => NewBlockHashes(rlpList.items.map(e => ByteString(e: Array[Byte])))
+        case rlpList: RLPList => NewBlockHashes(fromEncodeableList[ByteString](rlpList))
         case _ => throw new RuntimeException("Cannot decode NewBlockHashes")
       }
     }

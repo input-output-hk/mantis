@@ -5,8 +5,10 @@ import io.iohk.ethereum.domain.{Block, BlockHeader, SignedTransaction}
 import io.iohk.ethereum.mpt.RLPByteArraySerializable
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits.headerRlpEncDec
 import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
 import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.rlp.RLPImplicits.toEncodeableList
 
 import scala.language.reflectiveCalls
 
@@ -36,7 +38,7 @@ object BlockValidator {
     */
   private def validateOmmers(block: Block): Either[BlockError, Block] = {
     // FIXME Can we avoid encoding ommers again?
-    val encodedOmmers = encode(BlockBody.encodeUncles(block.body.uncleNodesList))
+    val encodedOmmers = encode(toEncodeableList(block.body.uncleNodesList))
     if (kec256(encodedOmmers) sameElements block.header.ommersHash) Right(block)
     else Left(BlockOmmersHashError)
   }

@@ -15,12 +15,12 @@ object CommonMessages {
     implicit val rlpEncDec = new RLPEncoder[Status] with RLPDecoder[Status] {
       override def encode(obj: Status): RLPEncodeable = {
         import obj._
-        RLPList(protocolVersion, networkId, totalDifficulty, bestHash.toArray[Byte], genesisHash.toArray[Byte])
+        RLPList(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash)
       }
 
       override def decode(rlp: RLPEncodeable): Status = rlp match {
         case RLPList(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash) =>
-          Status(protocolVersion, networkId, totalDifficulty, ByteString(bestHash: Array[Byte]), ByteString(genesisHash: Array[Byte]))
+          Status(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash)
         case _ => throw new RuntimeException("Cannot decode Status")
       }
     }
@@ -50,17 +50,14 @@ object CommonMessages {
         import signedTx._
         import signedTx.tx._
         RLPList(nonce, gasPrice, gasLimit, receivingAddress.toArray, value,
-          payload, pointSign, signatureRandom.toArray[Byte], signature.toArray[Byte])
+          payload, pointSign, signatureRandom, signature)
       }
 
       override def decode(rlp: RLPEncodeable): SignedTransaction = rlp match {
         case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value,
         payload, pointSign, signatureRandom, signature) =>
           SignedTransaction(
-            Transaction(nonce, gasPrice, gasLimit, Address(receivingAddress.bytes), value, ByteString(payload: Array[Byte])),
-            pointSign,
-            ByteString(signatureRandom: Array[Byte]),
-            ByteString(signature: Array[Byte]))
+            Transaction(nonce, gasPrice, gasLimit, Address(receivingAddress.bytes), value, payload), pointSign, signatureRandom, signature)
       }
 
     }
