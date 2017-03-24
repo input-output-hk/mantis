@@ -87,6 +87,7 @@ object CommonMessages {
   object NewBlock {
 
     import SignedTransactions.txRlpEncDec
+    import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits.headerRlpEncDec
 
     implicit val rlpEncDec = new RLPEncoder[NewBlock] with RLPDecoder[NewBlock] {
 
