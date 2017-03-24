@@ -1,8 +1,8 @@
 package io.iohk.ethereum
 
 import io.iohk.ethereum.blockchain.sync.SyncController
-import io.iohk.ethereum.network.{ServerActor}
-import io.iohk.ethereum.utils.{Logger}
+import io.iohk.ethereum.network.ServerActor
+import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.nodebuilder.Node
 
 import scala.concurrent.Await
@@ -23,6 +23,8 @@ object App {
         tryAndLogFailure(() => Await.ready(actorSystem.terminate, shutdownTimeoutDuration))
         tryAndLogFailure(() => storagesInstance.dataSources.closeAll)
       }
+
+      genesisDataLoader.loadGenesisData()
 
       server ! ServerActor.StartServer(networkConfig.Server.listenAddress)
       syncController ! SyncController.StartSync

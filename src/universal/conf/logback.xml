@@ -1,42 +1,37 @@
 <configuration>
 
-    <property name="consoleEncoderPattern" value="%d{HH:mm:ss.SSS} - %msg%n" />
+    <property name="stdoutEncoderPattern" value="%d{HH:mm:ss.SSS} %logger{36} - %msg%n" />
     <property name="fileEncoderPattern" value="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} %X{akkaSource} - %msg%n" />
 
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>${consoleEncoderPattern}</pattern>
+            <pattern>${stdoutEncoderPattern}</pattern>
         </encoder>
-        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>INFO</level>
-        </filter>
     </appender>
 
-    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>etc-client.log</file>
         <append>true</append>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <fileNamePattern>etc-client.%i.log.zip</fileNamePattern>
+            <minIndex>1</minIndex>
+            <maxIndex>10</maxIndex>
+        </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <maxFileSize>10MB</maxFileSize>
+        </triggeringPolicy>
         <encoder>
             <pattern>${fileEncoderPattern}</pattern>
         </encoder>
-        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>WARN</level>
-        </filter>
     </appender>
 
     <root level="DEBUG">
-        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE" />
     </root>
 
-    <!-- Changing level of the following loggers to something equal or less than INFO will make the client to
-    generate a low level debugging logs -->
-    <logger name="io.iohk.ethereum.network.ServerActor" level="INFO" additivity="false">
-        <appender-ref ref="FILE"/>
-        <appender-ref ref="CONSOLE"/>
-    </logger>
-    <logger name="io.iohk.ethereum.network" level="WARN" additivity="false">
-        <appender-ref ref="FILE"/>
-    </logger>
+    <logger name="io.iohk.ethereum.network.rlpx.RLPxConnectionHandler" level="INFO" />
     <logger name="io.iohk.ethereum.blockchain.sync.SyncController" level="INFO" />
+    <logger name="io.iohk.ethereum.network.PeerActor" level="INFO" />
 
 </configuration>
