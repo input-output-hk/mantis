@@ -25,6 +25,7 @@ class GenesisDataLoader(dataSource: DataSource, blockchain: Blockchain) extends 
 
   private val bloomLength = 512
   private val hashLength = 64
+  private val addressLength = 40
 
   private implicit val accountSerializer = new RLPByteArraySerializable[Account]
 
@@ -86,7 +87,8 @@ class GenesisDataLoader(dataSource: DataSource, blockchain: Blockchain) extends 
     val initialStateMpt =
       MerklePatriciaTrie[Array[Byte], Account](ephemNodeStorage, (input: Array[Byte]) => crypto.kec256(input))
     val stateMpt = genesisData.alloc.foldLeft(initialStateMpt) { case (mpt, (address, AllocAccount(balance))) =>
-      mpt.put(crypto.kec256(Hex.decode(address)), Account(0, BigInt(balance), emptyTrieRootHash, emptyEvmHash))
+      val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
+      mpt.put(crypto.kec256(Hex.decode(paddedAddress)), Account(0, BigInt(balance), emptyTrieRootHash, emptyEvmHash))
     }
 
     val header = BlockHeader(
