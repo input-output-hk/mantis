@@ -7,6 +7,7 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.MptNodeStorage
 import io.iohk.ethereum.domain.{Account, Blockchain}
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import org.spongycastle.util.encoders.Hex
 
 class FastSyncNodesRequestHandler(
     peer: ActorRef,

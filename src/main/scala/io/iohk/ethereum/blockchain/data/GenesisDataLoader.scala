@@ -30,7 +30,7 @@ class GenesisDataLoader(dataSource: DataSource, blockchain: Blockchain) extends 
   private implicit val accountSerializer = new RLPByteArraySerializable[Account]
 
   private val emptyTrieRootHash = ByteString(crypto.kec256(rlp.encode(Array.emptyByteArray)))
-  private val emptyEvmHash: ByteString = ByteString(crypto.kec256(Array.empty))
+  private val emptyEvmHash: ByteString = crypto.kec256(ByteString.empty)
 
   def loadGenesisData(): Unit = {
     import Config.Blockchain.customGenesisFileOpt
