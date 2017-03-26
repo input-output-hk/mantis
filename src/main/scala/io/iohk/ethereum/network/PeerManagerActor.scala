@@ -3,6 +3,8 @@ package io.iohk.ethereum.network
 import java.net.{InetSocketAddress, URI}
 
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -13,6 +15,7 @@ import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 class PeerManagerActor(
+    peerConfiguration: PeerConfiguration,
     nodeStatusHolder: Agent[NodeStatus],
     peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None)
@@ -39,10 +42,19 @@ class PeerManagerActor(
       peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
       sender() ! PeerCreated(peer)
 
+      if (peers.size > peerConfiguration.maxPeers) {
+        log.info("Maximum number of connected peers reached. Peer {} will be disconnected.", peer.id)
+        peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
+      }
+
     case ConnectToPeer(uri) =>
-      val peer = createPeer(new InetSocketAddress(uri.getHost, uri.getPort))
-      peer.ref ! PeerActor.ConnectTo(uri)
-      sender() ! PeerCreated(peer)
+      if (peers.size >= peerConfiguration.maxPeers) {
+        log.info("Maximum number of connected peers reached. Discarding connecting to {}", uri)
+      } else {
+        val peer = createPeer(new InetSocketAddress(uri.getHost, uri.getPort))
+        peer.ref ! PeerActor.ConnectTo(uri)
+        sender() ! PeerCreated(peer)
+      }
 
     case GetPeers =>
       sender() ! PeersResponse(peers.values.toSeq)
@@ -77,7 +89,7 @@ object PeerManagerActor {
             peerConfiguration: PeerConfiguration,
             appStateStorage: AppStateStorage,
             blockchain: Blockchain): Props =
-    Props(new PeerManagerActor(nodeStatusHolder,
+    Props(new PeerManagerActor(peerConfiguration, nodeStatusHolder,
       peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain)))
 
   def peerFactory(nodeStatusHolder: Agent[NodeStatus],
@@ -99,6 +111,7 @@ object PeerManagerActor {
     val waitForStatusTimeout: FiniteDuration
     val waitForChainCheckTimeout: FiniteDuration
     val fastSyncHostConfiguration: FastSyncHostConfiguration
+    val maxPeers: Int
   }
 
   trait FastSyncHostConfiguration {

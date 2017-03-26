@@ -37,7 +37,7 @@ class PeerActor(
     val blockchain: Blockchain,
     externalSchedulerOpt: Option[Scheduler] = None,
     forkResolverOpt: Option[ForkResolver])
-  extends Actor with ActorLogging with FastSyncHost {
+  extends Actor with ActorLogging with FastSyncHost with Stash {
 
   import Config.Blockchain._
   import PeerActor._
@@ -53,7 +53,7 @@ class PeerActor(
 
   override def receive: Receive = waitingForInitialCommand
 
-  def waitingForInitialCommand: Receive = handleSubscriptions orElse {
+  def waitingForInitialCommand: Receive = handleSubscriptions orElse stashMessages orElse {
     case HandleConnection(connection, remoteAddress) =>
       val rlpxConnection = createRlpxConnection(remoteAddress, None)
       rlpxConnection.ref ! RLPxConnectionHandler.HandleConnection(connection)
@@ -74,7 +74,7 @@ class PeerActor(
   }
 
   def waitingForConnectionResult(rlpxConnection: RLPxConnection, noRetries: Int = 0): Receive =
-    handleSubscriptions orElse handleTerminated(rlpxConnection) orElse {
+    handleSubscriptions orElse handleTerminated(rlpxConnection) orElse stashMessages orElse {
     case RLPxConnectionHandler.ConnectionEstablished =>
       log.info("RLPx connection established, sending Hello")
       rlpxConnection.sendMessage(createHelloMsg())
@@ -123,7 +123,7 @@ class PeerActor(
 
   def waitingForHello(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-    handleDisconnectMsg orElse {
+    handleDisconnectMsg orElse stashMessages orElse {
     case RLPxConnectionHandler.MessageReceived(hello: Hello) =>
       log.info("Protocol handshake finished with peer ({})", hello)
       timeout.cancel()
@@ -160,7 +160,7 @@ class PeerActor(
 
   def waitingForNodeStatus(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse {
+    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse stashMessages orElse {
     case RLPxConnectionHandler.MessageReceived(status: msg.Status) =>
       timeout.cancel()
       log.info("Peer returned status ({})", status)
@@ -172,6 +172,7 @@ class PeerActor(
           context become waitingForForkHeader(rlpxConnection, status, timeout, forkResolver)
         case None =>
           context become new MessageHandler(rlpxConnection, status, 0, true).receive
+          unstashAll()
       }
 
     case StatusReceiveTimeout =>
@@ -184,7 +185,8 @@ class PeerActor(
   def waitingForForkHeader(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, timeout: Cancellable,
                            forkResolver: ForkResolver): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
-    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse handlePeerChainCheck(rlpxConnection) orElse {
+    handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse
+    handlePeerChainCheck(rlpxConnection) orElse stashMessages orElse {
 
     case RLPxConnectionHandler.MessageReceived(msg @ BlockHeaders(blockHeaders)) =>
       timeout.cancel()
@@ -200,6 +202,7 @@ class PeerActor(
           if (forkResolver.isAccepted(fork)) {
             log.info("Fork is accepted")
             context become new MessageHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, true).receive
+            unstashAll()
           } else {
             log.warning("Fork is not accepted")
             disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
@@ -208,6 +211,7 @@ class PeerActor(
         case None =>
           log.info("Peer did not respond with fork block header")
           context become new MessageHandler(rlpxConnection, remoteStatus, 0, false).receive
+          unstashAll()
       }
 
     case ForkHeaderReceiveTimeout => disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
@@ -272,6 +276,10 @@ class PeerActor(
       }
   }
 
+  def stashMessages: Receive = {
+    case _: SendMessage[_] | _: DisconnectPeer => stash()
+  }
+
   class MessageHandler(rlpxConnection: RLPxConnection,
                           initialStatus: msg.Status,
                           var currentMaxBlockNumber: BigInt,
@@ -294,6 +302,9 @@ class PeerActor(
         updateMaxBlock(message)
         notifySubscribers(message)
         processMessage(message)
+
+      case DisconnectPeer(reason) =>
+        disconnectFromPeer(rlpxConnection, reason)
 
       case s: SendMessage[_] =>
         updateMaxBlock(s.message)
@@ -414,6 +425,8 @@ object PeerActor {
 
   case object GetStatus
   case class StatusResponse(status: Status)
+
+  case class DisconnectPeer(reason: Int)
 
   sealed trait Status
   object Status {
