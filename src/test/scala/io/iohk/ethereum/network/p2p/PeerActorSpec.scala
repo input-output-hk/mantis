@@ -16,7 +16,7 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
-import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.network.{ForkResolver, PeerActor}
 import io.iohk.ethereum.network.PeerActor.{GetMaxBlockNumber, MaxBlockNumber}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
@@ -65,7 +65,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }, peerConf, storagesInstance.storages.appStateStorage, blockchain, Some(time.scheduler))))
+      }, peerConf, storagesInstance.storages.appStateStorage, blockchain, Some(time.scheduler),
+        Some(ForkResolver.EtcForkResolver))))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -97,7 +98,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       networkId = 0,
       totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
-      genesisHash = Config.Blockchain.genesisHash)
+      genesisHash = genesisHash)
 
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Status) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
@@ -133,7 +134,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       networkId = 0,
       totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
-      genesisHash = Config.Blockchain.genesisHash)
+      genesisHash = genesisHash)
 
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Status) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
@@ -143,7 +144,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.UselessPeer)))
   }
 
-  it should "stay connected to non-ETC peer until reaching the fork" in new TestSetup {
+  it should "disconnect from non-ETC peer (when node is before fork)" in new TestSetup {
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
@@ -158,7 +159,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       networkId = 0,
       totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
-      genesisHash = Config.Blockchain.genesisHash)
+      genesisHash = genesisHash)
 
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Status) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
@@ -166,10 +167,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeaders) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(nonEtcForkBlockHeader))))
 
-    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(Ping()))
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Pong) => () }
-
-    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(nonEtcForkBlockHeader))))
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.UselessPeer)))
   }
 
@@ -188,7 +185,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       networkId = 0,
       totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty - 2000000, // remote is before the fork
       bestHash = ByteString("blockhash"),
-      genesisHash = Config.Blockchain.genesisHash)
+      genesisHash = genesisHash)
 
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Status) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
@@ -396,7 +393,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Right(firstHeader.hash), 4, 1, reverse = true)))
 
     //then
-    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader, Config.Blockchain.genesisBlockHeader))))
+    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader, blockchain.genesisHeader))))
   }
 
   it should "update max peer when receiving new block" in new TestSetup {
@@ -435,7 +432,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     probe.expectMsg(MaxBlockNumber(daoForkBlockNumber))
 
     //when
-    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(firstHeader, secondHeader, Config.Blockchain.genesisBlockHeader))))
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(firstHeader, secondHeader, blockchain.genesisHeader))))
 
     //then
     peer ! GetMaxBlockNumber(probe.testActor)
@@ -610,6 +607,24 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val storagesInstance =  new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
 
+    val testGenesisHeader = BlockHeader(
+      parentHash = ByteString("0"),
+      ommersHash = ByteString("0"),
+      beneficiary = ByteString("0"),
+      stateRoot = ByteString("0"),
+      transactionsRoot = ByteString("0"),
+      receiptsRoot = ByteString("0"),
+      logsBloom = ByteString("0"),
+      difficulty = 0,
+      number = 0,
+      gasLimit = 4000,
+      gasUsed = 0,
+      unixTimestamp = 0,
+      extraData = ByteString("0"),
+      mixHash = ByteString("0"),
+      nonce = ByteString("0"))
+    blockchain.save(testGenesisHeader)
+
     val daoForkBlockNumber = 1920000
 
     val peerConf = new PeerConfiguration {
@@ -630,6 +645,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
   trait TestSetup extends NodeStatusSetup with BlockUtils {
 
+    val genesisHash = ByteString(Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"))
+
     def setupConnection(): Unit = {
       peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -645,7 +662,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
         networkId = 0,
         totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
         bestHash = ByteString("blockhash"),
-        genesisHash = Config.Blockchain.genesisHash)
+        genesisHash = genesisHash)
 
       rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Status) => () }
       rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
@@ -665,7 +682,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
       peerConf,
       storagesInstance.storages.appStateStorage,
       blockchain,
-      Some(time.scheduler))))
+      Some(time.scheduler),
+      Some(ForkResolver.EtcForkResolver))))
   }
 
 }

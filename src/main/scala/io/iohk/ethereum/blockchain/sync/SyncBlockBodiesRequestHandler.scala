@@ -5,6 +5,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.BlockBodiesReceived
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, GetBlockBodies}
+import org.spongycastle.util.encoders.Hex
 
 class SyncBlockBodiesRequestHandler(
     peer: ActorRef,
@@ -16,7 +17,8 @@ class SyncBlockBodiesRequestHandler(
 
   override def handleResponseMsg(blockBodies: BlockBodies): Unit = {
     if (blockBodies.bodies.isEmpty) {
-      syncController ! BlacklistSupport.BlacklistPeer(peer)
+      val reason = s"got empty block bodies response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
+      syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
     } else {
       syncController ! BlockBodiesReceived(peer, requestedHashes, blockBodies.bodies)
     }
@@ -26,7 +28,8 @@ class SyncBlockBodiesRequestHandler(
   }
 
   override def handleTimeout(): Unit = {
-    syncController ! BlacklistSupport.BlacklistPeer(peer)
+    val reason = s"time out on block bodies response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
+    syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
     syncController ! FastSync.EnqueueBlockBodies(requestedHashes)
     cleanupAndStop()
   }

@@ -7,6 +7,7 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.MptNodeStorage
 import io.iohk.ethereum.domain.{Account, Blockchain}
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import org.spongycastle.util.encoders.Hex
 
 class FastSyncNodesRequestHandler(
     peer: ActorRef,
@@ -16,11 +17,12 @@ class FastSyncNodesRequestHandler(
   extends SyncRequestHandler[GetNodeData, NodeData](peer) {
 
   override val requestMsg = GetNodeData(requestedHashes.map(_.v))
-  override val responseMsgCode = NodeData.code
+  override val responseMsgCode: Int = NodeData.code
 
   override def handleResponseMsg(nodeData: NodeData): Unit = {
     if (nodeData.values.isEmpty) {
-      syncController ! BlacklistSupport.BlacklistPeer(peer)
+      val reason = s"got empty mpt node response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}"
+      syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
     }
 
     val receivedHashes = nodeData.values.map(v => ByteString(kec256(v.toArray[Byte])))
@@ -56,7 +58,8 @@ class FastSyncNodesRequestHandler(
   }
 
   override def handleTimeout(): Unit = {
-    syncController ! BlacklistSupport.BlacklistPeer(peer)
+    val reason = s"time out on mpt node response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}"
+    syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
     syncController ! FastSync.EnqueueNodes(requestedHashes)
     cleanupAndStop()
   }
