@@ -124,6 +124,9 @@ trait Blockchain {
     */
   protected def getHashByBlockNumber(number: BigInt): Option[ByteString]
 
+  def genesisHeader: BlockHeader = getBlockHeaderByNumber(0).get
+
+  def genesisBlock: Block = getBlockByNumber(0).get
 }
 
 class BlockchainImpl(
@@ -136,17 +139,11 @@ class BlockchainImpl(
                       protected val totalDifficultyStorage: TotalDifficultyStorage
                     ) extends Blockchain {
 
-  override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = if (hash == Config.Blockchain.genesisHash) {
-    Some(Config.Blockchain.genesisBlockHeader)
-  } else {
+  override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
     blockHeadersStorage.get(hash)
-  }
 
-  override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] = if (hash == Config.Blockchain.genesisHash) {
-    Some(Config.Blockchain.genesisBlockBody)
-  } else {
+  override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] =
     blockBodiesStorage.get(hash)
-  }
 
   override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
 
@@ -172,11 +169,8 @@ class BlockchainImpl(
 
   override def save(node: MptNode): Unit = mptNodeStorage.put(node)
 
-  override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = if (number == 0) {
-    Some(Config.Blockchain.genesisHash)
-  } else {
+  override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     blockNumberMappingStorage.get(number)
-  }
 
   private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit = blockNumberMappingStorage.put(number, hash)
 

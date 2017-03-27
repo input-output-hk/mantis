@@ -1,6 +1,6 @@
 package io.iohk.ethereum.db.dataSource
 
-case class EphemDataSource(var storage: Map[IndexedSeq[Byte], IndexedSeq[Byte]]) extends DataSource {
+class EphemDataSource(var storage: Map[IndexedSeq[Byte], IndexedSeq[Byte]]) extends DataSource {
 
   override def get(namespace: Namespace, key: Key): Option[Value] = storage.get(namespace ++: key)
 
@@ -12,7 +12,10 @@ case class EphemDataSource(var storage: Map[IndexedSeq[Byte], IndexedSeq[Byte]])
     this
   }
 
-  override def clear: DataSource = EphemDataSource(Map())
+  override def clear: DataSource = {
+    storage = Map()
+    this
+  }
 
   override def close(): Unit = ()
 
@@ -20,5 +23,5 @@ case class EphemDataSource(var storage: Map[IndexedSeq[Byte], IndexedSeq[Byte]])
 }
 
 object EphemDataSource {
-  def apply(): EphemDataSource = EphemDataSource(Map())
+  def apply(): EphemDataSource = new EphemDataSource(Map())
 }
