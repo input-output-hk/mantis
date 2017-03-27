@@ -49,7 +49,7 @@ class PeerManagerActor(
 
     case ConnectToPeer(uri) =>
       if (peers.size >= peerConfiguration.maxPeers) {
-        log.info("Maximum number of connected peers reached. Discarding connecting to {}", uri)
+        log.info("Maximum number of connected peers reached. Not connecting to {}", uri)
       } else {
         val peer = createPeer(new InetSocketAddress(uri.getHost, uri.getPort))
         peer.ref ! PeerActor.ConnectTo(uri)
