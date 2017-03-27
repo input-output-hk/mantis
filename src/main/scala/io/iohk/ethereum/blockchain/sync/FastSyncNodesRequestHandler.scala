@@ -33,20 +33,20 @@ class FastSyncNodesRequestHandler(
 
     val hashesToRequest = (nodeData.values.indices zip receivedHashes) flatMap { case (idx, valueHash) =>
       requestedHashes.find(_.v == valueHash) map {
-        case StateMptNodeHash(hash) =>
-          handleMptNode(hash, nodeData.getMptNode(idx))
+        case StateMptNodeHash(_) =>
+          handleMptNode(nodeData.getMptNode(idx))
 
-        case ContractStorageMptNodeHash(hash) =>
-          handleContractMptNode(hash, nodeData.getMptNode(idx))
+        case ContractStorageMptNodeHash(_) =>
+          handleContractMptNode(nodeData.getMptNode(idx))
 
         case EvmCodeHash(hash) =>
           val evmCode = nodeData.values(idx)
           blockchain.save(hash, evmCode)
           Nil
 
-        case StorageRootHash(hash) =>
+        case StorageRootHash(_) =>
           val rootNode = nodeData.getMptNode(idx)
-          handleContractMptNode(hash, rootNode)
+          handleContractMptNode(rootNode)
       }
     }
 
@@ -69,7 +69,7 @@ class FastSyncNodesRequestHandler(
     cleanupAndStop()
   }
 
-  private def handleMptNode(hash: ByteString, mptNode: MptNode): Seq[HashType] = mptNode match {
+  private def handleMptNode(mptNode: MptNode): Seq[HashType] = mptNode match {
     case n: MptLeaf =>
       val evm = n.getAccount.codeHash
       val storage = n.getAccount.storageRoot
@@ -98,7 +98,7 @@ class FastSyncNodesRequestHandler(
         _ => Nil)
     }
 
-  private def handleContractMptNode(hash: ByteString, mptNode: MptNode): Seq[HashType] = {
+  private def handleContractMptNode(mptNode: MptNode): Seq[HashType] = {
     mptNode match {
       case n: MptLeaf =>
         mptNodeStorage.put(n)
