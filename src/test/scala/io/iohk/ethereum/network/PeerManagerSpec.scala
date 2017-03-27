@@ -20,7 +20,7 @@ class PeerManagerSpec extends FlatSpec with Matchers {
 
   "PeerManager" should "try to connect to bootstrap nodes on startup" in new TestSetup {
     val peerManager = TestActorRef(Props(new PeerManagerActor(
-      peerConfiguration,nodeStatusHolder, peerFactory, Some(time.scheduler))))
+      peerConfiguration, peerFactory, Some(time.scheduler))))(system)
 
     time.advance(800)
 
@@ -31,7 +31,7 @@ class PeerManagerSpec extends FlatSpec with Matchers {
 
   it should "retry connections to remaining bootstrap nodes" in new TestSetup {
     val peerManager = TestActorRef(Props(new PeerManagerActor(
-      peerConfiguration, nodeStatusHolder, peerFactory, Some(time.scheduler))))
+      peerConfiguration, peerFactory, Some(time.scheduler))))(system)
 
     time.advance(800)
 
@@ -47,7 +47,7 @@ class PeerManagerSpec extends FlatSpec with Matchers {
 
   it should "disconnect the peer when limit is reached" in new TestSetup {
     val peerManager = TestActorRef(Props(new PeerManagerActor(
-      peerConfiguration, nodeStatusHolder, peerFactory, Some(time.scheduler))))
+      peerConfiguration, peerFactory, Some(time.scheduler))))
 
     time.advance(800) // connect to 2 bootstrap peers
 

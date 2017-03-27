@@ -72,8 +72,7 @@ object WireProtocol {
       }
 
       override def decode(rlp: RLPEncodeable): Disconnect = rlp match {
-        case rlpList: RLPList =>
-          Disconnect(reason = rlpList.items.head)
+        case RLPList(reason, _*) => Disconnect(reason = reason)
         case _ => throw new RuntimeException("Cannot decode Disconnect")
       }
     }
