@@ -65,8 +65,9 @@ class SyncController(
   }
 
   def handlePeerUpdates: Receive = {
-    case PeerManagerActor.PeersResponse(peers) =>
-      peers.foreach(_.ref ! PeerActor.GetStatus)
+    case peers: PeerManagerActor.Peers =>
+      handshakedPeers = peers.handshaked.map { case (k, v) => (k.ref, v) }
+      // watch !?
 
     case PeerActor.StatusResponse(status: PeerStatus.Handshaked) =>
       if (!handshakedPeers.contains(sender()) && !isBlacklisted(sender())) {

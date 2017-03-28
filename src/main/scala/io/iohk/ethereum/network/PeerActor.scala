@@ -73,20 +73,20 @@ class PeerActor(
     RLPxConnection(ref, remoteAddress, uriOpt)
   }
 
-  def waitingForConnectionResult(rlpxConnection: RLPxConnection, noRetries: Int = 0): Receive =
+  def waitingForConnectionResult(rlpxConnection: RLPxConnection, numRetries: Int = 0): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse stashMessages orElse {
     case RLPxConnectionHandler.ConnectionEstablished =>
       log.info("RLPx connection established, sending Hello")
       rlpxConnection.sendMessage(createHelloMsg())
       val timeout = scheduler.scheduleOnce(3.seconds, self, ProtocolHandshakeTimeout)
-      context become waitingForHello(rlpxConnection, timeout)
+      context become waitingForHello(rlpxConnection, timeout, numRetries)
 
     case RLPxConnectionHandler.ConnectionFailed =>
       log.warning("Failed to establish RLPx connection")
       rlpxConnection.uriOpt match {
-        case Some(uri) if noRetries < peerConfiguration.connectMaxRetries =>
+        case Some(uri) if numRetries < peerConfiguration.connectMaxRetries =>
           context unwatch rlpxConnection.ref
-          scheduleConnectRetry(uri, noRetries)
+          scheduleConnectRetry(uri, numRetries)
         case Some(uri) =>
           log.warning("No more reconnect attempts left, removing peer")
           context stop self
@@ -112,16 +112,16 @@ class PeerActor(
       nodeId = ByteString(nodeStatus.nodeId))
   }
 
-  private def scheduleConnectRetry(uri: URI, noRetries: Int): Unit = {
+  private def scheduleConnectRetry(uri: URI, numRetries: Int): Unit = {
     log.info("Scheduling connection retry in {}", peerConfiguration.connectRetryDelay)
     scheduler.scheduleOnce(peerConfiguration.connectRetryDelay, self, RetryConnectionTimeout)
     context become {
-      case RetryConnectionTimeout => reconnect(uri, noRetries + 1)
+      case RetryConnectionTimeout => reconnect(uri, numRetries + 1)
       case GetStatus => sender() ! StatusResponse(Connecting)
     }
   }
 
-  def waitingForHello(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
+  def waitingForHello(rlpxConnection: RLPxConnection, timeout: Cancellable, numRetries: Int): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
     handleDisconnectMsg orElse stashMessages orElse {
     case RLPxConnectionHandler.MessageReceived(hello: Hello) =>
@@ -140,7 +140,7 @@ class PeerActor(
       log.warning("Timeout while waiting for Hello")
       disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
 
-    case GetStatus => sender() ! StatusResponse(Handshaking)
+    case GetStatus => sender() ! StatusResponse(Handshaking(numRetries))
   }
 
   private def getBestBlockHeader() = {
@@ -179,7 +179,7 @@ class PeerActor(
       log.warning("Timeout while waiting status")
       disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
 
-    case GetStatus => sender() ! StatusResponse(Handshaking)
+    case GetStatus => sender() ! StatusResponse(Handshaking(0))
   }
 
   def waitingForForkHeader(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, timeout: Cancellable,
@@ -216,7 +216,7 @@ class PeerActor(
 
     case ForkHeaderReceiveTimeout => disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
 
-    case GetStatus => sender() ! StatusResponse(Handshaking)
+    case GetStatus => sender() ! StatusResponse(Handshaking(0))
   }
 
   private def disconnectFromPeer(rlpxConnection: RLPxConnection, reason: Int): Unit = {
@@ -234,17 +234,17 @@ class PeerActor(
     case Terminated(actor) if actor == rlpxConnection.ref =>
       log.error("Connection closed unexpectedly")
       rlpxConnection.uriOpt match {
-        case Some(uri) => scheduleConnectRetry(uri, noRetries = 0)
+        case Some(uri) => scheduleConnectRetry(uri, numRetries = 0)
         case None => context stop self
       }
   }
 
-  def reconnect(uri: URI, noRetries: Int): Unit = {
+  def reconnect(uri: URI, numRetries: Int): Unit = {
     log.info("Trying to reconnect")
     val address = new InetSocketAddress(uri.getHost, uri.getPort)
     val newConnection = createRlpxConnection(address, Some(uri))
     newConnection.ref ! RLPxConnectionHandler.ConnectTo(uri)
-    context become waitingForConnectionResult(newConnection, noRetries)
+    context become waitingForConnectionResult(newConnection, numRetries)
   }
 
   def handlePingMsg(rlpxConnection: RLPxConnection): Receive = {
@@ -432,7 +432,7 @@ object PeerActor {
   object Status {
     case object Idle extends Status
     case object Connecting extends Status
-    case object Handshaking extends Status
+    case class Handshaking(numRetries: Int) extends Status
     case class Handshaked(initialStatus: msg.Status, forkAccepted: Boolean, totalDifficulty: BigInt) extends Status
     case object Disconnected extends Status
   }

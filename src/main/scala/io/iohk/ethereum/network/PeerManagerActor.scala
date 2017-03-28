@@ -2,11 +2,14 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
+import akka.util.Timeout
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.network.PeerActor.Status.{Handshaking, Handshaked}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
@@ -14,12 +17,16 @@ import akka.agent.Agent
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
+import scala.util.{Success, Failure, Try}
+
+// scalastyle:off
 class PeerManagerActor(
     peerConfiguration: PeerConfiguration,
     peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging {
 
+  import akka.pattern.{ask, pipe}
   import PeerManagerActor._
   import Config.Network.Discovery._
 
@@ -36,27 +43,30 @@ class PeerManagerActor(
 
   override def receive: Receive = {
     case HandlePeerConnection(connection, remoteAddress) =>
-      val peer = createPeer(remoteAddress)
-      log.debug("Peer {} handling incoming peer connection from {}", peer.id, remoteAddress)
-      peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
-      sender() ! PeerCreated(peer)
+      tryCleanupPeersToFreeUpLimit() map { res =>
+        val peer = createPeer(remoteAddress)
+        log.debug("Peer {} handling incoming peer connection from {}", peer.id, remoteAddress)
+        peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
+        sender() ! PeerCreated(peer)
 
-      if (peers.size > peerConfiguration.maxPeers) {
-        log.info("Maximum number of connected peers reached. Peer {} will be disconnected.", peer.id)
-        peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
+        res.failed.foreach { _ =>
+          log.info("Maximum number of connected peers reached. Peer {} will be disconnected.", peer.id)
+          peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
+        }
       }
 
     case ConnectToPeer(uri) =>
-      if (peers.size >= peerConfiguration.maxPeers) {
-        log.info("Maximum number of connected peers reached. Not connecting to {}", uri)
-      } else {
-        val peer = createPeer(new InetSocketAddress(uri.getHost, uri.getPort))
-        peer.ref ! PeerActor.ConnectTo(uri)
-        sender() ! PeerCreated(peer)
+      tryCleanupPeersToFreeUpLimit() map {
+        case Success(_) =>
+          val peer = createPeer(new InetSocketAddress(uri.getHost, uri.getPort))
+          peer.ref ! PeerActor.ConnectTo(uri)
+          sender() ! PeerCreated(peer)
+        case Failure(_) =>
+          log.info("Maximum number of connected peers reached. Not connecting to {}", uri)
       }
 
     case GetPeers =>
-      sender() ! PeersResponse(peers.values.toSeq)
+      getPeers().pipeTo(sender())
 
     case Terminated(ref) =>
       peers -= ref.path.name
@@ -79,6 +89,43 @@ class PeerManagerActor(
     val peer = Peer(addr, ref)
     peers += peer.id -> peer
     peer
+  }
+
+  def getPeers(): Future[Peers] = {
+    implicit val timeout = Timeout(2.seconds)
+
+    Future.traverse(peers.values) { peer =>
+      (peer.ref ? PeerActor.GetStatus)
+        .mapTo[PeerActor.StatusResponse]
+        .map(sr => (peer, sr.status))
+    }.map(r => Peers.apply(r.toMap))
+  }
+
+  def tryCleanupPeersToFreeUpLimit(): Future[Try[Unit]] = {
+    getPeers() map { peers =>
+
+      val peersToPotentiallyDisconnect = peers.peers.filter {
+        case (_, Handshaking(numRetries)) if numRetries > 0 => true
+        case (_, PeerActor.Status.Disconnected) => true
+        case _ => false
+      }
+
+      if (peers.peers.size - peersToPotentiallyDisconnect.size >= peerConfiguration.maxPeers) {
+        Failure(new RuntimeException("Too many peers"))
+      } else {
+        val numPeersToDisconnect =
+          (peers.peers.size + 1 - peerConfiguration.maxPeers) max 0
+
+        val peersToDisconnect = peersToPotentiallyDisconnect.toSeq.sortBy {
+          case (_, PeerActor.Status.Disconnected) => 0
+          case (_, _: Handshaking) => 1
+          case _ => 2
+        }.take(numPeersToDisconnect)
+
+        peersToDisconnect.foreach { _._1.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers) }
+        Success(())
+      }
+    }
   }
 
 }
@@ -131,7 +178,10 @@ object PeerManagerActor {
   case class PeerCreated(peer: Peer)
 
   case object GetPeers
-  case class PeersResponse(peers: Seq[Peer])
+  case class Peers(peers: Map[Peer, PeerActor.Status]) {
+    def handshaked: Map[Peer, PeerActor.Status.Handshaked] =
+      peers.collect { case (p, h: PeerActor.Status.Handshaked) => (p, h) }
+  }
 
   private case object ScanBootstrapNodes
 }
