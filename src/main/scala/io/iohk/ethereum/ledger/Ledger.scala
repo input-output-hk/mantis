@@ -136,7 +136,7 @@ object Ledger extends Logger {
     * @return Either the validated transaction or an error description
     */
   private def validateNonce(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): Either[String, SignedTransaction] = {
-    if (worldStateProxy.getAccount(stx.recoveredSenderAddress.get).map(_.nonce).contains(stx.tx.nonce)) Right(stx)
+    if (worldStateProxy.getAccount(stx.sender).map(_.nonce).contains(stx.tx.nonce)) Right(stx)
     else Left("Account nonce is different from TX sender nonce")
   }
 
@@ -160,7 +160,7 @@ object Ledger extends Logger {
     */
   private def validateAccountHasEnoughGasToPayUpfrontCost(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy):
   Either[String, SignedTransaction] = {
-    val accountBalance = worldStateProxy.getGuaranteedAccount(stx.recoveredSenderAddress.get).balance
+    val accountBalance = worldStateProxy.getGuaranteedAccount(stx.sender).balance
     val upfrontCost = calculateUpfrontCost(stx.tx)
     if (accountBalance >= upfrontCost) Right(stx)
     else Left(s"Sender account doesn't have enough balance to pay upfront cost $upfrontCost > $accountBalance")
@@ -176,7 +176,7 @@ object Ledger extends Logger {
     * @return
     */
   private def updateAccountBeforeExecution(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    val senderAddress = stx.recoveredSenderAddress.get
+    val senderAddress = stx.sender
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
     worldStateProxy.saveAccount(senderAddress, account.copy(
       nonce = account.nonce + 1,

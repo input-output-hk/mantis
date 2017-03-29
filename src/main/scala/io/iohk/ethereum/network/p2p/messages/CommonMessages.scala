@@ -60,7 +60,8 @@ object CommonMessages {
             Transaction(nonce, gasPrice, gasLimit, Address(receivingAddress.bytes), value, ByteString(payload: Array[Byte])),
             pointSign,
             ByteString(signatureRandom: Array[Byte]),
-            ByteString(signature: Array[Byte]))
+            ByteString(signature: Array[Byte])
+          ).getOrElse(throw new Exception("Tx with invalid signature"))
       }
 
     }

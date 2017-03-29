@@ -62,9 +62,8 @@ object SignedTransactionValidator {
 
     val validR = r > 0 && r < secp256k1n
     val validS = s > 0 && s < (if(fromBeforeHomestead) secp256k1n else secp256k1n / 2)
-    val validV = stx.recoveredPointSign.isDefined
 
-    if(validR && validS && validV && stx.recoveredSenderAddress.isDefined) Right(stx)
+    if(validR && validS) Right(stx)
     else Left(TransactionSignatureError)
   }
 }
