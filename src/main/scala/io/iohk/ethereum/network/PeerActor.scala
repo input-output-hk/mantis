@@ -227,8 +227,8 @@ class PeerActor(
   }
 
   def handleTerminated(rlpxConnection: RLPxConnection): Receive = {
-    case Terminated(actor) if actor == rlpxConnection.ref => //todo here, add more debugging info to self destructing
-      log.error("Connection closed unexpectedly")
+    case Terminated(actor) if actor == rlpxConnection.ref =>
+      log.warning(s"Underlying rlpx connection with peer $peerId closed")
       rlpxConnection.uriOpt match {
         case Some(uri) => scheduleConnectRetry(uri, noRetries = 0)
         case None => context stop self
