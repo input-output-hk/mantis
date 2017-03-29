@@ -38,7 +38,7 @@ class InMemorySimpleMapProxySpec extends FlatSpec with Matchers {
     assertNotContainsKey(updatedProxy, 1)
     assertContains(updatedProxy.inner, 1, 1)
 
-    val commitedProxy = updatedProxy.persist
+    val commitedProxy = updatedProxy.persist()
     assertNotContainsKey(commitedProxy, 1)
     assertNotContainsKey(commitedProxy.inner, 1)
   }
@@ -56,7 +56,7 @@ class InMemorySimpleMapProxySpec extends FlatSpec with Matchers {
     assertContains(updatedProxy, 1, 2)
     assertNotContains(updatedProxy.inner, 1, 2)
 
-    val commitedProxy = updatedProxy.persist
+    val commitedProxy = updatedProxy.persist()
     assertContains(commitedProxy, 1, 2)
     assertContains(commitedProxy.inner, 1, 2)
   }
