@@ -206,7 +206,7 @@ class InMemoryWorldStateProxy private(
   val evmCodeStorage: InMemorySimpleMapProxy[CodeHash, Code, EvmCodeStorage],
   // Account's code by Address
   val accountCodes: Map[Address, Code],
-  val getBlockByNumber: (BigInt) => Option[Code]
+  val getBlockByNumber: (BigInt) => Option[ByteString]
 ) extends WorldStateProxy[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage] {
 
   import InMemoryWorldStateProxy._
