@@ -9,6 +9,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.vmrunner.{ABI, MockVmInput}
 import io.iohk.ethereum.vmrunner.Utils
 import io.iohk.ethereum.{rlp, crypto}
@@ -40,7 +41,7 @@ trait EvmTestEnv {
 
   def createAccount(balance: BigInt = 0): Address = {
     val newAddress = Address(Random.nextLong())
-    internalWorld = world.saveAccount(newAddress, Account.Empty.copy(balance = balance))
+    internalWorld = world.saveAccount(newAddress, Account.Empty.copy(balance = UInt256(balance)))
     newAddress
   }
 
@@ -73,7 +74,7 @@ trait EvmTestEnv {
 
     internalWorld = result.world
       .saveAccount(creatorAddress, creator.increaseNonce)
-      .saveAccount(contractAddress, Account(0, value, Account.EmptyStorageRootHash, kec256(result.returnData)))
+      .saveAccount(contractAddress, Account(UInt256(0), UInt256(value), Account.EmptyStorageRootHash, kec256(result.returnData)))
       .saveCode(contractAddress, result.returnData)
 
     (result, new Contract(name, contractAddress))

@@ -13,7 +13,7 @@ class ContractCallingItselfSpec extends FreeSpec with Matchers {
 
       contract.getSomeVar().call().returnData shouldBe UInt256(10).bytes
 
-      val result = contract.doubleSomeVar().call()
+      val result = contract.callSelf().call()
       result.error shouldBe None
 
       contract.getSomeVar().call().returnData shouldBe UInt256(20).bytes
