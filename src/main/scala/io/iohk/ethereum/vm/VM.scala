@@ -17,7 +17,6 @@ object VM {
     ProgramResult[W, S](
       finalState.returnData,
       finalState.gas,
-      context.startGas - finalState.gas,
       finalState.world,
       finalState.addressesToDelete,
       finalState.logs,

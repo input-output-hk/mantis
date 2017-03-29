@@ -1,5 +1,6 @@
 package io.iohk.ethereum.db.storage
 
+import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.NodeStorage._
 
@@ -20,6 +21,6 @@ class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, 
 }
 
 object NodeStorage {
-  type NodeHash = Array[Byte]
+  type NodeHash = ByteString
   type NodeEncoded = Array[Byte]
 }
