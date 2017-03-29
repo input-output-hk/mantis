@@ -53,7 +53,7 @@ object InMemoryWorldStateProxy {
     * @param worldState Proxy to persist
     * @return Updated world
     */
-  def persist(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
+  private def persist(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     (commitState _ andThen persistStorages) (worldState)
 
   /**
