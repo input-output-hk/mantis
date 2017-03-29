@@ -137,14 +137,6 @@ class PeerManagerSpec extends FlatSpec with Matchers {
 
     val time = new VirtualTime
 
-    val nodeKey = crypto.generateKeyPair()
-
-    val nodeStatus = NodeStatus(
-      key = nodeKey,
-      serverStatus = ServerStatus.NotListening)
-
-    val nodeStatusHolder = Agent(nodeStatus)
-
     var createdPeers: Seq[TestProbe] = Nil
 
     val peerConfiguration = Config.Network.peer
