@@ -5,6 +5,7 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, TxLogEntry}
 import io.iohk.ethereum.network.p2p.Message.{PV63 => constantPV63, decode => msgDecode}
 import io.iohk.ethereum.network.p2p.messages.PV63.{Receipt, Receipts}
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.scalatest.{FlatSpec, Matchers}

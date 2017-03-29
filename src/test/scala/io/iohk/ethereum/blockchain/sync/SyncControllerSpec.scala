@@ -363,14 +363,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
   trait TestSetup extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("FastSyncControllerSpec_System")
 
-    val nodeKey: AsymmetricCipherKeyPair = crypto.generateKeyPair()
-
-    val nodeStatus = NodeStatus(
-      key = nodeKey,
-      serverStatus = ServerStatus.NotListening)
-
-    val nodeStatusHolder = Agent(nodeStatus)
-
     val time = new VirtualTime
     val peerManager = TestProbe()
 

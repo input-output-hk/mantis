@@ -93,14 +93,6 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     val block = BigInt(1)
     val maxHeaders = 1
 
-    val nodeKey: AsymmetricCipherKeyPair = crypto.generateKeyPair()
-
-    val nodeStatus = NodeStatus(
-      key = nodeKey,
-      serverStatus = ServerStatus.NotListening)
-
-    val nodeStatusHolder = Agent(nodeStatus)
-
     val fastSyncBlockHeadersRequestHandler: ActorRef = {
       val request = GetBlockHeaders(Left(block), maxHeaders, skip = 0, reverse = false)
       parent.childActorOf(SyncBlockHeadersRequestHandler.props(

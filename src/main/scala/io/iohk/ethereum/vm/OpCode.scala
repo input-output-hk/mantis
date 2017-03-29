@@ -624,7 +624,7 @@ case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
 
-sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, 1, G_zero) {
+sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, alpha, G_zero) {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
