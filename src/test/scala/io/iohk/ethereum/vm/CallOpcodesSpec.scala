@@ -5,7 +5,7 @@ import org.scalatest.{Matchers, WordSpec}
 import Assembly._
 import GasFee._
 import io.iohk.ethereum.domain.{Account, Address}
-import io.iohk.ethereum.vm.MockWorldState.PC
+import io.iohk.ethereum.vm.MockWorldState._
 
 class CallOpcodesSpec extends WordSpec with Matchers {
 
@@ -15,24 +15,24 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     val extAddr = Address(0xfacefeed)
     val callerAddr = Address(0xdeadbeef)
 
-    val ownerOffset = DataWord(0)
-    val callerOffset = DataWord(1)
-    val valueOffset = DataWord(2)
+    val ownerOffset = UInt256(0)
+    val callerOffset = UInt256(1)
+    val valueOffset = UInt256(2)
 
     val extCode = Assembly(
       //store owner address
       ADDRESS,
-      PUSH1, ownerOffset.intValue,
+      PUSH1, ownerOffset.toInt,
       SSTORE,
 
       //store caller address
       CALLER,
-      PUSH1, callerOffset.intValue,
+      PUSH1, callerOffset.toInt,
       SSTORE,
 
       //store call value
       CALLVALUE,
-      PUSH1, valueOffset.intValue,
+      PUSH1, valueOffset.toInt,
       SSTORE,
 
       // return first half of unmodified input data
@@ -47,10 +47,10 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       RETURN
     )
 
-    val inputData = Generators.getDataWordGen().sample.get.bytes
+    val inputData = Generators.getUInt256Gen().sample.get.bytes
     val expectedMemCost = calcMemCost(inputData.size, inputData.size, inputData.size / 2)
 
-    val initialBalance = 1000
+    val initialBalance = UInt256(1000)
 
     val requiredGas = {
       val storageCost = 3 * G_sset
@@ -80,35 +80,35 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     op: CallOp,
     context: ProgramContext[MockWorldState, MockStorage] = fxt.context,
     inputData: ByteString = fxt.inputData,
-    gas: BigInt = fxt.requiredGas + fxt.gasMargin,
+    gas: UInt256 = fxt.requiredGas + fxt.gasMargin,
     to: Address = fxt.extAddr,
-    value: BigInt = fxt.initialBalance / 2
+    value: UInt256 = fxt.initialBalance / 2
   ) {
     private val params = Seq(
-      DataWord(gas),
-      DataWord(to.bytes),
-      DataWord(value),
-      DataWord.Zero,
-      DataWord(inputData.size),
-      DataWord(inputData.size),
-      DataWord(inputData.size / 2)
+      gas,
+      to.toUInt256,
+      value,
+      UInt256.Zero,
+      UInt256(inputData.size),
+      UInt256(inputData.size),
+      UInt256(inputData.size / 2)
     ).reverse
 
     private val paramsForDelegate =
       params.take(4) ++ params.drop(5)
 
     private val stack = Stack.empty().push(if (op == DELEGATECALL) params.take(4) ++ params.drop(5) else params)
-    private val mem = Memory.empty.store(DataWord.Zero, inputData)
+    private val mem = Memory.empty.store(UInt256.Zero, inputData)
 
-    val stateIn = ProgramState(context).withStack(stack).withMemory(mem)
-    val stateOut = op.execute(stateIn)
-    val world = stateOut.world
+    val stateIn: PS = ProgramState(context).withStack(stack).withMemory(mem)
+    val stateOut: PS = op.execute(stateIn)
+    val world: MockWorldState = stateOut.world
 
-    val ownBalance = world.getBalance(context.env.ownerAddr)
-    val extBalance = world.getBalance(to)
+    val ownBalance: UInt256 = world.getBalance(context.env.ownerAddr)
+    val extBalance: UInt256 = world.getBalance(to)
 
-    val ownStorage = world.getStorage(context.env.ownerAddr)
-    val extStorage = world.getStorage(to)
+    val ownStorage: MockStorage = world.getStorage(context.env.ownerAddr)
+    val extStorage: MockStorage = world.getStorage(to)
   }
 
   "CALL" when {
@@ -133,7 +133,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 1" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord(1)
+        call.stateOut.stack.pop._1 shouldEqual UInt256(1)
       }
 
       "consume correct gas (refund unused gas)" in {
@@ -152,7 +152,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 0" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord.Zero
+        call.stateOut.stack.pop._1 shouldEqual UInt256.Zero
       }
 
       "consume correct gas (refund call gas)" in {
@@ -170,7 +170,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 0" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord.Zero
+        call.stateOut.stack.pop._1 shouldEqual UInt256.Zero
       }
 
       "consume correct gas (refund call gas)" in {
@@ -198,7 +198,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 0" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord.Zero
+        call.stateOut.stack.pop._1 shouldEqual UInt256.Zero
       }
 
       "consume all call gas" in {
@@ -218,7 +218,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 1" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord(1)
+        call.stateOut.stack.pop._1 shouldEqual UInt256(1)
       }
 
       "consume correct gas (refund call gas, add new account modifier)" in {
@@ -238,7 +238,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "not update any account's balance" in {
-        call.extBalance shouldEqual 0
+        call.extBalance shouldEqual UInt256.Zero
         call.ownBalance shouldEqual fxt.initialBalance
       }
 
@@ -249,7 +249,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 1" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord(1)
+        call.stateOut.stack.pop._1 shouldEqual UInt256(1)
       }
 
       "consume correct gas (refund unused gas)" in {
@@ -268,7 +268,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 0" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord.Zero
+        call.stateOut.stack.pop._1 shouldEqual UInt256.Zero
       }
 
       "consume correct gas (refund call gas)" in {
@@ -286,7 +286,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 0" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord.Zero
+        call.stateOut.stack.pop._1 shouldEqual UInt256.Zero
       }
 
       "consume correct gas (refund call gas)" in {
@@ -313,7 +313,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 0" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord.Zero
+        call.stateOut.stack.pop._1 shouldEqual UInt256.Zero
       }
 
       "consume all call gas" in {
@@ -331,7 +331,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 1" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord(1)
+        call.stateOut.stack.pop._1 shouldEqual UInt256(1)
       }
 
       "consume correct gas (refund call gas)" in {
@@ -351,7 +351,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "not update any account's balance" in {
-        call.extBalance shouldEqual 0
+        call.extBalance shouldEqual UInt256.Zero
         call.ownBalance shouldEqual fxt.initialBalance
       }
 
@@ -362,7 +362,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 1" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord(1)
+        call.stateOut.stack.pop._1 shouldEqual UInt256(1)
       }
 
       "consume correct gas (refund unused gas)" in {
@@ -381,7 +381,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 0" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord.Zero
+        call.stateOut.stack.pop._1 shouldEqual UInt256.Zero
       }
 
       "consume correct gas (refund call gas)" in {
@@ -399,7 +399,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 0" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord.Zero
+        call.stateOut.stack.pop._1 shouldEqual UInt256.Zero
       }
 
       "consume all call gas" in {
@@ -417,7 +417,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 1" in {
-        call.stateOut.stack.pop._1 shouldEqual DataWord(1)
+        call.stateOut.stack.pop._1 shouldEqual UInt256(1)
       }
 
       "consume correct gas (refund call gas)" in {

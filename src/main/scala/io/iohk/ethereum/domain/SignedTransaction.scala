@@ -5,8 +5,9 @@ import java.math.BigInteger
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.Blockchain
 import org.spongycastle.util.encoders.Hex
@@ -87,12 +88,12 @@ object SignedTransaction {
   }
 }
 
-case class SignedTransaction private (
+case class SignedTransaction (
   tx: Transaction,
   pointSign: Byte, //v
   signatureRandom: ByteString, //r
   signature: ByteString, //s
-  sender: Address,
+  senderAddress: Address,
   recoveredPointSign: Int) {
 
   override def toString: String = {
@@ -101,8 +102,8 @@ case class SignedTransaction private (
          |pointSign: $pointSign
          |signatureRandom: ${Hex.toHexString(signatureRandom.toArray[Byte])}
          |signature: ${Hex.toHexString(signature.toArray[Byte])}
-         |sender: ${Hex.toHexString(sender.bytes.toArray)}
-         |recoveredPointSign: ${recoveredPointSign}
+         |sender: ${Hex.toHexString(senderAddress.bytes.toArray)}
+         |recoveredPointSign: $recoveredPointSign
          |}""".stripMargin
   }
 }

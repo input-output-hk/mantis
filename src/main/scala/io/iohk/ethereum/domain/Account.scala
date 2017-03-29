@@ -4,21 +4,22 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.vm.UInt256
 
 object Account {
   val EmptyStorageRootHash = ByteString(kec256(rlp.encode(Array.empty[Byte])))
-  val EmptyCodeHash = kec256(ByteString())
+  val EmptyCodeHash: ByteString = kec256(ByteString())
 
   val Empty = Account(0, 0, EmptyStorageRootHash, EmptyCodeHash)
 }
 
 case class Account(
-  nonce: BigInt = 0,
-  balance: BigInt = 0,
+  nonce: UInt256 = 0,
+  balance: UInt256 = 0,
   storageRoot: ByteString = Account.EmptyStorageRootHash,
   codeHash: ByteString = Account.EmptyCodeHash) {
 
-  def updateBalance(value: BigInt): Account =
+  def updateBalance(value: UInt256): Account =
     copy(balance = balance + value)
 
   def increaseNonce: Account =

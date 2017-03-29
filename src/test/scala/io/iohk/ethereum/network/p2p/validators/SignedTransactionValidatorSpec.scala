@@ -122,13 +122,4 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
       case _ => fail
     }
   }
-
-  it should "report a tx with invalid point sign as with invalid signature" in {
-    val invalidPointSign: Byte = 26
-    val signedTxWithInvalidPointSign = signedTxAfterHomestead.copy(pointSign = invalidPointSign)
-    SignedTransactionValidator.validateTransaction(signedTxWithInvalidPointSign, fromBeforeHomestead = false) match {
-      case Left(TransactionSignatureError) => succeed
-      case _ => fail
-    }
-  }
 }

@@ -22,19 +22,19 @@ class Memory(private[vm] val underlying: ByteString) {
 
   import Memory.zeros
 
-  def store(addr: DataWord, b: Byte): Memory = store(addr, ByteString(b))
+  def store(offset: UInt256, b: Byte): Memory = store(offset, ByteString(b))
 
-  def store(addr: DataWord, dw: DataWord): Memory = store(addr, dw.bytes)
+  def store(offset: UInt256, dw: UInt256): Memory = store(offset, dw.bytes)
 
-  def store(addr: DataWord, bytes: Array[Byte]): Memory = store(addr, ByteString(bytes))
+  def store(offset: UInt256, bytes: Array[Byte]): Memory = store(offset, ByteString(bytes))
 
   /** Stores a ByteString under the given address.
    * Underlying byte array is expanded if a ByteString doesn't fit into it.
    * All empty cells of an expanded array are set to 0.
    * This method may throw OOM.
    */
-  def store(addr: DataWord, bs: ByteString): Memory = {
-    val idx: Int = addr.intValue
+  def store(offset: UInt256, bs: ByteString): Memory = {
+    val idx: Int = offset.toInt
     val newUnderlying: ByteString = if (idx + bs.length <= underlying.length) {
       // a new buffer fits into an old buffer
       val (prepending, following) = underlying.splitAt(idx)
@@ -49,21 +49,21 @@ class Memory(private[vm] val underlying: ByteString) {
     new Memory(newUnderlying)
   }
 
-  def load(addr: DataWord): (DataWord, Memory) = {
-    doLoad(addr, DataWord.Size) match {
-      case (bs, memory) => DataWord(bs) -> memory
+  def load(offset: UInt256): (UInt256, Memory) = {
+    doLoad(offset, UInt256.Size) match {
+      case (bs, memory) => UInt256(bs) -> memory
     }
   }
 
-  def load(addr: DataWord, size: DataWord): (ByteString, Memory) = doLoad(addr, size.intValue)
+  def load(offset: UInt256, size: UInt256): (ByteString, Memory) = doLoad(offset, size.toInt)
 
   /** Returns a ByteString of a given size starting at the given address of the Memory.
    * Underlying byte array is expanded and filled with 0's if addr + size exceeds size
    * of the memory.
    * This method may throw OOM.
    */
-  private def doLoad(addr: DataWord, size: Int): (ByteString, Memory) = {
-    val start: Int = addr.intValue
+  private def doLoad(offset: UInt256, size: Int): (ByteString, Memory) = {
+    val start: Int = offset.toInt
     val end: Int = start + size
     val newUnderlying = if (end <= underlying.size)
       underlying

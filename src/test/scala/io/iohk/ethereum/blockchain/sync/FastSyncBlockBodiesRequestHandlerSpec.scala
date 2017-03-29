@@ -1,13 +1,14 @@
 package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration._
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockBody, GetBlockBodies}
 import org.scalatest.{FlatSpec, Matchers}
+import io.iohk.ethereum.blockchain.sync.SyncController.BlockBodiesReceived
 
 class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
 
@@ -18,11 +19,8 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     val responseBodies = Seq(BlockBody(Nil, Nil))
     peer.reply(PeerActor.MessageReceived(BlockBodies(responseBodies)))
 
-    parent.expectMsg(SyncController.EnqueueBlockBodies(requestedHashes.drop(1)))
-    parent.expectMsg(FastSyncRequestHandler.Done)
-
-    blockchain.getBlockBodyByHash(requestedHashes.head) shouldBe Some(responseBodies.head)
-    blockchain.getBlockBodyByHash(requestedHashes(1)) shouldBe None
+    parent.expectMsg(BlockBodiesReceived(peer.ref, requestedHashes, responseBodies))
+    parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
@@ -34,9 +32,8 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     val responseBodies = Nil
     peer.reply(PeerActor.MessageReceived(BlockBodies(responseBodies)))
 
-    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
-    parent.expectMsg(SyncController.EnqueueBlockBodies(requestedHashes))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref, "got empty block bodies response for known hashes: List(31, 32)"))
+    parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
@@ -47,14 +44,14 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
 
     time.advance(10.seconds)
 
-    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
-    parent.expectMsg(SyncController.EnqueueBlockBodies(requestedHashes))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref, "time out on block bodies response for known hashes: List(31, 32)"))
+    parent.expectMsg(FastSync.EnqueueBlockBodies(requestedHashes))
+    parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
 
-  trait TestSetup extends EphemBlockchainTestSetup {
+  trait TestSetup {
     implicit val system = ActorSystem("FastSyncBlockBodiesRequestHandlerSpec_System")
 
     val time = new VirtualTime
@@ -65,12 +62,10 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
 
     val parent = TestProbe()
 
-    val fastSyncBlockBodiesRequestHandler =
-      parent.childActorOf(FastSyncBlockBodiesRequestHandler.props(
+    val fastSyncBlockBodiesRequestHandler: ActorRef =
+      parent.childActorOf(SyncBlockBodiesRequestHandler.props(
         peer.ref,
-        requestedHashes,
-        storagesInstance.storages.appStateStorage,
-        blockchain)(time.scheduler))
+        requestedHashes)(time.scheduler))
   }
 
 }

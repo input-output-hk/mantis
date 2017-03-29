@@ -60,18 +60,18 @@ class TransactionSpec extends FlatSpec with Matchers {
     signature = ByteString(Hex.decode("4d5b6b9e3955a0db8feec9c518d8e1aae0e1d91a143fbbca36671c3b89b89bc3")))
 
   it should "not recover sender public key for new sign encoding schema if there is no chain_id in signed data" in {
-    invalidTransactionSignatureNewSchema.map(_.sender) shouldNot be(Some(address))
+    invalidTransactionSignatureNewSchema.map(_.senderAddress) shouldNot be(Some(address))
   }
 
   it should "recover sender address" in {
-    validTransactionSignatureOldSchema.map(_.sender) shouldEqual Some(address)
+    validTransactionSignatureOldSchema.map(_.senderAddress) shouldEqual Some(address)
   }
 
   it should "recover sender for new sign encoding schema if there is chain_id in signed data" in {
-    validSignedTransactionForNewSigningScheme.map(_.sender) shouldBe Some(addreesForNewSigningScheme)
+    validSignedTransactionForNewSigningScheme.map(_.senderAddress) shouldBe Some(addreesForNewSigningScheme)
   }
 
   it should "recover false sender address for invalid transaction" in {
-    invalidStx.map(_.sender) shouldNot be(Some(address))
+    invalidStx.map(_.senderAddress) shouldNot be(Some(address))
   }
 }

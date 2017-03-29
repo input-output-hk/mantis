@@ -1,8 +1,11 @@
 package io.iohk.ethereum.mpt
 
+import akka.util.ByteString
 import io.iohk.ethereum.common.SimpleMap
+import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.HashFn
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => decodeRLP, encode => encodeRLP, _}
 
@@ -27,16 +30,20 @@ object MerklePatriciaTrie {
 
   def apply[K, V](source: SimpleMap[NodeHash, NodeEncoded], hashFn: HashFn)
                  (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
-  : MerklePatriciaTrie[K, V] = new MerklePatriciaTrie[K, V](None, source, hashFn)(kSerializer, vSerializer)
+  : MerklePatriciaTrie[K, V] = new MerklePatriciaTrie[K, V](calculateEmptyRootHash(hashFn), source, hashFn)(kSerializer, vSerializer)
 
   def apply[K, V](rootHash: Array[Byte], source: SimpleMap[NodeHash, NodeEncoded], hashFn: HashFn)
                  (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
-  : MerklePatriciaTrie[K, V] = new MerklePatriciaTrie[K, V](Some(rootHash), source, hashFn)(kSerializer, vSerializer)
+  : MerklePatriciaTrie[K, V] = {
+      new MerklePatriciaTrie[K, V](rootHash, source, hashFn)(kSerializer, vSerializer)
+  }
+
+  def calculateEmptyRootHash(hashFn: HashFn): Array[Byte] = hashFn(encodeRLP(Array.emptyByteArray))
 
   private def getNode(nodeId: Array[Byte], source: SimpleMap[NodeHash, NodeEncoded])(implicit nodeDec: RLPDecoder[Node]): Node = {
     val nodeEncoded =
       if (nodeId.length < 32) nodeId
-      else source.get(nodeId).getOrElse(throw MPTException("Node not found, trie is inconsistent"))
+      else source.get(ByteString(nodeId)).getOrElse(throw MPTException("Node not found, trie is inconsistent"))
     decodeRLP[Node](nodeEncoded)
   }
 
@@ -44,21 +51,19 @@ object MerklePatriciaTrie {
 
   private def updateNodesInStorage(
       previousRootHash: Array[Byte],
-      newRootHash: Array[Byte],
       newRoot: Option[Node],
       toRemove: Seq[Node],
       toUpdate: Seq[Node],
-      nodeStorage: SimpleMap[NodeHash, NodeEncoded],
-      hashFn: HashFn): SimpleMap[NodeHash, NodeEncoded] = {
+      nodeStorage: SimpleMap[NodeHash, NodeEncoded]): SimpleMap[NodeHash, NodeEncoded] = {
     val rootCapped = newRoot.map(_.capped).getOrElse(Array.emptyByteArray)
     val toBeRemoved = toRemove.filter { node =>
       val nCapped = node.capped
       nCapped.length == 32 || (node.hash sameElements previousRootHash)
-    }.map(_.hash)
+    }.map(n => ByteString(n.hash))
     val toBeUpdated = toUpdate.filter { n =>
       val nCapped = n.capped
       nCapped.length == 32 || (nCapped sameElements rootCapped)
-    }.map(node => node.hash -> node.encode)
+    }.map(node => ByteString(node.hash) -> node.encode)
     nodeStorage.update(toBeRemoved, toBeUpdated)
   }
 
@@ -99,15 +104,17 @@ object MerklePatriciaTrie {
   }
 }
 
-class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
+class MerklePatriciaTrie[K, V] (val aRootHash: Array[Byte],
                                val nodeStorage: SimpleMap[NodeHash, NodeEncoded],
-                               private val hashFn: HashFn)
+                               val hashFn: HashFn)
                               (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
   extends SimpleMap[K, V] {
 
   import MerklePatriciaTrie._
 
   override type T = MerklePatriciaTrie[K, V]
+
+  private val rootHash: Option[Array[Byte]] = if(aRootHash sameElements EmptyTrieHash) None else Some(aRootHash)
 
   /**
     * Implicits
@@ -137,7 +144,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     }
   }
 
-  private lazy val EmptyTrieHash = hashFn(encodeRLP(Array.emptyByteArray))
+  private lazy val EmptyTrieHash = calculateEmptyRootHash(hashFn)
   lazy val getRootHash: Array[Byte] = rootHash.getOrElse(EmptyTrieHash)
 
   /**
@@ -145,7 +152,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     *
     * @param key
     * @return Option object with value if there exists one.
-    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
+    * @throws MerklePatriciaTrie if there is any inconsistency in how the trie is build.
     */
   def get(key: K): Option[V] = {
     rootHash flatMap { rootId =>
@@ -161,7 +168,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     * @param key
     * @param value
     * @return New trie with the (key-value) pair inserted.
-    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
+    * @throws MPTException if there is any inconsistency in how the trie is build.
     */
   override def put(key: K, value: V): MerklePatriciaTrie[K, V] = {
     val keyNibbles = HexPrefix.bytesToNibbles(kSerializer.toBytes(key))
@@ -171,18 +178,16 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
       val newRootHash = newRoot.hash
       val newSource = updateNodesInStorage(
         previousRootHash = getRootHash,
-        newRootHash = newRootHash,
         newRoot = Some(newRoot),
         toRemove = nodesToRemoveFromStorage,
         toUpdate = nodesToUpdateInStorage,
-        nodeStorage = nodeStorage,
-        hashFn = hashFn)
-      new MerklePatriciaTrie(Some(newRootHash), newSource, hashFn)(kSerializer, vSerializer)
+        nodeStorage = nodeStorage)
+      new MerklePatriciaTrie(newRootHash, newSource, hashFn)(kSerializer, vSerializer)
     } getOrElse {
       val newRoot = LeafNode(keyNibbles, vSerializer.toBytes(value), hashFn)
       val newRootHash = newRoot.hash
-      new MerklePatriciaTrie(Some(newRootHash),
-        updateNodesInStorage(getRootHash, newRootHash, Some(newRoot), Seq(), Seq(newRoot), nodeStorage, hashFn),
+      new MerklePatriciaTrie(newRootHash,
+        updateNodesInStorage(getRootHash, Some(newRoot), Seq.empty, Seq(newRoot), nodeStorage),
         hashFn)
     }
   }
@@ -192,7 +197,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     *
     * @param key
     * @return New trie with the (key-value) pair associated with the key passed deleted from the trie.
-    * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
+    * @throws MPTException if there is any inconsistency in how the trie is build.
     */
   override def remove(key: K): MerklePatriciaTrie[K, V] = {
     rootHash map { rootId =>
@@ -203,23 +208,19 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
           val newRootHash = newRoot.hash
           val afterDeletenodeStorage = updateNodesInStorage(
             previousRootHash = getRootHash,
-            newRootHash = newRootHash,
             newRoot = Some(newRoot),
             toRemove = nodesToRemoveFromStorage,
             toUpdate = nodesToUpdateInStorage,
-            nodeStorage = nodeStorage,
-            hashFn = hashFn)
-          new MerklePatriciaTrie(Some(newRootHash), afterDeletenodeStorage, hashFn)(kSerializer, vSerializer)
+            nodeStorage = nodeStorage)
+          new MerklePatriciaTrie(newRootHash, afterDeletenodeStorage, hashFn)(kSerializer, vSerializer)
         case NodeRemoveResult(true, None, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
           val afterDeletenodeStorage = updateNodesInStorage(
             previousRootHash = getRootHash,
-            newRootHash = EmptyTrieHash,
             newRoot = None,
             toRemove = nodesToRemoveFromStorage,
             toUpdate = nodesToUpdateInStorage,
-            nodeStorage = nodeStorage,
-            hashFn = hashFn)
-          new MerklePatriciaTrie(None, afterDeletenodeStorage, hashFn)(kSerializer, vSerializer)
+            nodeStorage = nodeStorage)
+          new MerklePatriciaTrie(EmptyTrieHash, afterDeletenodeStorage, hashFn)(kSerializer, vSerializer)
         case NodeRemoveResult(false, _, _, _) => this
       }
     } getOrElse {
@@ -237,7 +238,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     */
   override def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): MerklePatriciaTrie[K, V] = {
     val afterRemoval = toRemove.foldLeft(this) { (acc, key) => acc - key }
-    toUpsert.foldLeft(afterRemoval) { (acc, toUpsert) => acc + toUpsert }
+    toUpsert.foldLeft(afterRemoval) { (acc, item) => acc + item }
   }
 
   @tailrec

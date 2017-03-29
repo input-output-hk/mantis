@@ -25,19 +25,23 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V]] private(val inner: Wrap
 
   override type T = InMemorySimpleMapProxy[K, V, I]
 
+  type Changes = (Seq[K], Seq[(K, V)])
+
+  def changes: Changes = cache.foldLeft(Seq.empty[K] -> Seq.empty[(K, V)]) { (acc, cachedItem) =>
+    cachedItem match {
+      case (key, Some(value)) => (acc._1, acc._2 :+ key -> value)
+      case (key, None) => (acc._1 :+ key, acc._2)
+    }
+  }
+
   /**
     * Persists the changes into the underlying [[SimpleMap]]
     *
     * @return Updated proxy
     */
   def persist(): InMemorySimpleMapProxy[K, V, I] = {
-    val changes = cache.foldLeft(Seq[K]() -> Seq[(K, V)]()) { (acc, cachedItem) =>
-      cachedItem match {
-        case (key, Some(value)) => (acc._1, acc._2 :+ key -> value)
-        case (key, None) => (acc._1 :+ key, acc._2)
-      }
-    }
-    new InMemorySimpleMapProxy[K, V, I](inner.update(changes._1, changes._2), Map())
+    val changesToApply = changes
+    new InMemorySimpleMapProxy[K, V, I](inner.update(changesToApply._1, changesToApply._2), Map.empty)
   }
 
   /**
@@ -45,7 +49,7 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V]] private(val inner: Wrap
     *
     * @return Updated proxy
     */
-  def rollback: InMemorySimpleMapProxy[K, V, I] = new InMemorySimpleMapProxy[K, V, I](inner, Map())
+  def rollback: InMemorySimpleMapProxy[K, V, I] = new InMemorySimpleMapProxy[K, V, I](inner, Map.empty)
 
   /**
     * This function obtains the value asociated with the key passed, if there exists one.

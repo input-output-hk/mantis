@@ -10,9 +10,9 @@ import io.iohk.ethereum.domain.{ Address, BlockHeader }
 case class ExecEnv(ownerAddr: Address,
                    callerAddr: Address,
                    originAddr: Address,
-                   gasPrice: BigInt,
+                   gasPrice: UInt256,
                    inputData: ByteString,
-                   value: BigInt,
+                   value: UInt256,
                    program: Program,
                    blockHeader: BlockHeader,
                    callDepth: Int)

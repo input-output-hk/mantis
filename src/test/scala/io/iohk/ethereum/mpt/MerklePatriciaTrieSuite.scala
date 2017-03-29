@@ -6,7 +6,7 @@ import java.security.MessageDigest
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.db.dataSource.{EphemDataSource}
+import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import org.scalacheck.{Arbitrary, Gen}
@@ -304,7 +304,7 @@ class MerklePatriciaTrieSuite extends FunSuite
     val wrongSource = EphemDataSource().update(
       IndexedSeq[Byte]('e'.toByte),
       toRemove = Seq(),
-      toUpsert = Seq(ByteString(trie.getRootHash) -> ByteString(trie.nodeStorage.get(trie.getRootHash).get))
+      toUpsert = Seq(ByteString(trie.getRootHash) -> ByteString(trie.nodeStorage.get(ByteString(trie.getRootHash)).get))
     )
     val trieWithWrongSource = MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, new NodeStorage(wrongSource), hashFn)
     val trieAfterDelete = Try {
@@ -414,5 +414,17 @@ class MerklePatriciaTrieSuite extends FunSuite
     val key3: Array[Byte] = Hex.decode("1100")
     val storage = EmptyTrie.put(key1, key1).put(key2, key2).put(key3, key3)
     assert(Hex.toHexString(storage.getRootHash) == "a3d0686205c7ed10a85c3bce4118d5d559bcda47ca39e4dd4f09719958a179f1")
+  }
+
+  // This test was created to fix an error when Some(emptyHash) was used to create the trie
+  test("Using empty root as hash allow to create a MPT") {
+    val emptyTrieRootHash = EmptyTrie.getRootHash
+
+    val mpt = MerklePatriciaTrie[Array[Byte], Array[Byte]](emptyTrieRootHash, EmptyEphemNodeStorage, hashFn)
+    val key1: Array[Byte] = Hex.decode("10")
+    val val1: Array[Byte] = Hex.decode("947e70f9460402290a3e487dae01f610a1a8218fda")
+    val storage = mpt.put(key1, val1)
+    assert(Hex.toHexString(storage.getRootHash) == "e6fbee0b67e3a6f0b9ea775ce585509aa4a0c3fe3f83d1e49a7d484489b755bc")
+
   }
 }

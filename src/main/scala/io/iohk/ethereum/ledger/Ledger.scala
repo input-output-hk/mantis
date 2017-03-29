@@ -24,11 +24,10 @@ object Ledger extends Logger {
       val (resultingWorldStateProxy, gasUsed) = executeBlockTransactions(block, storages, stateStorage)
       log.debug(s"All txs from block ${block.header} were executed")
 
-      val payBlockRewardFn = (payBlockReward _).curried(block)
-      val commitedWorld = (payBlockRewardFn andThen InMemoryWorldStateProxy.commitState)(resultingWorldStateProxy)
-      val afterExecutionBlockError = validateBlockAfterExecution(block, commitedWorld)
+      val worldToPersist = payBlockReward(block, resultingWorldStateProxy)
+      val afterExecutionBlockError = validateBlockAfterExecution(block, worldToPersist)
       if (afterExecutionBlockError.isEmpty) {
-        InMemoryWorldStateProxy.persist(commitedWorld)
+        InMemoryWorldStateProxy.persistIfHashMatches(block.header.stateRoot, worldToPersist)
         log.debug(s"Block ${block.header} txs state changes persisted")
       } else throw new RuntimeException(afterExecutionBlockError.get)
 
@@ -49,7 +48,7 @@ object Ledger extends Logger {
   ExecResult = {
     val blockchain = BlockchainImpl(storages)
     val initialWorldStateProxy = InMemoryWorldStateProxy(storages, stateStorage,
-      blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot).getOrElse(ByteString.empty)
+      blockchain.getBlockHeaderByHash(block.header.hash).map(_.stateRoot)
     )
     block.body.transactionList.foldLeft[ExecResult](initialWorldStateProxy -> 0) {
       case ((worldStateProxy, acumGas), stx) =>
@@ -76,10 +75,7 @@ object Ledger extends Logger {
 
   private def validateBlockBeforeExecution(block: Block): Option[String] = None
 
-  private def validateBlockAfterExecution(block: Block, worldStateProxy: InMemoryWorldStateProxy): Option[String] = {
-    // HINT if (worldStateProxy.stateRoothash != block.header.stateRoot)
-    None
-  }
+  private def validateBlockAfterExecution(block: Block, worldStateProxy: InMemoryWorldStateProxy): Option[String] = None
 
   /**
     * This function updates state in order to pay rewards based on YP section 11.3
@@ -136,7 +132,7 @@ object Ledger extends Logger {
     * @return Either the validated transaction or an error description
     */
   private def validateNonce(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): Either[String, SignedTransaction] = {
-    if (worldStateProxy.getAccount(stx.sender).map(_.nonce).contains(stx.tx.nonce)) Right(stx)
+    if (worldStateProxy.getAccount(stx.senderAddress).map(_.nonce).contains(stx.tx.nonce)) Right(stx)
     else Left("Account nonce is different from TX sender nonce")
   }
 
@@ -160,7 +156,7 @@ object Ledger extends Logger {
     */
   private def validateAccountHasEnoughGasToPayUpfrontCost(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy):
   Either[String, SignedTransaction] = {
-    val accountBalance = worldStateProxy.getGuaranteedAccount(stx.sender).balance
+    val accountBalance = worldStateProxy.getGuaranteedAccount(stx.senderAddress).balance
     val upfrontCost = calculateUpfrontCost(stx.tx)
     if (accountBalance >= upfrontCost) Right(stx)
     else Left(s"Sender account doesn't have enough balance to pay upfront cost $upfrontCost > $accountBalance")
@@ -176,11 +172,11 @@ object Ledger extends Logger {
     * @return
     */
   private def updateAccountBeforeExecution(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    val senderAddress = stx.sender
+    val senderAddress = stx.senderAddress
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
     worldStateProxy.saveAccount(senderAddress, account.copy(
       nonce = account.nonce + 1,
-      balance = account.balance - calculateUpfrontGas(stx.tx)
+      balance = account.balance - UInt256(calculateUpfrontGas(stx.tx))
     ))
   }
 
@@ -211,7 +207,7 @@ object Ledger extends Logger {
   private def payContractCreationCost(result: PR): Either[String, PR] = {
     val codeDepositCost = GasFee.calcCodeDepositCost(result.returnData)
     if (result.gasRemaining < codeDepositCost) Left(OutOfGas.toString)
-    else Right(result.copy(gasRemaining = result.gasRemaining - codeDepositCost))
+    else Right(result.copy(gasRemaining = result.gasRemaining - UInt256(codeDepositCost)))
   }
 
   private def saveCreatedCost(ownerAddress: Address, result: PR): PR = {

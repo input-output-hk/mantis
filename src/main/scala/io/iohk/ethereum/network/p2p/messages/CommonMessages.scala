@@ -5,8 +5,9 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
-import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
 
 
@@ -15,12 +16,12 @@ object CommonMessages {
     implicit val rlpEncDec = new RLPEncoder[Status] with RLPDecoder[Status] {
       override def encode(obj: Status): RLPEncodeable = {
         import obj._
-        RLPList(protocolVersion, networkId, totalDifficulty, bestHash.toArray[Byte], genesisHash.toArray[Byte])
+        RLPList(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash)
       }
 
       override def decode(rlp: RLPEncodeable): Status = rlp match {
         case RLPList(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash) =>
-          Status(protocolVersion, networkId, totalDifficulty, ByteString(bestHash: Array[Byte]), ByteString(genesisHash: Array[Byte]))
+          Status(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash)
         case _ => throw new RuntimeException("Cannot decode Status")
       }
     }
@@ -50,17 +51,14 @@ object CommonMessages {
         import signedTx._
         import signedTx.tx._
         RLPList(nonce, gasPrice, gasLimit, receivingAddress.toArray, value,
-          payload, pointSign, signatureRandom.toArray[Byte], signature.toArray[Byte])
+          payload, pointSign, signatureRandom, signature)
       }
 
       override def decode(rlp: RLPEncodeable): SignedTransaction = rlp match {
         case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value,
         payload, pointSign, signatureRandom, signature) =>
           SignedTransaction(
-            Transaction(nonce, gasPrice, gasLimit, Address(receivingAddress.bytes), value, ByteString(payload: Array[Byte])),
-            pointSign,
-            ByteString(signatureRandom: Array[Byte]),
-            ByteString(signature: Array[Byte])
+            Transaction(nonce, gasPrice, gasLimit, Address(receivingAddress.bytes), value, payload), pointSign, signatureRandom, signature
           ).getOrElse(throw new Exception("Tx with invalid signature"))
       }
 
@@ -70,11 +68,11 @@ object CommonMessages {
 
       override def encode(obj: SignedTransactions): RLPEncodeable = {
         import obj._
-        RLPList(txs.map(txRlpEncDec.encode): _*)
+        toRlpList(txs)
       }
 
       override def decode(rlp: RLPEncodeable): SignedTransactions = rlp match {
-        case rlpList: RLPList => SignedTransactions(rlpList.items.map(txRlpEncDec.decode))
+        case rlpList: RLPList => SignedTransactions(fromRlpList[SignedTransaction](rlpList))
         case _ => throw new RuntimeException("Cannot decode SignedTransactions")
       }
 
@@ -89,6 +87,9 @@ object CommonMessages {
 
   object NewBlock {
 
+    import SignedTransactions.txRlpEncDec
+    import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits.headerRlpEncDec
+
     implicit val rlpEncDec = new RLPEncoder[NewBlock] with RLPDecoder[NewBlock] {
 
       override def encode(obj: NewBlock): RLPEncodeable = {
@@ -96,8 +97,8 @@ object CommonMessages {
         RLPList(
           RLPList(
             block.header,
-            RLPList(block.body.transactionList.map(SignedTransactions.txRlpEncDec.encode): _*),
-            RLPList(block.body.uncleNodesList.map(headerRlpEncDec.encode): _*)
+            toRlpList(block.body.transactionList),
+            toRlpList(block.body.uncleNodesList)
           ),
           totalDifficulty
         )
@@ -109,8 +110,8 @@ object CommonMessages {
             Block(
               headerRlpEncDec.decode(blockHeader),
               BlockBody(
-                transactionList.items.map(SignedTransactions.txRlpEncDec.decode),
-                uncleNodesList.items.map(headerRlpEncDec.decode))),
+                fromRlpList[SignedTransaction](transactionList),
+                fromRlpList[BlockHeader](uncleNodesList))),
             totalDifficulty
           )
         case _ => throw new RuntimeException("Cannot decode NewBlock")
