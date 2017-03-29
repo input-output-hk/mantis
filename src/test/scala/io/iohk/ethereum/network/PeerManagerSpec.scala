@@ -49,6 +49,7 @@ class PeerManagerSpec extends FlatSpec with Matchers {
       peerConfiguration, peerFactory, Some(time.scheduler))))(system)
 
     time.advance(800)
+    Thread.sleep(200)
 
     val sender = TestProbe()
 
@@ -66,6 +67,7 @@ class PeerManagerSpec extends FlatSpec with Matchers {
     }
 
     createdPeers.head.ref ! PoisonPill
+    Thread.sleep(200)
 
     peerManager.tell(PeerManagerActor.GetPeers, sender.ref)
 
