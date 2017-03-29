@@ -39,6 +39,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     NOT -> G_verylow,
     BYTE -> G_verylow,
     ADDRESS -> G_base,
+    BALANCE -> G_balance,
     CALLVALUE -> G_base,
     CALLDATALOAD -> G_verylow,
     CALLDATASIZE -> G_base,
@@ -351,6 +352,24 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val stateOut = op.execute(stateIn)
       val (offset, _) = stateIn.stack.pop
       val expectedGas = G_verylow + calcMemCost(stateIn.memory.size, offset, UInt256.Size)
+
+      verifyGas(expectedGas, stateIn, stateOut)
+    }
+  }
+
+  test(MSTORE8) { op =>
+    val memSize = 256
+    val maxGasUsage = G_verylow + calcMemCost(memSize, memSize, memSize)
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(elems = 2, maxUInt = UInt256(memSize)),
+      gasGen = getUInt256Gen(max = maxGasUsage),
+      memGen = getMemoryGen(memSize)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = op.execute(stateIn)
+      val (offset, _) = stateIn.stack.pop
+      val expectedGas = G_verylow + calcMemCost(stateIn.memory.size, offset, 1)
 
       verifyGas(expectedGas, stateIn, stateOut)
     }
