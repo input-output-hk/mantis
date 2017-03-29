@@ -66,17 +66,20 @@ class SyncController(
 
   def handlePeerUpdates: Receive = {
     case peers: PeerManagerActor.Peers =>
-      handshakedPeers = peers.handshaked.map { case (k, v) => (k.ref, v) }
-      // watch !?
+      val newHandshakedPeers = peers.handshaked.filterNot(p => handshakedPeers.contains(p._1.ref))
+      newHandshakedPeers.foreach(p => context watch p._1.ref)
 
-    case PeerActor.StatusResponse(status: PeerStatus.Handshaked) =>
-      if (!handshakedPeers.contains(sender()) && !isBlacklisted(sender())) {
-        handshakedPeers += (sender() -> status)
-        context watch sender()
+      peers.peers.foreach {
+        case (peer, _: PeerActor.Status.Handshaked) =>
+          if (!handshakedPeers.contains(peer.ref)) context watch peer.ref
+
+        case (peer, _) if handshakedPeers.contains(peer.ref) =>
+          removePeer(peer.ref)
+
+        case _ => // nothing
       }
 
-    case PeerActor.StatusResponse(_) =>
-      removePeer(sender())
+      handshakedPeers = peers.handshaked.map { case (k, v) => (k.ref, v) }
 
     case Terminated(ref) if handshakedPeers.contains(ref) =>
       removePeer(ref)
