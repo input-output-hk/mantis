@@ -48,15 +48,6 @@ object InMemoryWorldStateProxy {
   }
 
   /**
-    * Persists the changes made into the storages
-    *
-    * @param worldState Proxy to persist
-    * @return Updated world
-    */
-  private def persist(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-    (commitState _ andThen persistStorages) (worldState)
-
-  /**
     * Updates state trie with current changes but does not persist them into the storages. To do so it:
     *   - Commits code (to get account's code hashes)
     *   - Commits constract storages (to get account's contract storage root)
