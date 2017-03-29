@@ -4,13 +4,14 @@ import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.{Config, Logger}
-import io.iohk.ethereum.{rlp, crypto}
-import io.iohk.ethereum.db.dataSource.{EphemDataSource, DataSource}
+import io.iohk.ethereum.{crypto, rlp}
+import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
 import io.iohk.ethereum.db.storage.{Namespaces, NodeStorage}
-import io.iohk.ethereum.domain.{Block, BlockHeader, Account, Blockchain}
-import io.iohk.ethereum.mpt.{RLPByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.domain.{Account, Block, BlockHeader, Blockchain}
+import io.iohk.ethereum.mpt.{MerklePatriciaTrie, RLPByteArraySerializable}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 import spray.json._
 
@@ -88,7 +89,7 @@ class GenesisDataLoader(dataSource: DataSource, blockchain: Blockchain) extends 
       MerklePatriciaTrie[Array[Byte], Account](ephemNodeStorage, (input: Array[Byte]) => crypto.kec256(input))
     val stateMpt = genesisData.alloc.foldLeft(initialStateMpt) { case (mpt, (address, AllocAccount(balance))) =>
       val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
-      mpt.put(crypto.kec256(Hex.decode(paddedAddress)), Account(0, BigInt(balance), emptyTrieRootHash, emptyEvmHash))
+      mpt.put(crypto.kec256(Hex.decode(paddedAddress)), Account(0, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash))
     }
 
     val header = BlockHeader(

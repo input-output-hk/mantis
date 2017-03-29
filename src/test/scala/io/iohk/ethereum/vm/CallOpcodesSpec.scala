@@ -5,7 +5,7 @@ import org.scalatest.{Matchers, WordSpec}
 import Assembly._
 import GasFee._
 import io.iohk.ethereum.domain.{Account, Address}
-import io.iohk.ethereum.vm.MockWorldState.PC
+import io.iohk.ethereum.vm.MockWorldState._
 
 class CallOpcodesSpec extends WordSpec with Matchers {
 
@@ -50,7 +50,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     val inputData = Generators.getUInt256Gen().sample.get.bytes
     val expectedMemCost = calcMemCost(inputData.size, inputData.size, inputData.size / 2)
 
-    val initialBalance = 1000
+    val initialBalance = UInt256(1000)
 
     val requiredGas = {
       val storageCost = 3 * G_sset
@@ -100,15 +100,15 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     private val stack = Stack.empty().push(if (op == DELEGATECALL) params.take(4) ++ params.drop(5) else params)
     private val mem = Memory.empty.store(UInt256.Zero, inputData)
 
-    val stateIn = ProgramState(context).withStack(stack).withMemory(mem)
-    val stateOut = op.execute(stateIn)
-    val world = stateOut.world
+    val stateIn: PS = ProgramState(context).withStack(stack).withMemory(mem)
+    val stateOut: PS = op.execute(stateIn)
+    val world: MockWorldState = stateOut.world
 
-    val ownBalance = world.getBalance(context.env.ownerAddr)
-    val extBalance = world.getBalance(to)
+    val ownBalance: UInt256 = world.getBalance(context.env.ownerAddr)
+    val extBalance: UInt256 = world.getBalance(to)
 
-    val ownStorage = world.getStorage(context.env.ownerAddr)
-    val extStorage = world.getStorage(to)
+    val ownStorage: MockStorage = world.getStorage(context.env.ownerAddr)
+    val extStorage: MockStorage = world.getStorage(to)
   }
 
   "CALL" when {
@@ -238,7 +238,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "not update any account's balance" in {
-        call.extBalance shouldEqual 0
+        call.extBalance shouldEqual UInt256.Zero
         call.ownBalance shouldEqual fxt.initialBalance
       }
 
@@ -351,7 +351,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "not update any account's balance" in {
-        call.extBalance shouldEqual 0
+        call.extBalance shouldEqual UInt256.Zero
         call.ownBalance shouldEqual fxt.initialBalance
       }
 
