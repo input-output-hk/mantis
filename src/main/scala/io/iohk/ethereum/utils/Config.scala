@@ -80,6 +80,8 @@ object Config {
     val daoForkBlockHash = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
 
     val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
+
+    val HomesteadBlock: BigInt = 1150000
   }
 
   object FastSync {

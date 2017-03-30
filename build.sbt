@@ -66,3 +66,5 @@ testOptions in Test += Tests.Argument("-oD")
 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}
+
+mainClass in Compile := Some("io.iohk.ethereum.App")

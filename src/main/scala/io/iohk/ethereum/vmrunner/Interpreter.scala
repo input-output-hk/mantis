@@ -163,9 +163,9 @@ object Interpreter {
   }
 
   def vmSummary(result: PR): String =
-    s"""|  gas used:  ${result.gasUsed}
-        |  error:     ${result.error.getOrElse("n/a")}
-        |  return:    ${Hex.toHexString(result.returnData.toArray)}
+    s"""|  gas remaining:  ${result.gasRemaining}
+        |  error:          ${result.error.getOrElse("n/a")}
+        |  return:         ${Hex.toHexString(result.returnData.toArray)}
      """.stripMargin
 
 }
