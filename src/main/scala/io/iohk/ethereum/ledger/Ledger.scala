@@ -86,7 +86,7 @@ object Ledger extends Logger {
     def getAccountToPay(address: Address, ws: InMemoryWorldStateProxy): Account = ws.getAccount(address).getOrElse(Account.Empty)
 
     // YP - eq 148
-    def calcMinerReward(unclesCount: Int): UInt256 = minerRewardAmount + (minerRewardAmount * unclesCount) / 32
+    def calcMinerReward(ommersCount: Int): UInt256 = minerRewardAmount + (minerRewardAmount * ommersCount) / 32
 
     // YP - eq 149
     def calcOmmerReward(blockHeader: BlockHeader, ommerBlockHeader: BlockHeader): UInt256 =
@@ -98,12 +98,12 @@ object Ledger extends Logger {
     val afterMinerReward = worldStateProxy.saveAccount(minerAddress, minerAccount.updateBalance(minerReward))
     log.debug(s"Paying block ${block.header.number} reward of $minerReward to miner with account address $minerAddress")
 
-    block.body.uncleNodesList.foldLeft(afterMinerReward) { (ws, uncle) =>
-      val uncleAddress = Address(uncle.beneficiary)
-      val account = getAccountToPay(uncleAddress, ws)
-      val uncleReward = calcOmmerReward(block.header, uncle)
-      log.debug(s"Paying block ${uncle.number} reward of $uncleReward to ommer with account address $uncleAddress")
-      ws.saveAccount(uncleAddress, account.updateBalance(uncleReward))
+    block.body.uncleNodesList.foldLeft(afterMinerReward) { (ws, ommer) =>
+      val ommerAddress = Address(ommer.beneficiary)
+      val account = getAccountToPay(ommerAddress, ws)
+      val ommerReward = calcOmmerReward(block.header, ommer)
+      log.debug(s"Paying block ${ommer.number} reward of $ommerReward to ommer with account address $ommerAddress")
+      ws.saveAccount(ommerAddress, account.updateBalance(ommerReward))
     }
   }
 
