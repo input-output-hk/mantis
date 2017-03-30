@@ -7,6 +7,7 @@ import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import io.iohk.ethereum.rpc.RpcServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 import scala.collection.JavaConverters._
@@ -82,6 +83,9 @@ object Config {
     val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
 
     val HomesteadBlock: BigInt = 1150000
+
+    // YP eq 150
+    val BlockReward = UInt256(BigInt("5000000000000000000"))
   }
 
   object FastSync {
