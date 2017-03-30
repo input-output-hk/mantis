@@ -3,9 +3,7 @@ package io.iohk.ethereum.common
 /**
   * Interface to represent a key-value structure
   */
-trait SimpleMap[K, V] {
-
-  type T <: SimpleMap[K, V]
+trait SimpleMap[K, V, T <: SimpleMap[K, V, T]] {
 
   /**
     * This function obtains the value asociated with the key passed, if there exists one.

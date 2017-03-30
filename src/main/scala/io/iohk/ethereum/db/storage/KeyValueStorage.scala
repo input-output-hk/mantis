@@ -3,8 +3,7 @@ package io.iohk.ethereum.db.storage
 import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.dataSource.DataSource
 
-private[storage] trait KeyValueStorage[K, V] extends SimpleMap[K, V]{
-  type T <: KeyValueStorage[K, V]
+private[storage] trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, V, T]{
 
   val dataSource: DataSource
   val namespace: IndexedSeq[Byte]

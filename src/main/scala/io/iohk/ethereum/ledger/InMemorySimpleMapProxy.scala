@@ -3,15 +3,9 @@ package io.iohk.ethereum.ledger
 import io.iohk.ethereum.common.SimpleMap
 
 object InMemorySimpleMapProxy {
-  def wrap[K, V, I <: SimpleMap[K, V]](inner: WrappedMap[K, V, I]): InMemorySimpleMapProxy[K, V, I] =
+  def wrap[K, V, I <: SimpleMap[K, V, I]](inner: I): InMemorySimpleMapProxy[K, V, I] =
     new InMemorySimpleMapProxy(inner, Map.empty[K, Option[V]])
 }
-
-trait WrappedMap[K, V, I <: SimpleMap[K, V]] extends SimpleMap[K, V] {
-  override type T = WrappedMap[K, V, I]
-  val wrapped: I
-}
-
 /**
   * This class keeps holds changes made to the inner [[SimpleMap]] until data is commited
   *
@@ -20,10 +14,8 @@ trait WrappedMap[K, V, I <: SimpleMap[K, V]] extends SimpleMap[K, V] {
   * @tparam K data type of the key to be used within this Proxy
   * @tparam V data type of the value to be used within this Proxy
   */
-class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V]] private(val inner: WrappedMap[K, V, I], private val cache: Map[K, Option[V]])
-  extends SimpleMap[K, V] {
-
-  override type T = InMemorySimpleMapProxy[K, V, I]
+class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private(val inner: I, private val cache: Map[K, Option[V]])
+  extends SimpleMap[K, V, InMemorySimpleMapProxy[K, V, I]] {
 
   type Changes = (Seq[K], Seq[(K, V)])
 
@@ -59,7 +51,7 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V]] private(val inner: Wrap
     */
   def get(key: K): Option[V] = cache.getOrElse(key, inner.get(key)) //FIXME We can cache retrieved values too
 
-  def wrapped: I = inner.wrapped
+  def wrapped: I = inner
 
   /**
     * This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.

@@ -13,8 +13,7 @@ import io.iohk.ethereum.utils.Config
   *   Key: hash of the block to which the BlockHeader belong
   *   Value: the block header
   */
-class BlockHeadersStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHeaderHash, BlockHeader] {
-  override type T = BlockHeadersStorage
+class BlockHeadersStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHeaderHash, BlockHeader, BlockHeadersStorage] {
   override val namespace: IndexedSeq[Byte] = Namespaces.HeaderNamespace
 
   override def keySerializer: (BlockHeaderHash) => IndexedSeq[Byte] = identity
