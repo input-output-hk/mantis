@@ -21,16 +21,4 @@ package object mpt {
     override def toBytes(input: Code): Array[Byte] = input.toArray[Byte]
     override def fromBytes(bytes: Array[Byte]): Code = ByteString(bytes)
   }
-
-  def kec256SecuredTrie[K, V](rootHash: Array[Byte], source: NodeStorage)
-                       (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V]):
-  MerklePatriciaTrie[K, V] = {
-    MerklePatriciaTrie[K, V](rootHash, source, kec256(_: Array[Byte]))(HashByteArraySerializable(kSerializer), vSerializer)
-  }
-
-  def kec256SecuredTrie[K, V](source: NodeStorage)
-                             (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V]):
-  MerklePatriciaTrie[K, V] = {
-    MerklePatriciaTrie[K, V](source, kec256(_: Array[Byte]))(HashByteArraySerializable(kSerializer), vSerializer)
-  }
 }
