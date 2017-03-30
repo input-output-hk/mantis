@@ -1,5 +1,6 @@
 package io.iohk.ethereum.db.storage
 
+import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.NodeStorage._
 
@@ -8,8 +9,7 @@ import io.iohk.ethereum.db.storage.NodeStorage._
   *   Key: hash of the RLP encoded node
   *   Value: the RLP encoded node
   */
-class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, NodeEncoded] {
-  type T = NodeStorage
+class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, NodeEncoded, NodeStorage] {
 
   val namespace: IndexedSeq[Byte] = Namespaces.NodeNamespace
   def keySerializer: NodeHash => IndexedSeq[Byte] = _.toIndexedSeq
@@ -20,6 +20,6 @@ class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, 
 }
 
 object NodeStorage {
-  type NodeHash = Array[Byte]
+  type NodeHash = ByteString
   type NodeEncoded = Array[Byte]
 }

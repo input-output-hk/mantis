@@ -170,7 +170,12 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
 
   override def hashCode: Int = n.hashCode()
 
-  override def toString: String = {
+  override def toString: String = toDecString
+
+  def toDecString: String =
+    n.toString
+
+  def toHexString: String = {
     val hex = f"$n%x"
     //add zero if odd number of digits
     val extraZero = if (hex.length % 2 == 0) "" else "0"
