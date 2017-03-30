@@ -19,7 +19,7 @@ import scala.util.{Random, Try}
 class MerklePatriciaTrieSuite extends FunSuite
   with PropertyChecks
   with ObjectGenerators {
-  val hashFn = (input: Array[Byte]) => kec256(input)
+  val hashFn = kec256(_: Array[Byte])
 
   val EmptyEphemNodeStorage: NodeStorage = new NodeStorage(EphemDataSource())
 
@@ -208,7 +208,7 @@ class MerklePatriciaTrieSuite extends FunSuite
     val trie = keysWithVal.foldLeft(EmptyTrie) { (recTrie, elem) => recTrie.put(elem._1, elem._2) }
 
     val (keysWithValToDelete, keysWithValLeft) = keysWithVal.splitAt(3)
-    val trieAfterDelete = keysWithValToDelete.foldLeft(trie){ (recTrie, elem) => recTrie.remove(elem._1) }
+    val trieAfterDelete = keysWithValToDelete.foldLeft(trie) { (recTrie, elem) => recTrie.remove(elem._1) }
     keysWithValLeft.foreach { t =>
       val obtained = trieAfterDelete.get(t._1)
       assert(obtained.isDefined)
@@ -304,7 +304,7 @@ class MerklePatriciaTrieSuite extends FunSuite
     val wrongSource = EphemDataSource().update(
       IndexedSeq[Byte]('e'.toByte),
       toRemove = Seq(),
-      toUpsert = Seq(ByteString(trie.getRootHash) -> ByteString(trie.nodeStorage.get(trie.getRootHash).get))
+      toUpsert = Seq(ByteString(trie.getRootHash) -> ByteString(trie.nodeStorage.get(ByteString(trie.getRootHash)).get))
     )
     val trieWithWrongSource = MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, new NodeStorage(wrongSource), hashFn)
     val trieAfterDelete = Try {
@@ -313,12 +313,12 @@ class MerklePatriciaTrieSuite extends FunSuite
     assert(trieAfterDelete.isFailure)
   }
 
-  test("Get in an empty trie"){
+  test("Get in an empty trie") {
     val obtained = EmptyTrie.get(Hex.decode("1234"))
     assert(obtained.isEmpty)
   }
 
-  test("Insert with an empty key in a branch node"){
+  test("Insert with an empty key in a branch node") {
     val key1: Array[Byte] = Hex.decode("00")
     val key2: Array[Byte] = Hex.decode("f0")
     val trieWithBranch = EmptyTrie.put(key1, key1).put(key2, key2)
@@ -333,7 +333,7 @@ class MerklePatriciaTrieSuite extends FunSuite
     assert(key3Get.isDefined && (key3Get.get sameElements val3))
   }
 
-  test("Remove of a key (not in trie) whose value should be in a branch node"){
+  test("Remove of a key (not in trie) whose value should be in a branch node") {
     val key1: Array[Byte] = Hex.decode("1100")
     val key2: Array[Byte] = Hex.decode("11f0")
     val trieWithBranch = EmptyTrie.put(key1, key1).put(key2, key2)
@@ -341,7 +341,7 @@ class MerklePatriciaTrieSuite extends FunSuite
     assert(trieAfterDelete.getRootHash sameElements trieWithBranch.getRootHash)
   }
 
-  test("Remove of a key (not in trie) that should be in the child of a BranchNode that is not present"){
+  test("Remove of a key (not in trie) that should be in the child of a BranchNode that is not present") {
     val key1: Array[Byte] = Hex.decode("1100")
     val key2: Array[Byte] = Hex.decode("11f0")
     val trieWithBranch = EmptyTrie.put(key1, key1).put(key2, key2)
@@ -382,7 +382,7 @@ class MerklePatriciaTrieSuite extends FunSuite
     assert("517eaccda568f3fa24915fed8add49d3b743b3764c0bc495b19a47c54dbc3d62" == hash)
   }
 
-  test("EthereumJ compatibility - Empty Trie"){
+  test("EthereumJ compatibility - Empty Trie") {
     val trie = EmptyTrie
     assert(Hex.toHexString(trie.getRootHash) == "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
   }
@@ -414,5 +414,17 @@ class MerklePatriciaTrieSuite extends FunSuite
     val key3: Array[Byte] = Hex.decode("1100")
     val storage = EmptyTrie.put(key1, key1).put(key2, key2).put(key3, key3)
     assert(Hex.toHexString(storage.getRootHash) == "a3d0686205c7ed10a85c3bce4118d5d559bcda47ca39e4dd4f09719958a179f1")
+  }
+
+  // This test was created to fix an error when Some(emptyHash) was used to create the trie
+  test("Using empty root as hash allow to create a MPT") {
+    val emptyTrieRootHash = EmptyTrie.getRootHash
+
+    val mpt = MerklePatriciaTrie[Array[Byte], Array[Byte]](emptyTrieRootHash, EmptyEphemNodeStorage, hashFn)
+    val key1: Array[Byte] = Hex.decode("10")
+    val val1: Array[Byte] = Hex.decode("947e70f9460402290a3e487dae01f610a1a8218fda")
+    val storage = mpt.put(key1, val1)
+    assert(Hex.toHexString(storage.getRootHash) == "e6fbee0b67e3a6f0b9ea775ce585509aa4a0c3fe3f83d1e49a7d484489b755bc")
+
   }
 }

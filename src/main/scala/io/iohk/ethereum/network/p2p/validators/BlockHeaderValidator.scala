@@ -3,6 +3,7 @@ package io.iohk.ethereum.network.p2p.validators
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.crypto.{kec256, kec512}
+import io.iohk.ethereum.utils.Config
 
 object BlockHeaderValidator {
 
@@ -10,7 +11,6 @@ object BlockHeaderValidator {
   val GasLimitBoundDivisor: Int = 1024
   val MinGasLimit: BigInt = 125000
   val DifficultyBoundDivision: Int = 2048
-  val HomesteadBlock: BigInt = 1150000
   val FrontierTimestampDiffLimit: Int = -99
   val ExpDifficultyPeriod: Int = 100000
   val MinimumDifficulty: BigInt = 131072
@@ -139,7 +139,7 @@ object BlockHeaderValidator {
   private def calculateDifficulty(blockHeader: BlockHeader, parentHeader: BlockHeader): BigInt = {
     val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision
     val c: BigInt =
-      if(blockHeader.number < HomesteadBlock){
+      if(blockHeader.number < Config.Blockchain.HomesteadBlock){
         if(blockHeader.unixTimestamp < parentHeader.unixTimestamp + 13) 1 else -1
       }else{
         val timestampDiff = blockHeader.unixTimestamp - parentHeader.unixTimestamp

@@ -30,7 +30,6 @@ object State {
       val depositCost = GasFee.G_codedeposit * intermediateResult.returnData.size
       intermediateResult.copy(
         gasRemaining = intermediateResult.gasRemaining - depositCost,
-        gasUsed = intermediateResult.gasUsed + depositCost,
         error = if (intermediateResult.gasRemaining < depositCost) Some(OutOfGas) else None
       )
     }

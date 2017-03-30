@@ -14,7 +14,7 @@ object FastSyncStateStorage {
 
 }
 
-class FastSyncStateStorage(val dataSource: DataSource) extends KeyValueStorage[String, SyncState] {
+class FastSyncStateStorage(val dataSource: DataSource) extends KeyValueStorage[String, SyncState, FastSyncStateStorage] {
   type T = FastSyncStateStorage
 
   import FastSyncStateStorage._
