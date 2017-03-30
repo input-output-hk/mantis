@@ -107,7 +107,7 @@ object InMemoryWorldStateProxy {
 
 
   /**
-    * Returns an [[InMemorySimpleMapProxy]] of the accounts state trie "The world state (state), is a map-ping
+    * Returns an [[InMemorySimpleMapProxy]] of the accounts state trie "The world state (state), is a mapping
     * between addresses (160-bit identifiers) and account states (a data structure serialised as RLP [...]).
     * Though not stored on the blockchain, it is assumed that the implementation will maintain this mapping in a
     * modified Merkle Patricia tree [...])."
@@ -206,7 +206,7 @@ class InMemoryWorldStateProxy private(
   val evmCodeStorage: InMemorySimpleMapProxy[CodeHash, Code, EvmCodeStorage],
   // Account's code by Address
   val accountCodes: Map[Address, Code],
-  val getBlockByNumber: (BigInt) => Option[Code]
+  val getBlockByNumber: (BigInt) => Option[ByteString]
 ) extends WorldStateProxy[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage] {
 
   import InMemoryWorldStateProxy._
