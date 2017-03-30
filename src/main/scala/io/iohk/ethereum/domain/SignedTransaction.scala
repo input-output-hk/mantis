@@ -38,7 +38,7 @@ object SignedTransaction {
     }
   }
 
-  def getSender(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString, recoveredPointSign: Option[Int]): Option[Address] = {
+  def getSender(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString, recoveredPointSign: Int): Option[Address] = {
     val bytesToSign: Array[Byte] = if (pointSign == negativePointSign || pointSign == positivePointSign) {
       //global transaction
       crypto.kec256(
@@ -64,14 +64,13 @@ object SignedTransaction {
           valueForEmptyS)))
     }
 
-    val recoveredPublicKey: Option[Array[Byte]] = recoveredPointSign.flatMap { p =>
+    val recoveredPublicKey: Option[Array[Byte]] =
       ECDSASignature.recoverPubBytes(
         new BigInteger(1, signatureRandom.toArray[Byte]),
         new BigInteger(1, signature.toArray[Byte]),
-        ECDSASignature.recIdFromSignatureV(p),
+        ECDSASignature.recIdFromSignatureV(recoveredPointSign),
         bytesToSign
       )
-    }
 
     for {
       key <- recoveredPublicKey
@@ -83,18 +82,17 @@ object SignedTransaction {
   def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString): Option[SignedTransaction] = {
     for {
       recoveredPointSign <- SignedTransaction.getRecoveredPointSign(pointSign)
-      sender <- SignedTransaction.getSender(tx, pointSign, signatureRandom, signature, Some(recoveredPointSign))
-    } yield SignedTransaction(tx, pointSign, signatureRandom, signature, sender, recoveredPointSign)
+      sender <- SignedTransaction.getSender(tx, pointSign, signatureRandom, signature, recoveredPointSign)
+    } yield SignedTransaction(tx, pointSign, signatureRandom, signature, sender)
   }
 }
 
-case class SignedTransaction (
+case class SignedTransaction protected (
   tx: Transaction,
   pointSign: Byte, //v
   signatureRandom: ByteString, //r
   signature: ByteString, //s
-  senderAddress: Address,
-  recoveredPointSign: Int) {
+  senderAddress: Address) {
 
   override def toString: String = {
     s"""SignedTransaction {
@@ -103,7 +101,6 @@ case class SignedTransaction (
          |signatureRandom: ${Hex.toHexString(signatureRandom.toArray[Byte])}
          |signature: ${Hex.toHexString(signature.toArray[Byte])}
          |sender: ${Hex.toHexString(senderAddress.bytes.toArray)}
-         |recoveredPointSign: $recoveredPointSign
          |}""".stripMargin
   }
 }
