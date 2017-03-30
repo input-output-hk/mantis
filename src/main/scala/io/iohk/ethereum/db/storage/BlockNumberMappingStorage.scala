@@ -4,8 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.BlockHeadersStorage.BlockHeaderHash
 
-class BlockNumberMappingStorage(val dataSource: DataSource) extends KeyValueStorage[BigInt, BlockHeaderHash] {
-  override type T = BlockNumberMappingStorage
+class BlockNumberMappingStorage(val dataSource: DataSource) extends KeyValueStorage[BigInt, BlockHeaderHash, BlockNumberMappingStorage] {
   override val namespace: IndexedSeq[Byte] = Namespaces.HeightsNamespace
 
   override def keySerializer: (BigInt) => IndexedSeq[Byte] = index => index.toByteArray

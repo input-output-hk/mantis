@@ -10,7 +10,7 @@ object State {
   val creatorAddress = Address(0xabcdef) //scalastyle:off magic.number
 
   private var currentWorld = {
-    val creatorAcc = Account.Empty.updateBalance(BigInt(10).pow(9))
+    val creatorAcc = Account.Empty.updateBalance(UInt256(10) ** UInt256(9))
     val creatorXAcc = XAccount(creatorAcc, "Creator", creatorAddress, Nil)
     WorldState().saveXAccount(creatorAddress, creatorXAcc)
   }

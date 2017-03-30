@@ -40,6 +40,7 @@ object GasFee {
 
     txDataZero * G_txdatazero +
     txDataNonZero * G_txdatanonzero +
+      //FIXME This should be config based in order to support private chains
     (if(isContractCreation && blockNumber > Config.Blockchain.HomesteadBlock) G_txcreate else 0 ) +
     G_transaction
   }
@@ -80,8 +81,8 @@ object GasFee {
   val G_sset           = UInt256(20000)
   val G_sreset         = UInt256(5000)
   val R_sclear         = UInt256(15000)
-  val R_suicide        = UInt256(24000)
-  val G_suicide        = UInt256(5000)
+  val R_selfdestruct   = UInt256(24000)
+  val G_selfdestruct   = UInt256(5000)
   val G_create         = UInt256(32000)
   val G_codedeposit    = UInt256(200)
   val G_call           = UInt256(700)

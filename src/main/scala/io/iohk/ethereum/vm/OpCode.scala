@@ -150,8 +150,9 @@ object OpCode {
     CALLCODE,
     RETURN,
     DELEGATECALL,
-    INVALID
-    //SUICIDE
+    INVALID,
+    SELFDESTRUCT
+
   )
 
   val byteToOpCode: Map[Byte, OpCode] =
@@ -468,17 +469,24 @@ case object SSTORE extends OpCode(0x55, 2, 0, G_zero) {
 case object JUMP extends OpCode(0x56, 1, 0, G_mid) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (pos, stack1) = state.stack.pop
-    //TODO: JUMPDEST validation
-    state.withStack(stack1).goto(pos.toInt)
+    val dest = pos.intValue
+    if(state.program.validJumpDestinations.contains(dest))
+      state.withStack(stack1).goto(dest)
+    else
+      state.withError(InvalidJump(dest))
   }
 }
 
 case object JUMPI extends OpCode(0x57, 2, 0, G_high) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(pos, cond), stack1) = state.stack.pop(2)
-    val nextPos = if (!cond.isZero) pos.toInt else state.pc + 1
-    //TODO: JUMPDEST validation
-    state.withStack(stack1).goto(nextPos)
+    val dest = pos.intValue
+    if(cond.isZero)
+      state.withStack(stack1).step()
+    else if (state.program.validJumpDestinations.contains(dest))
+      state.withStack(stack1).goto(dest)
+    else
+      state.withError(InvalidJump(dest))
   }
 }
 
@@ -616,7 +624,7 @@ case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
 
-sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, 1, G_zero) {
+sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, alpha, G_zero) {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
@@ -749,3 +757,28 @@ case object INVALID extends OpCode(0xfe, 0, 0, G_zero) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] =
     state.withError(InvalidOpCode(code))
 }
+
+case object SELFDESTRUCT extends OpCode(0xff, 1, 0, G_selfdestruct) {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val (refundDW, stack1) = state.stack.pop
+    val refundAddr: Address = Address(refundDW)
+    val gasRefund = if (state.addressesToDelete contains state.ownAddress) UInt256.Zero else R_selfdestruct
+    val world = state.world.transfer(state.ownAddress, refundAddr, state.ownBalance)
+    state
+      .withWorld(world)
+      .refundGas(gasRefund)
+      .withAddressToDelete(state.ownAddress)
+      .withStack(stack1)
+      .halt
+  }
+
+  // Assumes that EIP-161 is not in use on ETC network
+  // https://github.com/ethereum/EIPs/issues/161
+  // I copied the logic from etc geth
+  // https://github.com/ethereumproject/go-ethereum/blob/9fe9368c69f2fb6d7449a4504c71d1af87552957/core/vm/vm.go#L260-L265
+  protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
+    val (Seq(_, accDW), _) = state.stack.pop(2)
+    if (state.world.accountExists(Address(accDW))) UInt256.Zero else G_newaccount
+  }
+}
+

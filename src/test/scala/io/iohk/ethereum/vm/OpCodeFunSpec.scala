@@ -1,13 +1,15 @@
 package io.iohk.ethereum.vm
 
+import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address, TxLogEntry}
 import io.iohk.ethereum.vm.Generators._
 import org.scalacheck.Gen
-import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
+import org.scalatest.{FunSuite, Matchers}
 
 class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
+
   import MockWorldState.PS
 
   def executeOp(op: OpCode, stateIn: PS): PS = {
@@ -21,15 +23,21 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     else if (stateIn.stack.size - op.delta + op.alpha > stateIn.stack.maxSize)
       stateOut shouldEqual stateIn.withError(StackOverflow).halt
     else {
-      val expectedStackSize = stateIn.stack.size - op.delta + op.alpha
-      stateOut.stack.size shouldEqual expectedStackSize
+      if (stateOut.error.isEmpty) {
+        val expectedStackSize = stateIn.stack.size - op.delta + op.alpha
+        stateOut.stack.size shouldEqual expectedStackSize
 
-      val (_, stack1) = stateIn.stack.pop(op.delta)
-      val (_, stack2) = stateOut.stack.pop(op.alpha)
-      stack1 shouldEqual stack2
-
+        val (_, stack1) = stateIn.stack.pop(op.delta)
+        val (_, stack2) = stateOut.stack.pop(op.alpha)
+        stack1 shouldEqual stack2
+      }
       body
     }
+  }
+
+  def stateWithCode(state: PS, code: ByteString): PS = {
+    val newProgram = Program(code)
+    state.copy(context = state.context.copy(env = state.context.env.copy(program = newProgram)))
   }
 
   test(STOP) { op =>
@@ -370,20 +378,65 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(JUMP) { op =>
-    forAll(getProgramStateGen()) { stateIn =>
+    val jumpDest: Byte = (Byte.MaxValue / 2).toByte
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen().map(stack => stack.pop._2.push(UInt256(jumpDest))),
+      codeGen = getByteStringGen(0, Byte.MaxValue)
+    )
+
+    forAll(stateGen) { stateIn =>
       val stateOut = executeOp(op, stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
         val (pos, _) = stateIn.stack.pop
-        stateOut shouldEqual stateIn.withStack(stateOut.stack).goto(pos.toInt)
+        if(stateIn.program.validJumpDestinations.contains(pos.intValue))
+          stateOut shouldEqual stateIn.withStack(stateOut.stack).goto(pos.intValue)
+        else
+          stateOut shouldEqual stateIn.withError(InvalidJump(pos.intValue))
       }
+    }
+
+    val codeAllJumps = ByteString((0 to Byte.MaxValue).map(_ => JUMP.code).toArray)
+    def newStateWithJumpDestination(jumpDestination: Int): PS = {
+      val newState = getProgramStateGen().sample.get
+      val newStack = newState.stack.pop._2.push(UInt256(jumpDestination))
+      newState.copy(stack = newStack)
+    }
+
+    //Jump to valid destination
+    val codeWithValidDestination = ByteString(codeAllJumps.toArray.updated(jumpDest, JUMPDEST.code))
+    val stateInWithValidDestination = stateWithCode(newStateWithJumpDestination(jumpDest), codeWithValidDestination)
+    val stateOutWithValidDestination = executeOp(op, stateInWithValidDestination)
+
+    withStackVerification(op, stateInWithValidDestination, stateOutWithValidDestination) {
+      val (pos, _) = stateInWithValidDestination.stack.pop
+      stateOutWithValidDestination shouldEqual stateInWithValidDestination.withStack(stateOutWithValidDestination.stack).goto(pos.intValue)
+    }
+
+    //Jump to destination not a JUMPDEST
+    val stateInWithInvalidDestination1 = stateWithCode(newStateWithJumpDestination(jumpDest), codeAllJumps)
+    val stateOutWithInvalidDestination1 = executeOp(op, stateInWithInvalidDestination1)
+
+    withStackVerification(op, stateInWithInvalidDestination1, stateOutWithInvalidDestination1) {
+      stateOutWithInvalidDestination1 shouldEqual stateInWithInvalidDestination1.withError(InvalidJump(jumpDest.toInt))
+    }
+
+    //Jump to destination inside PUSH
+    val jumpDestInsidePush = 16
+    val codeWithInvalidDestination = ByteString(PUSH31.code +: (0 to 31).map(_ => 0.toByte).toArray)
+    val stateInWithInvalidDestination2 = stateWithCode(newStateWithJumpDestination(jumpDestInsidePush), codeWithInvalidDestination)
+    val stateOutWithInvalidDestination2 = executeOp(op, stateInWithInvalidDestination2)
+
+    withStackVerification(op, stateInWithInvalidDestination2, stateOutWithInvalidDestination2) {
+      stateOutWithInvalidDestination2 shouldEqual stateInWithInvalidDestination2.withError(InvalidJump(jumpDestInsidePush))
     }
   }
 
   test(JUMPI) { op =>
+    val jumpDest: Byte = (Byte.MaxValue / 2).toByte
     val stateGen = getProgramStateGen(
-      // FIXME perhaps there's a better way to make sure there are some zeros
-      stackGen = getStackGen(maxWord = UInt256(2))
+      stackGen = getStackGen(elems = 1, maxUInt = UInt256(1)).map(stack => stack.push(UInt256(jumpDest))),
+      codeGen = getByteStringGen(0, Byte.MaxValue)
     )
 
     forAll(stateGen) { stateIn =>
@@ -393,12 +446,50 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         val (Seq(pos, cond), _) = stateIn.stack.pop(2)
         val expectedState =
           if (!cond.isZero)
-            stateIn.withStack(stateOut.stack).goto(pos.toInt)
+            if (stateIn.program.validJumpDestinations.contains(pos.intValue))
+              stateIn.withStack(stateOut.stack).goto(pos.intValue)
+            else
+              stateIn.withError(InvalidJump(pos.intValue))
           else
             stateIn.withStack(stateOut.stack).step()
 
         stateOut shouldEqual expectedState
       }
+    }
+
+    val codeAllJumps = ByteString((0 to Byte.MaxValue).map(_ => JUMP.code).toArray)
+    def newStateWithJumpDestination(jumpDestination: Int): PS = {
+      val newState = getProgramStateGen().sample.get
+      val newStack = newState.stack.pop(2)._2.push(UInt256(1)).push(UInt256(jumpDestination))
+      newState.copy(stack = newStack)
+    }
+
+    //Jump to valid destination
+    val codeWithValidDestination = ByteString(codeAllJumps.toArray.updated(jumpDest, JUMPDEST.code))
+    val stateInWithValidDestination = stateWithCode(newStateWithJumpDestination(jumpDest), codeWithValidDestination)
+    val stateOutWithValidDestination = executeOp(op, stateInWithValidDestination)
+
+    withStackVerification(op, stateInWithValidDestination, stateOutWithValidDestination) {
+      val (Seq(pos, _), _) = stateInWithValidDestination.stack.pop(2)
+      stateOutWithValidDestination shouldEqual stateInWithValidDestination.withStack(stateOutWithValidDestination.stack).goto(pos.intValue)
+    }
+
+    //Jump to destination not a JUMPDEST
+    val stateInWithInvalidDestination1 = stateWithCode(newStateWithJumpDestination(jumpDest), codeAllJumps)
+    val stateOutWithInvalidDestination1 = executeOp(op, stateInWithInvalidDestination1)
+
+    withStackVerification(op, stateInWithInvalidDestination1, stateOutWithInvalidDestination1) {
+      stateOutWithInvalidDestination1 shouldEqual stateInWithInvalidDestination1.withError(InvalidJump(jumpDest.toInt))
+    }
+
+    //Jump to destination inside PUSH
+    val jumpDestInsidePush = 16
+    val codeWithInvalidDestination = ByteString(PUSH31.code +: (0 to 31).map(_ => 0.toByte).toArray)
+    val stateInWithInvalidDestination2 = stateWithCode(newStateWithJumpDestination(jumpDestInsidePush), codeWithInvalidDestination)
+    val stateOutWithInvalidDestination2 = executeOp(op, stateInWithInvalidDestination2)
+
+    withStackVerification(op, stateInWithInvalidDestination2, stateOutWithInvalidDestination2) {
+      stateOutWithInvalidDestination2 shouldEqual stateInWithInvalidDestination2.withError(InvalidJump(jumpDestInsidePush))
     }
   }
 
@@ -513,9 +604,28 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("SUICIDE") {
-    // to be implemented
+  test(SELFDESTRUCT) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(elems = 2)
+    )
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+      withStackVerification(op, stateIn, stateOut) {
+        val (refundDW, stack1) = stateIn.stack.pop
+        val world1 = stateIn.world
+          .transfer(stateIn.ownAddress, Address(refundDW), stateIn.ownBalance)
+          .saveAccount(Address(refundDW), Account.Empty)
+        val expectedState = stateIn
+          .withWorld(world1)
+          .withAddressToDelete(stateIn.context.env.ownerAddr)
+          .withStack(stack1)
+          .halt
+        stateOut shouldEqual expectedState
+      }
+    }
   }
 
   verifyAllOpCodesRegistered(except = CALL, CALLCODE, DELEGATECALL)
+
 }
+

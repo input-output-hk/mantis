@@ -65,9 +65,9 @@ object Ledger extends Logger {
             }
             val payBeneficiariesFn = (payForGasUsedToBeneficiary _).curried(stx)
             val deleteAccountsFn = (deleteAccounts _).curried(theResult.addressesToDelete)
-            val commitStateFn = InMemoryWorldStateProxy.commitState _
+            val persistStateFn = InMemoryWorldStateProxy.persistState _
             val (newWorldStateProxy, newAcumGas) =
-              (refundGasFn andThen payBeneficiariesFn andThen deleteAccountsFn andThen commitStateFn) (theResult.world) -> (gasUsed + acumGas)
+              (refundGasFn andThen payBeneficiariesFn andThen deleteAccountsFn andThen persistStateFn) (theResult.world) -> (gasUsed + acumGas)
             val receipt = Receipt(
               postTransactionStateHash = newWorldStateProxy.stateRootHash,
               cumulativeGasUsed = newAcumGas,
@@ -194,7 +194,7 @@ object Ledger extends Logger {
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
     worldStateProxy.saveAccount(senderAddress, account.copy(
       nonce = account.nonce + 1,
-      balance = account.balance - calculateUpfrontGas(stx.tx)
+      balance = account.balance - UInt256(calculateUpfrontGas(stx.tx))
     ))
   }
 

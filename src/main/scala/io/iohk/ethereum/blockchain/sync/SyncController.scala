@@ -80,8 +80,8 @@ class SyncController(
     case Terminated(ref) if handshakedPeers.contains(ref) =>
       removePeer(ref)
 
-    case BlacklistPeer(ref) =>
-      blacklist(ref, blacklistDuration)
+    case BlacklistPeer(ref, reason) =>
+      blacklist(ref, blacklistDuration, reason)
 
     case UnblacklistPeer(ref) =>
       undoBlacklist(ref)

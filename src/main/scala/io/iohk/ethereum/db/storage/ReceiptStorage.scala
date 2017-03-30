@@ -12,9 +12,7 @@ import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
   *   Key: hash of the block to which the list of receipts belong
   *   Value: the list of receipts
   */
-class ReceiptStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHash, Seq[Receipt]] {
-  type T = ReceiptStorage
-
+class ReceiptStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHash, Seq[Receipt], ReceiptStorage] {
   val namespace: IndexedSeq[Byte] = Namespaces.ReceiptsNamespace
   def keySerializer: BlockHash => IndexedSeq[Byte] = identity
   def valueSerializer: Seq[Receipt] => IndexedSeq[Byte] =
