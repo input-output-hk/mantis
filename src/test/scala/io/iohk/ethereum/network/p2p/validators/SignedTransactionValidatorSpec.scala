@@ -55,7 +55,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
     val invalidNonce = (0 until Transaction.NonceLength + 1).map(_ => 1.toByte).toArray
     val signedTxWithInvalidNonce = signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(nonce = BigInt(invalidNonce)))
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidNonce, fromBeforeHomestead = true) match {
-      case Left(TransactionSyntaxError) => succeed
+      case Left(_ :TransactionSyntaxError) => succeed
       case _ => fail
     }
   }
@@ -64,7 +64,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
     val invalidGasLimit = (0 until Transaction.GasLength + 1).map(_ => 1.toByte).toArray
     val signedTxWithInvalidGasLimit = signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(gasLimit = BigInt(invalidGasLimit)))
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidGasLimit, fromBeforeHomestead = true) match {
-      case Left(TransactionSyntaxError) => succeed
+      case Left(_: TransactionSyntaxError) => succeed
       case _ => fail
     }
   }
@@ -73,7 +73,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
     val invalidGasPrice = (0 until Transaction.GasLength + 1).map(_ => 1.toByte).toArray
     val signedTxWithInvalidGasPrice = signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(gasPrice = BigInt(invalidGasPrice)))
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidGasPrice, fromBeforeHomestead = true) match {
-      case Left(TransactionSyntaxError) => succeed
+      case Left(_: TransactionSyntaxError) => succeed
       case _ => fail
     }
   }
@@ -82,7 +82,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
     val invalidValue = (0 until Transaction.ValueLength + 1).map(_ => 1.toByte).toArray
     val signedTxWithInvalidValue = signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(value = BigInt(invalidValue)))
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidValue, fromBeforeHomestead = true) match {
-      case Left(TransactionSyntaxError) => succeed
+      case Left(_: TransactionSyntaxError) => succeed
       case _ => fail
     }
   }
@@ -91,7 +91,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
     val invalidSignature = (0 until ECDSASignature.SLength + 1).map(_ => 1.toByte).toArray
     val signedTxWithInvalidSignatureLength = signedTxBeforeHomestead.copy(signature = ByteString(invalidSignature))
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidSignatureLength, fromBeforeHomestead = true) match {
-      case Left(TransactionSyntaxError) => succeed
+      case Left(_: TransactionSyntaxError) => succeed
       case _ => fail
     }
   }
@@ -100,7 +100,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
     val invalidSignatureRandom = (0 until ECDSASignature.RLength + 1).map(_ => 1.toByte).toArray
     val signedTxWithInvalidSignatureLength = signedTxBeforeHomestead.copy(signatureRandom = ByteString(invalidSignatureRandom))
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidSignatureLength, fromBeforeHomestead = true) match {
-      case Left(TransactionSyntaxError) => succeed
+      case Left(_: TransactionSyntaxError) => succeed
       case _ => fail
     }
   }

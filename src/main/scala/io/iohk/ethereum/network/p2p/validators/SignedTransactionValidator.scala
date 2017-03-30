@@ -39,13 +39,20 @@ object SignedTransactionValidator {
 
     def byteLength(b: BigInt): Int = b.toByteArray.length
 
-    if (byteLength(nonce) <= NonceLength &&
-      receivingAddress.bytes.length == Address.Length &&
-      byteLength(gasLimit) <= GasLength &&
-      byteLength(gasPrice) <= GasLength &&
-      byteLength(value) <= ValueLength &&
-      signatureRandom.length <= ECDSASignature.RLength &&
-      signature.length <= ECDSASignature.SLength) Right(stx) else Left(TransactionSyntaxError)
+    if (byteLength(nonce) > NonceLength)
+      Left(TransactionSyntaxError(s"Invalid nonce length: ${byteLength(nonce)}"))
+    else if(byteLength(gasLimit) > GasLength)
+      Left(TransactionSyntaxError(s"Invalid gasLimit length: ${byteLength(gasLimit)}"))
+    else if(byteLength(gasPrice) > GasLength)
+      Left(TransactionSyntaxError(s"Invalid gasPrice length: ${byteLength(gasPrice)}"))
+    else if(byteLength(value) > ValueLength)
+      Left(TransactionSyntaxError(s"Invalid value length: ${byteLength(value)}"))
+    else if(signatureRandom.length > ECDSASignature.RLength)
+      Left(TransactionSyntaxError(s"Invalid signatureRandom length: ${signatureRandom.length}"))
+    else if(signature.length > ECDSASignature.SLength)
+      Left(TransactionSyntaxError(s"Invalid signature length: ${signature.length}"))
+    else
+      Right(stx)
   }
 
   /**
@@ -72,5 +79,5 @@ sealed trait SignedTransactionError
 
 object SignedTransactionError {
   case object TransactionSignatureError extends SignedTransactionError
-  case object TransactionSyntaxError extends SignedTransactionError
+  case class TransactionSyntaxError(msg: String) extends SignedTransactionError
 }
