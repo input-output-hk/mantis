@@ -32,7 +32,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     val responseBodies = Nil
     peer.reply(PeerActor.MessageReceived(BlockBodies(responseBodies)))
 
-    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
+    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref, "got empty block bodies response for known hashes: List(31, 32)"))
     parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
@@ -44,14 +44,14 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
 
     time.advance(10.seconds)
 
-    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
+    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref, "time out on block bodies response for known hashes: List(31, 32)"))
     parent.expectMsg(FastSync.EnqueueBlockBodies(requestedHashes))
     parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
 
-  trait TestSetup extends EphemBlockchainTestSetup {
+  trait TestSetup {
     implicit val system = ActorSystem("FastSyncBlockBodiesRequestHandlerSpec_System")
 
     val time = new VirtualTime
@@ -65,8 +65,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     val fastSyncBlockBodiesRequestHandler: ActorRef =
       parent.childActorOf(SyncBlockBodiesRequestHandler.props(
         peer.ref,
-        requestedHashes,
-        storagesInstance.storages.appStateStorage)(time.scheduler))
+        requestedHashes)(time.scheduler))
   }
 
 }

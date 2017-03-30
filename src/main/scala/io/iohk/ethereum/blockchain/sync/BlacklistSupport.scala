@@ -2,11 +2,10 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.ExecutionContext.Implicits.global
-
-import akka.actor.{Scheduler, Cancellable, ActorRef, Actor}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Scheduler}
 
 trait BlacklistSupport {
-  selfActor: Actor =>
+  selfActor: Actor with ActorLogging =>
 
   import BlacklistSupport._
 
@@ -14,8 +13,9 @@ trait BlacklistSupport {
 
   var blacklistedPeers: Seq[(ActorRef, Cancellable)] = Nil
 
-  def blacklist(peer: ActorRef, duration: FiniteDuration): Unit = {
+  def blacklist(peer: ActorRef, duration: FiniteDuration, reason: String): Unit = {
     undoBlacklist(peer)
+    log.info(s"Blacklisting peer (${peer.path.name}), $reason")
     val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(peer))
     blacklistedPeers :+= (peer, unblacklistCancellable)
   }
@@ -30,6 +30,6 @@ trait BlacklistSupport {
 }
 
 object BlacklistSupport {
-  case class BlacklistPeer(peer: ActorRef)
+  case class BlacklistPeer(peer: ActorRef, reason: String)
   case class UnblacklistPeer(peer: ActorRef)
 }

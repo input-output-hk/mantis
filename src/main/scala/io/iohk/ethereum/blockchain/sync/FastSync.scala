@@ -6,7 +6,7 @@ import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.PeerActor.Status.{Chain, Handshaked}
+import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.utils.Config.FastSync._
 
@@ -34,7 +34,7 @@ trait FastSync {
   }
 
   private def startFastSyncFromScratch(): Unit = {
-    val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.chain == Chain.ETC)
+    val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.forkAccepted)
 
     if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
       peersUsedToChooseTarget.foreach { case (peer, Handshaked(status, _, _)) =>
@@ -65,15 +65,15 @@ trait FastSync {
         tryStartFastSync(newReceived)
       } else context become waitingForBlockHeaders(newWaitingFor, newReceived, timeout)
 
-    case PeerActor.MessageReceived(BlockHeaders(_)) =>
+    case PeerActor.MessageReceived(BlockHeaders(blockHeaders)) =>
       sender() ! PeerActor.Unsubscribe
-      blacklist(sender(), blacklistDuration)
+      blacklist(sender(), blacklistDuration,s"did not respond with 1 header but with ${blockHeaders.size}, blacklisting for $blacklistDuration")
       context become waitingForBlockHeaders(waitingFor - sender(), received, timeout)
 
     case BlockHeadersTimeout =>
       waitingFor.foreach { peer =>
         peer ! PeerActor.Unsubscribe
-        blacklist(peer, blacklistDuration)
+        blacklist(peer, blacklistDuration, s"did not respond within required time with block header, blacklisting for $blacklistDuration")
       }
       tryStartFastSync(received)
   }
@@ -84,11 +84,19 @@ trait FastSync {
       val (mostUpToDatePeer, mostUpToDateBlockHeader) = receivedHeaders.maxBy(_._2.number)
       val targetBlock = mostUpToDateBlockHeader.number - targetBlockOffset
 
-      log.info("Starting fast sync. Asking peer {} for target block header ({})", mostUpToDatePeer.path.name, targetBlock)
-      mostUpToDatePeer ! PeerActor.Subscribe(Set(BlockHeaders.code))
-      mostUpToDatePeer ! PeerActor.SendMessage(GetBlockHeaders(Left(targetBlock), 1, 0, reverse = false))
-      val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
-      context become waitingForTargetBlock(mostUpToDatePeer, targetBlock, timeout)
+      if (targetBlock < 1) {
+        log.info("Target block is less than 1, starting regular sync")
+        appStateStorage.fastSyncDone()
+        context become idle
+        self ! FastSyncDone
+      } else {
+        log.info("Starting fast sync. Asking peer {} for target block header ({})", mostUpToDatePeer.path.name, targetBlock)
+        mostUpToDatePeer ! PeerActor.Subscribe(Set(BlockHeaders.code))
+        mostUpToDatePeer ! PeerActor.SendMessage(GetBlockHeaders(Left(targetBlock), 1, 0, reverse = false))
+        val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
+        context become waitingForTargetBlock(mostUpToDatePeer, targetBlock, timeout)
+      }
+
     } else {
       log.info("Did not receive enough status block headers to start fast sync. Retry in {}", startRetryInterval)
       scheduleStartRetry(startRetryInterval)
@@ -112,21 +120,13 @@ trait FastSync {
           startFastSync(initialSyncState)
 
         case None =>
-          log.info("Peer ({}) did not respond with target block header, blacklisting and scheduling retry in {}",
-            sender().path.name,
-            startRetryInterval)
-
-          blacklist(sender(), blacklistDuration)
+          blacklist(sender(), blacklistDuration,s"did not respond with target block header, blacklisting and scheduling retry in $startRetryInterval")
           scheduleStartRetry(startRetryInterval)
           context become startingFastSync
       }
 
     case TargetBlockTimeout =>
-      log.info("Peer ({}) did not respond with target block header (timeout), blacklisting and scheduling retry in {}",
-        sender().path.name,
-        startRetryInterval)
-
-      blacklist(sender(), blacklistDuration)
+      blacklist(sender(), blacklistDuration, s"did not respond with target block header (timeout), blacklisting and scheduling retry in $startRetryInterval")
       peer ! PeerActor.Unsubscribe
       scheduleStartRetry(startRetryInterval)
       context become startingFastSync
@@ -304,8 +304,7 @@ trait FastSync {
 
     def requestBlockBodies(peer: ActorRef): Unit = {
       val (blockBodiesToGet, remainingBlockBodies) = blockBodiesQueue.splitAt(blockBodiesPerRequest)
-      val handler = context.actorOf(SyncBlockBodiesRequestHandler.props(
-        peer, blockBodiesToGet, appStateStorage))
+      val handler = context.actorOf(SyncBlockBodiesRequestHandler.props(peer, blockBodiesToGet))
       context watch handler
       assignedHandlers += (handler -> peer)
       blockBodiesQueue = remainingBlockBodies

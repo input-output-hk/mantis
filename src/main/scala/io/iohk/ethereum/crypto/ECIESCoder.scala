@@ -94,7 +94,7 @@ object ECIESCoder {
     val prv = ephemPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD
     val pub = ephemPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ
 
-    val iesEngine = makeIESEngine(isEncrypt = true, toPub, prv, Some(IV))
+    val iesEngine = makeIESEngine(toPub, prv, Some(IV))
 
     val keygenParams = new ECKeyGenerationParameters(curve, random)
     val generator = new ECKeyPairGenerator
@@ -138,7 +138,7 @@ object ECIESCoder {
     iesEngine.processBlock(plaintext, 0, plaintext.length, forEncryption = true)
   }
 
-  private def makeIESEngine(isEncrypt: Boolean, pub: ECPoint, prv: BigInteger, IV: Option[Array[Byte]]) = {
+  private def makeIESEngine(pub: ECPoint, prv: BigInteger, IV: Option[Array[Byte]]) = {
     val aesFastEngine = new AESFastEngine
 
     val iesEngine = new EthereumIESEngine(

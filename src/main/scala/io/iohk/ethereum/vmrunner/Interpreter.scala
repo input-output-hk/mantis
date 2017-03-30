@@ -117,8 +117,10 @@ object Interpreter {
     else if (!abi.exists())
       Left(ContractFileNotFound(name, "ABI"))
     else {
-      val codeHex = Source.fromFile(bin).mkString
-      val abiJson = Source.fromFile(abi).mkString
+      val codeHexReader = Source.fromFile(bin)
+      val abiJsonReader = Source.fromFile(abi)
+      val codeHex = try{ codeHexReader.mkString } finally { codeHexReader.close() }
+      val abiJson = try { abiJsonReader.mkString } finally { abiJsonReader.close() }
 
       for {
         abis <- parseAbi(abiJson)
