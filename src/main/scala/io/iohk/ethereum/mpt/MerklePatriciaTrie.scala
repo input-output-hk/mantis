@@ -16,31 +16,32 @@ object MerklePatriciaTrie {
   case class MPTException(message: String) extends RuntimeException(message)
 
   private case class NodeInsertResult(newNode: Node,
-                                      toDeleteFromStorage: Seq[Node] = Seq(),
-                                      toUpdateInStorage: Seq[Node] = Seq())
+    toDeleteFromStorage: Seq[Node] = Seq(),
+    toUpdateInStorage: Seq[Node] = Seq())
 
   private case class NodeRemoveResult(hasChanged: Boolean, newNode: Option[Node],
-                                      toDeleteFromStorage: Seq[Node] = Seq(),
-                                      toUpdateInStorage: Seq[Node] = Seq())
+    toDeleteFromStorage: Seq[Node] = Seq(),
+    toUpdateInStorage: Seq[Node] = Seq())
 
   type HashFn = Array[Byte] => Array[Byte]
 
   private val PairSize: Byte = 2
   private[mpt] val ListSize: Byte = 17
 
-  def apply[K, V](source: SimpleMap[NodeHash, NodeEncoded], hashFn: HashFn)
-                 (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
-  : MerklePatriciaTrie[K, V] = new MerklePatriciaTrie[K, V](calculateEmptyRootHash(hashFn), source, hashFn)(kSerializer, vSerializer)
+  def apply[K, V](source: NodeStorage, hashFn: HashFn)
+    (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
+  : MerklePatriciaTrie[K, V] = new MerklePatriciaTrie[K, V](None, source, hashFn)(kSerializer, vSerializer)
 
-  def apply[K, V](rootHash: Array[Byte], source: SimpleMap[NodeHash, NodeEncoded], hashFn: HashFn)
-                 (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
+  def apply[K, V](rootHash: Array[Byte], source: NodeStorage, hashFn: HashFn)
+    (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
   : MerklePatriciaTrie[K, V] = {
-      new MerklePatriciaTrie[K, V](rootHash, source, hashFn)(kSerializer, vSerializer)
+    if (calculateEmptyRootHash(hashFn) sameElements rootHash) MerklePatriciaTrie(source, hashFn)
+    else new MerklePatriciaTrie[K, V](Some(rootHash), source, hashFn)(kSerializer, vSerializer)
   }
 
   def calculateEmptyRootHash(hashFn: HashFn): Array[Byte] = hashFn(encodeRLP(Array.emptyByteArray))
 
-  private def getNode(nodeId: Array[Byte], source: SimpleMap[NodeHash, NodeEncoded])(implicit nodeDec: RLPDecoder[Node]): Node = {
+  private def getNode(nodeId: Array[Byte], source: NodeStorage)(implicit nodeDec: RLPDecoder[Node]): Node = {
     val nodeEncoded =
       if (nodeId.length < 32) nodeId
       else source.get(ByteString(nodeId)).getOrElse(throw MPTException("Node not found, trie is inconsistent"))
@@ -50,11 +51,11 @@ object MerklePatriciaTrie {
   private def matchingLength(a: Array[Byte], b: Array[Byte]): Int = a.zip(b).takeWhile(t => t._1 == t._2).length
 
   private def updateNodesInStorage(
-      previousRootHash: Array[Byte],
-      newRoot: Option[Node],
-      toRemove: Seq[Node],
-      toUpdate: Seq[Node],
-      nodeStorage: SimpleMap[NodeHash, NodeEncoded]): SimpleMap[NodeHash, NodeEncoded] = {
+    previousRootHash: Array[Byte],
+    newRoot: Option[Node],
+    toRemove: Seq[Node],
+    toUpdate: Seq[Node],
+    nodeStorage: NodeStorage): NodeStorage = {
     val rootCapped = newRoot.map(_.capped).getOrElse(Array.emptyByteArray)
     val toBeRemoved = toRemove.filter { node =>
       val nCapped = node.capped
@@ -67,13 +68,13 @@ object MerklePatriciaTrie {
     nodeStorage.update(toBeRemoved, toBeUpdated)
   }
 
-  private def getNextNode(extensionNode: ExtensionNode, nodeStorage: SimpleMap[NodeHash, NodeEncoded])(implicit nodeDec: RLPDecoder[Node]): Node =
+  private def getNextNode(extensionNode: ExtensionNode, nodeStorage: NodeStorage)(implicit nodeDec: RLPDecoder[Node]): Node =
     extensionNode.next match {
       case Right(node) => node
       case Left(hash) => MerklePatriciaTrie.getNode(hash, nodeStorage)
     }
 
-  private def getChild(branchNode: BranchNode, pos: Int, nodeStorage: SimpleMap[NodeHash, NodeEncoded])(implicit nodeDec: RLPDecoder[Node]): Option[Node] =
+  private def getChild(branchNode: BranchNode, pos: Int, nodeStorage: NodeStorage)(implicit nodeDec: RLPDecoder[Node]): Option[Node] =
     branchNode.children(pos) map {
       case Right(node) => node
       case Left(hash) => MerklePatriciaTrie.getNode(hash, nodeStorage)
@@ -104,17 +105,13 @@ object MerklePatriciaTrie {
   }
 }
 
-class MerklePatriciaTrie[K, V] (val aRootHash: Array[Byte],
-                               val nodeStorage: SimpleMap[NodeHash, NodeEncoded],
-                               val hashFn: HashFn)
-                              (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
-  extends SimpleMap[K, V] {
+class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
+  val nodeStorage: NodeStorage,
+  private val hashFn: HashFn)
+  (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
+  extends SimpleMap[K, V, MerklePatriciaTrie[K, V]] {
 
   import MerklePatriciaTrie._
-
-  override type T = MerklePatriciaTrie[K, V]
-
-  private val rootHash: Option[Array[Byte]] = if(aRootHash sameElements EmptyTrieHash) None else Some(aRootHash)
 
   /**
     * Implicits
@@ -144,7 +141,7 @@ class MerklePatriciaTrie[K, V] (val aRootHash: Array[Byte],
     }
   }
 
-  private lazy val EmptyTrieHash = calculateEmptyRootHash(hashFn)
+  private lazy val EmptyTrieHash = hashFn(encodeRLP(Array.emptyByteArray))
   lazy val getRootHash: Array[Byte] = rootHash.getOrElse(EmptyTrieHash)
 
   /**
@@ -152,7 +149,7 @@ class MerklePatriciaTrie[K, V] (val aRootHash: Array[Byte],
     *
     * @param key
     * @return Option object with value if there exists one.
-    * @throws MerklePatriciaTrie if there is any inconsistency in how the trie is build.
+    * @throws MPTException if there is any inconsistency in how the trie is build.
     */
   def get(key: K): Option[V] = {
     rootHash flatMap { rootId =>
@@ -182,12 +179,12 @@ class MerklePatriciaTrie[K, V] (val aRootHash: Array[Byte],
         toRemove = nodesToRemoveFromStorage,
         toUpdate = nodesToUpdateInStorage,
         nodeStorage = nodeStorage)
-      new MerklePatriciaTrie(newRootHash, newSource, hashFn)(kSerializer, vSerializer)
+      new MerklePatriciaTrie(Some(newRootHash), newSource, hashFn)(kSerializer, vSerializer)
     } getOrElse {
       val newRoot = LeafNode(keyNibbles, vSerializer.toBytes(value), hashFn)
       val newRootHash = newRoot.hash
-      new MerklePatriciaTrie(newRootHash,
-        updateNodesInStorage(getRootHash, Some(newRoot), Seq.empty, Seq(newRoot), nodeStorage),
+      new MerklePatriciaTrie(Some(newRootHash),
+        updateNodesInStorage(getRootHash, Some(newRoot), Seq(), Seq(newRoot), nodeStorage),
         hashFn)
     }
   }
@@ -212,7 +209,7 @@ class MerklePatriciaTrie[K, V] (val aRootHash: Array[Byte],
             toRemove = nodesToRemoveFromStorage,
             toUpdate = nodesToUpdateInStorage,
             nodeStorage = nodeStorage)
-          new MerklePatriciaTrie(newRootHash, afterDeletenodeStorage, hashFn)(kSerializer, vSerializer)
+          new MerklePatriciaTrie(Some(newRootHash), afterDeletenodeStorage, hashFn)(kSerializer, vSerializer)
         case NodeRemoveResult(true, None, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
           val afterDeletenodeStorage = updateNodesInStorage(
             previousRootHash = getRootHash,
@@ -220,7 +217,7 @@ class MerklePatriciaTrie[K, V] (val aRootHash: Array[Byte],
             toRemove = nodesToRemoveFromStorage,
             toUpdate = nodesToUpdateInStorage,
             nodeStorage = nodeStorage)
-          new MerklePatriciaTrie(EmptyTrieHash, afterDeletenodeStorage, hashFn)(kSerializer, vSerializer)
+          new MerklePatriciaTrie(None, afterDeletenodeStorage, hashFn)(kSerializer, vSerializer)
         case NodeRemoveResult(false, _, _, _) => this
       }
     } getOrElse {
@@ -486,14 +483,14 @@ class MerklePatriciaTrie[K, V] (val aRootHash: Array[Byte],
     *   - Extension node followed by anything other than a Branch node.
     *
     * @param node         that may be in an invalid state.
-    * @param nodeStorage   to obtain the nodes referenced in the node that may be in an invalid state.
+    * @param nodeStorage  to obtain the nodes referenced in the node that may be in an invalid state.
     * @param notStoredYet to obtain the nodes referenced in the node that may be in an invalid state,
     *                     if they were not yet inserted into the nodeStorage.
     * @return fixed node.
     * @throws MPTException if there is any inconsistency in how the trie is build.
     */
   @tailrec
-  private def fix(node: Node, nodeStorage: SimpleMap[NodeHash, NodeEncoded], notStoredYet: Seq[Node]): Node = node match {
+  private def fix(node: Node, nodeStorage: NodeStorage, notStoredYet: Seq[Node]): Node = node match {
     case BranchNode(children, optStoredValue, _) =>
       val usedIndexes = children.indices.foldLeft[Seq[Int]](Seq.empty) {
         (acc, i) =>
