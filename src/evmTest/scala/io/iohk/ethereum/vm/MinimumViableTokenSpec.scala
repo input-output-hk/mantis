@@ -18,7 +18,6 @@ class MinimumViableTokenSpec extends FreeSpec with Matchers {
 
       val transferRes = contract.transfer(receiver, 40).call(sender = sender)
       transferRes.error shouldBe None
-      transferRes.gasUsed shouldBe 26770
 
       contract.balanceOf(receiver).call().returnData shouldBe UInt256(40).bytes
       contract.balanceOf(sender).call().returnData shouldBe UInt256(110).bytes
@@ -39,7 +38,7 @@ class MinimumViableTokenSpec extends FreeSpec with Matchers {
       val receiver = createAccount(balance = 10)
 
       val (result, _) = deployContract("MinimumViableToken", creatorAddress = sender,
-        constructorArgs = Seq(100), gasLimit = 10)
+        constructorArgs = Seq(100), gasLimit = 75934)
 
       result.error shouldBe Some(OutOfGas)
     }
@@ -50,7 +49,7 @@ class MinimumViableTokenSpec extends FreeSpec with Matchers {
 
       val (_, contract) = deployContract("MinimumViableToken", creatorAddress = sender, constructorArgs = Seq(100))
 
-      val transferRes = contract.transfer(receiver, 10).call(sender = sender, gasLimit = 1234)
+      val transferRes = contract.transfer(receiver, 10).call(sender = sender, gasLimit = 25934)
       transferRes.error shouldBe Some(OutOfGas)
     }
   }
