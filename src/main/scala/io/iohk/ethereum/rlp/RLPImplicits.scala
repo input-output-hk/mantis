@@ -2,6 +2,7 @@ package io.iohk.ethereum.rlp
 
 import akka.util.ByteString
 import io.iohk.ethereum.rlp.RLP._
+import io.iohk.ethereum.vm.UInt256
 
 import scala.language.implicitConversions
 
@@ -48,6 +49,17 @@ object RLPImplicits {
       case RLPValue(bytes) => bigEndianMinLengthToInt(bytes)
       case _ => throw RLPException("src is not an RLPValue")
     }
+  }
+
+  implicit val uInt256EncDec =  new RLPEncoder[UInt256] with RLPDecoder[UInt256] {
+    override def encode(obj: UInt256): RLPEncodeable =
+      RLPValue(if (obj.equals(UInt256.Zero)) Array[Byte](0: Byte) else obj.bytes.dropWhile(_ == 0).toArray[Byte])
+
+    override def decode(rlp: RLPEncodeable): UInt256 = rlp match {
+      case RLPValue(bytes) => UInt256(bytes)
+      case _ => throw RLPException("src is not an RLPValue")
+    }
+
   }
 
   //Used for decoding and encoding positive (or 0) BigInts
@@ -104,8 +116,6 @@ object RLPImplicits {
     override def decode(rlp: RLPEncodeable): ByteString = ByteString(byteArrayEncDec.decode(rlp))
   }
 
-  implicit def byteStringToEncodeable(b: ByteString)(implicit enc: RLPEncoder[ByteString]): RLPEncodeable = enc.encode(b)
-
   implicit def seqEncDec[T]()(implicit enc: RLPEncoder[T], dec: RLPDecoder[T]): RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] =
     new RLPEncoder[Seq[T]] with RLPDecoder[Seq[T]] {
       override def encode(obj: Seq[T]): RLPEncodeable = RLPList(obj.map(enc.encode): _*)
@@ -116,22 +126,4 @@ object RLPImplicits {
       }
   }
 
-  implicit def toEncodeable[T](value: T)(implicit enc: RLPEncoder[T]): RLPEncodeable = enc.encode(value)
-
-  implicit def toEncodeableList[T](values: Seq[T])(implicit enc: RLPEncoder[T]): RLPList =
-    RLPList(values.map(v => toEncodeable[T](v)): _*)
-
-  implicit def byteFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Byte]): Byte = dec.decode(rlp)
-
-  implicit def shortFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Short]): Short = dec.decode(rlp)
-
-  implicit def intFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Int]): Int = dec.decode(rlp)
-
-  implicit def bigIntFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[BigInt]): BigInt = dec.decode(rlp)
-
-  implicit def longFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Long]): Long = dec.decode(rlp)
-
-  implicit def stringFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[String]): String = dec.decode(rlp)
-
-  implicit def byteArrayFromEncodeable(rlp: RLPEncodeable)(implicit dec: RLPDecoder[Array[Byte]]): Array[Byte] = dec.decode(rlp)
 }

@@ -31,7 +31,6 @@ object Storages {
 
       override val totalDifficultyStorage: TotalDifficultyStorage =
         new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
-          .put(Config.Blockchain.genesisHash, Config.Blockchain.genesisDifficulty)
 
       override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
 
@@ -68,7 +67,6 @@ object Storages {
 
       override val totalDifficultyStorage: TotalDifficultyStorage =
         new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
-          .put(Config.Blockchain.genesisHash, Config.Blockchain.genesisDifficulty)
 
       override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
     }

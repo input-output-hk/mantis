@@ -1,9 +1,11 @@
 package io.iohk.ethereum.ledger
 
+import akka.util.ByteString
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm.{Generators, UInt256}
 import org.scalatest.{FlatSpec, Matchers}
+import org.spongycastle.util.encoders.Hex
 
 class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
 
@@ -42,9 +44,9 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   "InMemoryWorldStateProxy" should "be able to persist changes and continue working after that" in new TestSetup {
 
     val account = Account(0, 100)
-    val addr = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue)
-    val value = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue)
-    val code = Generators.getByteStringGen(1, 100).sample.get
+    val addr = UInt256.Zero
+    val value = UInt256.MaxValue
+    val code = ByteString(Hex.decode("deadbeefdeadbeefdeadbeef"))
 
     val validateInitialWorld = (ws: InMemoryWorldStateProxy) => {
       ws.accountExists(address1) shouldEqual true
@@ -68,7 +70,10 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     validateInitialWorld(afterUpdatesWorldState)
 
     // Persist and check
-    val persistedWorldState = InMemoryWorldStateProxy.persist(afterUpdatesWorldState)
+    val persistedWorldState = InMemoryWorldStateProxy.persistIfHashMatches(
+      ByteString(Hex.decode("4886162b0ee2a2acdfc602cb5b96cd8d4d3db6cc56c3df4b5433447eded32a7e")),
+      afterUpdatesWorldState
+    )
     validateInitialWorld(persistedWorldState)
 
     // Create a new WS instance based on storages and new root state and check
@@ -86,7 +91,11 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     updatedNewWorldState.getStorage(address1).load(addr) shouldEqual value
 
     // Persist and check again
-    val persistedNewWorldState = InMemoryWorldStateProxy.persist(updatedNewWorldState)
+    val persistedNewWorldState = InMemoryWorldStateProxy.persistIfHashMatches(
+      ByteString(Hex.decode("71e5a0e173527cd8dde2e587a09c4a8f6a138226e2979a7fcbd273a89d117511")),
+      updatedNewWorldState
+    )
+
     persistedNewWorldState.getGuaranteedAccount(address1).balance shouldEqual account.balance
     persistedNewWorldState.getGuaranteedAccount(address2).balance shouldEqual 0
     persistedNewWorldState.getStorage(address1).load(addr) shouldEqual value

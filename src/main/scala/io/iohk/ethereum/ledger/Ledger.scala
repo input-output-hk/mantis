@@ -81,16 +81,16 @@ object Ledger extends Logger {
     * @param worldStateProxy
     * @return
     */
-  private[ledger] def payBlockReward(minerRewardAmount: BigInt, block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  private[ledger] def payBlockReward(minerRewardAmount: UInt256, block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
 
     def getAccountToPay(address: Address, ws: InMemoryWorldStateProxy): Account = ws.getAccount(address).getOrElse(Account.Empty)
 
     // YP - eq 148
-    def calcMinerReward(unclesCount: Int): BigInt = minerRewardAmount + (minerRewardAmount * unclesCount) / 32
+    def calcMinerReward(unclesCount: Int): UInt256 = minerRewardAmount + (minerRewardAmount * unclesCount) / 32
 
     // YP - eq 149
-    def calcOmmerReward(blockHeader: BlockHeader, ommerBlockHeader: BlockHeader) =
-      minerRewardAmount + (minerRewardAmount * (ommerBlockHeader.number - blockHeader.number)) / 8
+    def calcOmmerReward(blockHeader: BlockHeader, ommerBlockHeader: BlockHeader): UInt256 =
+      minerRewardAmount - (minerRewardAmount * UInt256(blockHeader.number - ommerBlockHeader.number)) / 8
 
     val minerAddress = Address(block.header.beneficiary)
     val minerAccount = getAccountToPay(minerAddress, worldStateProxy)
@@ -208,7 +208,7 @@ object Ledger extends Logger {
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
     worldStateProxy.saveAccount(senderAddress, account.copy(
       nonce = account.nonce + 1,
-      balance = account.balance - calculateUpfrontGas(stx.tx)
+      balance = account.balance - UInt256(calculateUpfrontGas(stx.tx))
     ))
   }
 

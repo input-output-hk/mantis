@@ -10,6 +10,7 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -34,7 +35,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
 
   val ProtocolVersion = Message.PV63
 
-  val peerId = context.parent.path.name
+  val peerId: String = context.parent.path.name
 
   override def receive: Receive = waitingForCommand
 
@@ -51,7 +52,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
   }
 
   def waitingForConnectionResult(uri: URI): Receive = {
-    case Connected(remote, local) =>
+    case Connected(_, _) =>
       val connection = sender()
       connection ! Register(self)
       val (initPacket, handshaker) = AuthHandshaker(nodeKey).initiate(uri)
@@ -60,7 +61,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
       context become new ConnectedHandler(connection).waitingForAuthHandshakeResponse(handshaker, timeout)
 
     case CommandFailed(_: Connect) =>
-      log.warning("Connection to {} failed", uri)
+      log.warning("[Stopping Connection] Connection to {} failed", uri)
       context.parent ! ConnectionFailed
       context stop self
   }
@@ -109,7 +110,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
 
     def handleTimeout: Receive = {
       case AuthHandshakeTimeout =>
-        log.debug("Auth handshake timeout")
+        log.warning(s"[Stopping Connection] Auth handshake timeout for peer $peerId")
         context.parent ! ConnectionFailed
         context stop self
     }
@@ -117,7 +118,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
     def processHandshakeResult(result: AuthHandshakeResult, remainingData: ByteString): Unit =
       result match {
         case AuthHandshakeSuccess(secrets) =>
-          log.debug("Auth handshake succeeded")
+          log.debug(s"Auth handshake succeeded for peer $peerId")
           context.parent ! ConnectionEstablished
           val messageCodec = new MessageCodec(new FrameCodec(secrets), ProtocolVersion)
           val messagesSoFar = messageCodec.readMessages(remainingData)
@@ -125,7 +126,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
           context become handshaked(messageCodec)
 
         case AuthHandshakeError =>
-          log.debug("Auth handshake failed")
+          log.warning(s"[Stopping Connection] Auth handshake failed for peer $peerId")
           context.parent ! ConnectionFailed
           context stop self
       }
@@ -151,14 +152,20 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
       }
 
     def handleWriteFailed: Receive = {
-      case CommandFailed(_: Write) =>
-        log.warning("Write failed")
+      case CommandFailed(cmd: Write) =>
+        log.warning(s"[Stopping Connection] Write to peer $peerId failed, trying to send ${Hex.toHexString(cmd.data.toArray[Byte])}")
         context stop self
     }
 
     def handleConnectionClosed: Receive = {
-      case _: ConnectionClosed =>
-        log.debug("Connection closed")
+      case msg: ConnectionClosed =>
+        if (msg.isPeerClosed) {
+          log.warning(s"[Stopping Connection] Connection with $peerId closed by peer")
+        }
+        if(msg.isErrorClosed){
+          log.warning(s"[Stopping Connection] Connection with $peerId closed because of error ${msg.getErrorCause}")
+        }
+
         context stop self
     }
   }

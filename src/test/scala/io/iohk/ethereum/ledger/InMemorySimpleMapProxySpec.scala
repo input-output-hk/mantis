@@ -7,13 +7,12 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
-import io.iohk.ethereum.ledger.MPTWrappedMap._
 import org.scalatest.{FlatSpec, Matchers}
 
 class InMemorySimpleMapProxySpec extends FlatSpec with Matchers {
 
   "InMemoryTrieProxy" should "not write inserts until commit" in new TestSetup {
-    val updatedProxy = InMemorySimpleMapProxy.wrap(mpt).put(1, 1).put(2, 2)
+    val updatedProxy = InMemorySimpleMapProxy.wrap[Int, Int, MerklePatriciaTrie[Int, Int]](mpt).put(1, 1).put(2, 2)
 
     assertContains(updatedProxy, 1, 1)
     assertContains(updatedProxy, 2, 2)
@@ -29,7 +28,7 @@ class InMemorySimpleMapProxySpec extends FlatSpec with Matchers {
 
   "InMemoryTrieProxy" should "not perform removals until commit" in new TestSetup {
     val preloadedMpt = mpt.put(1, 1)
-    val proxy = InMemorySimpleMapProxy.wrap(preloadedMpt)
+    val proxy = InMemorySimpleMapProxy.wrap[Int, Int, MerklePatriciaTrie[Int, Int]](preloadedMpt)
 
     assertContains(preloadedMpt, 1, 1)
     assertContains(proxy, 1, 1)
@@ -38,14 +37,14 @@ class InMemorySimpleMapProxySpec extends FlatSpec with Matchers {
     assertNotContainsKey(updatedProxy, 1)
     assertContains(updatedProxy.inner, 1, 1)
 
-    val commitedProxy = updatedProxy.persist
+    val commitedProxy = updatedProxy.persist()
     assertNotContainsKey(commitedProxy, 1)
     assertNotContainsKey(commitedProxy.inner, 1)
   }
 
   "InMemoryTrieProxy" should "not write updates until commit" in new TestSetup {
     val preloadedMpt = mpt.put(1, 1)
-    val proxy = InMemorySimpleMapProxy.wrap(preloadedMpt)
+    val proxy = InMemorySimpleMapProxy.wrap[Int, Int, MerklePatriciaTrie[Int, Int]](preloadedMpt)
 
     assertContains(preloadedMpt, 1, 1)
     assertContains(proxy, 1, 1)
@@ -56,34 +55,34 @@ class InMemorySimpleMapProxySpec extends FlatSpec with Matchers {
     assertContains(updatedProxy, 1, 2)
     assertNotContains(updatedProxy.inner, 1, 2)
 
-    val commitedProxy = updatedProxy.persist
+    val commitedProxy = updatedProxy.persist()
     assertContains(commitedProxy, 1, 2)
     assertContains(commitedProxy.inner, 1, 2)
   }
 
   "InMemoryTrieProxy" should "handle sequential operations" in new TestSetup {
-    val updatedProxy = InMemorySimpleMapProxy.wrap(mpt).put(1, 1).remove(1).put(2, 2).put(2, 3)
+    val updatedProxy = InMemorySimpleMapProxy.wrap[Int, Int, MerklePatriciaTrie[Int, Int]](mpt).put(1, 1).remove(1).put(2, 2).put(2, 3)
     assertNotContainsKey(updatedProxy, 1)
     assertContains(updatedProxy, 2, 3)
   }
 
   "InMemoryTrieProxy" should "handle batch operations" in new TestSetup {
-    val updatedProxy = InMemorySimpleMapProxy.wrap(mpt).update(Seq(1), Seq((2, 2), (2, 3)))
+    val updatedProxy = InMemorySimpleMapProxy.wrap[Int, Int, MerklePatriciaTrie[Int, Int]](mpt).update(Seq(1), Seq((2, 2), (2, 3)))
     assertNotContainsKey(updatedProxy, 1)
     assertContains(updatedProxy, 2, 3)
   }
 
   "InMemoryTrieProxy" should "not fail when deleting an inexistent value" in new TestSetup {
-    assertNotContainsKey(InMemorySimpleMapProxy.wrap(mpt).remove(1), 1)
+    assertNotContainsKey(InMemorySimpleMapProxy.wrap[Int, Int, MerklePatriciaTrie[Int, Int]](mpt).remove(1), 1)
   }
 
-  def assertContains(trie: SimpleMap[Int, Int], key: Int, value: Int): Unit =
+  def assertContains[I <: SimpleMap[Int, Int, I]](trie: I, key: Int, value: Int): Unit =
     assert(trie.get(key).isDefined && trie.get(key).get == value)
 
-  def assertNotContains(trie: SimpleMap[Int, Int], key: Int, value: Int): Unit =
+  def assertNotContains[I <: SimpleMap[Int, Int, I]](trie: I, key: Int, value: Int): Unit =
     assert(trie.get(key).isDefined && trie.get(key).get != value)
 
-  def assertNotContainsKey(trie: SimpleMap[Int, Int], key: Int): Unit = assert(trie.get(key).isEmpty)
+  def assertNotContainsKey[I <: SimpleMap[Int, Int, I]](trie: I, key: Int): Unit = assert(trie.get(key).isEmpty)
 
   trait TestSetup {
     implicit val intByteArraySerializable = new ByteArraySerializable[Int] {
