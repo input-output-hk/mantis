@@ -5,8 +5,9 @@ import java.math.BigInteger
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.Blockchain
 import org.spongycastle.util.encoders.Hex

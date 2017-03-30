@@ -2,50 +2,55 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.vm.Generators._
-import io.iohk.ethereum.vm.Int256Like._
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-
-import scala.annotation.tailrec
+import io.iohk.ethereum.vm.UInt256._
 
 class UInt256Spec extends FunSuite with PropertyChecks {
 
-  val Modulus: BigInt = BigInt(2).pow(Size * 8)
+  val Modulus: BigInt = UInt256.MaxValue.toBigInt + 1
+  val MaxSignedValue: BigInt = Modulus / 2 - 1
 
-  val Zero: UInt256 = UInt256(BigInt(0))
+  val specialNumbers = Seq(BigInt(-1), BigInt(0), BigInt(1), MaxValue.toBigInt, -MaxValue.toBigInt, -MaxValue.toBigInt + 1)
 
-  val specialNumbers = Array(BigInt(-1), BigInt(0), BigInt(1), Modulus - 1, 1 - Modulus, 2 - Modulus)
-
-  val pairs: Array[(BigInt, BigInt)] = specialNumbers
+  val pairs: Seq[(BigInt, BigInt)] = specialNumbers
     .combinations(2)
-    .map { case Array(n1, n2) => n1 -> n2 }
-    .toArray
+    .map {case Seq(n1, n2) => n1 -> n2}
+    .toSeq
 
   val specialCases = Table(("n1", "n2"), pairs: _*)
 
+  def toSignedBigInt(n: BigInt): BigInt = if (n > MaxSignedValue) n - Modulus else n
+
+  def toUnsignedBigInt(n: BigInt): BigInt = if (n < 0) n + Modulus else n
+
+  /** For each operation (op) tests check a following property:
+   For two BigInts (n1, n2):
+   UInt256(n1) op UInt256(n2) == UInt256(n1 op n2)
+   */
   test("&") {
-    forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       assert((UInt256(n1) & UInt256(n2)) == UInt256(n1 & n2))
     }
-    forAll(specialCases) { (n1: BigInt, n2: BigInt) =>
+    forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
       assert((UInt256(n1) & UInt256(n2)) == UInt256(n1 & n2))
     }
   }
 
   test("|") {
-    forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       assert((UInt256(n1) | UInt256(n2)) == UInt256(n1 | n2))
     }
-    forAll(specialCases) { (n1: BigInt, n2: BigInt) =>
+    forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
       assert((UInt256(n1) | UInt256(n2)) == UInt256(n1 | n2))
     }
   }
 
   test("^") {
-    forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       assert((UInt256(n1) ^ UInt256(n2)) == UInt256(n1 ^ n2))
     }
-    forAll(specialCases) { (n1: BigInt, n2: BigInt) =>
+    forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
       assert((UInt256(n1) ^ UInt256(n2)) == UInt256(n1 ^ n2))
     }
   }
@@ -60,170 +65,218 @@ class UInt256Spec extends FunSuite with PropertyChecks {
   }
 
   test("negation") {
-    forAll(bigIntGen) { (n: BigInt) =>
+    forAll(bigIntGen) {(n: BigInt) =>
       assert(-UInt256(n) == UInt256(-n))
     }
-    forAll(Table(("n"), specialNumbers: _*)) { (n: BigInt) =>
+    forAll(Table("n", specialNumbers: _*)) {(n: BigInt) =>
       assert(-UInt256(n) == UInt256(-n))
     }
-    assert(-UInt256(BigInt(1)) == UInt256(BigInt(-1)))
+    assert(-UInt256(1) == UInt256(-1))
+    assert(-UInt256(-1) == UInt256(1))
+    assert(-UInt256.Zero == UInt256.Zero)
   }
 
   test("+") {
-    forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       assert(UInt256(n1) + UInt256(n2) == UInt256(n1 + n2))
     }
-    forAll(specialCases) { (n1: BigInt, n2: BigInt) =>
+    forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
       assert(UInt256(n1) + UInt256(n2) == UInt256(n1 + n2))
     }
   }
 
   test("-") {
-    forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       assert(UInt256(n1) - UInt256(n2) == UInt256(n1 - n2))
     }
-    forAll(specialCases) { (n1: BigInt, n2: BigInt) =>
+    forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
       assert(UInt256(n1) - UInt256(n2) == UInt256(n1 - n2))
     }
   }
 
   test("*") {
-    forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       assert(UInt256(n1) * UInt256(n2) == UInt256(n1 * n2))
     }
-    forAll(specialCases) { (n1: BigInt, n2: BigInt) =>
+    forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
+      assert(UInt256(n1) * UInt256(n2) == UInt256(n1 * n2))
+    }
+  }
+
+  test("/") {
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      assert(UInt256(n1) * UInt256(n2) == UInt256(n1 * n2))
+    }
+    forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
       assert(UInt256(n1) * UInt256(n2) == UInt256(n1 * n2))
     }
   }
 
   test("div") {
-    forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       whenever(n2 != 0) {
         assert((UInt256(n1) div UInt256(n2)) == UInt256(n1 / n2))
       }
     }
-    val divSpecialCases = Table[BigInt, BigInt, UInt256](
-      ("n1", "n2", "result"),
-      (-1, 1, UInt256(Modulus - 1)),
-      (-1, Modulus - 1, UInt256(1)),
-      (-1, 1 - Modulus, UInt256(Modulus - 1)),
-      (0, 1, Zero),
-      (0, Modulus - 1, Zero),
-      (0, 1 - Modulus, Zero),
-      (0, 2 - Modulus, Zero),
-      (1, Modulus - 1, Zero),
-      (1, 1 - Modulus, UInt256(1)),
-      (1, 2 - Modulus, Zero),
-      (Modulus - 1, 1 - Modulus, UInt256(Modulus - 1)),
-      (1 - Modulus, 2 - Modulus, Zero))
-    forAll(divSpecialCases) { (n1, n2, result) =>
-      whenever(n2 != 0) {
-        assert((UInt256(n1) div UInt256(n2)) == result)
+    forAll(specialCases) {(n1: BigInt, n2: BigInt) =>
+      whenever(n1 > 0 && n2 > 0) {
+        assert((UInt256(n1) div UInt256(n2)) == UInt256(n1 / n2))
       }
     }
-    assertThrows[ArithmeticException](UInt256(1) div Zero)
+    assert((UInt256(1) div Zero) == Zero)
   }
 
-  test("%") {
-    forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
+  test("sdiv") {
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
       whenever(n2 != 0) {
-        assert((UInt256(n1) % UInt256(n2)) == UInt256(n1 % n2))
+        val expected: BigInt = toUnsignedBigInt(toSignedBigInt(n1) / toSignedBigInt(n2))
+        assert((UInt256(n1) sdiv UInt256(n2)) == UInt256(expected))
       }
     }
-    assert((UInt256(-1) % UInt256(Modulus - 1)) == Zero)
-    assertThrows[ArithmeticException](UInt256(1) % Zero)
+    assert((UInt256(-1) sdiv UInt256(-MaxValue.toBigInt)) == UInt256(-1))
+    assert((UInt256(-1) sdiv Zero) == Zero)
+  }
+
+  test("mod") {
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      whenever(n2 != 0) {
+        assert((UInt256(n1) mod UInt256(n2)) == UInt256(n1 mod n2))
+      }
+    }
+    assert((UInt256(-1) mod UInt256(MaxValue.toBigInt)) == Zero)
+    assert((UInt256(1) mod Zero) == Zero)
+  }
+
+  test("smod") {
+    assert((UInt256(Modulus - 1) smod UInt256(3)) == UInt256(Modulus - 1))
+    assert((UInt256(-1) smod UInt256(MaxValue.toBigInt)) == Zero)
+    assert((UInt256(1) smod Zero) == Zero)
   }
 
   test("addmod") {
-    forAll(bigIntGen, bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt, n3: BigInt) =>
+    forAll(bigIntGen, bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt, n3: BigInt) =>
       whenever(n3 != 0) {
         assert(UInt256(n1).addmod(UInt256(n2), UInt256(n3)) == UInt256((n1 + n2) mod n3))
       }
     }
-    assertThrows[ArithmeticException](UInt256(42).addmod(UInt256(42), Zero))
+    assert(UInt256(42).addmod(UInt256(42), Zero) == Zero)
   }
 
   test("mulmod") {
-    forAll(bigIntGen, bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt, n3: BigInt) =>
+    forAll(bigIntGen, bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt, n3: BigInt) =>
       whenever(n3 != 0) {
         assert(UInt256(n1).mulmod(UInt256(n2), UInt256(n3)) == UInt256((n1 * n2) mod n3))
       }
     }
-    assertThrows[ArithmeticException](UInt256(42).mulmod(UInt256(42), Zero))
+    assert(UInt256(42).mulmod(UInt256(42), Zero) == Zero)
   }
 
-  @tailrec
-  private def isRelativelyPrime(a: BigInt, b: BigInt): Boolean =
-    if (b == 0) a.abs == 1 else isRelativelyPrime(b, a % b)
-
   test("**") {
-    forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
-      whenever(n2 != 0) {
-        if (!isRelativelyPrime(n1, Modulus) && n2 < 0)
-          assertThrows[ArithmeticException](UInt256(n1) ** UInt256(n2))
-        else
-          assert(UInt256(n1) ** UInt256(n2) == UInt256(n1.modPow(n2, Modulus)))
-      }
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      assert(UInt256(n1) ** UInt256(n2) == UInt256(n1.modPow(n2, Modulus)))
     }
-    assert(UInt256(3) ** UInt256(7) == UInt256(2187))
+  }
+
+  test("signExtend") {
+    val testData = Table[UInt256, UInt256, UInt256](
+      ("value", "extension", "result"),
+      (42, 3, 42),
+      (42, 1, 42),
+      (42, -1, 42),
+      (42, 0, 42),
+      (42, Size, 42),
+      (42, Size + 1, 42),
+      (-42, Size, -42),
+      (-42, Size + 1, -42),
+      (-42, -11, -42),
+      (-1, 1, -1),
+      (-1, 1, -1),
+      (0x1a81ff, 1, UInt256(Array.fill[Byte](30)(-1) ++ Array(0x81, 0xff).map(_.toByte))),
+      (0x1a81ff, 2, 0x1a81ff),
+      (0x1a81ff, 10, 0x1a81ff)
+    )
+
+    forAll(testData) { (uint, extension, result) =>
+      assert(uint.signExtend(extension) == result)
+    }
+  }
+
+  test("slt") {
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      assert((UInt256(n1) slt UInt256(n2)) == (toSignedBigInt(n1) < toSignedBigInt(n2)))
+    }
+
+    val testData = Table[UInt256, UInt256, Boolean](
+      ("a", "b", "result"),
+      (-1, 1, true),
+      (1, -1, false),
+      (1, 0, false))
+
+    forAll(testData) { (a, b, result) =>
+      assert((a slt b) == result)
+    }
+  }
+
+  test("sgt") {
+    forAll(bigIntGen, bigIntGen) {(n1: BigInt, n2: BigInt) =>
+      assert((UInt256(n1) sgt UInt256(n2)) == (toSignedBigInt(n1) > toSignedBigInt(n2)))
+    }
+
+    val testData = Table[UInt256, UInt256, Boolean](
+      ("a", "b", "result"),
+      (-1, 1, false),
+      (1, -1, true),
+      (0, 1, false),
+      (1, 0, true))
+
+    forAll(testData) { (a, b, result) =>
+      assert((a sgt b) == result)
+    }
   }
 
   test("getByte") {
-    val dw1 = UInt256(ByteString((100 to 131).map(_.toByte).toArray))
+    val v1 = UInt256(ByteString((100 to 131).map(_.toByte).toArray))
 
     val testData = Table[UInt256, UInt256, UInt256](
-      ("word", "idx", "result"),
-      (UInt256(42), UInt256(-1), Zero),
-      (UInt256(42), UInt256(Size), Zero),
-      (UInt256(42), UInt256(Size + 1), Zero),
-      (UInt256(1), UInt256(287), Zero),
-      (dw1, UInt256(0), UInt256(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 100.toByte)),
-      (dw1, UInt256(1), UInt256(ByteString(Array.fill[Byte](Size - 1)(0)) :+ 101.toByte)),
-      (dw1, UInt256(30), UInt256(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -126.toByte)),
-      (dw1, UInt256(31), UInt256(ByteString(Array.fill[Byte](Size - 1)(0)) :+ -125.toByte)),
-      (UInt256(ByteString(Array.fill[Byte](32)(-50))), UInt256(8), UInt256(ByteString(-50))))
+      ("value", "idx", "result"),
+      (42, -1, Zero),
+      (42, Size, Zero),
+      (42, Size + 1, Zero),
+      (1, 287, Zero),
+      (v1, 0, 100),
+      (v1, 1, 101),
+      (v1, 30, 130),
+      (v1, 31, 131),
+      (UInt256(Array.fill[Byte](32)(-50)), 8, 256 - 50))
 
     forAll(testData) { (a, b, result) =>
       assert(a.getByte(b) == result)
     }
   }
 
-  test("numeric values") {
-    forAll(byteGen, shortGen, intGen, longGen) { (b: Byte, s: Short, i: Int, l: Long) =>
-      UInt256(b).byteValue == b
-      UInt256(s).shortValue == s
-      UInt256(i).intValue == i
-      UInt256(l).longValue == l
-      UInt256(l).floatValue == l.toFloat
-      UInt256(l).doubleValue == l.toDouble
-    }
-    assert(specialNumbers.map(UInt256(_).byteValue).toSeq == Seq(-1, 0, 1, -1, 1, 2))
-    assert(specialNumbers.map(UInt256(_).shortValue).toSeq == Seq(-1, 0, 1, -1, 1, 2))
-    assert(specialNumbers.map(UInt256(_).intValue).toSeq == Seq(-1, 0, 1, -1, 1, 2))
-    assert(specialNumbers.map(UInt256(_).longValue).toSeq == Seq(-1, 0, 1, -1, 1, 2))
-    assert(specialNumbers.map(UInt256(_).floatValue).toSeq == Seq(Float.PositiveInfinity, 0.0, 1.0, Float.PositiveInfinity, 1.0, 2.0))
-    assert(specialNumbers.map(UInt256(_).doubleValue).toSeq == Seq(1.157920892373162E77, 0.0, 1.0, 1.157920892373162E77, 1.0, 2.0))
+  test("intValue") {
+    assert(specialNumbers.map(UInt256(_).toInt) == Seq(Int.MaxValue, 0, 1, Int.MaxValue, 1, 2))
   }
 
   test("comparison") {
-    type CFUINT = (UInt256, UInt256) => Boolean
+    type CFUI = (UInt256, UInt256) => Boolean
     type CFBI = (BigInt, BigInt) => Boolean
-    case class Cmp(uint: CFUINT, bi: CFBI)
+    case class Cmp(uint: CFUI, bi: CFBI)
 
-    val cmpFuncUInt256 = Seq[CFUINT](_ > _, _ >= _, _ < _, _ <= _)
-    val cmpFuncBigInt = Seq[CFBI](_ > _, _ >= _, _ < _, _ <= _)
+    val cmpFuncUInt256 = Seq[CFUI](_ > _, _ >= _, _ < _, _ <= _)
+    val cmpFuncBigInt   = Seq[CFBI](_ > _, _ >= _, _ < _, _ <= _)
     val comparators = cmpFuncUInt256.zip(cmpFuncBigInt).map(Cmp.tupled)
 
-    val uin256Gen = bigIntGen.map(UInt256(_))
+    val uint256Gen = getUInt256Gen()
 
     forAll(Table("comparators", comparators: _*)) { cmp =>
-      forAll(bigIntGen, bigIntGen) { (a, b) =>
-        val (x, y) = (UInt256(a), UInt256(b))
-        assert(cmp.uint(x, y) == cmp.bi(x.n, y.n))
+      forAll(uint256Gen, uint256Gen) { (a, b) =>
+        assert(cmp.uint(a, b) == cmp.bi(a.toBigInt, b.toBigInt))
       }
-      forAll(specialCases) { (a, b) =>
-        val (x, y) = (UInt256(a), UInt256(b))
-        assert(cmp.uint(x, y) == cmp.bi(x.n, y.n))
+
+      forAll(specialCases) { (x, y) =>
+        val (a, b) = (UInt256(x), UInt256(y))
+        assert(cmp.uint(a, b) == cmp.bi(a.toBigInt, b.toBigInt))
       }
     }
   }
@@ -254,11 +307,17 @@ class UInt256Spec extends FunSuite with PropertyChecks {
     }
   }
 
-  test("conversion between signed and unsigned int") {
-    forAll(getUInt256Gen()) { x: UInt256 =>
-      assert(x === UInt256(Int256(x)))
+  test("byteSize") {
+    val table = Table[BigInt, Int](("x", "expected"), (0, 0), (1, 1), (255, 1), (256, 2), (65535, 2), (65536, 3),
+      (BigInt(2).pow(256) - 1, 32), (BigInt(2).pow(256), 0))
+    forAll(table) { (x, expected) =>
+      assert(UInt256(x).byteSize === expected)
+    }
+
+    forAll(getUInt256Gen(min = UInt256(1))) { x =>
+      import math._
+      val byteSize = 1 + floor(log(x.doubleValue) / log(256)).toInt
+      assert(x.byteSize === byteSize)
     }
   }
-
 }
-

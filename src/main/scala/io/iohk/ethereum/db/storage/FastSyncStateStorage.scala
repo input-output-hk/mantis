@@ -5,7 +5,7 @@ import java.nio.ByteBuffer
 import akka.util.ByteString
 import boopickle.CompositePickler
 import boopickle.Default._
-import io.iohk.ethereum.blockchain.sync.SyncController._
+import io.iohk.ethereum.blockchain.sync.FastSync._
 import io.iohk.ethereum.db.dataSource.DataSource
 
 object FastSyncStateStorage {
@@ -14,7 +14,7 @@ object FastSyncStateStorage {
 
 }
 
-class FastSyncStateStorage(val dataSource: DataSource) extends KeyValueStorage[String, SyncState] {
+class FastSyncStateStorage(val dataSource: DataSource) extends KeyValueStorage[String, SyncState, FastSyncStateStorage] {
   type T = FastSyncStateStorage
 
   import FastSyncStateStorage._

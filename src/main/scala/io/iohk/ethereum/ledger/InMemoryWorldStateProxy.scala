@@ -1,35 +1,22 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.db.storage.EvmCodeStorage.{Code, CodeHash}
-import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.db.storage.EvmCodeStorage.Code
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.EvmCodeStorageWrappedMap._
-import io.iohk.ethereum.ledger.NodeStorageWrappedMap._
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.HashFn
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPEncoder, decode => rlpDecode}
-import io.iohk.ethereum.vm.{DataWord, Storage, WorldStateProxy}
+import io.iohk.ethereum.vm.{Storage, UInt256, WorldStateProxy}
 
 object InMemoryWorldStateProxy {
 
-  //FIXME Move it to somewhere else
-  implicit val dataWordRLPEncDec = new RLPEncoder[DataWord] with RLPDecoder[DataWord] {
-    override def encode(obj: DataWord): RLPEncodeable = obj.bytes
-
-    override def decode(rlp: RLPEncodeable): DataWord = DataWord(rlpDecode[ByteString](rlp))
+  val byteArrayUInt256Serializer = new ByteArrayEncoder[UInt256] {
+    override def toBytes(input: UInt256): Array[Byte] = input.bytes.toArray[Byte]
   }
 
-  val byteArrayDataWordSerializer = new ByteArrayEncoder[DataWord] {
-    override def toBytes(input: DataWord): Array[Byte] = input.bytes.toArray[Byte]
-  }
-
-  val rlpDataWordSerializer = new RLPByteArraySerializable[DataWord]
+  val rlpUInt256Serializer = new RLPByteArraySerializable[UInt256]
   implicit val accountSerializer = new RLPByteArraySerializable[Account]
 
   def apply(
@@ -37,32 +24,20 @@ object InMemoryWorldStateProxy {
     stateStorage: NodeStorage,
     stateRootHash: Option[ByteString] = None): InMemoryWorldStateProxy = {
 
-    val stateStorageProxy = InMemorySimpleMapProxy.wrap(stateStorage)
     val accountsStateTrieProxy = createProxiedAccountsStateTrie(
-      stateStorageProxy,
+      stateStorage,
       stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.calculateEmptyRootHash(kec256(_: Array[Byte]))))
     )
-    val evmCodeStorageProxies = InMemorySimpleMapProxy.wrap(storages.evmCodeStorage)
-
     val getBlockHashByNumber = (number: BigInt) => BlockchainImpl(storages).getBlockHeaderByNumber(number).map(_.hash)
 
-    new InMemoryWorldStateProxy(stateStorageProxy, accountsStateTrieProxy, Map.empty, evmCodeStorageProxies, Map.empty, getBlockHashByNumber)
+    new InMemoryWorldStateProxy(stateStorage, accountsStateTrieProxy, Map.empty, storages.evmCodeStorage, Map.empty, getBlockHashByNumber)
   }
 
   def persistIfHashMatches(stateRootHash: ByteString, worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    val commited = commitState(worldState)
-    if(commited.stateRootHash == stateRootHash) persistStorages(commited)
+    val commited = persistState(worldState)
+    if (commited.stateRootHash == stateRootHash) commited
     else worldState
   }
-
-  /**
-    * Persists the changes made into the storages
-    *
-    * @param worldState Proxy to persist
-    * @return Updated world
-    */
-  def persist(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-    (commitState _ andThen persistStorages) (worldState)
 
   /**
     * Updates state trie with current changes but does not persist them into the storages. To do so it:
@@ -73,8 +48,8 @@ object InMemoryWorldStateProxy {
     * @param worldState Proxy to commit
     * @return Updated world
     */
-  private def commitState(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    def commitCode(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  private def persistState(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    def persistCode(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
       worldState.accountCodes.foldLeft(worldState) {
         case (updatedWorldState, (address, code)) =>
           val codeHash = kec256(code)
@@ -87,10 +62,10 @@ object InMemoryWorldStateProxy {
       }
     }
 
-    def commitContractStorage(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
+    def persistContractStorage(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
       worldState.contractStorages.foldLeft(worldState) { case (updatedWorldState, (address, storageTrie)) =>
         val persistedStorage = storageTrie.persist()
-        val newStorageRootHash = persistedStorage.inner.wrapped.getRootHash
+        val newStorageRootHash = persistedStorage.inner.getRootHash
 
         updatedWorldState.copyWith(
           contractStorages = updatedWorldState.contractStorages + (address -> persistedStorage),
@@ -99,32 +74,14 @@ object InMemoryWorldStateProxy {
         )
       }
 
-    def commitAccountsStateTrie(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
+    def persistAccountsStateTrie(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
       worldState.copyWith(accountsStateTrie = worldState.accountsStateTrie.persist())
 
-    (commitCode _ andThen commitContractStorage andThen commitAccountsStateTrie) (worldState)
+    (persistCode _ andThen persistContractStorage andThen persistAccountsStateTrie) (worldState)
   }
 
   /**
-    * Persists the changes into the storages. This operation will actually write on disk and cannot be undone.
-    *
-    * @param worldState Proxy to persist
-    * @return Updated world
-    */
-  private def persistStorages(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    worldState.contractStorages.values.foreach(cs => cs.inner.wrapped.nodeStorage.persist())
-    worldState.accountsStateTrie.inner.wrapped.nodeStorage.persist()
-    worldState.copyWith(
-      accountsStateTrie = createProxiedAccountsStateTrie(worldState.stateStorage, worldState.stateRootHash),
-      evmCodeStorage = worldState.evmCodeStorage.persist(),
-      contractStorages = Map.empty,
-      accountCodes = Map.empty
-    )
-  }
-
-
-  /**
-    * Returns an [[InMemorySimpleMapProxy]] of the accounts state trie "The world state (state), is a map-ping
+    * Returns an [[InMemorySimpleMapProxy]] of the accounts state trie "The world state (state), is a mapping
     * between addresses (160-bit identifiers) and account states (a data structure serialised as RLP [...]).
     * Though not stored on the blockchain, it is assumed that the implementation will maintain this mapping in a
     * modified Merkle Patricia tree [...])."
@@ -135,15 +92,16 @@ object InMemoryWorldStateProxy {
     * @param stateRootHash   State trie root hash
     * @return Proxied Accounts State Trie
     */
-  private def createProxiedAccountsStateTrie(accountsStorage: InMemorySimpleMapProxy[NodeHash, NodeEncoded, NodeStorage], stateRootHash: ByteString)
-  : InMemorySimpleMapProxy[ByteString, Account, ProxiedMerklePatriciaTrie[ByteString, Account]] = {
-    InMemorySimpleMapProxy.wrap(
-      new StorageMPTWrappedMap(
-        new ProxiedMerklePatriciaTrie[ByteString, Account](
-          stateRootHash.toArray[Byte], accountsStorage, kec256(_: Array[Byte]), byteStringSerializer, accountSerializer
-        )
-      )
+  private def createProxiedAccountsStateTrie(accountsStorage: NodeStorage, stateRootHash: ByteString)
+  : InMemorySimpleMapProxy[ByteString, Account, MerklePatriciaTrie[ByteString, Account]] = {
+    InMemorySimpleMapProxy.wrap[ByteString, Account, MerklePatriciaTrie[ByteString, Account]](
+      MerklePatriciaTrie[ByteString, Account](
+        stateRootHash.toArray[Byte],
+        accountsStorage,
+        kec256(_: Array[Byte])
+      )(byteStringSerializer, accountSerializer)
     )
+    //
   }
 
   /**
@@ -155,75 +113,38 @@ object InMemoryWorldStateProxy {
     * @param storageRoot     Trie root
     * @return Proxied Contract Storage Trie
     */
-  private def createProxiedContractStorageTrie(contractStorage: InMemorySimpleMapProxy[NodeHash, NodeEncoded, NodeStorage], storageRoot: ByteString):
-  InMemorySimpleMapProxy[DataWord, DataWord, ProxiedMerklePatriciaTrie[DataWord, DataWord]] =
-    InMemorySimpleMapProxy.wrap(
-      new StorageMPTWrappedMap(
-        new ProxiedMerklePatriciaTrie[DataWord, DataWord](
-          storageRoot.toArray[Byte],
-          contractStorage,
-          kec256(_: Array[Byte]),
-          HashByteArraySerializable(byteArrayDataWordSerializer),
-          rlpDataWordSerializer
-        )
-      )
+  private def createProxiedContractStorageTrie(contractStorage: NodeStorage, storageRoot: ByteString):
+  InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]] =
+    InMemorySimpleMapProxy.wrap[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]](
+      MerklePatriciaTrie[UInt256, UInt256](
+        storageRoot.toArray[Byte],
+        contractStorage,
+        kec256(_: Array[Byte]))(
+        HashByteArraySerializable(byteArrayUInt256Serializer),
+        rlpUInt256Serializer)
     )
 }
 
-/**
-  * As MPT loses it's storage type after creation (it works with [[SimpleMap]]) but we need to be able to access the
-  * underlying Proxy in order to persist changes the easiest (not the best) way to do so is to extend
-  * mpt in order not to lose the nodeStorage type
-  */
-private[ledger] class ProxiedMerklePatriciaTrie[K, V](
-  val rootHash: Array[Byte],
-  override val nodeStorage: InMemorySimpleMapProxy[NodeHash, NodeEncoded, NodeStorage],
-  hashFn: HashFn,
-  val kSerializer: ByteArrayEncoder[K],
-  val vSerializer: ByteArraySerializable[V]
-) extends MerklePatriciaTrie[K, V](rootHash, nodeStorage, hashFn)(kSerializer, vSerializer)
-
-private class StorageMPTWrappedMap[K, V](mpt: ProxiedMerklePatriciaTrie[K, V]) extends WrappedMap[K, V, ProxiedMerklePatriciaTrie[K, V]] {
-  override val wrapped: ProxiedMerklePatriciaTrie[K, V] = mpt
-
-  override def get(key: K): Option[V] = mpt.get(key)
-
-  override def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): WrappedMap[K, V, ProxiedMerklePatriciaTrie[K, V]] = {
-    val updated = mpt.update(toRemove, toUpsert)
-    new StorageMPTWrappedMap[K, V](
-      new ProxiedMerklePatriciaTrie[K, V](
-        updated.getRootHash,
-        //This is not ideal but as this class is constructed only here we are 100% sure this won't fail. The alternative,
-        //mpt refactor, will be much harder and might lead to a more complicated implementation
-        updated.nodeStorage.asInstanceOf[InMemorySimpleMapProxy[NodeHash, NodeEncoded, NodeStorage]],
-        mpt.hashFn,
-        mpt.kSerializer,
-        mpt.vSerializer
-      )
-    )
-  }
-}
-
-class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[DataWord, DataWord, ProxiedMerklePatriciaTrie[DataWord, DataWord]])
+class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]])
   extends Storage[InMemoryWorldStateProxyStorage] {
 
-  override def store(addr: DataWord, value: DataWord): InMemoryWorldStateProxyStorage = new InMemoryWorldStateProxyStorage(wrapped.put(addr, value))
+  override def store(addr: UInt256, value: UInt256): InMemoryWorldStateProxyStorage = new InMemoryWorldStateProxyStorage(wrapped.put(addr, value))
 
-  override def load(addr: DataWord): DataWord = wrapped.get(addr).getOrElse(DataWord.Zero)
+  override def load(addr: UInt256): UInt256 = wrapped.get(addr).getOrElse(UInt256.Zero)
 }
 
 class InMemoryWorldStateProxy private(
   // State MPT proxied nodes storage needed to construct the storage MPT when calling [[getStorage]].
   // Accounts state and accounts storage states are saved within the same storage
-  val stateStorage: InMemorySimpleMapProxy[NodeHash, NodeEncoded, NodeStorage],
-  val accountsStateTrie: InMemorySimpleMapProxy[ByteString, Account, ProxiedMerklePatriciaTrie[Code, Account]],
+  val stateStorage: NodeStorage,
+  val accountsStateTrie: InMemorySimpleMapProxy[ByteString, Account, MerklePatriciaTrie[Code, Account]],
   // Contract Storage Proxies by Address
-  val contractStorages: Map[Address, InMemorySimpleMapProxy[DataWord, DataWord, ProxiedMerklePatriciaTrie[DataWord, DataWord]]],
+  val contractStorages: Map[Address, InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]]],
   //It's easier to use the storage instead of the blockchain here (because of proxy wrapping). We might need to reconsider this
-  val evmCodeStorage: InMemorySimpleMapProxy[CodeHash, Code, EvmCodeStorage],
+  val evmCodeStorage: EvmCodeStorage,
   // Account's code by Address
   val accountCodes: Map[Address, Code],
-  val getBlockByNumber: (BigInt) => Option[Code]
+  val getBlockByNumber: (BigInt) => Option[ByteString]
 ) extends WorldStateProxy[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage] {
 
   import InMemoryWorldStateProxy._
@@ -254,9 +175,9 @@ class InMemoryWorldStateProxy private(
   /**
     * Returns world state root hash. This value is only updated after persist.
     */
-  def stateRootHash: ByteString = ByteString(accountsStateTrie.inner.wrapped.getRootHash)
+  def stateRootHash: ByteString = ByteString(accountsStateTrie.inner.getRootHash)
 
-  private def getStorageForAddress(address: Address, stateStorage: InMemorySimpleMapProxy[NodeHash, NodeEncoded, NodeStorage]) = {
+  private def getStorageForAddress(address: Address, stateStorage: NodeStorage) = {
     val storageRoot = getAccount(address)
       .map(account => account.storageRoot)
       .getOrElse(Account.EmptyStorageRootHash)
@@ -264,10 +185,10 @@ class InMemoryWorldStateProxy private(
   }
 
   private def copyWith(
-    stateStorage: InMemorySimpleMapProxy[NodeHash, NodeEncoded, NodeStorage] = stateStorage,
-    accountsStateTrie: InMemorySimpleMapProxy[ByteString, Account, ProxiedMerklePatriciaTrie[Code, Account]] = accountsStateTrie,
-    contractStorages: Map[Address, InMemorySimpleMapProxy[DataWord, DataWord, ProxiedMerklePatriciaTrie[DataWord, DataWord]]] = contractStorages,
-    evmCodeStorage: InMemorySimpleMapProxy[CodeHash, Code, EvmCodeStorage] = evmCodeStorage,
+    stateStorage: NodeStorage = stateStorage,
+    accountsStateTrie: InMemorySimpleMapProxy[ByteString, Account, MerklePatriciaTrie[Code, Account]] = accountsStateTrie,
+    contractStorages: Map[Address, InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]]] = contractStorages,
+    evmCodeStorage: EvmCodeStorage = evmCodeStorage,
     accountCodes: Map[Address, Code] = accountCodes
   ): InMemoryWorldStateProxy =
     new InMemoryWorldStateProxy(
@@ -279,6 +200,6 @@ class InMemoryWorldStateProxy private(
       getBlockByNumber
     )
 
-  override def getBlockHash(number: BigInt): Option[ByteString] = getBlockByNumber(number)
+  override def getBlockHash(number: UInt256): Option[UInt256] = getBlockByNumber(number).map(UInt256(_))
 }
 

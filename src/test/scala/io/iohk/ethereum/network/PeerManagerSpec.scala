@@ -17,7 +17,7 @@ class PeerManagerSpec extends FlatSpec with Matchers {
   import Config.Network.Discovery._
 
   "PeerManager" should "try to connect to bootstrap nodes on startup" in new TestSetup {
-    val peerManager = TestActorRef(Props(new PeerManagerActor(nodeStatusHolder, peerFactory, Some(time.scheduler))))
+    val peerManager = TestActorRef(Props(new PeerManagerActor(peerFactory, Some(time.scheduler))))(system)
 
     time.advance(800)
 
@@ -27,7 +27,7 @@ class PeerManagerSpec extends FlatSpec with Matchers {
   }
 
   it should "retry connections to remaining bootstrap nodes" in new TestSetup {
-    val peerManager = TestActorRef(Props(new PeerManagerActor(nodeStatusHolder, peerFactory, Some(time.scheduler))))
+    val peerManager = TestActorRef(Props(new PeerManagerActor(peerFactory, Some(time.scheduler))))(system)
 
     time.advance(800)
 
@@ -45,14 +45,6 @@ class PeerManagerSpec extends FlatSpec with Matchers {
     implicit val system = ActorSystem("PeerManagerActorSpec_System")
 
     val time = new VirtualTime
-
-    val nodeKey = crypto.generateKeyPair()
-
-    val nodeStatus = NodeStatus(
-      key = nodeKey,
-      serverStatus = ServerStatus.NotListening)
-
-    val nodeStatusHolder = Agent(nodeStatus)
 
     var createdPeers: Seq[TestProbe] = Nil
 

@@ -6,8 +6,9 @@ import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.mpt.HexPrefix.{bytesToNibbles, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.Message.{PV63 => constantPV63, decode => msgDecode}
 import io.iohk.ethereum.network.p2p.messages.PV63._
-import io.iohk.ethereum.rlp.{encode, _}
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.{encode, _}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 

@@ -194,7 +194,7 @@ object Ledger extends Logger {
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
     worldStateProxy.saveAccount(senderAddress, account.copy(
       nonce = account.nonce + 1,
-      balance = account.balance - calculateUpfrontGas(stx.tx)
+      balance = account.balance - UInt256(calculateUpfrontGas(stx.tx))
     ))
   }
 
@@ -225,7 +225,7 @@ object Ledger extends Logger {
   private def payContractCreationCost(result: PR): Either[String, PR] = {
     val codeDepositCost = GasFee.calcCodeDepositCost(result.returnData)
     if (result.gasRemaining < codeDepositCost) Left(OutOfGas.toString)
-    else Right(result.copy(gasRemaining = result.gasRemaining - codeDepositCost))
+    else Right(result.copy(gasRemaining = result.gasRemaining - UInt256(codeDepositCost)))
   }
 
   private def saveCreatedCost(ownerAddress: Address, result: PR): PR = {

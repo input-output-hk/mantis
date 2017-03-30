@@ -19,8 +19,8 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     val responseReceipts = Seq(Seq(Receipt(ByteString(""), 0, ByteString(""), Nil)))
     peer.reply(PeerActor.MessageReceived(Receipts(responseReceipts)))
 
-    parent.expectMsg(SyncController.EnqueueReceipts(requestedHashes.drop(1)))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes.drop(1)))
+    parent.expectMsg(SyncRequestHandler.Done)
 
     blockchain.getReceiptsByHash(requestedHashes.head) shouldBe Some(responseReceipts.head)
     blockchain.getReceiptsByHash(requestedHashes(1)) shouldBe None
@@ -34,9 +34,9 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
 
     time.advance(10.seconds)
 
-    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
-    parent.expectMsg(SyncController.EnqueueReceipts(requestedHashes))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref, "time out on receipts response for known hashes: List(31, 32)"))
+    parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes))
+    parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
@@ -47,8 +47,8 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
 
     peer.ref ! PoisonPill
 
-    parent.expectMsg(SyncController.EnqueueReceipts(requestedHashes))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes))
+    parent.expectMsg(SyncRequestHandler.Done)
   }
 
   trait TestSetup extends EphemBlockchainTestSetup  {
