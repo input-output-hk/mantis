@@ -10,8 +10,8 @@ object MockVmInput {
     tx: Transaction,
     senderAddress: Address,
     pointSign: Byte = 0,
-    signatureRandom: ByteString = BEmpty,
-    signature: ByteString = BEmpty
+    signatureRandom: BigInt = 0,
+    signature: BigInt = 0
   ) extends SignedTransaction(tx, pointSign, signatureRandom, signature, senderAddress)
 
   val defaultGasPrice: BigInt = 1000

@@ -88,8 +88,8 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
   }
 
   it should "report as syntactic invalid a tx with long signature" in {
-    val invalidSignature = (0 until ECDSASignature.SLength + 1).map(_ => 1.toByte).toArray
-    val signedTxWithInvalidSignatureLength = signedTxBeforeHomestead.copy(signature = ByteString(invalidSignature))
+    val invalidSignature = BigInt(1, (0 until ECDSASignature.SLength + 1).map(_ => 1.toByte).toArray)
+    val signedTxWithInvalidSignatureLength = signedTxBeforeHomestead.copy(signature = invalidSignature)
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidSignatureLength, fromBeforeHomestead = true) match {
       case Left(_: TransactionSyntaxError) => succeed
       case _ => fail
@@ -97,8 +97,8 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
   }
 
   it should "report as syntactic invalid a tx with long signature random" in {
-    val invalidSignatureRandom = (0 until ECDSASignature.RLength + 1).map(_ => 1.toByte).toArray
-    val signedTxWithInvalidSignatureLength = signedTxBeforeHomestead.copy(signatureRandom = ByteString(invalidSignatureRandom))
+    val invalidSignatureRandom = BigInt(1, (0 until ECDSASignature.RLength + 1).map(_ => 1.toByte).toArray)
+    val signedTxWithInvalidSignatureLength = signedTxBeforeHomestead.copy(signatureRandom = invalidSignatureRandom)
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidSignatureLength, fromBeforeHomestead = true) match {
       case Left(_: TransactionSyntaxError) => succeed
       case _ => fail
@@ -106,7 +106,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
   }
 
   it should "report a tx with invalid signature random as having invalid signature" in {
-    val invalidSignatureRandom = ByteString(BigInt(0).toByteArray)
+    val invalidSignatureRandom = BigInt(0)
     val signedTxWithInvalidSignatureRandom = signedTxAfterHomestead.copy(signatureRandom = invalidSignatureRandom)
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidSignatureRandom, fromBeforeHomestead = false) match {
       case Left(TransactionSignatureError) => succeed
@@ -115,7 +115,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
   }
 
   it should "report a tx with invalid signature as having invalid signature" in {
-    val invalidSignature = ByteString((SignedTransactionValidator.secp256k1n / 2 + 1).toByteArray)
+    val invalidSignature = SignedTransactionValidator.secp256k1n / 2 + 1
     val signedTxWithInvalidSignature = signedTxAfterHomestead.copy(signature = invalidSignature)
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidSignature, fromBeforeHomestead = false) match {
       case Left(TransactionSignatureError) => succeed

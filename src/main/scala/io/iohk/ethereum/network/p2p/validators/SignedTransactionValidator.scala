@@ -47,10 +47,10 @@ object SignedTransactionValidator {
       Left(TransactionSyntaxError(s"Invalid gasPrice length: ${byteLength(gasPrice)}"))
     else if(byteLength(value) > ValueLength)
       Left(TransactionSyntaxError(s"Invalid value length: ${byteLength(value)}"))
-    else if(signatureRandom.length > ECDSASignature.RLength)
-      Left(TransactionSyntaxError(s"Invalid signatureRandom length: ${signatureRandom.length}"))
-    else if(signature.length > ECDSASignature.SLength)
-      Left(TransactionSyntaxError(s"Invalid signature length: ${signature.length}"))
+    else if(signatureRandom >= BigInt(2).pow(8 * ECDSASignature.RLength))
+      Left(TransactionSyntaxError(s"Too big signatureRandom: $signatureRandom"))
+    else if(signature >= BigInt(2).pow(8 * ECDSASignature.SLength))
+      Left(TransactionSyntaxError(s"Too big signature: $signature"))
     else
       Right(stx)
   }
@@ -64,11 +64,8 @@ object SignedTransactionValidator {
     * @return Either the validated transaction or TransactionSignatureError if an error was detected
     */
   private def validateSignature(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransaction] = {
-    val r: BigInt = BigInt(new BigInteger(1, stx.signatureRandom.toArray[Byte]))
-    val s: BigInt = BigInt(new BigInteger(1, stx.signature.toArray[Byte]))
-
-    val validR = r > 0 && r < secp256k1n
-    val validS = s > 0 && s < (if(fromBeforeHomestead) secp256k1n else secp256k1n / 2)
+    val validR = stx.signatureRandom > 0 && stx.signatureRandom < secp256k1n
+    val validS = stx.signature > 0 && stx.signature < (if(fromBeforeHomestead) secp256k1n else secp256k1n / 2)
 
     if(validR && validS) Right(stx)
     else Left(TransactionSignatureError)

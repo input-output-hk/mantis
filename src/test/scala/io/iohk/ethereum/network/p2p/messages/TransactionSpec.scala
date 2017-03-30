@@ -54,7 +54,7 @@ class TransactionSpec extends FlatSpec with Matchers {
     payload = ByteString.empty)
 
   val validSignedTransactionForNewSigningScheme = SignedTransaction(
-    validTransactionForNewSigningScheme,
+    tx = validTransactionForNewSigningScheme,
     pointSign = -98,
     signatureRandom = ByteString(Hex.decode("1af423b3608f3b4b35e191c26f07175331de22ed8f60d1735f03210388246ade")),
     signature = ByteString(Hex.decode("4d5b6b9e3955a0db8feec9c518d8e1aae0e1d91a143fbbca36671c3b89b89bc3")))
