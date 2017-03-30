@@ -11,8 +11,7 @@ import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
   *   Key: hash of the RLP encoded node
   *   Value: the node
   */
-class MptNodeStorage(val dataSource: DataSource) extends KeyValueStorage[MptNodeHash, MptNode] {
-  type T = MptNodeStorage
+class MptNodeStorage(val dataSource: DataSource) extends KeyValueStorage[MptNodeHash, MptNode, MptNodeStorage] {
 
   val namespace: IndexedSeq[Byte] = Namespaces.NodeNamespace
   def keySerializer: MptNodeHash => IndexedSeq[Byte] = identity

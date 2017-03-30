@@ -12,8 +12,7 @@ import io.iohk.ethereum.utils.Config
   *   Key: hash of the block to which the BlockBody belong
   *   Value: the block body
   */
-class BlockBodiesStorage(val dataSource: DataSource) extends KeyValueStorage[BlockBodyHash, BlockBody] {
-  override type T = BlockBodiesStorage
+class BlockBodiesStorage(val dataSource: DataSource) extends KeyValueStorage[BlockBodyHash, BlockBody, BlockBodiesStorage] {
   override val namespace: IndexedSeq[Byte] = Namespaces.BodyNamespace
 
   override def keySerializer: (BlockBodyHash) => IndexedSeq[Byte] = identity
