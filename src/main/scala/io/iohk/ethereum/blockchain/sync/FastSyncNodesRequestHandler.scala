@@ -5,7 +5,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSync._
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.MptNodeStorage
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{Account, Blockchain}
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import org.spongycastle.util.encoders.Hex
 
@@ -15,8 +15,6 @@ class FastSyncNodesRequestHandler(
     blockchain: Blockchain,
     mptNodeStorage: MptNodeStorage)(implicit scheduler: Scheduler)
   extends SyncRequestHandler[GetNodeData, NodeData](peer) {
-
-  import FastSyncNodesRequestHandler._
 
   override val requestMsg = GetNodeData(requestedHashes.map(_.v))
   override val responseMsgCode: Int = NodeData.code
@@ -35,20 +33,20 @@ class FastSyncNodesRequestHandler(
 
     val hashesToRequest = (nodeData.values.indices zip receivedHashes) flatMap { case (idx, valueHash) =>
       requestedHashes.find(_.v == valueHash) map {
-        case StateMptNodeHash(hash) =>
-          handleMptNode(hash, nodeData.getMptNode(idx))
+        case StateMptNodeHash(_) =>
+          handleMptNode(nodeData.getMptNode(idx))
 
-        case ContractStorageMptNodeHash(hash) =>
-          handleContractMptNode(hash, nodeData.getMptNode(idx))
+        case ContractStorageMptNodeHash(_) =>
+          handleContractMptNode(nodeData.getMptNode(idx))
 
         case EvmCodeHash(hash) =>
           val evmCode = nodeData.values(idx)
           blockchain.save(hash, evmCode)
           Nil
 
-        case StorageRootHash(hash) =>
+        case StorageRootHash(_) =>
           val rootNode = nodeData.getMptNode(idx)
-          handleContractMptNode(hash, rootNode)
+          handleContractMptNode(rootNode)
       }
     }
 
@@ -71,7 +69,7 @@ class FastSyncNodesRequestHandler(
     cleanupAndStop()
   }
 
-  private def handleMptNode(hash: ByteString, mptNode: MptNode): Seq[HashType] = mptNode match {
+  private def handleMptNode(mptNode: MptNode): Seq[HashType] = mptNode match {
     case n: MptLeaf =>
       val evm = n.getAccount.codeHash
       val storage = n.getAccount.storageRoot
@@ -79,11 +77,11 @@ class FastSyncNodesRequestHandler(
       mptNodeStorage.put(n)
 
       val evmRequests =
-        if (evm != EmptyAccountEvmCodeHash) Seq(EvmCodeHash(evm))
+        if (evm != Account.EmptyCodeHash) Seq(EvmCodeHash(evm))
         else Nil
 
       val storageRequests =
-        if (storage != EmptyAccountStorageHash) Seq(StorageRootHash(storage))
+        if (storage != Account.EmptyStorageRootHash) Seq(StorageRootHash(storage))
         else Nil
 
       evmRequests ++ storageRequests
@@ -100,7 +98,7 @@ class FastSyncNodesRequestHandler(
         _ => Nil)
     }
 
-  private def handleContractMptNode(hash: ByteString, mptNode: MptNode): Seq[HashType] = {
+  private def handleContractMptNode(mptNode: MptNode): Seq[HashType] = {
     mptNode match {
       case n: MptLeaf =>
         mptNodeStorage.put(n)
@@ -124,7 +122,4 @@ object FastSyncNodesRequestHandler {
   def props(peer: ActorRef, requestedHashes: Seq[HashType], blockchain: Blockchain, mptNodeStorage: MptNodeStorage)
            (implicit scheduler: Scheduler): Props =
     Props(new FastSyncNodesRequestHandler(peer, requestedHashes, blockchain, mptNodeStorage))
-
-  private val EmptyAccountStorageHash = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
-  private val EmptyAccountEvmCodeHash = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 }

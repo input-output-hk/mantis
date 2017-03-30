@@ -3,6 +3,8 @@ package io.iohk.ethereum.utils
 import java.math.BigInteger
 import java.security.SecureRandom
 
+import akka.util.ByteString
+
 import scala.util.Random
 
 object ByteUtils {
@@ -37,4 +39,9 @@ object ByteUtils {
     (n | bs(1) & 0xFF).toShort
   }
 
+  def padLeft(bytes: ByteString, length: Int, byte: Byte = 0): ByteString = {
+    val l = math.max(0, length - bytes.length)
+    val fill = Seq.fill[Byte](l)(byte)
+    fill ++: bytes
+  }
 }

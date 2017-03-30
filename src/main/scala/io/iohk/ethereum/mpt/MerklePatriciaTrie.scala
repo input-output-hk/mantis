@@ -12,12 +12,12 @@ object MerklePatriciaTrie {
   case class MPTException(message: String) extends RuntimeException(message)
 
   private case class NodeInsertResult(newNode: Node,
-                                      toDeleteFromStorage: Seq[Node] = Seq(),
-                                      toUpdateInStorage: Seq[Node] = Seq())
+                                      toDeleteFromStorage: Seq[Node] = Seq.empty,
+                                      toUpdateInStorage: Seq[Node] = Seq.empty)
 
   private case class NodeRemoveResult(hasChanged: Boolean, newNode: Option[Node],
-                                      toDeleteFromStorage: Seq[Node] = Seq(),
-                                      toUpdateInStorage: Seq[Node] = Seq())
+                                      toDeleteFromStorage: Seq[Node] = Seq.empty,
+                                      toUpdateInStorage: Seq[Node] = Seq.empty)
 
   type HashFn = Array[Byte] => Array[Byte]
 
@@ -41,8 +41,8 @@ object MerklePatriciaTrie {
 
   private def matchingLength(a: Array[Byte], b: Array[Byte]): Int = a.zip(b).takeWhile(t => t._1 == t._2).length
 
-  private def updateNodesInStorage(previousRootHash: Array[Byte], newRootHash: Array[Byte], newRoot: Option[Node],
-                                   toRemove: Seq[Node], toUpdate: Seq[Node], nodeStorage: NodeStorage, hashFn: HashFn): NodeStorage = {
+  private def updateNodesInStorage(previousRootHash: Array[Byte], newRoot: Option[Node],
+                                   toRemove: Seq[Node], toUpdate: Seq[Node], nodeStorage: NodeStorage): NodeStorage = {
     val rootCapped = newRoot.map(_.capped).getOrElse(Array.emptyByteArray)
     val toBeRemoved = toRemove.filter { node =>
       val nCapped = node.capped
@@ -161,18 +161,16 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
       val newRootHash = newRoot.hash
       val newSource = updateNodesInStorage(
         previousRootHash = getRootHash,
-        newRootHash = newRootHash,
         newRoot = Some(newRoot),
         toRemove = nodesToRemoveFromStorage,
         toUpdate = nodesToUpdateInStorage,
-        nodeStorage = nodeStorage,
-        hashFn = hashFn)
+        nodeStorage = nodeStorage)
       new MerklePatriciaTrie(Some(newRootHash), newSource, hashFn)(kSerializer, vSerializer)
     } getOrElse {
       val newRoot = LeafNode(keyNibbles, vSerializer.toBytes(value), hashFn)
       val newRootHash = newRoot.hash
       new MerklePatriciaTrie(Some(newRootHash),
-        updateNodesInStorage(getRootHash, newRootHash, Some(newRoot), Seq(), Seq(newRoot), nodeStorage, hashFn),
+        updateNodesInStorage(getRootHash, Some(newRoot), Seq.empty, Seq(newRoot), nodeStorage),
         hashFn)
     }
   }
@@ -193,22 +191,18 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
           val newRootHash = newRoot.hash
           val afterDeletenodeStorage = updateNodesInStorage(
             previousRootHash = getRootHash,
-            newRootHash = newRootHash,
             newRoot = Some(newRoot),
             toRemove = nodesToRemoveFromStorage,
             toUpdate = nodesToUpdateInStorage,
-            nodeStorage = nodeStorage,
-            hashFn = hashFn)
+            nodeStorage = nodeStorage)
           new MerklePatriciaTrie(Some(newRootHash), afterDeletenodeStorage, hashFn)(kSerializer, vSerializer)
         case NodeRemoveResult(true, None, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
           val afterDeletenodeStorage = updateNodesInStorage(
             previousRootHash = getRootHash,
-            newRootHash = EmptyTrieHash,
             newRoot = None,
             toRemove = nodesToRemoveFromStorage,
             toUpdate = nodesToUpdateInStorage,
-            nodeStorage = nodeStorage,
-            hashFn = hashFn)
+            nodeStorage = nodeStorage)
           new MerklePatriciaTrie(None, afterDeletenodeStorage, hashFn)(kSerializer, vSerializer)
         case NodeRemoveResult(false, _, _, _) => this
       }
@@ -382,7 +376,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     // We want to delete Branch node value
     case (BranchNode(children, _, _), true) =>
       // We need to remove old node and fix it because we removed the value
-      val fixedNode = fix(BranchNode(children, None, hashFn), nodeStorage, Seq())
+      val fixedNode = fix(BranchNode(children, None, hashFn), nodeStorage, Seq.empty)
       NodeRemoveResult(hasChanged = true, newNode = Some(fixedNode), toDeleteFromStorage = Seq(node), toUpdateInStorage = Seq(fixedNode))
     case (branchNode@BranchNode(children, optStoredValue, _), false) =>
       // We might be trying to remove a node that's inside one of the 16 mapped nibbles

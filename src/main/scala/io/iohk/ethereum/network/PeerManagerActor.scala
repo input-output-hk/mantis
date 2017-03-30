@@ -13,7 +13,6 @@ import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 class PeerManagerActor(
-    nodeStatusHolder: Agent[NodeStatus],
     peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging {
@@ -77,8 +76,7 @@ object PeerManagerActor {
             peerConfiguration: PeerConfiguration,
             appStateStorage: AppStateStorage,
             blockchain: Blockchain): Props =
-    Props(new PeerManagerActor(nodeStatusHolder,
-      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain)))
+    Props(new PeerManagerActor(peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain)))
 
   def peerFactory(nodeStatusHolder: Agent[NodeStatus],
                   peerConfiguration: PeerConfiguration,
@@ -86,7 +84,10 @@ object PeerManagerActor {
                   blockchain: Blockchain): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
-      ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain), id)
+      val forkResolverOpt =
+        if (Config.Blockchain.customGenesisFileOpt.isDefined) None
+        else Some(ForkResolver.EtcForkResolver)
+      ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, forkResolverOpt), id)
   }
 
   trait PeerConfiguration {

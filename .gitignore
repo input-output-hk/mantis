@@ -11,3 +11,4 @@ nodeId.keys
 *.sc
 
 *.log
+.evm-runner_history
