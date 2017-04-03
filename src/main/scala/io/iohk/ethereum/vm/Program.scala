@@ -18,6 +18,8 @@ case class Program(code: ByteString) {
   def getBytes(from: Int, size: Int): ByteString =
     code.slice(from, from + size).padTo(size, 0.toByte)
 
+  val length: Int = code.size
+
   lazy val validJumpDestinations: Set[Int] = validJumpDestinationsAfterPosition(0)
 
   /**
@@ -29,7 +31,7 @@ case class Program(code: ByteString) {
     */
   @tailrec
   private def validJumpDestinationsAfterPosition(pos: Int, accum: Set[Int] = Set()): Set[Int] = {
-    if(pos < 0 || pos >= code.length) accum
+    if(pos < 0 || pos >= length) accum
     else {
       val byte = code(pos)
       val opCode = OpCode.byteToOpCode.get(byte)

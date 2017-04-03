@@ -9,8 +9,8 @@ class StackSpec extends FunSuite with Matchers with PropertyChecks {
   val maxStackSize = 32
   val stackGen = Generators.getStackGen(maxSize = maxStackSize)
   val intGen = Gen.choose(0, maxStackSize).filter(_ >= 0)
-  val dataWordGen = Generators.getUInt256Gen()
-  val dataWordListGen = Generators.getListGen(0, 16, dataWordGen)
+  val uint256Gen = Generators.getUInt256Gen()
+  val uint256ListGen = Generators.getListGen(0, 16, uint256Gen)
 
   test("pop single element") {
     forAll(stackGen) { stack =>
@@ -39,7 +39,7 @@ class StackSpec extends FunSuite with Matchers with PropertyChecks {
   }
 
   test("push single element") {
-    forAll(stackGen, dataWordGen) { (stack, v) =>
+    forAll(stackGen, uint256Gen) { (stack, v) =>
       val stack1 = stack.push(v)
 
       if (stack.size < stack.maxSize) {
@@ -51,7 +51,7 @@ class StackSpec extends FunSuite with Matchers with PropertyChecks {
   }
 
   test("push multiple elements") {
-    forAll(stackGen, dataWordListGen) { (stack, vs) =>
+    forAll(stackGen, uint256ListGen) { (stack, vs) =>
       val stack1 = stack.push(vs)
 
       if (stack.size + vs.size <= stack.maxSize) {
