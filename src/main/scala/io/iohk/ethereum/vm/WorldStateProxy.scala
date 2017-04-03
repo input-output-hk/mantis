@@ -18,6 +18,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] {
 
   protected def getAccount(address: Address): Option[Account]
   protected def saveAccount(address: Address, account: Account): WS
+  protected def deleteAccount(address: Address): WS
 
   /**
     * In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that

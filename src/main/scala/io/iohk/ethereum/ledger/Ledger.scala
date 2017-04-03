@@ -261,12 +261,15 @@ object Ledger extends Logger {
   private def payForGasUsedToBeneficiary(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = worldStateProxy //TODO
 
   /**
-    * Delete all accounts (that appear in SUICIDE list). YP eq (78)
+    * Delete all accounts (that appear in SUICIDE list). YP eq (78).
+    * The contract storage should be cleared during pruning as nodes could be used in other tries.
+    * The contract code is also not deleted as it could be duplicated between different contracts. FIXME: Should we keep track of this for deletion?
     *
     * @param addressesToDelete
     * @param worldStateProxy
-    * @return
+    * @return a worldState equal worldStateProxy except that the accounts from addressesToDelete are deleted
     */
-  private def deleteAccounts(addressesToDelete: Seq[Address], worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = worldStateProxy //TODO
+  private[ledger] def deleteAccounts(addressesToDelete: Seq[Address], worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
+    addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => world.deleteAccount(address) }
 
 }

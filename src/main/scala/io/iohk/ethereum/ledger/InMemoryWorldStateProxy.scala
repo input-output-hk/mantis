@@ -48,7 +48,7 @@ object InMemoryWorldStateProxy {
     * @param worldState Proxy to commit
     * @return Updated world
     */
-  private def persistState(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  private[ledger] def persistState(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     def persistCode(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
       worldState.accountCodes.foldLeft(worldState) {
         case (updatedWorldState, (address, code)) =>
@@ -155,6 +155,9 @@ class InMemoryWorldStateProxy private(
 
   override def saveAccount(address: Address, account: Account): InMemoryWorldStateProxy =
     copyWith(accountsStateTrie = accountsStateTrie.put(address.bytes, account))
+
+  override def deleteAccount(address: Address): InMemoryWorldStateProxy =
+    copyWith(accountsStateTrie = accountsStateTrie.remove(address.bytes))
 
   override def getCode(address: Address): ByteString =
     accountCodes.getOrElse(
