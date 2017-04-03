@@ -97,7 +97,7 @@ trait DataSourceTestBehavior
         assert(dataSource.get(OtherNamespace2, someByteString).contains(someValue2))
 
         //Removal
-        dataSource.update(OtherNamespace2, Seq(someByteString), Seq.empty)
+        dataSource.update(OtherNamespace2, Seq(someByteString), Nil)
 
         assert(dataSource.get(OtherNamespace, someByteString).contains(someValue1))
         assert(dataSource.get(OtherNamespace2, someByteString).isEmpty)

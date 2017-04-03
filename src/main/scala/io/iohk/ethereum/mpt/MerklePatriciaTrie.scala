@@ -16,12 +16,12 @@ object MerklePatriciaTrie {
   case class MPTException(message: String) extends RuntimeException(message)
 
   private case class NodeInsertResult(newNode: Node,
-    toDeleteFromStorage: Seq[Node] = Seq.empty,
-    toUpdateInStorage: Seq[Node] = Seq.empty)
+    toDeleteFromStorage: Seq[Node] = Nil,
+    toUpdateInStorage: Seq[Node] = Nil)
 
   private case class NodeRemoveResult(hasChanged: Boolean, newNode: Option[Node],
-    toDeleteFromStorage: Seq[Node] = Seq.empty,
-    toUpdateInStorage: Seq[Node] = Seq.empty)
+    toDeleteFromStorage: Seq[Node] = Nil,
+    toUpdateInStorage: Seq[Node] = Nil)
 
   type HashFn = Array[Byte] => Array[Byte]
 
@@ -184,7 +184,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
       val newRoot = LeafNode(keyNibbles, vSerializer.toBytes(value), hashFn)
       val newRootHash = newRoot.hash
       new MerklePatriciaTrie(Some(newRootHash),
-        updateNodesInStorage(getRootHash, Some(newRoot), Seq.empty, Seq(newRoot), nodeStorage),
+        updateNodesInStorage(getRootHash, Some(newRoot), Nil, Seq(newRoot), nodeStorage),
         hashFn)
     }
   }
@@ -403,7 +403,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
     // We want to delete Branch node value
     case (BranchNode(children, _, _), true) =>
       // We need to remove old node and fix it because we removed the value
-      val fixedNode = fix(BranchNode(children, None, hashFn), nodeStorage, Seq.empty)
+      val fixedNode = fix(BranchNode(children, None, hashFn), nodeStorage, Nil)
       NodeRemoveResult(hasChanged = true, newNode = Some(fixedNode), toDeleteFromStorage = Seq(node), toUpdateInStorage = Seq(fixedNode))
     case (branchNode@BranchNode(children, optStoredValue, _), false) =>
       // We might be trying to remove a node that's inside one of the 16 mapped nibbles
@@ -492,7 +492,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
   @tailrec
   private def fix(node: Node, nodeStorage: NodeStorage, notStoredYet: Seq[Node]): Node = node match {
     case BranchNode(children, optStoredValue, _) =>
-      val usedIndexes = children.indices.foldLeft[Seq[Int]](Seq.empty) {
+      val usedIndexes = children.indices.foldLeft[Seq[Int]](Nil) {
         (acc, i) =>
           if (children(i).isDefined) i +: acc else acc
       }
