@@ -8,7 +8,6 @@ import io.iohk.ethereum.domain.{Address, Transaction, TxLogEntry}
  *
  * @param returnData bytes returned by the executed contract (set by [[RETURN]] opcode)
  * @param gasRemaining amount of gas remaining after execution
- * @param gasUsed amount of gas used in execution
  * @param world represents changes to the world state
  * @param addressesToDelete list of addresses of accounts scheduled to be deleted
  * @param error defined when the program terminated abnormally
@@ -16,7 +15,6 @@ import io.iohk.ethereum.domain.{Address, Transaction, TxLogEntry}
 case class ProgramResult[W <: WorldStateProxy[W, S], S <: Storage[S]](
   returnData: ByteString,
   gasRemaining: UInt256,
-  gasUsed: UInt256,
   world: W,
   addressesToDelete: Seq[Address],
   logs: Seq[TxLogEntry],

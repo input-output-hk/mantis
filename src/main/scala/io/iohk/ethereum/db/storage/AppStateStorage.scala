@@ -8,7 +8,7 @@ import io.iohk.ethereum.db.storage.AppStateStorage._
   *   Key: see AppStateStorage.Keys
   *   Value: stored string value
   */
-class AppStateStorage(val dataSource: DataSource) extends KeyValueStorage[Key, Value]{
+class AppStateStorage(val dataSource: DataSource) extends KeyValueStorage[Key, Value, AppStateStorage]{
   type T = AppStateStorage
 
   val namespace: IndexedSeq[Byte] = Namespaces.AppStateNamespace

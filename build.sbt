@@ -1,4 +1,4 @@
-enablePlugins(JavaAppPackaging)
+enablePlugins(JavaAppPackaging, SolidityPlugin)
 
 val commonSettings = Seq(
   name := "etc-client",
@@ -42,12 +42,15 @@ val dep = {
 
 val Integration = config("it") extend Test
 
-val root = project.in(file("."))
-  .configs(Integration)
-  .settings(commonSettings: _*)
-  .settings(libraryDependencies ++= dep)
-  .settings(inConfig(Integration)(Defaults.testSettings) : _*)
+val Evm = config("evm") extend Test
 
+val root = project.in(file("."))
+    .configs(Integration)
+    .configs(Evm)
+    .settings(commonSettings: _*)
+    .settings(libraryDependencies ++= dep)
+    .settings(inConfig(Integration)(Defaults.testSettings) : _*)
+    .settings(inConfig(Evm)(Defaults.testSettings) : _*)
 
 scalacOptions := Seq(
   "-unchecked",
@@ -57,6 +60,9 @@ scalacOptions := Seq(
 )
 
 testOptions in Test += Tests.Argument("-oD")
+
+(test in Evm) := (test in Evm).dependsOn(solidityCompile).value
+(sourceDirectory in Evm) := baseDirectory.value / "src" / "evmTest"
 
 (scalastyleConfig in Test) := baseDirectory.value / "scalastyle-test-config.xml"
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}

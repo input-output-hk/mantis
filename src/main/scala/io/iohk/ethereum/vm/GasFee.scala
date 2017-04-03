@@ -1,5 +1,8 @@
 package io.iohk.ethereum.vm
 
+import akka.util.ByteString
+import io.iohk.ethereum.utils.Config
+
 // scalastyle:off magic.number
 object GasFee {
   /**
@@ -27,6 +30,30 @@ object GasFee {
       c(memNeeded) - c(memSize)
   }
 
+  /**
+    * Calculates transaction intrinsic gas. See YP section 6.2
+    *
+    */
+  def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean, blockNumber: BigInt): BigInt = {
+    val txDataZero = txData.count(_ == 0)
+    val txDataNonZero = txData.length - txDataZero
+
+    txDataZero * G_txdatazero +
+    txDataNonZero * G_txdatanonzero +
+      //FIXME This should be config based in order to support private chains
+    (if(isContractCreation && blockNumber > Config.Blockchain.HomesteadBlock) G_txcreate else 0 ) +
+    G_transaction
+  }
+
+  /**
+    * If the initialization code completes successfully, a final contract-creation cost is paid, the code-deposit cost,
+    * proportional to the size of the created contract’s code. See YP equation (96)
+    *
+    * @param executionResultData Transaction code initialization result
+    * @return Calculated gas cost
+    */
+  def calcCodeDepositCost(executionResultData: ByteString): BigInt = G_codedeposit * executionResultData.size
+
   /** See YP H.1 (222) */
   private def c(m: UInt256): UInt256 = {
     val a = wordsForBytes(m)
@@ -34,7 +61,7 @@ object GasFee {
   }
 
   /**
-    * Number of 32-byte DataWords required to hold n bytes (~= math.ceil(n / 32))
+    * Number of 32-byte UInt256s required to hold n bytes (~= math.ceil(n / 32))
     */
   def wordsForBytes(n: UInt256): UInt256 =
    if (n.isZero) 0 else (n - 1) / UInt256.Size + 1
