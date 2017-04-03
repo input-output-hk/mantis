@@ -28,7 +28,6 @@ val dep = {
     "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
-    "org.scorexfoundation" %% "iodb" % "0.2.0",
     "ch.qos.logback" % "logback-classic" % "1.1.9",
     "org.jline" % "jline" % "3.1.2",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5",
