@@ -71,7 +71,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
 
     // Persist and check
     val persistedWorldState = InMemoryWorldStateProxy.persistIfHashMatches(
-      ByteString(Hex.decode("4886162b0ee2a2acdfc602cb5b96cd8d4d3db6cc56c3df4b5433447eded32a7e")),
+      ByteString(Hex.decode("1246b67299251e9d4645fc7d5e08df0edfdd3c5bdcd4cfbe929fc9244b6cac40")),
       afterUpdatesWorldState
     )
     validateInitialWorld(persistedWorldState)

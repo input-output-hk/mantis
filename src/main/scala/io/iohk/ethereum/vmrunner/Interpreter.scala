@@ -3,17 +3,11 @@ package io.iohk.ethereum.vmrunner
 import java.io.File
 
 import akka.util.ByteString
-import io.circe.generic.extras.Configuration
-import io.circe.generic.extras.auto._
-import io.circe.parser._
 import io.iohk.ethereum.vm._
 import io.iohk.ethereum.vmrunner.AST._
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.vmrunner.WorldState.PR
 import org.spongycastle.util.encoders.Hex
-
-import scala.io.Source
-
 
 object Interpreter {
 
@@ -109,24 +103,21 @@ object Interpreter {
   } yield vmSummary(result)
 
   def createContract(name: String, attributes: Seq[Attr]): Either[RunnerError, String] = {
-    val bin = new File(name + ".bin")
-    val abi = new File(name + ".abi")
+    val binFile = new File(name + ".bin")
+    val abiFile = new File(name + ".abi")
 
-    if (!bin.exists())
+    if (!binFile.exists())
       Left(ContractFileNotFound(name, "BIN"))
-    else if (!abi.exists())
+    else if (!abiFile.exists())
       Left(ContractFileNotFound(name, "ABI"))
     else {
-      val codeHexReader = Source.fromFile(bin)
-      val abiJsonReader = Source.fromFile(abi)
-      val codeHex = try{ codeHexReader.mkString } finally { codeHexReader.close() }
-      val abiJson = try { abiJsonReader.mkString } finally { abiJsonReader.close() }
+      val code = Utils.loadContractCodeFromFile(binFile)
 
       for {
-        abis <- parseAbi(abiJson)
+        abis <- Utils.loadContractAbiFromFile(abiFile).left.map(e => JsonError(e.getMessage))
         attr <- getAttributes(attributes)
       } yield {
-        val (addr, result) = State.createAccount(name, attr.value, attr.gas, loadCode(codeHex), abis.filter(_.`type` == "function"))
+        val (addr, result) = State.createAccount(name, attr.value, attr.gas, code, abis.filter(_.`type` == "function"))
         val recap =
           if (result.error.isDefined) s"Failed to create contract $name"
           else s"Created contract: $name @ $addr"
@@ -149,14 +140,6 @@ object Interpreter {
       Right(attributes)
     }
   }
-
-  def parseAbi(input: String): Either[RunnerError, Seq[ABI]] = {
-    implicit val config = Configuration.default.withDefaults
-    decode[List[ABI]](input).left.map(e => JsonError(e.getMessage))
-  }
-
-  def loadCode(hexString: String): ByteString =
-    ByteString(hexString.trim.grouped(2).map(Integer.parseInt(_, 16).toByte).toArray)
 
   def printCode(code: ByteString, i: Int = 0): String = {
     if (i >= code.size)
