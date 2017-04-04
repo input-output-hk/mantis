@@ -2,10 +2,13 @@ package io.iohk.ethereum.vmrunner
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.vm.FeeSchedule.Key.G_codedeposit
 import io.iohk.ethereum.vm._
 import WorldState.{PC, PR}
 
 object State {
+
+  val evmConfig = EvmConfig.HomesteadConfig
 
   val creatorAddress = Address(0xabcdef) //scalastyle:off magic.number
 
@@ -23,12 +26,11 @@ object State {
     val tx = MockVmInput.transaction(creatorAddress, code, balance, gas)
     val bh = MockVmInput.blockHeader
 
-    val context: PC = ProgramContext(tx, bh, world, EvmConfig.HomesteadConfig)
+    val context: PC = ProgramContext(tx, bh, world, evmConfig)
     val intermediateResult: PR = VM.run(context)
 
     val result: PR = if (intermediateResult.error.isDefined) intermediateResult else {
-      // TODO: val depositCost = GasFee.G_codedeposit * intermediateResult.returnData.size
-      val depositCost = 0 // GasFee.G_codedeposit * intermediateResult.returnData.size
+      val depositCost = evmConfig.feeSchedule(G_codedeposit) * intermediateResult.returnData.size
       intermediateResult.copy(
         gasRemaining = intermediateResult.gasRemaining - depositCost,
         error = if (intermediateResult.gasRemaining < depositCost) Some(OutOfGas) else None
@@ -55,7 +57,7 @@ object State {
     val tx = MockVmInput.transaction(creatorAddress, callData, value, gas, receivingAddress = xAccount.address)
     val bh = MockVmInput.blockHeader
 
-    val context: PC = ProgramContext(tx, bh, world, EvmConfig.HomesteadConfig)
+    val context: PC = ProgramContext(tx, bh, world, evmConfig)
     val result: PR = VM.run(context)
 
     if (result.error.isEmpty) {
