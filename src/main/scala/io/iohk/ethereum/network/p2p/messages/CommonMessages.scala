@@ -58,7 +58,7 @@ object CommonMessages {
         case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value,
         payload, pointSign, signatureRandom, signature) =>
           SignedTransaction(
-            Transaction(nonce, gasPrice, gasLimit, Address(receivingAddress.bytes), value, payload), pointSign, signatureRandom, signature)
+            Transaction(nonce, gasPrice, gasLimit, Address(receivingAddress.bytes), value, payload), (pointSign: Int).toByte, signatureRandom, signature)
       }
 
     }

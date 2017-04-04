@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
+import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
@@ -9,8 +10,10 @@ import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.PV63.Receipts
 import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.rlp._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -58,9 +61,37 @@ trait RegularSync {
         //actor is done and we did not get response
         scheduleResume()
       }
+
+    case MessageReceived(m:BlockHeaders) =>
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      val encodedHeaders = m.headers.map(BlockHeaderImplicits.headerRlpEncDec.encode).map(encode).map(Hex.toHexString)
+      val headerHashes = m.headers.map(_.hash)
+      println(encodedHeaders)
+      println(headerHashes)
+      println(m)
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      handshakedPeers.headOption.foreach { case (actor, _) =>
+        actor ! SendMessage(GetBlockBodies(headerHashes))
+      }
+
+    case MessageReceived(m:BlockBodies) =>
+      println(m)
+
+    case MessageReceived(m:Receipts) =>
+      println(m)
   }
 
   private def askForHeaders() = {
+    handshakedPeers.headOption.foreach { case (actor, _) =>
+      actor ! Subscribe(Set(BlockHeaders.code, BlockBodies.code, Receipts.code))
+      actor ! SendMessage(GetBlockHeaders(Left(0), 10, 0, reverse = false))
+    }
     bestPeer match {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
