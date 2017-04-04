@@ -1,13 +1,21 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+import io.iohk.ethereum.vm.FeeSchedule.Key._
 import org.scalatest.{Matchers, WordSpec}
 import Assembly._
 import GasFee._
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm.MockWorldState._
 
+import scala.language.implicitConversions
+
+// scalastyle:off
 class CallOpcodesSpec extends WordSpec with Matchers {
+
+  val config = EvmConfig.HomesteadConfig
+
+  implicit def scheduleKeyToUInt256(key: FeeSchedule.Key): UInt256 = config.feeSchedule(key)
 
   object fxt {
 
@@ -48,15 +56,20 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     )
 
     val inputData = Generators.getUInt256Gen().sample.get.bytes
-    val expectedMemCost = calcMemCost(inputData.size, inputData.size, inputData.size / 2)
+    val expectedMemCost = calcMemCost(inputData.size, inputData.size, inputData.size / 2, config)
 
     val initialBalance = UInt256(1000)
 
     val requiredGas = {
-      val storageCost = 3 * G_sset
-      val memCost = calcMemCost(0, 0, 32)
+      val storageCost = 3 * config.feeSchedule(G_sset)
+      val memCost = calcMemCost(0, 0, 32, config)
       val copyCost = G_copy * wordsForBytes(32)
-      extCode.linearConstGas + storageCost + memCost + copyCost
+
+      val extCodeLinearConstGas: UInt256 = extCode.byteCode.foldLeft(UInt256.Zero) {
+        case (g, b: OpCodeAsByteCode) => g + config.feeSchedule(b.op.constGasScheduleKey)
+        case (g, _) => g
+      }
+      extCodeLinearConstGas + storageCost + memCost + copyCost
     }
 
     val gasMargin = 13
@@ -73,7 +86,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       .saveCode(extAddr, invalidProgram.code)
 
     val env = ExecEnv(ownerAddr, callerAddr, callerAddr, 1, ByteString.empty, 123, Program(ByteString.empty), null, 0)
-    val context: PC = ProgramContext(env, 2 * requiredGas, worldWithExtAccount)
+    val context: PC = ProgramContext(env, 2 * requiredGas, worldWithExtAccount, config)
   }
 
   case class CallResult(
@@ -144,7 +157,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     "call depth limit is reached" should {
 
-      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = OpCode.MaxCallDepth))
+      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = config.maxCallDepth))
       val call = CallResult(op = CALL, context = context)
 
       "not modify world state" in {
@@ -156,7 +169,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 16)
+        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 16, config)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -174,7 +187,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 16)
+        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 16, config)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -260,7 +273,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     "call depth limit is reached" should {
 
-      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = OpCode.MaxCallDepth))
+      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = config.maxCallDepth))
       val call = CallResult(op = CALLCODE, context = context)
 
       "not modify world state" in {
@@ -373,7 +386,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     "call depth limit is reached" should {
 
-      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = OpCode.MaxCallDepth))
+      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = config.maxCallDepth))
       val call = CallResult(op = DELEGATECALL, context = context)
 
       "not modify world state" in {

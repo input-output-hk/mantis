@@ -32,7 +32,7 @@ case class Program(code: ByteString) {
     if(pos < 0 || pos >= code.length) accum
     else {
       val byte = code(pos)
-      val opCode = OpCode.byteToOpCode.get(byte)
+      val opCode = EvmConfig.HomesteadConfig.byteToOpCode.get(byte) // TODO: provide config...
       opCode match {
         case Some(pushOp: PushOp) => validJumpDestinationsAfterPosition(pos + pushOp.i + 2, accum)
         case Some(JUMPDEST) => validJumpDestinationsAfterPosition(pos + 1, accum + pos)

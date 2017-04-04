@@ -41,6 +41,8 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   error: Option[ProgramError] = None
 ) {
 
+  def config: EvmConfig = context.config
+
   def env: ExecEnv = context.env
 
   def ownAddress: Address = env.ownerAddr

@@ -27,9 +27,9 @@ object VM {
   @tailrec
   private def run[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val byte = state.program.getByte(state.pc)
-    OpCode.byteToOpCode.get(byte) match {
-      case Some(opcode) =>
-        val newState = opcode.execute(state)
+    state.config.byteToOpCode.get(byte) match {
+      case Some(opCode) =>
+        val newState = opCode.execute(state)
         if (newState.halted)
           newState
         else
