@@ -53,8 +53,8 @@ object GasFee {
     * @param executionResultData Transaction code initialization result
     * @return Calculated gas cost
     */
-  def calcCodeDepositCost(executionResultData: ByteString, config: EvmConfig): BigInt
-  = config.feeSchedule(G_codedeposit) * executionResultData.size
+  def calcCodeDepositCost(executionResultData: ByteString, config: EvmConfig): BigInt =
+    config.feeSchedule(G_codedeposit) * executionResultData.size
 
   /**
     * Number of 32-byte UInt256s required to hold n bytes (~= math.ceil(n / 32))

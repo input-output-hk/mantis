@@ -6,7 +6,8 @@ import io.iohk.ethereum.domain._
 object ProgramContext {
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](stx: SignedTransaction,
                                                          blockHeader: BlockHeader,
-                                                         world: W, config: EvmConfig): ProgramContext[W, S] = {
+                                                         world: W,
+                                                         config: EvmConfig): ProgramContext[W, S] = {
     import stx.tx
 
     val senderAddress = stx.recoveredSenderAddress.get // FIXME: get, it should be validated but...

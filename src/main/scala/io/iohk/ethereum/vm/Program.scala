@@ -34,7 +34,7 @@ case class Program(code: ByteString) {
     if(pos < 0 || pos >= length) accum
     else {
       val byte = code(pos)
-      val opCode = EvmConfig.HomesteadConfig.byteToOpCode.get(byte) // TODO: provide config...
+      val opCode = EvmConfig.FrontierConfig.byteToOpCode.get(byte) // we only need to check PushOp and JUMPDEST, they are both present in Frontier
       opCode match {
         case Some(pushOp: PushOp) => validJumpDestinationsAfterPosition(pos + pushOp.i + 2, accum)
         case Some(JUMPDEST) => validJumpDestinationsAfterPosition(pos + 1, accum + pos)
