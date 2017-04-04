@@ -2,7 +2,6 @@ package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
 import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.vm.{GasFee, _}
 

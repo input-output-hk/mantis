@@ -3,7 +3,7 @@ package io.iohk.ethereum.db.storage
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.ReceiptStorage._
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
+import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 

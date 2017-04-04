@@ -1,8 +1,7 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, TxLogEntry}
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
+import io.iohk.ethereum.domain.{Address, Receipt, TxLogEntry}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
