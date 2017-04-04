@@ -7,7 +7,7 @@ object EvmConfig {
   /**
     * returns the evm config that should be used for given block
     */
-  def configFor(blockNumber: BigInt): EvmConfig = {
+  def forBlock(blockNumber: BigInt): EvmConfig = {
     // highest transition block that is less/equal to `blockNumber`
     transitionBlockToConfigMapping
       .filterKeys(_ <= blockNumber)

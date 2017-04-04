@@ -1,9 +1,9 @@
 package io.iohk.ethereum.db.storage
 
+import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.dataSource.DataSource
 
-private[storage] trait KeyValueStorage[K, V] {
-  type T <: KeyValueStorage[K, V]
+private[storage] trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, V, T]{
 
   val dataSource: DataSource
   val namespace: IndexedSeq[Byte]
@@ -38,25 +38,6 @@ private[storage] trait KeyValueStorage[K, V] {
     )
     apply(newDataSource)
   }
-
-  /**
-    * This function updates the KeyValueStorage by inserting the(key-value) pairs in the current namespace.
-    *
-    * @param key
-    * @param value
-    * @return the new KeyValueStorage after the insertion was done.
-    */
-  def put(key: K, value: V): T = update(Seq.empty, Seq(key -> value))
-
-  /**
-    * This function updates the KeyValueStorage by deleting the (key-value) associated with the passed key
-    * from the current namespace.
-    *
-    * @param key
-    * @return the new KeyValueStorage after the deletion was done.
-    */
-  def remove(key: K): T = update(Seq(key), Seq.empty)
-
 }
 
 object Namespaces {

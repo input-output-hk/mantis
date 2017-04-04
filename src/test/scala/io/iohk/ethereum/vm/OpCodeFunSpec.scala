@@ -130,6 +130,29 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
+  test(BALANCE) { op =>
+    forAll(getProgramStateGen(), getUInt256Gen()) { (stateIn, accountBalance) =>
+      val stateOut = executeOp(op, stateIn)
+      withStackVerification(op, stateIn, stateOut) {
+        val (_, stack1) = stateIn.stack.pop
+        stateOut shouldEqual stateIn.withStack(stack1.push(UInt256.Zero)).step()
+      }
+
+      val (addr, stack1) = stateIn.stack.pop
+
+      val account = Account(balance = accountBalance)
+      val world1 = stateIn.world.saveAccount(Address(addr mod UInt256(BigInt(2).pow(160))), account)
+
+      val stateInWithAccount = stateIn.withWorld(world1)
+      val stateOutWithAccount = executeOp(op, stateInWithAccount)
+
+      withStackVerification(op, stateInWithAccount, stateOutWithAccount) {
+        val stack2 = stack1.push(accountBalance)
+        stateOutWithAccount shouldEqual stateInWithAccount.withStack(stack2).step()
+      }
+    }
+  }
+
   test(CALLDATALOAD) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = UInt256(256)),
@@ -172,10 +195,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("CODESIZE") {
-    // to be implemented
-  }
-
   test(CODECOPY) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = UInt256(256)),
@@ -196,10 +215,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         stateOut shouldEqual expectedState
       }
     }
-  }
-
-  ignore("GASPRICE") {
-    // to be implemented
   }
 
   test(EXTCODESIZE) { op =>
@@ -336,8 +351,23 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("MSTORE8") {
-    // to be implemented
+  test(MSTORE8) { op =>
+    val stateGen = getProgramStateGen(
+      stackGen = getStackGen(maxWord = UInt256(256)),
+      memGen = getMemoryGen(256)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val (Seq(offset, value), _) = stateIn.stack.pop(2)
+        val (data, _) = stateOut.memory.load(offset, 1)
+        ByteString((value mod 256).toByte) shouldEqual data
+
+        stateOut shouldEqual stateIn.withStack(stateOut.stack).withMemory(stateOut.memory).step()
+      }
+    }
   }
 
   test(SLOAD) { op =>
@@ -493,14 +523,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     withStackVerification(op, stateInWithInvalidDestination2, stateOutWithInvalidDestination2) {
       stateOutWithInvalidDestination2 shouldEqual stateInWithInvalidDestination2.withError(InvalidJump(jumpDestInsidePush))
     }
-  }
-
-  ignore("PC") {
-    // to be implemented
-  }
-
-  ignore("MSIZE") {
-    // to be implemented
   }
 
   test(JUMPDEST) { op =>

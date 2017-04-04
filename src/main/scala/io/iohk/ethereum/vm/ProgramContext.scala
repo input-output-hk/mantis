@@ -4,7 +4,9 @@ import io.iohk.ethereum.domain._
 
 
 object ProgramContext {
-  def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](stx: SignedTransaction, blockHeader: BlockHeader, world: W, config: EvmConfig): ProgramContext[W, S] = {
+  def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](stx: SignedTransaction,
+                                                         blockHeader: BlockHeader,
+                                                         world: W, config: EvmConfig): ProgramContext[W, S] = {
     import stx.tx
 
     val senderAddress = stx.recoveredSenderAddress.get // FIXME: get, it should be validated but...
@@ -13,7 +15,9 @@ object ProgramContext {
     val env = ExecEnv(recipientAddress, senderAddress, senderAddress, UInt256(tx.gasPrice), tx.payload,
       UInt256(tx.value), program, blockHeader, callDepth = 0)
 
-    ProgramContext(env, UInt256(tx.gasLimit), world1, config)
+    val gasLimit = tx.gasLimit - GasFee.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, blockHeader.number, config)
+
+    ProgramContext(env, UInt256(gasLimit), world1, config)
   }
 
   private def callOrCreate[W <: WorldStateProxy[W, S], S <: Storage[S]](world: W, tx: Transaction, senderAddress: Address): (W, Address, Program) = {
