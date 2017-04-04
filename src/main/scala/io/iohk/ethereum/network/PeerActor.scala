@@ -5,7 +5,6 @@ import java.net.{InetSocketAddress, URI}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 
 import scala.concurrent.duration._
-
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
@@ -21,6 +20,7 @@ import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.db.storage._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.spongycastle.util.encoders.Hex
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
@@ -150,12 +150,14 @@ class PeerActor(
 
   private def createStatusMsg(): msg.Status = {
     val bestBlockHeader = getBestBlockHeader()
+    val privateNetId = 0x92
     msg.Status(
       protocolVersion = Message.PV63,
-      networkId = Config.Network.networkId,
+      networkId = privateNetId,
       totalDifficulty = bestBlockHeader.difficulty,
-      bestHash = bestBlockHeader.hash,
-      genesisHash = blockchain.genesisHeader.hash)
+      bestHash = ByteString(Hex.decode("5ce1d5a43cdf5d8525c0eb750779066255df639dcc2575fc06bb6014cd5db8d5")),
+      genesisHash = ByteString(Hex.decode("5ce1d5a43cdf5d8525c0eb750779066255df639dcc2575fc06bb6014cd5db8d5"))//blockchain.genesisHeader.hash
+    )
   }
 
   def waitingForNodeStatus(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
