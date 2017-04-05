@@ -19,7 +19,14 @@ trait StoragesComponent {
 
     val mptNodeStorage: MptNodeStorage
 
+    val nodeStorage: NodeStorage //FIXME This storage is similar to MPTNodesStorage but
+
     val evmCodeStorage: EvmCodeStorage
 
+    val totalDifficultyStorage: TotalDifficultyStorage
+
+    val appStateStorage: AppStateStorage
+
+    val fastSyncStateStorage: FastSyncStateStorage
   }
 }

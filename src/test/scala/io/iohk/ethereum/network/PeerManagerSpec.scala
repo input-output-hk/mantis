@@ -7,10 +7,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
-import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.utils.{Config, BlockchainStatus, ServerStatus, NodeStatus}
+import io.iohk.ethereum.utils.{Config, ServerStatus, NodeStatus}
 import org.scalatest.{FlatSpec, Matchers}
 
 class PeerManagerSpec extends FlatSpec with Matchers {
@@ -18,7 +17,7 @@ class PeerManagerSpec extends FlatSpec with Matchers {
   import Config.Network.Discovery._
 
   "PeerManager" should "try to connect to bootstrap nodes on startup" in new TestSetup {
-    val peerManager = TestActorRef(Props(new PeerManagerActor(nodeStatusHolder, peerFactory, Some(time.scheduler))))
+    val peerManager = TestActorRef(Props(new PeerManagerActor(peerFactory, Some(time.scheduler))))(system)
 
     time.advance(800)
 
@@ -28,7 +27,7 @@ class PeerManagerSpec extends FlatSpec with Matchers {
   }
 
   it should "retry connections to remaining bootstrap nodes" in new TestSetup {
-    val peerManager = TestActorRef(Props(new PeerManagerActor(nodeStatusHolder, peerFactory, Some(time.scheduler))))
+    val peerManager = TestActorRef(Props(new PeerManagerActor(peerFactory, Some(time.scheduler))))(system)
 
     time.advance(800)
 
@@ -46,15 +45,6 @@ class PeerManagerSpec extends FlatSpec with Matchers {
     implicit val system = ActorSystem("PeerManagerActorSpec_System")
 
     val time = new VirtualTime
-
-    val nodeKey = crypto.generateKeyPair()
-
-    val nodeStatus = NodeStatus(
-      key = nodeKey,
-      serverStatus = ServerStatus.NotListening,
-      blockchainStatus = BlockchainStatus(0, ByteString("123"), 0))
-
-    val nodeStatusHolder = Agent(nodeStatus)
 
     var createdPeers: Seq[TestProbe] = Nil
 

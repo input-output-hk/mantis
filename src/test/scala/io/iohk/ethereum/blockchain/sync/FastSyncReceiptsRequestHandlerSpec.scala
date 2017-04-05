@@ -2,11 +2,10 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration._
 
-import akka.actor.{Terminated, PoisonPill, ActorSystem}
+import akka.actor.{PoisonPill, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.p2p.messages.PV63.{Receipt, Receipts, GetReceipts}
 import org.scalatest.{FlatSpec, Matchers}
@@ -20,8 +19,8 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     val responseReceipts = Seq(Seq(Receipt(ByteString(""), 0, ByteString(""), Nil)))
     peer.reply(PeerActor.MessageReceived(Receipts(responseReceipts)))
 
-    parent.expectMsg(FastSyncController.EnqueueReceipts(requestedHashes.drop(1)))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes.drop(1)))
+    parent.expectMsg(SyncRequestHandler.Done)
 
     blockchain.getReceiptsByHash(requestedHashes.head) shouldBe Some(responseReceipts.head)
     blockchain.getReceiptsByHash(requestedHashes(1)) shouldBe None
@@ -35,9 +34,9 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
 
     time.advance(10.seconds)
 
-    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref))
-    parent.expectMsg(FastSyncController.EnqueueReceipts(requestedHashes))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.ref, "time out on receipts response for known hashes: List(31, 32)"))
+    parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes))
+    parent.expectMsg(SyncRequestHandler.Done)
 
     peer.expectMsg(PeerActor.Unsubscribe)
   }
@@ -48,8 +47,8 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
 
     peer.ref ! PoisonPill
 
-    parent.expectMsg(FastSyncController.EnqueueReceipts(requestedHashes))
-    parent.expectMsg(FastSyncRequestHandler.Done)
+    parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes))
+    parent.expectMsg(SyncRequestHandler.Done)
   }
 
   trait TestSetup extends EphemBlockchainTestSetup  {
@@ -67,6 +66,7 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
       parent.childActorOf(FastSyncReceiptsRequestHandler.props(
         peer.ref,
         requestedHashes,
+        storagesInstance.storages.appStateStorage,
         blockchain)(time.scheduler))
   }
 

@@ -131,8 +131,7 @@ class EthereumIESEngine(kdf: Either[ConcatKDFBytesGenerator, MGF1BytesGeneratorE
     IV.foreach(iv => mac.update(iv, 0, iv.length))
     mac.update(cryptogram, inOff + encodedPublicKey.length, inLen - encodedPublicKey.length - messageAuthenticationCodeCalculated.length)
 
-    if (macData.isDefined)
-      mac.update(macData.get, 0, macData.get.length)
+    macData foreach { data => mac.update(data, 0, data.length) }
     mac.doFinal(messageAuthenticationCodeCalculated, 0)
 
     if (!Arrays.constantTimeAreEqual(messageAuthenticationCode, messageAuthenticationCodeCalculated))

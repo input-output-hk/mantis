@@ -12,19 +12,19 @@ object VM {
     * @param context context to be executed
     * @return result of the execution
    */
-  def run(context: ProgramContext): ProgramResult = {
-    val finalState = run(ProgramState(context))
-    ProgramResult(
+  def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
+    val finalState = run(ProgramState[W, S](context))
+    ProgramResult[W, S](
       finalState.returnData,
       finalState.gas,
-      context.startGas - finalState.gas,
       finalState.world,
       finalState.addressesToDelete,
+      finalState.logs,
       finalState.error)
   }
 
   @tailrec
-  private def run(state: ProgramState): ProgramState = {
+  private def run[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val byte = state.program.getByte(state.pc)
     OpCode.byteToOpCode.get(byte) match {
       case Some(opcode) =>
@@ -32,7 +32,7 @@ object VM {
         if (newState.halted)
           newState
         else
-          run(newState)
+          run[W, S](newState)
 
       case None =>
         state.withError(InvalidOpCode(byte)).halt
