@@ -6,6 +6,7 @@ import Assembly._
 import GasFee._
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
 
 class CallOpcodesSpec extends WordSpec with Matchers {
@@ -225,7 +226,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     "calling a precompiled contract" should {
       val contractAddress = Address(1) // ECDSA recovery
-      val invalidSignature = ByteString(Array.fill(128)(1.toByte))
+      val invalidSignature = ByteString(Array.fill(128)(0.toByte))
       val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 0))
       val context: PC = fxt.context.copy(world = world)
       val call = CallResult(op = CALL, context = context, to = contractAddress, inputData = invalidSignature,
@@ -494,12 +495,12 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 0))
       val context: PC = fxt.context.copy(world = world)
       val call = CallResult(op = DELEGATECALL, context = context, to = contractAddress, inputData = inputData,
-        inOffset = 0, inSize = 128, outOffset = 128, outSize = 20
+        inOffset = 0, inSize = 128, outOffset = 128, outSize = 32
       )
 
       "compute a correct result" in {
         val (result, _) = call.stateOut.memory.load(call.outOffset, call.outSize)
-        val expected = ripemd160(inputData)
+        val expected = ByteUtils.padLeft(ripemd160(inputData), 32)
 
         result shouldEqual expected
       }

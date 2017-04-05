@@ -85,7 +85,7 @@ object PrecompiledContracts {
 
   object Ripemp160 extends PrecompiledContract {
     def exec(inputData: ByteString): ByteString =
-      ripemd160(inputData)
+      ByteUtils.padLeft(ripemd160(inputData), 32)
 
     def gas(inputData: ByteString): UInt256 =
       600 + 120 * wordsForBytes(inputData.size)

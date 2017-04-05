@@ -1,5 +1,6 @@
 package io.iohk.ethereum.vm
 
+
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
@@ -19,27 +20,31 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
 
   test("ECDSARECOVER") {
     val keyPair = generateKeyPair()
-    val bytesGen = Generators.getByteStringGen(32, 32)
+    val bytesGen = Generators.getByteStringGen(1, 128)
 
     forAll(bytesGen) { bytes =>
-      val validSig = ECDSASignature.sign(bytes.toArray, keyPair)
-      val recoveredPub = ByteUtils.padLeft(kec256(validSig.recoverPubBytes(bytes).get).slice(12, 32), 32, 0)
-      val context = buildContext(PrecompiledContracts.EcDsaRecAddr, bytes)
+      val hash = kec256(bytes)
+      val validSig = ECDSASignature.sign(hash.toArray, keyPair)
+      val recoveredPub = ByteUtils.padLeft(kec256(validSig.recoverPubBytes(hash).get).slice(12, 32), 32, 0)
+
+      val inputData = hash ++ UInt256(validSig.v).bytes ++ UInt256(validSig.r).bytes ++ UInt256(validSig.s).bytes
+
+      val context = buildContext(PrecompiledContracts.EcDsaRecAddr, inputData)
       val result = VM.run(context)
       result.returnData shouldEqual recoveredPub
 
       val gasUsed = context.startGas - result.gasRemaining
       gasUsed shouldEqual 3000
-
-      // wrong message - recovery failed
-      val wrongMessage = bytes
-      val contextWithWrongData = buildContext(PrecompiledContracts.EcDsaRecAddr, wrongMessage)
-      val resultFailedRecovery = VM.run(contextWithWrongData)
-      resultFailedRecovery.returnData shouldEqual ByteString.empty
-
-      val gasUsedFailedRecover = contextWithWrongData.startGas - resultFailedRecovery.gasRemaining
-      gasUsedFailedRecover shouldEqual 3000
     }
+
+    // invalid input - recovery failed
+    val invalidInput = ByteString(Array.fill[Byte](128)(0))
+    val contextWithWrongData = buildContext(PrecompiledContracts.EcDsaRecAddr, invalidInput)
+    val resultFailedRecovery = VM.run(contextWithWrongData)
+    resultFailedRecovery.returnData shouldEqual ByteString.empty
+
+    val gasUsedFailedRecover = contextWithWrongData.startGas - resultFailedRecovery.gasRemaining
+    gasUsedFailedRecover shouldEqual 3000
   }
 
   test("SHA256") {
@@ -60,7 +65,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     forAll(bytesGen) { bytes =>
       val context = buildContext(PrecompiledContracts.Rip160Addr, bytes)
       val result = VM.run(context)
-      result.returnData shouldEqual ripemd160(bytes)
+      result.returnData shouldEqual ByteUtils.padLeft(ripemd160(bytes), 32)
 
       val gasUsed = context.startGas - result.gasRemaining
       val expectedGas = 600 + 120 * wordsForBytes(bytes.size)
