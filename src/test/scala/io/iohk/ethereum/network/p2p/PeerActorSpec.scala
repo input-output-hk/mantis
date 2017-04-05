@@ -14,14 +14,14 @@ import akka.util.ByteString
 import io.iohk.ethereum
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import io.iohk.ethereum.network.{ForkResolver, PeerActor}
 import io.iohk.ethereum.network.PeerActor.{GetMaxBlockNumber, MaxBlockNumber}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipt, Receipts, _}
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts, _}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.encode
@@ -399,10 +399,10 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "update max peer when receiving new block" in new TestSetup {
     //given
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 4)
-    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), 300)
 
     val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 2)
-    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Nil, Nil)), 300)
 
     val probe = TestProbe()
 
@@ -461,10 +461,10 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "update max peer when sending new block" in new TestSetup {
     //given
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 4)
-    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), 300)
 
     val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 2)
-    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Nil, Nil)), 300)
 
     val probe = TestProbe()
 

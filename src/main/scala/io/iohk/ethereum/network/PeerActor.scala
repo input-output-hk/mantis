@@ -268,7 +268,7 @@ class PeerActor(
       log.debug("Received message: {}", message)
       blockchain.getBlockHeaderByNumber(number) match {
         case Some(header) => rlpxConnection.sendMessage(BlockHeaders(Seq(header)))
-        case None => rlpxConnection.sendMessage(BlockHeaders(Seq.empty))
+        case None => rlpxConnection.sendMessage(BlockHeaders(Nil))
       }
   }
 

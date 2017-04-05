@@ -3,7 +3,6 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
 import io.iohk.ethereum.network.p2p.validators.BlockValidator
 import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.vm.{GasFee, _}
@@ -11,7 +10,7 @@ import io.iohk.ethereum.vm.{GasFee, _}
 object Ledger extends Logger {
 
   type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
-  type ExecResult = (InMemoryWorldStateProxy, BigInt)
+  case class ExecResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
 
   def executeBlock(
     block: Block,
@@ -21,11 +20,10 @@ object Ledger extends Logger {
     val blockError = validateBlockBeforeExecution(block)
     if (blockError.isEmpty) {
       log.debug(s"About to execute txs from block ${block.header}")
-      val (resultingWorldStateProxy, gasUsed) = executeBlockTransactions(block, storages, stateStorage)
+      val ExecResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, storages, stateStorage)
       log.debug(s"All txs from block ${block.header} were executed")
 
       val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
-      val receipts = Seq() //FIXME: This should be obtained from block execution (done in EC-139)
       val afterExecutionBlockError = validateBlockAfterExecution(block, worldToPersist.stateRootHash, receipts, gasUsed)
       if (afterExecutionBlockError.isEmpty) {
         InMemoryWorldStateProxy.persistIfHashMatches(block.header.stateRoot, worldToPersist)
@@ -51,8 +49,8 @@ object Ledger extends Logger {
     val initialWorldStateProxy = InMemoryWorldStateProxy(storages, stateStorage,
       blockchain.getBlockHeaderByHash(block.header.hash).map(_.stateRoot)
     )
-    block.body.transactionList.foldLeft[ExecResult](initialWorldStateProxy -> 0) {
-      case ((worldStateProxy, acumGas), stx) =>
+    block.body.transactionList.foldLeft[ExecResult](ExecResult(worldState = initialWorldStateProxy)) {
+      case (ExecResult(worldStateProxy, acumGas, receipts), stx) =>
         val result: Either[String, PR] = for {
           _ <- validateTransaction(stx, worldStateProxy, 0, block)
           worldStateProxy1 = updateAccountBeforeExecution(stx, worldStateProxy)
@@ -68,7 +66,16 @@ object Ledger extends Logger {
             }
             val payBeneficiariesFn = (payForGasUsedToBeneficiary _).curried(stx)
             val deleteAccountsFn = (deleteAccounts _).curried(theResult.addressesToDelete)
-            (refundGasFn andThen payBeneficiariesFn andThen deleteAccountsFn) (theResult.world) -> (gasUsed + acumGas)
+            val persistStateFn = InMemoryWorldStateProxy.persistState _
+            val (newWorldStateProxy, newAcumGas) =
+              (refundGasFn andThen payBeneficiariesFn andThen deleteAccountsFn andThen persistStateFn) (theResult.world) -> (gasUsed + acumGas)
+            val receipt = Receipt(
+              postTransactionStateHash = newWorldStateProxy.stateRootHash,
+              cumulativeGasUsed = newAcumGas,
+              logsBloomFilter = BloomFilter.create(theResult.logs.toSet),
+              logs = theResult.logs
+            )
+            ExecResult(newWorldStateProxy, newAcumGas, receipts :+ receipt)
           case Left(error) => throw new RuntimeException(error)
         }
     }
