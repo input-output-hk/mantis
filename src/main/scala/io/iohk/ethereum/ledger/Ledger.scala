@@ -2,8 +2,9 @@ package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.validators.{BlockHeaderValidator, BlockValidator, OmmersValidator}
+import io.iohk.ethereum.network.p2p.validators.{BlockHeaderValidator, BlockValidator}
 import io.iohk.ethereum.utils.{Config, Logger}
+import io.iohk.ethereum.validators.OmmersValidator
 import io.iohk.ethereum.vm.{GasFee, _}
 
 object Ledger extends Logger {
