@@ -37,20 +37,24 @@ object SignedTransactionValidator {
     import stx._
     import Transaction._
 
-    def byteLength(b: BigInt): Int = b.toByteArray.length
+    val maxNonceValue = BigInt(2).pow(8 * NonceLength) - 1
+    val maxGasValue = BigInt(2).pow(8 * GasLength) - 1
+    val maxValue = BigInt(2).pow(8 * ValueLength) - 1
+    val maxR = BigInt(2).pow(8 * ECDSASignature.RLength) - 1
+    val maxS = BigInt(2).pow(8 * ECDSASignature.SLength) - 1
 
-    if (byteLength(nonce) > NonceLength)
-      Left(TransactionSyntaxError(s"Invalid nonce length: ${byteLength(nonce)}"))
-    else if(byteLength(gasLimit) > GasLength)
-      Left(TransactionSyntaxError(s"Invalid gasLimit length: ${byteLength(gasLimit)}"))
-    else if(byteLength(gasPrice) > GasLength)
-      Left(TransactionSyntaxError(s"Invalid gasPrice length: ${byteLength(gasPrice)}"))
-    else if(byteLength(value) > ValueLength)
-      Left(TransactionSyntaxError(s"Invalid value length: ${byteLength(value)}"))
-    else if(signatureRandom >= BigInt(2).pow(8 * ECDSASignature.RLength))
-      Left(TransactionSyntaxError(s"Too big signatureRandom: $signatureRandom"))
-    else if(signature >= BigInt(2).pow(8 * ECDSASignature.SLength))
-      Left(TransactionSyntaxError(s"Too big signature: $signature"))
+    if (nonce > maxNonceValue)
+      Left(TransactionSyntaxError(s"Invalid nonce: $nonce > $maxNonceValue"))
+    else if(gasLimit > maxGasValue)
+      Left(TransactionSyntaxError(s"Invalid gasLimit: $gasLimit > $maxGasValue"))
+    else if(gasPrice > maxGasValue)
+      Left(TransactionSyntaxError(s"Invalid gasPrice: $gasPrice > $maxGasValue"))
+    else if(value > maxValue)
+      Left(TransactionSyntaxError(s"Invalid value: $value > $maxValue"))
+    else if(BigInt(signature.r) > maxR)
+      Left(TransactionSyntaxError(s"Invalid signatureRandom: ${signature.r} > $maxR"))
+    else if(BigInt(signature.s) > maxS)
+      Left(TransactionSyntaxError(s"Invalid signature: ${signature.s} > $maxS"))
     else
       Right(stx)
   }
@@ -64,8 +68,11 @@ object SignedTransactionValidator {
     * @return Either the validated transaction or TransactionSignatureError if an error was detected
     */
   private def validateSignature(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransaction] = {
-    val validR = stx.signatureRandom > 0 && stx.signatureRandom < secp256k1n
-    val validS = stx.signature > 0 && stx.signature < (if(fromBeforeHomestead) secp256k1n else secp256k1n / 2)
+    val r = BigInt(stx.signature.r)
+    val s = BigInt(stx.signature.s)
+
+    val validR = r > 0 && r < secp256k1n
+    val validS = s > 0 && s < (if(fromBeforeHomestead) secp256k1n else secp256k1n / 2)
 
     if(validR && validS) Right(stx)
     else Left(TransactionSignatureError)

@@ -1,5 +1,7 @@
 package io.iohk.ethereum.network.p2p.validators
 
+import java.math.BigInteger
+
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
@@ -87,36 +89,36 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
     }
   }
 
-  it should "report as syntactic invalid a tx with long signature" in {
-    val invalidSignature = BigInt(1, (0 until ECDSASignature.SLength + 1).map(_ => 1.toByte).toArray)
-    val signedTxWithInvalidSignatureLength = signedTxBeforeHomestead.copy(signature = invalidSignature)
+  it should "report as syntactic invalid a tx with long s" in {
+    val signatureWithInvalidS = signedTxBeforeHomestead.signature.copy(s = new BigInteger(1, (0 until ECDSASignature.SLength + 1).map(_ => 1.toByte).toArray))
+    val signedTxWithInvalidSignatureLength = signedTxBeforeHomestead.copy(signature = signatureWithInvalidS)
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidSignatureLength, fromBeforeHomestead = true) match {
       case Left(_: TransactionSyntaxError) => succeed
       case _ => fail
     }
   }
 
-  it should "report as syntactic invalid a tx with long signature random" in {
-    val invalidSignatureRandom = BigInt(1, (0 until ECDSASignature.RLength + 1).map(_ => 1.toByte).toArray)
-    val signedTxWithInvalidSignatureLength = signedTxBeforeHomestead.copy(signatureRandom = invalidSignatureRandom)
+  it should "report as syntactic invalid a tx with long r" in {
+    val signatureWithInvalidR = signedTxBeforeHomestead.signature.copy(r = new BigInteger(1, (0 until ECDSASignature.RLength + 1).map(_ => 1.toByte).toArray))
+    val signedTxWithInvalidSignatureLength = signedTxBeforeHomestead.copy(signature = signatureWithInvalidR)
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidSignatureLength, fromBeforeHomestead = true) match {
       case Left(_: TransactionSyntaxError) => succeed
       case _ => fail
     }
   }
 
-  it should "report a tx with invalid signature random as having invalid signature" in {
-    val invalidSignatureRandom = BigInt(0)
-    val signedTxWithInvalidSignatureRandom = signedTxAfterHomestead.copy(signatureRandom = invalidSignatureRandom)
+  it should "report a tx with invalid r as having invalid signature" in {
+    val signatureWithInvalidR = signedTxBeforeHomestead.signature.copy(r = new BigInteger("0"))
+    val signedTxWithInvalidSignatureRandom = signedTxAfterHomestead.copy(signature = signatureWithInvalidR)
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidSignatureRandom, fromBeforeHomestead = false) match {
       case Left(TransactionSignatureError) => succeed
       case _ => fail
     }
   }
 
-  it should "report a tx with invalid signature as having invalid signature" in {
-    val invalidSignature = SignedTransactionValidator.secp256k1n / 2 + 1
-    val signedTxWithInvalidSignature = signedTxAfterHomestead.copy(signature = invalidSignature)
+  it should "report a tx with invalid s as having invalid signature" in {
+    val signatureWithInvalidS = signedTxAfterHomestead.signature.copy(s = (SignedTransactionValidator.secp256k1n / 2 + 1).bigInteger)
+    val signedTxWithInvalidSignature = signedTxAfterHomestead.copy(signature = signatureWithInvalidS)
     SignedTransactionValidator.validateTransaction(signedTxWithInvalidSignature, fromBeforeHomestead = false) match {
       case Left(TransactionSignatureError) => succeed
       case _ => fail

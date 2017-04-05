@@ -2,6 +2,7 @@ package io.iohk.ethereum.vmrunner
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => BEmpty}
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Address, BlockHeader, SignedTransaction, Transaction}
 
 object MockVmInput {
@@ -12,7 +13,7 @@ object MockVmInput {
     pointSign: Byte = 0,
     signatureRandom: BigInt = 0,
     signature: BigInt = 0
-  ) extends SignedTransaction(tx, pointSign, signatureRandom, signature, senderAddress)
+  ) extends SignedTransaction(tx, ECDSASignature(v = pointSign, r = signatureRandom.bigInteger, s = signature.bigInteger), senderAddress)
 
   val defaultGasPrice: BigInt = 1000
 
