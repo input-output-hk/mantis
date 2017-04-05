@@ -5,16 +5,18 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
+import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, MptNode, Receipts}
+import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.rlp._
 
+import scala.collection.immutable.HashMap
 import scala.concurrent.ExecutionContext.Implicits.global
 
 trait RegularSync {
@@ -32,6 +34,17 @@ trait RegularSync {
     context become (handlePeerUpdates orElse regularSync())
     askForHeaders()
   }
+  // scalastyle:off
+  var stateNodesHashes: Set[ByteString] = Set.empty
+  var contractNodesHashes: Set[ByteString] = Set.empty
+  var evmCodeHashes: Set[ByteString] = Set.empty
+
+  var blockHeadersStorage: Map[ByteString, BlockHeader] = HashMap.empty
+  var blockBodyStorage: Map[ByteString, BlockBody] = HashMap.empty
+  var blockReceiptsStorage: Map[ByteString, Seq[Receipt]] = HashMap.empty
+  var stateStorage: Map[ByteString, MptNode] = HashMap.empty
+  var contractStorage: Map[ByteString, MptNode] = HashMap.empty
+  var evmCodeStorage: Map[ByteString, ByteString] = HashMap.empty
 
   def regularSync(): Receive = {
     case ResumeRegularSync =>
@@ -63,64 +76,119 @@ trait RegularSync {
       }
 
     case MessageReceived(m:BlockHeaders) =>
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
       val encodedHeaders = m.headers.map(BlockHeaderImplicits.headerRlpEncDec.encode).map(encode).map(Hex.toHexString)
       val headerHashes = m.headers.map(_.hash)
-      val mptRoots = m.headers.map(_.stateRoot)
-      println(encodedHeaders)
-      println(headerHashes)
-      println(m)
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
+      val mptRoots: Seq[ByteString] = m.headers.map(_.stateRoot)
+
+      m.headers.foreach { h =>
+        blockHeadersStorage = blockHeadersStorage + (h.hash -> h)
+      }
+
       handshakedPeers.headOption.foreach { case (actor, _) =>
         actor ! SendMessage(GetBlockBodies(headerHashes))
-        actor ! SendMessage(GetReceipts(headerHashes.tail))
+        actor ! SendMessage(GetReceipts(headerHashes.drop(1)))
         actor ! SendMessage(GetNodeData(mptRoots))
+        stateNodesHashes = stateNodesHashes ++ mptRoots.toSet
       }
 
     case MessageReceived(m: BlockBodies) =>
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println(m)
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
+      m.bodies.zip(blockHeadersStorage.keys).foreach { case (b, h) =>
+        blockBodyStorage = blockBodyStorage + (h -> b)
+      }
+
 
     case MessageReceived(m: Receipts) =>
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println(m)
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
+      m.receiptsForBlocks.zip(blockHeadersStorage.keys).foreach { case (r, h) =>
+        blockReceiptsStorage = blockReceiptsStorage + (h -> r)
+      }
 
-    case MessageReceived(m: MptNode) =>
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println(m)
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
-      println("------------------------------------------------")
+
+    case MessageReceived(m: NodeData) =>
+      val emptyStorage = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+      val emptyEvm = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
+
+      val stateNodes = m.values.filter(node => stateNodesHashes.contains(kec256(node)))
+      val contractNodes = m.values.filter(node => contractNodesHashes.contains(kec256(node)))
+      val evmCode = m.values.filter(node => evmCodeHashes.contains(kec256(node)))
+
+      val nodes = NodeData(stateNodes).values.indices.map(i => NodeData(stateNodes).getMptNode(i))
+
+      val children = nodes.flatMap {
+        case n: MptBranch => n.children.collect { case Left(h: MptHash) if h.hash.nonEmpty => h.hash }
+        case MptExtension(_, Left(h)) => Seq(h.hash)
+        case n: MptLeaf => Seq.empty
+        case _ => Seq.empty
+      }
+      handshakedPeers.headOption.foreach { case (actor, _) =>
+        actor ! SendMessage(GetNodeData(children))
+        stateNodesHashes = stateNodesHashes ++ children.toSet
+      }
+
+      nodes.foreach {
+        case n: MptLeaf =>
+          println(s"${Hex.toHexString(n.hash.toArray[Byte])} => ${n.getAccount}")
+          if(n.getAccount.codeHash != emptyEvm){
+            handshakedPeers.headOption.foreach { case (actor, _) =>
+              actor ! SendMessage(GetNodeData(Seq(n.getAccount.codeHash)))
+              evmCodeHashes = evmCodeHashes + n.getAccount.codeHash
+            }
+          }
+          if(n.getAccount.storageRoot != emptyStorage){
+            handshakedPeers.headOption.foreach { case (actor, _) =>
+              actor ! SendMessage(GetNodeData(Seq(n.getAccount.storageRoot)))
+              contractNodesHashes = contractNodesHashes + n.getAccount.storageRoot
+            }
+          }
+        case n: MptNode => println(s"${Hex.toHexString(n.hash.toArray[Byte])} => $n")
+      }
+
+      val cNodes = NodeData(contractNodes).values.indices.map(i => NodeData(contractNodes).getMptNode(i))
+      val cChildren = cNodes.flatMap {
+        case n: MptBranch => n.children.collect { case Left(h: MptHash) if h.hash.nonEmpty => h.hash }
+        case MptExtension(_, Left(h)) => Seq(h.hash)
+        case _ => Seq.empty
+      }
+      handshakedPeers.headOption.foreach { case (actor, _) =>
+        actor ! SendMessage(GetNodeData(cChildren))
+        contractNodesHashes = contractNodesHashes ++ cChildren.toSet
+      }
+      cNodes.foreach(n => println(s"contract node ${Hex.toHexString(n.hash.toArray[Byte])} => $n"))
+
+
+      evmCode.foreach{code =>
+        println(s"got EVM code ${Hex.toHexString(kec256(code).toArray[Byte])} => ${Hex.toHexString(code.toArray[Byte])}")
+      }
+      evmCode.foreach{e=>
+        evmCodeStorage = evmCodeStorage + (kec256(e) -> e)
+      }
+
+      nodes.foreach{n=>
+        stateStorage = stateStorage + (n.hash -> n)
+      }
+
+      cNodes.foreach { n =>
+        contractStorage = contractStorage + (n.hash -> n)
+      }
+
+      if(children.isEmpty && cChildren.isEmpty){
+        //todo dump to file
+        println(blockHeadersStorage)
+        println(blockBodyStorage)
+        println(blockReceiptsStorage)
+        println(stateStorage)
+        println(contractStorage)
+        println(evmCodeStorage)
+      }
   }
 
   private def askForHeaders() = {
-    handshakedPeers.headOption.foreach { case (actor, _) =>
-      actor ! Subscribe(Set(BlockHeaders.code, BlockBodies.code, Receipts.code))
-      actor ! SendMessage(GetBlockHeaders(Left(0), 10, 0, reverse = false))
+    if (handshakedPeers.isEmpty) {
+      scheduleResume()
+    } else {
+      handshakedPeers.headOption.foreach { case (actor, _) =>
+        actor ! Subscribe(Set(BlockHeaders.code, BlockBodies.code, Receipts.code, NodeData.code))
+        actor ! SendMessage(GetBlockHeaders(Left(0), 10, 0, reverse = false))
+      }
     }
 //    bestPeer match {
 //      case Some(peer) =>
@@ -132,7 +200,7 @@ trait RegularSync {
 //        scheduleResume()
 //    }
   }
-
+  // scalastyle:on
   private def handleBlockBranchResolution(peer: ActorRef, message: Seq[BlockHeader]) =
     //todo limit max branch depth?
     if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
