@@ -657,15 +657,13 @@ case object LOG4 extends LogOp(0xa4)
 
 // TODO eip161
 case object CREATE extends OpCode(0xf0, 3, 0, G_create) {
-  protected def exec(state: ProgramState): ProgramState = {
-    val (Seq(callValue, inOffset, inSize), stack1) = state.stack.pop(3)
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val (Seq(endowment, inOffset, inSize), stack1) = state.stack.pop(3)
 
-    val endowment: BigInt = callValue.toBigInt
-
-    val validCall = state.env.callDepth < OpCode.MaxCallDepth && endowment <= state.ownAccount.balance
+    val validCall = state.env.callDepth < OpCode.MaxCallDepth && endowment <= state.ownBalance
 
     if (!validCall) {
-      val stack2 = stack1.push(DataWord.Zero)
+      val stack2 = stack1.push(UInt256.Zero)
       state.withStack(stack2).step()
     } else {
 
@@ -676,7 +674,7 @@ case object CREATE extends OpCode(0xf0, 3, 0, G_create) {
       val (newAddress, world1) = state.world.newAddress(state.env.ownerAddr)
 
       // create a new account
-      val world2 = world1.saveAccount(newAddress, Account.Empty)
+      val world2 = world1.newEmptyAccount(newAddress)
 
       // transfer endowment to a new address
       val world3 = world2.transfer(state.env.originAddr, newAddress, endowment)
@@ -702,7 +700,7 @@ case object CREATE extends OpCode(0xf0, 3, 0, G_create) {
 
         // execution of initialization code failed
         case result if result.error.isDefined =>
-          val stack2 = stack1.push(DataWord.Zero)
+          val stack2 = stack1.push(UInt256.Zero)
           state.withStack(stack2).spendGas(state.gas)
 
         // execution of initialization code succeeded
