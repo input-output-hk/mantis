@@ -10,7 +10,7 @@ import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipts
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, MptNode, Receipts}
 import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.rlp._
@@ -69,6 +69,7 @@ trait RegularSync {
       println("------------------------------------------------")
       val encodedHeaders = m.headers.map(BlockHeaderImplicits.headerRlpEncDec.encode).map(encode).map(Hex.toHexString)
       val headerHashes = m.headers.map(_.hash)
+      val mptRoots = m.headers.map(_.stateRoot)
       println(encodedHeaders)
       println(headerHashes)
       println(m)
@@ -78,13 +79,42 @@ trait RegularSync {
       println("------------------------------------------------")
       handshakedPeers.headOption.foreach { case (actor, _) =>
         actor ! SendMessage(GetBlockBodies(headerHashes))
+        actor ! SendMessage(GetReceipts(headerHashes.tail))
+        actor ! SendMessage(GetNodeData(mptRoots))
       }
 
-    case MessageReceived(m:BlockBodies) =>
+    case MessageReceived(m: BlockBodies) =>
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
       println(m)
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
 
-    case MessageReceived(m:Receipts) =>
+    case MessageReceived(m: Receipts) =>
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
       println(m)
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+
+    case MessageReceived(m: MptNode) =>
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println(m)
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
+      println("------------------------------------------------")
   }
 
   private def askForHeaders() = {
@@ -92,15 +122,15 @@ trait RegularSync {
       actor ! Subscribe(Set(BlockHeaders.code, BlockBodies.code, Receipts.code))
       actor ! SendMessage(GetBlockHeaders(Left(0), 10, 0, reverse = false))
     }
-    bestPeer match {
-      case Some(peer) =>
-        val blockNumber = appStateStorage.getBestBlockNumber()
-        val request = GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
-        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false)))
-      case None =>
-        log.warning("no peers to download from")
-        scheduleResume()
-    }
+//    bestPeer match {
+//      case Some(peer) =>
+//        val blockNumber = appStateStorage.getBestBlockNumber()
+//        val request = GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
+//        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false)))
+//      case None =>
+//        log.warning("no peers to download from")
+//        scheduleResume()
+//    }
   }
 
   private def handleBlockBranchResolution(peer: ActorRef, message: Seq[BlockHeader]) =
