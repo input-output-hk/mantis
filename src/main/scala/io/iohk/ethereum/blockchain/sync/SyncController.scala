@@ -66,9 +66,6 @@ class SyncController(
 
   def handlePeerUpdates: Receive = {
     case peers: PeerManagerActor.Peers =>
-      val newHandshakedPeers = peers.handshaked.filterNot(p => handshakedPeers.contains(p._1.ref))
-      newHandshakedPeers.foreach(p => context watch p._1.ref)
-
       peers.peers.foreach {
         case (peer, _: PeerActor.Status.Handshaked) =>
           if (!handshakedPeers.contains(peer.ref)) context watch peer.ref
