@@ -150,10 +150,9 @@ class PeerActor(
 
   private def createStatusMsg(): msg.Status = {
     val bestBlockHeader = getBestBlockHeader()
-    val privateNetId = 0x92
     msg.Status(
       protocolVersion = Message.PV63,
-      networkId = privateNetId,
+      networkId = Config.Network.networkId,
       totalDifficulty = bestBlockHeader.difficulty,
       bestHash = ByteString(Hex.decode("5ce1d5a43cdf5d8525c0eb750779066255df639dcc2575fc06bb6014cd5db8d5")),
       genesisHash = ByteString(Hex.decode("5ce1d5a43cdf5d8525c0eb750779066255df639dcc2575fc06bb6014cd5db8d5"))//blockchain.genesisHeader.hash
