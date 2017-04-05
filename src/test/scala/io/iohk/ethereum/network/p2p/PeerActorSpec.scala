@@ -399,10 +399,10 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "update max peer when receiving new block" in new TestSetup {
     //given
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 4)
-    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), 300)
 
     val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 2)
-    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Nil, Nil)), 300)
 
     val probe = TestProbe()
 
@@ -461,10 +461,10 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "update max peer when sending new block" in new TestSetup {
     //given
     val firstHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 4)
-    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), 300)
 
     val secondHeader: BlockHeader = etcForkBlockHeader.copy(number = daoForkBlockNumber + 2)
-    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Seq.empty, Seq.empty)), 300)
+    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Nil, Nil)), 300)
 
     val probe = TestProbe()
 

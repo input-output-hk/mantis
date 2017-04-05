@@ -202,13 +202,13 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash))))
     peer.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
-    peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Seq.empty, Seq.empty)))))
+    peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil)))))
 
     peer.expectMsgAllOf(10.seconds,
       PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
       PeerActor.Subscribe(Set(BlockHeaders.code)))
 
-    blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(newBlockHeader, BlockBody(Seq.empty, Seq.empty)))
+    blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(newBlockHeader, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(newBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + newBlockHeader.difficulty)
   }
 
@@ -237,7 +237,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
 
     storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
-    storagesInstance.storages.blockBodiesStorage.put(maxBlockHeader.hash, BlockBody(Seq.empty, Seq.empty))
+    storagesInstance.storages.blockBodiesStorage.put(maxBlockHeader.hash, BlockBody(Nil, Nil))
     storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
 
     storagesInstance.storages.blockHeadersStorage.put(commonRoot.hash, commonRoot)
@@ -262,7 +262,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeaderParent.hash, newBlockHeader.hash))))
     peer.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
-    peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Seq.empty, Seq.empty), BlockBody(Seq.empty, Seq.empty)))))
+    peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil)))))
 
     //start next download cycle
 
@@ -271,18 +271,18 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(nextNewBlockHeader))))
     peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(nextNewBlockHeader.hash))))
     peer.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
-    peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Seq.empty, Seq.empty)))))
+    peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil)))))
 
     //wait for actor to insert data
     Thread.sleep(3.seconds.toMillis)
 
-    blockchain.getBlockByNumber(expectedMaxBlock) shouldBe Some(Block(newBlockHeaderParent, BlockBody(Seq.empty, Seq.empty)))
+    blockchain.getBlockByNumber(expectedMaxBlock) shouldBe Some(Block(newBlockHeaderParent, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(newBlockHeaderParent.hash) shouldBe Some(commonRootTotalDifficulty + newBlockHeaderParent.difficulty)
 
-    blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(newBlockHeader, BlockBody(Seq.empty, Seq.empty)))
+    blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(newBlockHeader, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(newBlockHeader.hash) shouldBe Some(commonRootTotalDifficulty + newBlockHeaderParent.difficulty + newBlockHeader.difficulty)
 
-    blockchain.getBlockByNumber(expectedMaxBlock + 2) shouldBe Some(Block(nextNewBlockHeader, BlockBody(Seq.empty, Seq.empty)))
+    blockchain.getBlockByNumber(expectedMaxBlock + 2) shouldBe Some(Block(nextNewBlockHeader, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(nextNewBlockHeader.hash) shouldBe Some(commonRootTotalDifficulty + newBlockHeaderParent.difficulty + newBlockHeader.difficulty + nextNewBlockHeader.difficulty)
 
     storagesInstance.storages.appStateStorage.getBestBlockNumber() shouldBe nextNewBlockHeader.number

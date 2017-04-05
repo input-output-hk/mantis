@@ -17,7 +17,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 trait RegularSync {
   selfSyncController: SyncController =>
 
-  private var headersQueue: Seq[BlockHeader] = Seq.empty
+  private var headersQueue: Seq[BlockHeader] = Nil
   private var broadcasting = false
   private var waitingForActor: Option[ActorRef] = None
 
@@ -157,13 +157,13 @@ trait RegularSync {
   }
 
   private def scheduleResume() = {
-    headersQueue = Seq.empty
+    headersQueue = Nil
     scheduler.scheduleOnce(checkForNewBlockInterval, context.self, ResumeRegularSync)
   }
 
   private def resumeWithDifferentPeer(currentPeer: ActorRef) = {
     self ! BlacklistPeer(currentPeer, "because of error in response")
-    headersQueue = Seq.empty
+    headersQueue = Nil
     context.self ! ResumeRegularSync
   }
 
