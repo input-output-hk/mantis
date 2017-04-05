@@ -81,14 +81,22 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
     time.advance(800) // connect to 2 bootstrap peers
 
     eventually {
+      peerManager.underlyingActor.peers.size shouldBe 1
+    }
+
+    peerManager ! "trigger stashed messages..."
+    createdPeers.head.expectMsgClass(classOf[PeerActor.ConnectTo])
+    respondWithStatus(createdPeers.head, Handshaking(0))
+
+    eventually {
       peerManager.underlyingActor.peers.size shouldBe 2
     }
 
-    peerManager ! PeerManagerActor.HandlePeerConnection(system.deadLetters, new InetSocketAddress(9000))
-
-    createdPeers.head.expectMsgClass(classOf[PeerActor.ConnectTo])
     createdPeers(1).expectMsgClass(classOf[PeerActor.ConnectTo])
 
+    peerManager ! PeerManagerActor.HandlePeerConnection(system.deadLetters, new InetSocketAddress(9000))
+
+    peerManager ! "trigger stashed messages..."
     respondWithStatus(createdPeers.head, Status.Handshaking(0))
     respondWithStatus(createdPeers(1), Status.Handshaking(0))
 
@@ -100,6 +108,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
 
     peerManager ! PeerManagerActor.HandlePeerConnection(system.deadLetters, new InetSocketAddress(1000))
 
+    peerManager ! "trigger stashed messages..."
     respondWithStatus(createdPeers.head, Status.Handshaking(0))
     respondWithStatus(createdPeers(1), Status.Handshaking(0))
     respondWithStatus(createdPeers(2), Status.Handshaking(1))
