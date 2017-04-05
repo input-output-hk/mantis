@@ -119,7 +119,8 @@ class GenesisDataLoader(dataSource: DataSource, blockchain: Blockchain) extends 
           " Use different directory for running private blockchains."))
 
       case None =>
-        dataSource.update(Namespaces.NodeNamespace, Nil, ephemDataSource.storage.toSeq)
+        // using empty namespace because ephemDataSource.storage already has the namespace-prefixed keys
+        dataSource.update(IndexedSeq(), Nil, ephemDataSource.storage.toSeq)
         blockchain.save(Block(header, BlockBody(Nil, Nil)))
         blockchain.save(header.hash, Nil)
         blockchain.save(header.hash, header.difficulty)

@@ -20,7 +20,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
   with ObjectGenerators
   with Logger {
 
-  val hashFn = (input: Array[Byte]) => kec256(input)
+  val hashFn = kec256(_: Array[Byte])
 
   val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new NodeStorage(EphemDataSource()), hashFn)
 

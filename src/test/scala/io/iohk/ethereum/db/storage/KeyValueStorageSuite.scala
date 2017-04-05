@@ -18,7 +18,7 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
       (encodedInt: IndexedSeq[Byte]) => rlpDecode[Int](encodedInt.toArray)
   }
 
-  class IntStorage(val dataSource: DataSource) extends KeyValueStorage[Int, Int] {
+  class IntStorage(val dataSource: DataSource) extends KeyValueStorage[Int, Int, IntStorage] {
     import IntStorage._
 
     type T = IntStorage
