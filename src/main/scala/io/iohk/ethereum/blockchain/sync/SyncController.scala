@@ -9,7 +9,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.{Status => PeerStatus}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.validators.BlockValidator.BlockError
+import io.iohk.ethereum.validators.BlockValidator.BlockError
 import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
 import io.iohk.ethereum.utils.Config
 

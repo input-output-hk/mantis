@@ -1,11 +1,11 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.validators
 
 import java.math.BigInteger
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
-import io.iohk.ethereum.network.p2p.validators.SignedTransactionError.{TransactionSignatureError, TransactionSyntaxError}
+import io.iohk.ethereum.validators.SignedTransactionError.{TransactionSignatureError, TransactionSyntaxError}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
