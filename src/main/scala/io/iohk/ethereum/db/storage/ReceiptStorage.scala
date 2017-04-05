@@ -6,6 +6,7 @@ import io.iohk.ethereum.db.storage.ReceiptStorage._
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
+import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits.receiptRlpEncDec
 
 /**
   * This class is used to store the Receipts, by using:

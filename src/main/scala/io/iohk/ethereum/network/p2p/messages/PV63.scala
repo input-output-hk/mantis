@@ -242,15 +242,32 @@ object PV63 {
     }
   }
 
+  object ReceiptImplicits {
+    implicit val receiptRlpEncDec = new RLPEncoder[Receipt] with RLPDecoder[Receipt] {
+      override def encode(obj: Receipt): RLPEncodeable = {
+        import obj._
+        RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, toRlpList[TxLogEntry](logs)(TxLogEntryImplicits.rlpEncDec))
+      }
+
+      override def decode(rlp: RLPEncodeable): Receipt = rlp match {
+        case RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs: RLPList) =>
+          Receipt(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, fromRlpList[TxLogEntry](logs)(TxLogEntryImplicits.rlpEncDec))
+        case _ => throw new RuntimeException("Cannot decode Receipt")
+      }
+    }
+  }
+
   object Receipts {
+    import ReceiptImplicits.receiptRlpEncDec
+
     implicit val rlpEncDec = new RLPEncoder[Receipts] with RLPDecoder[Receipts] {
       override def encode(obj: Receipts): RLPEncodeable = {
         import obj._
-        RLPList(receiptsForBlocks.map(toRlpList[Receipt]): _*)
+        RLPList(receiptsForBlocks.map(toRlpList[Receipt](_)(receiptRlpEncDec)): _*)
       }
 
       override def decode(rlp: RLPEncodeable): Receipts = rlp match {
-        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => fromRlpList[Receipt](r) })
+        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => fromRlpList[Receipt](r)(receiptRlpEncDec) })
         case _ => throw new RuntimeException("Cannot decode Receipts")
       }
     }
