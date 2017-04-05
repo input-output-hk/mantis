@@ -9,7 +9,7 @@ import io.iohk.ethereum.vm.{GasFee, _}
 object Ledger extends Logger {
 
   type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
-  type ExecResult = (InMemoryWorldStateProxy, BigInt)
+  case class ExecResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
 
   def executeBlock(
     block: Block,
@@ -20,11 +20,11 @@ object Ledger extends Logger {
     val blockError = validateBlockBeforeExecution(block, blockchain)
     if (blockError.isEmpty) {
       log.debug(s"About to execute txs from block ${block.header}")
-      val (resultingWorldStateProxy, gasUsed) = executeBlockTransactions(block, blockchain, storages, stateStorage)
+      val ExecResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, blockchain, storages, stateStorage)
       log.debug(s"All txs from block ${block.header} were executed")
 
       val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
-      val afterExecutionBlockError = validateBlockAfterExecution(block, worldToPersist)
+      val afterExecutionBlockError = validateBlockAfterExecution(block, receipts, worldToPersist)
       if (afterExecutionBlockError.isEmpty) {
         InMemoryWorldStateProxy.persistIfHashMatches(block.header.stateRoot, worldToPersist)
         log.debug(s"Block ${block.header} txs state changes persisted")
@@ -49,8 +49,8 @@ object Ledger extends Logger {
     val initialWorldStateProxy = InMemoryWorldStateProxy(storages, stateStorage,
       blockchain.getBlockHeaderByHash(block.header.hash).map(_.stateRoot)
     )
-    block.body.transactionList.foldLeft[ExecResult](initialWorldStateProxy -> 0) {
-      case ((worldStateProxy, acumGas), stx) =>
+    block.body.transactionList.foldLeft[ExecResult](ExecResult(worldState = initialWorldStateProxy)) {
+      case (ExecResult(worldStateProxy, acumGas, receipts), stx) =>
         val result: Either[String, PR] = for {
           _ <- validateTransaction(stx, worldStateProxy, 0, block)
           worldStateProxy1 = updateAccountBeforeExecution(stx, worldStateProxy)
@@ -66,7 +66,16 @@ object Ledger extends Logger {
             }
             val payBeneficiariesFn = (payForGasUsedToBeneficiary _).curried(stx)
             val deleteAccountsFn = (deleteAccounts _).curried(theResult.addressesToDelete)
-            (refundGasFn andThen payBeneficiariesFn andThen deleteAccountsFn) (theResult.world) -> (gasUsed + acumGas)
+            val persistStateFn = InMemoryWorldStateProxy.persistState _
+            val (newWorldStateProxy, newAcumGas) =
+              (refundGasFn andThen payBeneficiariesFn andThen deleteAccountsFn andThen persistStateFn) (theResult.world) -> (gasUsed + acumGas)
+            val receipt = Receipt(
+              postTransactionStateHash = newWorldStateProxy.stateRootHash,
+              cumulativeGasUsed = newAcumGas,
+              logsBloomFilter = BloomFilter.create(theResult.logs.toSet),
+              logs = theResult.logs
+            )
+            ExecResult(newWorldStateProxy, newAcumGas, receipts :+ receipt)
           case Left(error) => throw new RuntimeException(error)
         }
     }
@@ -81,7 +90,7 @@ object Ledger extends Logger {
     result.swap.toOption.map(_.toString)
   }
 
-  private def validateBlockAfterExecution(block: Block, worldStateProxy: InMemoryWorldStateProxy): Option[String] = None
+  private def validateBlockAfterExecution(block: Block, receipts: Seq[Receipt], worldStateProxy: InMemoryWorldStateProxy): Option[String] = None //TODO
 
   /**
     * This function updates state in order to pay rewards based on YP section 11.3
