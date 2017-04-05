@@ -2,6 +2,7 @@ package io.iohk.ethereum.network
 
 import java.net.InetSocketAddress
 
+import io.iohk.ethereum.network.PeerActor.Status.Handshaking
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Seconds, Milliseconds, Span}
@@ -23,6 +24,15 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
     time.advance(800) // wait for bootstrap nodes scan
 
     eventually {
+      peerManager.underlyingActor.peers.size shouldBe 1
+    }
+
+    peerManager ! "Thank you Akka for great testing framework! (yes, this message is actually needed to trigger unstashAll() in TestActorRef)"
+
+    createdPeers.head.expectMsgClass(classOf[PeerActor.ConnectTo])
+    respondWithStatus(createdPeers.head, Handshaking(0))
+
+    eventually {
       peerManager.underlyingActor.peers.size shouldBe 2
     }
   }
@@ -34,8 +44,19 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
     time.advance(800)
 
     eventually {
+      peerManager.underlyingActor.peers.size shouldBe 1
+    }
+
+    createdPeers.head.expectMsgClass(classOf[PeerActor.ConnectTo])
+
+    peerManager ! "trigger stashed messages..."
+    respondWithStatus(createdPeers.head, Handshaking(0))
+
+    eventually {
       peerManager.underlyingActor.peers.size shouldBe 2
     }
+
+    createdPeers(1).expectMsgClass(classOf[PeerActor.ConnectTo])
 
     createdPeers.head.ref ! PoisonPill
 
@@ -45,8 +66,8 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
 
     time.advance(1000) // wait for next scan
 
-    createdPeers(1).expectMsgClass(classOf[PeerActor.ConnectTo])
-    respondWithStatus(createdPeers(1), Status.Handshaking(0))
+    peerManager ! "trigger stashed messages..."
+    respondWithStatus(createdPeers(1), Handshaking(0))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 2

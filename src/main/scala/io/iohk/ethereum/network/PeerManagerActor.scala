@@ -17,13 +17,13 @@ import akka.agent.Agent
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
-import scala.util.{Success, Failure}
+import scala.util.{Failure, Success}
 
 class PeerManagerActor(
     peerConfiguration: PeerConfiguration,
     peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None)
-  extends Actor with ActorLogging {
+  extends Actor with ActorLogging with Stash {
 
   import akka.pattern.{ask, pipe}
   import PeerManagerActor._
@@ -40,35 +40,20 @@ class PeerManagerActor(
       case _ => Stop
     }
 
-  override def receive: Receive = {
-    case HandlePeerConnection(connection, remoteAddress) =>
-      tryDiscardPeersToFreeUpLimit() onComplete {
-        case Success(_) =>
-          self ! CreatePeer(remoteAddress, PeerActor.HandleConnection(connection, remoteAddress))
-        case Failure(_) =>
-          log.info("Maximum number of connected peers reached. Peer {} will be disconnected.", remoteAddress)
-          self ! CreatePeer(remoteAddress,
-            PeerActor.HandleConnection(connection, remoteAddress),
-            PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers))
-      }
+  override def receive: Receive = handleCommonMessages orElse {
+    case msg: HandlePeerConnection =>
+      context become tryingToConnect
+      tryDiscardPeersToFreeUpLimit()
+        .map(_ => (msg, Success(())))
+        .recover { case ex => (msg, Failure(ex)) }
+        .pipeTo(self)
 
-    case ConnectToPeer(uri) =>
-      tryDiscardPeersToFreeUpLimit() onComplete {
-        case Success(_) =>
-          self ! CreatePeer(new InetSocketAddress(uri.getHost, uri.getPort), PeerActor.ConnectTo(uri))
-        case Failure(_) =>
-          log.info("Maximum number of connected peers reached. Not connecting to {}", uri)
-      }
-
-    case cp: CreatePeer =>
-      val peer = createPeer(cp.addr)
-      cp.initialMessages.foreach { peer.ref ! _ }
-
-    case GetPeers =>
-      getPeers().pipeTo(sender())
-
-    case Terminated(ref) =>
-      peers -= ref.path.name
+    case msg: ConnectToPeer =>
+      context become tryingToConnect
+      tryDiscardPeersToFreeUpLimit()
+        .map(_ => (msg, Success(())))
+        .recover { case ex => (msg, Failure(ex)) }
+        .pipeTo(self)
 
     case ScanBootstrapNodes =>
       val peerAddresses = peers.values.map(_.remoteAddress).toSet
@@ -80,6 +65,44 @@ class PeerManagerActor(
         log.info("Trying to connect to {} bootstrap nodes", nodesToConnect.size)
         nodesToConnect.foreach(self ! ConnectToPeer(_))
       }
+  }
+
+  def handleCommonMessages: Receive = {
+    case GetPeers =>
+      getPeers().pipeTo(sender())
+
+    case Terminated(ref) =>
+      peers -= ref.path.name
+  }
+
+  def tryingToConnect: Receive = handleCommonMessages orElse {
+    case _: HandlePeerConnection | _: ConnectToPeer | ScanBootstrapNodes =>
+      stash()
+
+    case (HandlePeerConnection(connection, remoteAddress), Success(_)) =>
+      context.unbecome()
+      val peer = createPeer(remoteAddress)
+      peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
+      unstashAll()
+
+    case (HandlePeerConnection(connection, remoteAddress), Failure(_)) =>
+      log.info("Maximum number of connected peers reached. Peer {} will be disconnected.", remoteAddress)
+      context.unbecome()
+      val peer = createPeer(remoteAddress)
+      peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
+      peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
+      unstashAll()
+
+    case (ConnectToPeer(uri), Success(_)) =>
+      context.unbecome()
+      val peer = createPeer(new InetSocketAddress(uri.getHost, uri.getPort))
+      peer.ref ! PeerActor.ConnectTo(uri)
+      unstashAll()
+
+    case (ConnectToPeer(uri), Failure(_)) =>
+      log.info("Maximum number of connected peers reached. Not connecting to {}", uri)
+      context.unbecome()
+      unstashAll()
   }
 
   def createPeer(addr: InetSocketAddress): Peer = {
@@ -171,8 +194,6 @@ object PeerManagerActor {
   case class Peer(remoteAddress: InetSocketAddress, ref: ActorRef) {
     def id: String = ref.path.name
   }
-
-  private case class CreatePeer(addr: InetSocketAddress, initialMessages: Any*)
 
   case object GetPeers
   case class Peers(peers: Map[Peer, PeerActor.Status]) {
