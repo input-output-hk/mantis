@@ -7,7 +7,7 @@ import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.vm.UInt256
 import org.scalacheck.{Arbitrary, Gen}
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 

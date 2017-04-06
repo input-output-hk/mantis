@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, TxLogEntry}
+import io.iohk.ethereum.domain.{Account, Address, Receipt, TxLogEntry}
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -242,8 +242,8 @@ object PV63 {
     }
   }
 
-  object Receipt {
-    implicit val rlpEncDec = new RLPEncoder[Receipt] with RLPDecoder[Receipt] {
+  object ReceiptImplicits {
+    implicit val receiptRlpEncDec = new RLPEncoder[Receipt] with RLPDecoder[Receipt] {
       override def encode(obj: Receipt): RLPEncodeable = {
         import obj._
         RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, toRlpList[TxLogEntry](logs)(TxLogEntryImplicits.rlpEncDec))
@@ -257,33 +257,17 @@ object PV63 {
     }
   }
 
-  case class Receipt(
-    postTransactionStateHash: ByteString,
-    cumulativeGasUsed: BigInt,
-    logsBloomFilter: ByteString,
-    logs: Seq[TxLogEntry]
-  ) {
-    override def toString: String = {
-      s"""
-         |Receipt{
-         |postTransactionStateHash: ${Hex.toHexString(postTransactionStateHash.toArray[Byte])}
-         |cumulativeGasUsed: $cumulativeGasUsed
-         |logsBloomFilter: ${Hex.toHexString(logsBloomFilter.toArray[Byte])}
-         |logs: $logs
-         |}
-       """.stripMargin
-    }
-  }
-
   object Receipts {
+    import ReceiptImplicits.receiptRlpEncDec
+
     implicit val rlpEncDec = new RLPEncoder[Receipts] with RLPDecoder[Receipts] {
       override def encode(obj: Receipts): RLPEncodeable = {
         import obj._
-        RLPList(receiptsForBlocks.map(toRlpList[Receipt]): _*)
+        RLPList(receiptsForBlocks.map(toRlpList[Receipt](_)(receiptRlpEncDec)): _*)
       }
 
       override def decode(rlp: RLPEncodeable): Receipts = rlp match {
-        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => fromRlpList[Receipt](r) })
+        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => fromRlpList[Receipt](r)(receiptRlpEncDec) })
         case _ => throw new RuntimeException("Cannot decode Receipts")
       }
     }
