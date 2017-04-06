@@ -1,5 +1,7 @@
 package io.iohk.ethereum.vm
 
+import io.iohk.ethereum.utils.Config
+
 // scalastyle:off number.of.methods
 // scalastyle:off number.of.types
 // scalastyle:off magic.number
@@ -18,35 +20,48 @@ object EvmConfig {
 
   val FrontierConfig = EvmConfig(
     feeSchedule = FeeSchedule.FrontierFeeSchedule,
-    opCodes = OpCodes.FrontierOpCodes)
+    opCodes = OpCodes.FrontierOpCodes,
+    exceptionalFailedCodeDeposit = false)
 
-  // TODO: exceptional_failed_code_deposit
+  /*
+    TODO:
+    If contract creation does not have enough gas to pay for the final gas fee
+    for adding the contract code to the state, the contract creation fails (ie. goes out-of-gas)
+    rather than leaving an empty contract.
+
+    See: exceptional_failed_code_deposit in Parity
+   */
   val HomesteadConfig = EvmConfig(
     feeSchedule = FeeSchedule.HomesteadFeeSchedule,
-    opCodes = OpCodes.HomesteadOpCodes)
+    opCodes = OpCodes.HomesteadOpCodes,
+    exceptionalFailedCodeDeposit = true)
 
-  // TODO: sub_gas_cap_divisor, no_empty, kill_empty from schedule.rs, parity
+  /*
+  TODO:
+    sub_gas_cap_divisor
+  	  If Some(x): let limit = GAS * (x - 1) / x; let CALL's gas = min(requested, limit). let CREATE's gas = limit.
+      If None: let CALL's gas = (requested > GAS ? [OOG] : GAS). let CREATE's gas = GAS
+   */
+  // TODO: no_empty, kill_empty from schedule.rs, parity
   val PostEIP150Config = EvmConfig(
     feeSchedule = FeeSchedule.PostEIP150FeeSchedule,
-    opCodes = OpCodes.PostEIP150OpCodes)
-
-  val frontierBlockNumber = BigInt(0)
-  val homesteadBlockNumber = BigInt(0)
-  val eip150BlockNumber = BigInt(2463000)
+    opCodes = OpCodes.PostEIP150OpCodes,
+    exceptionalFailedCodeDeposit = true)
 
   private val transitionBlockToConfigMapping: Map[BigInt, EvmConfig] = Map(
-    frontierBlockNumber -> FrontierConfig,
-    homesteadBlockNumber -> HomesteadConfig,
-    eip150BlockNumber -> PostEIP150Config)
+    Config.Blockchain.frontierBlockNumber -> FrontierConfig,
+    Config.Blockchain.homesteadBlockNumber -> HomesteadConfig,
+    Config.Blockchain.eip150BlockNumber -> PostEIP150Config)
 
 }
 
 case class EvmConfig(
     feeSchedule: FeeSchedule,
     opCodes: List[OpCode],
+    exceptionalFailedCodeDeposit: Boolean,
     maxMemory: UInt256 = UInt256(Long.MaxValue), /* used to artificially limit memory usage by incurring maximum gas cost */
     maxCallDepth: Int = 1024,
-    createDataLimit: BigInt = BigInt(Long.MaxValue) /* TODO: check me when creating contracts - seems it's only used in test networks (?) */ ) {
+    createDataLimit: BigInt = BigInt(Long.MaxValue), /* TODO: check me when creating contracts - seems it's only used in test networks (?) */ ) {
 
   val byteToOpCode: Map[Byte, OpCode] =
     opCodes.map(op => op.code -> op).toMap
@@ -139,7 +154,7 @@ object FeeSchedule {
 
   val HomesteadFeeSchedule: FeeSchedule =
     FrontierFeeSchedule.copy(values = FrontierFeeSchedule.values ++ Map(
-      Key.G_txcreate -> UInt256(5300)))
+      Key.G_txcreate -> UInt256(53000)))
 
   val PostEIP150FeeSchedule: FeeSchedule =
     HomesteadFeeSchedule.copy(values = HomesteadFeeSchedule.values ++ Map(

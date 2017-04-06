@@ -39,11 +39,12 @@ object GasFee {
     val txDataZero = txData.count(_ == 0)
     val txDataNonZero = txData.length - txDataZero
 
+    val txCreateGas = if (isContractCreation) config.feeSchedule(G_txcreate) else UInt256(0)
+
     txDataZero * config.feeSchedule(G_txdatazero) +
     txDataNonZero * config.feeSchedule(G_txdatanonzero) +
-      //FIXME This should be config based in order to support private chains
-    (if(isContractCreation && blockNumber > Config.Blockchain.HomesteadBlock) config.feeSchedule(G_txcreate) else UInt256(0) ) +
-      config.feeSchedule(G_transaction)
+    txCreateGas +
+    config.feeSchedule(G_transaction)
   }
 
   /**
