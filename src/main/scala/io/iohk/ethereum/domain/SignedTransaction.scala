@@ -100,7 +100,7 @@ object SignedTransaction {
   }
 }
 
-case class SignedTransaction protected (
+case class SignedTransaction (
   tx: Transaction,
   signature: ECDSASignature,
   senderAddress: Address) {
