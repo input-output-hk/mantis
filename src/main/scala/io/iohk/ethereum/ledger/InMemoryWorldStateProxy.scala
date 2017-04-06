@@ -33,12 +33,6 @@ object InMemoryWorldStateProxy {
     new InMemoryWorldStateProxy(stateStorage, accountsStateTrieProxy, Map.empty, storages.evmCodeStorage, Map.empty, getBlockHashByNumber)
   }
 
-  def persistIfHashMatches(stateRootHash: ByteString, worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    val commited = persistState(worldState)
-    if (commited.stateRootHash == stateRootHash) commited
-    else worldState
-  }
-
   /**
     * Updates state trie with current changes but does not persist them into the storages. To do so it:
     *   - Commits code (to get account's code hashes)
@@ -82,7 +76,7 @@ object InMemoryWorldStateProxy {
 
   /**
     * Returns an [[InMemorySimpleMapProxy]] of the accounts state trie "The world state (state), is a mapping
-    * between addresses (160-bit identifiers) and account states (a data structure serialised as RLP [...]).
+    * between Keccak 256-bit hashes of the addresses (160-bit identifiers) and account states (a data structure serialised as RLP [...]).
     * Though not stored on the blockchain, it is assumed that the implementation will maintain this mapping in a
     * modified Merkle Patricia tree [...])."
     *
@@ -99,7 +93,7 @@ object InMemoryWorldStateProxy {
         stateRootHash.toArray[Byte],
         accountsStorage,
         kec256(_: Array[Byte])
-      )(byteStringSerializer, accountSerializer)
+      )(HashByteArraySerializable(byteStringSerializer), accountSerializer)
     )
     //
   }

@@ -13,7 +13,7 @@ class TransactionSpec extends FlatSpec with Matchers {
   val rawPublicKey: Array[Byte] =
     Hex.decode("044c3eb5e19c71d8245eaaaba21ef8f94a70e9250848d10ade086f893a7a33a06d7063590e9e6ca88f918d7704840d903298fe802b6047fa7f6d09603eba690c39")
   val publicKey: ECPoint = crypto.curve.getCurve.decodePoint(rawPublicKey)
-  val address: Address = Address(crypto.kec256(rawPublicKey).slice(12, 32))
+  val address: Address = Address(crypto.kec256(rawPublicKey.tail).slice(12, 32))
 
   val validTx = Transaction(nonce = 172320,
                             gasPrice = BigInt("50000000000"),
@@ -43,7 +43,7 @@ class TransactionSpec extends FlatSpec with Matchers {
   val rawPublicKeyForNewSigningScheme: Array[Byte] =
     Hex.decode("048fc6373a74ad959fd61d10f0b35e9e0524de025cb9a2bf8e0ff60ccb3f5c5e4d566ebe3c159ad572c260719fc203d820598ee5d9c9fa8ae14ecc8d5a2d8a2af1")
   val publicKeyForNewSigningScheme: ECPoint = crypto.curve.getCurve.decodePoint(rawPublicKeyForNewSigningScheme)
-  val addreesForNewSigningScheme = Address(crypto.kec256(rawPublicKeyForNewSigningScheme).slice(12, 32))
+  val addreesForNewSigningScheme = Address(crypto.kec256(rawPublicKeyForNewSigningScheme.tail).slice(12, 32))
 
   val validTransactionForNewSigningScheme = Transaction(
     nonce = 587440,
@@ -84,4 +84,5 @@ class TransactionSpec extends FlatSpec with Matchers {
   it should "not recover a sender address for transaction with invalid point sign" in {
     stxWithInvalidPointSign.map(_.senderAddress) shouldBe None
   }
+
 }

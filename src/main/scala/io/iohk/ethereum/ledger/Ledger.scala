@@ -1,12 +1,12 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators.SignedTransactionValidator
 import io.iohk.ethereum.validators.BlockValidator
 import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.vm.{GasFee, _}
+import org.spongycastle.util.encoders.Hex
 
 object Ledger extends Logger {
 
@@ -15,21 +15,20 @@ object Ledger extends Logger {
 
   def executeBlock(
     block: Block,
-    storages: BlockchainStorages,
-    stateStorage: NodeStorage): Unit = {
+    storages: BlockchainStorages): Unit = {
 
     val blockError = validateBlockBeforeExecution(block)
     if (blockError.isEmpty) {
-      log.debug(s"About to execute txs from block ${block.header}")
-      val ExecResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, storages, stateStorage)
-      log.debug(s"All txs from block ${block.header} were executed")
+      log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${Hex.toHexString(block.header.hash.toArray)}")
+      val ExecResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, storages)
+      log.debug(s"All txs from block ${Hex.toHexString(block.header.hash.toArray)} were executed")
 
       val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
-      val afterExecutionBlockError = validateBlockAfterExecution(block, worldToPersist.stateRootHash, receipts, gasUsed)
-      if (afterExecutionBlockError.isEmpty) {
-        InMemoryWorldStateProxy.persistIfHashMatches(block.header.stateRoot, worldToPersist)
-        log.debug(s"Block ${block.header} txs state changes persisted")
-      } else throw new RuntimeException(afterExecutionBlockError.get)
+      val worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
+      val afterExecutionBlockError = validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
+      if (afterExecutionBlockError.isEmpty)
+        log.debug(s"Block ${Hex.toHexString(block.header.hash.toArray)} executed correctly")
+      else throw new RuntimeException(afterExecutionBlockError.get)
 
     } else throw new RuntimeException(blockError.get)
   }
@@ -39,16 +38,14 @@ object Ledger extends Logger {
     *
     * @param block
     * @param storages
-    * @param stateStorage
     */
   private def executeBlockTransactions(
     block: Block,
-    storages: BlockchainStorages,
-    stateStorage: NodeStorage):
+    storages: BlockchainStorages):
   ExecResult = {
     val blockchain = BlockchainImpl(storages)
-    val initialWorldStateProxy = InMemoryWorldStateProxy(storages, stateStorage,
-      blockchain.getBlockHeaderByHash(block.header.hash).map(_.stateRoot)
+    val initialWorldStateProxy = InMemoryWorldStateProxy(storages, storages.nodeStorage,
+      blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     )
     block.body.transactionList.foldLeft[ExecResult](ExecResult(worldState = initialWorldStateProxy)) {
       case (ExecResult(worldStateProxy, acumGas, receipts), stx) =>
@@ -82,7 +79,7 @@ object Ledger extends Logger {
     }
   }
 
-  private def validateBlockBeforeExecution(block: Block): Option[String] = None
+  private def validateBlockBeforeExecution(block: Block): Option[String] = None //TODO
 
   /**
     * This function validates that the various results from execution are consistent with the block. This includes:
@@ -100,9 +97,9 @@ object Ledger extends Logger {
                                                   receipts: Seq[Receipt], gasUsed: BigInt): Option[String] = {
     lazy val blockAndReceiptsValidation = BlockValidator.validateBlockAndReceipts(block, receipts)
     if(block.header.gasUsed != gasUsed)
-      Some(s"Block has invalid gas used: ${block.header.gasUsed} != $gasUsed")
+      Some(s"Block has invalid gas used, expected ${block.header.gasUsed} but got $gasUsed")
     else if(block.header.stateRoot != stateRootHash)
-      Some(s"Block has invalid state root hash: ${block.header.stateRoot} != $stateRootHash")
+      Some(s"Block has invalid state root hash, expected ${Hex.toHexString(block.header.stateRoot.toArray)} but got ${Hex.toHexString(stateRootHash.toArray)}")
     else if(blockAndReceiptsValidation.isLeft)
       Some(blockAndReceiptsValidation.left.get.toString)
     else

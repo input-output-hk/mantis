@@ -101,7 +101,7 @@ trait FastSyncControllerBuilder {
       peerManager,
       storagesInstance.storages.appStateStorage,
       blockchain,
-      storagesInstance.storages.mptNodeStorage,
+      storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
       BlockValidator.validateHeaderAndBody),
     "sync-controller")

@@ -6,7 +6,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.PeerActor.{Status => PeerStatus}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.BlockValidator.BlockError
@@ -17,7 +17,7 @@ class SyncController(
     val peerManager: ActorRef,
     val appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
-    val mptNodeStorage: MptNodeStorage,
+    val blockchainStorages: BlockchainStorages,
     val fastSyncStateStorage: FastSyncStateStorage,
     val blockValidator: (BlockHeader, BlockBody) => Either[BlockError, Block],
     externalSchedulerOpt: Option[Scheduler] = None)
@@ -102,10 +102,10 @@ object SyncController {
   def props(peerManager: ActorRef,
             appStateStorage: AppStateStorage,
             blockchain: Blockchain,
-            mptNodeStorage: MptNodeStorage,
+            blockchainStorages: BlockchainStorages,
             syncStateStorage: FastSyncStateStorage,
             blockValidator: (BlockHeader, BlockBody) => Either[BlockError, Block]):
-  Props = Props(new SyncController(peerManager, appStateStorage, blockchain, mptNodeStorage, syncStateStorage, blockValidator))
+  Props = Props(new SyncController(peerManager, appStateStorage, blockchain, blockchainStorages, syncStateStorage, blockValidator))
 
   case class BlockHeadersToResolve(peer: ActorRef, headers: Seq[BlockHeader])
 

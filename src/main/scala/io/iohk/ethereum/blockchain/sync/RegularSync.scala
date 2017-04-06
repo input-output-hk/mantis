@@ -4,7 +4,8 @@ import akka.actor._
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -12,7 +13,9 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
 
+import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success, Try}
 
 trait RegularSync {
   selfSyncController: SyncController =>
@@ -119,24 +122,21 @@ trait RegularSync {
 
         blockchain.getBlockHeaderByHash(blocks.head.header.parentHash)
           .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
-          case Some(td) =>
-            var currentTd = td
-            val newBlocks = blocks.map { b =>
-              val blockHashToDelete = blockchain.getBlockHeaderByNumber(b.header.number).map(_.hash).filter(_ != b.header.hash)
-              blockchain.save(b)
-              appStateStorage.putBestBlockNumber(b.header.number)
-              currentTd += b.header.difficulty
-              blockchain.save(b.header.hash, currentTd)
-              blockHashToDelete.foreach(blockchain.removeBlock)
+          case Some(blockParentTd) =>
+            val (newBlocks, error) = insertBlocks(blocks, blockParentTd)
 
-              NewBlock(b, currentTd)
+            if(newBlocks.nonEmpty){
+              context.self ! BroadcastBlocks(newBlocks)
+              log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
+                s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
             }
 
-            context.self ! BroadcastBlocks(newBlocks)
-            log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
-              s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
+            if(error.isDefined){
+              val blockFailed = blocks.head.header.number + newBlocks.length
+              resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.get}, in block $blockFailed")
+            }
           case None =>
-            log.error("no total difficulty for latest block")
+            log.error("no total difficulty for latest block") //FIXME: How do we handle this error on our blockchain?
         }
 
         headersQueue = headersQueue.drop(result.length)
@@ -156,13 +156,45 @@ trait RegularSync {
     }
   }
 
+  /**
+    * Inserts and executes the transactions of the blocks, up to the point to which one of them fails (or we run out of blocks).
+    * If the execution of any block where to fail, newBlocks contains the NewBlock msgs for all the block executed before it.
+    *
+    * @param blocks to execute
+    * @param blockParentTd, td of the parent of the blocks.head block
+    * @param newBlocks which, after adding the corresponding NewBlock msg for blocks, will be broadcasted
+    * @return list of NewBlocks to broadcast (one per block successfully executed) and an error if one happened during execution
+    */
+  @tailrec
+  private def insertBlocks(blocks: Seq[Block], blockParentTd: BigInt,
+                           newBlocks: Seq[NewBlock] = Nil): (Seq[NewBlock], Option[String]) = blocks match {
+    case Nil =>
+      newBlocks -> None
+
+    case Seq(block, otherBlocks@_*) =>
+      val blockHashToDelete = blockchain.getBlockHeaderByNumber(block.header.number).map(_.hash).filter(_ != block.header.hash)
+      val blockExecResult = Try(Ledger.executeBlock(block, blockchainStorages)) //FIXME: Avoid use of Try (handled in EC-150)
+      blockExecResult match {
+        case Success(_) =>
+          blockchain.save(block)
+          appStateStorage.putBestBlockNumber(block.header.number)
+          val newTd = blockParentTd + block.header.difficulty
+          blockchain.save(block.header.hash, newTd)
+          blockHashToDelete.foreach(blockchain.removeBlock)
+          insertBlocks(otherBlocks, newTd, newBlocks :+ NewBlock(block, newTd))
+
+        case Failure(error) =>
+          newBlocks -> Some(error.getMessage)
+      }
+  }
+
   private def scheduleResume() = {
     headersQueue = Nil
     scheduler.scheduleOnce(checkForNewBlockInterval, context.self, ResumeRegularSync)
   }
 
-  private def resumeWithDifferentPeer(currentPeer: ActorRef) = {
-    self ! BlacklistPeer(currentPeer, "because of error in response")
+  private def resumeWithDifferentPeer(currentPeer: ActorRef, reason: String = "error in response") = {
+    self ! BlacklistPeer(currentPeer, "because of " + reason)
     headersQueue = Nil
     context.self ! ResumeRegularSync
   }

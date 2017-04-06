@@ -1,7 +1,9 @@
 package io.iohk.ethereum.validators
 
+import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction}
+import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.mpt.RLPByteArraySerializable
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -71,8 +73,10 @@ object BlockValidator {
     * @return
     */
   private def validateLogBloom(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block] = {
-    val logsBloomOr = or(receipts.map(_.logsBloomFilter.toArray): _*)
-    if (logsBloomOr sameElements block.header.logsBloom.toArray[Byte]) Right(block)
+    val logsBloomOr =
+      if(receipts.isEmpty) BloomFilter.EmptyBloomFilter
+      else ByteString(or(receipts.map(_.logsBloomFilter.toArray): _*))
+    if (logsBloomOr == block.header.logsBloom) Right(block)
     else Left(BlockLogBloomError)
   }
 
