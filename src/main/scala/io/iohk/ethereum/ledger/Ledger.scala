@@ -1,5 +1,6 @@
 package io.iohk.ethereum.ledger
 
+import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.validators.{BlockHeaderValidator, BlockValidator}
@@ -25,7 +26,7 @@ object Ledger extends Logger {
       log.debug(s"All txs from block ${block.header} were executed")
 
       val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
-      val afterExecutionBlockError = validateBlockAfterExecution(block, receipts, worldToPersist)
+      val afterExecutionBlockError = validateBlockAfterExecution(block, worldToPersist.stateRootHash, receipts, gasUsed)
       if (afterExecutionBlockError.isEmpty) {
         InMemoryWorldStateProxy.persistIfHashMatches(block.header.stateRoot, worldToPersist)
         log.debug(s"Block ${block.header} txs state changes persisted")
@@ -91,7 +92,30 @@ object Ledger extends Logger {
     result.swap.toOption.map(_.toString)
   }
 
-  private def validateBlockAfterExecution(block: Block, receipts: Seq[Receipt], worldStateProxy: InMemoryWorldStateProxy): Option[String] = None //TODO
+  /**
+    * This function validates that the various results from execution are consistent with the block. This includes:
+    *   - Validating the resulting stateRootHash
+    *   - Doing BlockValidator.validateBlockReceipts validations involving the receipts
+    *   - Validating the resulting gas used
+    *
+    * @param block to validate
+    * @param stateRootHash from the resulting state trie after executing the txs from the block
+    * @param receipts associated with the execution of each of the tx from the block
+    * @param gasUsed, accumulated gas used for the execution of the txs from the block
+    * @return None if valid else a message with what went wrong
+    */
+  private[ledger] def validateBlockAfterExecution(block: Block, stateRootHash: ByteString,
+                                                  receipts: Seq[Receipt], gasUsed: BigInt): Option[String] = {
+    lazy val blockAndReceiptsValidation = BlockValidator.validateBlockAndReceipts(block, receipts)
+    if(block.header.gasUsed != gasUsed)
+      Some(s"Block has invalid gas used: ${block.header.gasUsed} != $gasUsed")
+    else if(block.header.stateRoot != stateRootHash)
+      Some(s"Block has invalid state root hash: ${block.header.stateRoot} != $stateRootHash")
+    else if(blockAndReceiptsValidation.isLeft)
+      Some(blockAndReceiptsValidation.left.get.toString)
+    else
+      None
+  }
 
   /**
     * This function updates state in order to pay rewards based on YP section 11.3
