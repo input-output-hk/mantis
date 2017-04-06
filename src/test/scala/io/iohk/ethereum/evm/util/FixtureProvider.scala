@@ -1,4 +1,4 @@
-package io.iohk.ethereum.evm
+package io.iohk.ethereum.evm.util
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader

@@ -1,5 +1,6 @@
 package io.iohk.ethereum.evm
 
+import io.iohk.ethereum.evm.util.FixtureProvider
 import org.scalatest.{FlatSpec, Matchers}
 
 class ExampleContractTest extends FlatSpec with Matchers {
