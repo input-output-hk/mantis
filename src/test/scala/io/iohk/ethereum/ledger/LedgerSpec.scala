@@ -80,7 +80,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
         .saveAccount(minerAddress, Account(balance = initialMinerBalance))
 
       val tx = defaultTx.copy(gasPrice = gasPrice, gasLimit = gasLimit)
-      val stx = SignedTransaction(tx, keyPair)
+      val stx = SignedTransaction.sign(tx, keyPair)
 
       val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 

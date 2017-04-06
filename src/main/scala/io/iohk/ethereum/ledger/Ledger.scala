@@ -49,9 +49,9 @@ class Ledger(vm: VM) extends Logger {
     stateStorage: NodeStorage):
   BlockResult = {
     val blockchain = BlockchainImpl(storages)
-    val initialWorld = InMemoryWorldStateProxy(storages, stateStorage,
-      blockchain.getBlockHeaderByHash(block.header.hash).map(_.stateRoot)
-    )
+    val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
+    val initialWorld = InMemoryWorldStateProxy(storages, stateStorage, parentStateRoot)
+
     block.body.transactionList.foldLeft[BlockResult](BlockResult(worldState = initialWorld)) {
       case (BlockResult(world, acumGas, receipts), stx)=>
         validateTransaction(stx, world, acumGas, block.header) match {
@@ -68,7 +68,7 @@ class Ledger(vm: VM) extends Logger {
               logs = logs
             )
 
-            BlockResult(newWorld, receipt.cumulativeGasUsed, Nil)//receipts :+ receipt)
+            BlockResult(newWorld, receipt.cumulativeGasUsed, receipts :+ receipt)
         }
     }
   }
