@@ -6,11 +6,12 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, Receipt}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV63.{MptNode, Receipt}
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
 import io.iohk.ethereum.rpc.BlockController.BlockView
 import org.scalatest.{FlatSpec, Matchers}
+
 import scala.concurrent.duration._
 
 class BlockControllerSpec extends FlatSpec with Matchers with ScalatestRouteTest with BlockRouteSetup {
