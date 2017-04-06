@@ -1,5 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
+import java.io.FileWriter
+
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
@@ -16,6 +18,7 @@ import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.rlp._
 
+import scala.collection.immutable
 import scala.collection.immutable.HashMap
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -119,45 +122,39 @@ trait RegularSync {
         case n: MptLeaf => Seq.empty
         case _ => Seq.empty
       }
-      handshakedPeers.headOption.foreach { case (actor, _) =>
-        actor ! SendMessage(GetNodeData(children))
-        stateNodesHashes = stateNodesHashes ++ children.toSet
-      }
+
+      var cChildren: Seq[ByteString] = Nil
+      var evmTorequest: Seq[ByteString] = Nil
 
       nodes.foreach {
         case n: MptLeaf =>
-          println(s"${Hex.toHexString(n.hash.toArray[Byte])} => ${n.getAccount}")
           if(n.getAccount.codeHash != emptyEvm){
             handshakedPeers.headOption.foreach { case (actor, _) =>
-              actor ! SendMessage(GetNodeData(Seq(n.getAccount.codeHash)))
+              evmTorequest = evmTorequest :+ n.getAccount.codeHash
               evmCodeHashes = evmCodeHashes + n.getAccount.codeHash
             }
           }
           if(n.getAccount.storageRoot != emptyStorage){
             handshakedPeers.headOption.foreach { case (actor, _) =>
-              actor ! SendMessage(GetNodeData(Seq(n.getAccount.storageRoot)))
+              cChildren = cChildren :+ n.getAccount.storageRoot
               contractNodesHashes = contractNodesHashes + n.getAccount.storageRoot
             }
           }
-        case n: MptNode => println(s"${Hex.toHexString(n.hash.toArray[Byte])} => $n")
+        case _ =>
       }
 
       val cNodes = NodeData(contractNodes).values.indices.map(i => NodeData(contractNodes).getMptNode(i))
-      val cChildren = cNodes.flatMap {
+      cChildren = cChildren ++ cNodes.flatMap {
         case n: MptBranch => n.children.collect { case Left(h: MptHash) if h.hash.nonEmpty => h.hash }
         case MptExtension(_, Left(h)) => Seq(h.hash)
         case _ => Seq.empty
       }
       handshakedPeers.headOption.foreach { case (actor, _) =>
-        actor ! SendMessage(GetNodeData(cChildren))
+        actor ! SendMessage(GetNodeData(children ++ cChildren ++ evmTorequest))
+        stateNodesHashes = stateNodesHashes ++ children.toSet
         contractNodesHashes = contractNodesHashes ++ cChildren.toSet
       }
-      cNodes.foreach(n => println(s"contract node ${Hex.toHexString(n.hash.toArray[Byte])} => $n"))
 
-
-      evmCode.foreach{code =>
-        println(s"got EVM code ${Hex.toHexString(kec256(code).toArray[Byte])} => ${Hex.toHexString(code.toArray[Byte])}")
-      }
       evmCode.foreach{e=>
         evmCodeStorage = evmCodeStorage + (kec256(e) -> e)
       }
@@ -170,14 +167,36 @@ trait RegularSync {
         contractStorage = contractStorage + (n.hash -> n)
       }
 
-      if(children.isEmpty && cChildren.isEmpty){
-        //todo dump to file
-        println(blockHeadersStorage)
-        println(blockBodyStorage)
-        println(blockReceiptsStorage)
-        println(stateStorage)
-        println(contractStorage)
-        println(evmCodeStorage)
+      if(children.isEmpty && cChildren.isEmpty && evmTorequest.isEmpty){
+        import BlockHeaderImplicits._
+        import Receipt._
+        import RLPImplicitConversions._
+
+        val headersFile = new FileWriter("headers.txt", true)
+        val bodiesFile = new FileWriter("bodies.txt", true)
+        val receiptsFile = new FileWriter("receipts.txt", true)
+        val stateTreeFile = new FileWriter("stateTree.txt", true)
+        val contractTreesFile = new FileWriter("contractTrees.txt", true)
+        val evmCodeFile = new FileWriter("evmCode.txt", true)
+
+        def dumpToFile[T](fw: FileWriter, element: (ByteString, T))(implicit enc: RLPEncoder[T]): Unit = element match {
+          case (h, v) => fw.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(encode(v))}\n")
+        }
+
+        blockHeadersStorage.foreach(dumpToFile(headersFile, _))
+        blockBodyStorage.foreach(dumpToFile(bodiesFile, _))
+        blockReceiptsStorage.foreach { case (h, v: Seq[Receipt]) =>  receiptsFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(encode(toRlpList(v)))}\n")}
+        stateStorage.foreach(dumpToFile(stateTreeFile, _))
+        contractStorage.foreach(dumpToFile(contractTreesFile, _))
+        evmCodeStorage.foreach{case (h, v) => evmCodeFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toArray[Byte])}\n")}
+
+        headersFile.close()
+        bodiesFile.close()
+        receiptsFile.close()
+        stateTreeFile.close()
+        contractTreesFile.close()
+        evmCodeFile.close()
+        println("chain dumped to file")
       }
   }
 
