@@ -24,7 +24,7 @@ object BloomFilter {
     if(bloomFilters.isEmpty)
       ByteString(EmptyBloomFilter)
     else
-      ByteString(or(bloomFilters.toSeq: _*))
+      ByteString(or(bloomFilters: _*))
   }
 
   //Bloom filter function that reduces a log to a single 256-byte hash based on equation 24 from the YP

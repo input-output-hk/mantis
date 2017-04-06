@@ -1,4 +1,4 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
