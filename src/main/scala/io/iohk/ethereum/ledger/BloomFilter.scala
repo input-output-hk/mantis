@@ -19,7 +19,7 @@ object BloomFilter {
     * @param logs from the receipt whose bloom filter will be created
     * @return bloom filter associated with the logs
     */
-  def create(logs: Set[TxLogEntry]): ByteString = {
+  def create(logs: Seq[TxLogEntry]): ByteString = {
     val bloomFilters = logs.map(createBloomFilterForLogEntry)
     if(bloomFilters.isEmpty)
       ByteString(EmptyBloomFilter)

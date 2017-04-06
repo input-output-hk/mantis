@@ -1,6 +1,5 @@
 package io.iohk.ethereum.ledger
 
-import java.security.SecureRandom
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
@@ -13,7 +12,7 @@ import io.iohk.ethereum.vm.{Storage, WorldStateProxy, _}
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
 import org.spongycastle.crypto.params.ECPublicKeyParameters
-import org.spongycastle.util.encoders.Hex
+
 
 class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
@@ -98,7 +97,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       val mockVM = new MockVM(_ => result)
       val ledger = new Ledger(mockVM)
 
-      val (postTxWorld, _) = ledger.executeTransaction(stx, header, initialWorld)
+      val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
 
       postTxWorld.getBalance(originAddress) shouldEqual (initialOriginBalance - balanceDelta)
       postTxWorld.getBalance(minerAddress) shouldEqual (initialMinerBalance + balanceDelta)

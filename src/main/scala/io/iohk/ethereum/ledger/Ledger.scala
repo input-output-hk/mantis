@@ -9,7 +9,8 @@ class Ledger(vm: VM) extends Logger {
 
   type PC = ProgramContext[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
   type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
-  case class ExecResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
+  case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
+  case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry])
 
   def executeBlock(
     block: Block,
@@ -19,7 +20,7 @@ class Ledger(vm: VM) extends Logger {
     val blockError = validateBlockBeforeExecution(block)
     if (blockError.isEmpty) {
       log.debug(s"About to execute txs from block ${block.header}")
-      val ExecResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, storages, stateStorage)
+      val BlockResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, storages, stateStorage)
       log.debug(s"All txs from block ${block.header} were executed")
 
       val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
@@ -43,35 +44,33 @@ class Ledger(vm: VM) extends Logger {
     block: Block,
     storages: BlockchainStorages,
     stateStorage: NodeStorage):
-  ExecResult = {
+  BlockResult = {
     val blockchain = BlockchainImpl(storages)
     val initialWorld = InMemoryWorldStateProxy(storages, stateStorage,
       blockchain.getBlockHeaderByHash(block.header.hash).map(_.stateRoot)
     )
-    block.body.transactionList.foldLeft[ExecResult](ExecResult(worldState = initialWorld)) {
-      case (ExecResult(world, acumGas, receipts), stx)=>
+    block.body.transactionList.foldLeft[BlockResult](BlockResult(worldState = initialWorld)) {
+      case (BlockResult(world, acumGas, receipts), stx)=>
         validateTransaction(stx, world, acumGas, block.header) match {
           case Left(err) =>
             throw new RuntimeException(err)
 
           case Right(_) =>
-            val (newWorld, gasUsed, logs) = executeTransaction(stx, block.header, world)
+            val TxResult(newWorld, gasUsed, logs) = executeTransaction(stx, block.header, world)
 
             val receipt = Receipt(
               postTransactionStateHash = newWorld.stateRootHash,
               cumulativeGasUsed = acumGas + gasUsed,
-              logsBloomFilter = BloomFilter.create(logs.toSet),
+              logsBloomFilter = BloomFilter.create(logs),
               logs = logs
             )
 
-            ExecResult(newWorld, acumGas + gasUsed, receipts :+ receipt)
+            BlockResult(newWorld, receipt.cumulativeGasUsed, Nil)//receipts :+ receipt)
         }
     }
   }
 
-  private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy)
-  : (InMemoryWorldStateProxy, BigInt, Seq[TxLogEntry]) = {
-
+  private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
     val gasPrice = UInt256(stx.tx.gasPrice)
     val gasLimit = UInt256(stx.tx.gasLimit)
 
@@ -88,7 +87,7 @@ class Ledger(vm: VM) extends Logger {
 
     val world2 = (refundGasFn andThen payMinerForGasFn andThen deleteAccountsFn andThen persistStateFn)(result.world)
 
-    (world2, gasUsed, result.logs)
+    TxResult(world2, gasUsed, result.logs)
   }
 
   private def validateBlockBeforeExecution(block: Block): Option[String] = None
