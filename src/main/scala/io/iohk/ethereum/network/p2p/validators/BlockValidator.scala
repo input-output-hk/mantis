@@ -91,8 +91,7 @@ object BlockValidator {
   def validate(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block] = {
     for {
       _ <- validateHeaderAndBody(block.header, block.body)
-      _ <- validateReceipts(block, receipts)
-      _ <- validateLogBloom(block, receipts)
+      _ <- validateBlockAndReceipts(block, receipts)
     } yield block
   }
 
@@ -111,6 +110,23 @@ object BlockValidator {
     for {
       _ <- validateTransactionRoot(block)
       _ <- validateOmmers(block)
+    } yield block
+  }
+
+  /**
+    * This method allows validations of the block with its associated receipts.
+    * It only perfoms the following validations (stated on section 4.2.2 of http://paper.gavwood.com/):
+    *   - BlockValidator.validateReceipts
+    *   - BlockValidator.validateLogBloom
+    *
+    * @param block    Block to validate
+    * @param receipts Receipts to be in validation process
+    * @return The block if validations are ok, error otherwise
+    */
+  def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block] = {
+    for {
+      _ <- validateReceipts(block, receipts)
+      _ <- validateLogBloom(block, receipts)
     } yield block
   }
 
