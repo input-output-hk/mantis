@@ -18,7 +18,6 @@ import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.rlp._
 
-import scala.collection.immutable
 import scala.collection.immutable.HashMap
 import scala.concurrent.ExecutionContext.Implicits.global
 
