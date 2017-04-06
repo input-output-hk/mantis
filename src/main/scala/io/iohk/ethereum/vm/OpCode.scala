@@ -90,7 +90,7 @@ object OpCodes {
     PUSH32)
 
   val FrontierOpCodes: List[OpCode] =
-    LogOpCodes ++ SwapOpCodes ++ PushOpCodes ++ List(
+    LogOpCodes ++ SwapOpCodes ++ PushOpCodes ++ DupOpCodes ++ List(
       STOP,
       ADD,
       MUL,

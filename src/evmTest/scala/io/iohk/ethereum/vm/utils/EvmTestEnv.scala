@@ -25,6 +25,8 @@ trait EvmTestEnv {
 
   import EvmTestEnv._
 
+  val config = EvmConfig.HomesteadConfig
+
   private var contractsAddresses: Map[String, Address] = Map.empty
   private var contractsAbis: Map[String, Seq[ABI]] = Map.empty
 
@@ -66,7 +68,7 @@ trait EvmTestEnv {
     val tx = MockVmInput.transaction(creatorAddress, payload, value, gasLimit, gasPrice)
     val bh = MockVmInput.blockHeader
 
-    val context = ProgramContext[MockWorldState, MockStorage](tx, bh, world)
+    val context = ProgramContext[MockWorldState, MockStorage](tx, bh, world, config)
     val result = VM.run(context)
 
     contractsAbis += (name -> contractAbi.right.get)
@@ -132,7 +134,7 @@ trait EvmTestEnv {
              sender: Address = defaultSender): ProgramResult[MockWorldState, MockStorage] = {
       val transaction = MockVmInput.transaction(sender, callData, value, gasLimit, gasPrice, contract.address)
       val blockHeader = MockVmInput.blockHeader
-      val pc = ProgramContext[MockWorldState, MockStorage](transaction, blockHeader, world)
+      val pc = ProgramContext[MockWorldState, MockStorage](transaction, blockHeader, world, config)
 
       val res = VM.run(pc)
       internalWorld = res.world

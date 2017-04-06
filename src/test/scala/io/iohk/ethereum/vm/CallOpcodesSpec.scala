@@ -107,9 +107,6 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       UInt256(inputData.size / 2)
     ).reverse
 
-    private val paramsForDelegate =
-      params.take(4) ++ params.drop(5)
-
     private val stack = Stack.empty().push(if (op == DELEGATECALL) params.take(4) ++ params.drop(5) else params)
     private val mem = Memory.empty.store(UInt256.Zero, inputData)
 
