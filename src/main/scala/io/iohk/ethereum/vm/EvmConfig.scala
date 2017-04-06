@@ -1,6 +1,7 @@
 package io.iohk.ethereum.vm
 
 // scalastyle:off number.of.methods
+// scalastyle:off number.of.types
 // scalastyle:off magic.number
 object EvmConfig {
 
