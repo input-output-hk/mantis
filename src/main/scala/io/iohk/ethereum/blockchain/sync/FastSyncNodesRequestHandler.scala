@@ -33,10 +33,10 @@ class FastSyncNodesRequestHandler(
 
     val hashesToRequest = (nodeData.values.indices zip receivedHashes) flatMap { case (idx, valueHash) =>
       requestedHashes.find(_.v == valueHash) map {
-        case StateMptNodeHash(_) =>
+        case _: StateMptNodeHash =>
           handleMptNode(nodeData.getMptNode(idx))
 
-        case ContractStorageMptNodeHash(_) =>
+        case _: ContractStorageMptNodeHash =>
           handleContractMptNode(nodeData.getMptNode(idx))
 
         case EvmCodeHash(hash) =>

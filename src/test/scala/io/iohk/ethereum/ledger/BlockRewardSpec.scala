@@ -59,7 +59,7 @@ class BlockRewardSpec extends FlatSpec with Matchers {
       .saveAccount(validAccountAddress3, Account(balance = 30))
 
     // We don't care for this tests if block is not valid
-    def sampleBlock(minerAddress: Address, ommerMiners: Seq[Address] = Seq.empty): Block = {
+    def sampleBlock(minerAddress: Address, ommerMiners: Seq[Address] = Nil): Block = {
       Block(
         header = Fixtures.Blocks.Genesis.header.copy(beneficiary = minerAddress.bytes, number = 10),
         body = Fixtures.Blocks.Genesis.body.copy(

@@ -30,7 +30,7 @@ case class Program(code: ByteString) {
     * @param accum with the previously obtained valid jump destinations.
     */
   @tailrec
-  private def validJumpDestinationsAfterPosition(pos: Int, accum: Set[Int] = Set()): Set[Int] = {
+  private def validJumpDestinationsAfterPosition(pos: Int, accum: Set[Int] = Set.empty): Set[Int] = {
     if(pos < 0 || pos >= length) accum
     else {
       val byte = code(pos)
