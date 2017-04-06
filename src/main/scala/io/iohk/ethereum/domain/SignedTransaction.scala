@@ -85,12 +85,8 @@ object SignedTransaction {
     SignedTransaction(tx, txSignature)
   }
 
-  def apply(tx: Transaction, pointSign: Int, signatureRandom: ByteString, signature: ByteString): Option[SignedTransaction] = {
-    if(pointSign.toByte != pointSign)
-      None
-    else
-      SignedTransaction(tx, pointSign.toByte, signatureRandom, signature)
-  }
+  def apply(tx: Transaction, pointSign: Int, signatureRandom: ByteString, signature: ByteString): Option[SignedTransaction] =
+    SignedTransaction(tx, pointSign.toByte, signatureRandom, signature)
 
   def apply(tx: Transaction, signature: ECDSASignature): Option[SignedTransaction] = {
     for {
