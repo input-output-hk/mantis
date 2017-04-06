@@ -1,4 +1,4 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.validators
 
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction}

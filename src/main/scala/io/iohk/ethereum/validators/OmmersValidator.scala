@@ -1,7 +1,6 @@
 package io.iohk.ethereum.validators
 
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
-import io.iohk.ethereum.network.p2p.validators.BlockHeaderValidator
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError._
 
 object OmmersValidator {

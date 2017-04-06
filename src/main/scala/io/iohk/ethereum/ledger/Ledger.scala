@@ -3,9 +3,8 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.validators.{BlockHeaderValidator, BlockValidator}
+import io.iohk.ethereum.validators.{SignedTransactionValidator, BlockHeaderValidator, BlockValidator, OmmersValidator}
 import io.iohk.ethereum.utils.{Config, Logger}
-import io.iohk.ethereum.validators.OmmersValidator
 import io.iohk.ethereum.vm.{GasFee, _}
 
 object Ledger extends Logger {
@@ -180,25 +179,14 @@ object Ledger extends Logger {
     accumGasLimit: BigInt,
     block: Block): Either[String, SignedTransaction] = {
     for {
-      _ <- checkSyntacticValidity(stx)
-      _ <- validateSignature(stx)
+      _ <- SignedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = block.header.number < Config.Blockchain.HomesteadBlock)
+        .left.map(_.toString)
       _ <- validateNonce(stx, worldState)
       _ <- validateGas(stx, block.header)
       _ <- validateAccountHasEnoughGasToPayUpfrontCost(stx, worldState)
       _ <- validateGasLimit(stx, accumGasLimit, block.header.gasLimit)
     } yield stx
   }
-
-  private def checkSyntacticValidity(stx: SignedTransaction): Either[String, SignedTransaction] =
-    if (stx.syntacticValidity) Right(stx) else Left("Transaction is not well formed")
-
-  /**
-    * Validates if the transaction signature is valid
-    *
-    * @param stx Transaction to validate
-    * @return Either the validated transaction or an error description
-    */
-  private def validateSignature(stx: SignedTransaction): Either[String, SignedTransaction] = Right(stx) //TODO
 
   /**
     * Validates if the transaction nonce matches current sender account's nonce
@@ -207,7 +195,7 @@ object Ledger extends Logger {
     * @return Either the validated transaction or an error description
     */
   private def validateNonce(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): Either[String, SignedTransaction] = {
-    if (worldStateProxy.getGuaranteedAccount(stx.recoveredSenderAddress.get).nonce == stx.tx.nonce) Right(stx)
+    if (worldStateProxy.getAccount(stx.senderAddress).map(_.nonce).contains(stx.tx.nonce)) Right(stx)
     else Left("Account nonce is different from TX sender nonce")
   }
 
@@ -231,7 +219,7 @@ object Ledger extends Logger {
     */
   private def validateAccountHasEnoughGasToPayUpfrontCost(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy):
   Either[String, SignedTransaction] = {
-    val accountBalance = worldStateProxy.getGuaranteedAccount(stx.recoveredSenderAddress.get).balance
+    val accountBalance = worldStateProxy.getGuaranteedAccount(stx.senderAddress).balance
     val upfrontCost = calculateUpfrontCost(stx.tx)
     if (accountBalance >= upfrontCost) Right(stx)
     else Left(s"Sender account doesn't have enough balance to pay upfront cost $upfrontCost > $accountBalance")
@@ -247,7 +235,7 @@ object Ledger extends Logger {
     * @return
     */
   private def updateAccountBeforeExecution(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    val senderAddress = stx.recoveredSenderAddress.get
+    val senderAddress = stx.senderAddress
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
     worldStateProxy.saveAccount(senderAddress, account.copy(
       nonce = account.nonce + 1,
