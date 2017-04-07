@@ -7,7 +7,13 @@ import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.validators.SignedTransactionError.{TransactionSignatureError, TransactionSyntaxError}
 import io.iohk.ethereum.utils.Config
 
-object SignedTransactionValidator {
+trait SignedTransactionValidator {
+
+  def validateTransaction(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransaction]
+
+}
+
+object SignedTransactionValidator extends SignedTransactionValidator {
 
   val secp256k1n: BigInt = BigInt("115792089237316195423570985008687907852837564279074904382605163141518161494337")
 

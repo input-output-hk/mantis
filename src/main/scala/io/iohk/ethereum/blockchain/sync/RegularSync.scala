@@ -115,7 +115,7 @@ trait RegularSync {
 
   private def handleBlockBodies(peer: ActorRef, m: Seq[BlockBody]) = {
     if (m.nonEmpty) {
-      val result = headersQueue.zip(m).map { case (h, b) => blockValidator(h, b) }
+      val result = headersQueue.zip(m).map { case (h, b) => validators.blockValidator.validateHeaderAndBody(h, b) }
 
       if (!result.exists(_.isLeft) && result.nonEmpty) {
         val blocks = result.collect { case Right(b) => b }
@@ -132,8 +132,8 @@ trait RegularSync {
             }
 
             if(error.isDefined){
-              val blockFailed = blocks.head.header.number + newBlocks.length
-              resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.get}, in block $blockFailed")
+              val numberBlockFailed = blocks.head.header.number + newBlocks.length
+              resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.get}, in block $numberBlockFailed")
             }
           case None =>
             log.error("no total difficulty for latest block") //FIXME: How do we handle this error on our blockchain?
@@ -158,7 +158,7 @@ trait RegularSync {
 
   /**
     * Inserts and executes the transactions of the blocks, up to the point to which one of them fails (or we run out of blocks).
-    * If the execution of any block where to fail, newBlocks contains the NewBlock msgs for all the block executed before it.
+    * If the execution of any block were to fail, newBlocks only contains the NewBlock msgs for all the blocks executed before it.
     *
     * @param blocks to execute
     * @param blockParentTd, td of the parent of the blocks.head block
@@ -173,7 +173,7 @@ trait RegularSync {
 
     case Seq(block, otherBlocks@_*) =>
       val blockHashToDelete = blockchain.getBlockHeaderByNumber(block.header.number).map(_.hash).filter(_ != block.header.hash)
-      val blockExecResult = Try(Ledger.executeBlock(block, blockchainStorages)) //FIXME: Avoid use of Try (handled in EC-150)
+      val blockExecResult = Try(Ledger.executeBlock(block, blockchainStorages, validators)) //FIXME: Avoid use of Try (handled in EC-150)
       blockExecResult match {
         case Success(_) =>
           blockchain.save(block)

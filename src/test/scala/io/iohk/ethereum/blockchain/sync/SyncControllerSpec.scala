@@ -6,6 +6,8 @@ import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.Fixtures.EmptyValidators
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader}
@@ -18,6 +20,7 @@ import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
+import io.iohk.ethereum.validators._
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -469,7 +472,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       blockchain,
       storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
-      (h, b) => Right(Block(h, b)),
+      Fixtures.EmptyValidators,
       externalSchedulerOpt = Some(time.scheduler))))
 
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash

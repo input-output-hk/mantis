@@ -3,7 +3,7 @@ package io.iohk.ethereum.nodebuilder
 import akka.actor.ActorSystem
 import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.blockchain.sync.{SyncController}
+import io.iohk.ethereum.blockchain.sync.SyncController
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
@@ -12,7 +12,7 @@ import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
-import io.iohk.ethereum.validators.BlockValidator
+import io.iohk.ethereum.validators.{BlockValidator, ValidatorsImpl}
 
 
 trait NodeKeyBuilder {
@@ -103,7 +103,7 @@ trait FastSyncControllerBuilder {
       blockchain,
       storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
-      BlockValidator.validateHeaderAndBody),
+      ValidatorsImpl),
     "sync-controller")
 
 }

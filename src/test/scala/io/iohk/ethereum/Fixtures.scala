@@ -3,6 +3,7 @@ package io.iohk.ethereum
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.validators._
 import org.spongycastle.util.encoders.Hex
 
 object Fixtures {
@@ -222,6 +223,26 @@ object Fixtures {
       override val size: Long = 978L
     }
 
+  }
+
+  object EmptyValidators extends Validators {
+
+    override val blockValidator: BlockValidator = new BlockValidator {
+      override def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]) = Right(block)
+      override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Right(Block(blockHeader, blockBody))
+    }
+
+    override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
+      override def validate(blockHeader: BlockHeader, blockchain: Blockchain) = Right(blockHeader)
+    }
+
+    override val ommersValidator: OmmersValidator = new OmmersValidator {
+      override def validate(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain) = Right(())
+    }
+
+    override val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidator {
+      override def validateTransaction(stx: SignedTransaction, fromBeforeHomestead: Boolean) = Right(stx)
+    }
   }
 
 }
