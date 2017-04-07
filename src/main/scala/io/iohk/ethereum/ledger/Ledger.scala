@@ -2,8 +2,7 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.validators.SignedTransactionValidator
-import io.iohk.ethereum.validators.BlockValidator
+import io.iohk.ethereum.validators.{SignedTransactionValidator, BlockHeaderValidator, BlockValidator, OmmersValidator}
 import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.vm.{GasFee, _}
 import org.spongycastle.util.encoders.Hex
@@ -17,10 +16,11 @@ object Ledger extends Logger {
     block: Block,
     storages: BlockchainStorages): Unit = {
 
-    val blockError = validateBlockBeforeExecution(block)
+    val blockchain = BlockchainImpl(storages)
+    val blockError = validateBlockBeforeExecution(block, blockchain)
     if (blockError.isEmpty) {
       log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${Hex.toHexString(block.header.hash.toArray)}")
-      val ExecResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, storages)
+      val ExecResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, blockchain, storages)
       log.debug(s"All txs from block ${Hex.toHexString(block.header.hash.toArray)} were executed")
 
       val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
@@ -37,13 +37,14 @@ object Ledger extends Logger {
     * This function runs transaction
     *
     * @param block
+    * @param blockchain
     * @param storages
     */
   private def executeBlockTransactions(
     block: Block,
+    blockchain: Blockchain,
     storages: BlockchainStorages):
   ExecResult = {
-    val blockchain = BlockchainImpl(storages)
     val initialWorldStateProxy = InMemoryWorldStateProxy(storages, storages.nodeStorage,
       blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     )
@@ -79,7 +80,14 @@ object Ledger extends Logger {
     }
   }
 
-  private def validateBlockBeforeExecution(block: Block): Option[String] = None //TODO
+  private def validateBlockBeforeExecution(block: Block, blockchain: Blockchain): Option[String] = {
+    val result = for {
+      _ <- BlockHeaderValidator.validate(block.header, blockchain)
+      _ <- BlockValidator.validateHeaderAndBody(block.header, block.body)
+      _ <- OmmersValidator.validate(block.header.number, block.body.uncleNodesList, blockchain)
+    } yield block
+    result.swap.toOption.map(_.toString)
+  }
 
   /**
     * This function validates that the various results from execution are consistent with the block. This includes:

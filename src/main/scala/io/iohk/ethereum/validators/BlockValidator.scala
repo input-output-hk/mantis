@@ -39,7 +39,7 @@ object BlockValidator {
     * @param block Block to validate
     * @return Block if valid, a Some otherwise
     */
-  private def validateOmmers(block: Block): Either[BlockError, Block] = {
+  private def validateOmmersHash(block: Block): Either[BlockError, Block] = {
     // FIXME Can we avoid encoding ommers again?
     val encodedOmmers = encode(toRlpList(block.body.uncleNodesList))
     if (kec256(encodedOmmers) sameElements block.header.ommersHash) Right(block)
@@ -84,7 +84,7 @@ object BlockValidator {
     * This method allows validate a Block. It only perfoms the following validations (stated on
     * section 4.2.2 of http://paper.gavwood.com/):
     *   - BlockValidator.validateTransactionRoot
-    *   - BlockValidator.validateOmmers
+    *   - BlockValidator.validateOmmersHash
     *   - BlockValidator.validateReceipts
     *   - BlockValidator.validateLogBloom
     *
@@ -103,7 +103,7 @@ object BlockValidator {
     * This method allows validate that a BlockHeader matches a BlockBody. It only perfoms the following validations (stated on
     * section 4.2.2 of http://paper.gavwood.com/):
     *   - BlockValidator.validateTransactionRoot
-    *   - BlockValidator.validateOmmers
+    *   - BlockValidator.validateOmmersHash
     *
     * @param blockHeader to validate
     * @param blockBody to validate
@@ -113,7 +113,7 @@ object BlockValidator {
     val block = Block(blockHeader, blockBody)
     for {
       _ <- validateTransactionRoot(block)
-      _ <- validateOmmers(block)
+      _ <- validateOmmersHash(block)
     } yield block
   }
 
