@@ -3,8 +3,7 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.validators.SignedTransactionValidator
-import io.iohk.ethereum.validators.BlockValidator
+import io.iohk.ethereum.validators.{SignedTransactionValidator, BlockHeaderValidator, BlockValidator, OmmersValidator}
 import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.vm.{GasFee, _}
 
@@ -18,10 +17,11 @@ object Ledger extends Logger {
     storages: BlockchainStorages,
     stateStorage: NodeStorage): Unit = {
 
-    val blockError = validateBlockBeforeExecution(block)
+    val blockchain = BlockchainImpl(storages)
+    val blockError = validateBlockBeforeExecution(block, blockchain)
     if (blockError.isEmpty) {
       log.debug(s"About to execute txs from block ${block.header}")
-      val ExecResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, storages, stateStorage)
+      val ExecResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, blockchain, storages, stateStorage)
       log.debug(s"All txs from block ${block.header} were executed")
 
       val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
@@ -43,10 +43,10 @@ object Ledger extends Logger {
     */
   private def executeBlockTransactions(
     block: Block,
+    blockchain: Blockchain,
     storages: BlockchainStorages,
     stateStorage: NodeStorage):
   ExecResult = {
-    val blockchain = BlockchainImpl(storages)
     val initialWorldStateProxy = InMemoryWorldStateProxy(storages, stateStorage,
       blockchain.getBlockHeaderByHash(block.header.hash).map(_.stateRoot)
     )
@@ -82,7 +82,14 @@ object Ledger extends Logger {
     }
   }
 
-  private def validateBlockBeforeExecution(block: Block): Option[String] = None
+  private def validateBlockBeforeExecution(block: Block, blockchain: Blockchain): Option[String] = {
+    val result = for {
+      _ <- BlockHeaderValidator.validate(block.header, blockchain)
+      _ <- BlockValidator.validateHeaderAndBody(block.header, block.body)
+      _ <- OmmersValidator.validate(block.header.number, block.body.uncleNodesList, blockchain)
+    } yield block
+    result.swap.toOption.map(_.toString)
+  }
 
   /**
     * This function validates that the various results from execution are consistent with the block. This includes:
