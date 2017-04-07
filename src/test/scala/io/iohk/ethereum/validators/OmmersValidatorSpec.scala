@@ -14,7 +14,7 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with PropertyChecks wit
 
   it should "validate correctly a valid list of ommers" in new BlockUtils {
     OmmersValidator.validate(ommersBlockNumber, ommers, blockchain) match {
-      case Right(validated) if validated equals ommers => succeed
+      case Right(_) => succeed
       case _ => fail
     }
   }
