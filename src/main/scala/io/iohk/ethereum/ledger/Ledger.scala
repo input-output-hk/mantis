@@ -50,7 +50,7 @@ object Ledger extends Logger {
     stateStorage: NodeStorage):
   ExecResult = {
     val initialWorldStateProxy = InMemoryWorldStateProxy(storages, stateStorage,
-      blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
+      blockchain.getBlockHeaderByHash(block.header.hash).map(_.stateRoot)
     )
     block.body.transactionList.foldLeft[ExecResult](ExecResult(worldState = initialWorldStateProxy)) {
       case (ExecResult(worldStateProxy, acumGas, receipts), stx) =>
