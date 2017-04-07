@@ -260,24 +260,24 @@ class Ledger(vm: VM) extends Logger {
   }
 
   private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): PR = {
-    val programContext: PC = ProgramContext(stx, blockHeader, worldStateProxy)
-    val result = vm.run(programContext)
+    val context: PC = ProgramContext(stx, blockHeader, worldStateProxy)
+    val result = vm.run(context)
     if (stx.tx.isContractInit && result.error.isEmpty)
-      (payContractCreationCost _ andThen saveCreatedCode(programContext.env.ownerAddr))(result)
+      saveNewContract(context.env.ownerAddr, result)
     else
       result
   }
 
-  private def payContractCreationCost(result: PR): PR = {
+  private def saveNewContract(address: Address, result: PR): PR = {
     val codeDepositCost = GasFee.calcCodeDepositCost(result.returnData)
     if (result.gasRemaining < codeDepositCost)
       result.copy(error = Some(OutOfGas))
     else
-      result.copy(gasRemaining = result.gasRemaining - UInt256(codeDepositCost))
+      result.copy(
+        gasRemaining = result.gasRemaining - codeDepositCost,
+        world = result.world.saveCode(address, result.returnData)
+      )
   }
-
-  private def saveCreatedCode(ownerAddress: Address)(result: PR): PR =
-    result.copy(world = result.world.saveCode(ownerAddress, result.returnData))
 
   /**
     * Calculate gas refund
@@ -296,17 +296,6 @@ class Ledger(vm: VM) extends Logger {
     val account = world.getAccount(address).getOrElse(Account.Empty).increaseBalance(value)
     world.saveAccount(address, account)
   }
-
-
-  /**
-    * The Ether for the gas is given to the miner, whose address is specified as the beneficiary of the container block
-    * See eq (75) of YP
-    *
-    * @param stx
-    * @param worldStateProxy
-    * @return
-    */
-  private def payForGasUsedToBeneficiary(stx: SignedTransaction)(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = worldStateProxy //TODO
 
   /**
     * Delete all accounts (that appear in SUICIDE list). YP eq (78)
