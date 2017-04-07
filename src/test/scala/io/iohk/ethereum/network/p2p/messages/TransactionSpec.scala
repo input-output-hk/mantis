@@ -13,7 +13,7 @@ class TransactionSpec extends FlatSpec with Matchers {
   val rawPublicKey: Array[Byte] =
     Hex.decode("044c3eb5e19c71d8245eaaaba21ef8f94a70e9250848d10ade086f893a7a33a06d7063590e9e6ca88f918d7704840d903298fe802b6047fa7f6d09603eba690c39")
   val publicKey: ECPoint = crypto.curve.getCurve.decodePoint(rawPublicKey)
-  val address: Address = Address(crypto.kec256(rawPublicKey).slice(12, 32))
+  val address: Address = Address(crypto.kec256(rawPublicKey.tail).slice(12, 32))
 
   val validTx = Transaction(nonce = 172320,
                             gasPrice = BigInt("50000000000"),
@@ -43,7 +43,7 @@ class TransactionSpec extends FlatSpec with Matchers {
   val rawPublicKeyForNewSigningScheme: Array[Byte] =
     Hex.decode("048fc6373a74ad959fd61d10f0b35e9e0524de025cb9a2bf8e0ff60ccb3f5c5e4d566ebe3c159ad572c260719fc203d820598ee5d9c9fa8ae14ecc8d5a2d8a2af1")
   val publicKeyForNewSigningScheme: ECPoint = crypto.curve.getCurve.decodePoint(rawPublicKeyForNewSigningScheme)
-  val addreesForNewSigningScheme = Address(crypto.kec256(rawPublicKeyForNewSigningScheme).slice(12, 32))
+  val addreesForNewSigningScheme = Address(crypto.kec256(rawPublicKeyForNewSigningScheme.tail).slice(12, 32))
 
   val validTransactionForNewSigningScheme = Transaction(
     nonce = 587440,
@@ -84,4 +84,21 @@ class TransactionSpec extends FlatSpec with Matchers {
   it should "not recover a sender address for transaction with invalid point sign" in {
     stxWithInvalidPointSign.map(_.senderAddress) shouldBe None
   }
+
+  it should "recover the correct sender for tx in block 46147" in {
+    val stx: SignedTransaction = SignedTransaction(
+      tx = Transaction(
+        nonce = BigInt(0),
+        gasPrice = BigInt("50000000000000"),
+        gasLimit = BigInt(21000),
+        receivingAddress = Address(ByteString(Hex.decode("5df9b87991262f6ba471f09758cde1c0fc1de734"))),
+        value = BigInt(31337),
+        payload = ByteString.empty
+      ),
+      signature = ECDSASignature(BigInt("61965845294689009770156372156374760022787886965323743865986648153755601564112").bigInteger, BigInt("31606574786494953692291101914709926755545765281581808821704454381804773090106").bigInteger,28.toByte)
+    ).get
+
+    stx.senderAddress shouldBe  Address(ByteString(Hex.decode("a1e4380a3b1f749673e270229993ee55f35663b4")))
+  }
+
 }

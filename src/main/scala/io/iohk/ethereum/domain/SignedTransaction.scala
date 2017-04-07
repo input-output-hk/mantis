@@ -75,7 +75,7 @@ object SignedTransaction {
 
     for {
       key <- recoveredPublicKey
-      addrBytes = crypto.kec256(key).slice(FirstByteOfAddress, LastByteOfAddress)
+      addrBytes = crypto.kec256(key.tail).slice(FirstByteOfAddress, LastByteOfAddress)
       if addrBytes.length == Address.Length
     } yield Address(addrBytes)
   }

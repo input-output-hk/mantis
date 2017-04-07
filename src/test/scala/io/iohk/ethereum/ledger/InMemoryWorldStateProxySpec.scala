@@ -9,6 +9,12 @@ import org.spongycastle.util.encoders.Hex
 
 class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
 
+  def persistIfHashMatches(stateRootHash: ByteString, worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    val commited = InMemoryWorldStateProxy.persistState(worldState)
+    if (commited.stateRootHash == stateRootHash) commited
+    else worldState
+  }
+
   "InMemoryWorldStateProxy" should "allow to create and retrieve an account" in new TestSetup {
     worldState.newEmptyAccount(address1).accountExists(address1) shouldBe true
   }
@@ -70,8 +76,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     validateInitialWorld(afterUpdatesWorldState)
 
     // Persist and check
-    val persistedWorldState = InMemoryWorldStateProxy.persistIfHashMatches(
-      ByteString(Hex.decode("1246b67299251e9d4645fc7d5e08df0edfdd3c5bdcd4cfbe929fc9244b6cac40")),
+    val persistedWorldState = persistIfHashMatches(
+      ByteString(Hex.decode("bf117ca2e8a9ec7978cac9f46a6714b7e4fa9c065d5ba03fc3c0502710d92d19")),
       afterUpdatesWorldState
     )
     validateInitialWorld(persistedWorldState)
@@ -91,7 +97,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     updatedNewWorldState.getStorage(address1).load(addr) shouldEqual value
 
     // Persist and check again
-    val persistedNewWorldState = InMemoryWorldStateProxy.persistIfHashMatches(
+    val persistedNewWorldState = persistIfHashMatches(
       ByteString(Hex.decode("71e5a0e173527cd8dde2e587a09c4a8f6a138226e2979a7fcbd273a89d117511")),
       updatedNewWorldState
     )
