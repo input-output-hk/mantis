@@ -1,7 +1,9 @@
 package io.iohk.ethereum.ledger
 
+import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.validators.{SignedTransactionValidator, BlockHeaderValidator, BlockValidator, OmmersValidator}
 import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.vm.{GasFee, _}
 
@@ -15,14 +17,15 @@ object Ledger extends Logger {
     storages: BlockchainStorages,
     stateStorage: NodeStorage): Unit = {
 
-    val blockError = validateBlockBeforeExecution(block)
+    val blockchain = BlockchainImpl(storages)
+    val blockError = validateBlockBeforeExecution(block, blockchain)
     if (blockError.isEmpty) {
       log.debug(s"About to execute txs from block ${block.header}")
-      val ExecResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, storages, stateStorage)
+      val ExecResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, blockchain, storages, stateStorage)
       log.debug(s"All txs from block ${block.header} were executed")
 
       val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
-      val afterExecutionBlockError = validateBlockAfterExecution(block, receipts, worldToPersist)
+      val afterExecutionBlockError = validateBlockAfterExecution(block, worldToPersist.stateRootHash, receipts, gasUsed)
       if (afterExecutionBlockError.isEmpty) {
         InMemoryWorldStateProxy.persistIfHashMatches(block.header.stateRoot, worldToPersist)
         log.debug(s"Block ${block.header} txs state changes persisted")
@@ -40,10 +43,10 @@ object Ledger extends Logger {
     */
   private def executeBlockTransactions(
     block: Block,
+    blockchain: Blockchain,
     storages: BlockchainStorages,
     stateStorage: NodeStorage):
   ExecResult = {
-    val blockchain = BlockchainImpl(storages)
     val initialWorldStateProxy = InMemoryWorldStateProxy(storages, stateStorage,
       blockchain.getBlockHeaderByHash(block.header.hash).map(_.stateRoot)
     )
@@ -86,9 +89,39 @@ object Ledger extends Logger {
     }
   }
 
-  private def validateBlockBeforeExecution(block: Block): Option[String] = None
+  private def validateBlockBeforeExecution(block: Block, blockchain: Blockchain): Option[String] = {
+    val result = for {
+      _ <- BlockHeaderValidator.validate(block.header, blockchain)
+      _ <- BlockValidator.validateHeaderAndBody(block.header, block.body)
+      _ <- OmmersValidator.validate(block.header.number, block.body.uncleNodesList, blockchain)
+    } yield block
+    result.swap.toOption.map(_.toString)
+  }
 
-  private def validateBlockAfterExecution(block: Block, receipts: Seq[Receipt], worldStateProxy: InMemoryWorldStateProxy): Option[String] = None //TODO
+  /**
+    * This function validates that the various results from execution are consistent with the block. This includes:
+    *   - Validating the resulting stateRootHash
+    *   - Doing BlockValidator.validateBlockReceipts validations involving the receipts
+    *   - Validating the resulting gas used
+    *
+    * @param block to validate
+    * @param stateRootHash from the resulting state trie after executing the txs from the block
+    * @param receipts associated with the execution of each of the tx from the block
+    * @param gasUsed, accumulated gas used for the execution of the txs from the block
+    * @return None if valid else a message with what went wrong
+    */
+  private[ledger] def validateBlockAfterExecution(block: Block, stateRootHash: ByteString,
+                                                  receipts: Seq[Receipt], gasUsed: BigInt): Option[String] = {
+    lazy val blockAndReceiptsValidation = BlockValidator.validateBlockAndReceipts(block, receipts)
+    if(block.header.gasUsed != gasUsed)
+      Some(s"Block has invalid gas used: ${block.header.gasUsed} != $gasUsed")
+    else if(block.header.stateRoot != stateRootHash)
+      Some(s"Block has invalid state root hash: ${block.header.stateRoot} != $stateRootHash")
+    else if(blockAndReceiptsValidation.isLeft)
+      Some(blockAndReceiptsValidation.left.get.toString)
+    else
+      None
+  }
 
   /**
     * This function updates state in order to pay rewards based on YP section 11.3
@@ -153,25 +186,14 @@ object Ledger extends Logger {
     accumGasLimit: BigInt,
     block: Block): Either[String, SignedTransaction] = {
     for {
-      _ <- checkSyntacticValidity(stx)
-      _ <- validateSignature(stx)
+      _ <- SignedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = block.header.number < Config.Blockchain.HomesteadBlock)
+        .left.map(_.toString)
       _ <- validateNonce(stx, worldState)
       _ <- validateGas(stx, block.header)
       _ <- validateAccountHasEnoughGasToPayUpfrontCost(stx, worldState)
       _ <- validateGasLimit(stx, accumGasLimit, block.header.gasLimit)
     } yield stx
   }
-
-  private def checkSyntacticValidity(stx: SignedTransaction): Either[String, SignedTransaction] =
-    if (stx.syntacticValidity) Right(stx) else Left("Transaction is not well formed")
-
-  /**
-    * Validates if the transaction signature is valid
-    *
-    * @param stx Transaction to validate
-    * @return Either the validated transaction or an error description
-    */
-  private def validateSignature(stx: SignedTransaction): Either[String, SignedTransaction] = Right(stx) //TODO
 
   /**
     * Validates if the transaction nonce matches current sender account's nonce
@@ -180,7 +202,7 @@ object Ledger extends Logger {
     * @return Either the validated transaction or an error description
     */
   private def validateNonce(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): Either[String, SignedTransaction] = {
-    if (worldStateProxy.getGuaranteedAccount(stx.recoveredSenderAddress.get).nonce == stx.tx.nonce) Right(stx)
+    if (worldStateProxy.getAccount(stx.senderAddress).map(_.nonce).contains(stx.tx.nonce)) Right(stx)
     else Left("Account nonce is different from TX sender nonce")
   }
 
@@ -205,7 +227,7 @@ object Ledger extends Logger {
     */
   private def validateAccountHasEnoughGasToPayUpfrontCost(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy):
   Either[String, SignedTransaction] = {
-    val accountBalance = worldStateProxy.getGuaranteedAccount(stx.recoveredSenderAddress.get).balance
+    val accountBalance = worldStateProxy.getGuaranteedAccount(stx.senderAddress).balance
     val upfrontCost = calculateUpfrontCost(stx.tx)
     if (accountBalance >= upfrontCost) Right(stx)
     else Left(s"Sender account doesn't have enough balance to pay upfront cost $upfrontCost > $accountBalance")
@@ -221,7 +243,7 @@ object Ledger extends Logger {
     * @return
     */
   private def updateAccountBeforeExecution(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    val senderAddress = stx.recoveredSenderAddress.get
+    val senderAddress = stx.senderAddress
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
     worldStateProxy.saveAccount(senderAddress, account.copy(
       nonce = account.nonce + 1,

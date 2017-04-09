@@ -11,20 +11,23 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
   import IodbDataSource._
 
   override def get(namespace: Namespace, key: Key): Option[Value] = {
-    require(namespace.length + key.length == keySize, "Wrong key size in IODB get")
-    lSMStore.get(ByteArrayWrapper((namespace ++ key).toArray)).map(v => v.data.toIndexedSeq)
+    require(namespace.length + key.length <= keySize, "Wrong key size in IODB get")
+    val keyPadded = padToKeySize(namespace, key, keySize).toArray
+    lSMStore.get(ByteArrayWrapper(keyPadded)).map(v => v.data.toIndexedSeq)
   }
 
   override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
     require(
-      toRemove.forall{ keyToRemove => namespace.length + keyToRemove.length == keySize } &&
-        toUpsert.forall{ case (keyToUpSert, _) => namespace.length + keyToUpSert.length == keySize },
+      toRemove.forall{ keyToRemove => namespace.length + keyToRemove.length <= keySize } &&
+        toUpsert.forall{ case (keyToUpSert, _) => namespace.length + keyToUpSert.length <= keySize },
       "Wrong key size in IODB update"
     )
+    val toRemovePadded = toRemove.map(key => padToKeySize(namespace, key, keySize))
+    val toUpsertPadded = toUpsert.map{case (key, value) => padToKeySize(namespace, key, keySize) -> value}
     lSMStore.update(
       ByteArrayWrapper(storageVersionGen()),
-      toRemove.map(key => ByteArrayWrapper((namespace ++ key).toArray)),
-      asStorables(namespace, toUpsert))
+      toRemovePadded.map(key => ByteArrayWrapper(key.toArray)),
+      asStorables(toUpsertPadded))
     new IodbDataSource(lSMStore, keySize, path)
   }
 
@@ -44,9 +47,8 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
     }
   }
 
-  private def asStorables(namespace: Namespace,
-                          keyValues: Seq[(Key, Value)]): Seq[(ByteArrayWrapper, ByteArrayWrapper)] =
-    keyValues.map(kv => ByteArrayWrapper((namespace ++ kv._1).toArray) -> ByteArrayWrapper(kv._2.toArray))
+  private def asStorables(keyValues: Seq[(Key, Value)]): Seq[(ByteArrayWrapper, ByteArrayWrapper)] =
+    keyValues.map{ case (key, value) => ByteArrayWrapper(key.toArray) -> ByteArrayWrapper(value.toArray) }
 }
 
 
@@ -86,4 +88,7 @@ object IodbDataSource {
     }
     filesDeletionSuccess && dir.delete()
   }
+
+  private def padToKeySize(namespace: IndexedSeq[Byte], key: IndexedSeq[Byte], keySize: Int): IndexedSeq[Byte] =
+    namespace ++ key.padTo(keySize - namespace.size, 0.toByte)
 }

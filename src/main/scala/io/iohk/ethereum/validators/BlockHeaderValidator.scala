@@ -1,4 +1,4 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
@@ -9,7 +9,7 @@ object BlockHeaderValidator {
 
   val MaxExtraDataSize: Int = 32
   val GasLimitBoundDivisor: Int = 1024
-  val MinGasLimit: BigInt = 125000
+  val MinGasLimit: BigInt = 5000 //Although the paper states this value is 125000, on the different clients 5000 is used
   val DifficultyBoundDivision: Int = 2048
   val FrontierTimestampDiffLimit: Int = -99
   val ExpDifficultyPeriod: Int = 100000
