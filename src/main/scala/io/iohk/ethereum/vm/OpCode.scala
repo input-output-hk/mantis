@@ -163,7 +163,7 @@ object OpCodes {
     FrontierOpCodes :+ DELEGATECALL
 
   val PostEIP150OpCodes: List[OpCode] =
-    HomesteadOpCodes.filterNot(_ == SELFDESTRUCT) :+ SELFDESTRUCT_POST_EIP150
+    HomesteadOpCodes
 }
 
 object OpCode {
@@ -746,9 +746,28 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
     val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), _) = getParams(state)
     val endowment = if (this == DELEGATECALL) UInt256.Zero else callValue
 
+    val toAddress = Address(to)
+
     val memCostIn = calcMemCost(state.memory.size, inOffset, inSize, state.config)
     val memCostOut = calcMemCost(state.memory.size, outOffset, outSize, state.config)
     val memCost = memCostIn max memCostOut
+
+    val isValueTransfer = !callValue.isZero
+
+    this match {
+      case CALL =>
+        if ((!state.config.noEmpty && !state.world.accountExists(toAddress)) ||
+          (state.config.noEmpty && isValueTransfer && !state.world.nonEmptyAccountExists(toAddress))) {
+          gas = overflowing ! (gas.overflow_add(schedule.call_new_account_gas.into()));
+        }
+      case _ =>
+    }
+
+    if isValueTransfer {
+      gas = overflowing!(gas.overflow_add(schedule.call_value_transfer_gas.into()));
+    }
+
+
 
     // FIXME: these are calculated twice (for gas and exec), especially account existence. Can we do better?
     val gExtra = gasExtra(state, endowment, Address(to))
@@ -808,42 +827,39 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, G_selfdestruct) {
     val refundAddr: Address = Address(refundDW)
     val gasRefund = if (state.addressesToDelete contains state.ownAddress) UInt256.Zero else state.config.feeSchedule(R_selfdestruct)
     val world = state.world.transfer(state.ownAddress, refundAddr, state.ownBalance)
-    state
+
+    val originBalance = state.world.getBalance(state.env.originAddr)
+    val isValueTransfer = !originBalance.isZero
+
+    val isGarbage =
+      state.config.noEmpty &&
+      !isValueTransfer &&
+      state.world.accountExists(refundAddr) && // exists...
+      !state.world.nonEmptyAccountExists(refundAddr) // ...but is empty
+
+    val res1 = state
       .withWorld(world)
       .refundGas(gasRefund)
       .withAddressToDelete(state.ownAddress)
       .withStack(stack1)
       .halt
-  }
 
-  // Assumes that EIP-161 is not in use on ETC network
-  // https://github.com/ethereum/EIPs/issues/161
-  // I copied the logic from etc geth
-  // https://github.com/ethereumproject/go-ethereum/blob/9fe9368c69f2fb6d7449a4504c71d1af87552957/core/vm/vm.go#L260-L265
-  protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
-    val (Seq(_, accDW), _) = state.stack.pop(2)
-    if (state.world.accountExists(Address(accDW))) UInt256.Zero else state.config.feeSchedule(G_newaccount)
-  }
-}
-
-// TODO: EIP150 changes, see gasometer.rs, line 150 in parity (USE Key.G_suicide_to_new_account_gas)
-case object SELFDESTRUCT_POST_EIP150 extends OpCode(0xff, 1, 0, G_selfdestruct) {
-  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val (refundDW, stack1) = state.stack.pop
-    val refundAddr: Address = Address(refundDW)
-    val gasRefund = if (state.addressesToDelete contains state.ownAddress) UInt256.Zero else state.config.feeSchedule(R_selfdestruct)
-    val world = state.world.transfer(state.ownAddress, refundAddr, state.ownBalance)
-    state
-      .withWorld(world)
-      .refundGas(gasRefund)
-      .withAddressToDelete(state.ownAddress)
-      .withStack(stack1)
-      .halt
+    if (isGarbage) res1.withGarbage(refundAddr)
+    else res1
   }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
-    val (Seq(_, accDW), _) = state.stack.pop(2)
-    if (state.world.accountExists(Address(accDW))) UInt256.Zero else state.config.feeSchedule(G_newaccount)
+    val (Seq(refundAddrDW), _) = state.stack.pop(1)
+    val refundAddress = Address(refundAddrDW)
+
+    val originBalance = state.world.getBalance(state.env.originAddr)
+    val isValueTransfer = originBalance.isZero
+
+    val baseGas = state.config.feeSchedule(G_selfdestruct)
+
+    if ((!state.config.noEmpty && !state.world.accountExists(refundAddress)) ||
+        (state.config.noEmpty && isValueTransfer && !state.world.nonEmptyAccountExists(refundAddress))) {
+      baseGas + state.config.feeSchedule(G_suicide_to_new_account_gas)
+    } else baseGas
   }
 }
-

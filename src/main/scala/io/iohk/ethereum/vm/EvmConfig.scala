@@ -21,7 +21,8 @@ object EvmConfig {
   val FrontierConfig = EvmConfig(
     feeSchedule = FeeSchedule.FrontierFeeSchedule,
     opCodes = OpCodes.FrontierOpCodes,
-    exceptionalFailedCodeDeposit = false)
+    exceptionalFailedCodeDeposit = false,
+    noEmpty = false)
 
   /*
     TODO:
@@ -34,19 +35,23 @@ object EvmConfig {
   val HomesteadConfig = EvmConfig(
     feeSchedule = FeeSchedule.HomesteadFeeSchedule,
     opCodes = OpCodes.HomesteadOpCodes,
-    exceptionalFailedCodeDeposit = true)
+    exceptionalFailedCodeDeposit = true,
+    noEmpty = false)
 
   /*
   TODO:
     sub_gas_cap_divisor
   	  If Some(x): let limit = GAS * (x - 1) / x; let CALL's gas = min(requested, limit). let CREATE's gas = limit.
       If None: let CALL's gas = (requested > GAS ? [OOG] : GAS). let CREATE's gas = GAS
+
+    noEmpty:
+      implemented in suicide, TODO in Call opcodes varGas (and create to choose initial nonce)
    */
-  // TODO: no_empty, kill_empty from schedule.rs, parity
   val PostEIP150Config = EvmConfig(
     feeSchedule = FeeSchedule.PostEIP150FeeSchedule,
     opCodes = OpCodes.PostEIP150OpCodes,
-    exceptionalFailedCodeDeposit = true)
+    exceptionalFailedCodeDeposit = true,
+    noEmpty = true)
 
   private val transitionBlockToConfigMapping: Map[BigInt, EvmConfig] = Map(
     Config.Blockchain.frontierBlockNumber -> FrontierConfig,
@@ -61,7 +66,9 @@ case class EvmConfig(
     exceptionalFailedCodeDeposit: Boolean,
     maxMemory: UInt256 = UInt256(Long.MaxValue), /* used to artificially limit memory usage by incurring maximum gas cost */
     maxCallDepth: Int = 1024,
-    createDataLimit: BigInt = BigInt(Long.MaxValue), /* TODO: check me when creating contracts - seems it's only used in test networks (?) */ ) {
+    createDataLimit: BigInt = BigInt(Long.MaxValue), /* TODO: check me when creating contracts - seems it's only used in test networks (?) */
+    noEmpty: Boolean /* Don't ever make empty accounts; contracts start with nonce=1. Also, don't charge 25k when sending/suicide zero-value */
+    ) {
 
   val byteToOpCode: Map[Byte, OpCode] =
     opCodes.map(op => op.code -> op).toMap
@@ -164,7 +171,8 @@ object FeeSchedule {
       Key.G_selfdestruct -> UInt256(5000),
       Key.G_extcodesize -> UInt256(700),
       Key.G_extcodecopy_base_gas -> UInt256(700),
-      Key.G_suicide_to_new_account_gas -> UInt256(25000)))
+      Key.G_suicide_to_new_account_gas -> UInt256(25000),
+      Key.G_expbyte -> UInt256(50)))
 }
 
 case class FeeSchedule(values: Map[FeeSchedule.Key, UInt256]) {

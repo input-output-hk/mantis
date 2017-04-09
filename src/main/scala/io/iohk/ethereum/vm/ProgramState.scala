@@ -38,7 +38,8 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   addressesToDelete: Seq[Address] = Nil,
   logs: Vector[TxLogEntry] = Vector.empty,
   halted: Boolean = false,
-  error: Option[ProgramError] = None
+  error: Option[ProgramError] = None,
+  garbage: Set[Address] = Set.empty
 ) {
 
   def config: EvmConfig = context.config
@@ -95,6 +96,9 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def withLog(log: TxLogEntry): ProgramState[W, S] =
     copy(logs = logs :+ log)
+
+  def withGarbage(address: Address): ProgramState[W, S] =
+    copy(garbage = garbage + address)
 
   def halt: ProgramState[W, S] =
     copy(halted = true)

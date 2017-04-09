@@ -41,6 +41,9 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] {
   def accountExists(address: Address): Boolean =
     getAccount(address).isDefined
 
+  def nonEmptyAccountExists(address: Address): Boolean =
+    getAccount(address).forall(!_.isEmpty)
+
   def getBalance(address: Address): UInt256 =
     getAccount(address).map(a => UInt256(a.balance)).getOrElse(UInt256.Zero)
 

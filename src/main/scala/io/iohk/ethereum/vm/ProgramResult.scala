@@ -18,4 +18,5 @@ case class ProgramResult[W <: WorldStateProxy[W, S], S <: Storage[S]](
   world: W,
   addressesToDelete: Seq[Address],
   logs: Seq[TxLogEntry],
-  error: Option[ProgramError])
+  error: Option[ProgramError],
+  garbage: Set[Address])
