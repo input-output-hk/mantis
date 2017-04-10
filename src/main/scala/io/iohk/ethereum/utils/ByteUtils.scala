@@ -22,6 +22,16 @@ object ByteUtils {
     (a zip b) map { case (b1, b2) => (b1 ^ b2).toByte }
   }
 
+  def or(arrays: Array[Byte]*): Array[Byte] = {
+    require(arrays.map(_.length).distinct.length <= 1, "All the arrays should have the same length")
+    require(arrays.nonEmpty, "There should be one or more arrays")
+
+    val zeroes = Array.fill(arrays.head.length)(0.toByte)
+    arrays.foldLeft[Array[Byte]](zeroes){
+      case (prevOr, array) => prevOr.zip(array).map{ case (b1, b2) => (b1 | b2).toByte }
+    }
+  }
+
   def secureRandomBytes(len: Int): Array[Byte] = {
     val arr = new Array[Byte](len)
     new SecureRandom().nextBytes(arr)

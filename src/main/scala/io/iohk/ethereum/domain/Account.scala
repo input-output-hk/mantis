@@ -19,7 +19,7 @@ case class Account(
   storageRoot: ByteString = Account.EmptyStorageRootHash,
   codeHash: ByteString = Account.EmptyCodeHash) {
 
-  def updateBalance(value: UInt256): Account =
+  def increaseBalance(value: UInt256): Account =
     copy(balance = balance + value)
 
   def increaseNonce: Account =

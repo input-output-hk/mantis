@@ -5,8 +5,10 @@ import java.math.BigInteger
 import akka.util.ByteString
 import org.spongycastle.asn1.x9.X9IntegerConverter
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.spongycastle.crypto.digests.SHA256Digest
 import org.spongycastle.crypto.params.ECPublicKeyParameters
-import org.spongycastle.math.ec.{ECAlgorithms, ECPoint, ECCurve}
+import org.spongycastle.crypto.signers.{ECDSASigner, HMacDSAKCalculator}
+import org.spongycastle.math.ec.{ECAlgorithms, ECCurve, ECPoint}
 import org.spongycastle.util.BigIntegers._
 
 object ECDSASignature {
@@ -70,6 +72,19 @@ object ECDSASignature {
     val halfCurveOrder = curveParams.getN.shiftRight(1)
     if (s.compareTo(halfCurveOrder) > 0) curve.getN.subtract(s)
     else s
+  }
+
+  def sign(message: Array[Byte], keyPair: AsymmetricCipherKeyPair): ECDSASignature = {
+    val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
+    signer.init(true, keyPair.getPrivate)
+    val components = signer.generateSignature(message)
+    val r = components(0)
+    val s = ECDSASignature.canonicalise(components(1))
+    val v = ECDSASignature
+      .calculateV(r, s, keyPair, message)
+      .getOrElse(throw new RuntimeException("Failed to calculate signature rec id"))
+
+    ECDSASignature(r, s, v)
   }
 
 }
