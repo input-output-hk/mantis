@@ -42,6 +42,7 @@ object SignedTransaction {
 
   private def getSender(tx: Transaction, signature: ECDSASignature, recoveredPointSign: Int): Option[Address] = {
     val ECDSASignature(r, s, v) = signature
+    val receivingAddressAsArray: Array[Byte] = tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray)
     val bytesToSign: Array[Byte] = if (v == negativePointSign || v == positivePointSign) {
       //global transaction
       crypto.kec256(
@@ -49,7 +50,7 @@ object SignedTransaction {
           tx.nonce,
           tx.gasPrice,
           tx.gasLimit,
-          tx.receivingAddress.toArray,
+          receivingAddressAsArray,
           tx.value,
           tx.payload)))
     } else {
@@ -59,7 +60,7 @@ object SignedTransaction {
           tx.nonce,
           tx.gasPrice,
           tx.gasLimit,
-          tx.receivingAddress.toArray,
+          receivingAddressAsArray,
           tx.value,
           tx.payload,
           Config.Blockchain.chainId,
@@ -103,7 +104,7 @@ object SignedTransaction {
         tx.nonce,
         tx.gasPrice,
         tx.gasLimit,
-        tx.receivingAddress.toArray,
+        tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray): Array[Byte],
         tx.value,
         tx.payload,
         Config.Blockchain.chainId,

@@ -23,10 +23,10 @@ object MockVmInput {
     value: BigInt,
     gasLimit: BigInt,
     gasPrice: BigInt = defaultGasPrice,
-    receivingAddress: Address = Address.empty,
+    receivingAddress: Address = Address(ByteString()),
     nonce: BigInt = 0
   ): SignedTransaction =
-    new MockTransaction(Transaction(nonce, gasPrice, gasLimit, receivingAddress, value, payload), senderAddress)
+    new MockTransaction(Transaction(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload), senderAddress)
 
 
   def blockHeader: BlockHeader =

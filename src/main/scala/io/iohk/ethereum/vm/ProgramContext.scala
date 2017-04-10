@@ -30,10 +30,10 @@ object ProgramContext {
 
     } else {
       // message call
-      val world1 = world.transfer(senderAddress, tx.receivingAddress, UInt256(tx.value))
-      val code = world1.getCode(tx.receivingAddress)
+      val world1 = world.transfer(senderAddress, tx.receivingAddress.get, UInt256(tx.value))
+      val code = world1.getCode(tx.receivingAddress.get)
 
-      (world1, tx.receivingAddress, Program(code))
+      (world1, tx.receivingAddress.get, Program(code))
     }
   }
 }
