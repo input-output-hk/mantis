@@ -6,15 +6,19 @@ import akka.actor.{Actor, ActorRef, _}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.PeerActor.{MessageReceived, SendMessage}
+import io.iohk.ethereum.network.PeerActor.{MessageReceived, SendMessage, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, PeersResponse}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.rlp.{RLPEncoder, RLPImplicitConversions, encode}
 import org.spongycastle.util.encoders.Hex
+
+import scala.concurrent.duration._
 import BlockHeaderImplicits._
 
 import scala.collection.immutable.HashMap
+import scala.language.postfixOps
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class DumpChainActor(peerManager: ActorRef) extends Actor {
   var stateNodesHashes: Set[ByteString] = Set.empty
@@ -31,13 +35,18 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
   var peers: Seq[Peer] = Nil
 
   override def preStart(): Unit = {
-    peerManager ! GetPeers
+    context.system.scheduler.scheduleOnce(4 seconds, () => peerManager ! GetPeers)
   }
 
   // scalastyle:off
   override def receive: Receive = {
     case PeersResponse(p) =>
+      //TODO ask for block headers
       peers = p
+      peers.headOption.foreach { case Peer(_, actor) =>
+        actor ! Subscribe(Set(BlockHeaders.code, BlockBodies.code, Receipts.code, NodeData.code))
+        actor ! SendMessage(GetBlockHeaders(Left(0), 20, 0, reverse = false))
+      }
 
     case MessageReceived(m: BlockHeaders) =>
       val headerHashes = m.headers.map(_.hash)
@@ -158,4 +167,8 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
         println("chain dumped to file")
       }
   }
+}
+
+object DumpChainActor {
+  def props(peerManager: ActorRef): Props = Props(new DumpChainActor(peerManager))
 }

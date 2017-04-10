@@ -1,8 +1,8 @@
 command for running parity and ethminer
 
 ```
-parity -jw --jsonrpc-interface 192.168.1.207 --jsonrpc-port 8545 --author 004A44Da31Bb735cB20171AfF69E60E3e50d26De --identity parity_node --geth --chain /Users/adam/iohk/etc-client/private_chain_conf/prv.json --base-path /Users/adam/etc_prv  --pruning archive
-ethminer -C -F 192.168.1.207:8545
+parity -jw --jsonrpc-interface 127.0.0.1 --jsonrpc-port 8545 --author 004A44Da31Bb735cB20171AfF69E60E3e50d26De --identity parity_node --geth --chain /Users/adam/iohk/etc-client/private_chain_conf/prv.json --base-path /Users/adam/etc_prv  --pruning archive
+ethminer -C -F 127.0.0.1:8545
 ```
 
 address for private net:
