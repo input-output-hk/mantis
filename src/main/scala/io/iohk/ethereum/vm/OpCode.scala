@@ -656,7 +656,7 @@ case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
 // TODO eip161
-case object CREATE extends OpCode(0xf0, 3, 0, G_create) {
+case object CREATE extends OpCode(0xf0, 3, 1, G_create) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(endowment, inOffset, inSize), stack1) = state.stack.pop(3)
 
@@ -667,86 +667,48 @@ case object CREATE extends OpCode(0xf0, 3, 0, G_create) {
       state.withStack(stack2).step()
     } else {
 
-      // load code from memory
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
-
-      // create a new address
       val (newAddress, world1) = state.world.newAddress(state.env.ownerAddr)
+      val world2 = world1.transfer(state.env.originAddr, newAddress, endowment)
 
-      // create a new account
-      val world2 = world1.newEmptyAccount(newAddress)
-
-      // transfer endowment to a new address
-      val world3 = world2.transfer(state.env.originAddr, newAddress, endowment)
-
-      // prepare contract initialization environment
       val newEnv = ExecEnv(
         newAddress,
         state.env.callerAddr,
         state.env.originAddr,
         state.env.gasPrice,
         ByteString.empty,
-        0,
+        endowment,
         Program(initCode),
         state.env.blockHeader,
         state.env.callDepth + 1
       )
-      val programContext = ProgramContext(newEnv, state.gas, world3)
 
-      val beforeHomestead = false // TODO
+      val startGas = state.gas - state.gas / 64
 
-      // run contract initialization code
-      VM.run(programContext) match {
+      val context = ProgramContext[W, S](newEnv, startGas, world2)
+      val result = VM.run(context)
 
-        // execution of initialization code failed
-        case result if result.error.isDefined =>
-          val stack2 = stack1.push(UInt256.Zero)
-          state.withStack(stack2).spendGas(state.gas)
+      val gasUsed = startGas - result.gasRemaining
 
-        // execution of initialization code succeeded
-        case ProgramResult(returnData, _, gasUsed, world, addressesToDelete, None) =>
-
-          // calculate gas for storing code of the new account
-          val codeDepositGas = returnData.size * G_codedeposit
-
-          // save code of the new contract
-          val (spentGas, world5) = if (beforeHomestead && gasUsed < codeDepositGas) {
-
-            (gasUsed, world)
-
-          } else {
-
-            // get a newly created account
-            val acc = world.getGuaranteedAccount(newAddress)
-
-            // generate hash of a code of the new contract
-            val codeHash = kec256(returnData)
-
-            // save code and update ther account with a pointer to the contract code
-            val world4 = world
-              .saveCode(codeHash, returnData)
-              .saveAccount(newAddress, acc.withCode(codeHash))
-
-            (gasUsed - codeDepositGas, world4)
-
-          }
-
-          // push address of a newly created account to stack
-          val stack3 = stack1.push(DataWord(newAddress.bytes))
-
-          // return updated program state
-          state
-            .withStack(stack3)
-            .withWorld(world5)
-            .withAddressesToDelete(addressesToDelete)
-            .withMemory(memory1)
-            .spendGas(spentGas)
-            .step()
+      if (result.error.isDefined) {
+        val stack2 = stack1.push(UInt256.Zero)
+        state.withStack(stack2).spendGas(gasUsed)
+      } else {
+        val codeDepositGas = GasFee.calcCodeDepositCost(result.returnData)
+        val stack2 = stack1.push(newAddress.toUInt256)
+        val world3 = result.world.saveCode(newAddress, result.returnData)
+        state
+          .withStack(stack2)
+          .withWorld(world3)
+          .withAddressesToDelete(result.addressesToDelete)
+          .withMemory(memory1)
+          .spendGas(gasUsed + codeDepositGas)
+          .step()
       }
     }
   }
 
-  protected def varGas(state: ProgramState): BigInt = {
+  protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
     val (Seq(_, inOffset, inSize), _) = state.stack.pop(3)
     calcMemCost(state.memory.size, inOffset, inSize)
   }
