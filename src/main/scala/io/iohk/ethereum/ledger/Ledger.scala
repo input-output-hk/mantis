@@ -63,13 +63,13 @@ class Ledger(vm: VM) extends Logger {
   }
 
   /**
-    * This functions executes all the signedTransactions from a block
+    * This functions executes all the signed transactions from a block (till one of those executions fails)
     *
     * @param signedTransactions from the block that are left to execute
     * @param world that will be updated by the execution of the signedTransactions
-    * @param blockHeader of the block we are currently executed
+    * @param blockHeader of the block we are currently executing
     * @param acumGas, accumulated gas of the previoulsy executed transactions of the same block
-    * @param acumReceipts, accumulated receitps of the previoulsy executed transactions of the same block
+    * @param acumReceipts, accumulated receipts of the previoulsy executed transactions of the same block
     * @return a BlockResult if the execution of all the transactions in the block was successful or a BlockExecutionError
     *         if one of them failed
     */
@@ -92,7 +92,7 @@ class Ledger(vm: VM) extends Logger {
               logs = logs
             )
 
-            executeTransactions(otherStxs, newWorld, blockHeader, acumGas + gasUsed, acumReceipts :+ receipt)
+            executeTransactions(otherStxs, newWorld, blockHeader, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
           case Left(error) => Left(TxsExecutionError(error))
         }
     }
