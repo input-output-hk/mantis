@@ -40,7 +40,7 @@ object Config {
     object Discovery {
       private val discoveryConfig = networkConfig.getConfig("discovery")
 
-      val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet
+      val bootstrapNodes: Set[String] = discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet
       val bootstrapNodesScanInterval = discoveryConfig.getDuration("bootstrap-nodes-scan-interval").toMillis.millis
     }
 

@@ -1,7 +1,7 @@
 package io.iohk.ethereum.evm.util
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaderImplicits}
 import io.iohk.ethereum.network.p2p.messages.PV63.{MptNode, Receipt}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -13,6 +13,8 @@ import scala.io.Source
 object FixtureProvider {
 
   case class Fixture(
+    blockByNumber: Map[BigInt, Block],
+    blockByHash: Map[ByteString, Block],
     blockHeaders: Map[ByteString, BlockHeader],
     blockBodies: Map[ByteString, BlockBody],
     receipts: Map[ByteString, Seq[Receipt]],
@@ -21,6 +23,7 @@ object FixtureProvider {
     evmCode: Map[ByteString, ByteString]
   )
 
+  // scalastyle:off
   def loadFixtures(path: String): Fixture = {
     val bodies: Map[ByteString, BlockBody] = Source.fromFile(getClass.getResource(s"$path/bodies.txt").getPath).getLines()
       .map(s => s.split(" ").toSeq).collect {
@@ -67,6 +70,10 @@ object FixtureProvider {
       case Seq(h, v) => ByteString(Hex.decode(h)) -> ByteString(Hex.decode(v))
     }.toMap
 
-    Fixture(headers, bodies, receipts, stateTree, contractTrees, evmCode)
+    val blocks = headers.toList.sortBy { case (hash, _) => Hex.toHexString(hash.toArray[Byte]) }.map { case (_, header) => header }
+      .zip(bodies.toList.sortBy { case (hash, _) => Hex.toHexString(hash.toArray[Byte]) }.map { case (_, body) => body })
+      .map { case (h, b) => Block(h, b) }
+
+    Fixture(blocks.map(b => b.header.number -> b).toMap, blocks.map(b => b.header.hash -> b).toMap, headers, bodies, receipts, stateTree, contractTrees, evmCode)
   }
 }

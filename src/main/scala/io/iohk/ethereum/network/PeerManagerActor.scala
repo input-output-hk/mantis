@@ -14,7 +14,8 @@ import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 class PeerManagerActor(
     peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
-    externalSchedulerOpt: Option[Scheduler] = None)
+    externalSchedulerOpt: Option[Scheduler] = None,
+    bootstrapNodes: Set[String] = Config.Network.Discovery.bootstrapNodes)
   extends Actor with ActorLogging {
 
   import PeerManagerActor._
@@ -77,6 +78,13 @@ object PeerManagerActor {
             appStateStorage: AppStateStorage,
             blockchain: Blockchain): Props =
     Props(new PeerManagerActor(peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain)))
+
+  def props(nodeStatusHolder: Agent[NodeStatus],
+    peerConfiguration: PeerConfiguration,
+    appStateStorage: AppStateStorage,
+    blockchain: Blockchain,
+    bootstrapNodes: Set[String]): Props =
+    Props(new PeerManagerActor(peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain), bootstrapNodes = bootstrapNodes))
 
   def peerFactory(nodeStatusHolder: Agent[NodeStatus],
                   peerConfiguration: PeerConfiguration,
