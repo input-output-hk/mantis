@@ -104,13 +104,12 @@ class Ledger(vm: VM) extends Logger {
     val world1 = updateSenderAccountBeforeExecution(stx, world)
     val result = runVM(stx, blockHeader, world1)
 
-    val accountsToDelete = if(result.error.isDefined) Nil else result.addressesToDelete
     val gasUsed = if(result.error.isDefined) gasLimit else gasLimit - result.gasRemaining
     val gasRefund = calcGasRefund(stx, result)
 
     val refundGasFn = pay(stx.senderAddress, gasRefund * gasPrice) _
     val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (gasLimit - gasRefund) * gasPrice) _
-    val deleteAccountsFn = deleteAccounts(accountsToDelete) _
+    val deleteAccountsFn = deleteAccounts(result.addressesToDelete) _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
 
     val world2 = (refundGasFn andThen payMinerForGasFn andThen deleteAccountsFn andThen persistStateFn)(result.world)
@@ -294,7 +293,9 @@ class Ledger(vm: VM) extends Logger {
   private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): PR = {
     val context: PC = ProgramContext(stx, blockHeader, worldStateProxy)
     val result = vm.run(context)
-    if (stx.tx.isContractInit && result.error.isEmpty)
+    if(result.error.isDefined)
+      result.copy(world = worldStateProxy, addressesToDelete = Nil) //Rollback to the previous state if an error happened
+    else if (stx.tx.isContractInit && result.error.isEmpty)
       saveNewContract(context.env.ownerAddr, result)
     else
       result
