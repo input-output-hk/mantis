@@ -10,6 +10,8 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.Blockchain
+import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
 
 
@@ -28,7 +30,7 @@ object SignedTransaction {
     * new formula for calculating point sign post EIP 155 adoption
     * v = CHAIN_ID * 2 + 35 or v = CHAIN_ID * 2 + 36
     */
-  def getRecoveredPointSign(pointSign: Byte): Option[Int] = {
+  private def getRecoveredPointSign(pointSign: Byte): Option[Int] = {
     if (pointSign == negativePointSign || pointSign == (Blockchain.chainId * 2 + newNegativePointSign).toByte) {
       Some(negativePointSign)
     } else if (pointSign == positivePointSign || pointSign == (Blockchain.chainId * 2 + newPositivePointSign).toByte) {
@@ -38,7 +40,7 @@ object SignedTransaction {
     }
   }
 
-  def getSender(tx: Transaction, signature: ECDSASignature, recoveredPointSign: Int): Option[Address] = {
+  private def getSender(tx: Transaction, signature: ECDSASignature, recoveredPointSign: Int): Option[Address] = {
     val ECDSASignature(r, s, v) = signature
     val bytesToSign: Array[Byte] = if (v == negativePointSign || v == positivePointSign) {
       //global transaction
@@ -96,6 +98,25 @@ object SignedTransaction {
       recoveredPointSign <- SignedTransaction.getRecoveredPointSign(signature.v)
       sender <- SignedTransaction.getSender(tx, signature, recoveredPointSign)
     } yield SignedTransaction(tx, signature, sender)
+  }
+
+  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair): SignedTransaction = {
+    val bytes = crypto.kec256(
+      rlpEncode(RLPList(
+        tx.nonce,
+        tx.gasPrice,
+        tx.gasLimit,
+        tx.receivingAddress.toArray,
+        tx.value,
+        tx.payload,
+        Config.Blockchain.chainId,
+        valueForEmptyR,
+        valueForEmptyS)))
+
+    val sig = ECDSASignature.sign(bytes, keyPair)
+    val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
+    val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
+    SignedTransaction(tx, sig, address)
   }
 }
 

@@ -34,7 +34,7 @@ object GasFee {
     * Calculates transaction intrinsic gas. See YP section 6.2
     *
     */
-  def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean, blockNumber: BigInt): BigInt = {
+  def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean, blockNumber: BigInt): UInt256 = {
     val txDataZero = txData.count(_ == 0)
     val txDataNonZero = txData.length - txDataZero
 
@@ -52,7 +52,7 @@ object GasFee {
     * @param executionResultData Transaction code initialization result
     * @return Calculated gas cost
     */
-  def calcCodeDepositCost(executionResultData: ByteString): BigInt = G_codedeposit * executionResultData.size
+  def calcCodeDepositCost(executionResultData: ByteString): UInt256 = G_codedeposit * executionResultData.size
 
   /** See YP H.1 (222) */
   private def c(m: UInt256): UInt256 = {
