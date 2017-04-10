@@ -20,8 +20,7 @@ object VM {
       finalState.world,
       finalState.addressesToDelete,
       finalState.logs,
-      finalState.error,
-      finalState.garbage)
+      finalState.error)
   }
 
   @tailrec

@@ -68,14 +68,9 @@ object Ledger extends Logger {
             val payBeneficiariesFn = (payForGasUsedToBeneficiary _).curried(stx)
             val deleteAccountsFn = (deleteAccounts _).curried(theResult.addressesToDelete)
             val persistStateFn = InMemoryWorldStateProxy.persistState _
-            val deleteGarbageAccountsFn = (deleteAccounts _).curried(theResult.garbage.toSeq) // TODO: make sure `deleteAccounts` works for it  ONLY IF THEY ARE EMPTY !!!
 
             val (newWorldStateProxy, newAcumGas) =
-              (refundGasFn andThen
-                payBeneficiariesFn andThen
-                deleteAccountsFn andThen
-                persistStateFn andThen
-                deleteGarbageAccountsFn) (theResult.world) -> (gasUsed + acumGas)
+              (refundGasFn andThen payBeneficiariesFn andThen deleteAccountsFn andThen persistStateFn) (theResult.world) -> (gasUsed + acumGas)
 
             val receipt = Receipt(
               postTransactionStateHash = newWorldStateProxy.stateRootHash,
@@ -186,7 +181,7 @@ object Ledger extends Logger {
     accumGasLimit: BigInt,
     block: Block): Either[String, SignedTransaction] = {
     for {
-      _ <- SignedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = block.header.number < Config.Blockchain.HomesteadBlock)
+      _ <- SignedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = block.header.number < Config.Blockchain.homesteadBlockNumber)
         .left.map(_.toString)
       _ <- validateNonce(stx, worldState)
       _ <- validateGas(stx, block.header)

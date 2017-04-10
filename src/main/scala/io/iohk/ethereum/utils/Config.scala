@@ -75,9 +75,9 @@ object Config {
   object Blockchain {
     private val blockchainConfig = config.getConfig("blockchain")
 
-    val frontierBlockNumber = BigInt(config.getString("frontier-block-number"))
-    val homesteadBlockNumber = BigInt(config.getString("homestead-block-number"))
-    val eip150BlockNumber = BigInt(config.getString("eip150-block-number"))
+    val frontierBlockNumber = BigInt(blockchainConfig.getString("frontier-block-number"))
+    val homesteadBlockNumber = BigInt(blockchainConfig.getString("homestead-block-number"))
+    val eip150BlockNumber = BigInt(blockchainConfig.getString("eip150-block-number"))
 
     val customGenesisFileOpt = Try(blockchainConfig.getString("custom-genesis-file")).toOption
 

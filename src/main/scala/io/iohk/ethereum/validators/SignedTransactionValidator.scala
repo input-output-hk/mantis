@@ -64,7 +64,7 @@ object SignedTransactionValidator {
     *
     * @param stx                  Transaction to validate
     * @param fromBeforeHomestead  Whether the block to which this transaction belongs is from
-    *                             before the [[Config.Blockchain.HomesteadBlock]]
+    *                             before the [[Config.Blockchain.homesteadBlockNumber]]
     * @return Either the validated transaction or TransactionSignatureError if an error was detected
     */
   private def validateSignature(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransaction] = {

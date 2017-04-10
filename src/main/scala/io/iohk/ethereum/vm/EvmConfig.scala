@@ -21,11 +21,10 @@ object EvmConfig {
   val FrontierConfig = EvmConfig(
     feeSchedule = FeeSchedule.FrontierFeeSchedule,
     opCodes = OpCodes.FrontierOpCodes,
-    exceptionalFailedCodeDeposit = false,
-    noEmpty = false)
+    exceptionalFailedCodeDeposit = false)
 
   /*
-    TODO:
+    TODO (CREATE):
     If contract creation does not have enough gas to pay for the final gas fee
     for adding the contract code to the state, the contract creation fails (ie. goes out-of-gas)
     rather than leaving an empty contract.
@@ -35,23 +34,18 @@ object EvmConfig {
   val HomesteadConfig = EvmConfig(
     feeSchedule = FeeSchedule.HomesteadFeeSchedule,
     opCodes = OpCodes.HomesteadOpCodes,
-    exceptionalFailedCodeDeposit = true,
-    noEmpty = false)
+    exceptionalFailedCodeDeposit = true)
 
   /*
-  TODO:
-    sub_gas_cap_divisor
+  TODO(CREATE): sub_gas_cap_divisor
   	  If Some(x): let limit = GAS * (x - 1) / x; let CALL's gas = min(requested, limit). let CREATE's gas = limit.
       If None: let CALL's gas = (requested > GAS ? [OOG] : GAS). let CREATE's gas = GAS
-
-    noEmpty:
-      implemented in suicide, TODO in Call opcodes varGas (and create to choose initial nonce)
    */
   val PostEIP150Config = EvmConfig(
     feeSchedule = FeeSchedule.PostEIP150FeeSchedule,
     opCodes = OpCodes.PostEIP150OpCodes,
     exceptionalFailedCodeDeposit = true,
-    noEmpty = true)
+    subGasCapDivisor = Some(64))
 
   private val transitionBlockToConfigMapping: Map[BigInt, EvmConfig] = Map(
     Config.Blockchain.frontierBlockNumber -> FrontierConfig,
@@ -66,9 +60,8 @@ case class EvmConfig(
     exceptionalFailedCodeDeposit: Boolean,
     maxMemory: UInt256 = UInt256(Long.MaxValue), /* used to artificially limit memory usage by incurring maximum gas cost */
     maxCallDepth: Int = 1024,
-    createDataLimit: BigInt = BigInt(Long.MaxValue), /* TODO: check me when creating contracts - seems it's only used in test networks (?) */
-    noEmpty: Boolean /* Don't ever make empty accounts; contracts start with nonce=1. Also, don't charge 25k when sending/suicide zero-value */
-    ) {
+    createDataLimit: BigInt = BigInt(Long.MaxValue), /* TODO(CREATE): check me when creating contracts - seems it's only used in test networks (?) */
+    subGasCapDivisor: Option[Long] = None) {
 
   val byteToOpCode: Map[Byte, OpCode] =
     opCodes.map(op => op.code -> op).toMap
@@ -115,8 +108,8 @@ object FeeSchedule {
     case object G_copy extends Key
     case object G_blockhash extends Key
     case object G_extcodesize extends Key
-    case object G_extcodecopy_base_gas extends Key
-    case object G_suicide_to_new_account_gas extends Key
+    case object G_extcodecopy_base extends Key
+    case object G_selfdestruct_to_new_account extends Key
   }
 
   val FrontierFeeSchedule: FeeSchedule = FeeSchedule(Map(
@@ -156,8 +149,8 @@ object FeeSchedule {
       Key.G_copy -> UInt256(3),
       Key.G_blockhash -> UInt256(20),
       Key.G_extcodesize -> UInt256(20),
-      Key.G_extcodecopy_base_gas -> UInt256(20),
-      Key.G_suicide_to_new_account_gas -> UInt256(0)))
+      Key.G_extcodecopy_base -> UInt256(20),
+      Key.G_selfdestruct_to_new_account -> UInt256(0)))
 
   val HomesteadFeeSchedule: FeeSchedule =
     FrontierFeeSchedule.copy(values = FrontierFeeSchedule.values ++ Map(
@@ -170,9 +163,9 @@ object FeeSchedule {
       Key.G_balance -> UInt256(400),
       Key.G_selfdestruct -> UInt256(5000),
       Key.G_extcodesize -> UInt256(700),
-      Key.G_extcodecopy_base_gas -> UInt256(700),
-      Key.G_suicide_to_new_account_gas -> UInt256(25000),
-      Key.G_expbyte -> UInt256(50)))
+      Key.G_extcodecopy_base -> UInt256(700),
+      Key.G_selfdestruct_to_new_account -> UInt256(25000),
+      Key.G_expbyte -> UInt256(10)))
 }
 
 case class FeeSchedule(values: Map[FeeSchedule.Key, UInt256]) {

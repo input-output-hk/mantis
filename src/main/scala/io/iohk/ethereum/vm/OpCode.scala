@@ -395,7 +395,7 @@ case object EXTCODESIZE extends OpCode(0x3b, 1, 1, G_extcodesize) with ConstGas 
   }
 }
 
-case object EXTCODECOPY extends OpCode(0x3c, 4, 0, G_extcodecopy_base_gas) {
+case object EXTCODECOPY extends OpCode(0x3c, 4, 0, G_extcodecopy_base) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(address, memOffset, codeOffset, size), stack1) = state.stack.pop(4)
     val codeCopy = OpCode.sliceBytes(state.world.getCode(Address(address)), codeOffset.toInt, size.toInt)
@@ -746,28 +746,9 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
     val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), _) = getParams(state)
     val endowment = if (this == DELEGATECALL) UInt256.Zero else callValue
 
-    val toAddress = Address(to)
-
     val memCostIn = calcMemCost(state.memory.size, inOffset, inSize, state.config)
     val memCostOut = calcMemCost(state.memory.size, outOffset, outSize, state.config)
     val memCost = memCostIn max memCostOut
-
-    val isValueTransfer = !callValue.isZero
-
-    this match {
-      case CALL =>
-        if ((!state.config.noEmpty && !state.world.accountExists(toAddress)) ||
-          (state.config.noEmpty && isValueTransfer && !state.world.nonEmptyAccountExists(toAddress))) {
-          gas = overflowing ! (gas.overflow_add(schedule.call_new_account_gas.into()));
-        }
-      case _ =>
-    }
-
-    if isValueTransfer {
-      gas = overflowing!(gas.overflow_add(schedule.call_value_transfer_gas.into()));
-    }
-
-
 
     // FIXME: these are calculated twice (for gas and exec), especially account existence. Can we do better?
     val gExtra = gasExtra(state, endowment, Address(to))
@@ -783,12 +764,13 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
   }
 
   private def gasCap[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], g: UInt256, gExtra: UInt256): UInt256 = {
-    if (state.gas < gExtra)
-      g
-    else {
-      val d = state.gas - gExtra
-      val l = d - d / 64
-      l min g
+    state.config.subGasCapDivisor match {
+      case Some(subGasCapDivisor) if state.gas >= gExtra =>
+        val d = state.gas - gExtra
+        val l = d - d / subGasCapDivisor
+        l min g
+      case _ =>
+        g
     }
   }
 
@@ -828,38 +810,23 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, G_selfdestruct) {
     val gasRefund = if (state.addressesToDelete contains state.ownAddress) UInt256.Zero else state.config.feeSchedule(R_selfdestruct)
     val world = state.world.transfer(state.ownAddress, refundAddr, state.ownBalance)
 
-    val originBalance = state.world.getBalance(state.env.originAddr)
-    val isValueTransfer = !originBalance.isZero
-
-    val isGarbage =
-      state.config.noEmpty &&
-      !isValueTransfer &&
-      state.world.accountExists(refundAddr) && // exists...
-      !state.world.nonEmptyAccountExists(refundAddr) // ...but is empty
-
-    val res1 = state
+    state
       .withWorld(world)
       .refundGas(gasRefund)
       .withAddressToDelete(state.ownAddress)
       .withStack(stack1)
       .halt
-
-    if (isGarbage) res1.withGarbage(refundAddr)
-    else res1
   }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
     val (Seq(refundAddrDW), _) = state.stack.pop(1)
     val refundAddress = Address(refundAddrDW)
 
-    val originBalance = state.world.getBalance(state.env.originAddr)
-    val isValueTransfer = originBalance.isZero
-
     val baseGas = state.config.feeSchedule(G_selfdestruct)
 
-    if ((!state.config.noEmpty && !state.world.accountExists(refundAddress)) ||
-        (state.config.noEmpty && isValueTransfer && !state.world.nonEmptyAccountExists(refundAddress))) {
-      baseGas + state.config.feeSchedule(G_suicide_to_new_account_gas)
+    if (!state.world.accountExists(refundAddress)) {
+      baseGas + state.config.feeSchedule(G_selfdestruct_to_new_account)
     } else baseGas
+
   }
 }

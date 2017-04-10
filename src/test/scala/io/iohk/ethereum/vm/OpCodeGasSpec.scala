@@ -291,12 +291,12 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   test(EXTCODECOPY) { op =>
     val table = Table[UInt256, UInt256](("size", "expectedGas"),
-      (0,  G_extcodecopy_base_gas),
-      (1, G_extcodecopy_base_gas + G_copy * 1),
-      (32, G_extcodecopy_base_gas + G_copy * 1),
-      (33, G_extcodecopy_base_gas + G_copy * 2),
-      (Two ** 16, G_extcodecopy_base_gas + G_copy * 2048),
-      (Two ** 16 + 1, G_extcodecopy_base_gas + G_copy * 2049)
+      (0,  G_extcodecopy_base),
+      (1, G_extcodecopy_base + G_copy * 1),
+      (32, G_extcodecopy_base + G_copy * 1),
+      (33, G_extcodecopy_base + G_copy * 2),
+      (Two ** 16, G_extcodecopy_base + G_copy * 2048),
+      (Two ** 16 + 1, G_extcodecopy_base + G_copy * 2049)
     )
 
     forAll(table) { (size, expectedGas) =>
@@ -481,7 +481,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       whenever(stateIn.world.getAccount(Address(refund)).isEmpty) {
         val stateOut = op.execute(stateIn)
         stateOut.gasRefund shouldEqual scheduleKeyToUInt256(R_selfdestruct)
-        verifyGas(G_selfdestruct + G_newaccount, stateIn, stateOut)
+        verifyGas(G_selfdestruct + G_selfdestruct_to_new_account, stateIn, stateOut)
       }
     }
 
@@ -503,7 +503,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       whenever(stateIn.world.getAccount(Address(refund)).isEmpty) {
         val updatedStateIn = stateIn.withAddressToDelete(stateIn.context.env.ownerAddr)
         val stateOut = op.execute(updatedStateIn)
-        verifyGas(G_selfdestruct + G_newaccount, updatedStateIn, stateOut)
+        verifyGas(G_selfdestruct + G_selfdestruct_to_new_account, updatedStateIn, stateOut)
         stateOut.gasRefund shouldEqual 0
       }
     }
