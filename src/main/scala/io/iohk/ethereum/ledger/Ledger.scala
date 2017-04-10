@@ -307,7 +307,9 @@ class Ledger(vm: VM) extends Logger {
   /**
     * Delete all accounts (that appear in SUICIDE list). YP eq (78).
     * The contract storage should be cleared during pruning as nodes could be used in other tries.
-    * The contract code is also not deleted as it could be duplicated between different contracts. FIXME: Should we keep track of this for deletion?
+    * The contract code is also not deleted as there can be contracts with the exact same code, making it risky to delete
+    * the code of an account in case it is shared with another one.
+    * FIXME: Should we keep track of this for deletion? Maybe during pruning we can also prune contract code.
     *
     * @param addressesToDelete
     * @param worldStateProxy

@@ -7,7 +7,7 @@ import org.scalatest.{FlatSpec, Matchers}
 class DeleteAccountsSpec extends FlatSpec with Matchers {
 
   it should "delete no accounts when none of them should be deleted" in new TestSetup {
-    val newWorld = InMemoryWorldStateProxy.persistState(Ledger.deleteAccounts(Seq.empty)(worldState))
+    val newWorld = InMemoryWorldStateProxy.persistState(Ledger.deleteAccounts(Nil)(worldState))
     accountAddresses.foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.stateRootHash shouldBe worldState.stateRootHash
   }
