@@ -76,8 +76,6 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
 
 
     case MessageReceived(m: NodeData) =>
-      val emptyStorage = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
-      val emptyEvm = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 
       val stateNodes = m.values.filter(node => stateNodesHashes.contains(kec256(node)))
       val contractNodes = m.values.filter(node => contractNodesHashes.contains(kec256(node)))
@@ -97,13 +95,13 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
 
       nodes.foreach {
         case n: MptLeaf =>
-          if (n.getAccount.codeHash != emptyEvm) {
+          if (n.getAccount.codeHash != DumpChainActor.emptyEvm) {
             peers.headOption.foreach { case Peer(_, actor) =>
               evmTorequest = evmTorequest :+ n.getAccount.codeHash
               evmCodeHashes = evmCodeHashes + n.getAccount.codeHash
             }
           }
-          if (n.getAccount.storageRoot != emptyStorage) {
+          if (n.getAccount.storageRoot != DumpChainActor.emptyStorage) {
             peers.headOption.foreach { case Peer(_, actor) =>
               cChildren = cChildren :+ n.getAccount.storageRoot
               contractNodesHashes = contractNodesHashes + n.getAccount.storageRoot
@@ -171,4 +169,6 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
 
 object DumpChainActor {
   def props(peerManager: ActorRef): Props = Props(new DumpChainActor(peerManager))
+  val emptyStorage = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
+  val emptyEvm = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 }
