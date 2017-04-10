@@ -5,7 +5,7 @@ import scala.annotation.tailrec
 /**
   * Entry point to executing a program.
   */
-object VM {
+class VM {
 
   /**
     * Executes a program
@@ -20,6 +20,7 @@ object VM {
       finalState.world,
       finalState.addressesToDelete,
       finalState.logs,
+      finalState.gasRefund,
       finalState.error)
   }
 
@@ -39,3 +40,5 @@ object VM {
     }
   }
 }
+
+object VM extends VM

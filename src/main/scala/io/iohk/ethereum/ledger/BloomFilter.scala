@@ -19,12 +19,12 @@ object BloomFilter {
     * @param logs from the receipt whose bloom filter will be created
     * @return bloom filter associated with the logs
     */
-  def create(logs: Set[TxLogEntry]): ByteString = {
+  def create(logs: Seq[TxLogEntry]): ByteString = {
     val bloomFilters = logs.map(createBloomFilterForLogEntry)
     if(bloomFilters.isEmpty)
       ByteString(EmptyBloomFilter)
     else
-      ByteString(or(bloomFilters.toSeq: _*))
+      ByteString(or(bloomFilters: _*))
   }
 
   //Bloom filter function that reduces a log to a single 256-byte hash based on equation 24 from the YP
