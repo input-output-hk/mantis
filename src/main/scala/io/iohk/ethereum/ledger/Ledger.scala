@@ -59,7 +59,10 @@ class Ledger(vm: VM) extends Logger {
 
     log.debug(s"About to execute txs from block ${block.header}")
     val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header)
-    log.debug(s"All txs from block ${block.header} were executed")
+    blockTxsExecResult match {
+      case Right(_) => log.debug(s"All txs from block ${block.header} were executed successfully")
+      case Left(error) => log.debug(s"Not all txs from block ${block.header} were executed correctly, due to ${error.reason}")
+    }
     blockTxsExecResult
   }
 
@@ -76,7 +79,7 @@ class Ledger(vm: VM) extends Logger {
     */
   @tailrec
   private def executeTransactions(signedTransactions: Seq[SignedTransaction], world: InMemoryWorldStateProxy, blockHeader: BlockHeader,
-                                  acumGas: BigInt = 0, acumReceipts: Seq[Receipt] = Nil): Either[BlockExecutionError, BlockResult] =
+                                  acumGas: BigInt = 0, acumReceipts: Seq[Receipt] = Nil): Either[TxsExecutionError, BlockResult] =
     signedTransactions match {
       case Nil =>
         Right(BlockResult(worldState = world, gasUsed = acumGas, receipts = acumReceipts))
@@ -296,7 +299,7 @@ class Ledger(vm: VM) extends Logger {
     val result = vm.run(context)
     if(result.error.isDefined)
       result.copy(world = worldStateProxy, addressesToDelete = Nil) //Rollback to the previous state if an error happened
-    else if (stx.tx.isContractInit && result.error.isEmpty)
+    else if (stx.tx.isContractInit)
       saveNewContract(context.env.ownerAddr, result)
     else
       result
