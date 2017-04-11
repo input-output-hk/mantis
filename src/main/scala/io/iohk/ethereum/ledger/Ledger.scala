@@ -3,9 +3,10 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.validators.{SignedTransactionValidator, BlockHeaderValidator, BlockValidator, OmmersValidator}
+import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockValidator, OmmersValidator, SignedTransactionValidator}
 import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.vm.{GasFee, _}
+import org.spongycastle.util.encoders.Hex
 
 class Ledger(vm: VM) extends Logger {
 
@@ -27,11 +28,12 @@ class Ledger(vm: VM) extends Logger {
       log.debug(s"All txs from block ${block.header} were executed")
 
       val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
-      val afterExecutionBlockError = validateBlockAfterExecution(block, worldToPersist.stateRootHash, receipts, gasUsed)
-      if (afterExecutionBlockError.isEmpty) {
-        InMemoryWorldStateProxy.persistIfHashMatches(block.header.stateRoot, worldToPersist)
-        log.debug(s"Block ${block.header} txs state changes persisted")
-      } else throw new RuntimeException(afterExecutionBlockError.get)
+      val worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
+
+      val afterExecutionBlockError = validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
+      if (afterExecutionBlockError.isEmpty)
+        log.debug(s"Block ${Hex.toHexString(block.header.hash.toArray)} executed correctly")
+      else throw new RuntimeException(afterExecutionBlockError.get)
 
     } else throw new RuntimeException(blockError.get)
   }
@@ -305,13 +307,18 @@ class Ledger(vm: VM) extends Logger {
   }
 
   /**
-    * Delete all accounts (that appear in SUICIDE list). YP eq (78)
+    * Delete all accounts (that appear in SUICIDE list). YP eq (78).
+    * The contract storage should be cleared during pruning as nodes could be used in other tries.
+    * The contract code is also not deleted as there can be contracts with the exact same code, making it risky to delete
+    * the code of an account in case it is shared with another one.
+    * FIXME: Should we keep track of this for deletion? Maybe during pruning we can also prune contract code.
     *
     * @param addressesToDelete
     * @param worldStateProxy
-    * @return
+    * @return a worldState equal worldStateProxy except that the accounts from addressesToDelete are deleted
     */
-  private def deleteAccounts(addressesToDelete: Seq[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = worldStateProxy //TODO
+  private[ledger] def deleteAccounts(addressesToDelete: Seq[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
+    addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => world.deleteAccount(address) }
 
 }
 
