@@ -7,12 +7,13 @@ import MockWorldState.{PC, PS}
 import akka.util.ByteString
 
 class CreateOpcodeSpec extends WordSpec with Matchers {
+
   object fxt {
 
-    val creatorAddr = Address(0xcafebabe)
-    val endowment = 123
-    val (newAddr, initWorld) =
-      MockWorldState().saveAccount(creatorAddr, Account.Empty.increaseBalance(endowment)).newAddress(creatorAddr)
+    val creatorAddr = Address(0xcafe)
+    val endowment: UInt256 = 123
+    val initWorld = MockWorldState().saveAccount(creatorAddr, Account.Empty.increaseBalance(endowment))
+    val newAddr = initWorld.newAddress(creatorAddr)._1
 
     // doubles the value passed in the input data
     val contractCode = Assembly(
@@ -28,9 +29,12 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     )
 
     val initPart = Assembly(
+      PUSH1, 42,
+      PUSH1, 0,
+      SSTORE, //store an arbitrary value
       PUSH1, contractCode.code.size,
       DUP1,
-      PUSH1, 11,
+      PUSH1, 16,
       PUSH1, 0,
       CODECOPY,
       PUSH1, 0,
@@ -39,8 +43,11 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
 
     val createCode = Assembly(initPart.byteCode ++ contractCode.byteCode: _*)
 
-    val gasRequiredForInit = initPart.linearConstGas
-    val gasRequiredForCreation = gasRequiredForInit + calcCodeDepositCost(contractCode.code)
+    val copyCodeGas = G_copy * wordsForBytes(contractCode.code.size) + calcMemCost(0, 0, contractCode.code.size)
+    val storeGas = G_sset
+    val gasRequiredForInit = initPart.linearConstGas + copyCodeGas + storeGas
+    val depositGas = calcCodeDepositCost(contractCode.code)
+    val gasRequiredForCreation = gasRequiredForInit + depositGas + G_create
 
     val env = ExecEnv(creatorAddr, Address(0), Address(0), 1, ByteString.empty, 0, Program(ByteString.empty), null, 0)
     val context: PC = ProgramContext(env, 2 * gasRequiredForCreation, initWorld)
@@ -53,8 +60,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val stateOut: PS = CREATE.execute(stateIn)
 
     val world = stateOut.world
-    val created = world.getAccount(fxt.newAddr).getOrElse(Account.Empty)
-    val newAddr = Address(stack.pop._1)
+    val returnValue = stateOut.stack.pop._1
   }
 
 
@@ -64,77 +70,88 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       val result = CreateResult()
 
       "create a new contract" in {
-        val newAccount = result.world.getAccount(fxt.newAddr).get
+        val newAccount = result.world.getGuaranteedAccount(fxt.newAddr)
+
         newAccount.balance shouldEqual fxt.endowment
         result.world.getCode(fxt.newAddr) shouldEqual fxt.contractCode.code
+        result.world.getStorage(fxt.newAddr).load(0) shouldEqual 42
       }
 
       "update sender (creator) account" in {
+        val initialCreator = result.context.world.getGuaranteedAccount(fxt.creatorAddr)
+        val updatedCreator = result.world.getGuaranteedAccount(fxt.creatorAddr)
 
+        updatedCreator.balance shouldEqual initialCreator.balance - fxt.endowment
+        updatedCreator.nonce shouldEqual initialCreator.nonce + 1
       }
 
       "return the new contract's address" in {
-        result.newAddr shouldEqual fxt.newAddr
+        Address(result.returnValue) shouldEqual fxt.newAddr
       }
 
       "consume correct gas" in {
-
+        result.stateOut.gasUsed shouldEqual fxt.gasRequiredForCreation
       }
     }
 
     "initialization code fails" should {
-      "not modify world state" in {
+      val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit / 2)
+      val result = CreateResult(context = context)
 
+      "not modify world state" in {
+        result.world shouldEqual context.world
       }
 
       "return 0" in {
-
+        result.returnValue shouldEqual 0
       }
 
       "consume correct gas" in {
-
+        val expectedGas = G_create + allBut64th(context.startGas - G_create)
+        result.stateOut.gasUsed shouldEqual expectedGas
       }
     }
 
     "initialization code runs normally but there's not enough gas to deposit code" should {
-      "not modify world state" in {
+      val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit + fxt.depositGas / 2)
+      val result = CreateResult(context = context)
 
-      }
-
-      "return 0" in {
-
-      }
-
-      "consume correct gas" in {
-
+      "throw OOG" in {
+        result.stateOut.error shouldEqual Some(OutOfGas)
       }
     }
 
     "call depth limit is reached" should {
-      "not modify world state" in {
+      val env = fxt.env.copy(callDepth = OpCode.MaxCallDepth)
+      val context: PC = fxt.context.copy(env = env)
+      val result = CreateResult(context = context)
 
+      "not modify world state" in {
+        result.world shouldEqual context.world
       }
 
       "return 0" in {
-
+        result.returnValue shouldEqual 0
       }
 
       "consume correct gas" in {
-
+        result.stateOut.gasUsed shouldEqual G_create
       }
     }
 
     "endowment value is greater than balance" should {
-      "not modify world state" in {
+      val result = CreateResult(value = fxt.endowment * 2)
 
+      "not modify world state" in {
+        result.world shouldEqual result.context.world
       }
 
       "return 0" in {
-
+        result.returnValue shouldEqual 0
       }
 
       "consume correct gas" in {
-
+        result.stateOut.gasUsed shouldEqual G_create
       }
     }
   }

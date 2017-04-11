@@ -66,6 +66,12 @@ object GasFee {
   def wordsForBytes(n: UInt256): UInt256 =
    if (n.isZero) 0 else (n - 1) / UInt256.Size + 1
 
+  /**
+    * a helper method used for gas adjustment in CALL and CREATE opcode, see YP eq. (224)
+    */
+  def allBut64th(g: UInt256): UInt256 =
+    g - g / 64
+
 
   // See YP, appendix G
   val G_zero           = UInt256(0)

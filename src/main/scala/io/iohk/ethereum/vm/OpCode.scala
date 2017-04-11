@@ -146,7 +146,7 @@ object OpCode {
     LOG3,
     LOG4,
 
-    //CREATE,
+    CREATE,
     CALL,
     CALLCODE,
     RETURN,
@@ -655,7 +655,7 @@ case object LOG2 extends LogOp(0xa2)
 case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
-// TODO eip161
+
 case object CREATE extends OpCode(0xf0, 3, 1, G_create) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(endowment, inOffset, inSize), stack1) = state.stack.pop(3)
@@ -669,7 +669,7 @@ case object CREATE extends OpCode(0xf0, 3, 1, G_create) {
 
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
       val (newAddress, world1) = state.world.newAddress(state.env.ownerAddr)
-      val world2 = world1.transfer(state.env.originAddr, newAddress, endowment)
+      val world2 = world1.transfer(state.env.ownerAddr, newAddress, endowment)
 
       val newEnv = ExecEnv(
         newAddress,
@@ -683,18 +683,23 @@ case object CREATE extends OpCode(0xf0, 3, 1, G_create) {
         state.env.callDepth + 1
       )
 
-      val startGas = state.gas - state.gas / 64
+      //to avoid calculating this twice, we could adjust state.gas prior to execution in OpCode#execute
+      //not sure how this would affect other opcodes
+      val availableGas = state.gas - (constGas + varGas(state))
+      val startGas = allBut64th(availableGas)
 
       val context = ProgramContext[W, S](newEnv, startGas, world2)
       val result = VM.run(context)
 
-      val gasUsed = startGas - result.gasRemaining
+      val codeDepositGas = GasFee.calcCodeDepositCost(result.returnData)
+      val gasUsed = startGas - result.gasRemaining + codeDepositGas
 
       if (result.error.isDefined) {
         val stack2 = stack1.push(UInt256.Zero)
-        state.withStack(stack2).spendGas(gasUsed)
+        state.withStack(stack2).spendGas(startGas)
+      } else if (gasUsed > availableGas) {
+        state.withError(OutOfGas)
       } else {
-        val codeDepositGas = GasFee.calcCodeDepositCost(result.returnData)
         val stack2 = stack1.push(newAddress.toUInt256)
         val world3 = result.world.saveCode(newAddress, result.returnData)
         state
@@ -702,7 +707,7 @@ case object CREATE extends OpCode(0xf0, 3, 1, G_create) {
           .withWorld(world3)
           .withAddressesToDelete(result.addressesToDelete)
           .withMemory(memory1)
-          .spendGas(gasUsed + codeDepositGas)
+          .spendGas(gasUsed)
           .step()
       }
     }
@@ -813,11 +818,8 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
   private def gasCap[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], g: UInt256, gExtra: UInt256): UInt256 = {
     if (state.gas < gExtra)
       g
-    else {
-      val d = state.gas - gExtra
-      val l = d - d / 64
-      l min g
-    }
+    else
+      allBut64th(state.gas - gExtra) min g
   }
 
   private def gasExtra[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], endowment: UInt256, to: Address): UInt256 = {

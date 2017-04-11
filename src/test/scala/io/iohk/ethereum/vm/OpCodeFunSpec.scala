@@ -647,7 +647,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  verifyAllOpCodesRegistered(except = CALL, CALLCODE, DELEGATECALL)
+  verifyAllOpCodesRegistered(except = CREATE, CALL, CALLCODE, DELEGATECALL)
 
 }
 
