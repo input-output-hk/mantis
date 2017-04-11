@@ -5,20 +5,20 @@ import java.io.FileWriter
 import akka.actor.{Actor, ActorRef, _}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{BlockHeader, Receipt}
 import io.iohk.ethereum.network.PeerActor.{MessageReceived, SendMessage, Subscribe}
-import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, PeersResponse}
+import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, Peers}
 import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits.receiptRlpEncDec
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.rlp.RLPImplicitConversions.toRlpList
 import io.iohk.ethereum.rlp.{RLPEncoder, RLPImplicitConversions, encode}
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.duration._
-import BlockHeaderImplicits._
-
 import scala.collection.immutable.HashMap
-import scala.language.postfixOps
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class DumpChainActor(peerManager: ActorRef) extends Actor {
   var stateNodesHashes: Set[ByteString] = Set.empty
@@ -40,9 +40,9 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
 
   // scalastyle:off
   override def receive: Receive = {
-    case PeersResponse(p) =>
+    case Peers(p) =>
       //TODO ask for block headers
-      peers = p
+      peers = p.keys.toSeq
       peers.headOption.foreach { case Peer(_, actor) =>
         actor ! Subscribe(Set(BlockHeaders.code, BlockBodies.code, Receipts.code, NodeData.code))
         actor ! SendMessage(GetBlockHeaders(Left(0), 20, 0, reverse = false))
@@ -67,13 +67,17 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
       m.bodies.zip(blockHeadersStorage.keys).foreach { case (b, h) =>
         blockBodyStorage = blockBodyStorage + (h -> b)
       }
-
+      val bodiesFile = new FileWriter("bodies.txt", true)
+      blockBodyStorage.foreach{case (h,v) =>  bodiesFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(encode(v))}\n")}
+      bodiesFile.close()
 
     case MessageReceived(m: Receipts) =>
       m.receiptsForBlocks.zip(blockHeadersStorage.keys).foreach { case (r, h) =>
         blockReceiptsStorage = blockReceiptsStorage + (h -> r)
       }
-
+      val receiptsFile = new FileWriter("receipts.txt", true)
+      blockReceiptsStorage.foreach { case (h, v: Seq[Receipt]) => receiptsFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(encode(toRlpList(v)))}\n") }
+      receiptsFile.close()
 
     case MessageReceived(m: NodeData) =>
 
@@ -136,11 +140,8 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
 
       if (children.isEmpty && cChildren.isEmpty && evmTorequest.isEmpty) {
         import RLPImplicitConversions._
-        import Receipt._
 
         val headersFile = new FileWriter("headers.txt", true)
-        val bodiesFile = new FileWriter("bodies.txt", true)
-        val receiptsFile = new FileWriter("receipts.txt", true)
         val stateTreeFile = new FileWriter("stateTree.txt", true)
         val contractTreesFile = new FileWriter("contractTrees.txt", true)
         val evmCodeFile = new FileWriter("evmCode.txt", true)
@@ -149,16 +150,12 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
           case (h, v) => fw.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(encode(v))}\n")
         }
 
-        blockHeadersStorage.foreach(dumpToFile(headersFile, _))
-        blockBodyStorage.foreach(dumpToFile(bodiesFile, _))
-        blockReceiptsStorage.foreach { case (h, v: Seq[Receipt]) => receiptsFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(encode(toRlpList(v)))}\n") }
+        blockHeadersStorage.foreach(dumpToFile(headersFile, _)(BlockHeaderImplicits.headerRlpEncDec))
         stateStorage.foreach(dumpToFile(stateTreeFile, _))
         contractStorage.foreach(dumpToFile(contractTreesFile, _))
         evmCodeStorage.foreach { case (h, v) => evmCodeFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toArray[Byte])}\n") }
 
         headersFile.close()
-        bodiesFile.close()
-        receiptsFile.close()
         stateTreeFile.close()
         contractTreesFile.close()
         evmCodeFile.close()

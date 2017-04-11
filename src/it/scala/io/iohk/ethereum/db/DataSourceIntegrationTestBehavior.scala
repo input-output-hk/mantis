@@ -192,7 +192,7 @@ trait DataSourceIntegrationTestBehavior
           db.update(OtherNamespace2, Seq(), keyList.zip(valList2))
 
           //Removal of keys from the OtherNamespace namespace
-          db.update(OtherNamespace, keyList, Seq.empty)
+          db.update(OtherNamespace, keyList, Nil)
 
           keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
           keyList.zip(valList2).foreach { case (key, value) =>
@@ -200,7 +200,7 @@ trait DataSourceIntegrationTestBehavior
           }
 
           //Removal of keys from the OtherNamespace2 namespace
-          db.update(OtherNamespace2, keyList, Seq.empty)
+          db.update(OtherNamespace2, keyList, Nil)
 
           keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
           keyList.foreach { key => assert(db.get(OtherNamespace2, key).isEmpty) }

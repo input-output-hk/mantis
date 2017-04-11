@@ -7,7 +7,7 @@ object ProgramContext {
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](stx: SignedTransaction, blockHeader: BlockHeader, world: W): ProgramContext[W, S] = {
     import stx.tx
 
-    val senderAddress = stx.recoveredSenderAddress.get // FIXME: get, it should be validated but...
+    val senderAddress = stx.senderAddress
     val (world1, recipientAddress, program) = callOrCreate[W, S](world, tx, senderAddress)
 
     val env = ExecEnv(recipientAddress, senderAddress, senderAddress, UInt256(tx.gasPrice), tx.payload,

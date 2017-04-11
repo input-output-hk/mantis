@@ -12,7 +12,7 @@ import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
-import io.iohk.ethereum.network.p2p.validators.BlockValidator
+import io.iohk.ethereum.validators.BlockValidator
 
 
 trait NodeKeyBuilder {

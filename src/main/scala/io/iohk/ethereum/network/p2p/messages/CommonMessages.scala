@@ -51,14 +51,18 @@ object CommonMessages {
         import signedTx._
         import signedTx.tx._
         RLPList(nonce, gasPrice, gasLimit, receivingAddress.toArray, value,
-          payload, pointSign, signatureRandom, signature)
+          payload, signature.v, BigInt(signature.r), BigInt(signature.s))
       }
 
       override def decode(rlp: RLPEncodeable): SignedTransaction = rlp match {
         case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value,
         payload, pointSign, signatureRandom, signature) =>
           SignedTransaction(
-            Transaction(nonce, gasPrice, gasLimit, Address(receivingAddress.bytes), value, payload), (pointSign: Int).toByte, signatureRandom, signature)
+            Transaction(nonce, gasPrice, gasLimit, Address(receivingAddress.bytes), value, payload),
+            (pointSign: Int).toByte,
+            signatureRandom.bytes,
+            signature.bytes
+          ).getOrElse(throw new Exception("Tx with invalid signature"))
       }
 
     }

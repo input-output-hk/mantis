@@ -1,10 +1,10 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
-import io.iohk.ethereum.network.p2p.validators.BlockValidator.{BlockLogBloomError, BlockOmmersHashError, BlockReceiptsHashError, BlockTransactionsHashError}
+import io.iohk.ethereum.validators.BlockValidator.{BlockLogBloomError, BlockOmmersHashError, BlockReceiptsHashError, BlockTransactionsHashError}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -67,6 +67,13 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
     }
   }
 
+  "Block" should "correctly handle the case where a block has no receipts" in {
+    BlockValidator.validate(blockWithOutReceipts, Nil) match {
+      case Right(validated) if validated==blockWithOutReceipts => succeed
+      case _ => fail
+    }
+  }
+
   val validBlockHeader = BlockHeader(
     parentHash = ByteString(Hex.decode("8345d132564b3660aa5f27c9415310634b50dbc92579c65a0825d9a255227a71")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -99,7 +106,7 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
         pointSign = 0x9d.toByte,
         signatureRandom = ByteString(Hex.decode("5b496e526a65eac3c4312e683361bfdb873741acd3714c3bf1bcd7f01dd57ccb")),
         signature = ByteString(Hex.decode("3a30af5f529c7fc1d43cfed773275290475337c5e499f383afd012edcc8d7299"))
-      ), SignedTransaction(
+      ).get, SignedTransaction(
         tx = Transaction(
           nonce = BigInt("438551"),
           gasPrice = BigInt("20000000000"),
@@ -111,7 +118,7 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
         pointSign = 0x9d.toByte,
         signatureRandom = ByteString(Hex.decode("377e542cd9cd0a4414752a18d0862a5d6ced24ee6dba26b583cd85bc435b0ccf")),
         signature = ByteString(Hex.decode("579fee4fd96ecf9a92ec450be3c9a139a687aa3c72c7e43cfac8c1feaf65c4ac"))
-      ), SignedTransaction(
+      ).get, SignedTransaction(
         tx = Transaction(
           nonce = BigInt("438552"),
           gasPrice = BigInt("20000000000"),
@@ -123,7 +130,7 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
         pointSign = 0x9d.toByte,
         signatureRandom = ByteString(Hex.decode("a70267341ba0b33f7e6f122080aa767d52ba4879776b793c35efec31dc70778d")),
         signature = ByteString(Hex.decode("3f66ed7f0197627cbedfe80fd8e525e8bc6c5519aae7955e7493591dcdf1d6d2"))
-      ), SignedTransaction(
+      ).get, SignedTransaction(
         tx = Transaction(
           nonce = BigInt("438553"),
           gasPrice = BigInt("20000000000"),
@@ -135,7 +142,7 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
         pointSign = 0x9d.toByte,
         signatureRandom = ByteString(Hex.decode("beb8226bdb90216ca29967871a6663b56bdd7b86cf3788796b52fd1ea3606698")),
         signature = ByteString(Hex.decode("2446994156bc1780cb5806e730b171b38307d5de5b9b0d9ad1f9de82e00316b5"))
-      )
+      ).get
     ),
     uncleNodesList = Seq[BlockHeader]()
   )
@@ -182,6 +189,11 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
 
   val wrongLogBloomBlockHeader = validBlockHeader.copy(
     logsBloom = ByteString(Hex.decode("1" * 512))
+  )
+
+  val blockWithOutReceipts = Block(
+    validBlockHeader.copy(receiptsRoot = Account.EmptyStorageRootHash, logsBloom = BloomFilter.EmptyBloomFilter),
+    validBlockBody
   )
 
 }

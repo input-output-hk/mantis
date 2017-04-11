@@ -1,14 +1,17 @@
-package io.iohk.ethereum.network.p2p.validators
+package io.iohk.ethereum.validators
 
+import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Block, BlockHeader, SignedTransaction}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction}
+import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.mpt.RLPByteArraySerializable
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits.headerRlpEncDec
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipt
+import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits.receiptRlpEncDec
 import io.iohk.ethereum.rlp.RLPImplicitConversions.toRlpList
 import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.utils.ByteUtils.or
 
 import scala.language.reflectiveCalls
 
@@ -36,7 +39,7 @@ object BlockValidator {
     * @param block Block to validate
     * @return Block if valid, a Some otherwise
     */
-  private def validateOmmers(block: Block): Either[BlockError, Block] = {
+  private def validateOmmersHash(block: Block): Either[BlockError, Block] = {
     // FIXME Can we avoid encoding ommers again?
     val encodedOmmers = encode(toRlpList(block.body.uncleNodesList))
     if (kec256(encodedOmmers) sameElements block.header.ommersHash) Right(block)
@@ -70,10 +73,10 @@ object BlockValidator {
     * @return
     */
   private def validateLogBloom(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block] = {
-    val logsBloomOr = receipts.foldLeft(Array.fill(block.header.logsBloom.size)(0.toByte)) { (or: Array[Byte], receipt: Receipt) =>
-      or.zip(receipt.logsBloomFilter.toArray[Byte]).map(b => (b._1 | b._2).toByte)
-    }
-    if (logsBloomOr sameElements block.header.logsBloom.toArray[Byte]) Right(block)
+    val logsBloomOr =
+      if(receipts.isEmpty) BloomFilter.EmptyBloomFilter
+      else ByteString(or(receipts.map(_.logsBloomFilter.toArray): _*))
+    if (logsBloomOr == block.header.logsBloom) Right(block)
     else Left(BlockLogBloomError)
   }
 
@@ -81,7 +84,7 @@ object BlockValidator {
     * This method allows validate a Block. It only perfoms the following validations (stated on
     * section 4.2.2 of http://paper.gavwood.com/):
     *   - BlockValidator.validateTransactionRoot
-    *   - BlockValidator.validateOmmers
+    *   - BlockValidator.validateOmmersHash
     *   - BlockValidator.validateReceipts
     *   - BlockValidator.validateLogBloom
     *
@@ -92,8 +95,7 @@ object BlockValidator {
   def validate(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block] = {
     for {
       _ <- validateHeaderAndBody(block.header, block.body)
-      _ <- validateReceipts(block, receipts)
-      _ <- validateLogBloom(block, receipts)
+      _ <- validateBlockAndReceipts(block, receipts)
     } yield block
   }
 
@@ -101,7 +103,7 @@ object BlockValidator {
     * This method allows validate that a BlockHeader matches a BlockBody. It only perfoms the following validations (stated on
     * section 4.2.2 of http://paper.gavwood.com/):
     *   - BlockValidator.validateTransactionRoot
-    *   - BlockValidator.validateOmmers
+    *   - BlockValidator.validateOmmersHash
     *
     * @param blockHeader to validate
     * @param blockBody to validate
@@ -111,7 +113,24 @@ object BlockValidator {
     val block = Block(blockHeader, blockBody)
     for {
       _ <- validateTransactionRoot(block)
-      _ <- validateOmmers(block)
+      _ <- validateOmmersHash(block)
+    } yield block
+  }
+
+  /**
+    * This method allows validations of the block with its associated receipts.
+    * It only perfoms the following validations (stated on section 4.2.2 of http://paper.gavwood.com/):
+    *   - BlockValidator.validateReceipts
+    *   - BlockValidator.validateLogBloom
+    *
+    * @param block    Block to validate
+    * @param receipts Receipts to be in validation process
+    * @return The block if validations are ok, error otherwise
+    */
+  def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block] = {
+    for {
+      _ <- validateReceipts(block, receipts)
+      _ <- validateLogBloom(block, receipts)
     } yield block
   }
 

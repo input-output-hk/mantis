@@ -1,10 +1,9 @@
 package io.iohk.ethereum.evm.util
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainStorages}
+import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainStorages, Receipt}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaderImplicits}
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -107,7 +106,7 @@ object FixtureProvider {
       .map(s => s.split(" ").toSeq).collect {
       case Seq(h, v) =>
         val key = ByteString(Hex.decode(h))
-        val value: Seq[Receipt] = fromRlpList(rawDecode(Hex.decode(v)).asInstanceOf[RLPList])(Receipt.rlpEncDec)
+        val value: Seq[Receipt] = fromRlpList(rawDecode(Hex.decode(v)).asInstanceOf[RLPList])(ReceiptImplicits.receiptRlpEncDec)
         key -> value
     }.toMap
 
