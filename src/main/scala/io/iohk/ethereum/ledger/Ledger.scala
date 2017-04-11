@@ -3,9 +3,10 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.validators.{SignedTransactionValidator, BlockHeaderValidator, BlockValidator, OmmersValidator}
+import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockValidator, OmmersValidator, SignedTransactionValidator}
 import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.vm.{GasFee, _}
+import org.spongycastle.util.encoders.Hex
 
 class Ledger(vm: VM) extends Logger {
 
@@ -27,11 +28,12 @@ class Ledger(vm: VM) extends Logger {
       log.debug(s"All txs from block ${block.header} were executed")
 
       val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
-      val afterExecutionBlockError = validateBlockAfterExecution(block, worldToPersist.stateRootHash, receipts, gasUsed)
-      if (afterExecutionBlockError.isEmpty) {
-        InMemoryWorldStateProxy.persistIfHashMatches(block.header.stateRoot, worldToPersist)
-        log.debug(s"Block ${block.header} txs state changes persisted")
-      } else throw new RuntimeException(afterExecutionBlockError.get)
+      val worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
+
+      val afterExecutionBlockError = validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
+      if (afterExecutionBlockError.isEmpty)
+        log.debug(s"Block ${Hex.toHexString(block.header.hash.toArray)} executed correctly")
+      else throw new RuntimeException(afterExecutionBlockError.get)
 
     } else throw new RuntimeException(blockError.get)
   }
