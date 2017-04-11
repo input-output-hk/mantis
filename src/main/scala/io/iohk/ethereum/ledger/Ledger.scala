@@ -42,6 +42,7 @@ class Ledger(vm: VM) extends Logger {
           }
         }
         .foreach(println)
+        println(receipts)
       //todo remove debug code
 
       val afterExecutionBlockError = validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)

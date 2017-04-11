@@ -34,13 +34,14 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
 
+// scalastyle:off
 class ExampleContractTest extends FlatSpec with Matchers {
   "FixtureProvider" should " load data from files" in {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/evm_test/purchaseContruct/")
 
     val (storage, stateStorage) = FixtureProvider.prepareStorages(1, fixtures)
 
-    val (_, state_after) = FixtureProvider.prepareStorages(1, fixtures)
+    val (st_a, state_after) = FixtureProvider.prepareStorages(2, fixtures)
 
     //todo remove debug code
     state_after.dataSource.asInstanceOf[EphemDataSource].storage.toSeq.sortBy(_._1.toString)
@@ -51,6 +52,7 @@ class ExampleContractTest extends FlatSpec with Matchers {
         }
       }
       .foreach(println)
+    println(fixtures.receipts.get(fixtures.blockByNumber(2).header.hash))
 
     println("----------------------------------------")
     println("----------------------------------------")

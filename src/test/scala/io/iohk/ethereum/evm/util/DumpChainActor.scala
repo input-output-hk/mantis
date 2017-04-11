@@ -74,7 +74,7 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
       bodiesFile.close()
 
     case MessageReceived(m: Receipts) =>
-      m.receiptsForBlocks.zip(blockHeadersHashes).foreach { case (r, h) =>
+      m.receiptsForBlocks.zip(blockHeadersHashes.tail).foreach { case (r, h) =>
         blockReceiptsStorage = blockReceiptsStorage + (h -> r)
       }
       val receiptsFile = new FileWriter("receipts.txt", true)

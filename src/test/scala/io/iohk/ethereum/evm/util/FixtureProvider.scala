@@ -29,16 +29,14 @@ object FixtureProvider {
   // scalastyle:off
   def prepareStorages(blockNumber: BigInt, fixtures: Fixture): (BlockchainStorages, NodeStorage) = {
 
-    val dataSource = EphemDataSource()
-
     val storages: BlockchainStorages = new BlockchainStorages {
-      override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSource)
-      override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSource)
-      override val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(dataSource)
-      override val blockNumberMappingStorage: BlockNumberMappingStorage = new BlockNumberMappingStorage(dataSource)
-      override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSource)
-      override val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(dataSource)
-      override val totalDifficultyStorage: TotalDifficultyStorage = new TotalDifficultyStorage(dataSource)
+      override val receiptStorage: ReceiptStorage = new ReceiptStorage(EphemDataSource())
+      override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(EphemDataSource())
+      override val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(EphemDataSource())
+      override val blockNumberMappingStorage: BlockNumberMappingStorage = new BlockNumberMappingStorage(EphemDataSource())
+      override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(EphemDataSource())
+      override val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(EphemDataSource())
+      override val totalDifficultyStorage: TotalDifficultyStorage = new TotalDifficultyStorage(EphemDataSource())
     }
 
     val stateStorage: NodeStorage = new NodeStorage(EphemDataSource())
