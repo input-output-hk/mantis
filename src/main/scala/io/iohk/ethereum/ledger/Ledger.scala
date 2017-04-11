@@ -1,8 +1,11 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
+import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.network.p2p.messages.PV63.{MptLeaf, MptNode}
+import io.iohk.ethereum.rlp.decode
 import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockValidator, OmmersValidator, SignedTransactionValidator}
 import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.vm.{GasFee, _}
@@ -29,6 +32,17 @@ class Ledger(vm: VM) extends Logger {
 
       val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
       val worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
+
+      //todo remove debug code
+      stateStorage.dataSource.asInstanceOf[EphemDataSource].storage.toSeq.sortBy(_._1.toString)
+        .map { case (h, v) =>
+          decode[MptNode](v.toArray) match {
+            case n: MptLeaf => s"${Hex.toHexString(h.toArray)} => ${n.getAccount}"
+            case e => s"${Hex.toHexString(h.toArray)} => $e"
+          }
+        }
+        .foreach(println)
+      //todo remove debug code
 
       val afterExecutionBlockError = validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
       if (afterExecutionBlockError.isEmpty)
@@ -122,7 +136,7 @@ class Ledger(vm: VM) extends Logger {
     if(block.header.gasUsed != gasUsed)
       Some(s"Block has invalid gas used: ${block.header.gasUsed} != $gasUsed")
     else if(block.header.stateRoot != stateRootHash)
-      Some(s"Block has invalid state root hash: ${block.header.stateRoot} != $stateRootHash")
+      Some(s"Block has invalid state root hash: ${Hex.toHexString(block.header.stateRoot.toArray[Byte])} != ${Hex.toHexString(stateRootHash.toArray[Byte])}")
     else if(blockAndReceiptsValidation.isLeft)
       Some(blockAndReceiptsValidation.left.get.toString)
     else
@@ -209,7 +223,7 @@ class Ledger(vm: VM) extends Logger {
     * @return Either the validated transaction or an error description
     */
   private def validateNonce(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): Either[String, SignedTransaction] = {
-    if (worldStateProxy.getAccount(stx.senderAddress).map(_.nonce).contains(stx.tx.nonce)) Right(stx)
+    if (worldStateProxy.getAccount(stx.senderAddress).map(_.nonce).contains(UInt256(stx.tx.nonce))) Right(stx)
     else Left("Account nonce is different from TX sender nonce")
   }
 

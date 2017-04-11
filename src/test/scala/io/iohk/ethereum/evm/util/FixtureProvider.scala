@@ -41,7 +41,7 @@ object FixtureProvider {
       override val totalDifficultyStorage: TotalDifficultyStorage = new TotalDifficultyStorage(dataSource)
     }
 
-    val stateStorage: NodeStorage = new NodeStorage(dataSource)
+    val stateStorage: NodeStorage = new NodeStorage(EphemDataSource())
 
     val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile { case (number, _) => number <= blockNumber }
 
@@ -49,7 +49,9 @@ object FixtureProvider {
       storages.blockBodiesStorage.put(block.header.hash, fixtures.blockBodies(block.header.hash))
       storages.blockHeadersStorage.put(block.header.hash, fixtures.blockHeaders(block.header.hash))
       storages.blockNumberMappingStorage.put(block.header.number, block.header.hash)
-      storages.receiptStorage.put(block.header.hash, fixtures.receipts(block.header.hash))
+      fixtures.receipts.get(block.header.hash).foreach(r => storages.receiptStorage.put(block.header.hash, r))
+
+      //storages.totalDifficultyStorage
 
       def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
         case Some(m: MptBranch) =>

@@ -80,9 +80,11 @@ object BlockHeaderValidator {
     * @return BlockHeader if valid, an [[HeaderDifficultyError]] otherwise
     */
   private def validateDifficulty(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] =
-    if(calculateDifficulty(blockHeader, parentHeader) == blockHeader.difficulty) Right(blockHeader)
-    else Left(HeaderDifficultyError)
-
+  //todo remove debug code
+    Right(blockHeader)
+//    if(calculateDifficulty(blockHeader, parentHeader) == blockHeader.difficulty) Right(blockHeader)
+//    else Left(HeaderDifficultyError)
+  //todo remove debug code
   /**
     * Validates [[io.iohk.ethereum.domain.BlockHeader.gasUsed]] is not greater than [[io.iohk.ethereum.domain.BlockHeader.gasLimit]]
     * based on validations stated in section 4.4.4 of http://paper.gavwood.com/

@@ -26,6 +26,7 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
   var evmCodeHashes: Set[ByteString] = Set.empty
 
   var blockHeadersStorage: Map[ByteString, BlockHeader] = HashMap.empty
+  var blockHeadersHashes: Seq[ByteString] = Nil
   var blockBodyStorage: Map[ByteString, BlockBody] = HashMap.empty
   var blockReceiptsStorage: Map[ByteString, Seq[Receipt]] = HashMap.empty
   var stateStorage: Map[ByteString, MptNode] = HashMap.empty
@@ -52,6 +53,7 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
       val headerHashes = m.headers.map(_.hash)
       val mptRoots: Seq[ByteString] = m.headers.map(_.stateRoot)
 
+      blockHeadersHashes = m.headers.map(_.hash)
       m.headers.foreach { h =>
         blockHeadersStorage = blockHeadersStorage + (h.hash -> h)
       }
@@ -64,7 +66,7 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
       }
 
     case MessageReceived(m: BlockBodies) =>
-      m.bodies.zip(blockHeadersStorage.keys).foreach { case (b, h) =>
+      m.bodies.zip(blockHeadersHashes).foreach { case (b, h) =>
         blockBodyStorage = blockBodyStorage + (h -> b)
       }
       val bodiesFile = new FileWriter("bodies.txt", true)
@@ -72,7 +74,7 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
       bodiesFile.close()
 
     case MessageReceived(m: Receipts) =>
-      m.receiptsForBlocks.zip(blockHeadersStorage.keys).foreach { case (r, h) =>
+      m.receiptsForBlocks.zip(blockHeadersHashes).foreach { case (r, h) =>
         blockReceiptsStorage = blockReceiptsStorage + (h -> r)
       }
       val receiptsFile = new FileWriter("receipts.txt", true)
