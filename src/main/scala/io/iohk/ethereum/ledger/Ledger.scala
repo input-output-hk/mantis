@@ -31,12 +31,13 @@ class Ledger(vm: VM) extends Logger {
       execResult <- executeBlockTransactions(block, blockchain, storages, stateStorage)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
       worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
+      worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
 
-      _ <- validateBlockAfterExecution(block, worldToPersist.stateRootHash, receipts, gasUsed)
-      _ = InMemoryWorldStateProxy.persistIfHashMatches(block.header.stateRoot, worldToPersist)
+      _ <- validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
     } yield ()
 
-    if(blockExecResult.isRight) log.debug(s"Block ${Hex.toHexString(block.header.hash.toArray)} txs state changes persisted")
+    if(blockExecResult.isRight)
+      log.debug(s"Block ${Hex.toHexString(block.header.hash.toArray)} executed correctly")
     blockExecResult
   }
 
