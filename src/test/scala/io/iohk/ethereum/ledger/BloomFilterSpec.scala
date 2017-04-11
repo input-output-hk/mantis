@@ -8,17 +8,17 @@ import org.spongycastle.util.encoders.Hex
 class BloomFilterSpec extends FlatSpec with Matchers {
 
   it should "properly create the bloom filter for without logs" in {
-    val obtained = BloomFilter.create(receiptWithoutLogs.logs.toSet)
+    val obtained = BloomFilter.create(receiptWithoutLogs.logs)
     obtained shouldBe receiptWithoutLogs.logsBloomFilter
   }
 
   it should "properly create the bloom filter for with one log entry with one topic" in {
-    val obtained = BloomFilter.create(receiptOneLogOneTopic.logs.toSet)
+    val obtained = BloomFilter.create(receiptOneLogOneTopic.logs)
     obtained shouldBe receiptOneLogOneTopic.logsBloomFilter
   }
 
   it should "properly create the bloom filter for with many logs" in {
-    val obtained = BloomFilter.create(receiptWithManyLogs.logs.toSet)
+    val obtained = BloomFilter.create(receiptWithManyLogs.logs)
     obtained shouldBe receiptWithManyLogs.logsBloomFilter
   }
 

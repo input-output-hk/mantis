@@ -14,7 +14,7 @@ object InMemorySimpleMapProxy {
   * @tparam K data type of the key to be used within this Proxy
   * @tparam V data type of the value to be used within this Proxy
   */
-class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private(val inner: I, private val cache: Map[K, Option[V]])
+class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private(val inner: I, val cache: Map[K, Option[V]])
   extends SimpleMap[K, V, InMemorySimpleMapProxy[K, V, I]] {
 
   type Changes = (Seq[K], Seq[(K, V)])

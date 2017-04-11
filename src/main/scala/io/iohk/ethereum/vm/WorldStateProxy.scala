@@ -41,15 +41,12 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] {
   def accountExists(address: Address): Boolean =
     getAccount(address).isDefined
 
-  def nonEmptyAccountExists(address: Address): Boolean =
-    getAccount(address).forall(!_.isEmpty)
-
   def getBalance(address: Address): UInt256 =
     getAccount(address).map(a => UInt256(a.balance)).getOrElse(UInt256.Zero)
 
   def transfer(from: Address, to: Address, value: UInt256): WS = {
-    val debited = getGuaranteedAccount(from).updateBalance(-value)
-    val credited = getAccount(to).getOrElse(Account.Empty).updateBalance(value)
+    val debited = getGuaranteedAccount(from).increaseBalance(-value)
+    val credited = getAccount(to).getOrElse(Account.Empty).increaseBalance(value)
     saveAccount(from, debited).saveAccount(to, credited)
   }
 

@@ -33,7 +33,6 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   memory: Memory = Memory.empty,
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
-  //TODO: investigate whether we need this or should refunds be simply added to current gas
   gasRefund: UInt256 = 0,
   addressesToDelete: Seq[Address] = Nil,
   logs: Vector[TxLogEntry] = Vector.empty,

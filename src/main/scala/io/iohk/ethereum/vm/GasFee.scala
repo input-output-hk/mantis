@@ -1,7 +1,6 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.vm.FeeSchedule.Key._
 
 object GasFee {
@@ -35,15 +34,13 @@ object GasFee {
     * Calculates transaction intrinsic gas. See YP section 6.2
     *
     */
-  def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean, blockNumber: BigInt, config: EvmConfig): BigInt = {
+  def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean, blockNumber: BigInt, config: EvmConfig): UInt256 = {
     val txDataZero = txData.count(_ == 0)
     val txDataNonZero = txData.length - txDataZero
 
-    val txCreateGas = if (isContractCreation) config.feeSchedule(G_txcreate) else UInt256(0)
-
     txDataZero * config.feeSchedule(G_txdatazero) +
     txDataNonZero * config.feeSchedule(G_txdatanonzero) +
-    txCreateGas +
+    (if (isContractCreation) config.feeSchedule(G_txcreate) else 0) +
     config.feeSchedule(G_transaction)
   }
 

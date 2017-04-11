@@ -19,9 +19,7 @@ case class Account(
   storageRoot: ByteString = Account.EmptyStorageRootHash,
   codeHash: ByteString = Account.EmptyCodeHash) {
 
-  import Account._
-
-  def updateBalance(value: UInt256): Account =
+  def increaseBalance(value: UInt256): Account =
     copy(balance = balance + value)
 
   def increaseNonce: Account =
@@ -32,11 +30,4 @@ case class Account(
 
   def withStorage(storageRoot: ByteString): Account =
     copy(storageRoot = storageRoot)
-
-  def isEmpty: Boolean = {
-    balance == UInt256.Zero &&
-    nonce == UInt256.Zero &&
-    codeHash == EmptyCodeHash
-  }
-
 }
