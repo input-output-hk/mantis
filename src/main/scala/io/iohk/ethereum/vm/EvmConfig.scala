@@ -38,8 +38,8 @@ object EvmConfig {
 
   /*
   TODO(CREATE): sub_gas_cap_divisor
-  	  If Some(x): let limit = GAS * (x - 1) / x; let CALL's gas = min(requested, limit). let CREATE's gas = limit.
-      If None: let CALL's gas = (requested > GAS ? [OOG] : GAS). let CREATE's gas = GAS
+    If Some(x): let limit = GAS * (x - 1) / x; let CALL's gas = min(requested, limit). let CREATE's gas = limit.
+    If None: let CALL's gas = (requested > GAS ? [OOG] : GAS). let CREATE's gas = GAS
    */
   val PostEIP150Config = EvmConfig(
     feeSchedule = FeeSchedule.PostEIP150FeeSchedule,
