@@ -21,12 +21,9 @@ object Address {
 
   def apply(addr: Long): Address = Address(UInt256(addr))
 
-  val empty: Address = Address(ByteString())
 }
 
 class Address private(val bytes: ByteString) {
-
-  def isEmpty: Boolean = bytes == Address.empty.bytes
 
   def toArray: Array[Byte] = bytes.toArray
 
