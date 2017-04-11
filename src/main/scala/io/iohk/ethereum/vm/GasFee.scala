@@ -1,7 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.vm.FeeSchedule.Key._
+import io.iohk.ethereum.vm.FeeSchedule.GasCost._
 
 object GasFee {
 

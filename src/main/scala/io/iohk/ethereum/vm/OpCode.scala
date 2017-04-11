@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Address, TxLogEntry}
 import io.iohk.ethereum.vm.GasFee._
-import FeeSchedule.Key._
+import FeeSchedule.GasCost._
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
@@ -161,9 +161,6 @@ object OpCodes {
 
   val HomesteadOpCodes: List[OpCode] =
     FrontierOpCodes :+ DELEGATECALL
-
-  val PostEIP150OpCodes: List[OpCode] =
-    HomesteadOpCodes
 }
 
 object OpCode {
@@ -178,8 +175,8 @@ object OpCode {
   * @param delta number of words to be popped from stack
   * @param alpha number of words to be pushed to stack
   */
-sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constGasScheduleKey: FeeSchedule.Key) {
-  def this(code: Int, pop: Int, push: Int, constGasScheduleKey: FeeSchedule.Key) = this(code.toByte, pop, push, constGasScheduleKey)
+sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constGasScheduleKey: FeeSchedule.GasCost) {
+  def this(code: Int, pop: Int, push: Int, constGasScheduleKey: FeeSchedule.GasCost) = this(code.toByte, pop, push, constGasScheduleKey)
 
   def execute[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     if (state.stack.size < delta)
@@ -213,7 +210,7 @@ case object STOP extends OpCode(0x00, 0, 0, G_zero) with ConstGas {
 
 sealed abstract class UnaryOp(
     code: Int,
-    constGasScheduleKey: FeeSchedule.Key)(val f: UInt256 => UInt256)
+    constGasScheduleKey: FeeSchedule.GasCost)(val f: UInt256 => UInt256)
   extends OpCode(code, 1, 1, constGasScheduleKey) with ConstGas {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -224,7 +221,7 @@ sealed abstract class UnaryOp(
   }
 }
 
-sealed abstract class BinaryOp(code: Int, constGasScheduleKey: FeeSchedule.Key)(val f: (UInt256, UInt256) => UInt256)
+sealed abstract class BinaryOp(code: Int, constGasScheduleKey: FeeSchedule.GasCost)(val f: (UInt256, UInt256) => UInt256)
   extends OpCode(code.toByte, 2, 1, constGasScheduleKey) {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -235,7 +232,7 @@ sealed abstract class BinaryOp(code: Int, constGasScheduleKey: FeeSchedule.Key)(
   }
 }
 
-sealed abstract class TernaryOp(code: Int, constGasScheduleKey: FeeSchedule.Key)(val f: (UInt256, UInt256, UInt256) => UInt256)
+sealed abstract class TernaryOp(code: Int, constGasScheduleKey: FeeSchedule.GasCost)(val f: (UInt256, UInt256, UInt256) => UInt256)
     extends OpCode(code.toByte, 3, 1, constGasScheduleKey) {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {

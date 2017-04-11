@@ -2,7 +2,7 @@ package io.iohk.ethereum.vmrunner
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Account, Address}
-import io.iohk.ethereum.vm.FeeSchedule.Key.G_codedeposit
+import io.iohk.ethereum.vm.FeeSchedule.GasCost.G_codedeposit
 import io.iohk.ethereum.vm._
 import WorldState.{PC, PR}
 

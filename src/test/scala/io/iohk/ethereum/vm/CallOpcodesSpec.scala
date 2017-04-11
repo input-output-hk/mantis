@@ -1,7 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.vm.FeeSchedule.Key._
+import io.iohk.ethereum.vm.FeeSchedule.GasCost._
 import org.scalatest.{Matchers, WordSpec}
 import Assembly._
 import GasFee._
@@ -15,7 +15,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
   val config = EvmConfig.HomesteadConfig
 
-  implicit def scheduleKeyToUInt256(key: FeeSchedule.Key): UInt256 = config.feeSchedule(key)
+  implicit def scheduleKeyToUInt256(key: FeeSchedule.GasCost): UInt256 = config.feeSchedule(key)
 
   object fxt {
 

@@ -1,6 +1,6 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.vm.FeeSchedule.Key._
+import io.iohk.ethereum.vm.FeeSchedule.GasCost._
 import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
 import Generators._
@@ -15,12 +15,12 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   override val config = EvmConfig.FrontierConfig
 
-  implicit def scheduleKeyToUInt256(key: FeeSchedule.Key): UInt256 = config.feeSchedule(key)
+  implicit def scheduleKeyToUInt256(key: FeeSchedule.GasCost): UInt256 = config.feeSchedule(key)
 
   val stackOpsFees = (pushOps ++ dupOps ++ swapOps).map(_ -> config.feeSchedule(G_verylow))
   val constOpsFees = constOps.map(_ -> config.feeSchedule(G_base))
 
-  val constGasFees = Map[OpCode, FeeSchedule.Key](
+  val constGasFees = Map[OpCode, FeeSchedule.GasCost](
     STOP -> G_zero,
     ADD -> G_verylow,
     MUL -> G_low,

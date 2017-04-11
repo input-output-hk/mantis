@@ -27,7 +27,7 @@ class Ledger(vm: VM) extends Logger {
       val BlockResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, blockchain, storages, stateStorage)
       log.debug(s"All txs from block ${block.header} were executed")
 
-      val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
+      val worldToPersist = payBlockReward(Config.Blockchain.blockReward, block, resultingWorldStateProxy)
       val worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
 
       val afterExecutionBlockError = validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
