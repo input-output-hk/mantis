@@ -2,6 +2,7 @@ package io.iohk.ethereum.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.validators.BlockValidator.{BlockLogBloomError, BlockOmmersHashError, BlockReceiptsHashError, BlockTransactionsHashError}
 import org.scalatest.{FlatSpec, Matchers}
@@ -62,6 +63,13 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
   "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong ommers hash" in {
     BlockValidator.validateHeaderAndBody(wrongOmmersHashHeader, validBlockBody) match {
       case Left(BlockOmmersHashError) => succeed
+      case _ => fail
+    }
+  }
+
+  "Block" should "correctly handle the case where a block has no receipts" in {
+    BlockValidator.validate(blockWithOutReceipts, Nil) match {
+      case Right(validated) if validated==blockWithOutReceipts => succeed
       case _ => fail
     }
   }
@@ -181,6 +189,11 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
 
   val wrongLogBloomBlockHeader = validBlockHeader.copy(
     logsBloom = ByteString(Hex.decode("1" * 512))
+  )
+
+  val blockWithOutReceipts = Block(
+    validBlockHeader.copy(receiptsRoot = Account.EmptyStorageRootHash, logsBloom = BloomFilter.EmptyBloomFilter),
+    validBlockBody
   )
 
 }
