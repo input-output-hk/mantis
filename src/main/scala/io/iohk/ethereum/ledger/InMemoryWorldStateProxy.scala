@@ -95,7 +95,6 @@ object InMemoryWorldStateProxy {
         kec256(_: Array[Byte])
       )(HashByteArraySerializable(byteStringSerializer), accountSerializer)
     )
-    //
   }
 
   /**

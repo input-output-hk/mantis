@@ -85,4 +85,21 @@ class TransactionSpec extends FlatSpec with Matchers {
     stxWithInvalidPointSign.map(_.senderAddress) shouldBe None
   }
 
+  it should "recover the correct sender for tx in block 46147" in {
+    val stx: SignedTransaction = SignedTransaction(
+      tx = Transaction(
+        nonce = BigInt(0),
+        gasPrice = BigInt("50000000000000"),
+        gasLimit = BigInt(21000),
+        receivingAddress = Address(ByteString(Hex.decode("5df9b87991262f6ba471f09758cde1c0fc1de734"))),
+        value = BigInt(31337),
+        payload = ByteString.empty
+      ),
+      signature = ECDSASignature(BigInt("61965845294689009770156372156374760022787886965323743865986648153755601564112").bigInteger, BigInt("31606574786494953692291101914709926755545765281581808821704454381804773090106").bigInteger,28.toByte)
+    ).get
+
+    stx.senderAddress shouldBe  Address(ByteString(Hex.decode("a1e4380a3b1f749673e270229993ee55f35663b4")))
+  }
+
+
 }

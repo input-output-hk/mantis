@@ -76,10 +76,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     validateInitialWorld(afterUpdatesWorldState)
 
     // Persist and check
-    val persistedWorldState = persistIfHashMatches(
-      ByteString(Hex.decode("bf117ca2e8a9ec7978cac9f46a6714b7e4fa9c065d5ba03fc3c0502710d92d19")),
-      afterUpdatesWorldState
-    )
+    val persistedWorldState = InMemoryWorldStateProxy.persistState(afterUpdatesWorldState)
     validateInitialWorld(persistedWorldState)
 
     // Create a new WS instance based on storages and new root state and check
@@ -97,10 +94,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     updatedNewWorldState.getStorage(address1).load(addr) shouldEqual value
 
     // Persist and check again
-    val persistedNewWorldState = persistIfHashMatches(
-      ByteString(Hex.decode("71e5a0e173527cd8dde2e587a09c4a8f6a138226e2979a7fcbd273a89d117511")),
-      updatedNewWorldState
-    )
+    val persistedNewWorldState = InMemoryWorldStateProxy.persistState(updatedNewWorldState)
 
     persistedNewWorldState.getGuaranteedAccount(address1).balance shouldEqual account.balance
     persistedNewWorldState.getGuaranteedAccount(address2).balance shouldEqual 0

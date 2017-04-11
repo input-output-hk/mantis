@@ -77,6 +77,9 @@ object SignedTransaction {
 
     for {
       key <- recoveredPublicKey
+
+      //TODO: Parity doesn't do this (https://github.com/paritytech/parity/blob/master/ethkey/src/keypair.rs#L23-L28)
+      //      more research is needed on why `key.tail` is needed
       addrBytes = crypto.kec256(key.tail).slice(FirstByteOfAddress, LastByteOfAddress)
       if addrBytes.length == Address.Length
     } yield Address(addrBytes)
