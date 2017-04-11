@@ -50,15 +50,16 @@ object CommonMessages {
       override def encode(signedTx: SignedTransaction): RLPEncodeable = {
         import signedTx._
         import signedTx.tx._
-        RLPList(nonce, gasPrice, gasLimit, receivingAddress.toArray, value,
+        RLPList(nonce, gasPrice, gasLimit, receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray): Array[Byte], value,
           payload, signature.v, BigInt(signature.r), BigInt(signature.s))
       }
 
       override def decode(rlp: RLPEncodeable): SignedTransaction = rlp match {
         case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value,
         payload, pointSign, signatureRandom, signature) =>
+          val receivingAddressOpt = if(receivingAddress.bytes.isEmpty) None else Some(Address(receivingAddress.bytes))
           SignedTransaction(
-            Transaction(nonce, gasPrice, gasLimit, Address(receivingAddress.bytes), value, payload),
+            Transaction(nonce, gasPrice, gasLimit, receivingAddressOpt, value, payload),
             pointSign,
             signatureRandom.bytes,
             signature.bytes
