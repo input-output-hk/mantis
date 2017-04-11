@@ -123,7 +123,7 @@ trait RegularSync {
         blockchain.getBlockHeaderByHash(blocks.head.header.parentHash)
           .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
           case Some(blockParentTd) =>
-            val (newBlocks, error) = insertBlocks(blocks, blockParentTd)
+            val (newBlocks, error) = processBlocks(blocks, blockParentTd)
 
             if(newBlocks.nonEmpty){
               context.self ! BroadcastBlocks(newBlocks)
@@ -157,8 +157,9 @@ trait RegularSync {
   }
 
   /**
-    * Inserts and executes the transactions of the blocks, up to the point to which one of them fails (or we run out of blocks).
-    * If the execution of any block were to fail, newBlocks only contains the NewBlock msgs for all the blocks executed before it.
+    * Inserts and executes all the blocks, up to the point to which one of them fails (or we run out of blocks).
+    * If the execution of any block were to fail, newBlocks only contains the NewBlock msgs for all the blocks executed before it,
+    * and only the blocks successfully executed are inserted into the blockchain.
     *
     * @param blocks to execute
     * @param blockParentTd, td of the parent of the blocks.head block
@@ -166,7 +167,7 @@ trait RegularSync {
     * @return list of NewBlocks to broadcast (one per block successfully executed) and an error if one happened during execution
     */
   @tailrec
-  private def insertBlocks(blocks: Seq[Block], blockParentTd: BigInt,
+  private def processBlocks(blocks: Seq[Block], blockParentTd: BigInt,
                            newBlocks: Seq[NewBlock] = Nil): (Seq[NewBlock], Option[String]) = blocks match {
     case Nil =>
       newBlocks -> None
@@ -181,7 +182,7 @@ trait RegularSync {
           val newTd = blockParentTd + block.header.difficulty
           blockchain.save(block.header.hash, newTd)
           blockHashToDelete.foreach(blockchain.removeBlock)
-          insertBlocks(otherBlocks, newTd, newBlocks :+ NewBlock(block, newTd))
+          processBlocks(otherBlocks, newTd, newBlocks :+ NewBlock(block, newTd))
 
         case Failure(error) =>
           newBlocks -> Some(error.getMessage)
