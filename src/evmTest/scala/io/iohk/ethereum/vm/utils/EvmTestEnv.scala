@@ -132,7 +132,7 @@ trait EvmTestEnv {
              gasLimit: BigInt = BigInt(2).pow(256) - 1,
              gasPrice: BigInt = 1,
              sender: Address = defaultSender): ProgramResult[MockWorldState, MockStorage] = {
-      val transaction = MockVmInput.transaction(sender, callData, value, gasLimit, gasPrice, contract.address)
+      val transaction = MockVmInput.transaction(sender, callData, value, gasLimit, gasPrice, Some(contract.address))
       val blockHeader = MockVmInput.blockHeader
       val pc = ProgramContext[MockWorldState, MockStorage](transaction, blockHeader, world, config)
 

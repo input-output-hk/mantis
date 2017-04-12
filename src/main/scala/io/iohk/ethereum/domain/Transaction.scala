@@ -10,13 +10,16 @@ object Transaction {
   val GasLength = 32
   val ValueLength = 32
 
+  def apply(nonce: BigInt, gasPrice: BigInt, gasLimit: BigInt, receivingAddress: Address, value: BigInt, payload: ByteString): Transaction =
+    Transaction(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload)
+
 }
 
 case class Transaction(
   nonce: BigInt,
   gasPrice: BigInt,
   gasLimit: BigInt,
-  receivingAddress: Address,
+  receivingAddress: Option[Address],
   value: BigInt,
   payload: ByteString) {
 
@@ -27,7 +30,7 @@ case class Transaction(
          |nonce: $nonce
          |gasPrice: $gasPrice
          |gasLimit: $gasLimit
-         |receivingAddress: ${Hex.toHexString(receivingAddress.toArray)}
+         |receivingAddress: ${if(receivingAddress.isDefined) Hex.toHexString(receivingAddress.get.toArray) else "[Contract creation]"}
          |value: $value wei
          |payload: ${if (isContractInit) "ContractInit: " else "TransactionData: "}${Hex.toHexString(payload.toArray[Byte])}
          |}""".stripMargin

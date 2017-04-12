@@ -54,9 +54,11 @@ class Ledger(vm: VM) extends Logger {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = InMemoryWorldStateProxy(storages, stateStorage, parentStateRoot)
 
+    val config = EvmConfig.forBlock(block.header.number)
+
     block.body.transactionList.foldLeft[BlockResult](BlockResult(worldState = initialWorld)) {
       case (BlockResult(world, acumGas, receipts), stx)=>
-        validateTransaction(stx, world, acumGas, block.header) match {
+        validateTransaction(stx, world, acumGas, block.header, config) match {
           case Left(err) =>
             throw new RuntimeException(err)
 
@@ -168,7 +170,7 @@ class Ledger(vm: VM) extends Logger {
     * @param tx Target transaction
     * @return Upfront cost
     */
-  private def calculateUpfrontGas(tx: Transaction): BigInt = tx.gasLimit * tx.gasPrice
+  private def calculateUpfrontGas(tx: Transaction): UInt256 = UInt256(tx.gasLimit * tx.gasPrice)
 
   /**
     * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price) + Tv (Tx value). See YP equation number (65)
@@ -191,12 +193,13 @@ class Ledger(vm: VM) extends Logger {
     stx: SignedTransaction,
     worldState: InMemoryWorldStateProxy,
     accumGasLimit: BigInt,
-    blockHeader: BlockHeader): Either[String, SignedTransaction] = {
+    blockHeader: BlockHeader,
+    config: EvmConfig): Either[String, SignedTransaction] = {
     for {
       _ <- SignedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = blockHeader.number < Config.Blockchain.homesteadBlockNumber)
         .left.map(_.toString)
       _ <- validateNonce(stx, worldState)
-      _ <- validateGas(stx, blockHeader)
+      _ <- validateGas(stx, blockHeader, config)
       _ <- validateAccountHasEnoughGasToPayUpfrontCost(stx, worldState)
       _ <- validateGasLimit(stx, accumGasLimit, blockHeader.gasLimit)
     } yield stx
@@ -219,9 +222,8 @@ class Ledger(vm: VM) extends Logger {
     * @param stx Transaction to validate
     * @return Either the validated transaction or an error description
     */
-  private def validateGas(stx: SignedTransaction, blockHeader: BlockHeader): Either[String, SignedTransaction] = {
+  private def validateGas(stx: SignedTransaction, blockHeader: BlockHeader, config: EvmConfig): Either[String, SignedTransaction] = {
     import stx.tx
-    val config = EvmConfig.forBlock(blockHeader.number)
     if (stx.tx.gasLimit >= GasFee.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, blockHeader.number, config)) Right(stx)
     else Left("Transaction gas limit is less than the transaction execution gast (intrinsic gas)")
   }
@@ -243,7 +245,7 @@ class Ledger(vm: VM) extends Logger {
 
   /**
     * Increments account nonce by 1 stated in YP equation (69) and
-    * Pays the upfront Tx gas calculated as TxGasPrice * TxGasLimit + TxValue from balance. YP equation (68)
+    * Pays the upfront Tx gas calculated as TxGasPrice * TxGasLimit from balance. YP equation (68)
     *
     * @param stx
     * @param worldStateProxy
@@ -252,7 +254,7 @@ class Ledger(vm: VM) extends Logger {
   private[ledger] def updateSenderAccountBeforeExecution(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     val senderAddress = stx.senderAddress
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
-    worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontCost(stx.tx)).increaseNonce)
+    worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce)
   }
 
   /**
@@ -272,7 +274,7 @@ class Ledger(vm: VM) extends Logger {
   private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): PR = {
     val config = EvmConfig.forBlock(blockHeader.number)
     val context: PC = ProgramContext(stx, blockHeader, worldStateProxy, config)
-    val result = vm.run(context)
+    val result: PR = vm.run(context)
     if (stx.tx.isContractInit && result.error.isEmpty)
       saveNewContract(context.env.ownerAddr, result, config)
     else

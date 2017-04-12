@@ -24,21 +24,22 @@ object ProgramContext {
   }
 
   private def callOrCreate[W <: WorldStateProxy[W, S], S <: Storage[S]](world: W, tx: Transaction, senderAddress: Address): (W, Address, Program) = {
-    if (tx.receivingAddress.isEmpty) {
-      // contract create
-      val (address, world1) = world.newAddress(senderAddress)
-      val world2 = world1.newEmptyAccount(address)
-      val world3 = world2.transfer(senderAddress, address, UInt256(tx.value))
-      val code = tx.payload
+    tx.receivingAddress match {
+      case None =>
+        // contract create
+        val (address, world1) = world.newAddress(senderAddress)
+        val world2 = world1.newEmptyAccount(address)
+        val world3 = world2.transfer(senderAddress, address, UInt256(tx.value))
+        val code = tx.payload
 
-      (world3, address, Program(code))
+        (world3, address, Program(code))
 
-    } else {
-      // message call
-      val world1 = world.transfer(senderAddress, tx.receivingAddress, UInt256(tx.value))
-      val code = world1.getCode(tx.receivingAddress)
+      case Some(txReceivingAddress) =>
+        // message call
+        val world1 = world.transfer(senderAddress, txReceivingAddress, UInt256(tx.value))
+        val code = world1.getCode(txReceivingAddress)
 
-      (world1, tx.receivingAddress, Program(code))
+        (world1, tx.receivingAddress.get, Program(code))
     }
   }
 }

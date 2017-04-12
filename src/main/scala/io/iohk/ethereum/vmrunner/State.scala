@@ -53,7 +53,7 @@ object State {
   }
 
   def runTransaction(xAccount: XAccount, callData: ByteString, gas: BigInt, value: BigInt): PR = {
-    val tx = MockVmInput.transaction(creatorAddress, callData, value, gas, receivingAddress = xAccount.address)
+    val tx = MockVmInput.transaction(creatorAddress, callData, value, gas, receivingAddress = Some(xAccount.address))
     val bh = MockVmInput.blockHeader
 
     val context: PC = ProgramContext(tx, bh, world, evmConfig)
