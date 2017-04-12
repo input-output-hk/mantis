@@ -9,12 +9,6 @@ import org.spongycastle.util.encoders.Hex
 
 class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
 
-  def persistIfHashMatches(stateRootHash: ByteString, worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    val commited = InMemoryWorldStateProxy.persistState(worldState)
-    if (commited.stateRootHash == stateRootHash) commited
-    else worldState
-  }
-
   "InMemoryWorldStateProxy" should "allow to create and retrieve an account" in new TestSetup {
     worldState.newEmptyAccount(address1).accountExists(address1) shouldBe true
   }
