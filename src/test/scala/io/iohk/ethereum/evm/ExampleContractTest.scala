@@ -13,7 +13,7 @@ class ExampleContractTest extends FlatSpec with Matchers {
 
     val (storage, stateStorage) = FixtureProvider.prepareStorages(0, fixtures)
 
-    //block containing only ether transfers
+    //block only with ether transfers
     Ledger.executeBlock(fixtures.blockByNumber(1), storage, stateStorage)
   }
 }

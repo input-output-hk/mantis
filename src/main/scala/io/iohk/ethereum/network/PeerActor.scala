@@ -154,8 +154,8 @@ class PeerActor(
       protocolVersion = Message.PV63,
       networkId = Config.Network.networkId,
       totalDifficulty = bestBlockHeader.difficulty,
-      bestHash = ByteString(Hex.decode("5ce1d5a43cdf5d8525c0eb750779066255df639dcc2575fc06bb6014cd5db8d5")),
-      genesisHash = ByteString(Hex.decode("5ce1d5a43cdf5d8525c0eb750779066255df639dcc2575fc06bb6014cd5db8d5"))//blockchain.genesisHeader.hash
+      bestHash = ByteString(Hex.decode("c2503fa5d31cc3daf8a97ea57a15d2bee8e867252e2d8d6fdb84eedc17309e55")),
+      genesisHash = ByteString(Hex.decode("c2503fa5d31cc3daf8a97ea57a15d2bee8e867252e2d8d6fdb84eedc17309e55"))//blockchain.genesisHeader.hash
     )
   }
 

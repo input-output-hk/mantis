@@ -21,7 +21,7 @@
     }
   },
   "params": {
-    "accountStartNonce": "0x0100000",
+    "accountStartNonce": "0x00",
     "maximumExtraDataSize": "0x20",
     "minGasLimit": "0x1388",
     "networkID": "0x92",
@@ -100,7 +100,7 @@
     },
     "004A44Da31Bb735cB20171AfF69E60E3e50d26De": {
       "balance": "1606938044258990275541962092341162602522202993782792835301376",
-      "nonce": "10485788"
+      "nonce": "0"
     }
   }
 }
