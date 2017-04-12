@@ -696,8 +696,9 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
       val result = VM.run(context)
 
       val codeDepositGas = state.config.calcCodeDepositCost(result.returnData)
-      val gasUsed = startGas - result.gasRemaining + codeDepositGas
-      val enoughGasForDeposit = gasUsed <= availableGas
+      val gasUsedInVm = startGas - result.gasRemaining
+      val totalGasRequired = gasUsedInVm + codeDepositGas
+      val enoughGasForDeposit = totalGasRequired <= availableGas
 
       if (result.error.isDefined) {
         val stack2 = stack1.push(UInt256.Zero)
@@ -709,17 +710,19 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
       } else {
         val stack2 = stack1.push(newAddress.toUInt256)
 
-        val world3 =
-          if (!enoughGasForDeposit) result.world
-          else result.world.saveCode(newAddress, result.returnData)
+        val state1 =
+          if (!enoughGasForDeposit)
+            state.withWorld(result.world).spendGas(gasUsedInVm)
+          else {
+            val world3 = result.world.saveCode(newAddress, result.returnData)
+            state.withWorld(world3).spendGas(totalGasRequired)
+          }
 
-        state
+        state1
           .withStack(stack2)
-          .withWorld(world3)
           .withAddressesToDelete(result.addressesToDelete)
           .withLogs(result.logs)
           .withMemory(memory1)
-          .spendGas(gasUsed)
           .step()
       }
     }
