@@ -75,6 +75,11 @@ object Config {
   object Blockchain {
     private val blockchainConfig = config.getConfig("blockchain")
 
+    val frontierBlockNumber = BigInt(blockchainConfig.getString("frontier-block-number"))
+    val homesteadBlockNumber = BigInt(blockchainConfig.getString("homestead-block-number"))
+    val eip150BlockNumber = BigInt(blockchainConfig.getString("eip150-block-number"))
+    val eip160BlockNumber = BigInt(blockchainConfig.getString("eip160-block-number"))
+
     val customGenesisFileOpt = Try(blockchainConfig.getString("custom-genesis-file")).toOption
 
     val daoForkBlockNumber = BigInt(blockchainConfig.getString("dao-fork-block-number"))
@@ -83,10 +88,7 @@ object Config {
 
     val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
 
-    val HomesteadBlock: BigInt = 1150000
-
-    // YP eq 150
-    val BlockReward = UInt256(BigInt("5000000000000000000"))
+    val blockReward = UInt256(BigInt(blockchainConfig.getString("block-reward")))
   }
 
   object FastSync {
