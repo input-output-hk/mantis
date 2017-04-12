@@ -2,13 +2,12 @@ package io.iohk.ethereum.vmrunner
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Account, Address}
-import io.iohk.ethereum.vm.FeeSchedule.GasCost.G_codedeposit
 import io.iohk.ethereum.vm._
 import WorldState.{PC, PR}
 
 object State {
 
-  val evmConfig = EvmConfig.HomesteadConfig
+  val evmConfig = EvmConfig.PostEIP160Config
 
   val creatorAddress = Address(0xabcdef) //scalastyle:off magic.number
 
@@ -30,7 +29,7 @@ object State {
     val intermediateResult: PR = VM.run(context)
 
     val result: PR = if (intermediateResult.error.isDefined) intermediateResult else {
-      val depositCost = evmConfig.feeSchedule(G_codedeposit) * intermediateResult.returnData.size
+      val depositCost = evmConfig.feeSchedule.G_codedeposit * intermediateResult.returnData.size
       intermediateResult.copy(
         gasRemaining = intermediateResult.gasRemaining - depositCost,
         error = if (intermediateResult.gasRemaining < depositCost) Some(OutOfGas) else None

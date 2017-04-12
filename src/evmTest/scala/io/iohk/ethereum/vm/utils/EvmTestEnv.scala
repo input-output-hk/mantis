@@ -25,7 +25,7 @@ trait EvmTestEnv {
 
   import EvmTestEnv._
 
-  val config = EvmConfig.HomesteadConfig
+  val config = EvmConfig.PostEIP160Config
 
   private var contractsAddresses: Map[String, Address] = Map.empty
   private var contractsAbis: Map[String, Seq[ABI]] = Map.empty

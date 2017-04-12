@@ -1,7 +1,6 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.vm.FeeSchedule.GasCost._
 
 object GasFee {
 
@@ -18,11 +17,11 @@ object GasFee {
     /** See YP H.1 (222) */
     def c(m: UInt256): UInt256 = {
       val a = wordsForBytes(m)
-      config.feeSchedule(G_memory) * a + a * a / 512
+      config.feeSchedule.G_memory * a + a * a / 512
     }
 
     val memNeeded = if (dataSize.isZero) UInt256.Zero else offset + dataSize
-    if (memNeeded > config.maxMemory)
+    if (memNeeded > EvmConfig.MaxMemory)
       UInt256.MaxValue / 2
     else if (memNeeded <= memSize)
       0
@@ -38,10 +37,10 @@ object GasFee {
     val txDataZero = txData.count(_ == 0)
     val txDataNonZero = txData.length - txDataZero
 
-    txDataZero * config.feeSchedule(G_txdatazero) +
-    txDataNonZero * config.feeSchedule(G_txdatanonzero) +
-    (if (isContractCreation) config.feeSchedule(G_txcreate) else 0) +
-    config.feeSchedule(G_transaction)
+    txDataZero * config.feeSchedule.G_txdatazero +
+    txDataNonZero * config.feeSchedule.G_txdatanonzero +
+    (if (isContractCreation) config.feeSchedule.G_txcreate else 0) +
+    config.feeSchedule.G_transaction
   }
 
   /**
@@ -52,7 +51,7 @@ object GasFee {
     * @return Calculated gas cost
     */
   def calcCodeDepositCost(executionResultData: ByteString, config: EvmConfig): BigInt =
-    config.feeSchedule(G_codedeposit) * executionResultData.size
+    config.feeSchedule.G_codedeposit * executionResultData.size
 
   /**
     * Number of 32-byte UInt256s required to hold n bytes (~= math.ceil(n / 32))

@@ -7,6 +7,10 @@ import io.iohk.ethereum.utils.Config
 // scalastyle:off magic.number
 object EvmConfig {
 
+  val MaxCallDepth: Int = 1024
+
+  val MaxMemory: UInt256 = UInt256(Int.MaxValue) /* used to artificially limit memory usage by incurring maximum gas cost */
+
   /**
     * returns the evm config that should be used for given block
     */
@@ -19,7 +23,7 @@ object EvmConfig {
   }
 
   val FrontierConfig = EvmConfig(
-    feeSchedule = FeeSchedule.FrontierFeeSchedule,
+    feeSchedule = new FeeSchedule.FrontierFeeSchedule,
     opCodes = OpCodes.FrontierOpCodes,
     exceptionalFailedCodeDeposit = false)
 
@@ -32,7 +36,7 @@ object EvmConfig {
     See: exceptional_failed_code_deposit in Parity
    */
   val HomesteadConfig = EvmConfig(
-    feeSchedule = FeeSchedule.HomesteadFeeSchedule,
+    feeSchedule = new FeeSchedule.HomesteadFeeSchedule,
     opCodes = OpCodes.HomesteadOpCodes,
     exceptionalFailedCodeDeposit = true)
 
@@ -42,11 +46,11 @@ object EvmConfig {
     If None: let CALL's gas = (requested > GAS ? [OOG] : GAS). let CREATE's gas = GAS
    */
   val PostEIP150Config = HomesteadConfig.copy(
-    feeSchedule = FeeSchedule.PostEIP150FeeSchedule,
+    feeSchedule = new FeeSchedule.PostEIP150FeeSchedule,
     subGasCapDivisor = Some(64))
 
   val PostEIP160Config = PostEIP150Config.copy(
-    feeSchedule = FeeSchedule.PostEIP160FeeSchedule)
+    feeSchedule = new FeeSchedule.PostEIP160FeeSchedule)
 
   private val transitionBlockToConfigMapping: Map[BigInt, EvmConfig] = Map(
     Config.Blockchain.frontierBlockNumber -> FrontierConfig,
@@ -60,8 +64,6 @@ case class EvmConfig(
     feeSchedule: FeeSchedule,
     opCodes: List[OpCode],
     exceptionalFailedCodeDeposit: Boolean,
-    maxMemory: UInt256 = UInt256(Long.MaxValue), /* used to artificially limit memory usage by incurring maximum gas cost */
-    maxCallDepth: Int = 1024,
     subGasCapDivisor: Option[Long] = None) {
 
   val byteToOpCode: Map[Byte, OpCode] =
@@ -70,108 +72,101 @@ case class EvmConfig(
 
 object FeeSchedule {
 
-  // See YP, appendix G
-  sealed trait GasCost
-  object GasCost {
-    case object G_zero extends GasCost
-    case object G_base extends GasCost
-    case object G_verylow extends GasCost
-    case object G_low extends GasCost
-    case object G_mid extends GasCost
-    case object G_high extends GasCost
-    case object G_extcode extends GasCost
-    case object G_balance extends GasCost
-    case object G_sload extends GasCost
-    case object G_jumpdest extends GasCost
-    case object G_sset extends GasCost
-    case object G_sreset extends GasCost
-    case object R_sclear extends GasCost
-    case object R_selfdestruct extends GasCost
-    case object G_selfdestruct extends GasCost
-    case object G_create extends GasCost
-    case object G_codedeposit extends GasCost
-    case object G_call extends GasCost
-    case object G_callvalue extends GasCost
-    case object G_callstipend extends GasCost
-    case object G_newaccount extends GasCost
-    case object G_exp extends GasCost
-    case object G_expbyte extends GasCost
-    case object G_memory extends GasCost
-    case object G_txcreate extends GasCost
-    case object G_txdatazero extends GasCost
-    case object G_txdatanonzero extends GasCost
-    case object G_transaction extends GasCost
-    case object G_log extends GasCost
-    case object G_logdata extends GasCost
-    case object G_logtopic extends GasCost
-    case object G_sha3 extends GasCost
-    case object G_sha3word extends GasCost
-    case object G_copy extends GasCost
-    case object G_blockhash extends GasCost
-    case object G_extcodesize extends GasCost
-    case object G_extcodecopy_base extends GasCost
-    case object G_selfdestruct_to_new_account extends GasCost
+  class FrontierFeeSchedule extends FeeSchedule {
+      override val G_zero = UInt256(0)
+      override val G_base = UInt256(2)
+      override val G_verylow = UInt256(3)
+      override val G_low = UInt256(5)
+      override val G_mid = UInt256(8)
+      override val G_high = UInt256(10)
+      override val G_balance = UInt256(20)
+      override val G_sload = UInt256(50)
+      override val G_jumpdest = UInt256(1)
+      override val G_sset = UInt256(20000)
+      override val G_sreset = UInt256(5000)
+      override val R_sclear = UInt256(15000)
+      override val R_selfdestruct = UInt256(24000)
+      override val G_selfdestruct = UInt256(0)
+      override val G_create = UInt256(32000)
+      override val G_codedeposit = UInt256(200)
+      override val G_call = UInt256(40)
+      override val G_callvalue = UInt256(9000)
+      override val G_callstipend = UInt256(2300)
+      override val G_newaccount = UInt256(25000)
+      override val G_exp = UInt256(10)
+      override val G_expbyte = UInt256(10)
+      override val G_memory = UInt256(3)
+      override val G_txcreate = UInt256(21000)
+      override val G_txdatazero = UInt256(4)
+      override val G_txdatanonzero = UInt256(68)
+      override val G_transaction = UInt256(21000)
+      override val G_log = UInt256(375)
+      override val G_logdata = UInt256(8)
+      override val G_logtopic = UInt256(375)
+      override val G_sha3 = UInt256(30)
+      override val G_sha3word = UInt256(6)
+      override val G_copy = UInt256(3)
+      override val G_blockhash = UInt256(20)
+      override val G_extcodesize = UInt256(20)
+      override val G_extcode = UInt256(20)
+      override val G_selfdestruct_to_new_account = UInt256(0)
   }
 
-  val FrontierFeeSchedule: FeeSchedule = FeeSchedule(Map(
-      GasCost.G_zero -> UInt256(0),
-      GasCost.G_base -> UInt256(2),
-      GasCost.G_verylow -> UInt256(3),
-      GasCost.G_low -> UInt256(5),
-      GasCost.G_mid -> UInt256(8),
-      GasCost.G_high -> UInt256(10),
-      GasCost.G_extcode -> UInt256(700),
-      GasCost.G_balance -> UInt256(20),
-      GasCost.G_sload -> UInt256(50),
-      GasCost.G_jumpdest -> UInt256(1),
-      GasCost.G_sset -> UInt256(20000),
-      GasCost.G_sreset -> UInt256(5000),
-      GasCost.R_sclear -> UInt256(15000),
-      GasCost.R_selfdestruct -> UInt256(24000),
-      GasCost.G_selfdestruct -> UInt256(0),
-      GasCost.G_create -> UInt256(32000),
-      GasCost.G_codedeposit -> UInt256(200),
-      GasCost.G_call -> UInt256(40),
-      GasCost.G_callvalue -> UInt256(9000),
-      GasCost.G_callstipend -> UInt256(2300),
-      GasCost.G_newaccount -> UInt256(25000),
-      GasCost.G_exp -> UInt256(10),
-      GasCost.G_expbyte -> UInt256(10),
-      GasCost.G_memory -> UInt256(3),
-      GasCost.G_txcreate -> UInt256(21000),
-      GasCost.G_txdatazero -> UInt256(4),
-      GasCost.G_txdatanonzero -> UInt256(68),
-      GasCost.G_transaction -> UInt256(21000),
-      GasCost.G_log -> UInt256(375),
-      GasCost.G_logdata -> UInt256(8),
-      GasCost.G_logtopic -> UInt256(375),
-      GasCost.G_sha3 -> UInt256(30),
-      GasCost.G_sha3word -> UInt256(6),
-      GasCost.G_copy -> UInt256(3),
-      GasCost.G_blockhash -> UInt256(20),
-      GasCost.G_extcodesize -> UInt256(20),
-      GasCost.G_extcodecopy_base -> UInt256(20),
-      GasCost.G_selfdestruct_to_new_account -> UInt256(0)))
+  class HomesteadFeeSchedule extends FrontierFeeSchedule {
+    override val G_txcreate = UInt256(53000)
+  }
 
-  val HomesteadFeeSchedule: FeeSchedule =
-    FrontierFeeSchedule.copy(values = FrontierFeeSchedule.values ++ Map(
-      GasCost.G_txcreate -> UInt256(53000)))
+  class PostEIP150FeeSchedule extends HomesteadFeeSchedule {
+    override val G_sload = UInt256(200)
+    override val G_call = UInt256(700)
+    override val G_balance = UInt256(400)
+    override val G_selfdestruct = UInt256(5000)
+    override val G_extcodesize = UInt256(700)
+    override val G_extcode = UInt256(700)
+    override val G_selfdestruct_to_new_account = UInt256(25000)
+  }
 
-  val PostEIP150FeeSchedule: FeeSchedule =
-    HomesteadFeeSchedule.copy(values = HomesteadFeeSchedule.values ++ Map(
-      GasCost.G_sload -> UInt256(200),
-      GasCost.G_call -> UInt256(700),
-      GasCost.G_balance -> UInt256(400),
-      GasCost.G_selfdestruct -> UInt256(5000),
-      GasCost.G_extcodesize -> UInt256(700),
-      GasCost.G_extcodecopy_base -> UInt256(700),
-      GasCost.G_selfdestruct_to_new_account -> UInt256(25000)))
-
-  val PostEIP160FeeSchedule: FeeSchedule =
-    PostEIP150FeeSchedule.copy(values = PostEIP150FeeSchedule.values ++ Map(
-      GasCost.G_expbyte -> UInt256(50)))
+  class PostEIP160FeeSchedule extends PostEIP150FeeSchedule {
+    override val G_expbyte = UInt256(50)
+  }
 }
 
-case class FeeSchedule(values: Map[FeeSchedule.GasCost, UInt256]) {
-  def apply(key: FeeSchedule.GasCost): UInt256 = values(key)
+trait FeeSchedule {
+  val G_zero: UInt256
+  val G_base: UInt256
+  val G_verylow: UInt256
+  val G_low: UInt256
+  val G_mid: UInt256
+  val G_high: UInt256
+  val G_balance: UInt256
+  val G_sload: UInt256
+  val G_jumpdest: UInt256
+  val G_sset: UInt256
+  val G_sreset: UInt256
+  val R_sclear: UInt256
+  val R_selfdestruct: UInt256
+  val G_selfdestruct: UInt256
+  val G_create: UInt256
+  val G_codedeposit: UInt256
+  val G_call: UInt256
+  val G_callvalue: UInt256
+  val G_callstipend: UInt256
+  val G_newaccount: UInt256
+  val G_exp: UInt256
+  val G_expbyte: UInt256
+  val G_memory: UInt256
+  val G_txcreate: UInt256
+  val G_txdatazero: UInt256
+  val G_txdatanonzero: UInt256
+  val G_transaction: UInt256
+  val G_log: UInt256
+  val G_logdata: UInt256
+  val G_logtopic: UInt256
+  val G_sha3: UInt256
+  val G_sha3word: UInt256
+  val G_copy: UInt256
+  val G_blockhash: UInt256
+  val G_extcodesize: UInt256
+  val G_extcode: UInt256
+  val G_selfdestruct_to_new_account: UInt256
 }

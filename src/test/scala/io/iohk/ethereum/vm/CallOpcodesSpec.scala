@@ -1,21 +1,19 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.vm.FeeSchedule.GasCost._
 import org.scalatest.{Matchers, WordSpec}
 import Assembly._
 import GasFee._
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm.MockWorldState._
 
-import scala.language.implicitConversions
-
-// scalastyle:off
+// scalastyle:off object.name
+// scalastyle:off magic.number
 class CallOpcodesSpec extends WordSpec with Matchers {
 
-  val config = EvmConfig.HomesteadConfig
+  val config = EvmConfig.PostEIP160Config
 
-  implicit def scheduleKeyToUInt256(key: FeeSchedule.GasCost): UInt256 = config.feeSchedule(key)
+  import config.feeSchedule._
 
   object fxt {
 
@@ -61,12 +59,12 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     val initialBalance = UInt256(1000)
 
     val requiredGas = {
-      val storageCost = 3 * config.feeSchedule(G_sset)
+      val storageCost = 3 * G_sset
       val memCost = calcMemCost(0, 0, 32, config)
       val copyCost = G_copy * wordsForBytes(32)
 
       val extCodeLinearConstGas: UInt256 = extCode.byteCode.foldLeft(UInt256.Zero) {
-        case (g, b: OpCodeAsByteCode) => g + config.feeSchedule(b.op.constGasScheduleKey)
+        case (g, b: OpCodeAsByteCode) => g + b.op.constGasFn(config.feeSchedule)
         case (g, _) => g
       }
       extCodeLinearConstGas + storageCost + memCost + copyCost
@@ -154,7 +152,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     "call depth limit is reached" should {
 
-      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = config.maxCallDepth))
+      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth))
       val call = CallResult(op = CALL, context = context)
 
       "not modify world state" in {
@@ -270,7 +268,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     "call depth limit is reached" should {
 
-      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = config.maxCallDepth))
+      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth))
       val call = CallResult(op = CALLCODE, context = context)
 
       "not modify world state" in {
@@ -383,7 +381,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     "call depth limit is reached" should {
 
-      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = config.maxCallDepth))
+      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth))
       val call = CallResult(op = DELEGATECALL, context = context)
 
       "not modify world state" in {
