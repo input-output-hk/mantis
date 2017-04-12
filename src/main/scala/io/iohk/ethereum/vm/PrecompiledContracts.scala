@@ -40,7 +40,7 @@ object PrecompiledContracts {
       val g = gas(context.env.inputData)
 
       val (result, error, gasRemaining): (ByteString, Option[ProgramError], UInt256) =
-        if (g < context.startGas)
+        if (g <= context.startGas)
           (exec(context.env.inputData), None, context.startGas - g)
         else
           (ByteString.empty, Some(OutOfGas), 0)

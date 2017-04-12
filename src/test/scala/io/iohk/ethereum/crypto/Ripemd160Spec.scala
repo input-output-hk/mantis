@@ -8,6 +8,7 @@ import org.spongycastle.util.encoders.Hex
 
 class Ripemd160Spec extends FunSuite with PropertyChecks with Matchers {
 
+  // these examples were taken from http://homes.esat.kuleuven.be/~bosselae/ripemd160.html#Outline
   val examples = Table[String, String](("input", "result"),
     ("", "9c1185a5c5e9fc54612808977ee8f548b2258d31"),
     ("a", "0bdc9d2d256b3ee9daae347be6f4dc835a467ffe"),
