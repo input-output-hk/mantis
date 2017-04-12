@@ -159,7 +159,8 @@ class Ledger(vm: VM) extends Logger {
     if(block.header.gasUsed != gasUsed)
       Left(ValidationAfterExecError(s"Block has invalid gas used: ${block.header.gasUsed} != $gasUsed"))
     else if(block.header.stateRoot != stateRootHash)
-      Left(ValidationAfterExecError(s"Block has invalid state root hash: ${Hex.toHexString(block.header.stateRoot.toArray[Byte])} != ${Hex.toHexString(stateRootHash.toArray[Byte])}"))
+      Left(ValidationAfterExecError(s"Block has invalid state root hash: ${Hex.toHexString(block.header.stateRoot.toArray[Byte])} " +
+        s"!= ${Hex.toHexString(stateRootHash.toArray[Byte])}"))
     else if(blockAndReceiptsValidation.isLeft)
       Left(ValidationAfterExecError(blockAndReceiptsValidation.left.get.toString))
     else
