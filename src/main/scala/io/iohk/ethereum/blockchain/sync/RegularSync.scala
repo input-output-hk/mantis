@@ -5,7 +5,7 @@ import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
 import io.iohk.ethereum.domain.{Block, BlockHeader}
-import io.iohk.ethereum.ledger.Ledger
+import io.iohk.ethereum.ledger.{BlockExecutionError, Ledger}
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -133,7 +133,7 @@ trait RegularSync {
 
             if(error.isDefined){
               val numberBlockFailed = blocks.head.header.number + newBlocks.length
-              resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.get}, in block $numberBlockFailed")
+              resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.get.toString}, in block $numberBlockFailed")
             }
           case None =>
             log.error("no total difficulty for latest block") //FIXME: How do we handle this error on our blockchain?
@@ -168,15 +168,15 @@ trait RegularSync {
     */
   @tailrec
   private def processBlocks(blocks: Seq[Block], blockParentTd: BigInt,
-                           newBlocks: Seq[NewBlock] = Nil): (Seq[NewBlock], Option[String]) = blocks match {
+                           newBlocks: Seq[NewBlock] = Nil): (Seq[NewBlock], Option[BlockExecutionError]) = blocks match {
     case Nil =>
       newBlocks -> None
 
     case Seq(block, otherBlocks@_*) =>
       val blockHashToDelete = blockchain.getBlockHeaderByNumber(block.header.number).map(_.hash).filter(_ != block.header.hash)
-      val blockExecResult = Try(Ledger.executeBlock(block, blockchainStorages, validators)) //FIXME: Avoid use of Try (handled in EC-150)
+      val blockExecResult = Ledger.executeBlock(block, blockchainStorages, validators)
       blockExecResult match {
-        case Success(_) =>
+        case Right(_) =>
           blockchain.save(block)
           appStateStorage.putBestBlockNumber(block.header.number)
           val newTd = blockParentTd + block.header.difficulty
@@ -184,8 +184,8 @@ trait RegularSync {
           blockHashToDelete.foreach(blockchain.removeBlock)
           processBlocks(otherBlocks, newTd, newBlocks :+ NewBlock(block, newTd))
 
-        case Failure(error) =>
-          newBlocks -> Some(error.getMessage)
+        case Left(error) =>
+          newBlocks -> Some(error)
       }
   }
 
