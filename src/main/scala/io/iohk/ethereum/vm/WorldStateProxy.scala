@@ -18,6 +18,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] {
 
   protected def getAccount(address: Address): Option[Account]
   protected def saveAccount(address: Address, account: Account): WS
+  protected def deleteAccount(address: Address): WS
 
   /**
     * In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that
@@ -45,8 +46,8 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] {
     getAccount(address).map(a => UInt256(a.balance)).getOrElse(UInt256.Zero)
 
   def transfer(from: Address, to: Address, value: UInt256): WS = {
-    val debited = getGuaranteedAccount(from).updateBalance(-value)
-    val credited = getAccount(to).getOrElse(Account.Empty).updateBalance(value)
+    val debited = getGuaranteedAccount(from).increaseBalance(-value)
+    val credited = getAccount(to).getOrElse(Account.Empty).increaseBalance(value)
     saveAccount(from, debited).saveAccount(to, credited)
   }
 

@@ -37,9 +37,9 @@ package object crypto {
     digest.digest
   }
 
-  def generateKeyPair(): AsymmetricCipherKeyPair = {
+  def generateKeyPair(secureRandom: SecureRandom = new SecureRandom): AsymmetricCipherKeyPair = {
     val generator = new ECKeyPairGenerator
-    generator.init(new ECKeyGenerationParameters(curve, new SecureRandom))
+    generator.init(new ECKeyGenerationParameters(curve, secureRandom))
     generator.generateKeyPair()
   }
 

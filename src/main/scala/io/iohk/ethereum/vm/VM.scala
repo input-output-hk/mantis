@@ -5,16 +5,15 @@ import scala.annotation.tailrec
 /**
   * Entry point to executing a program.
   */
-object VM {
+class VM {
 
   /**
     * Executes a program
     * @param context context to be executed
     * @return result of the execution
    */
-  def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] =
+  def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
     PrecompiledContracts.runOptionally(context).getOrElse {
-
       val finalState = run(ProgramState[W, S](context))
       ProgramResult[W, S](
         finalState.returnData,
@@ -22,9 +21,10 @@ object VM {
         finalState.world,
         finalState.addressesToDelete,
         finalState.logs,
+        finalState.gasRefund,
         finalState.error)
-
     }
+  }
 
   @tailrec
   private def run[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -42,3 +42,5 @@ object VM {
     }
   }
 }
+
+object VM extends VM

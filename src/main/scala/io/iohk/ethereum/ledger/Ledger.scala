@@ -1,32 +1,39 @@
 package io.iohk.ethereum.ledger
 
+import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockValidator, OmmersValidator, SignedTransactionValidator}
 import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.vm.{GasFee, _}
+import org.spongycastle.util.encoders.Hex
 
-object Ledger extends Logger {
+class Ledger(vm: VM) extends Logger {
 
+  type PC = ProgramContext[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
   type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
-  case class ExecResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
+  case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
+  case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry])
 
   def executeBlock(
     block: Block,
     storages: BlockchainStorages,
     stateStorage: NodeStorage): Unit = {
 
-    val blockError = validateBlockBeforeExecution(block)
+    val blockchain = BlockchainImpl(storages)
+    val blockError = validateBlockBeforeExecution(block, blockchain)
     if (blockError.isEmpty) {
       log.debug(s"About to execute txs from block ${block.header}")
-      val ExecResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, storages, stateStorage)
+      val BlockResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, blockchain, storages, stateStorage)
       log.debug(s"All txs from block ${block.header} were executed")
 
       val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
-      val afterExecutionBlockError = validateBlockAfterExecution(block, receipts, worldToPersist)
-      if (afterExecutionBlockError.isEmpty) {
-        InMemoryWorldStateProxy.persistIfHashMatches(block.header.stateRoot, worldToPersist)
-        log.debug(s"Block ${block.header} txs state changes persisted")
-      } else throw new RuntimeException(afterExecutionBlockError.get)
+      val worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
+
+      val afterExecutionBlockError = validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
+      if (afterExecutionBlockError.isEmpty)
+        log.debug(s"Block ${Hex.toHexString(block.header.hash.toArray)} executed correctly")
+      else throw new RuntimeException(afterExecutionBlockError.get)
 
     } else throw new RuntimeException(blockError.get)
   }
@@ -40,48 +47,87 @@ object Ledger extends Logger {
     */
   private def executeBlockTransactions(
     block: Block,
+    blockchain: Blockchain,
     storages: BlockchainStorages,
     stateStorage: NodeStorage):
-  ExecResult = {
-    val blockchain = BlockchainImpl(storages)
-    val initialWorldStateProxy = InMemoryWorldStateProxy(storages, stateStorage,
-      blockchain.getBlockHeaderByHash(block.header.hash).map(_.stateRoot)
-    )
-    block.body.transactionList.foldLeft[ExecResult](ExecResult(worldState = initialWorldStateProxy)) {
-      case (ExecResult(worldStateProxy, acumGas, receipts), stx) =>
-        val result: Either[String, PR] = for {
-          _ <- validateTransaction(stx, worldStateProxy, 0, block)
-          worldStateProxy1 = updateAccountBeforeExecution(stx, worldStateProxy)
-          result <- execute(stx, block.header, worldStateProxy1)
-        } yield result
+  BlockResult = {
+    val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
+    val initialWorld = InMemoryWorldStateProxy(storages, stateStorage, parentStateRoot)
 
-        result match {
-          case Right(theResult) =>
-            val gasUsed = stx.tx.gasLimit - theResult.gasRemaining
-            val refundGasFn = {
-              if (theResult.gasRemaining > 0) (refundGas _).curried(Address(block.header.beneficiary))(gasUsed)
-              else identity[InMemoryWorldStateProxy] _
-            }
-            val payBeneficiariesFn = (payForGasUsedToBeneficiary _).curried(stx)
-            val deleteAccountsFn = (deleteAccounts _).curried(theResult.addressesToDelete)
-            val persistStateFn = InMemoryWorldStateProxy.persistState _
-            val (newWorldStateProxy, newAcumGas) =
-              (refundGasFn andThen payBeneficiariesFn andThen deleteAccountsFn andThen persistStateFn) (theResult.world) -> (gasUsed + acumGas)
+    block.body.transactionList.foldLeft[BlockResult](BlockResult(worldState = initialWorld)) {
+      case (BlockResult(world, acumGas, receipts), stx)=>
+        validateTransaction(stx, world, acumGas, block.header) match {
+          case Left(err) =>
+            throw new RuntimeException(err)
+
+          case Right(_) =>
+            val TxResult(newWorld, gasUsed, logs) = executeTransaction(stx, block.header, world)
+
             val receipt = Receipt(
-              postTransactionStateHash = newWorldStateProxy.stateRootHash,
-              cumulativeGasUsed = newAcumGas,
-              logsBloomFilter = BloomFilter.create(theResult.logs.toSet),
-              logs = theResult.logs
+              postTransactionStateHash = newWorld.stateRootHash,
+              cumulativeGasUsed = acumGas + gasUsed,
+              logsBloomFilter = BloomFilter.create(logs),
+              logs = logs
             )
-            ExecResult(newWorldStateProxy, newAcumGas, receipts :+ receipt)
-          case Left(error) => throw new RuntimeException(error)
+
+            BlockResult(newWorld, receipt.cumulativeGasUsed, receipts :+ receipt)
         }
     }
   }
 
-  private def validateBlockBeforeExecution(block: Block): Option[String] = None
+  private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
+    val gasPrice = UInt256(stx.tx.gasPrice)
+    val gasLimit = UInt256(stx.tx.gasLimit)
 
-  private def validateBlockAfterExecution(block: Block, receipts: Seq[Receipt], worldStateProxy: InMemoryWorldStateProxy): Option[String] = None //TODO
+    val world1 = updateSenderAccountBeforeExecution(stx, world)
+    val result = runVM(stx, blockHeader, world1)
+
+    val gasUsed = if(result.error.isDefined) gasLimit else gasLimit - result.gasRemaining
+    val gasRefund = calcGasRefund(stx, result)
+
+    val refundGasFn = pay(stx.senderAddress, gasRefund * gasPrice) _
+    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (gasLimit - gasRefund) * gasPrice) _
+    val deleteAccountsFn = deleteAccounts(result.addressesToDelete) _
+    val persistStateFn = InMemoryWorldStateProxy.persistState _
+
+    val world2 = (refundGasFn andThen payMinerForGasFn andThen deleteAccountsFn andThen persistStateFn)(result.world)
+
+    TxResult(world2, gasUsed, result.logs)
+  }
+
+  private def validateBlockBeforeExecution(block: Block, blockchain: Blockchain): Option[String] = {
+    val result = for {
+      _ <- BlockHeaderValidator.validate(block.header, blockchain)
+      _ <- BlockValidator.validateHeaderAndBody(block.header, block.body)
+      _ <- OmmersValidator.validate(block.header.number, block.body.uncleNodesList, blockchain)
+    } yield block
+    result.swap.toOption.map(_.toString)
+  }
+
+  /**
+    * This function validates that the various results from execution are consistent with the block. This includes:
+    *   - Validating the resulting stateRootHash
+    *   - Doing BlockValidator.validateBlockReceipts validations involving the receipts
+    *   - Validating the resulting gas used
+    *
+    * @param block to validate
+    * @param stateRootHash from the resulting state trie after executing the txs from the block
+    * @param receipts associated with the execution of each of the tx from the block
+    * @param gasUsed, accumulated gas used for the execution of the txs from the block
+    * @return None if valid else a message with what went wrong
+    */
+  private[ledger] def validateBlockAfterExecution(block: Block, stateRootHash: ByteString,
+                                                  receipts: Seq[Receipt], gasUsed: BigInt): Option[String] = {
+    lazy val blockAndReceiptsValidation = BlockValidator.validateBlockAndReceipts(block, receipts)
+    if(block.header.gasUsed != gasUsed)
+      Some(s"Block has invalid gas used: ${block.header.gasUsed} != $gasUsed")
+    else if(block.header.stateRoot != stateRootHash)
+      Some(s"Block has invalid state root hash: ${block.header.stateRoot} != $stateRootHash")
+    else if(blockAndReceiptsValidation.isLeft)
+      Some(blockAndReceiptsValidation.left.get.toString)
+    else
+      None
+  }
 
   /**
     * This function updates state in order to pay rewards based on YP section 11.3
@@ -104,7 +150,7 @@ object Ledger extends Logger {
     val minerAddress = Address(block.header.beneficiary)
     val minerAccount = getAccountToPay(minerAddress, worldStateProxy)
     val minerReward = calcMinerReward(block.body.uncleNodesList.size)
-    val afterMinerReward = worldStateProxy.saveAccount(minerAddress, minerAccount.updateBalance(minerReward))
+    val afterMinerReward = worldStateProxy.saveAccount(minerAddress, minerAccount.increaseBalance(minerReward))
     log.debug(s"Paying block ${block.header.number} reward of $minerReward to miner with account address $minerAddress")
 
     block.body.uncleNodesList.foldLeft(afterMinerReward) { (ws, ommer) =>
@@ -112,7 +158,7 @@ object Ledger extends Logger {
       val account = getAccountToPay(ommerAddress, ws)
       val ommerReward = calcOmmerReward(block.header, ommer)
       log.debug(s"Paying block ${ommer.number} reward of $ommerReward to ommer with account address $ommerAddress")
-      ws.saveAccount(ommerAddress, account.updateBalance(ommerReward))
+      ws.saveAccount(ommerAddress, account.increaseBalance(ommerReward))
     }
   }
 
@@ -122,7 +168,7 @@ object Ledger extends Logger {
     * @param tx Target transaction
     * @return Upfront cost
     */
-  private def calculateUpfrontGas(tx: Transaction): BigInt = tx.gasLimit * tx.gasPrice
+  private def calculateUpfrontGas(tx: Transaction): UInt256 = UInt256(tx.gasLimit * tx.gasPrice)
 
   /**
     * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price) + Tv (Tx value). See YP equation number (65)
@@ -130,41 +176,31 @@ object Ledger extends Logger {
     * @param tx Target transaction
     * @return Upfront cost
     */
-  private def calculateUpfrontCost(tx: Transaction): BigInt = calculateUpfrontGas(tx) + tx.value
+  private[ledger] def calculateUpfrontCost(tx: Transaction): UInt256 =
+    UInt256(calculateUpfrontGas(tx) + tx.value)
 
   /**
     * Initial tests of intrinsic validity stated in Section 6 of YP
     *
     * @param stx           Transaction to validate
     * @param accumGasLimit Total amount of gas spent prior this transaction within the container block
-    * @param block         Container block
+    * @param blockHeader   Container block header
     * @return Transaction if valid, error otherwise
     */
   private def validateTransaction(
     stx: SignedTransaction,
     worldState: InMemoryWorldStateProxy,
     accumGasLimit: BigInt,
-    block: Block): Either[String, SignedTransaction] = {
+    blockHeader: BlockHeader): Either[String, SignedTransaction] = {
     for {
-      _ <- checkSyntacticValidity(stx)
-      _ <- validateSignature(stx)
+      _ <- SignedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = blockHeader.number < Config.Blockchain.HomesteadBlock)
+        .left.map(_.toString)
       _ <- validateNonce(stx, worldState)
-      _ <- validateGas(stx, block.header)
+      _ <- validateGas(stx, blockHeader)
       _ <- validateAccountHasEnoughGasToPayUpfrontCost(stx, worldState)
-      _ <- validateGasLimit(stx, accumGasLimit, block.header.gasLimit)
+      _ <- validateGasLimit(stx, accumGasLimit, blockHeader.gasLimit)
     } yield stx
   }
-
-  private def checkSyntacticValidity(stx: SignedTransaction): Either[String, SignedTransaction] =
-    if (stx.syntacticValidity) Right(stx) else Left("Transaction is not well formed")
-
-  /**
-    * Validates if the transaction signature is valid
-    *
-    * @param stx Transaction to validate
-    * @return Either the validated transaction or an error description
-    */
-  private def validateSignature(stx: SignedTransaction): Either[String, SignedTransaction] = Right(stx) //TODO
 
   /**
     * Validates if the transaction nonce matches current sender account's nonce
@@ -173,7 +209,7 @@ object Ledger extends Logger {
     * @return Either the validated transaction or an error description
     */
   private def validateNonce(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): Either[String, SignedTransaction] = {
-    if (worldStateProxy.getGuaranteedAccount(stx.recoveredSenderAddress.get).nonce == stx.tx.nonce) Right(stx)
+    if (worldStateProxy.getAccount(stx.senderAddress).map(_.nonce).contains(stx.tx.nonce)) Right(stx)
     else Left("Account nonce is different from TX sender nonce")
   }
 
@@ -197,7 +233,7 @@ object Ledger extends Logger {
     */
   private def validateAccountHasEnoughGasToPayUpfrontCost(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy):
   Either[String, SignedTransaction] = {
-    val accountBalance = worldStateProxy.getGuaranteedAccount(stx.recoveredSenderAddress.get).balance
+    val accountBalance = worldStateProxy.getGuaranteedAccount(stx.senderAddress).balance
     val upfrontCost = calculateUpfrontCost(stx.tx)
     if (accountBalance >= upfrontCost) Right(stx)
     else Left(s"Sender account doesn't have enough balance to pay upfront cost $upfrontCost > $accountBalance")
@@ -206,19 +242,16 @@ object Ledger extends Logger {
 
   /**
     * Increments account nonce by 1 stated in YP equation (69) and
-    * Pays the upfront Tx gas calculated as TxGasPrice * TxGasLimit + TxValue from balance. YP equation (68)
+    * Pays the upfront Tx gas calculated as TxGasPrice * TxGasLimit from balance. YP equation (68)
     *
     * @param stx
     * @param worldStateProxy
     * @return
     */
-  private def updateAccountBeforeExecution(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    val senderAddress = stx.recoveredSenderAddress.get
+  private[ledger] def updateSenderAccountBeforeExecution(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    val senderAddress = stx.senderAddress
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
-    worldStateProxy.saveAccount(senderAddress, account.copy(
-      nonce = account.nonce + 1,
-      balance = account.balance - UInt256(calculateUpfrontGas(stx.tx))
-    ))
+    worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce)
   }
 
   /**
@@ -235,47 +268,58 @@ object Ledger extends Logger {
     else Left("Transaction gas limit plus accumulated gas exceeds block gas limit")
   }
 
-  private def execute(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): Either[String, PR] = {
-    val programContext = ProgramContext[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage](stx, blockHeader, worldStateProxy)
-    val result = VM.run(programContext)
-    if (result.error.isDefined) Left(result.error.get.toString)
+  private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): PR = {
+    val context: PC = ProgramContext(stx, blockHeader, worldStateProxy)
+    val result: PR = vm.run(context)
+    if (stx.tx.isContractInit && result.error.isEmpty)
+      saveNewContract(context.env.ownerAddr, result)
+    else
+      result
+  }
+
+  private def saveNewContract(address: Address, result: PR): PR = {
+    val codeDepositCost = GasFee.calcCodeDepositCost(result.returnData)
+    if (result.gasRemaining < codeDepositCost)
+      result.copy(error = Some(OutOfGas))
+    else
+      result.copy(
+        gasRemaining = result.gasRemaining - codeDepositCost,
+        world = result.world.saveCode(address, result.returnData)
+      )
+  }
+
+  /**
+    * Calculate gas refund
+    * See YP, eq (72) - only the right addend
+    */
+  private def calcGasRefund(stx: SignedTransaction, result: PR): UInt256 = {
+    if (result.error.isDefined)
+      0
     else {
-      if (stx.tx.isContractInit) payContractCreationCost(result).map(saveCreatedCost(programContext.env.ownerAddr, _))
-      else Right(result)
+      val gasUsed = UInt256(stx.tx.gasLimit) - result.gasRemaining
+      result.gasRemaining + (gasUsed / 2).min(result.gasRefund)
     }
   }
 
-  private def payContractCreationCost(result: PR): Either[String, PR] = {
-    val codeDepositCost = GasFee.calcCodeDepositCost(result.returnData)
-    if (result.gasRemaining < codeDepositCost) Left(OutOfGas.toString)
-    else Right(result.copy(gasRemaining = result.gasRemaining - UInt256(codeDepositCost)))
+  private def pay(address: Address, value: UInt256)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    val account = world.getAccount(address).getOrElse(Account.Empty).increaseBalance(value)
+    world.saveAccount(address, account)
   }
 
-  private def saveCreatedCost(ownerAddress: Address, result: PR): PR = {
-    result.copy(
-      world = result.world.saveCode(ownerAddress, result.returnData)
-    )
-  }
-
-  private def refundGas(address: Address, gasUsed: BigInt, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = worldStateProxy //TODO
-
   /**
-    * The Ether for the gas is given to the miner, whose address is specified as the beneficiary of the container block
-    * See eq (75) of YP
-    *
-    * @param stx
-    * @param worldStateProxy
-    * @return
-    */
-  private def payForGasUsedToBeneficiary(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = worldStateProxy //TODO
-
-  /**
-    * Delete all accounts (that appear in SUICIDE list). YP eq (78)
+    * Delete all accounts (that appear in SUICIDE list). YP eq (78).
+    * The contract storage should be cleared during pruning as nodes could be used in other tries.
+    * The contract code is also not deleted as there can be contracts with the exact same code, making it risky to delete
+    * the code of an account in case it is shared with another one.
+    * FIXME: Should we keep track of this for deletion? Maybe during pruning we can also prune contract code.
     *
     * @param addressesToDelete
     * @param worldStateProxy
-    * @return
+    * @return a worldState equal worldStateProxy except that the accounts from addressesToDelete are deleted
     */
-  private def deleteAccounts(addressesToDelete: Seq[Address], worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = worldStateProxy //TODO
+  private[ledger] def deleteAccounts(addressesToDelete: Seq[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
+    addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => world.deleteAccount(address) }
 
 }
+
+object Ledger extends Ledger(VM)

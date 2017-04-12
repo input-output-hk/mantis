@@ -11,6 +11,7 @@ import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.Blockchain
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
 
 
@@ -25,71 +26,11 @@ object SignedTransaction {
   val valueForEmptyR = 0
   val valueForEmptyS = 0
 
-  def apply(tx: Transaction, keyPair: AsymmetricCipherKeyPair): SignedTransaction = {
-    val bytes = crypto.kec256(
-      rlpEncode(RLPList(
-        tx.nonce,
-        tx.gasPrice,
-        tx.gasLimit,
-        tx.receivingAddress.toArray,
-        tx.value,
-        tx.payload,
-        Config.Blockchain.chainId,
-        valueForEmptyR,
-        valueForEmptyS)))
-
-    val sig = ECDSASignature.sign(bytes, keyPair)
-    val pointSign: Byte = (sig.v + Config.Blockchain.chainId * 2 + 8).toByte
-    SignedTransaction(tx, pointSign, ByteString(sig.r.toByteArray), ByteString(sig.s.toByteArray))
-  }
-}
-
-case class SignedTransaction(
-  tx: Transaction,
-  pointSign: Byte, //v
-  signatureRandom: ByteString, //r
-  signature: ByteString /*s*/) {
-
-  import SignedTransaction._
-
-  lazy val bytesToSign: Array[Byte] = if (pointSign == negativePointSign || pointSign == positivePointSign) {
-    //global transaction
-    crypto.kec256(
-      rlpEncode(RLPList(
-        tx.nonce,
-        tx.gasPrice,
-        tx.gasLimit,
-        tx.receivingAddress.toArray,
-        tx.value,
-        tx.payload)))
-  } else {
-    //chain specific transaction
-    crypto.kec256(
-      rlpEncode(RLPList(
-        tx.nonce,
-        tx.gasPrice,
-        tx.gasLimit,
-        tx.receivingAddress.toArray,
-        tx.value,
-        tx.payload,
-        Config.Blockchain.chainId,
-        valueForEmptyR,
-        valueForEmptyS)))
-  }
-
-
-  lazy val recoveredSenderAddress: Option[Address] =
-    for {
-      key <- recoveredPublicKey
-      addrBytes = crypto.kec256(key).slice(FirstByteOfAddress, LastByteOfAddress)
-      if addrBytes.length == Address.Length
-    } yield Address(addrBytes)
-
   /**
     * new formula for calculating point sign post EIP 155 adoption
     * v = CHAIN_ID * 2 + 35 or v = CHAIN_ID * 2 + 36
     */
-  lazy val recoveredPointSign: Option[Int] =
+  private def getRecoveredPointSign(pointSign: Byte): Option[Int] = {
     if (pointSign == negativePointSign || pointSign == (Blockchain.chainId * 2 + newNegativePointSign).toByte) {
       Some(negativePointSign)
     } else if (pointSign == positivePointSign || pointSign == (Blockchain.chainId * 2 + newPositivePointSign).toByte) {
@@ -97,43 +38,102 @@ case class SignedTransaction(
     } else {
       None
     }
-
-  lazy val recoveredPublicKey: Option[Array[Byte]] = recoveredPointSign.flatMap { p =>
-    ECDSASignature.recoverPubBytes(
-      new BigInteger(1, signatureRandom.toArray[Byte]),
-      new BigInteger(1, signature.toArray[Byte]),
-      ECDSASignature.recIdFromSignatureV(p),
-      bytesToSign
-    )
   }
 
-  lazy val syntacticValidity: Boolean = {
+  private def getSender(tx: Transaction, signature: ECDSASignature, recoveredPointSign: Int): Option[Address] = {
+    val ECDSASignature(r, s, v) = signature
+    val receivingAddressAsArray: Array[Byte] = tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray)
+    val bytesToSign: Array[Byte] = if (v == negativePointSign || v == positivePointSign) {
+      //global transaction
+      crypto.kec256(
+        rlpEncode(RLPList(
+          tx.nonce,
+          tx.gasPrice,
+          tx.gasLimit,
+          receivingAddressAsArray,
+          tx.value,
+          tx.payload)))
+    } else {
+      //chain specific transaction
+      crypto.kec256(
+        rlpEncode(RLPList(
+          tx.nonce,
+          tx.gasPrice,
+          tx.gasLimit,
+          receivingAddressAsArray,
+          tx.value,
+          tx.payload,
+          Config.Blockchain.chainId,
+          valueForEmptyR,
+          valueForEmptyS)))
+    }
 
-    import tx._
-    import Transaction._
+    val recoveredPublicKey: Option[Array[Byte]] =
+      ECDSASignature.recoverPubBytes(
+        new BigInteger(1, r.toByteArray),
+        new BigInteger(1, s.toByteArray),
+        ECDSASignature.recIdFromSignatureV(recoveredPointSign),
+        bytesToSign
+      )
 
-    def byteLength(b: BigInt): Int = b.toByteArray.length
+    for {
+      key <- recoveredPublicKey
 
-    byteLength(nonce) <= NonceLength &&
-    //FIXME: the below doesn't make sense, an exception will be thrown if the condition is not met
-    //(receivingAddress.bytes.isEmpty || receivingAddress.bytes.length == AddressLength) &&
-    byteLength(gasLimit) <= GasLength &&
-    byteLength(gasPrice) <= GasLength &&
-    byteLength(value) <= ValueLength &&
-    signatureRandom.length <= ECDSASignature.RLength &&
-    signature.length <= ECDSASignature.SLength &&
-    recoveredSenderAddress.isDefined
+      //TODO: Parity doesn't do this (https://github.com/paritytech/parity/blob/master/ethkey/src/keypair.rs#L23-L28)
+      //      more research is needed on why `key.tail` is needed
+      addrBytes = crypto.kec256(key.tail).slice(FirstByteOfAddress, LastByteOfAddress)
+      if addrBytes.length == Address.Length
+    } yield Address(addrBytes)
   }
+
+  def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString): Option[SignedTransaction] = {
+    val txSignature = ECDSASignature(r = new BigInteger(1, signatureRandom.toArray), s = new BigInteger(1, signature.toArray), v = pointSign)
+    SignedTransaction(tx, txSignature)
+  }
+
+  def apply(tx: Transaction, pointSign: Int, signatureRandom: ByteString, signature: ByteString): Option[SignedTransaction] =
+    SignedTransaction(tx, pointSign.toByte, signatureRandom, signature)
+
+  def apply(tx: Transaction, signature: ECDSASignature): Option[SignedTransaction] = {
+    for {
+      recoveredPointSign <- SignedTransaction.getRecoveredPointSign(signature.v)
+      sender <- SignedTransaction.getSender(tx, signature, recoveredPointSign)
+    } yield SignedTransaction(tx, signature, sender)
+  }
+
+  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair): SignedTransaction = {
+    val bytes = bytesToSign(tx)
+    val sig = ECDSASignature.sign(bytes, keyPair)
+    val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
+    val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
+    SignedTransaction(tx, sig, address)
+  }
+
+  def bytesToSign(tx: Transaction): Array[Byte] = {
+    crypto.kec256(
+      rlpEncode(RLPList(
+        tx.nonce,
+        tx.gasPrice,
+        tx.gasLimit,
+        tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray): Array[Byte],
+        tx.value,
+        tx.payload,
+        Config.Blockchain.chainId,
+        valueForEmptyR,
+        valueForEmptyS)))
+  }
+}
+
+case class SignedTransaction (
+  tx: Transaction,
+  signature: ECDSASignature,
+  senderAddress: Address) {
 
   override def toString: String = {
     s"""SignedTransaction {
          |tx: $tx
-         |pointSign: $pointSign
-         |signatureRandom: ${Hex.toHexString(signatureRandom.toArray[Byte])}
-         |signature: ${Hex.toHexString(signature.toArray[Byte])}
-         |bytesToSign: ${Hex.toHexString(bytesToSign)}
-         |recoveredPublicKey: ${recoveredPublicKey.map(Hex.toHexString)}
-         |recoveredAddress: $recoveredSenderAddress
+         |signature: $signature
+         |sender: ${Hex.toHexString(senderAddress.bytes.toArray)}
          |}""".stripMargin
   }
 }

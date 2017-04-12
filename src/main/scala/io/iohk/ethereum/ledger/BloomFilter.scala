@@ -9,7 +9,7 @@ object BloomFilter {
 
   val BloomFilterByteSize: Int = 256
   private val BloomFilterBitSize: Int = BloomFilterByteSize * 8
-  private val EmptyBloomFilter: Array[Byte] = Array.fill(BloomFilterByteSize)(0.toByte)
+  val EmptyBloomFilter: ByteString = ByteString(Array.fill(BloomFilterByteSize)(0.toByte))
   private val IntIndexesToAccess: Set[Int] = Set(0, 2, 4)
 
   /**
@@ -19,12 +19,12 @@ object BloomFilter {
     * @param logs from the receipt whose bloom filter will be created
     * @return bloom filter associated with the logs
     */
-  def create(logs: Set[TxLogEntry]): ByteString = {
+  def create(logs: Seq[TxLogEntry]): ByteString = {
     val bloomFilters = logs.map(createBloomFilterForLogEntry)
     if(bloomFilters.isEmpty)
-      ByteString(EmptyBloomFilter)
+      EmptyBloomFilter
     else
-      ByteString(or(bloomFilters.toSeq: _*))
+      ByteString(or(bloomFilters: _*))
   }
 
   //Bloom filter function that reduces a log to a single 256-byte hash based on equation 24 from the YP
@@ -42,7 +42,7 @@ object BloomFilter {
       val index16bit = (hashedBytes(i + 1) & 0xFF) + ((hashedBytes(i) & 0xFF) << 8)
       index16bit % BloomFilterBitSize //Obtain only 11 bits from the index
     }
-    bitsToSet.foldLeft(EmptyBloomFilter){ case (prevBloom, index) => setBit(prevBloom, index) }.reverse
+    bitsToSet.foldLeft(EmptyBloomFilter.toArray){ case (prevBloom, index) => setBit(prevBloom, index) }.reverse
   }
 
   private def setBit(bytes: Array[Byte], bitIndex: Int): Array[Byte] = {

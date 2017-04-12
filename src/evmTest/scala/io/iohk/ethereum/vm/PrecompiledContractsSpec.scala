@@ -11,16 +11,16 @@ class PrecompiledContractsSpec extends FunSuite with Matchers {
   test("Precompiled Contracts") {
     val keyPair = generateKeyPair()
     val tx = Transaction(42, 10, 1000, Address(123), 0, ByteString.empty)
-    val stx = SignedTransaction(tx, keyPair)
+    val stx = SignedTransaction.sign(tx, keyPair)
 
-    val addressBytes = stx.recoveredSenderAddress.get.bytes
-    val expectedOutput = ripemd160(kec256(addressBytes))
+    val expectedOutput = ripemd160(kec256(stx.senderAddress.bytes))
 
     new EvmTestEnv {
       val (_, contract) = deployContract("PrecompiledContracts")
       //FIXME: stx should use BigInts?
-      val result = contract.usePrecompiledContracts(stx.bytesToSign, stx.recoveredPointSign.get,
-        BigInt(stx.signatureRandom.toArray), BigInt(stx.signature.toArray)).call()
+      val bytes = SignedTransaction.bytesToSign(tx)
+      val result = contract.usePrecompiledContracts(bytes, stx.signature.v,
+        BigInt(stx.signature.r), BigInt(stx.signature.s)).call()
 
       // even though contract specifies bytes20 as the return type, 32-byte (right zero padded) value is returned
       result.returnData.take(20) shouldEqual expectedOutput

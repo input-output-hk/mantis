@@ -18,4 +18,5 @@ case class ProgramResult[W <: WorldStateProxy[W, S], S <: Storage[S]](
   world: W,
   addressesToDelete: Seq[Address],
   logs: Seq[TxLogEntry],
+  gasRefund: UInt256,
   error: Option[ProgramError])

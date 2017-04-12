@@ -10,7 +10,7 @@ object State {
   val creatorAddress = Address(0xabcdef) //scalastyle:off magic.number
 
   private var currentWorld = {
-    val creatorAcc = Account.Empty.updateBalance(UInt256(10) ** UInt256(9))
+    val creatorAcc = Account.Empty.increaseBalance(UInt256(10) ** UInt256(9))
     val creatorXAcc = XAccount(creatorAcc, "Creator", creatorAddress, Nil)
     WorldState().saveXAccount(creatorAddress, creatorXAcc)
   }
@@ -51,7 +51,7 @@ object State {
   }
 
   def runTransaction(xAccount: XAccount, callData: ByteString, gas: BigInt, value: BigInt): PR = {
-    val tx = MockVmInput.transaction(creatorAddress, callData, value, gas, receivingAddress = xAccount.address)
+    val tx = MockVmInput.transaction(creatorAddress, callData, value, gas, receivingAddress = Some(xAccount.address))
     val bh = MockVmInput.blockHeader
 
     val context: PC = ProgramContext(tx, bh, world)

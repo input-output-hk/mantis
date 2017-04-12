@@ -51,6 +51,7 @@ object PrecompiledContracts {
         context.world,
         Nil,
         Nil,
+        0,
         error
       )
     }
