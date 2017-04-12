@@ -105,20 +105,28 @@ class Ledger(vm: VM) extends Logger {
     val gasPrice = UInt256(stx.tx.gasPrice)
     val gasLimit = UInt256(stx.tx.gasLimit)
 
-    val world1 = updateSenderAccountBeforeExecution(stx, world)
-    val result = runVM(stx, blockHeader, world1)
+    val worldBeforeTransfer = updateSenderAccountBeforeExecution(stx, world)
+    val result = runVM(stx, blockHeader, worldBeforeTransfer)
 
-    val gasUsed = if(result.error.isDefined) gasLimit else gasLimit - result.gasRemaining
-    val gasRefund = calcGasRefund(stx, result)
+    //FIXME: This only implements error handling as done in Homestead
+    val resultWithErrorHandling: PR =
+      if(result.error.isDefined) {
+        //Rollback to the world before transfer was done if an error happened
+        result.copy(world = worldBeforeTransfer, addressesToDelete = Nil)
+      } else
+        result
+
+    val gasUsed = if(resultWithErrorHandling.error.isDefined) gasLimit else gasLimit - resultWithErrorHandling.gasRemaining
+    val gasRefund = calcGasRefund(stx, resultWithErrorHandling)
 
     val refundGasFn = pay(stx.senderAddress, gasRefund * gasPrice) _
     val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (gasLimit - gasRefund) * gasPrice) _
-    val deleteAccountsFn = deleteAccounts(result.addressesToDelete) _
+    val deleteAccountsFn = deleteAccounts(resultWithErrorHandling.addressesToDelete) _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
 
-    val world2 = (refundGasFn andThen payMinerForGasFn andThen deleteAccountsFn andThen persistStateFn)(result.world)
+    val world2 = (refundGasFn andThen payMinerForGasFn andThen deleteAccountsFn andThen persistStateFn)(resultWithErrorHandling.world)
 
-    TxResult(world2, gasUsed, result.logs)
+    TxResult(world2, gasUsed, resultWithErrorHandling.logs)
   }
 
   private def validateBlockBeforeExecution(block: Block, blockchain: Blockchain): Either[BlockExecutionError, Unit] = {
@@ -297,9 +305,7 @@ class Ledger(vm: VM) extends Logger {
   private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): PR = {
     val context: PC = ProgramContext(stx, blockHeader, worldStateProxy)
     val result: PR = vm.run(context)
-    if(result.error.isDefined)
-      result.copy(world = worldStateProxy, addressesToDelete = Nil) //Rollback to the previous state if an error happened
-    else if (stx.tx.isContractInit)
+    if (stx.tx.isContractInit && result.error.isEmpty)
       saveNewContract(context.env.ownerAddr, result)
     else
       result
