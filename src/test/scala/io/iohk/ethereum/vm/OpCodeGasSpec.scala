@@ -480,7 +480,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       whenever(stateIn.world.getAccount(Address(refund)).isEmpty) {
         val stateOut = op.execute(stateIn)
         stateOut.gasRefund shouldEqual R_selfdestruct
-        verifyGas(G_selfdestruct + G_selfdestruct_to_new_account, stateIn, stateOut)
+        verifyGas(G_selfdestruct + G_newaccount, stateIn, stateOut)
       }
     }
 
@@ -502,7 +502,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       whenever(stateIn.world.getAccount(Address(refund)).isEmpty) {
         val updatedStateIn = stateIn.withAddressToDelete(stateIn.context.env.ownerAddr)
         val stateOut = op.execute(updatedStateIn)
-        verifyGas(G_selfdestruct + G_selfdestruct_to_new_account, updatedStateIn, stateOut)
+        verifyGas(G_selfdestruct + G_newaccount, updatedStateIn, stateOut)
         stateOut.gasRefund shouldEqual 0
       }
     }

@@ -25,7 +25,9 @@ object EvmConfig {
   val FrontierConfig = EvmConfig(
     feeSchedule = new FeeSchedule.FrontierFeeSchedule,
     opCodes = OpCodes.FrontierOpCodes,
-    exceptionalFailedCodeDeposit = false)
+    exceptionalFailedCodeDeposit = false,
+    subGasCapDivisor = None,
+    chargeSelfDestructForNewAccount = false)
 
   /*
     TODO (CREATE):
@@ -38,7 +40,9 @@ object EvmConfig {
   val HomesteadConfig = EvmConfig(
     feeSchedule = new FeeSchedule.HomesteadFeeSchedule,
     opCodes = OpCodes.HomesteadOpCodes,
-    exceptionalFailedCodeDeposit = true)
+    exceptionalFailedCodeDeposit = true,
+    subGasCapDivisor = None,
+    chargeSelfDestructForNewAccount = false)
 
   /*
   TODO(CREATE): sub_gas_cap_divisor
@@ -47,7 +51,8 @@ object EvmConfig {
    */
   val PostEIP150Config = HomesteadConfig.copy(
     feeSchedule = new FeeSchedule.PostEIP150FeeSchedule,
-    subGasCapDivisor = Some(64))
+    subGasCapDivisor = Some(64),
+    chargeSelfDestructForNewAccount = true)
 
   val PostEIP160Config = PostEIP150Config.copy(
     feeSchedule = new FeeSchedule.PostEIP160FeeSchedule)
@@ -64,7 +69,8 @@ case class EvmConfig(
     feeSchedule: FeeSchedule,
     opCodes: List[OpCode],
     exceptionalFailedCodeDeposit: Boolean,
-    subGasCapDivisor: Option[Long] = None) {
+    subGasCapDivisor: Option[Long],
+    chargeSelfDestructForNewAccount: Boolean) {
 
   val byteToOpCode: Map[Byte, OpCode] =
     opCodes.map(op => op.code -> op).toMap
@@ -109,7 +115,6 @@ object FeeSchedule {
       override val G_blockhash = UInt256(20)
       override val G_extcodesize = UInt256(20)
       override val G_extcode = UInt256(20)
-      override val G_selfdestruct_to_new_account = UInt256(0)
   }
 
   class HomesteadFeeSchedule extends FrontierFeeSchedule {
@@ -123,7 +128,6 @@ object FeeSchedule {
     override val G_selfdestruct = UInt256(5000)
     override val G_extcodesize = UInt256(700)
     override val G_extcode = UInt256(700)
-    override val G_selfdestruct_to_new_account = UInt256(25000)
   }
 
   class PostEIP160FeeSchedule extends PostEIP150FeeSchedule {
@@ -168,5 +172,4 @@ trait FeeSchedule {
   val G_blockhash: UInt256
   val G_extcodesize: UInt256
   val G_extcode: UInt256
-  val G_selfdestruct_to_new_account: UInt256
 }

@@ -818,8 +818,8 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
     val (refundAddrDW, _) = state.stack.pop
     val refundAddress = Address(refundAddrDW)
 
-    if (!state.world.accountExists(refundAddress))
-      state.config.feeSchedule.G_selfdestruct_to_new_account
+    if (state.config.chargeSelfDestructForNewAccount && !state.world.accountExists(refundAddress))
+      state.config.feeSchedule.G_newaccount
     else
       0
 
