@@ -7,6 +7,8 @@ import WorldState.{PC, PR}
 
 object State {
 
+  val evmConfig = EvmConfig.PostEIP160Config
+
   val creatorAddress = Address(0xabcdef) //scalastyle:off magic.number
 
   private var currentWorld = {
@@ -23,11 +25,11 @@ object State {
     val tx = MockVmInput.transaction(creatorAddress, code, balance, gas)
     val bh = MockVmInput.blockHeader
 
-    val context: PC = ProgramContext(tx, bh, world)
+    val context: PC = ProgramContext(tx, bh, world, evmConfig)
     val intermediateResult: PR = VM.run(context)
 
     val result: PR = if (intermediateResult.error.isDefined) intermediateResult else {
-      val depositCost = GasFee.G_codedeposit * intermediateResult.returnData.size
+      val depositCost = evmConfig.feeSchedule.G_codedeposit * intermediateResult.returnData.size
       intermediateResult.copy(
         gasRemaining = intermediateResult.gasRemaining - depositCost,
         error = if (intermediateResult.gasRemaining < depositCost) Some(OutOfGas) else None
@@ -51,10 +53,10 @@ object State {
   }
 
   def runTransaction(xAccount: XAccount, callData: ByteString, gas: BigInt, value: BigInt): PR = {
-    val tx = MockVmInput.transaction(creatorAddress, callData, value, gas, receivingAddress = xAccount.address)
+    val tx = MockVmInput.transaction(creatorAddress, callData, value, gas, receivingAddress = Some(xAccount.address))
     val bh = MockVmInput.blockHeader
 
-    val context: PC = ProgramContext(tx, bh, world)
+    val context: PC = ProgramContext(tx, bh, world, evmConfig)
     val result: PR = VM.run(context)
 
     if (result.error.isEmpty) {

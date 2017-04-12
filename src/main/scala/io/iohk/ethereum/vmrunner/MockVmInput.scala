@@ -23,7 +23,7 @@ object MockVmInput {
     value: BigInt,
     gasLimit: BigInt,
     gasPrice: BigInt = defaultGasPrice,
-    receivingAddress: Address = Address.empty,
+    receivingAddress: Option[Address] = None,
     nonce: BigInt = 0
   ): SignedTransaction =
     new MockTransaction(Transaction(nonce, gasPrice, gasLimit, receivingAddress, value, payload), senderAddress)

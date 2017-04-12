@@ -2,11 +2,12 @@ package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.domain.{Account, Address}
 import org.scalatest.{Matchers, WordSpec}
-import GasFee._
 import MockWorldState.{PC, PS}
 import akka.util.ByteString
 
 class CreateOpcodeSpec extends WordSpec with Matchers {
+  val config = EvmConfig.PostEIP160Config
+  import config.feeSchedule._
 
   object fxt {
 
@@ -43,14 +44,14 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
 
     val createCode = Assembly(initPart.byteCode ++ contractCode.byteCode: _*)
 
-    val copyCodeGas = G_copy * wordsForBytes(contractCode.code.size) + calcMemCost(0, 0, contractCode.code.size)
+    val copyCodeGas = G_copy * wordsForBytes(contractCode.code.size) + config.calcMemCost(0, 0, contractCode.code.size)
     val storeGas = G_sset
-    val gasRequiredForInit = initPart.linearConstGas + copyCodeGas + storeGas
-    val depositGas = calcCodeDepositCost(contractCode.code)
+    val gasRequiredForInit = initPart.linearConstGas(config) + copyCodeGas + storeGas
+    val depositGas = config.calcCodeDepositCost(contractCode.code)
     val gasRequiredForCreation = gasRequiredForInit + depositGas + G_create
 
     val env = ExecEnv(creatorAddr, Address(0), Address(0), 1, ByteString.empty, 0, Program(ByteString.empty), null, 0)
-    val context: PC = ProgramContext(env, 2 * gasRequiredForCreation, initWorld)
+    val context: PC = ProgramContext(env, 2 * gasRequiredForCreation, initWorld, config)
   }
 
   case class CreateResult(context: PC = fxt.context, value: UInt256 = fxt.endowment) {
@@ -107,7 +108,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas" in {
-        val expectedGas = G_create + allBut64th(context.startGas - G_create)
+        val expectedGas = G_create + config.gasCap(context.startGas - G_create)
         result.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -122,7 +123,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     }
 
     "call depth limit is reached" should {
-      val env = fxt.env.copy(callDepth = OpCode.MaxCallDepth)
+      val env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth)
       val context: PC = fxt.context.copy(env = env)
       val result = CreateResult(context = context)
 

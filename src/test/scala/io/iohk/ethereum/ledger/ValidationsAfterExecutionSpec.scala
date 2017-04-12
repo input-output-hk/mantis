@@ -111,22 +111,22 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers {
   val gasUsed = block.header.gasUsed
 
   it should "report valid results from execution as correct" in {
-    Ledger.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe None
+    Ledger.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe Right(())
   }
 
   it should "report as invalid a block that doesn't have the correct gas used" in {
     val invalidGasUsed = gasUsed + 1
-    assert(Ledger.validateBlockAfterExecution(block, stateRootHash, receipts, invalidGasUsed).isDefined)
+    assert(Ledger.validateBlockAfterExecution(block, stateRootHash, receipts, invalidGasUsed).isLeft)
   }
 
   it should "report as invalid a block that doesn't have the correct state root hash" in {
     val invalidStateRootHash: ByteString = (stateRootHash.head + 1).toByte +: stateRootHash.tail
-    assert(Ledger.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed).isDefined)
+    assert(Ledger.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed).isLeft)
   }
 
   it should "report as invalid a block that doesn't have the correct receipts information" in {
     val invalidReceipts: Seq[Receipt] = Seq()
-    assert(Ledger.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed).isDefined)
+    assert(Ledger.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed).isLeft)
   }
 
 }
