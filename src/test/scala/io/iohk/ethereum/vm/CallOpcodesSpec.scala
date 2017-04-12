@@ -227,7 +227,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     "calling a precompiled contract" should {
       val contractAddress = Address(1) // ECDSA recovery
       val invalidSignature = ByteString(Array.fill(128)(0.toByte))
-      val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 0))
+      val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 1))
       val context: PC = fxt.context.copy(world = world)
       val call = CallResult(op = CALL, context = context, to = contractAddress, inputData = invalidSignature,
         inOffset = 0, inSize = 128, outOffset = 0, outSize = 128
@@ -247,7 +247,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "update precompiled contract's balance" in {
-        call.extBalance shouldEqual call.value
+        call.extBalance shouldEqual call.value + 1
         call.ownBalance shouldEqual fxt.initialBalance - call.value
       }
 
@@ -374,7 +374,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     "calling a precompiled contract" should {
       val contractAddress = Address(2) // SHA256
       val inputData = ByteString(Array.fill(128)(1.toByte))
-      val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 0))
+      val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 1))
       val context: PC = fxt.context.copy(world = world)
       val call = CallResult(op = CALLCODE, context = context, to = contractAddress, inputData = inputData,
         inOffset = 0, inSize = 128, outOffset = 128, outSize = 32
@@ -392,7 +392,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "not update precompiled contract's balance" in {
-        call.extBalance shouldEqual 0
+        call.extBalance shouldEqual 1
         call.ownBalance shouldEqual fxt.initialBalance
       }
 
@@ -492,7 +492,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     "calling a precompiled contract" should {
       val contractAddress = Address(3) // RIPEMD160
       val inputData = ByteString(Array.fill(128)(1.toByte))
-      val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 0))
+      val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 1))
       val context: PC = fxt.context.copy(world = world)
       val call = CallResult(op = DELEGATECALL, context = context, to = contractAddress, inputData = inputData,
         inOffset = 0, inSize = 128, outOffset = 128, outSize = 32
@@ -510,7 +510,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "not update precompiled contract's balance" in {
-        call.extBalance shouldEqual 0
+        call.extBalance shouldEqual 1
         call.ownBalance shouldEqual fxt.initialBalance
       }
 
