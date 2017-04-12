@@ -12,7 +12,7 @@ import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
-import io.iohk.ethereum.validators.{BlockValidator, ValidatorsImpl}
+import io.iohk.ethereum.validators._
 
 
 trait NodeKeyBuilder {
@@ -96,6 +96,13 @@ trait FastSyncControllerBuilder {
     PeerManagerActorBuilder with
     StorageBuilder =>
 
+  val validators = new Validators {
+    val blockValidator: BlockValidator = BlockValidator
+    val blockHeaderValidator: BlockHeaderValidator = BlockHeaderValidator
+    val ommersValidator: OmmersValidator = OmmersValidator
+    val signedTransactionValidator: SignedTransactionValidator = SignedTransactionValidator
+  }
+
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
       peerManager,
@@ -103,7 +110,7 @@ trait FastSyncControllerBuilder {
       blockchain,
       storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
-      ValidatorsImpl),
+      validators),
     "sync-controller")
 
 }
