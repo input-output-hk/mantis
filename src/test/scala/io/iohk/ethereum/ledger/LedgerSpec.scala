@@ -36,7 +36,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       receiptsRoot = bEmpty,
       logsBloom = bEmpty,
       difficulty = 1000000,
-      number = Config.Blockchain.HomesteadBlock + 1,
+      number = Config.Blockchain.homesteadBlockNumber + 1,
       gasLimit = 1000000,
       gasUsed = 0,
       unixTimestamp = 1486752441,
