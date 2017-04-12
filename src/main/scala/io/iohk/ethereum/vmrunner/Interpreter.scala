@@ -145,7 +145,7 @@ object Interpreter {
     if (i >= code.size)
       ""
     else {
-      val opcode = OpCode.byteToOpCode.get(code(i)) match {
+      val opcode = EvmConfig.PostEIP160Config.byteToOpCode.get(code(i)) match {
         case Some(op: PushOp) =>
           val skip = op.code - PUSH1.code + 1
           val data = code.slice(i + 1, i + skip + 1).map(b => f"$b%02x").mkString(" ")
