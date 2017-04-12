@@ -671,16 +671,13 @@ case object CREATE extends OpCode(0xf0, 3, 1, G_create) {
       val (newAddress, world1) = state.world.newAddress(state.env.ownerAddr)
       val world2 = world1.transfer(state.env.ownerAddr, newAddress, endowment)
 
-      val newEnv = ExecEnv(
-        newAddress,
-        state.env.callerAddr,
-        state.env.originAddr,
-        state.env.gasPrice,
-        ByteString.empty,
-        endowment,
-        Program(initCode),
-        state.env.blockHeader,
-        state.env.callDepth + 1
+      val newEnv = state.env.copy(
+        callerAddr = state.env.ownerAddr,
+        ownerAddr = newAddress,
+        value = endowment,
+        program = Program(initCode),
+        inputData = ByteString.empty,
+        callDepth = state.env.callDepth + 1
       )
 
       //to avoid calculating this twice, we could adjust state.gas prior to execution in OpCode#execute
@@ -706,6 +703,7 @@ case object CREATE extends OpCode(0xf0, 3, 1, G_create) {
           .withStack(stack2)
           .withWorld(world3)
           .withAddressesToDelete(result.addressesToDelete)
+          .withLogs(result.logs)
           .withMemory(memory1)
           .spendGas(gasUsed)
           .step()
@@ -790,6 +788,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
         .withMemory(mem2)
         .withWorld(result.world)
         .withAddressesToDelete(result.addressesToDelete)
+        .withLogs(result.logs)
         .step()
     }
   }
