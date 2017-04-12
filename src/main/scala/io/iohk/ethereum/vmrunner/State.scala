@@ -25,8 +25,7 @@ object State {
     val tx = MockVmInput.transaction(creatorAddress, code, balance, gas)
     val bh = MockVmInput.blockHeader
 
-    //TODO this should fail, but it is not failing?
-    val context: PC = ProgramContext(tx, Address("fix me".toByte), bh, world, evmConfig)
+    val context: PC = ProgramContext(tx, Address("Not used".toByte), bh, world, evmConfig)
     val intermediateResult: PR = VM.run(context)
 
     val result: PR = if (intermediateResult.error.isDefined) intermediateResult else {
@@ -57,8 +56,7 @@ object State {
     val tx = MockVmInput.transaction(creatorAddress, callData, value, gas, receivingAddress = Some(xAccount.address))
     val bh = MockVmInput.blockHeader
 
-    //TODO this should fail, but it is not failing?
-    val context: PC = ProgramContext(tx, Address("fix me".toByte), bh, world, evmConfig)
+    val context: PC = ProgramContext(tx, Address("Not used".toByte), bh, world, evmConfig)
     val result: PR = VM.run(context)
 
     if (result.error.isEmpty) {
