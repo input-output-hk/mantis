@@ -697,15 +697,22 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
 
       val codeDepositGas = state.config.calcCodeDepositCost(result.returnData)
       val gasUsed = startGas - result.gasRemaining + codeDepositGas
+      val enoughGasForDeposit = gasUsed <= availableGas
 
       if (result.error.isDefined) {
         val stack2 = stack1.push(UInt256.Zero)
         state.withStack(stack2).spendGas(startGas)
-      } else if (gasUsed > availableGas) {
+
+      } else if (!enoughGasForDeposit && state.config.exceptionalFailedCodeDeposit) {
         state.withError(OutOfGas)
+
       } else {
         val stack2 = stack1.push(newAddress.toUInt256)
-        val world3 = result.world.saveCode(newAddress, result.returnData)
+
+        val world3 =
+          if (!enoughGasForDeposit) result.world
+          else result.world.saveCode(newAddress, result.returnData)
+
         state
           .withStack(stack2)
           .withWorld(world3)
