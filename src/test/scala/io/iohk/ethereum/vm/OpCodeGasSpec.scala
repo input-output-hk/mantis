@@ -7,7 +7,6 @@ import UInt256.{One, Two, Zero}
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm.MockWorldState.PS
 
-// scalastyle:off magic.number
 class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
 
   override val config = EvmConfig.PostEIP160Config
@@ -305,7 +304,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       verifyGas(expectedGas, stateIn, stateOut, allowOOG = false)
     }
 
-    val maxGas = G_verylow + G_copy * 8
+    val maxGas = 2 * (G_extcode + G_copy * 8)
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 4, maxUInt = UInt256(256)),
       gasGen = getUInt256Gen(max = maxGas),
@@ -318,7 +317,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val (Seq(_, offset, _, size), _) = stateIn.stack.pop(4)
       val memCost = config.calcMemCost(stateIn.memory.size, offset, size)
       val copyCost = G_copy * wordsForBytes(size)
-      val expectedGas = G_extcode + memCost + copyCost + 123
+      val expectedGas = G_extcode + memCost + copyCost
 
       verifyGas(expectedGas, stateIn, stateOut)
     }
