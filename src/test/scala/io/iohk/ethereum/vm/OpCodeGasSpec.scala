@@ -46,7 +46,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     CALLVALUE -> G_base,
     CALLDATALOAD -> G_verylow,
     CALLDATASIZE -> G_base,
-    EXTCODESIZE -> G_extcodesize,
+    EXTCODESIZE -> G_extcode,
     BLOCKHASH -> G_blockhash,
     COINBASE -> G_base,
     TIMESTAMP -> G_base,

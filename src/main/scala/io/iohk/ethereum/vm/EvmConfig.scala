@@ -113,7 +113,6 @@ object FeeSchedule {
       override val G_sha3word = 6
       override val G_copy = 3
       override val G_blockhash = 20
-      override val G_extcodesize = 20
       override val G_extcode = 20
   }
 
@@ -126,7 +125,6 @@ object FeeSchedule {
     override val G_call = 700
     override val G_balance = 400
     override val G_selfdestruct = 5000
-    override val G_extcodesize = 700
     override val G_extcode = 700
   }
 
@@ -170,6 +168,5 @@ trait FeeSchedule {
   val G_sha3word: UInt256
   val G_copy: UInt256
   val G_blockhash: UInt256
-  val G_extcodesize: UInt256
   val G_extcode: UInt256
 }

@@ -382,7 +382,7 @@ case object CODECOPY extends OpCode(0x39, 3, 0, _.G_verylow) {
 
 case object GASPRICE extends ConstOp(0x3a)(_.env.gasPrice)
 
-case object EXTCODESIZE extends OpCode(0x3b, 1, 1, _.G_extcodesize) with ConstGas {
+case object EXTCODESIZE extends OpCode(0x3b, 1, 1, _.G_extcode) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (addr, stack1) = state.stack.pop
     val codeSize = state.world.getCode(Address(addr)).size
