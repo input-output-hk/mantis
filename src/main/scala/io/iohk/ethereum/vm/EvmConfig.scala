@@ -79,59 +79,59 @@ case class EvmConfig(
 object FeeSchedule {
 
   class FrontierFeeSchedule extends FeeSchedule {
-      override val G_zero = UInt256(0)
-      override val G_base = UInt256(2)
-      override val G_verylow = UInt256(3)
-      override val G_low = UInt256(5)
-      override val G_mid = UInt256(8)
-      override val G_high = UInt256(10)
-      override val G_balance = UInt256(20)
-      override val G_sload = UInt256(50)
-      override val G_jumpdest = UInt256(1)
-      override val G_sset = UInt256(20000)
-      override val G_sreset = UInt256(5000)
-      override val R_sclear = UInt256(15000)
-      override val R_selfdestruct = UInt256(24000)
-      override val G_selfdestruct = UInt256(0)
-      override val G_create = UInt256(32000)
-      override val G_codedeposit = UInt256(200)
-      override val G_call = UInt256(40)
-      override val G_callvalue = UInt256(9000)
-      override val G_callstipend = UInt256(2300)
-      override val G_newaccount = UInt256(25000)
-      override val G_exp = UInt256(10)
-      override val G_expbyte = UInt256(10)
-      override val G_memory = UInt256(3)
-      override val G_txcreate = UInt256(21000)
-      override val G_txdatazero = UInt256(4)
-      override val G_txdatanonzero = UInt256(68)
-      override val G_transaction = UInt256(21000)
-      override val G_log = UInt256(375)
-      override val G_logdata = UInt256(8)
-      override val G_logtopic = UInt256(375)
-      override val G_sha3 = UInt256(30)
-      override val G_sha3word = UInt256(6)
-      override val G_copy = UInt256(3)
-      override val G_blockhash = UInt256(20)
-      override val G_extcodesize = UInt256(20)
-      override val G_extcode = UInt256(20)
+      override val G_zero = 0
+      override val G_base = 2
+      override val G_verylow = 3
+      override val G_low = 5
+      override val G_mid = 8
+      override val G_high = 10
+      override val G_balance = 20
+      override val G_sload = 50
+      override val G_jumpdest = 1
+      override val G_sset = 20000
+      override val G_sreset = 5000
+      override val R_sclear = 15000
+      override val R_selfdestruct = 24000
+      override val G_selfdestruct = 0
+      override val G_create = 32000
+      override val G_codedeposit = 200
+      override val G_call = 40
+      override val G_callvalue = 9000
+      override val G_callstipend = 2300
+      override val G_newaccount = 25000
+      override val G_exp = 10
+      override val G_expbyte = 10
+      override val G_memory = 3
+      override val G_txcreate = 21000
+      override val G_txdatazero = 4
+      override val G_txdatanonzero = 68
+      override val G_transaction = 21000
+      override val G_log = 375
+      override val G_logdata = 8
+      override val G_logtopic = 375
+      override val G_sha3 = 30
+      override val G_sha3word = 6
+      override val G_copy = 3
+      override val G_blockhash = 20
+      override val G_extcodesize = 20
+      override val G_extcode = 20
   }
 
   class HomesteadFeeSchedule extends FrontierFeeSchedule {
-    override val G_txcreate = UInt256(53000)
+    override val G_txcreate = 53000
   }
 
   class PostEIP150FeeSchedule extends HomesteadFeeSchedule {
-    override val G_sload = UInt256(200)
-    override val G_call = UInt256(700)
-    override val G_balance = UInt256(400)
-    override val G_selfdestruct = UInt256(5000)
-    override val G_extcodesize = UInt256(700)
-    override val G_extcode = UInt256(700)
+    override val G_sload = 200
+    override val G_call = 700
+    override val G_balance = 400
+    override val G_selfdestruct = 5000
+    override val G_extcodesize = 700
+    override val G_extcode = 700
   }
 
   class PostEIP160FeeSchedule extends PostEIP150FeeSchedule {
-    override val G_expbyte = UInt256(50)
+    override val G_expbyte = 50
   }
 }
 
