@@ -30,7 +30,7 @@ object DumpChainApp {
       peerConfiguration = Config.Network.peer,
       appStateStorage = storagesInstance.storages.appStateStorage,
       blockchain = blockchain,
-      bootstrapNodes = Set("enode://cff915fe99185c4f9c189bd3846e313a204b2a00eb806385ee9d15d75aa18eddc1d2606e13f166bdf677b1853e62a75b09dbfcafb899b58b585ef407b795d711@192.168.1.105:30303")),
+      bootstrapNodes = Set("enode://83d6145bac540efc635fbf60b94c2f7691aea4416c7dbaef5c08a2c2542d05de17e6c9a7d7462ec1317473aff93c2f90523944969c88a66c45761423494ae3ce@192.168.1.105:30303")),
       "peer-manager")
     actorSystem.actorOf(DumpChainActor.props(peerManager), "dumper")
   }
