@@ -20,7 +20,6 @@ import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.db.storage._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.util.encoders.Hex
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
@@ -152,11 +151,10 @@ class PeerActor(
     val bestBlockHeader = getBestBlockHeader()
     msg.Status(
       protocolVersion = Message.PV63,
-      networkId = Config.Network.networkId,
+      networkId = peerConfiguration.networkId,
       totalDifficulty = bestBlockHeader.difficulty,
-      bestHash = ByteString(Hex.decode("c2503fa5d31cc3daf8a97ea57a15d2bee8e867252e2d8d6fdb84eedc17309e55")),
-      genesisHash = ByteString(Hex.decode("c2503fa5d31cc3daf8a97ea57a15d2bee8e867252e2d8d6fdb84eedc17309e55"))//blockchain.genesisHeader.hash
-    )
+      bestHash = bestBlockHeader.hash,
+      genesisHash = blockchain.genesisHeader.hash)
   }
 
   def waitingForNodeStatus(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =

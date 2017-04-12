@@ -6,8 +6,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 import scala.language.postfixOps
 
-// scalastyle:off
-class ExampleContractTest extends FlatSpec with Matchers {
+class ContractTest extends FlatSpec with Matchers {
   "FixtureProvider" should " load data from files" in {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/evm_test/purchaseContruct/")
 
@@ -15,5 +14,9 @@ class ExampleContractTest extends FlatSpec with Matchers {
 
     //block only with ether transfers
     Ledger.executeBlock(fixtures.blockByNumber(1), storage, stateStorage)
+
+    //block 2 contains contract creation
+    //block 3 and 4 contains contract calls with contract storage modification
+    //block 4 contains contract paying to 2 accounts
   }
 }

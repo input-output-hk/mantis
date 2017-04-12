@@ -20,7 +20,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class DumpChainActor(peerManager: ActorRef) extends Actor {
+class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigInt) extends Actor {
   var stateNodesHashes: Set[ByteString] = Set.empty
   var contractNodesHashes: Set[ByteString] = Set.empty
   var evmCodeHashes: Set[ByteString] = Set.empty
@@ -46,7 +46,7 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
       peers = p.keys.toSeq
       peers.headOption.foreach { case Peer(_, actor) =>
         actor ! Subscribe(Set(BlockHeaders.code, BlockBodies.code, Receipts.code, NodeData.code))
-        actor ! SendMessage(GetBlockHeaders(Left(0), 20, 0, reverse = false))
+        actor ! SendMessage(GetBlockHeaders(block = Left(startBlock), maxHeaders = maxBlocks, skip = 0, reverse = false))
       }
 
     case MessageReceived(m: BlockHeaders) =>
@@ -167,7 +167,8 @@ class DumpChainActor(peerManager: ActorRef) extends Actor {
 }
 
 object DumpChainActor {
-  def props(peerManager: ActorRef): Props = Props(new DumpChainActor(peerManager))
+  def props(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigInt): Props =
+    Props(new DumpChainActor(peerManager, startBlock: BigInt, maxBlocks: BigInt))
   val emptyStorage = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
   val emptyEvm = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 }

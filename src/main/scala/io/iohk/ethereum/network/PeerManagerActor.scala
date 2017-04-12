@@ -187,6 +187,7 @@ object PeerManagerActor {
     val waitForChainCheckTimeout: FiniteDuration
     val fastSyncHostConfiguration: FastSyncHostConfiguration
     val maxPeers: Int
+    val networkId: Int
   }
 
   trait FastSyncHostConfiguration {
