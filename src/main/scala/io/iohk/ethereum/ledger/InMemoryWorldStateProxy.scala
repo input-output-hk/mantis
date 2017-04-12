@@ -149,6 +149,9 @@ class InMemoryWorldStateProxy private(
   override def saveAccount(address: Address, account: Account): InMemoryWorldStateProxy =
     copyWith(accountsStateTrie = accountsStateTrie.put(address.bytes, account))
 
+  override def deleteAccount(address: Address): InMemoryWorldStateProxy =
+    copyWith(accountsStateTrie = accountsStateTrie.remove(address.bytes))
+
   override def getCode(address: Address): ByteString =
     accountCodes.getOrElse(
       address,

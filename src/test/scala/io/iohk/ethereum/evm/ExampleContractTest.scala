@@ -61,6 +61,6 @@ class ExampleContractTest extends FlatSpec with Matchers {
     //todo remove debug code
 
     //block containing only ether transfers
-    Ledger.executeBlock(fixtures.blockByNumber(2), storage, stateStorage)
+    //Ledger.executeBlock(fixtures.blockByNumber(2), storage, stateStorage)
   }
 }

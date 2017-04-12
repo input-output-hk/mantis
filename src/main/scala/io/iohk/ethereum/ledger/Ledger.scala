@@ -183,7 +183,7 @@ class Ledger(vm: VM) extends Logger {
     * @param tx Target transaction
     * @return Upfront cost
     */
-  private def calculateUpfrontGas(tx: Transaction): BigInt = tx.gasLimit * tx.gasPrice
+  private def calculateUpfrontGas(tx: Transaction): UInt256 = UInt256(tx.gasLimit * tx.gasPrice)
 
   /**
     * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price) + Tv (Tx value). See YP equation number (65)
@@ -257,7 +257,7 @@ class Ledger(vm: VM) extends Logger {
 
   /**
     * Increments account nonce by 1 stated in YP equation (69) and
-    * Pays the upfront Tx gas calculated as TxGasPrice * TxGasLimit + TxValue from balance. YP equation (68)
+    * Pays the upfront Tx gas calculated as TxGasPrice * TxGasLimit from balance. YP equation (68)
     *
     * @param stx
     * @param worldStateProxy
@@ -266,7 +266,7 @@ class Ledger(vm: VM) extends Logger {
   private[ledger] def updateSenderAccountBeforeExecution(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     val senderAddress = stx.senderAddress
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
-    worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontCost(stx.tx)).increaseNonce)
+    worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce)
   }
 
   /**
@@ -285,7 +285,7 @@ class Ledger(vm: VM) extends Logger {
 
   private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): PR = {
     val context: PC = ProgramContext(stx, blockHeader, worldStateProxy)
-    val result = vm.run(context)
+    val result: PR = vm.run(context)
     if (stx.tx.isContractInit && result.error.isEmpty)
       saveNewContract(context.env.ownerAddr, result)
     else
@@ -322,13 +322,18 @@ class Ledger(vm: VM) extends Logger {
   }
 
   /**
-    * Delete all accounts (that appear in SUICIDE list). YP eq (78)
+    * Delete all accounts (that appear in SUICIDE list). YP eq (78).
+    * The contract storage should be cleared during pruning as nodes could be used in other tries.
+    * The contract code is also not deleted as there can be contracts with the exact same code, making it risky to delete
+    * the code of an account in case it is shared with another one.
+    * FIXME: Should we keep track of this for deletion? Maybe during pruning we can also prune contract code.
     *
     * @param addressesToDelete
     * @param worldStateProxy
-    * @return
+    * @return a worldState equal worldStateProxy except that the accounts from addressesToDelete are deleted
     */
-  private def deleteAccounts(addressesToDelete: Seq[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = worldStateProxy //TODO
+  private[ledger] def deleteAccounts(addressesToDelete: Seq[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
+    addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => world.deleteAccount(address) }
 
 }
 
