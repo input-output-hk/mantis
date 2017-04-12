@@ -5,7 +5,7 @@ import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockValidator, OmmersValidator, SignedTransactionValidator}
 import io.iohk.ethereum.utils.{Config, Logger}
-import io.iohk.ethereum.vm.{GasFee, _}
+import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
 class Ledger(vm: VM) extends Logger {
@@ -27,7 +27,7 @@ class Ledger(vm: VM) extends Logger {
       val BlockResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, blockchain, storages, stateStorage)
       log.debug(s"All txs from block ${block.header} were executed")
 
-      val worldToPersist = payBlockReward(Config.Blockchain.BlockReward, block, resultingWorldStateProxy)
+      val worldToPersist = payBlockReward(Config.Blockchain.blockReward, block, resultingWorldStateProxy)
       val worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
 
       val afterExecutionBlockError = validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
@@ -54,9 +54,11 @@ class Ledger(vm: VM) extends Logger {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = InMemoryWorldStateProxy(storages, stateStorage, parentStateRoot)
 
+    val config = EvmConfig.forBlock(block.header.number)
+
     block.body.transactionList.foldLeft[BlockResult](BlockResult(worldState = initialWorld)) {
       case (BlockResult(world, acumGas, receipts), stx)=>
-        validateTransaction(stx, world, acumGas, block.header) match {
+        validateTransaction(stx, world, acumGas, block.header, config) match {
           case Left(err) =>
             throw new RuntimeException(err)
 
@@ -191,12 +193,13 @@ class Ledger(vm: VM) extends Logger {
     stx: SignedTransaction,
     worldState: InMemoryWorldStateProxy,
     accumGasLimit: BigInt,
-    blockHeader: BlockHeader): Either[String, SignedTransaction] = {
+    blockHeader: BlockHeader,
+    config: EvmConfig): Either[String, SignedTransaction] = {
     for {
-      _ <- SignedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = blockHeader.number < Config.Blockchain.HomesteadBlock)
+      _ <- SignedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = blockHeader.number < Config.Blockchain.homesteadBlockNumber)
         .left.map(_.toString)
       _ <- validateNonce(stx, worldState)
-      _ <- validateGas(stx, blockHeader)
+      _ <- validateGas(stx, blockHeader, config)
       _ <- validateAccountHasEnoughGasToPayUpfrontCost(stx, worldState)
       _ <- validateGasLimit(stx, accumGasLimit, blockHeader.gasLimit)
     } yield stx
@@ -219,9 +222,9 @@ class Ledger(vm: VM) extends Logger {
     * @param stx Transaction to validate
     * @return Either the validated transaction or an error description
     */
-  private def validateGas(stx: SignedTransaction, blockHeader: BlockHeader): Either[String, SignedTransaction] = {
+  private def validateGas(stx: SignedTransaction, blockHeader: BlockHeader, config: EvmConfig): Either[String, SignedTransaction] = {
     import stx.tx
-    if (stx.tx.gasLimit >= GasFee.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, blockHeader.number)) Right(stx)
+    if (stx.tx.gasLimit >= config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, blockHeader.number)) Right(stx)
     else Left("Transaction gas limit is less than the transaction execution gast (intrinsic gas)")
   }
 
@@ -269,21 +272,22 @@ class Ledger(vm: VM) extends Logger {
   }
 
   private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): PR = {
-    val context: PC = ProgramContext(stx, blockHeader, worldStateProxy)
+    val config = EvmConfig.forBlock(blockHeader.number)
+    val context: PC = ProgramContext(stx, blockHeader, worldStateProxy, config)
     val result: PR = vm.run(context)
     if (stx.tx.isContractInit && result.error.isEmpty)
-      saveNewContract(context.env.ownerAddr, result)
+      saveNewContract(context.env.ownerAddr, result, config)
     else
       result
   }
 
-  private def saveNewContract(address: Address, result: PR): PR = {
-    val codeDepositCost = GasFee.calcCodeDepositCost(result.returnData)
+  private def saveNewContract(address: Address, result: PR, config: EvmConfig): PR = {
+    val codeDepositCost = config.calcCodeDepositCost(result.returnData)
     if (result.gasRemaining < codeDepositCost)
       result.copy(error = Some(OutOfGas))
     else
       result.copy(
-        gasRemaining = result.gasRemaining - codeDepositCost,
+        gasRemaining = result.gasRemaining - UInt256(codeDepositCost),
         world = result.world.saveCode(address, result.returnData)
       )
   }
