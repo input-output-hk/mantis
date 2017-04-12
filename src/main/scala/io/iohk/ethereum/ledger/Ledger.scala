@@ -5,7 +5,7 @@ import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockValidator, OmmersValidator, SignedTransactionValidator}
 import io.iohk.ethereum.utils.{Config, Logger}
-import io.iohk.ethereum.vm.{GasFee, _}
+import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
 class Ledger(vm: VM) extends Logger {
@@ -224,7 +224,7 @@ class Ledger(vm: VM) extends Logger {
     */
   private def validateGas(stx: SignedTransaction, blockHeader: BlockHeader, config: EvmConfig): Either[String, SignedTransaction] = {
     import stx.tx
-    if (stx.tx.gasLimit >= GasFee.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, blockHeader.number, config)) Right(stx)
+    if (stx.tx.gasLimit >= config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, blockHeader.number)) Right(stx)
     else Left("Transaction gas limit is less than the transaction execution gast (intrinsic gas)")
   }
 
@@ -282,7 +282,7 @@ class Ledger(vm: VM) extends Logger {
   }
 
   private def saveNewContract(address: Address, result: PR, config: EvmConfig): PR = {
-    val codeDepositCost = GasFee.calcCodeDepositCost(result.returnData, config)
+    val codeDepositCost = config.calcCodeDepositCost(result.returnData)
     if (result.gasRemaining < codeDepositCost)
       result.copy(error = Some(OutOfGas))
     else

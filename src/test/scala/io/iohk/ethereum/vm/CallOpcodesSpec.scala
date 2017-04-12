@@ -3,7 +3,6 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import org.scalatest.{Matchers, WordSpec}
 import Assembly._
-import GasFee._
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm.MockWorldState._
 
@@ -54,13 +53,13 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     )
 
     val inputData = Generators.getUInt256Gen().sample.get.bytes
-    val expectedMemCost = calcMemCost(inputData.size, inputData.size, inputData.size / 2, config)
+    val expectedMemCost = config.calcMemCost(inputData.size, inputData.size, inputData.size / 2)
 
     val initialBalance = UInt256(1000)
 
     val requiredGas = {
       val storageCost = 3 * G_sset
-      val memCost = calcMemCost(0, 0, 32, config)
+      val memCost = config.calcMemCost(0, 0, 32)
       val copyCost = G_copy * wordsForBytes(32)
 
       val extCodeLinearConstGas: UInt256 = extCode.byteCode.foldLeft(UInt256.Zero) {
@@ -164,7 +163,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 16, config)
+        val expectedGas = G_call + G_callvalue - G_callstipend + config.calcMemCost(32, 32, 16)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -182,7 +181,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 16, config)
+        val expectedGas = G_call + G_callvalue - G_callstipend + config.calcMemCost(32, 32, 16)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }

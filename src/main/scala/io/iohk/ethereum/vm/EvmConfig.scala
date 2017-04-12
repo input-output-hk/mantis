@@ -1,5 +1,6 @@
 package io.iohk.ethereum.vm
 
+import akka.util.ByteString
 import io.iohk.ethereum.utils.Config
 
 // scalastyle:off number.of.methods
@@ -72,8 +73,59 @@ case class EvmConfig(
     subGasCapDivisor: Option[Long],
     chargeSelfDestructForNewAccount: Boolean) {
 
+  import feeSchedule._
+  import EvmConfig._
+
   val byteToOpCode: Map[Byte, OpCode] =
     opCodes.map(op => op.code -> op).toMap
+
+  /**
+    * Calculate gas cost of memory usage. Incur a blocking gas cost if memory usage exceeds reasonable limits.
+    *
+    * @param memSize  current memory size in bytes
+    * @param offset   memory offset to be written/read
+    * @param dataSize size of data to be written/read in bytes
+    * @return gas cost
+    */
+  def calcMemCost(memSize: UInt256, offset: UInt256, dataSize: UInt256): UInt256 = {
+    /** See YP H.1 (222) */
+    def c(m: UInt256): UInt256 = {
+      val a = wordsForBytes(m)
+      G_memory * a + a * a / 512
+    }
+
+    val memNeeded = if (dataSize.isZero) UInt256.Zero else offset + dataSize
+    if (memNeeded > MaxMemory)
+      UInt256.MaxValue / 2
+    else if (memNeeded <= memSize)
+      0
+    else
+      c(memNeeded) - c(memSize)
+  }
+
+  /**
+    * Calculates transaction intrinsic gas. See YP section 6.2
+    *
+    */
+  def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean, blockNumber: BigInt): UInt256 = {
+    val txDataZero = txData.count(_ == 0)
+    val txDataNonZero = txData.length - txDataZero
+
+    txDataZero * G_txdatazero +
+      txDataNonZero * G_txdatanonzero +
+      (if (isContractCreation) G_txcreate else 0) +
+      G_transaction
+  }
+
+  /**
+    * If the initialization code completes successfully, a final contract-creation cost is paid, the code-deposit cost,
+    * proportional to the size of the created contract’s code. See YP equation (96)
+    *
+    * @param executionResultData Transaction code initialization result
+    * @return Calculated gas cost
+    */
+  def calcCodeDepositCost(executionResultData: ByteString): BigInt =
+    G_codedeposit * executionResultData.size
 }
 
 object FeeSchedule {

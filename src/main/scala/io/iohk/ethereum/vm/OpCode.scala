@@ -3,7 +3,6 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Address, TxLogEntry}
-import io.iohk.ethereum.vm.GasFee._
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
@@ -312,7 +311,7 @@ case object SHA3 extends OpCode(0x20, 2, 1, _.G_sha3) {
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
     val (Seq(offset, size), _) = state.stack.pop(2)
-    val memCost = calcMemCost(state.memory.size, offset, size, state.config)
+    val memCost = state.config.calcMemCost(state.memory.size, offset, size)
     val shaCost = state.config.feeSchedule.G_sha3word * wordsForBytes(size)
     memCost + shaCost
   }
@@ -356,7 +355,7 @@ case object CALLDATACOPY extends OpCode(0x37, 3, 0, _.G_verylow) {
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
     val (Seq(offset, _, size), _) = state.stack.pop(3)
-    val memCost = calcMemCost(state.memory.size, offset, size, state.config)
+    val memCost = state.config.calcMemCost(state.memory.size, offset, size)
     val copyCost = state.config.feeSchedule.G_copy * wordsForBytes(size)
     memCost + copyCost
   }
@@ -374,7 +373,7 @@ case object CODECOPY extends OpCode(0x39, 3, 0, _.G_verylow) {
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
     val (Seq(offset, _, size), _) = state.stack.pop(3)
-    val memCost = calcMemCost(state.memory.size, offset, size, state.config)
+    val memCost = state.config.calcMemCost(state.memory.size, offset, size)
     val copyCost = state.config.feeSchedule.G_copy * wordsForBytes(size)
     memCost + copyCost
   }
@@ -401,7 +400,7 @@ case object EXTCODECOPY extends OpCode(0x3c, 4, 0, _.G_extcode) {
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
     val (Seq(_, memOffset, _, size), _) = state.stack.pop(4)
-    val memCost = calcMemCost(state.memory.size, memOffset, size, state.config)
+    val memCost = state.config.calcMemCost(state.memory.size, memOffset, size)
     val copyCost = state.config.feeSchedule.G_copy * wordsForBytes(size)
     memCost + copyCost
   }
@@ -446,7 +445,7 @@ case object MLOAD extends OpCode(0x51, 1, 1, _.G_verylow) {
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
     val (offset, _) = state.stack.pop
-    calcMemCost(state.memory.size, offset, UInt256.Size, state.config)
+    state.config.calcMemCost(state.memory.size, offset, UInt256.Size)
   }
 }
 
@@ -459,7 +458,7 @@ case object MSTORE extends OpCode(0x52, 2, 0, _.G_verylow) {
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
     val (offset, _) = state.stack.pop
-    calcMemCost(state.memory.size, offset, UInt256.Size, state.config)
+    state.config.calcMemCost(state.memory.size, offset, UInt256.Size)
   }
 }
 
@@ -482,7 +481,7 @@ case object MSTORE8 extends OpCode(0x53, 2, 0, _.G_verylow) {
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
     val (offset, _) = state.stack.pop
-    calcMemCost(state.memory.size, offset, 1, state.config)
+    state.config.calcMemCost(state.memory.size, offset, 1)
   }
 }
 
@@ -651,7 +650,7 @@ sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code, i + 2, 0
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
     val (Seq(offset, size, _*), stack1) = state.stack.pop(delta)
-    val memCost = calcMemCost(state.memory.size, offset, size, state.config)
+    val memCost = state.config.calcMemCost(state.memory.size, offset, size)
     val logCost = state.config.feeSchedule.G_logdata * size + i * state.config.feeSchedule.G_logtopic
     memCost + logCost
   }
@@ -742,8 +741,8 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
     val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), _) = getParams(state)
     val endowment = if (this == DELEGATECALL) UInt256.Zero else callValue
 
-    val memCostIn = calcMemCost(state.memory.size, inOffset, inSize, state.config)
-    val memCostOut = calcMemCost(state.memory.size, outOffset, outSize, state.config)
+    val memCostIn = state.config.calcMemCost(state.memory.size, inOffset, inSize)
+    val memCostOut = state.config.calcMemCost(state.memory.size, outOffset, outSize)
     val memCost = memCostIn max memCostOut
 
     // FIXME: these are calculated twice (for gas and exec), especially account existence. Can we do better?
@@ -790,7 +789,7 @@ case object RETURN extends OpCode(0xf3, 2, 0, _.G_zero) {
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
     val (Seq(offset, size), _) = state.stack.pop(2)
-    calcMemCost(state.memory.size, offset, size, state.config)
+    state.config.calcMemCost(state.memory.size, offset, size)
   }
 }
 
