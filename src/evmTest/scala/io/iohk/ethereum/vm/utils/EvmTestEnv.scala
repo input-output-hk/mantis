@@ -68,7 +68,7 @@ trait EvmTestEnv {
     val tx = MockVmInput.transaction(creatorAddress, payload, value, gasLimit, gasPrice)
     val bh = MockVmInput.blockHeader
 
-    val context = ProgramContext[MockWorldState, MockStorage](tx, Address("not used".toByte), bh, world, config)
+    val context = ProgramContext[MockWorldState, MockStorage](tx, contractAddress, bh, world, config)
     val result = VM.run(context)
 
     contractsAbis += (name -> contractAbi.right.get)
