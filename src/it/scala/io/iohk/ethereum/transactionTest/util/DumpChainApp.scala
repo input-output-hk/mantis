@@ -19,7 +19,7 @@ object DumpChainApp {
   // scalastyle:off
   def main(args: Array[String]): Unit = {
 
-    val conf = ConfigFactory.load("chainDump.conf")
+    val conf = ConfigFactory.load("transactionTest/chainDump.conf")
     val node = conf.getString("node")
     val genesisHash = ByteString(Hex.decode(conf.getString("genesisHash")))
     val privateNetworkId = conf.getInt("networkId")
