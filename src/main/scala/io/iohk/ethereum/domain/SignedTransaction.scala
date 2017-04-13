@@ -8,12 +8,9 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
-import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.utils.Config.Blockchain
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
-
 
 object SignedTransaction {
 
@@ -30,17 +27,17 @@ object SignedTransaction {
     * new formula for calculating point sign post EIP 155 adoption
     * v = CHAIN_ID * 2 + 35 or v = CHAIN_ID * 2 + 36
     */
-  private def getRecoveredPointSign(pointSign: Byte): Option[Int] = {
-    if (pointSign == negativePointSign || pointSign == (Blockchain.chainId * 2 + newNegativePointSign).toByte) {
+  private def getRecoveredPointSign(pointSign: Byte, chainId: Byte): Option[Int] = {
+    if (pointSign == negativePointSign || pointSign == (chainId * 2 + newNegativePointSign).toByte) {
       Some(negativePointSign)
-    } else if (pointSign == positivePointSign || pointSign == (Blockchain.chainId * 2 + newPositivePointSign).toByte) {
+    } else if (pointSign == positivePointSign || pointSign == (chainId * 2 + newPositivePointSign).toByte) {
       Some(positivePointSign)
     } else {
       None
     }
   }
 
-  private def getSender(tx: Transaction, signature: ECDSASignature, recoveredPointSign: Int): Option[Address] = {
+  private def getSender(tx: Transaction, signature: ECDSASignature, recoveredPointSign: Int, chainId: Byte): Option[Address] = {
     val ECDSASignature(r, s, v) = signature
     val receivingAddressAsArray: Array[Byte] = tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray)
     val bytesToSign: Array[Byte] = if (v == negativePointSign || v == positivePointSign) {
@@ -63,7 +60,7 @@ object SignedTransaction {
           receivingAddressAsArray,
           tx.value,
           tx.payload,
-          Config.Blockchain.chainId,
+          chainId,
           valueForEmptyR,
           valueForEmptyS)))
     }
@@ -86,22 +83,22 @@ object SignedTransaction {
     } yield Address(addrBytes)
   }
 
-  def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString): Option[SignedTransaction] = {
+  def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString, chainId: Byte): Option[SignedTransaction] = {
     val txSignature = ECDSASignature(r = new BigInteger(1, signatureRandom.toArray), s = new BigInteger(1, signature.toArray), v = pointSign)
-    SignedTransaction(tx, txSignature)
+    SignedTransaction(tx, txSignature, chainId)
   }
 
   def apply(tx: Transaction, pointSign: Int, signatureRandom: ByteString, signature: ByteString): Option[SignedTransaction] =
     SignedTransaction(tx, pointSign.toByte, signatureRandom, signature)
 
-  def apply(tx: Transaction, signature: ECDSASignature): Option[SignedTransaction] = {
+  def apply(tx: Transaction, signature: ECDSASignature, chainId: Byte): Option[SignedTransaction] = {
     for {
-      recoveredPointSign <- SignedTransaction.getRecoveredPointSign(signature.v)
-      sender <- SignedTransaction.getSender(tx, signature, recoveredPointSign)
+      recoveredPointSign <- SignedTransaction.getRecoveredPointSign(signature.v, chainId)
+      sender <- SignedTransaction.getSender(tx, signature, recoveredPointSign, chainId)
     } yield SignedTransaction(tx, signature, sender)
   }
 
-  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair): SignedTransaction = {
+  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Byte): SignedTransaction = {
     val bytes = crypto.kec256(
       rlpEncode(RLPList(
         tx.nonce,
@@ -110,7 +107,7 @@ object SignedTransaction {
         tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray): Array[Byte],
         tx.value,
         tx.payload,
-        Config.Blockchain.chainId,
+        chainId,
         valueForEmptyR,
         valueForEmptyS)))
 

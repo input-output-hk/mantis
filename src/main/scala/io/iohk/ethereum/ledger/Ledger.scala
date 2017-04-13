@@ -3,17 +3,21 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockValidator, OmmersValidator, SignedTransactionValidator}
 import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
-class Ledger(vm: VM) extends Logger {
+class Ledger(vm: VM, blockchainConfig: BlockchainConfig) extends Logger {
 
   type PC = ProgramContext[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
   type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
   case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
   case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry])
+
+  val blockHeaderValidator = new BlockHeaderValidator(blockchainConfig)
+  val ommersValidator = new OmmersValidator((blockchainConfig))
 
   def executeBlock(
     block: Block,
@@ -27,7 +31,7 @@ class Ledger(vm: VM) extends Logger {
       val BlockResult(resultingWorldStateProxy, gasUsed, receipts) = executeBlockTransactions(block, blockchain, storages, stateStorage)
       log.debug(s"All txs from block ${block.header} were executed")
 
-      val worldToPersist = payBlockReward(Config.Blockchain.blockReward, block, resultingWorldStateProxy)
+      val worldToPersist = payBlockReward(blockchainConfig.blockReward, block, resultingWorldStateProxy)
       val worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
 
       val afterExecutionBlockError = validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
@@ -54,7 +58,7 @@ class Ledger(vm: VM) extends Logger {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = InMemoryWorldStateProxy(storages, stateStorage, parentStateRoot)
 
-    val config = EvmConfig.forBlock(block.header.number)
+    val config = EvmConfig.forBlock(block.header.number, blockchainConfig)
 
     block.body.transactionList.foldLeft[BlockResult](BlockResult(worldState = initialWorld)) {
       case (BlockResult(world, acumGas, receipts), stx)=>
@@ -99,9 +103,9 @@ class Ledger(vm: VM) extends Logger {
 
   private def validateBlockBeforeExecution(block: Block, blockchain: Blockchain): Option[String] = {
     val result = for {
-      _ <- BlockHeaderValidator.validate(block.header, blockchain)
+      _ <- blockHeaderValidator.validate(block.header, blockchain)
       _ <- BlockValidator.validateHeaderAndBody(block.header, block.body)
-      _ <- OmmersValidator.validate(block.header.number, block.body.uncleNodesList, blockchain)
+      _ <- ommersValidator.validate(block.header.number, block.body.uncleNodesList, blockchain)
     } yield block
     result.swap.toOption.map(_.toString)
   }
@@ -196,7 +200,7 @@ class Ledger(vm: VM) extends Logger {
     blockHeader: BlockHeader,
     config: EvmConfig): Either[String, SignedTransaction] = {
     for {
-      _ <- SignedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = blockHeader.number < Config.Blockchain.homesteadBlockNumber)
+      _ <- SignedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = blockHeader.number < blockchainConfig.homesteadBlockNumber)
         .left.map(_.toString)
       _ <- validateNonce(stx, worldState)
       _ <- validateGas(stx, blockHeader, config)
@@ -272,7 +276,7 @@ class Ledger(vm: VM) extends Logger {
   }
 
   private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): PR = {
-    val config = EvmConfig.forBlock(blockHeader.number)
+    val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
     val context: PC = ProgramContext(stx, blockHeader, worldStateProxy, config)
     val result: PR = vm.run(context)
     if (stx.tx.isContractInit && result.error.isEmpty)
@@ -326,4 +330,4 @@ class Ledger(vm: VM) extends Logger {
 
 }
 
-object Ledger extends Ledger(VM)
+object Ledger extends Ledger(VM, BlockchainConfig(Config.config))

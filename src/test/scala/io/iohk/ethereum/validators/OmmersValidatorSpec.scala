@@ -5,6 +5,8 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError._
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
@@ -12,15 +14,17 @@ import org.spongycastle.util.encoders.Hex
 
 class OmmersValidatorSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
 
+  val ommersValidator = new OmmersValidator(BlockchainConfig(Config.config))
+
   it should "validate correctly a valid list of ommers" in new BlockUtils {
-    OmmersValidator.validate(ommersBlockNumber, ommers, blockchain) match {
+    ommersValidator.validate(ommersBlockNumber, ommers, blockchain) match {
       case Right(_) => succeed
       case _ => fail
     }
   }
 
   it should "report a failure if the list of ommers is too big" in new BlockUtils {
-    OmmersValidator.validate(ommersBlockNumber, Seq(ommer1, ommer2, ommer2), blockchain) match {
+    ommersValidator.validate(ommersBlockNumber, Seq(ommer1, ommer2, ommer2), blockchain) match {
       case Left(OmmersLengthError) => succeed
       case _ => fail
     }
@@ -28,35 +32,35 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with PropertyChecks wit
 
   it should "report a failure if there is an invalid header in the list of ommers" in new BlockUtils {
     val invalidOmmer1: BlockHeader = ommer1.copy(number = ommer1.number + 1)
-    OmmersValidator.validate(ommersBlockNumber, Seq(invalidOmmer1, ommer2), blockchain) match {
+    ommersValidator.validate(ommersBlockNumber, Seq(invalidOmmer1, ommer2), blockchain) match {
       case Left(OmmersNotValidError) => succeed
       case _ => fail
     }
   }
 
   it should "report a failure if there is an ommer that was previously used" in new BlockUtils {
-    OmmersValidator.validate(ommersBlockNumber, Seq(block93.body.uncleNodesList.head, ommer2), blockchain) match {
+    ommersValidator.validate(ommersBlockNumber, Seq(block93.body.uncleNodesList.head, ommer2), blockchain) match {
       case Left(OmmersUsedBeforeError) => succeed
       case _ => fail
     }
   }
 
   it should "report a failure if there is an ommer which is of the last ancestors" in new BlockUtils {
-    OmmersValidator.validate(ommersBlockNumber, Seq(ommer1, block92.header), blockchain) match {
+    ommersValidator.validate(ommersBlockNumber, Seq(ommer1, block92.header), blockchain) match {
       case Left(OmmersAncestorsError) => succeed
       case _ => fail
     }
   }
 
   it should "report a failure if there is an ommer too old" in new BlockUtils {
-    OmmersValidator.validate(ommersBlockNumber, Seq(ommer1, block90.header), blockchain) match {
+    ommersValidator.validate(ommersBlockNumber, Seq(ommer1, block90.header), blockchain) match {
       case Left(OmmersAncestorsError) => succeed
       case _ => fail
     }
   }
 
   it should "report a failure if there is a duplicated ommer in the ommer list" in new BlockUtils {
-    OmmersValidator.validate(ommersBlockNumber, Seq(ommer1, ommer1), blockchain) match {
+    ommersValidator.validate(ommersBlockNumber, Seq(ommer1, ommer1), blockchain) match {
       case Left(OmmersDuplicatedError) => succeed
       case _ => fail
     }

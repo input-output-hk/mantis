@@ -39,7 +39,6 @@ class PeerActor(
     forkResolverOpt: Option[ForkResolver])
   extends Actor with ActorLogging with FastSyncHost with Stash {
 
-  import Config.Blockchain._
   import PeerActor._
   import context.{dispatcher, system}
 
@@ -186,7 +185,7 @@ class PeerActor(
                            forkResolver: ForkResolver): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
     handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse
-    handlePeerChainCheck(rlpxConnection) orElse stashMessages orElse {
+    stashMessages orElse {
 
     case RLPxConnectionHandler.MessageReceived(msg @ BlockHeaders(blockHeaders)) =>
       timeout.cancel()
@@ -201,7 +200,7 @@ class PeerActor(
 
           if (forkResolver.isAccepted(fork)) {
             log.info("Fork is accepted")
-            context become new MessageHandler(rlpxConnection, remoteStatus, daoForkBlockNumber, true).receive
+            context become new MessageHandler(rlpxConnection, remoteStatus, forkBlockHeader.number, true).receive
             unstashAll()
           } else {
             log.warning("Fork is not accepted")
@@ -267,15 +266,6 @@ class PeerActor(
       messageSubscribers = messageSubscribers.filterNot(_.ref == sender())
   }
 
-  def handlePeerChainCheck(rlpxConnection: RLPxConnection): Receive = {
-    case RLPxConnectionHandler.MessageReceived(message@GetBlockHeaders(Left(number), _, _, _)) if number == Config.Blockchain.daoForkBlockNumber =>
-      log.debug("Received message: {}", message)
-      blockchain.getBlockHeaderByNumber(number) match {
-        case Some(header) => rlpxConnection.sendMessage(BlockHeaders(Seq(header)))
-        case None => rlpxConnection.sendMessage(BlockHeaders(Nil))
-      }
-  }
-
   def stashMessages: Receive = {
     case _: SendMessage[_] | _: DisconnectPeer => stash()
   }
@@ -292,7 +282,7 @@ class PeerActor(
       */
     def receive: Receive =
       handleSubscriptions orElse
-      handlePeerChainCheck(rlpxConnection) orElse handlePingMsg(rlpxConnection) orElse
+      handlePingMsg(rlpxConnection) orElse
       handleBlockFastDownload(rlpxConnection, log) orElse
       handleEvmMptFastDownload(rlpxConnection) orElse
       handleTerminated(rlpxConnection) orElse {

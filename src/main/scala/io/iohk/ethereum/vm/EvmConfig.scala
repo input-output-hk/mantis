@@ -1,7 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.BlockchainConfig
 
 // scalastyle:off number.of.methods
 // scalastyle:off number.of.types
@@ -15,7 +15,13 @@ object EvmConfig {
   /**
     * returns the evm config that should be used for given block
     */
-  def forBlock(blockNumber: BigInt): EvmConfig = {
+  def forBlock(blockNumber: BigInt, blockchainConfig: BlockchainConfig): EvmConfig = {
+    val transitionBlockToConfigMapping: Map[BigInt, EvmConfig] = Map(
+      blockchainConfig.frontierBlockNumber -> FrontierConfig,
+      blockchainConfig.homesteadBlockNumber -> HomesteadConfig,
+      blockchainConfig.eip150BlockNumber -> PostEIP150Config,
+      blockchainConfig.eip160BlockNumber -> PostEIP160Config)
+
     // highest transition block that is less/equal to `blockNumber`
     transitionBlockToConfigMapping
       .filterKeys(_ <= blockNumber)
@@ -57,13 +63,6 @@ object EvmConfig {
 
   val PostEIP160Config = PostEIP150Config.copy(
     feeSchedule = new FeeSchedule.PostEIP160FeeSchedule)
-
-  private val transitionBlockToConfigMapping: Map[BigInt, EvmConfig] = Map(
-    Config.Blockchain.frontierBlockNumber -> FrontierConfig,
-    Config.Blockchain.homesteadBlockNumber -> HomesteadConfig,
-    Config.Blockchain.eip150BlockNumber -> PostEIP150Config,
-    Config.Blockchain.eip160BlockNumber -> PostEIP160Config)
-
 }
 
 case class EvmConfig(

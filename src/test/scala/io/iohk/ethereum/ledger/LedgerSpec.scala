@@ -1,6 +1,5 @@
 package io.iohk.ethereum.ledger
 
-
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.crypto._
@@ -8,13 +7,15 @@ import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.ledger.Ledger.{PC, PR}
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy, _}
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 
-
 class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
+
+  val blockchainConfig = BlockchainConfig(Config.config)
 
   class MockVM(runFn: PC => PR) extends VM {
     override def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] =
@@ -36,7 +37,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       receiptsRoot = bEmpty,
       logsBloom = bEmpty,
       difficulty = 1000000,
-      number = Config.Blockchain.homesteadBlockNumber + 1,
+      number = blockchainConfig.homesteadBlockNumber + 1,
       gasLimit = 1000000,
       gasUsed = 0,
       unixTimestamp = 1486752441,
@@ -80,7 +81,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
         .saveAccount(minerAddress, Account(balance = initialMinerBalance))
 
       val tx = defaultTx.copy(gasPrice = gasPrice, gasLimit = gasLimit)
-      val stx = SignedTransaction.sign(tx, keyPair)
+      val stx = SignedTransaction.sign(tx, keyPair, blockchainConfig.chainId)
 
       val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
@@ -95,7 +96,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       )
 
       val mockVM = new MockVM(_ => result)
-      val ledger = new Ledger(mockVM)
+      val ledger = new Ledger(mockVM, blockchainConfig)
 
       val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
 

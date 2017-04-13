@@ -8,12 +8,16 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.rpc.{JsonRpcServer, RpcServerConfig}
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
 import io.iohk.ethereum.validators.BlockValidator
 
+trait BlockchainConfigBuilder {
+  lazy val blockchainConfig = BlockchainConfig(Config.config)
+}
 
 trait NodeKeyBuilder {
   lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile)
@@ -51,7 +55,8 @@ trait PeerManagerActorBuilder {
   self: ActorSystemBuilder
     with NodeStatusBuilder
     with StorageBuilder
-    with BlockChainBuilder =>
+    with BlockChainBuilder
+    with BlockchainConfigBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
@@ -59,7 +64,8 @@ trait PeerManagerActorBuilder {
     nodeStatusHolder,
     Config.Network.peer,
     storagesInstance.storages.appStateStorage,
-    blockchain), "peer-manager")
+    blockchain,
+    blockchainConfig), "peer-manager")
 
 }
 
@@ -123,9 +129,10 @@ trait ShutdownHookBuilder {
 
 trait GenesisDataLoaderBuilder {
   self: BlockChainBuilder
-    with StorageBuilder =>
+    with StorageBuilder
+    with BlockchainConfigBuilder =>
 
-  lazy val genesisDataLoader = new GenesisDataLoader(storagesInstance.dataSource, blockchain)
+  lazy val genesisDataLoader = new GenesisDataLoader(storagesInstance.dataSource, blockchain, blockchainConfig)
 }
 
 trait Node extends NodeKeyBuilder
@@ -139,3 +146,4 @@ trait Node extends NodeKeyBuilder
   with JSONRpcServerBuilder
   with ShutdownHookBuilder
   with GenesisDataLoaderBuilder
+  with BlockchainConfigBuilder
