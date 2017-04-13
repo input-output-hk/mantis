@@ -87,7 +87,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       val result: PR = ProgramResult(
         returnData = bEmpty,
         gasRemaining = gasLimit - gasUsed,
-        Ledger.updateSenderAccountBeforeExecution(stx, initialWorld),
+        world = Ledger.updateSenderAccountBeforeExecution(stx, initialWorld),
         Nil,
         Nil,
         gasRefund,

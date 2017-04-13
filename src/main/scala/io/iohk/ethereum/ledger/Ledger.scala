@@ -106,10 +106,11 @@ class Ledger(vm: VM) extends Logger {
   private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
     val gasPrice = UInt256(stx.tx.gasPrice)
     val gasLimit = UInt256(stx.tx.gasLimit)
+    val config: EvmConfig = EvmConfig.forBlock(blockHeader.number)
 
     val checkpointWorldState = updateSenderAccountBeforeExecution(stx, world)
-    val (worldStateForVM, program, recipientAddress) = prepareTomato(stx, world)
-    val result = runVM(stx, recipientAddress, program, blockHeader, worldStateForVM)
+    val context = prepareProgramContext(stx, blockHeader, world, config)
+    val result = runVM(stx, context, config)
 
     //FIXME: This only implements error handling as done in Homestead
     val resultWithErrorHandling: PR =
@@ -292,15 +293,17 @@ class Ledger(vm: VM) extends Logger {
     worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce)
   }
 
-  private[ledger] def prepareTomato(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy) = stx.tx.receivingAddress match {
+  private[ledger] def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy, config: EvmConfig): PC =
+    stx.tx.receivingAddress match {
       case None =>
         val (address, world1) = worldStateProxy.newAddress(stx.senderAddress)
         val world2 = world1.newEmptyAccount(address)
         val world3 = world2.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
-        (world3, Program(stx.tx.payload), address)
+        ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, world3, config)
+
       case Some(txReceivingAddress) =>
         val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
-        (world1, Program(world1.getCode(txReceivingAddress)), txReceivingAddress)
+        ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, config)
     }
 
   /**
@@ -317,10 +320,7 @@ class Ledger(vm: VM) extends Logger {
     else Left("Transaction gas limit plus accumulated gas exceeds block gas limit")
   }
 
-  private def runVM(stx: SignedTransaction, recipientAddress: Address, program: Program,
-    blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): PR = {
-    val config = EvmConfig.forBlock(blockHeader.number)
-    val context: PC = ProgramContext(stx, recipientAddress, program, blockHeader, worldStateProxy, config)
+  private def runVM(stx: SignedTransaction, context: PC, config: EvmConfig): PR = {
     val result: PR = vm.run(context)
     if (stx.tx.isContractInit && result.error.isEmpty)
       saveNewContract(context.env.ownerAddr, result, config)
