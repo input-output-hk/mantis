@@ -160,7 +160,7 @@ object FeeSchedule {
       override val G_exp = 10
       override val G_expbyte = 10
       override val G_memory = 3
-      override val G_txcreate = 21000
+      override val G_txcreate = 0
       override val G_txdatazero = 4
       override val G_txdatanonzero = 68
       override val G_transaction = 21000
@@ -175,7 +175,7 @@ object FeeSchedule {
   }
 
   class HomesteadFeeSchedule extends FrontierFeeSchedule {
-    override val G_txcreate = 53000
+    override val G_txcreate = 32000
   }
 
   class PostEIP150FeeSchedule extends HomesteadFeeSchedule {
