@@ -84,11 +84,10 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
       val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-      val (world, _) = Ledger.updateSenderAccountBeforeExecution(stx, initialWorld)
       val result: PR = ProgramResult(
         returnData = bEmpty,
         gasRemaining = gasLimit - gasUsed,
-        world,
+        Ledger.updateSenderAccountBeforeExecution(stx, initialWorld),
         Nil,
         Nil,
         gasRefund,

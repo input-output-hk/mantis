@@ -7,6 +7,7 @@ object ProgramContext {
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
     stx: SignedTransaction,
     recipientAddress: Address,
+    program: Program,
     blockHeader: BlockHeader,
     world: W,
     config: EvmConfig): ProgramContext[W, S] = {
@@ -14,7 +15,6 @@ object ProgramContext {
     import stx.tx
 
     val senderAddress = stx.senderAddress
-    val program = getProgram[W, S](world, tx)
 
     val env = ExecEnv(recipientAddress, senderAddress, senderAddress, UInt256(tx.gasPrice), tx.payload,
       UInt256(tx.value), program, blockHeader, callDepth = 0)
@@ -22,18 +22,6 @@ object ProgramContext {
     val gasLimit = tx.gasLimit - config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, blockHeader.number)
 
     ProgramContext(env, UInt256(gasLimit), world, config)
-  }
-
-  private def getProgram[W <: WorldStateProxy[W, S], S <: Storage[S]](world: W, tx: Transaction): Program = {
-    tx.receivingAddress match {
-      case None =>
-        val code = tx.payload
-        Program(code)
-
-      case Some(txReceivingAddress) =>
-        val code = world.getCode(txReceivingAddress)
-        Program(code)
-    }
   }
 }
 
