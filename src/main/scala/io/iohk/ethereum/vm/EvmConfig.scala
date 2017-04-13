@@ -124,8 +124,14 @@ case class EvmConfig(
     * @param executionResultData Transaction code initialization result
     * @return Calculated gas cost
     */
-  def calcCodeDepositCost(executionResultData: ByteString): BigInt =
+  def calcCodeDepositCost(executionResultData: ByteString): UInt256 =
     G_codedeposit * executionResultData.size
+
+  /**
+    * a helper method used for gas adjustment in CALL and CREATE opcode, see YP eq. (224)
+    */
+  def gasCap(g: UInt256): UInt256 =
+    subGasCapDivisor.map(d => g - g / d).getOrElse(g)
 }
 
 object FeeSchedule {

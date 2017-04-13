@@ -507,5 +507,5 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   }
 
-  verifyAllOpCodesRegistered(except = CALL, CALLCODE, DELEGATECALL, INVALID)
+  verifyAllOpCodesRegistered(except = CREATE, CALL, CALLCODE, DELEGATECALL, INVALID)
 }
