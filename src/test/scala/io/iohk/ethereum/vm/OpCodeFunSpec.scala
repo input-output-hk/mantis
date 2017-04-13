@@ -595,10 +595,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("CREATE") {
-    // to be implemented
-  }
-
   test(RETURN) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = UInt256(256)),
@@ -649,7 +645,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  verifyAllOpCodesRegistered(except = CALL, CALLCODE, DELEGATECALL)
+  verifyAllOpCodesRegistered(except = CREATE, CALL, CALLCODE, DELEGATECALL)
 
 }
 

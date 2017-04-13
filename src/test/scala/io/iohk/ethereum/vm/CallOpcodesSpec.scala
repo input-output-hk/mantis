@@ -7,7 +7,6 @@ import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm.MockWorldState._
 
 // scalastyle:off object.name
-// scalastyle:off magic.number
 class CallOpcodesSpec extends WordSpec with Matchers {
 
   val config = EvmConfig.PostEIP160Config
@@ -62,11 +61,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       val memCost = config.calcMemCost(0, 0, 32)
       val copyCost = G_copy * wordsForBytes(32)
 
-      val extCodeLinearConstGas: UInt256 = extCode.byteCode.foldLeft(UInt256.Zero) {
-        case (g, b: OpCodeAsByteCode) => g + b.op.constGasFn(config.feeSchedule)
-        case (g, _) => g
-      }
-      extCodeLinearConstGas + storageCost + memCost + copyCost
+      extCode.linearConstGas(config) + storageCost + memCost + copyCost
     }
 
     val gasMargin = 13
