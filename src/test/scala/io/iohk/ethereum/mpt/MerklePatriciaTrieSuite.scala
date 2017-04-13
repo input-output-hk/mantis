@@ -427,4 +427,28 @@ class MerklePatriciaTrieSuite extends FunSuite
     assert(Hex.toHexString(storage.getRootHash) == "e6fbee0b67e3a6f0b9ea775ce585509aa4a0c3fe3f83d1e49a7d484489b755bc")
 
   }
+
+  /**
+    * The MPT tested in this example has duplicated nodes as the branch node has two children with the same node: LeafNode("a", value)
+    * When one of the key-value that uses one of this nodes is removed, this shouldn't affect the use of the other key-value
+    * which shares the same LeafNode
+    */
+  test("PatriciaTrie insert causes node duplicated and removal of one of them should not fail") {
+    val key1 = Hex.decode("ba")
+    val key2 = Hex.decode("aa")
+    val key3 = Hex.decode("")
+    val value = Hex.decode("012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789")
+    val trie = EmptyTrie.put(key1, value).put(key2, value).put(key3, value)
+    val trieAfterRemoval = trie.remove(key1)
+
+    //Old trie still works
+    assert(trie.get(key1).getOrElse(Array.emptyByteArray) sameElements value)
+    assert(trie.get(key2).getOrElse(Array.emptyByteArray) sameElements value)
+    assert(trie.get(key3).getOrElse(Array.emptyByteArray) sameElements value)
+
+    //New trie is consistent
+    assert(trieAfterRemoval.get(key1).isEmpty)
+    assert(trieAfterRemoval.get(key2).getOrElse(Array.emptyByteArray) sameElements value)
+    assert(trieAfterRemoval.get(key3).getOrElse(Array.emptyByteArray) sameElements value)
+  }
 }
