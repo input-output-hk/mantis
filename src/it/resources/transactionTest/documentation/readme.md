@@ -26,3 +26,4 @@ to start with empty chain:
 
 `rm -rf ~/.ethash` on every new chain start
 
+you can use `DumpChainApp` to dump part of block chain with mpt tree, you can configure it with `chainDump.conf`

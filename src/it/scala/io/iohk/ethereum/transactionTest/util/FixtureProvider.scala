@@ -1,4 +1,4 @@
-package io.iohk.ethereum.evm.util
+package io.iohk.ethereum.transactionTest.util
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
