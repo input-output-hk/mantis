@@ -150,7 +150,7 @@ object OpCodes {
       GAS,
       JUMPDEST,
 
-      //CREATE,
+      CREATE,
       CALL,
       CALLCODE,
       RETURN,
@@ -663,8 +663,79 @@ case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
 
-sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, alpha, _.G_zero) {
+case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+    val (Seq(endowment, inOffset, inSize), stack1) = state.stack.pop(3)
 
+    val validCall = state.env.callDepth < EvmConfig.MaxCallDepth && endowment <= state.ownBalance
+
+    if (!validCall) {
+      val stack2 = stack1.push(UInt256.Zero)
+      state.withStack(stack2).step()
+    } else {
+
+      val (initCode, memory1) = state.memory.load(inOffset, inSize)
+      val (newAddress, world1) = state.world.newAddress(state.env.ownerAddr)
+      val world2 = world1.transfer(state.env.ownerAddr, newAddress, endowment)
+
+      val newEnv = state.env.copy(
+        callerAddr = state.env.ownerAddr,
+        ownerAddr = newAddress,
+        value = endowment,
+        program = Program(initCode),
+        inputData = ByteString.empty,
+        callDepth = state.env.callDepth + 1
+      )
+
+      //to avoid calculating this twice, we could adjust state.gas prior to execution in OpCode#execute
+      //not sure how this would affect other opcodes
+      val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
+      val startGas = state.config.gasCap(availableGas)
+
+      val context = ProgramContext[W, S](newEnv, startGas, world2, state.config)
+      val result = VM.run(context)
+
+      val codeDepositGas = state.config.calcCodeDepositCost(result.returnData)
+      val gasUsedInVm = startGas - result.gasRemaining
+      val totalGasRequired = gasUsedInVm + codeDepositGas
+      val enoughGasForDeposit = totalGasRequired <= availableGas
+
+      if (result.error.isDefined) {
+        val stack2 = stack1.push(UInt256.Zero)
+        state.withStack(stack2).spendGas(startGas)
+
+      } else if (!enoughGasForDeposit && state.config.exceptionalFailedCodeDeposit) {
+        state.withError(OutOfGas)
+
+      } else {
+        val stack2 = stack1.push(newAddress.toUInt256)
+
+        val state1 =
+          if (!enoughGasForDeposit)
+            state.withWorld(result.world).spendGas(gasUsedInVm)
+          else {
+            val world3 = result.world.saveCode(newAddress, result.returnData)
+            state.withWorld(world3).spendGas(totalGasRequired)
+          }
+
+        state1
+          .withStack(stack2)
+          .withAddressesToDelete(result.addressesToDelete)
+          .withLogs(result.logs)
+          .withMemory(memory1)
+          .step()
+      }
+    }
+  }
+
+  protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
+    val (Seq(_, inOffset, inSize), _) = state.stack.pop(3)
+    state.config.calcMemCost(state.memory.size, inOffset, inSize)
+  }
+}
+
+
+sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, alpha, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
 
@@ -733,6 +804,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
         .withMemory(mem2)
         .withWorld(result.world)
         .withAddressesToDelete(result.addressesToDelete)
+        .withLogs(result.logs)
         .step()
     }
   }
@@ -759,14 +831,10 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
   }
 
   private def gasCap[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], g: UInt256, gExtra: UInt256): UInt256 = {
-    state.config.subGasCapDivisor match {
-      case Some(subGasCapDivisor) if state.gas >= gExtra =>
-        val d = state.gas - gExtra
-        val l = d - d / subGasCapDivisor
-        l min g
-      case _ =>
-        g
-    }
+   if (state.gas >= gExtra)
+      g min state.config.gasCap(state.gas - gExtra)
+   else
+      g
   }
 
   private def gasExtra[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], endowment: UInt256, to: Address): UInt256 = {
@@ -800,8 +868,8 @@ case object INVALID extends OpCode(0xfe, 0, 0, _.G_zero) with ConstGas {
 
 case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val (refundDW, stack1) = state.stack.pop
-    val refundAddr: Address = Address(refundDW)
+    val (refund, stack1) = state.stack.pop
+    val refundAddr: Address = Address(refund)
     val gasRefund = if (state.addressesToDelete contains state.ownAddress) UInt256.Zero else state.config.feeSchedule.R_selfdestruct
     val world = state.world.transfer(state.ownAddress, refundAddr, state.ownBalance)
 
@@ -814,8 +882,8 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
   }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
-    val (refundAddrDW, _) = state.stack.pop
-    val refundAddress = Address(refundAddrDW)
+    val (refundAddr, _) = state.stack.pop
+    val refundAddress = Address(refundAddr)
 
     if (state.config.chargeSelfDestructForNewAccount && !state.world.accountExists(refundAddress))
       state.config.feeSchedule.G_newaccount
