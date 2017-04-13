@@ -96,6 +96,18 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
 
   }
 
+  it should "be able to do transfers with the same origin and destination" in new TestSetup {
+
+    val account = Account(0, 100)
+    val toTransfer = account.balance - 20
+    val finalWorldState = worldState
+      .saveAccount(address1, account)
+      .transfer(address1, address1, UInt256(toTransfer))
+
+    finalWorldState.getGuaranteedAccount(address1).balance shouldEqual account.balance
+
+  }
+
   trait TestSetup {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
 
