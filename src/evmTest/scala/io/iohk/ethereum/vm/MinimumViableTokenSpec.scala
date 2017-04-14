@@ -38,7 +38,7 @@ class MinimumViableTokenSpec extends FreeSpec with Matchers {
       val receiver = createAccount(balance = 10)
 
       val (result, _) = deployContract("MinimumViableToken", creatorAddress = sender,
-        constructorArgs = Seq(100), gasLimit = 125934)
+        constructorArgs = Seq(100), gasLimit = 102934)
 
       result.error shouldBe Some(OutOfGas)
     }
