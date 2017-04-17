@@ -95,6 +95,9 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   def withLog(log: TxLogEntry): ProgramState[W, S] =
     copy(logs = logs :+ log)
 
+  def withLogs(log: Seq[TxLogEntry]): ProgramState[W, S] =
+    copy(logs = logs ++ log)
+
   def halt: ProgramState[W, S] =
     copy(halted = true)
 }

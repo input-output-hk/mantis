@@ -321,7 +321,7 @@ class Ledger(vm: VM) extends Logger {
       result.copy(error = Some(OutOfGas))
     else
       result.copy(
-        gasRemaining = result.gasRemaining - UInt256(codeDepositCost),
+        gasRemaining = result.gasRemaining - codeDepositCost,
         world = result.world.saveCode(address, result.returnData)
       )
   }

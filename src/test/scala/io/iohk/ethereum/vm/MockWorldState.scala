@@ -20,6 +20,9 @@ case class MockWorldState(
   def getAccount(address: Address): Option[Account] =
     accounts.get(address)
 
+  override def getGuaranteedAccount(address: Address): Account =
+    super.getGuaranteedAccount(address)
+
   def saveAccount(address: Address, account: Account): MockWorldState =
     copy(accounts = accounts + (address -> account))
 
