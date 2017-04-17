@@ -115,40 +115,33 @@ trait RegularSync {
 
   private def handleBlockBodies(peer: ActorRef, m: Seq[BlockBody]) = {
     if (m.nonEmpty) {
-      val result = headersQueue.zip(m).map { case (h, b) => validators.blockValidator.validateHeaderAndBody(h, b) }
+      val blocks = headersQueue.zip(m).map{ case (header, body) => Block(header, body) }
 
-      if (!result.exists(_.isLeft) && result.nonEmpty) {
-        val blocks = result.collect { case Right(b) => b }
+      blockchain.getBlockHeaderByHash(blocks.head.header.parentHash)
+        .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
+        case Some(blockParentTd) =>
+          val (newBlocks, error) = processBlocks(blocks, blockParentTd)
 
-        blockchain.getBlockHeaderByHash(blocks.head.header.parentHash)
-          .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
-          case Some(blockParentTd) =>
-            val (newBlocks, error) = processBlocks(blocks, blockParentTd)
+          if(newBlocks.nonEmpty){
+            context.self ! BroadcastBlocks(newBlocks)
+            log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
+              s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
+          }
 
-            if(newBlocks.nonEmpty){
-              context.self ! BroadcastBlocks(newBlocks)
-              log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
-                s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
-            }
+          if(error.isDefined){
+            val numberBlockFailed = blocks.head.header.number + newBlocks.length
+            resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.get.toString}, in block $numberBlockFailed")
+          }
+        case None =>
+          log.error("no total difficulty for latest block") //FIXME: How do we handle this error on our blockchain?
+      }
 
-            if(error.isDefined){
-              val numberBlockFailed = blocks.head.header.number + newBlocks.length
-              resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.get.toString}, in block $numberBlockFailed")
-            }
-          case None =>
-            log.error("no total difficulty for latest block") //FIXME: How do we handle this error on our blockchain?
-        }
-
-        headersQueue = headersQueue.drop(result.length)
-        if (headersQueue.nonEmpty) {
-          val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
-        } else {
-          context.self ! ResumeRegularSync
-        }
+      headersQueue = headersQueue.drop(blocks.length)
+      if (headersQueue.nonEmpty) {
+        val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
+        waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
       } else {
-        //blacklist for errors in blocks
-        resumeWithDifferentPeer(peer)
+        context.self ! ResumeRegularSync
       }
     } else {
       //we got empty response for bodies from peer but we got block headers earlier

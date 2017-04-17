@@ -36,7 +36,7 @@ class Ledger(vm: VM) extends Logger {
     } yield ()
 
     if(blockExecResult.isRight)
-      log.debug(s"Block ${Hex.toHexString(block.header.hash.toArray)} executed correctly")
+      log.debug(s"Block ${block.header.number} (with hash: ${block.header.hashAsHexString}) executed correctly")
     blockExecResult
   }
 
@@ -59,11 +59,11 @@ class Ledger(vm: VM) extends Logger {
 
     val config = EvmConfig.forBlock(block.header.number)
 
-    log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${Hex.toHexString(block.header.hash.toArray)}")
+    log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
     val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, config, validators.signedTransactionValidator)
     blockTxsExecResult match {
-      case Right(_) => log.debug(s"All txs from block ${Hex.toHexString(block.header.hash.toArray)} were executed successfully")
-      case Left(error) => log.debug(s"Not all txs from block ${Hex.toHexString(block.header.hash.toArray)} were executed correctly, due to ${error.reason}")
+      case Right(_) => log.debug(s"All txs from block ${block.header.hashAsHexString} were executed successfully")
+      case Left(error) => log.debug(s"Not all txs from block ${block.header.hashAsHexString} were executed correctly, due to ${error.reason}")
     }
     blockTxsExecResult
   }
