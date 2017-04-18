@@ -21,6 +21,16 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       runFn(context.asInstanceOf[PC]).asInstanceOf[ProgramResult[W, S]]
   }
 
+  def createResult(context: PC, gasUsed: UInt256, gasLimit: UInt256, gasRefund: UInt256, error: Option[ProgramError]): PR = ProgramResult(
+    returnData = bEmpty,
+    gasRemaining = gasLimit - gasUsed,
+    world = context.world,
+    Nil,
+    Nil,
+    gasRefund,
+    error
+  )
+
 
   "Ledger" should "correctly adjust gas used when refunding gas to the sender and paying for gas to the miner" in new TestSetup {
 
@@ -46,17 +56,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
       val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-      val result: PR = ProgramResult(
-        returnData = bEmpty,
-        gasRemaining = defaultGasLimit - gasUsed,
-        world = Ledger.updateSenderAccountBeforeExecution(stx, initialWorld),
-        Nil,
-        Nil,
-        gasRefund,
-        error
-      )
-
-      val mockVM = new MockVM(_ => result)
+      val mockVM = new MockVM(createResult(_, gasUsed, defaultGasLimit, gasRefund, error))
       val ledger = new Ledger(mockVM)
 
       val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
@@ -82,7 +82,9 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-    val postTxWorld = Ledger.executeTransaction(stx, header, initialWorld).worldState
+    val ledger = new Ledger(new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, None)))
+
+    val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
 
     postTxWorld.getGuaranteedAccount(originAddress).nonce shouldBe (initialOriginNonce + 1)
   }
@@ -106,7 +108,9 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-    val postTxWorld = Ledger.executeTransaction(stx, header, initialWorld).worldState
+    val ledger = new Ledger(new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, None)))
+
+    val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
 
     postTxWorld.getGuaranteedAccount(originAddress).nonce shouldBe (initialOriginNonce + 1)
   }
