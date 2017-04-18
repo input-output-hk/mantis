@@ -110,7 +110,6 @@ class Ledger(vm: VM) extends Logger {
     val worldBeforeTransfer = updateSenderAccountBeforeExecution(stx, world)
     val result = runVM(stx, blockHeader, worldBeforeTransfer)
 
-    //FIXME: This only implements error handling as done in Homestead
     val resultWithErrorHandling: PR =
       if(result.error.isDefined) {
         //Rollback to the world before transfer was done if an error happened
