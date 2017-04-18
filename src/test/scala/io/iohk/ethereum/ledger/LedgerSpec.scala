@@ -21,8 +21,101 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       runFn(context.asInstanceOf[PC]).asInstanceOf[ProgramResult[W, S]]
   }
 
+  def createResult(context: PC, gasUsed: UInt256, gasLimit: UInt256, gasRefund: UInt256, error: Option[ProgramError]): PR = ProgramResult(
+    returnData = bEmpty,
+    gasRemaining = gasLimit - gasUsed,
+    world = context.world,
+    Nil,
+    Nil,
+    gasRefund,
+    error
+  )
 
-  "Ledger" should "correctly adjust gas used when refunding gas to the sender and paying for gas to the miner" in {
+
+  "Ledger" should "correctly adjust gas used when refunding gas to the sender and paying for gas to the miner" in new TestSetup {
+
+    val initialOriginBalance: UInt256 = 1000000
+    val initialMinerBalance: UInt256 = 2000000
+
+    val table = Table[UInt256, UInt256, Option[ProgramError], UInt256](
+      ("gasUsed", "refundsFromVM", "maybeError", "balanceDelta"),
+      (25000, 20000, None, (25000 / 2) * defaultGasPrice),
+      (25000, 10000, None, (25000 - 10000) * 10),
+      (125000, 10000, Some(OutOfGas), defaultGasLimit * defaultGasPrice),
+      (125000, 100000, Some(OutOfGas), defaultGasLimit * defaultGasPrice)
+    )
+
+    forAll(table) { (gasUsed, gasRefund, error, balanceDelta) =>
+
+      val initialWorld = emptyWorld
+        .saveAccount(originAddress, Account(nonce = UInt256(defaultTx.nonce), balance = initialOriginBalance))
+        .saveAccount(minerAddress, Account(balance = initialMinerBalance))
+
+      val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit)
+      val stx = SignedTransaction.sign(tx, keyPair)
+
+      val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
+
+      val mockVM = new MockVM(createResult(_, gasUsed, defaultGasLimit, gasRefund, error))
+      val ledger = new Ledger(mockVM)
+
+      val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
+
+      postTxWorld.getBalance(originAddress) shouldEqual (initialOriginBalance - balanceDelta)
+      postTxWorld.getBalance(minerAddress) shouldEqual (initialMinerBalance + balanceDelta)
+    }
+  }
+
+  it should "correctly change the nonce when executing a tx that results in contract creation" in new TestSetup {
+
+    val initialOriginBalance: UInt256 = 1000000
+    val initialMinerBalance: UInt256 = 2000000
+
+    val initialOriginNonce = defaultTx.nonce
+
+    val initialWorld = emptyWorld
+      .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
+      .saveAccount(minerAddress, Account(balance = initialMinerBalance))
+
+    val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
+    val stx = SignedTransaction.sign(tx, keyPair)
+
+    val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
+
+    val ledger = new Ledger(new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, None)))
+
+    val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
+
+    postTxWorld.getGuaranteedAccount(originAddress).nonce shouldBe (initialOriginNonce + 1)
+  }
+
+  it should "correctly change the nonce when executing a tx that results in a message call" in new TestSetup {
+
+    val initialOriginBalance: UInt256 = 1000000
+    val initialMinerBalance: UInt256 = 2000000
+
+    val initialOriginNonce = defaultTx.nonce
+
+    val initialWorld = emptyWorld
+      .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
+      .saveAccount(minerAddress, Account(balance = initialMinerBalance))
+
+    val tx = defaultTx.copy(
+      gasPrice = defaultGasPrice, gasLimit = defaultGasLimit,
+      receivingAddress = Some(originAddress), payload = ByteString.empty
+    )
+    val stx = SignedTransaction.sign(tx, keyPair)
+
+    val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
+
+    val ledger = new Ledger(new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, None)))
+
+    val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
+
+    postTxWorld.getGuaranteedAccount(originAddress).nonce shouldBe (initialOriginNonce + 1)
+  }
+
+  trait TestSetup {
     val keyPair = generateKeyPair()
     val originAddress = Address(kec256(keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)))
     val minerAddress = Address(666)
@@ -53,19 +146,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       value = 0,
       payload = ByteString.empty)
 
-    val gasPrice: UInt256 = 10
-    val gasLimit: UInt256 = 1000000
-    val initialOriginBalance: UInt256 = 1000000
-    val initialMinerBalance: UInt256 = 2000000
-
-    val table = Table[UInt256, UInt256, Option[ProgramError], UInt256](
-      ("gasUsed", "refundsFromVM", "maybeError", "balanceDelta"),
-      (25000, 20000, None, (25000 / 2) * gasPrice),
-      (25000, 10000, None, (25000 - 10000) * 10),
-      (125000, 10000, Some(OutOfGas), gasLimit * gasPrice),
-      (125000, 100000, Some(OutOfGas), gasLimit * gasPrice)
-    )
-
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
 
     val emptyWorld = InMemoryWorldStateProxy(
@@ -73,35 +153,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       storagesInstance.storages.nodeStorage
     )
 
-    forAll(table) { (gasUsed, gasRefund, error, balanceDelta) =>
-
-      val initialWorld = emptyWorld
-        .saveAccount(originAddress, Account(nonce = UInt256(defaultTx.nonce), balance = initialOriginBalance))
-        .saveAccount(minerAddress, Account(balance = initialMinerBalance))
-
-      val tx = defaultTx.copy(gasPrice = gasPrice, gasLimit = gasLimit)
-      val stx = SignedTransaction.sign(tx, keyPair)
-
-      val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
-
-      val result: PR = ProgramResult(
-        returnData = bEmpty,
-        gasRemaining = gasLimit - gasUsed,
-        world = Ledger.updateSenderAccountBeforeExecution(stx, initialWorld),
-        Nil,
-        Nil,
-        gasRefund,
-        error
-      )
-
-      val mockVM = new MockVM(_ => result)
-      val ledger = new Ledger(mockVM)
-
-      val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
-
-      postTxWorld.getBalance(originAddress) shouldEqual (initialOriginBalance - balanceDelta)
-      postTxWorld.getBalance(minerAddress) shouldEqual (initialMinerBalance + balanceDelta)
-    }
+    val defaultGasPrice: UInt256 = 10
+    val defaultGasLimit: UInt256 = 1000000
   }
 
 }
