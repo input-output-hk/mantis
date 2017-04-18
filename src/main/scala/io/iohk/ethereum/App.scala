@@ -21,7 +21,7 @@ object App {
 
       override def shutdown(): Unit = {
         tryAndLogFailure(() => Await.ready(actorSystem.terminate, shutdownTimeoutDuration))
-        tryAndLogFailure(() => storagesInstance.dataSources.closeAll)
+        tryAndLogFailure(() => storagesInstance.dataSources.closeAll())
       }
 
       genesisDataLoader.loadGenesisData()
