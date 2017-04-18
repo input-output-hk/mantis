@@ -2,8 +2,10 @@ package io.iohk.ethereum
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.{BlockExecutionError, Ledger}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators._
+import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
 object Fixtures {
@@ -243,6 +245,26 @@ object Fixtures {
     override val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidator {
       override def validateTransaction(stx: SignedTransaction, fromBeforeHomestead: Boolean) = Right(stx)
     }
+  }
+
+  val MockLedger: Ledger = new Ledger{
+    override def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators)
+    : Either[BlockExecutionError, Unit] = Right(())
+  }
+
+  val MockLedgerProgramResult: Ledger.PC => Ledger.PR = context => ProgramResult(
+    returnData = ByteString.empty,
+    gasRemaining = 1000000 - 25000,
+    world = context.world,
+    addressesToDelete = Nil,
+    logs = Nil,
+    gasRefund = 20000,
+    error = None
+  )
+
+  val MockVM: VM = new VM {
+    override def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] =
+      MockLedgerProgramResult(context.asInstanceOf[Ledger.PC]).asInstanceOf[ProgramResult[W, S]]
   }
 
 }

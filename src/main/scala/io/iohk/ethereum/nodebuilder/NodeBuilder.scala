@@ -6,6 +6,7 @@ import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.SyncController
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
+import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.rpc.{JsonRpcServer, RpcServerConfig}
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
@@ -13,6 +14,7 @@ import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
 import io.iohk.ethereum.validators._
+import io.iohk.ethereum.vm.VM
 
 
 trait NodeKeyBuilder {
@@ -87,7 +89,7 @@ trait JSONRpcServerBuilder {
 
 }
 
-trait FastSyncControllerBuilder {
+trait SyncControllerBuilder {
 
   self: ActorSystemBuilder with
     ServerActorBuilder with
@@ -103,6 +105,8 @@ trait FastSyncControllerBuilder {
     val signedTransactionValidator: SignedTransactionValidator = SignedTransactionValidator
   }
 
+  val ledger: Ledger = new LedgerImpl(VM)
+
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
       peerManager,
@@ -110,6 +114,7 @@ trait FastSyncControllerBuilder {
       blockchain,
       storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
+      ledger,
       validators),
     "sync-controller")
 
@@ -142,7 +147,7 @@ trait Node extends NodeKeyBuilder
   with NodeStatusBuilder
   with PeerManagerActorBuilder
   with ServerActorBuilder
-  with FastSyncControllerBuilder
+  with SyncControllerBuilder
   with JSONRpcServerBuilder
   with ShutdownHookBuilder
   with GenesisDataLoaderBuilder

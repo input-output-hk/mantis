@@ -4,16 +4,21 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
+import io.iohk.ethereum.ledger.Ledger.{PC, PR}
 import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 
-class Ledger(vm: VM) extends Logger {
+trait Ledger {
 
-  type PC = ProgramContext[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
-  type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
+  def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockExecutionError, Unit]
+
+}
+
+class LedgerImpl(vm: VM) extends Ledger with Logger {
+
   case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
   case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry])
 
@@ -369,7 +374,10 @@ class Ledger(vm: VM) extends Logger {
 
 }
 
-object Ledger extends Ledger(VM)
+object Ledger {
+  type PC = ProgramContext[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
+  type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
+}
 
 trait BlockExecutionError
 

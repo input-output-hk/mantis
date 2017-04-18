@@ -5,7 +5,7 @@ import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
 import io.iohk.ethereum.domain.{Block, BlockHeader}
-import io.iohk.ethereum.ledger.{BlockExecutionError, Ledger}
+import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -15,7 +15,6 @@ import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success, Try}
 
 trait RegularSync {
   selfSyncController: SyncController =>
@@ -167,7 +166,7 @@ trait RegularSync {
 
     case Seq(block, otherBlocks@_*) =>
       val blockHashToDelete = blockchain.getBlockHeaderByNumber(block.header.number).map(_.hash).filter(_ != block.header.hash)
-      val blockExecResult = Ledger.executeBlock(block, blockchainStorages, validators)
+      val blockExecResult = ledger.executeBlock(block, blockchainStorages, validators)
       blockExecResult match {
         case Right(_) =>
           blockchain.save(block)

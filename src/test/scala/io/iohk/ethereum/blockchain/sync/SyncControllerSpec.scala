@@ -7,11 +7,11 @@ import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.Fixtures.EmptyValidators
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.domain.{Account, Block, BlockHeader}
-import io.iohk.ethereum.ledger.BloomFilter
+import io.iohk.ethereum.domain.{Account, Block, BlockHeader, BlockchainStorages}
+import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationBeforeExecError}
+import io.iohk.ethereum.ledger.{BlockExecutionError, BloomFilter, Ledger}
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerActor.Unsubscribe
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, Peers}
@@ -29,7 +29,7 @@ import scala.concurrent.duration._
 
 class SyncControllerSpec extends FlatSpec with Matchers {
 
-  "FastSyncController" should "download target block and request state nodes" in new TestSetup {
+  "FastSyncController" should "download target block and request state nodes" in new TestSetup() {
 
     val peer1: TestProbe = TestProbe()(system)
     val peer2: TestProbe = TestProbe()(system)
@@ -75,7 +75,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer2.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
   }
 
-  it should "download target block, request state, blocks and finish when downloaded" in new TestSetup {
+  it should "download target block, request state, blocks and finish when downloaded" in new TestSetup() {
     val peer2: TestProbe = TestProbe()(system)
 
     val expectedTargetBlock = 399500
@@ -132,7 +132,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer2.expectMsgAllOf(PeerActor.Subscribe(Set(BlockHeaders.code)))
   }
 
-  it should "not use (blacklist) a peer that fails to respond within time limit" in new TestSetup {
+  it should "not use (blacklist) a peer that fails to respond within time limit" in new TestSetup() {
     val peer2: TestProbe = TestProbe()(system)
 
     time.advance(1.seconds)
@@ -172,7 +172,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer2.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
   }
 
-  it should "start regular download " in new TestSetup {
+  it should "start regular download " in new TestSetup() {
     val peer: TestProbe = TestProbe()(system)
 
     time.advance(1.seconds)
@@ -218,7 +218,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     blockchain.getTotalDifficultyByHash(newBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + newBlockHeader.difficulty)
   }
 
-  it should "resolve branch conflict" in new TestSetup {
+  it should "resolve branch conflict" in new TestSetup() {
     val peer: TestProbe = TestProbe()(system)
 
     time.advance(1.seconds)
@@ -302,7 +302,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     blockchain.getTotalDifficultyByHash(maxBlockHeader.hash) shouldBe None
   }
 
-  it should "only use ETC peer to choose target block" in new TestSetup {
+  it should "only use ETC peer to choose target block" in new TestSetup() {
     val peer1: TestProbe = TestProbe()(system)
     val peer2: TestProbe = TestProbe()(system)
     val peer3: TestProbe = TestProbe()(system)
@@ -342,7 +342,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer4.expectMsg(PeerActor.Unsubscribe)
   }
 
-  it should "broadcast all blocks if they were all valid" in new TestSetup {
+  it should "broadcast all blocks if they were all valid" in new TestSetup() {
     val peer1: TestProbe = TestProbe()(system)
 
     time.advance(1.seconds)
@@ -401,7 +401,10 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     )
   }
 
-  it should "only broadcast blocks that it was able to successfully execute" in new TestSetup {
+  val invalidBlockNumber = 399502
+
+  it should "only broadcast blocks that it was able to successfully execute" in new TestSetup(Seq(invalidBlockNumber)) {
+
     val peer1: TestProbe = TestProbe()(system)
     val peer2: TestProbe = TestProbe()(system)
 
@@ -424,7 +427,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       .copy(number = expectedMaxBlock + 1, parentHash = maxBlockHeader.hash, difficulty = newBlockDifficulty,
         stateRoot = ByteString(Hex.decode("d0aedc3838a3d7f9a526bdd642b55fb1b6292596985cfab2eedb751da19b8bb4")))
     val invalidNextNewBlockHeader: BlockHeader = baseBlockHeader
-      .copy(number = expectedMaxBlock + 2, parentHash = newBlockHeader.hash, difficulty = newBlockDifficulty)
+      .copy(number = invalidBlockNumber, parentHash = newBlockHeader.hash, difficulty = newBlockDifficulty) //Wrong state root hash
 
     storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
     storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
@@ -459,7 +462,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     )
   }
 
-  trait TestSetup extends EphemBlockchainTestSetup {
+  class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil) extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("FastSyncControllerSpec_System")
 
     val time = new VirtualTime
@@ -467,11 +470,20 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val dataSource = EphemDataSource()
 
+    val ledger: Ledger = new Ledger {
+      def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockExecutionError, Unit] ={
+        if(blocksForWhichLedgerFails.contains(block.header.number))
+          Left(TxsExecutionError(s" block ${block.header.number} was included in $blocksForWhichLedgerFails in construction"))
+        else Fixtures.MockLedger.executeBlock(block, storages, validators)
+      }
+    }
+
     val fastSyncController = TestActorRef(Props(new SyncController(peerManager.ref,
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
+      ledger,
       Fixtures.EmptyValidators,
       externalSchedulerOpt = Some(time.scheduler))))
 

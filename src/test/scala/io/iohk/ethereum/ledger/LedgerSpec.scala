@@ -21,6 +21,15 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       runFn(context.asInstanceOf[PC]).asInstanceOf[ProgramResult[W, S]]
   }
 
+  def defaultResult(context: PC, gasUsed: UInt256, gasLimit: UInt256, gasRefund: UInt256, error: Option[ProgramError]): PR = ProgramResult(
+    returnData = bEmpty,
+    gasRemaining = gasLimit - gasUsed,
+    world = context.world,
+    Nil,
+    Nil,
+    gasRefund,
+    error
+  )
 
   "Ledger" should "correctly adjust gas used when refunding gas to the sender and paying for gas to the miner" in {
     val keyPair = generateKeyPair()
@@ -84,18 +93,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
       val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-      val result: PR = ProgramResult(
-        returnData = bEmpty,
-        gasRemaining = gasLimit - gasUsed,
-        world = Ledger.updateSenderAccountBeforeExecution(stx, initialWorld),
-        Nil,
-        Nil,
-        gasRefund,
-        error
-      )
-
-      val mockVM = new MockVM(_ => result)
-      val ledger = new Ledger(mockVM)
+      val mockVM = new MockVM(defaultResult(_, gasUsed, gasLimit, gasRefund, error))
+      val ledger = new LedgerImpl(mockVM)
 
       val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
 

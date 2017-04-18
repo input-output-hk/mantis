@@ -7,6 +7,7 @@ import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.network.PeerActor.{Status => PeerStatus}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
@@ -19,6 +20,7 @@ class SyncController(
     val blockchain: Blockchain,
     val blockchainStorages: BlockchainStorages,
     val fastSyncStateStorage: FastSyncStateStorage,
+    val ledger: Ledger,
     val validators: Validators,
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor
@@ -104,8 +106,9 @@ object SyncController {
             blockchain: Blockchain,
             blockchainStorages: BlockchainStorages,
             syncStateStorage: FastSyncStateStorage,
+            ledger: Ledger,
             validators: Validators):
-  Props = Props(new SyncController(peerManager, appStateStorage, blockchain, blockchainStorages, syncStateStorage, validators))
+  Props = Props(new SyncController(peerManager, appStateStorage, blockchain, blockchainStorages, syncStateStorage, ledger, validators))
 
   case class BlockHeadersToResolve(peer: ActorRef, headers: Seq[BlockHeader])
 
