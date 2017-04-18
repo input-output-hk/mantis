@@ -317,13 +317,16 @@ class Ledger(vm: VM) extends Logger {
 
   private def saveNewContract(address: Address, result: PR, config: EvmConfig): PR = {
     val codeDepositCost = config.calcCodeDepositCost(result.returnData)
-    if (result.gasRemaining < codeDepositCost)
-      result.copy(error = Some(OutOfGas))
-    else
+    if (result.gasRemaining < codeDepositCost) {
+      if (config.exceptionalFailedCodeDeposit)
+        result.copy(error = Some(OutOfGas))
+      else
+        result
+    } else {
       result.copy(
         gasRemaining = result.gasRemaining - codeDepositCost,
-        world = result.world.saveCode(address, result.returnData)
-      )
+        world = result.world.saveCode(address, result.returnData))
+    }
   }
 
   /**
