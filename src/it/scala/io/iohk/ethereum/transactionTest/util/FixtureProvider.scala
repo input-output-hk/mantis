@@ -51,8 +51,6 @@ object FixtureProvider {
       storages.blockNumberMappingStorage.put(block.header.number, block.header.hash)
       fixtures.receipts.get(block.header.hash).foreach(r => storages.receiptStorage.put(block.header.hash, r))
 
-      //storages.totalDifficultyStorage
-
       def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
         case Some(m: MptBranch) =>
           storages.mptNodeStorage.put(m)
