@@ -106,7 +106,7 @@ case class EvmConfig(
     * Calculates transaction intrinsic gas. See YP section 6.2
     *
     */
-  def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean, blockNumber: BigInt): UInt256 = {
+  def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean): UInt256 = {
     val txDataZero = txData.count(_ == 0)
     val txDataNonZero = txData.length - txDataZero
 
