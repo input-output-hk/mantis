@@ -21,7 +21,7 @@ object State {
 
 
   def createAccount(name: String, balance: BigInt, gas: BigInt, code: ByteString, abis: Seq[ABI]): (Address, PR) = {
-    val (newAddress, _) = world.increaseCreatorNonceAndCreateAddress(creatorAddress)
+    val (newAddress, _) = world.createAddressWithOpCode(creatorAddress)
     val tx = MockVmInput.transaction(creatorAddress, code, balance, gas)
     val bh = MockVmInput.blockHeader
 

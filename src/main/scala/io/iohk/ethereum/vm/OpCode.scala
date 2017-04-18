@@ -675,7 +675,7 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
     } else {
 
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
-      val (newAddress, world1) = state.world.increaseCreatorNonceAndCreateAddress(state.env.ownerAddr)
+      val (newAddress, world1) = state.world.createAddressWithOpCode(state.env.ownerAddr)
       val world2 = world1.transfer(state.env.ownerAddr, newAddress, endowment)
 
       val newEnv = state.env.copy(

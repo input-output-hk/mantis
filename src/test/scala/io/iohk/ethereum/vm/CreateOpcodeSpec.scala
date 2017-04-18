@@ -14,7 +14,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val creatorAddr = Address(0xcafe)
     val endowment: UInt256 = 123
     val initWorld = MockWorldState().saveAccount(creatorAddr, Account.Empty.increaseBalance(endowment))
-    val newAddr = initWorld.increaseCreatorNonceAndCreateAddress(creatorAddr)._1
+    val newAddr = initWorld.createAddressWithOpCode(creatorAddr)._1
 
     // doubles the value passed in the input data
     val contractCode = Assembly(

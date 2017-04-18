@@ -55,7 +55,7 @@ trait EvmTestEnv {
                      constructorArgs: Seq[Any] = Nil): (ProgramResult[MockWorldState, MockStorage], Contract) = {
     val creator = world.getAccount(creatorAddress).get
 
-    val (contractAddress, worldAfterNonceIncrease) = world.increaseCreatorNonceAndCreateAddress(creatorAddress)
+    val (contractAddress, worldAfterNonceIncrease) = world.createAddressWithOpCode(creatorAddress)
 
     val contractInitCode = Utils.loadContractCodeFromFile(new File(s"$ContractsDir/$name.bin"))
     val contractAbi = Utils.loadContractAbiFromFile(new File(s"$ContractsDir/$name.abi"))
