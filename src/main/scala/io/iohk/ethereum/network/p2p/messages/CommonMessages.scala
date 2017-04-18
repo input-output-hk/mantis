@@ -8,6 +8,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.utils.{Config, BlockchainConfig}
 import org.spongycastle.util.encoders.Hex
 
 
@@ -47,6 +48,8 @@ object CommonMessages {
 
     implicit val txRlpEncDec = new RLPEncoder[SignedTransaction] with RLPDecoder[SignedTransaction] {
 
+      val chainId = BlockchainConfig(Config.config).chainId
+
       override def encode(signedTx: SignedTransaction): RLPEncodeable = {
         import signedTx._
         import signedTx.tx._
@@ -62,7 +65,8 @@ object CommonMessages {
             Transaction(nonce, gasPrice, gasLimit, receivingAddressOpt, value, payload),
             pointSign,
             signatureRandom.bytes,
-            signature.bytes
+            signature.bytes,
+            chainId
           ).getOrElse(throw new Exception("Tx with invalid signature"))
       }
 
