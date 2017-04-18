@@ -262,9 +262,9 @@ object Fixtures {
     error = None
   )
 
-  val MockVM: VM = new VM {
+  class MockVM(runFn: Ledger.PC => Ledger.PR = MockLedgerProgramResult) extends VM {
     override def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] =
-      MockLedgerProgramResult(context.asInstanceOf[Ledger.PC]).asInstanceOf[ProgramResult[W, S]]
+      runFn(context.asInstanceOf[Ledger.PC]).asInstanceOf[ProgramResult[W, S]]
   }
 
 }

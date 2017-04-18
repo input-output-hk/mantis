@@ -7,7 +7,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class DeleteAccountsSpec extends FlatSpec with Matchers {
 
-  val ledger = new LedgerImpl(Fixtures.MockVM)
+  val ledger = new LedgerImpl(new Fixtures.MockVM())
 
   it should "delete no accounts when none of them should be deleted" in new TestSetup {
     val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteAccounts(Nil)(worldState))

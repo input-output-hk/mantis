@@ -8,7 +8,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class BlockRewardSpec extends FlatSpec with Matchers {
 
-  val ledger = new LedgerImpl(Fixtures.MockVM)
+  val ledger = new LedgerImpl(new Fixtures.MockVM())
 
   "Reward Calculation" should "pay to the miner if no ommers included" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))

@@ -10,7 +10,7 @@ import org.spongycastle.util.encoders.Hex
 
 class ValidationsAfterExecutionSpec extends FlatSpec with Matchers {
 
-  val ledger = new LedgerImpl(Fixtures.MockVM)
+  val ledger = new LedgerImpl(new Fixtures.MockVM())
 
   val block: Block = Block(
     BlockHeader(
