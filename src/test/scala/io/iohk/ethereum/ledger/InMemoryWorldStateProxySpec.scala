@@ -41,6 +41,43 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     finalWorldState.getGuaranteedAccount(address2).balance shouldEqual toTransfer
   }
 
+  "InMemoryWorldStateProxy" should "not store within contract store if value is zero" in new TestSetup {
+    val account = Account(0, 100)
+    val worldStateWithAnAccount = worldState.saveAccount(address1, account)
+    val persistedWorldStateWithAnAccount = InMemoryWorldStateProxy.persistState(worldStateWithAnAccount)
+
+    val persistedWithContractStorageValue = InMemoryWorldStateProxy.persistState(
+      persistedWorldStateWithAnAccount.saveStorage(address1, worldState
+        .getStorage(address1)
+        .store(UInt256.One, UInt256.Zero)
+      )
+    )
+    persistedWorldStateWithAnAccount.stateRootHash shouldEqual persistedWithContractStorageValue.stateRootHash
+  }
+
+  "InMemoryWorldStateProxy" should "storing a zero on a contract store position should remove it from the underlying tree" in new TestSetup {
+    val account = Account(0, 100)
+    val worldStateWithAnAccount = worldState.saveAccount(address1, account)
+    val persistedWorldStateWithAnAccount = InMemoryWorldStateProxy.persistState(worldStateWithAnAccount)
+
+    val persistedWithContractStorageValue = InMemoryWorldStateProxy.persistState(
+      persistedWorldStateWithAnAccount.saveStorage(address1, worldState
+        .getStorage(address1)
+        .store(UInt256.One, UInt256.One)
+      )
+    )
+    persistedWorldStateWithAnAccount.stateRootHash equals persistedWithContractStorageValue.stateRootHash shouldBe false
+
+    val persistedWithZero = InMemoryWorldStateProxy.persistState(
+      persistedWorldStateWithAnAccount.saveStorage(address1, worldState
+        .getStorage(address1)
+        .store(UInt256.One, UInt256.Zero)
+      )
+    )
+
+    persistedWorldStateWithAnAccount.stateRootHash shouldEqual persistedWithZero.stateRootHash
+  }
+
   "InMemoryWorldStateProxy" should "be able to persist changes and continue working after that" in new TestSetup {
 
     val account = Account(0, 100)
