@@ -1,9 +1,10 @@
 command for running parity and ethminer
 
 ```
-parity -jw --jsonrpc-interface 127.0.0.1 --jsonrpc-port 8545 --author 004A44Da31Bb735cB20171AfF69E60E3e50d26De --identity parity_node --geth --chain /Users/adam/iohk/etc-client/private_chain_conf/prv.json --base-path /Users/adam/etc_prv  --pruning archive
+parity -jw --jsonrpc-interface 127.0.0.1 --jsonrpc-port 8545 --author 004A44Da31Bb735cB20171AfF69E60E3e50d26De --identity parity_node --geth --chain path_to_private_chain_conf/prv.json --base-path /tmp/etc_prv  --pruning archive
 ethminer -C -F 127.0.0.1:8545
 ```
+example private network configuration is in `prv.json`
 
 address for private net:
 
@@ -22,7 +23,7 @@ deploy contracts with `Develop > Open Remix IDE`
 
 
 to start with empty chain:
-`rm -rf chains dapps network` in /Users/adam/etc_prv
+`rm -rf chains dapps network` in /tmp/etc_prv
 
 `rm -rf ~/.ethash` on every new chain start
 

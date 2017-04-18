@@ -14,10 +14,6 @@ class ContractTest extends FlatSpec with Matchers {
 
     //block only with ether transfers
     Ledger.executeBlock(fixtures.blockByNumber(1), storage, stateStorage)
-
-    //block 2 contains contract creation
-    //block 3 and 4 contains contract calls with contract storage modification
-    //block 4 contains contract paying to 2 accounts
   }
 
   it should "deploy contract" in {
@@ -29,12 +25,21 @@ class ContractTest extends FlatSpec with Matchers {
     Ledger.executeBlock(fixtures.blockByNumber(2), storage, stateStorage)
   }
 
-  ignore should "execute contract call" in {
+  it should "execute contract call" in {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContruct/")
 
     val (storage, stateStorage) = FixtureProvider.prepareStorages(2, fixtures)
 
     //block with ether transfers and contract call
+    Ledger.executeBlock(fixtures.blockByNumber(3), storage, stateStorage)
+  }
+
+  it should "execute contract that pays 2 accounts" in {
+    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContruct/")
+
+    val (storage, stateStorage) = FixtureProvider.prepareStorages(2, fixtures)
+
+    //block contains contract paying 2 accounts
     Ledger.executeBlock(fixtures.blockByNumber(3), storage, stateStorage)
   }
 }

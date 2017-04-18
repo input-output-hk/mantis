@@ -1,5 +1,7 @@
 package io.iohk.ethereum.transactionTest.util
 
+import java.io.Closeable
+
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
@@ -86,50 +88,50 @@ object FixtureProvider {
   }
 
   def loadFixtures(path: String): Fixture = {
-    val bodies: Map[ByteString, BlockBody] = Source.fromFile(getClass.getResource(s"$path/bodies.txt").getPath).getLines()
+    val bodies: Map[ByteString, BlockBody] = withClose(Source.fromFile(getClass.getResource(s"$path/bodies.txt").getPath))(_.getLines()
       .map(s => s.split(" ").toSeq).collect {
       case Seq(h, v) =>
         val key = ByteString(Hex.decode(h))
         val value: BlockBody = decode(Hex.decode(v))(BlockBody.rlpEncDec)
         key -> value
-    }.toMap
+    }.toMap)
 
-    val headers: Map[ByteString, BlockHeader] = Source.fromFile(getClass.getResource(s"$path/headers.txt").getPath).getLines()
+    val headers: Map[ByteString, BlockHeader] = withClose(Source.fromFile(getClass.getResource(s"$path/headers.txt").getPath))(_.getLines()
       .map(s => s.split(" ").toSeq).collect {
       case Seq(h, v) =>
         val key = ByteString(Hex.decode(h))
         val value: BlockHeader = decode(Hex.decode(v))(BlockHeaderImplicits.headerRlpEncDec)
         key -> value
-    }.toMap
+    }.toMap)
 
-    val receipts: Map[ByteString, Seq[Receipt]] = Source.fromFile(getClass.getResource(s"$path/receipts.txt").getPath).getLines()
+    val receipts: Map[ByteString, Seq[Receipt]] = withClose(Source.fromFile(getClass.getResource(s"$path/receipts.txt").getPath))(_.getLines()
       .map(s => s.split(" ").toSeq).collect {
       case Seq(h, v) =>
         val key = ByteString(Hex.decode(h))
         val value: Seq[Receipt] = fromRlpList(rawDecode(Hex.decode(v)).asInstanceOf[RLPList])(ReceiptImplicits.receiptRlpEncDec)
         key -> value
-    }.toMap
+    }.toMap)
 
-    val stateTree: Map[ByteString, MptNode] = Source.fromFile(getClass.getResource(s"$path/stateTree.txt").getPath).getLines()
+    val stateTree: Map[ByteString, MptNode] = withClose(Source.fromFile(getClass.getResource(s"$path/stateTree.txt").getPath))(_.getLines()
       .map(s => s.split(" ").toSeq).collect {
       case Seq(h, v) =>
         val key = ByteString(Hex.decode(h))
         val value: MptNode = decode(Hex.decode(v))(MptNode.rlpEncDec)
         key -> value
-    }.toMap
+    }.toMap)
 
-    val contractTrees: Map[ByteString, MptNode] = Source.fromFile(getClass.getResource(s"$path/contractTrees.txt").getPath).getLines()
+    val contractTrees: Map[ByteString, MptNode] = withClose(Source.fromFile(getClass.getResource(s"$path/contractTrees.txt").getPath))(_.getLines()
       .map(s => s.split(" ").toSeq).collect {
       case Seq(h, v) =>
         val key = ByteString(Hex.decode(h))
         val value: MptNode = decode(Hex.decode(v))(MptNode.rlpEncDec)
         key -> value
-    }.toMap
+    }.toMap)
 
-    val evmCode: Map[ByteString, ByteString] = Source.fromFile(getClass.getResource(s"$path/evmCode.txt").getPath).getLines()
+    val evmCode: Map[ByteString, ByteString] = withClose(Source.fromFile(getClass.getResource(s"$path/evmCode.txt").getPath))(_.getLines()
       .map(s => s.split(" ").toSeq).collect {
       case Seq(h, v) => ByteString(Hex.decode(h)) -> ByteString(Hex.decode(v))
-    }.toMap
+    }.toMap)
 
     val blocks = headers.toList.sortBy { case (hash, _) => Hex.toHexString(hash.toArray[Byte]) }.map { case (_, header) => header }
       .zip(bodies.toList.sortBy { case (hash, _) => Hex.toHexString(hash.toArray[Byte]) }.map { case (_, body) => body })
@@ -137,4 +139,6 @@ object FixtureProvider {
 
     Fixture(blocks.map(b => b.header.number -> b).toMap, blocks.map(b => b.header.hash -> b).toMap, headers, bodies, receipts, stateTree, contractTrees, evmCode)
   }
+
+  private def withClose[A, B <: Closeable] (closeable: B) (f: B => A): A = try { f(closeable) } finally { closeable.close() }
 }
