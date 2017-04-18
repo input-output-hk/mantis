@@ -18,7 +18,7 @@ object ProgramContext {
     val env = ExecEnv(recipientAddress, senderAddress, senderAddress, UInt256(tx.gasPrice), tx.payload,
       UInt256(tx.value), program, blockHeader, callDepth = 0)
 
-    val gasLimit = tx.gasLimit - config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, blockHeader.number)
+    val gasLimit = tx.gasLimit - config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
 
     ProgramContext(env, UInt256(gasLimit), world1, config)
   }
@@ -27,8 +27,8 @@ object ProgramContext {
     tx.receivingAddress match {
       case None =>
         // contract create
-        val (address, world1) = world.newAddress(senderAddress)
-        val world2 = world1.newEmptyAccount(address)
+        val address = world.createAddress(senderAddress)
+        val world2 = world.newEmptyAccount(address)
         val world3 = world2.transfer(senderAddress, address, UInt256(tx.value))
         val code = tx.payload
 
@@ -36,10 +36,10 @@ object ProgramContext {
 
       case Some(txReceivingAddress) =>
         // message call
-        val world1 = world.transfer(senderAddress, txReceivingAddress, UInt256(tx.value))
-        val code = world1.getCode(txReceivingAddress)
+        val worldAfterTransfer = world.transfer(senderAddress, txReceivingAddress, UInt256(tx.value))
+        val code = worldAfterTransfer.getCode(txReceivingAddress)
 
-        (world1, tx.receivingAddress.get, Program(code))
+        (worldAfterTransfer, txReceivingAddress, Program(code))
     }
   }
 }
