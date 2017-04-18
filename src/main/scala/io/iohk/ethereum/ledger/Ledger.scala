@@ -13,10 +13,10 @@ import scala.annotation.tailrec
 
 class Ledger(vm: VM) extends Logger {
 
+  import LedgerCompanion._
+
   type PC = ProgramContext[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
   type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
-  case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
-  case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry])
 
   def executeBlock(
     block: Block,
@@ -48,7 +48,7 @@ class Ledger(vm: VM) extends Logger {
     * @param storages
     * @param stateStorage
     */
-  private def executeBlockTransactions(
+  private[ledger] def executeBlockTransactions(
     block: Block,
     blockchain: Blockchain,
     storages: BlockchainStorages,
@@ -358,6 +358,11 @@ class Ledger(vm: VM) extends Logger {
   private[ledger] def deleteAccounts(addressesToDelete: Seq[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => world.deleteAccount(address) }
 
+}
+
+object LedgerCompanion {
+  case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
+  case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry])
 }
 
 object Ledger extends Ledger(VM)
