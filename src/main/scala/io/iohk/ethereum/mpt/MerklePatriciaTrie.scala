@@ -48,7 +48,6 @@ object MerklePatriciaTrie {
   private def matchingLength(a: Array[Byte], b: Array[Byte]): Int = a.zip(b).takeWhile(t => t._1 == t._2).length
 
   private def updateNodesInStorage(
-    previousRootHash: Array[Byte],
     newRoot: Option[Node],
     toUpdate: Seq[Node],
     nodeStorage: NodeStorage): NodeStorage = {
@@ -166,7 +165,6 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
       val NodeInsertResult(newRoot, nodesToUpdateInStorage) = put(root, keyNibbles, vSerializer.toBytes(value))
       val newRootHash = newRoot.hash
       val newSource = updateNodesInStorage(
-        previousRootHash = getRootHash,
         newRoot = Some(newRoot),
         toUpdate = nodesToUpdateInStorage,
         nodeStorage = nodeStorage)
@@ -175,7 +173,7 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
       val newRoot = LeafNode(keyNibbles, vSerializer.toBytes(value), hashFn)
       val newRootHash = newRoot.hash
       new MerklePatriciaTrie(Some(newRootHash),
-        updateNodesInStorage(getRootHash, Some(newRoot), Seq(newRoot), nodeStorage),
+        updateNodesInStorage(Some(newRoot), Seq(newRoot), nodeStorage),
         hashFn)
     }
   }
@@ -195,14 +193,12 @@ class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
         case NodeRemoveResult(true, Some(newRoot), nodesToUpdateInStorage) =>
           val newRootHash = newRoot.hash
           val afterDeletenodeStorage = updateNodesInStorage(
-            previousRootHash = getRootHash,
             newRoot = Some(newRoot),
             toUpdate = nodesToUpdateInStorage,
             nodeStorage = nodeStorage)
           new MerklePatriciaTrie(Some(newRootHash), afterDeletenodeStorage, hashFn)(kSerializer, vSerializer)
         case NodeRemoveResult(true, None, nodesToUpdateInStorage) =>
           val afterDeletenodeStorage = updateNodesInStorage(
-            previousRootHash = getRootHash,
             newRoot = None,
             toUpdate = nodesToUpdateInStorage,
             nodeStorage = nodeStorage)
