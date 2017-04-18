@@ -18,7 +18,7 @@ class ContractTest extends FlatSpec with Matchers {
     Ledger.executeBlock(fixtures.blockByNumber(1), storage, stateStorage) shouldBe noErrors
   }
 
-  ignore should "deploy contract" in {
+  it should "deploy contract" in {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContruct/")
 
     val (storage, stateStorage) = FixtureProvider.prepareStorages(1, fixtures)
