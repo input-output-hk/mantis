@@ -27,8 +27,8 @@ object ProgramContext {
     tx.receivingAddress match {
       case None =>
         // contract create
-        val (address, world1) = world.newAddress(senderAddress)
-        val world2 = world1.newEmptyAccount(address)
+        val address = world.createAddress(senderAddress)
+        val world2 = world.newEmptyAccount(address)
         val world3 = world2.transfer(senderAddress, address, UInt256(tx.value))
         val code = tx.payload
 
@@ -36,10 +36,10 @@ object ProgramContext {
 
       case Some(txReceivingAddress) =>
         // message call
-        val world1 = world.transfer(senderAddress, txReceivingAddress, UInt256(tx.value))
-        val code = world1.getCode(txReceivingAddress)
+        val worldAfterTransfer = world.transfer(senderAddress, txReceivingAddress, UInt256(tx.value))
+        val code = worldAfterTransfer.getCode(txReceivingAddress)
 
-        (world1, txReceivingAddress, Program(code))
+        (worldAfterTransfer, txReceivingAddress, Program(code))
     }
   }
 }

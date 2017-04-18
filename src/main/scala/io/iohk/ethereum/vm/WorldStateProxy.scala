@@ -54,11 +54,27 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     }
   }
 
-  def newAddress(creatorAddr: Address): (Address, WS) = {
-    val creator = getGuaranteedAccount(creatorAddr)
-    val hash = kec256(rlp.encode(RLPList(creatorAddr.bytes, creator.nonce)))
-    val addr = Address(hash)
-    val updated = saveAccount(creatorAddr, creator.increaseNonce)
-    (addr, updated)
+  /**
+    * Creates a new address based on the address and nonce of the creator. YP equation 82
+    *
+    * @param creatorAddr, the address of the creator of the new address
+    * @return the new address
+    */
+  def createAddress(creatorAddr: Address): Address = {
+    val creatorAccount = getGuaranteedAccount(creatorAddr)
+    val hash = kec256(rlp.encode(RLPList(creatorAddr.bytes, creatorAccount.nonce - 1)))
+    Address(hash)
+  }
+
+  /**
+    * Increases the creator's nonce and creates a new address based on the address and the new nonce of the creator
+    *
+    * @param creatorAddr, the address of the creator of the new address
+    * @return the new address and the state world after the creator's nonce was increased
+    */
+  def createAddressWithOpCode(creatorAddr: Address): (Address, WS) = {
+    val creatorAccount = getGuaranteedAccount(creatorAddr)
+    val updatedWorld = saveAccount(creatorAddr, creatorAccount.increaseNonce)
+    updatedWorld.createAddress(creatorAddr) -> updatedWorld
   }
 }
