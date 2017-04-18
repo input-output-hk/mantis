@@ -54,11 +54,11 @@ trait FastSync {
   private def waitingForBlockHeaders(waitingFor: Set[ActorRef],
                              received: Map[ActorRef, BlockHeader],
                              timeout: Cancellable): Receive = handlePeerUpdates orElse {
-    case PeerActor.MessageReceived(BlockHeaders(blockHeaders)) if blockHeaders.size == 1 =>
+    case PeerActor.MessageReceived(BlockHeaders(Seq(blockHeader))) =>
       sender() ! PeerActor.Unsubscribe
 
       val newWaitingFor = waitingFor - sender()
-      val newReceived = received + (sender() -> blockHeaders.head)
+      val newReceived = received + (sender() -> blockHeader)
 
       if (newWaitingFor.isEmpty) {
         timeout.cancel()

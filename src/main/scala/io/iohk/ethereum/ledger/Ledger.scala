@@ -247,7 +247,7 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
       _ <- signedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = blockHeader.number < Config.Blockchain.homesteadBlockNumber)
         .left.map(_.toString)
       _ <- validateNonce(stx, worldState)
-      _ <- validateGas(stx, blockHeader, config)
+      _ <- validateGas(stx, config)
       _ <- validateAccountHasEnoughGasToPayUpfrontCost(stx, worldState)
       _ <- validateGasLimit(stx, accumGasLimit, blockHeader.gasLimit)
     } yield stx
@@ -270,9 +270,9 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
     * @param stx Transaction to validate
     * @return Either the validated transaction or an error description
     */
-  private def validateGas(stx: SignedTransaction, blockHeader: BlockHeader, config: EvmConfig): Either[String, SignedTransaction] = {
+  private def validateGas(stx: SignedTransaction, config: EvmConfig): Either[String, SignedTransaction] = {
     import stx.tx
-    if (stx.tx.gasLimit >= config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, blockHeader.number)) Right(stx)
+    if (stx.tx.gasLimit >= config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)) Right(stx)
     else Left("Transaction gas limit is less than the transaction execution gast (intrinsic gas)")
   }
 
