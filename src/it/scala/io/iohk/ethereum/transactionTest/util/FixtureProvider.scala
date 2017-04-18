@@ -64,6 +64,7 @@ object FixtureProvider {
           stateStorage.put(m.hash, encode(m: MptNode)(MptNode.rlpEncDec))
           m.child match {
             case Left(MptHash(hash)) if hash.nonEmpty => traverse(hash)
+            case _ =>
           }
 
         case Some(m: MptLeaf) =>
