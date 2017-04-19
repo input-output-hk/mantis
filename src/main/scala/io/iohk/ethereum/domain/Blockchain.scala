@@ -189,6 +189,7 @@ trait BlockchainStorages {
   val receiptStorage: ReceiptStorage
   val evmCodeStorage: EvmCodeStorage
   val mptNodeStorage: MptNodeStorage
+  val nodeStorage: NodeStorage
   val totalDifficultyStorage: TotalDifficultyStorage
 }
 
