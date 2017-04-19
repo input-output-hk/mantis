@@ -1,9 +1,16 @@
 package io.iohk.ethereum.validators
 
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
+import io.iohk.ethereum.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError._
 
-object OmmersValidator {
+trait OmmersValidator {
+
+  def validate(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit]
+
+}
+
+object OmmersValidator extends OmmersValidator {
 
   val OmmerGenerationLimit: Int = 6 //Stated on section 11.1, eq. (143) of the YP
   val OmmerSizeLimit: Int = 2

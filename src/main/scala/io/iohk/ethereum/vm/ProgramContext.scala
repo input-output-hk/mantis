@@ -21,7 +21,27 @@ object ProgramContext {
 
     val gasLimit = tx.gasLimit - config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
 
-    ProgramContext(env, UInt256(gasLimit), world, config)
+    ProgramContext(env, recipientAddress, UInt256(gasLimit), world, config)
+  }
+
+  private def callOrCreate[W <: WorldStateProxy[W, S], S <: Storage[S]](world: W, tx: Transaction, senderAddress: Address): (W, Address, Program) = {
+    tx.receivingAddress match {
+      case None =>
+        // contract create
+        val address = world.createAddress(senderAddress)
+        val world1 = world.newEmptyAccount(address)
+        val world2 = world1.transfer(senderAddress, address, UInt256(tx.value))
+        val code = tx.payload
+
+        (world2, address, Program(code))
+
+      case Some(txReceivingAddress) =>
+        // message call
+        val worldAfterTransfer = world.transfer(senderAddress, txReceivingAddress, UInt256(tx.value))
+        val code = worldAfterTransfer.getCode(txReceivingAddress)
+
+        (worldAfterTransfer, txReceivingAddress, Program(code))
+    }
   }
 }
 
@@ -30,12 +50,15 @@ object ProgramContext {
   * it should have all (interfaces to) the data accessible from the EVM.
   *
   * @param env set of constants for the execution
+  * @param receivingAddr used for determining whether a precompiled contract is being called (potentially
+  *                      different from the addresses defined in env)
   * @param startGas initial gas for the execution
   * @param world provides interactions with world state
   * @param config evm config
   */
 case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
   env: ExecEnv,
-  startGas: UInt256, //TODO: should we move it to ExecEnv
+  receivingAddr: Address,
+  startGas: UInt256,
   world: W,
   config: EvmConfig)

@@ -102,7 +102,15 @@ object SignedTransaction {
   }
 
   def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair): SignedTransaction = {
-    val bytes = crypto.kec256(
+    val bytes = bytesToSign(tx)
+    val sig = ECDSASignature.sign(bytes, keyPair)
+    val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
+    val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
+    SignedTransaction(tx, sig, address)
+  }
+
+  def bytesToSign(tx: Transaction): Array[Byte] = {
+    crypto.kec256(
       rlpEncode(RLPList(
         tx.nonce,
         tx.gasPrice,
@@ -113,11 +121,6 @@ object SignedTransaction {
         Config.Blockchain.chainId,
         valueForEmptyR,
         valueForEmptyS)))
-
-    val sig = ECDSASignature.sign(bytes, keyPair)
-    val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
-    val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
-    SignedTransaction(tx, sig, address)
   }
 }
 

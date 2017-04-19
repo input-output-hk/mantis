@@ -14,7 +14,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val creatorAddr = Address(0xcafe)
     val endowment: UInt256 = 123
     val initWorld = MockWorldState().saveAccount(creatorAddr, Account.Empty.increaseBalance(endowment))
-    val newAddr = initWorld.newAddress(creatorAddr)._1
+    val newAddr = initWorld.createAddressWithOpCode(creatorAddr)._1
 
     // doubles the value passed in the input data
     val contractCode = Assembly(
@@ -51,7 +51,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val gasRequiredForCreation = gasRequiredForInit + depositGas + G_create
 
     val env = ExecEnv(creatorAddr, Address(0), Address(0), 1, ByteString.empty, 0, Program(ByteString.empty), null, 0)
-    val context: PC = ProgramContext(env, 2 * gasRequiredForCreation, initWorld, config)
+    val context: PC = ProgramContext(env, Address(0), 2 * gasRequiredForCreation, initWorld, config)
   }
 
   case class CreateResult(context: PC = fxt.context, value: UInt256 = fxt.endowment) {

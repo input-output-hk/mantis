@@ -13,15 +13,17 @@ class VM {
     * @return result of the execution
    */
   def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
-    val finalState = run(ProgramState[W, S](context))
-    ProgramResult[W, S](
-      finalState.returnData,
-      finalState.gas,
-      finalState.world,
-      finalState.addressesToDelete,
-      finalState.logs,
-      finalState.gasRefund,
-      finalState.error)
+    PrecompiledContracts.runOptionally(context).getOrElse {
+      val finalState = run(ProgramState[W, S](context))
+      ProgramResult[W, S](
+        finalState.returnData,
+        finalState.gas,
+        finalState.world,
+        finalState.addressesToDelete,
+        finalState.logs,
+        finalState.gasRefund,
+        finalState.error)
+    }
   }
 
   @tailrec

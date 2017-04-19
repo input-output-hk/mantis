@@ -675,7 +675,7 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
     } else {
 
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
-      val (newAddress, world1) = state.world.newAddress(state.env.ownerAddr)
+      val (newAddress, world1) = state.world.createAddressWithOpCode(state.env.ownerAddr)
       val world2 = world1.transfer(state.env.ownerAddr, newAddress, endowment)
 
       val newEnv = state.env.copy(
@@ -692,7 +692,7 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
       val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
       val startGas = state.config.gasCap(availableGas)
 
-      val context = ProgramContext[W, S](newEnv, startGas, world2, state.config)
+      val context = ProgramContext[W, S](newEnv, newAddress, startGas, world2, state.config)
       val result = VM.run(context)
 
       val codeDepositGas = state.config.calcCodeDepositCost(result.returnData)
@@ -773,6 +773,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
 
       val context: ProgramContext[W, S] = state.context.copy(
         env = env,
+        receivingAddr = toAddr,
         startGas = startGas,
         world = world1)
 

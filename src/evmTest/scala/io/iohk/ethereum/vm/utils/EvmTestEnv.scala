@@ -53,10 +53,7 @@ trait EvmTestEnv {
                      constructorArgs: Seq[Any] = Nil): (ProgramResult[MockWorldState, MockStorage], Contract) = {
     val creator = world.getAccount(creatorAddress).get
 
-    val contractAddress = {
-      val hash = crypto.kec256(rlp.encode(RLPList(creatorAddress.bytes, creator.nonce)))
-      Address(hash.takeRight(Address.Length))
-    }
+    val (contractAddress, worldAfterNonceIncrease) = world.createAddressWithOpCode(creatorAddress)
 
     val contractInitCode = Utils.loadContractCodeFromFile(new File(s"$ContractsDir/$name.bin"))
     val contractAbi = Utils.loadContractAbiFromFile(new File(s"$ContractsDir/$name.abi"))
@@ -66,14 +63,13 @@ trait EvmTestEnv {
     val tx = MockVmInput.transaction(creatorAddress, payload, value, gasLimit, gasPrice)
     val bh = MockVmInput.blockHeader
 
-    val context = ProgramContext[MockWorldState, MockStorage](tx, contractAddress, Program(payload), bh, world, config)
+    val context = ProgramContext[MockWorldState, MockStorage](tx, contractAddress, Program(payload), bh, worldAfterNonceIncrease, config)
     val result = VM.run(context)
 
     contractsAbis += (name -> contractAbi.right.get)
     contractsAddresses += (name -> contractAddress)
 
     internalWorld = result.world
-      .saveAccount(creatorAddress, creator.increaseNonce)
       .saveAccount(contractAddress, Account(UInt256(0), UInt256(value), Account.EmptyStorageRootHash, kec256(result.returnData)))
       .saveCode(contractAddress, result.returnData)
 
@@ -85,6 +81,7 @@ trait EvmTestEnv {
     case b: BigInt => UInt256(b).bytes
     case a: Array[Byte] => UInt256(a).bytes
     case i: Int => UInt256(i).bytes
+    case b: Byte => UInt256(b).bytes
     case a: Address => UInt256(a.bytes).bytes
     case other => throw new RuntimeException("Invalid call argument")
   }
