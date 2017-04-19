@@ -3,7 +3,7 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
-import io.iohk.ethereum.Fixtures.MockVM
+import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain._

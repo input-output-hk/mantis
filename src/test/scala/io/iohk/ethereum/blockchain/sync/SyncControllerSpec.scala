@@ -6,7 +6,7 @@ import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.{Fixtures, Mocks}
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader, BlockchainStorages}
@@ -470,13 +470,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val dataSource = EphemDataSource()
 
-    val ledger: Ledger = new Ledger {
-      def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockExecutionError, Unit] ={
-        if(blocksForWhichLedgerFails.contains(block.header.number))
-          Left(TxsExecutionError(s" block ${block.header.number} was included in $blocksForWhichLedgerFails in construction"))
-        else Fixtures.MockLedger.executeBlock(block, storages, validators)
-      }
-    }
+    val ledger: Ledger = new Mocks.MockLedger((block, _, _) => !blocksForWhichLedgerFails.contains(block.header.number))
 
     val fastSyncController = TestActorRef(Props(new SyncController(peerManager.ref,
       storagesInstance.storages.appStateStorage,

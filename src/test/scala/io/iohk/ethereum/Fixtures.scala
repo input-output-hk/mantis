@@ -247,24 +247,4 @@ object Fixtures {
     }
   }
 
-  val MockLedger: Ledger = new Ledger{
-    override def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators)
-    : Either[BlockExecutionError, Unit] = Right(())
-  }
-
-  val MockLedgerProgramResult: Ledger.PC => Ledger.PR = context => ProgramResult(
-    returnData = ByteString.empty,
-    gasRemaining = 1000000 - 25000,
-    world = context.world,
-    addressesToDelete = Nil,
-    logs = Nil,
-    gasRefund = 20000,
-    error = None
-  )
-
-  class MockVM(runFn: Ledger.PC => Ledger.PR = MockLedgerProgramResult) extends VM {
-    override def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] =
-      runFn(context.asInstanceOf[Ledger.PC]).asInstanceOf[ProgramResult[W, S]]
-  }
-
 }

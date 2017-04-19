@@ -1,7 +1,7 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.BlockValidator
@@ -10,7 +10,7 @@ import org.spongycastle.util.encoders.Hex
 
 class ValidationsAfterExecutionSpec extends FlatSpec with Matchers {
 
-  val ledger = new LedgerImpl(new Fixtures.MockVM())
+  val ledger = new LedgerImpl(new Mocks.MockVM())
 
   val block: Block = Block(
     BlockHeader(
