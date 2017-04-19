@@ -1,4 +1,4 @@
-package io.iohk.ethereum.transactionTest.util
+package io.iohk.ethereum.txExecTest.util
 
 import java.io.Closeable
 

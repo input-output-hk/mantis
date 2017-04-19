@@ -1,7 +1,7 @@
-package io.iohk.ethereum.transactionTest
+package io.iohk.ethereum.txExecTest
 
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.transactionTest.util.FixtureProvider
+import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.language.postfixOps
@@ -10,7 +10,7 @@ class ContractTest extends FlatSpec with Matchers {
   val noErrors: Right[Nothing, Unit] = Right(())
 
   "Ledger" should "transfer ether" in {
-    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContruct/")
+    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContract/")
 
     val (storage, stateStorage) = FixtureProvider.prepareStorages(0, fixtures)
 
@@ -19,7 +19,7 @@ class ContractTest extends FlatSpec with Matchers {
   }
 
   it should "deploy contract" in {
-    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContruct/")
+    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContract/")
 
     val (storage, stateStorage) = FixtureProvider.prepareStorages(1, fixtures)
 
@@ -28,7 +28,7 @@ class ContractTest extends FlatSpec with Matchers {
   }
 
   it should "execute contract call" in {
-    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContruct/")
+    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContract/")
 
     val (storage, stateStorage) = FixtureProvider.prepareStorages(2, fixtures)
 
@@ -37,7 +37,7 @@ class ContractTest extends FlatSpec with Matchers {
   }
 
   it should "execute contract that pays 2 accounts" in {
-    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContruct/")
+    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContract/")
 
     val (storage, stateStorage) = FixtureProvider.prepareStorages(2, fixtures)
 

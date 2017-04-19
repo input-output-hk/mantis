@@ -1,4 +1,4 @@
-package io.iohk.ethereum.transactionTest.util
+package io.iohk.ethereum.txExecTest.util
 
 import java.io.FileWriter
 
@@ -26,7 +26,7 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
   var evmCodeHashes: Set[ByteString] = Set.empty
 
   var blockHeadersStorage: Map[ByteString, BlockHeader] = HashMap.empty
-  var blockHeadersHashes: Seq[ByteString] = Nil
+  var blockHeadersHashes: Seq[(BigInt,ByteString)] = Nil
   var blockBodyStorage: Map[ByteString, BlockBody] = HashMap.empty
   var blockReceiptsStorage: Map[ByteString, Seq[Receipt]] = HashMap.empty
   var stateStorage: Map[ByteString, MptNode] = HashMap.empty
@@ -50,23 +50,22 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
       }
 
     case MessageReceived(m: BlockHeaders) =>
-      val headerHashes = m.headers.map(_.hash)
       val mptRoots: Seq[ByteString] = m.headers.map(_.stateRoot)
 
-      blockHeadersHashes = m.headers.map(_.hash)
+      blockHeadersHashes = m.headers.map(e => (e.number, e.hash))
       m.headers.foreach { h =>
         blockHeadersStorage = blockHeadersStorage + (h.hash -> h)
       }
 
       peers.headOption.foreach { case Peer(_, actor) =>
-        actor ! SendMessage(GetBlockBodies(headerHashes))
-        actor ! SendMessage(GetReceipts(headerHashes.drop(1)))
+        actor ! SendMessage(GetBlockBodies(m.headers.map(_.hash)))
+        actor ! SendMessage(GetReceipts(blockHeadersHashes.filter { case (n, _) => n > 0 }.map { case (_, h) => h }))
         actor ! SendMessage(GetNodeData(mptRoots))
         stateNodesHashes = stateNodesHashes ++ mptRoots.toSet
       }
 
     case MessageReceived(m: BlockBodies) =>
-      m.bodies.zip(blockHeadersHashes).foreach { case (b, h) =>
+      m.bodies.zip(blockHeadersHashes).foreach { case (b, (_, h)) =>
         blockBodyStorage = blockBodyStorage + (h -> b)
       }
       val bodiesFile = new FileWriter("bodies.txt", true)
@@ -74,7 +73,7 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
       bodiesFile.close()
 
     case MessageReceived(m: Receipts) =>
-      m.receiptsForBlocks.zip(blockHeadersHashes.tail).foreach { case (r, h) =>
+      m.receiptsForBlocks.zip(blockHeadersHashes.filter { case (n, _) => n > 0 }).foreach { case (r, (_, h)) =>
         blockReceiptsStorage = blockReceiptsStorage + (h -> r)
       }
       val receiptsFile = new FileWriter("receipts.txt", true)
@@ -96,7 +95,7 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
         case _ => Seq.empty
       }
 
-      var cChildren: Seq[ByteString] = Nil
+      var contractChildren: Seq[ByteString] = Nil
       var evmTorequest: Seq[ByteString] = Nil
 
       nodes.foreach {
@@ -109,7 +108,7 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
           }
           if (n.getAccount.storageRoot != DumpChainActor.emptyStorage) {
             peers.headOption.foreach { case Peer(_, actor) =>
-              cChildren = cChildren :+ n.getAccount.storageRoot
+              contractChildren = contractChildren :+ n.getAccount.storageRoot
               contractNodesHashes = contractNodesHashes + n.getAccount.storageRoot
             }
           }
@@ -117,32 +116,13 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
       }
 
       val cNodes = NodeData(contractNodes).values.indices.map(i => NodeData(contractNodes).getMptNode(i))
-      cChildren = cChildren ++ cNodes.flatMap {
+      contractChildren = contractChildren ++ cNodes.flatMap {
         case n: MptBranch => n.children.collect { case Left(h: MptHash) if h.hash.nonEmpty => h.hash }
         case MptExtension(_, Left(h)) => Seq(h.hash)
         case _ => Seq.empty
       }
-      peers.headOption.foreach { case Peer(_, actor) =>
-        actor ! SendMessage(GetNodeData(children ++ cChildren ++ evmTorequest))
-        stateNodesHashes = stateNodesHashes ++ children.toSet
-        contractNodesHashes = contractNodesHashes ++ cChildren.toSet
-      }
 
-      evmCode.foreach { e =>
-        evmCodeStorage = evmCodeStorage + (kec256(e) -> e)
-      }
-
-      nodes.foreach { n =>
-        stateStorage = stateStorage + (n.hash -> n)
-      }
-
-      cNodes.foreach { n =>
-        contractStorage = contractStorage + (n.hash -> n)
-      }
-
-      if (children.isEmpty && cChildren.isEmpty && evmTorequest.isEmpty) {
-        import RLPImplicitConversions._
-
+      if (children.isEmpty && contractChildren.isEmpty && evmTorequest.isEmpty) {
         val headersFile = new FileWriter("headers.txt", true)
         val stateTreeFile = new FileWriter("stateTree.txt", true)
         val contractTreesFile = new FileWriter("contractTrees.txt", true)
@@ -162,6 +142,24 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
         contractTreesFile.close()
         evmCodeFile.close()
         println("chain dumped to file")
+      } else {
+        peers.headOption.foreach { case Peer(_, actor) =>
+          actor ! SendMessage(GetNodeData(children ++ contractChildren ++ evmTorequest))
+          stateNodesHashes = stateNodesHashes ++ children.toSet
+          contractNodesHashes = contractNodesHashes ++ contractChildren.toSet
+        }
+
+        evmCode.foreach { e =>
+          evmCodeStorage = evmCodeStorage + (kec256(e) -> e)
+        }
+
+        nodes.foreach { n =>
+          stateStorage = stateStorage + (n.hash -> n)
+        }
+
+        cNodes.foreach { n =>
+          contractStorage = contractStorage + (n.hash -> n)
+        }
       }
   }
 }
