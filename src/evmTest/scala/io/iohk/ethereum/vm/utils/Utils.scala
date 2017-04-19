@@ -9,9 +9,6 @@ import io.circe.generic.extras.auto._
 import io.circe.Error
 import scala.io.Source
 
-/**
-  * Created by adam on 19.04.2017.
-  */
 object Utils {
 
   def loadContractCodeFromFile(file: File): ByteString = {
