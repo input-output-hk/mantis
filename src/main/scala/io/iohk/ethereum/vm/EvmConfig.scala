@@ -36,14 +36,6 @@ object EvmConfig {
     subGasCapDivisor = None,
     chargeSelfDestructForNewAccount = false)
 
-  /*
-    TODO (CREATE):
-    If contract creation does not have enough gas to pay for the final gas fee
-    for adding the contract code to the state, the contract creation fails (ie. goes out-of-gas)
-    rather than leaving an empty contract.
-
-    See: exceptional_failed_code_deposit in Parity
-   */
   val HomesteadConfig = EvmConfig(
     feeSchedule = new FeeSchedule.HomesteadFeeSchedule,
     opCodes = OpCodes.HomesteadOpCodes,
@@ -51,11 +43,6 @@ object EvmConfig {
     subGasCapDivisor = None,
     chargeSelfDestructForNewAccount = false)
 
-  /*
-  TODO(CREATE): sub_gas_cap_divisor
-    If Some(x): let limit = GAS * (x - 1) / x; let CALL's gas = min(requested, limit). let CREATE's gas = limit.
-    If None: let CALL's gas = (requested > GAS ? [OOG] : GAS). let CREATE's gas = GAS
-   */
   val PostEIP150Config = HomesteadConfig.copy(
     feeSchedule = new FeeSchedule.PostEIP150FeeSchedule,
     subGasCapDivisor = Some(64),
