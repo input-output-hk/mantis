@@ -12,10 +12,18 @@ import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits.receiptRlpEnc
 import io.iohk.ethereum.rlp.RLPImplicitConversions.toRlpList
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.ByteUtils.or
+import io.iohk.ethereum.validators.BlockValidator.BlockError
 
 import scala.language.reflectiveCalls
 
-object BlockValidator {
+trait BlockValidator {
+
+  def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody): Either[BlockError, Block]
+  def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block]
+
+}
+
+object BlockValidator extends BlockValidator {
   /**
     * Validates [[io.iohk.ethereum.domain.BlockHeader.transactionsRoot]] matches [[BlockBody.transactionList]]
     * based on validations stated in section 4.2.2 of http://paper.gavwood.com/

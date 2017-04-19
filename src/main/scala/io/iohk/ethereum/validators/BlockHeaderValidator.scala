@@ -5,7 +5,13 @@ import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.crypto.{kec256, kec512}
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class BlockHeaderValidator(blockchainConfig: BlockchainConfig) {
+trait BlockHeaderValidator {
+
+  def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader]
+
+}
+
+class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
 
   val MaxExtraDataSize: Int = 32
   val GasLimitBoundDivisor: Int = 1024

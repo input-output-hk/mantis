@@ -3,9 +3,10 @@ package io.iohk.ethereum.nodebuilder
 import akka.actor.ActorSystem
 import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.blockchain.sync.{SyncController}
+import io.iohk.ethereum.blockchain.sync.SyncController
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
+import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.rpc.{JsonRpcServer, RpcServerConfig}
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -13,7 +14,8 @@ import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
-import io.iohk.ethereum.validators.BlockValidator
+import io.iohk.ethereum.validators._
+import io.iohk.ethereum.vm.VM
 
 trait BlockchainConfigBuilder {
   lazy val blockchainConfig = BlockchainConfig(Config.config)
@@ -93,23 +95,34 @@ trait JSONRpcServerBuilder {
 
 }
 
-trait FastSyncControllerBuilder {
+trait SyncControllerBuilder {
 
   self: ActorSystemBuilder with
     ServerActorBuilder with
     BlockChainBuilder with
     NodeStatusBuilder with
     PeerManagerActorBuilder with
-    StorageBuilder =>
+    StorageBuilder with
+    BlockchainConfigBuilder =>
+
+  val validators = new Validators {
+    val blockValidator: BlockValidator = BlockValidator
+    val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
+    val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig)
+    val signedTransactionValidator: SignedTransactionValidator = SignedTransactionValidator
+  }
+
+  val ledger: Ledger = new LedgerImpl(VM, blockchainConfig)
 
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
       peerManager,
       storagesInstance.storages.appStateStorage,
       blockchain,
-      storagesInstance.storages.mptNodeStorage,
+      storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
-      BlockValidator.validateHeaderAndBody),
+      ledger,
+      validators),
     "sync-controller")
 
 }
@@ -142,7 +155,7 @@ trait Node extends NodeKeyBuilder
   with NodeStatusBuilder
   with PeerManagerActorBuilder
   with ServerActorBuilder
-  with FastSyncControllerBuilder
+  with SyncControllerBuilder
   with JSONRpcServerBuilder
   with ShutdownHookBuilder
   with GenesisDataLoaderBuilder

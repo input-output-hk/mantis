@@ -326,7 +326,7 @@ trait FastSync {
       val (nonMptNodesToGet, remainingNonMptNodes) = nonMptNodesQueue.splitAt(nodesPerRequest)
       val (mptNodesToGet, remainingMptNodes) = mptNodesQueue.splitAt(nodesPerRequest - nonMptNodesToGet.size)
       val nodesToGet = nonMptNodesToGet ++ mptNodesToGet
-      val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, nodesToGet, blockchain, mptNodeStorage))
+      val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, nodesToGet, blockchain, blockchainStorages.mptNodeStorage))
       context watch handler
       assignedHandlers += (handler -> peer)
       nonMptNodesQueue = remainingNonMptNodes

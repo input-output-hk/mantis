@@ -3,7 +3,9 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import org.scalatest.{Matchers, WordSpec}
 import Assembly._
+import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
 
 // scalastyle:off object.name
@@ -69,7 +71,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     val initialOwnerAccount = Account(balance = initialBalance)
 
     val extProgram = extCode.program
-    val invalidProgram = Program(extProgram.code.dropRight(1) :+ INVALID.code)
+    val invalidProgram = Program(extProgram.code.init :+ INVALID.code)
 
     val worldWithoutExtAccount = MockWorldState().saveAccount(ownerAddr, initialOwnerAccount)
     val worldWithExtAccount = worldWithoutExtAccount.saveAccount(extAddr, Account.Empty)
@@ -78,7 +80,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       .saveCode(extAddr, invalidProgram.code)
 
     val env = ExecEnv(ownerAddr, callerAddr, callerAddr, 1, ByteString.empty, 123, Program(ByteString.empty), null, 0)
-    val context: PC = ProgramContext(env, 2 * requiredGas, worldWithExtAccount, config)
+    val context: PC = ProgramContext(env, ownerAddr, 2 * requiredGas, worldWithExtAccount, config)
   }
 
   case class CallResult(
@@ -87,19 +89,17 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     inputData: ByteString = fxt.inputData,
     gas: UInt256 = fxt.requiredGas + fxt.gasMargin,
     to: Address = fxt.extAddr,
-    value: UInt256 = fxt.initialBalance / 2
+    value: UInt256 = fxt.initialBalance / 2,
+    inOffset: UInt256 = UInt256.Zero,
+    inSize: UInt256 = fxt.inputData.size,
+    outOffset: UInt256 = fxt.inputData.size,
+    outSize: UInt256 = fxt.inputData.size / 2
   ) {
-    private val params = Seq(
-      gas,
-      to.toUInt256,
-      value,
-      UInt256.Zero,
-      UInt256(inputData.size),
-      UInt256(inputData.size),
-      UInt256(inputData.size / 2)
-    ).reverse
+    private val params = Seq(gas, to.toUInt256, value, inOffset, inSize, outOffset, outSize).reverse
 
-    private val stack = Stack.empty().push(if (op == DELEGATECALL) params.take(4) ++ params.drop(5) else params)
+    private val paramsForDelegate = params.take(4) ++ params.drop(5)
+
+    private val stack = Stack.empty().push(if (op == DELEGATECALL) paramsForDelegate else params)
     private val mem = Memory.empty.store(UInt256.Zero, inputData)
 
     val stateIn: PS = ProgramState(context).withStack(stack).withMemory(mem)
@@ -135,7 +135,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 1" in {
-        call.stateOut.stack.pop._1 shouldEqual UInt256(1)
+        call.stateOut.stack.pop._1 shouldEqual UInt256.One
       }
 
       "consume correct gas (refund unused gas)" in {
@@ -220,11 +220,45 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "return 1" in {
-        call.stateOut.stack.pop._1 shouldEqual UInt256(1)
+        call.stateOut.stack.pop._1 shouldEqual UInt256.One
       }
 
       "consume correct gas (refund call gas, add new account modifier)" in {
         val expectedGas = G_call + G_callvalue + G_newaccount - G_callstipend + fxt.expectedMemCost
+        call.stateOut.gasUsed shouldEqual expectedGas
+      }
+    }
+
+    "calling a precompiled contract" should {
+      val contractAddress = Address(1) // ECDSA recovery
+      val invalidSignature = ByteString(Array.fill(128)(0.toByte))
+      val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 1))
+      val context: PC = fxt.context.copy(world = world)
+      val call = CallResult(op = CALL, context = context, to = contractAddress, inputData = invalidSignature,
+        inOffset = 0, inSize = 128, outOffset = 0, outSize = 128
+      )
+
+      "compute a correct result" in {
+        // For invalid signature the return data should be empty, so the memory should not be modified.
+        // This is more interesting than checking valid signatures which are tested elsewhere
+        val (result, _) = call.stateOut.memory.load(call.outOffset, call.outSize)
+        val expected = invalidSignature
+
+        result shouldEqual expected
+      }
+
+      "return 1" in {
+        call.stateOut.stack.pop._1 shouldEqual UInt256.One
+      }
+
+      "update precompiled contract's balance" in {
+        call.extBalance shouldEqual call.value + 1
+        call.ownBalance shouldEqual fxt.initialBalance - call.value
+      }
+
+      "consume correct gas" in {
+        val contractCost = UInt256(3000)
+        val expectedGas = contractCost - G_callstipend + G_call + G_callvalue // memory not increased
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -341,6 +375,38 @@ class CallOpcodesSpec extends WordSpec with Matchers {
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
+
+    "calling a precompiled contract" should {
+      val contractAddress = Address(2) // SHA256
+      val inputData = ByteString(Array.fill(128)(1.toByte))
+      val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 1))
+      val context: PC = fxt.context.copy(world = world)
+      val call = CallResult(op = CALLCODE, context = context, to = contractAddress, inputData = inputData,
+        inOffset = 0, inSize = 128, outOffset = 128, outSize = 32
+      )
+
+      "compute a correct result" in {
+        val (result, _) = call.stateOut.memory.load(call.outOffset, call.outSize)
+        val expected = kec256(inputData)
+
+        result shouldEqual expected
+      }
+
+      "return 1" in {
+        call.stateOut.stack.pop._1 shouldEqual UInt256.One
+      }
+
+      "not update precompiled contract's balance" in {
+        call.extBalance shouldEqual 1
+        call.ownBalance shouldEqual fxt.initialBalance
+      }
+
+      "consume correct gas" in {
+        val contractCost = 60 + 12 * wordsForBytes(inputData.size)
+        val expectedGas = contractCost - G_callstipend + G_call + G_callvalue + config.calcMemCost(128, 128, 32)
+        call.stateOut.gasUsed shouldEqual expectedGas
+      }
+    }
   }
 
   "DELEGATECALL" when {
@@ -424,6 +490,38 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
       "consume correct gas (refund call gas)" in {
         val expectedGas = G_call + fxt.expectedMemCost
+        call.stateOut.gasUsed shouldEqual expectedGas
+      }
+    }
+
+    "calling a precompiled contract" should {
+      val contractAddress = Address(3) // RIPEMD160
+      val inputData = ByteString(Array.fill(128)(1.toByte))
+      val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 1))
+      val context: PC = fxt.context.copy(world = world)
+      val call = CallResult(op = DELEGATECALL, context = context, to = contractAddress, inputData = inputData,
+        inOffset = 0, inSize = 128, outOffset = 128, outSize = 32
+      )
+
+      "compute a correct result" in {
+        val (result, _) = call.stateOut.memory.load(call.outOffset, call.outSize)
+        val expected = ByteUtils.padLeft(ripemd160(inputData), 32)
+
+        result shouldEqual expected
+      }
+
+      "return 1" in {
+        call.stateOut.stack.pop._1 shouldEqual UInt256.One
+      }
+
+      "not update precompiled contract's balance" in {
+        call.extBalance shouldEqual 1
+        call.ownBalance shouldEqual fxt.initialBalance
+      }
+
+      "consume correct gas" in {
+        val contractCost = 600 + 120 * wordsForBytes(inputData.size)
+        val expectedGas = contractCost + G_call + config.calcMemCost(128, 128, 20)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }

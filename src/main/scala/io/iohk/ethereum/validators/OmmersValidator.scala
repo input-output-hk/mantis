@@ -2,13 +2,30 @@ package io.iohk.ethereum.validators
 
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.validators.OmmersValidator.OmmersError
+import io.iohk.ethereum.validators.OmmersValidator.OmmersError._
 
-class OmmersValidator(blockchainConfig: BlockchainConfig) {
+trait OmmersValidator {
 
-  import OmmersValidator.OmmersError
-  import OmmersValidator.OmmersError._
+  def validate(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit]
 
-  val blockHeaderValidator = new BlockHeaderValidator(blockchainConfig)
+}
+
+object OmmersValidator {
+  sealed trait OmmersError
+
+  object OmmersError {
+    case object OmmersLengthError extends OmmersError
+    case object OmmersNotValidError extends OmmersError
+    case object OmmersUsedBeforeError extends OmmersError
+    case object OmmersAncestorsError extends OmmersError
+    case object OmmersDuplicatedError extends OmmersError
+  }
+}
+
+class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersValidator {
+
+  val blockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
 
   val OmmerGenerationLimit: Int = 6 //Stated on section 11.1, eq. (143) of the YP
   val OmmerSizeLimit: Int = 2
@@ -133,17 +150,4 @@ class OmmersValidator(blockchainConfig: BlockchainConfig) {
 
   private def ancestorsBlockNumbers(blockNumber: BigInt, numberOfBlocks: Int): Seq[BigInt] =
     (blockNumber - numberOfBlocks).max(0) until blockNumber
-
-}
-
-object OmmersValidator {
-  sealed trait OmmersError
-
-  object OmmersError {
-    case object OmmersLengthError extends OmmersError
-    case object OmmersNotValidError extends OmmersError
-    case object OmmersUsedBeforeError extends OmmersError
-    case object OmmersAncestorsError extends OmmersError
-    case object OmmersDuplicatedError extends OmmersError
-  }
 }

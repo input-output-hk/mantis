@@ -111,4 +111,5 @@ class TransactionSpec extends FlatSpec with Matchers {
     stx.senderAddress shouldBe  Address(ByteString(Hex.decode("a1e4380a3b1f749673e270229993ee55f35663b4")))
   }
 
+
 }

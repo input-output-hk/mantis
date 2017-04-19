@@ -12,6 +12,7 @@ import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
 
+
 object SignedTransaction {
 
   val FirstByteOfAddress = 12
@@ -88,6 +89,9 @@ object SignedTransaction {
     SignedTransaction(tx, txSignature, chainId)
   }
 
+  def apply(tx: Transaction, pointSign: Int, signatureRandom: ByteString, signature: ByteString): Option[SignedTransaction] =
+    SignedTransaction(tx, pointSign.toByte, signatureRandom, signature)
+
   def apply(tx: Transaction, signature: ECDSASignature, chainId: Byte): Option[SignedTransaction] = {
     for {
       recoveredPointSign <- SignedTransaction.getRecoveredPointSign(signature.v, chainId)
@@ -96,7 +100,15 @@ object SignedTransaction {
   }
 
   def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Byte): SignedTransaction = {
-    val bytes = crypto.kec256(
+    val bytes = bytesToSign(tx, chainId)
+    val sig = ECDSASignature.sign(bytes, keyPair)
+    val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
+    val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
+    SignedTransaction(tx, sig, address)
+  }
+
+  def bytesToSign(tx: Transaction, chainId: Byte): Array[Byte] = {
+    crypto.kec256(
       rlpEncode(RLPList(
         tx.nonce,
         tx.gasPrice,
@@ -107,11 +119,6 @@ object SignedTransaction {
         chainId,
         valueForEmptyR,
         valueForEmptyS)))
-
-    val sig = ECDSASignature.sign(bytes, keyPair)
-    val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
-    val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
-    SignedTransaction(tx, sig, address)
   }
 }
 

@@ -18,7 +18,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
   val NonceLength = 8 //64bit
   val MixHashLength = 32 //256bit
 
-  val blockHeaderValidator = new BlockHeaderValidator(BlockchainConfig(Config.config))
+  val blockHeaderValidator = new BlockHeaderValidatorImpl(BlockchainConfig(Config.config))
 
   "BlockHeaderValidator" should "validate correctly formed BlockHeaders" in {
     blockHeaderValidator.validate(validBlockHeader, validBlockParent) match {
