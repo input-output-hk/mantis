@@ -17,6 +17,7 @@ import org.scalatest.prop.PropertyChecks
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
+import org.spongycastle.util.encoders.Hex
 
 class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
@@ -27,12 +28,13 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
                    gasLimit: UInt256,
                    gasRefund: UInt256,
                    error: Option[ProgramError],
-                   returnData: ByteString = bEmpty): PR = ProgramResult(
+                   returnData: ByteString = bEmpty,
+                   logs: Seq[TxLogEntry] = Nil): PR = ProgramResult(
     returnData = returnData,
     gasRemaining = gasLimit - gasUsed,
     world = context.world,
     Nil,
-    Nil,
+    logs = logs,
     gasRefund,
     error
   )
@@ -175,6 +177,42 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     postTxWorld.getCode(newContractAddress) shouldBe ByteString()
   }
 
+  it should "clear logs if execution results in an error" in new TestSetup {
+    val initialOriginBalance: UInt256 = 1000000
+
+    val initialOriginNonce = defaultTx.nonce
+
+    val initialWorld = emptyWorld
+      .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
+
+    val stx = SignedTransaction.sign(defaultTx, keyPair, blockchainConfig.chainId)
+
+    val mockVM = new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, Some(InvalidJump(23)), bEmpty, Seq(defaultLog)))
+    val ledger = new LedgerImpl(mockVM, blockchainConfig)
+
+    val txResult = ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
+
+    txResult.logs shouldBe Seq.empty
+  }
+
+  it should "keep logs if execution results in an error" in new TestSetup {
+    val initialOriginBalance: UInt256 = 1000000
+
+    val initialOriginNonce = defaultTx.nonce
+
+    val initialWorld = emptyWorld
+      .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
+
+    val stx = SignedTransaction.sign(defaultTx, keyPair, blockchainConfig.chainId)
+
+    val mockVM = new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, None, bEmpty, Seq(defaultLog)))
+    val ledger = new LedgerImpl(mockVM, blockchainConfig)
+
+    val txResult = ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
+
+    txResult.logs shouldEqual Seq(defaultLog)
+  }
+
   trait TestSetup {
     val keyPair = generateKeyPair()
     val originAddress = Address(kec256(keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)))
@@ -205,6 +243,12 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       receivingAddress = Address(123),
       value = 0,
       payload = ByteString.empty)
+
+    val defaultLog = TxLogEntry(
+      loggerAddress = originAddress,
+      logTopics = Seq(ByteString(Hex.decode("962cd36cf694aa154c5d3a551f19c98f356d906e96828eeb616e16fae6415738"))),
+      data = ByteString(Hex.decode("1" * 128))
+    )
 
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
 
