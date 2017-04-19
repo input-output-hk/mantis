@@ -22,7 +22,8 @@ import scala.util.{Failure, Success}
 class PeerManagerActor(
     peerConfiguration: PeerConfiguration,
     peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
-    externalSchedulerOpt: Option[Scheduler] = None)
+    externalSchedulerOpt: Option[Scheduler] = None,
+    bootstrapNodes: Set[String] = Config.Network.Discovery.bootstrapNodes)
   extends Actor with ActorLogging with Stash {
 
   import akka.pattern.{ask, pipe}
@@ -158,6 +159,14 @@ object PeerManagerActor {
     Props(new PeerManagerActor(peerConfiguration,
       peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain)))
 
+  def props(nodeStatusHolder: Agent[NodeStatus],
+    peerConfiguration: PeerConfiguration,
+    appStateStorage: AppStateStorage,
+    blockchain: Blockchain,
+    bootstrapNodes: Set[String]): Props =
+    Props(new PeerManagerActor(peerConfiguration,
+      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain), bootstrapNodes = bootstrapNodes))
+
   def peerFactory(nodeStatusHolder: Agent[NodeStatus],
                   peerConfiguration: PeerConfiguration,
                   appStateStorage: AppStateStorage,
@@ -178,6 +187,7 @@ object PeerManagerActor {
     val waitForChainCheckTimeout: FiniteDuration
     val fastSyncHostConfiguration: FastSyncHostConfiguration
     val maxPeers: Int
+    val networkId: Int
   }
 
   trait FastSyncHostConfiguration {

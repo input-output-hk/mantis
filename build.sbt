@@ -67,3 +67,5 @@ testOptions in Test += Tests.Argument("-oD")
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}
 
 mainClass in Compile := Some("io.iohk.ethereum.App")
+
+coverageExcludedPackages := "io.iohk.ethereum.vmrunner.*"

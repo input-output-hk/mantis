@@ -6,6 +6,7 @@ import io.iohk.ethereum.validators._
 import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.Ledger.{PC, PR}
 import io.iohk.ethereum.utils.{Config, Logger}
+import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockValidator, OmmersValidator, SignedTransactionValidator}
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
@@ -261,7 +262,7 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
     * @return Either the validated transaction or an error description
     */
   private def validateNonce(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): Either[String, SignedTransaction] = {
-    if (worldStateProxy.getAccount(stx.senderAddress).map(_.nonce).contains(stx.tx.nonce)) Right(stx)
+    if (worldStateProxy.getAccount(stx.senderAddress).map(_.nonce).contains(UInt256(stx.tx.nonce))) Right(stx)
     else Left("Account nonce is different from TX sender nonce")
   }
 
