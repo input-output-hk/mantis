@@ -37,7 +37,7 @@ class PeerActor(
     val blockchain: Blockchain,
     externalSchedulerOpt: Option[Scheduler] = None,
     forkResolverOpt: Option[ForkResolver])
-  extends Actor with ActorLogging with FastSyncHost with Stash {
+  extends Actor with ActorLogging with BlockchainHost with Stash {
 
   import PeerActor._
   import context.{dispatcher, system}
@@ -185,7 +185,7 @@ class PeerActor(
                            forkResolver: ForkResolver): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
     handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse
-    stashMessages orElse {
+    handleBlockFastDownload(rlpxConnection) orElse stashMessages orElse {
 
     case RLPxConnectionHandler.MessageReceived(msg @ BlockHeaders(blockHeaders)) =>
       timeout.cancel()
@@ -283,7 +283,7 @@ class PeerActor(
     def receive: Receive =
       handleSubscriptions orElse
       handlePingMsg(rlpxConnection) orElse
-      handleBlockFastDownload(rlpxConnection, log) orElse
+      handleBlockFastDownload(rlpxConnection) orElse
       handleEvmMptFastDownload(rlpxConnection) orElse
       handleTerminated(rlpxConnection) orElse {
 
