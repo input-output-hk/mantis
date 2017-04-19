@@ -1,15 +1,17 @@
-package io.iohk.ethereum.vmrunner
+package io.iohk.ethereum.vm.utils
 
 import java.io.File
 
-import scala.io.Source
-
 import akka.util.ByteString
+import io.circe.parser.decode
 import io.circe.generic.extras.Configuration
 import io.circe.generic.extras.auto._
-import io.circe.parser._
 import io.circe.Error
+import scala.io.Source
 
+/**
+  * Created by adam on 19.04.2017.
+  */
 object Utils {
 
   def loadContractCodeFromFile(file: File): ByteString = {

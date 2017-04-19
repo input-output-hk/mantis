@@ -1,10 +1,13 @@
-package io.iohk.ethereum.vmrunner
+package io.iohk.ethereum.vm.utils
 
 import akka.util.ByteString
-import akka.util.ByteString.{empty => BEmpty}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Address, BlockHeader, SignedTransaction, Transaction}
+import akka.util.ByteString.{empty => BEmpty}
 
+/**
+  * Created by adam on 19.04.2017.
+  */
 object MockVmInput {
 
   class MockTransaction(

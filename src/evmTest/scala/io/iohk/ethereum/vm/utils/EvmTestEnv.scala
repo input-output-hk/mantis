@@ -10,8 +10,6 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import io.iohk.ethereum.vmrunner.{ABI, MockVmInput}
-import io.iohk.ethereum.vmrunner.Utils
 import io.iohk.ethereum.{rlp, crypto}
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm._
