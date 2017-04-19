@@ -3,13 +3,15 @@ package io.iohk.ethereum.validators
 import java.math.BigInteger
 
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
-import io.iohk.ethereum.validators.SignedTransactionError.{TransactionSignatureError, TransactionSyntaxError}
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.validators.SignedTransactionError._
 import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.vm.{EvmConfig, UInt256}
 
 trait SignedTransactionValidator {
 
-  def validateTransaction(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransaction]
+  def validate(stx: SignedTransaction, senderAccount: Account, blockHeader: BlockHeader, config: EvmConfig,
+               calculateUpfrontGasCost: Transaction => UInt256, accumGasLimit: BigInt): Either[SignedTransactionError, SignedTransaction]
 
 }
 
@@ -18,17 +20,25 @@ object SignedTransactionValidator extends SignedTransactionValidator {
   val secp256k1n: BigInt = BigInt("115792089237316195423570985008687907852837564279074904382605163141518161494337")
 
   /**
-    * Validates a transaction
+    * Initial tests of intrinsic validity stated in Section 6 of YP
     *
-    * @param stx                  Transaction to validate
-    * @param fromBeforeHomestead  Whether the block to which this transaction belongs is from
-    *                             before the [[Config.Blockchain.HomesteadBlock]]
+    * @param stx                        Transaction to validate
+    * @param senderAccount              Account of the sender of the tx
+    * @param blockHeader                Container block
+    * @param config                     used to obtain the homesteadBlockNumber
+    * @param calculateUpfrontGasCost    Function used to calculate the upfront gas cost
+    * @param accumGasUsed               Total amount of gas spent prior this transaction within the container block
     * @return Transaction if valid, error otherwise
     */
-  def validateTransaction(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransaction] = {
+  def validate(stx: SignedTransaction, senderAccount: Account, blockHeader: BlockHeader, config: EvmConfig,
+               calculateUpfrontGasCost: Transaction => UInt256, accumGasUsed: BigInt): Either[SignedTransactionError, SignedTransaction] = {
     for {
       _ <- checkSyntacticValidity(stx)
-      _ <- validateSignature(stx, fromBeforeHomestead)
+      _ <- validateSignature(stx, fromBeforeHomestead = blockHeader.number < Config.Blockchain.homesteadBlockNumber)
+      _ <- validateNonce(stx, senderAccount.nonce)
+      _ <- validateGas(stx, config)
+      _ <- validateAccountHasEnoughGasToPayUpfrontCost(stx, senderAccount.balance, calculateUpfrontGasCost)
+      _ <- validateGasLimit(stx, accumGasUsed, blockHeader.gasLimit)
     } yield stx
   }
 
@@ -83,11 +93,65 @@ object SignedTransactionValidator extends SignedTransactionValidator {
     if(validR && validS) Right(stx)
     else Left(TransactionSignatureError)
   }
+
+  /**
+    * Validates if the transaction nonce matches current sender account's nonce
+    *
+    * @param stx Transaction to validate
+    * @return Either the validated transaction or an error description
+    */
+  private def validateNonce(stx: SignedTransaction, senderNonce: UInt256): Either[SignedTransactionError, SignedTransaction] = {
+    if (senderNonce == UInt256(stx.tx.nonce)) Right(stx)
+    else Left(TransactionNonceError(s"Expected nonce ${UInt256(stx.tx.nonce)} but got $senderNonce"))
+  }
+
+  /**
+    * Validates the gas limit is no smaller than the intrinsic gas used by the transaction.
+    *
+    * @param stx Transaction to validate
+    * @return Either the validated transaction or an error description
+    */
+  private def validateGas(stx: SignedTransaction, config: EvmConfig): Either[SignedTransactionError, SignedTransaction] = {
+    import stx.tx
+    if (stx.tx.gasLimit >= config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)) Right(stx)
+    else Left(TransactionGasError)
+  }
+
+  /**
+    * Validates the sender account balance contains at least the cost required in up-front payment.
+    *
+    * @param stx Transaction to validate
+    * @return Either the validated transaction or an error description
+    */
+  private def validateAccountHasEnoughGasToPayUpfrontCost(stx: SignedTransaction, senderBalance: UInt256, calculateUpfrontCost: Transaction => UInt256):
+  Either[SignedTransactionError, SignedTransaction] = {
+    val upfrontCost = calculateUpfrontCost(stx.tx)
+    if (senderBalance >= upfrontCost) Right(stx)
+    else Left(TransactionSenderCantPayUpfrontCostError(s"Upfrontcost ($upfrontCost) > sender balance ($senderBalance)"))
+  }
+
+  /**
+    * The sum of the transaction’s gas limit and the gas utilised in this block prior must be no greater than the
+    * block’s gasLimit
+    *
+    * @param stx           Transaction to validate
+    * @param accumGasLimit Gas spent within tx container block prior executing stx
+    * @param blockGasLimit Block gas limit
+    * @return Either the validated transaction or an error description
+    */
+  private def validateGasLimit(stx: SignedTransaction, accumGasLimit: BigInt, blockGasLimit: BigInt): Either[SignedTransactionError, SignedTransaction] = {
+    if (stx.tx.gasLimit + accumGasLimit <= blockGasLimit) Right(stx)
+    else Left(TransactionGasLimitError)
+  }
 }
 
 sealed trait SignedTransactionError
 
 object SignedTransactionError {
   case object TransactionSignatureError extends SignedTransactionError
-  case class TransactionSyntaxError(msg: String) extends SignedTransactionError
+  case class TransactionSyntaxError(reason: String) extends SignedTransactionError
+  case class TransactionNonceError(reason: String) extends SignedTransactionError
+  case object TransactionGasError extends SignedTransactionError
+  case class TransactionSenderCantPayUpfrontCostError(reason: String) extends SignedTransactionError
+  case object TransactionGasLimitError extends SignedTransactionError
 }

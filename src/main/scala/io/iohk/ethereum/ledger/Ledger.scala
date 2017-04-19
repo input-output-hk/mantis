@@ -29,7 +29,7 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
     val blockExecResult = for {
       _ <- validateBlockBeforeExecution(block, blockchain, validators)
 
-      execResult <- executeBlockTransactions(block, blockchain, storages, validators)
+      execResult <- executeBlockTransactions(block, blockchain, storages, validators.signedTransactionValidator)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
       worldToPersist = payBlockReward(Config.Blockchain.blockReward, block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
@@ -48,13 +48,13 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
     * @param block
     * @param blockchain
     * @param storages
-    * @param validators
+    * @param signedTransactionValidator
     */
   private[ledger] def executeBlockTransactions(
     block: Block,
     blockchain: Blockchain,
     storages: BlockchainStorages,
-    validators: Validators):
+    signedTransactionValidator: SignedTransactionValidator):
   Either[BlockExecutionError, BlockResult] = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = InMemoryWorldStateProxy(storages, storages.nodeStorage, parentStateRoot)
@@ -62,7 +62,7 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
     val config = EvmConfig.forBlock(block.header.number)
 
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
-    val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, config, validators.signedTransactionValidator)
+    val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, config, signedTransactionValidator)
     blockTxsExecResult match {
       case Right(_) => log.debug(s"All txs from block ${block.header.hashAsHexString} were executed successfully")
       case Left(error) => log.debug(s"Not all txs from block ${block.header.hashAsHexString} were executed correctly, due to ${error.reason}")
@@ -92,7 +92,11 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
         Right(BlockResult(worldState = world, gasUsed = acumGas, receipts = acumReceipts))
 
       case Seq(stx, otherStxs@_*) =>
-        validateTransaction(stx, world, acumGas, blockHeader, signedTransactionValidator, config) match {
+        val senderAccount = world.getAccount(stx.senderAddress)
+        val validatedStx = senderAccount
+          .toRight(Left(TxsExecutionError(s"Account of tx sender ${Hex.toHexString(stx.senderAddress.toArray)} not found")))
+          .flatMap(account => signedTransactionValidator.validate(stx, account, blockHeader, config, calculateUpfrontCost, acumGas))
+        validatedStx match {
           case Right(_) =>
             val TxResult(newWorld, gasUsed, logs) = executeTransaction(stx, blockHeader, world)
 
@@ -104,7 +108,7 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
             )
 
             executeTransactions(otherStxs, newWorld, blockHeader, config, signedTransactionValidator, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
-          case Left(error) => Left(TxsExecutionError(error))
+          case Left(error) => Left(TxsExecutionError(error.toString))
         }
     }
 
@@ -211,7 +215,7 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
     * @param tx Target transaction
     * @return Upfront cost
     */
-  private def calculateUpfrontGas(tx: Transaction): UInt256 = UInt256(tx.gasLimit * tx.gasPrice)
+  private[ledger] def calculateUpfrontGas(tx: Transaction): UInt256 = UInt256(tx.gasLimit * tx.gasPrice)
 
   /**
     * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price) + Tv (Tx value). See YP equation number (65)
@@ -221,71 +225,6 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
     */
   private[ledger] def calculateUpfrontCost(tx: Transaction): UInt256 =
     UInt256(calculateUpfrontGas(tx) + tx.value)
-
-  /**
-    * Initial tests of intrinsic validity stated in Section 6 of YP
-    *
-    * @param stx                        Transaction to validate
-    * @param accumGasLimit              Total amount of gas spent prior this transaction within the container block
-    * @param blockHeader                Container block
-    * @param signedTransactionValidator used to validate stx's signature and syntactic validity
-    * @param config                     used to obtain the homesteadBlockNumber
-    * @return Transaction if valid, error otherwise
-    */
-  private def validateTransaction(
-    stx: SignedTransaction,
-    worldState: InMemoryWorldStateProxy,
-    accumGasLimit: BigInt,
-    blockHeader: BlockHeader,
-    signedTransactionValidator: SignedTransactionValidator,
-    config: EvmConfig): Either[String, SignedTransaction] = {
-    for {
-      _ <- signedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = blockHeader.number < Config.Blockchain.homesteadBlockNumber)
-        .left.map(_.toString)
-      _ <- validateNonce(stx, worldState)
-      _ <- validateGas(stx, config)
-      _ <- validateAccountHasEnoughGasToPayUpfrontCost(stx, worldState)
-      _ <- validateGasLimit(stx, accumGasLimit, blockHeader.gasLimit)
-    } yield stx
-  }
-
-  /**
-    * Validates if the transaction nonce matches current sender account's nonce
-    *
-    * @param stx Transaction to validate
-    * @return Either the validated transaction or an error description
-    */
-  private def validateNonce(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): Either[String, SignedTransaction] = {
-    if (worldStateProxy.getAccount(stx.senderAddress).map(_.nonce).contains(stx.tx.nonce)) Right(stx)
-    else Left("Account nonce is different from TX sender nonce")
-  }
-
-  /**
-    * Validates the gas limit is no smaller than the intrinsic gas used by the transaction.
-    *
-    * @param stx Transaction to validate
-    * @return Either the validated transaction or an error description
-    */
-  private def validateGas(stx: SignedTransaction, config: EvmConfig): Either[String, SignedTransaction] = {
-    import stx.tx
-    if (stx.tx.gasLimit >= config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)) Right(stx)
-    else Left("Transaction gas limit is less than the transaction execution gast (intrinsic gas)")
-  }
-
-  /**
-    * Validates the sender account balance contains at least the cost required in up-front payment.
-    *
-    * @param stx Transaction to validate
-    * @return Either the validated transaction or an error description
-    */
-  private def validateAccountHasEnoughGasToPayUpfrontCost(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy):
-  Either[String, SignedTransaction] = {
-    val accountBalance = worldStateProxy.getGuaranteedAccount(stx.senderAddress).balance
-    val upfrontCost = calculateUpfrontCost(stx.tx)
-    if (accountBalance >= upfrontCost) Right(stx)
-    else Left(s"Sender account doesn't have enough balance to pay upfront cost $upfrontCost > $accountBalance")
-  }
-
 
   /**
     * Increments account nonce by 1 stated in YP equation (69) and
@@ -299,20 +238,6 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
     val senderAddress = stx.senderAddress
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
     worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce)
-  }
-
-  /**
-    * The sum of the transaction’s gas limit and the gas utilised in this block prior must be no greater than the
-    * block’s gasLimit
-    *
-    * @param stx           Transaction to validate
-    * @param accumGasLimit Gas spent within tx container block prior executing stx
-    * @param blockGasLimit Block gas limit
-    * @return Either the validated transaction or an error description
-    */
-  def validateGasLimit(stx: SignedTransaction, accumGasLimit: BigInt, blockGasLimit: BigInt): Either[String, SignedTransaction] = {
-    if (stx.tx.gasLimit + accumGasLimit <= blockGasLimit) Right(stx)
-    else Left("Transaction gas limit plus accumulated gas exceeds block gas limit")
   }
 
   private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): PR = {
