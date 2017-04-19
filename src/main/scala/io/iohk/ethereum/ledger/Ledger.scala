@@ -126,7 +126,6 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
       } else
         result
 
-    val gasUsed = if(resultWithErrorHandling.error.isDefined) gasLimit else gasLimit - resultWithErrorHandling.gasRemaining
     val gasRefund = calcGasRefund(stx, resultWithErrorHandling)
 
     val refundGasFn = pay(stx.senderAddress, gasRefund * gasPrice) _
@@ -136,7 +135,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
     val world2 = (refundGasFn andThen payMinerForGasFn andThen deleteAccountsFn andThen persistStateFn)(resultWithErrorHandling.world)
 
-    TxResult(world2, gasUsed, resultWithErrorHandling.logs)
+    TxResult(world2, gasLimit - gasRefund, resultWithErrorHandling.logs)
   }
 
   private def validateBlockBeforeExecution(block: Block, blockchain: Blockchain, validators: Validators): Either[BlockExecutionError, Unit] = {

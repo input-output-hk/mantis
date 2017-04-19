@@ -43,15 +43,15 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     val initialOriginBalance: UInt256 = 1000000
     val initialMinerBalance: UInt256 = 2000000
 
-    val table = Table[UInt256, UInt256, Option[ProgramError], UInt256](
-      ("gasUsed", "refundsFromVM", "maybeError", "balanceDelta"),
-      (25000, 20000, None, (25000 / 2) * defaultGasPrice),
-      (25000, 10000, None, (25000 - 10000) * 10),
-      (125000, 10000, Some(OutOfGas), defaultGasLimit * defaultGasPrice),
-      (125000, 100000, Some(OutOfGas), defaultGasLimit * defaultGasPrice)
+    val table = Table[UInt256, UInt256, Option[ProgramError], UInt256, BigInt](
+      ("execGasUsed", "refundsFromVM", "maybeError", "balanceDelta", "gasRefund"),
+      (25000, 20000, None, (25000 / 2) * defaultGasPrice, defaultGasLimit - ((defaultGasLimit - 25000) + (25000 / 2).min(20000))),
+      (25000, 10000, None, (25000 - 10000) * 10, defaultGasLimit - ((defaultGasLimit - 25000) + (25000 / 2).min(10000))),
+      (125000, 10000, Some(OutOfGas), defaultGasLimit * defaultGasPrice, defaultGasLimit),
+      (125000, 100000, Some(OutOfGas), defaultGasLimit * defaultGasPrice, defaultGasLimit)
     )
 
-    forAll(table) { (gasUsed, gasRefund, error, balanceDelta) =>
+    forAll(table) { (execGasUsed, gasRefundFromVM, error, balanceDelta, gasUsed) =>
 
       val initialWorld = emptyWorld
         .saveAccount(originAddress, Account(nonce = UInt256(defaultTx.nonce), balance = initialOriginBalance))
@@ -62,11 +62,13 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
       val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-      val mockVM = new MockVM(createResult(_, gasUsed, defaultGasLimit, gasRefund, error))
+      val mockVM = new MockVM(createResult(_, execGasUsed, defaultGasLimit, gasRefundFromVM, error))
       val ledger = new LedgerImpl(mockVM, blockchainConfig)
 
-      val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
+      val execResult = ledger.executeTransaction(stx, header, initialWorld)
+      val postTxWorld = execResult.worldState
 
+      execResult.gasUsed shouldEqual gasUsed
       postTxWorld.getBalance(originAddress) shouldEqual (initialOriginBalance - balanceDelta)
       postTxWorld.getBalance(minerAddress) shouldEqual (initialMinerBalance + balanceDelta)
     }
