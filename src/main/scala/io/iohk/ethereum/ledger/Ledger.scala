@@ -111,7 +111,6 @@ class Ledger(vm: VM) extends Logger {
     val worldBeforeTransfer = updateSenderAccountBeforeExecution(stx, world)
     val result = runVM(stx, blockHeader, worldBeforeTransfer)
 
-    //FIXME: This only implements error handling as done in Homestead
     val resultWithErrorHandling: PR =
       if(result.error.isDefined) {
         //Rollback to the world before transfer was done if an error happened
@@ -319,13 +318,16 @@ class Ledger(vm: VM) extends Logger {
 
   private def saveNewContract(address: Address, result: PR, config: EvmConfig): PR = {
     val codeDepositCost = config.calcCodeDepositCost(result.returnData)
-    if (result.gasRemaining < codeDepositCost)
-      result.copy(error = Some(OutOfGas))
-    else
+    if (result.gasRemaining < codeDepositCost) {
+      if (config.exceptionalFailedCodeDeposit)
+        result.copy(error = Some(OutOfGas))
+      else
+        result
+    } else {
       result.copy(
         gasRemaining = result.gasRemaining - codeDepositCost,
-        world = result.world.saveCode(address, result.returnData)
-      )
+        world = result.world.saveCode(address, result.returnData))
+    }
   }
 
   /**
