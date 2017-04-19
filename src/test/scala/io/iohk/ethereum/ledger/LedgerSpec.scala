@@ -3,24 +3,23 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
+import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.{Fixtures, rlp}
+import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.ledger.Ledger.{PC, PR}
-import io.iohk.ethereum.ledger.LedgerCompanion.BlockResult
+import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.vm.{Storage, UInt256, WorldStateProxy, _}
+import io.iohk.ethereum.vm._
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
 import org.spongycastle.crypto.params.ECPublicKeyParameters
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPImplicits._
 
 class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
-
-  class MockVM(runFn: PC => PR) extends VM {
-    override def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] =
-      runFn(context.asInstanceOf[PC]).asInstanceOf[ProgramResult[W, S]]
-  }
 
   def createResult(context: PC,
                    gasUsed: UInt256,
@@ -39,7 +38,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       gasRefund = gasRefund,
       error = error
     )
-
 
   "Ledger" should "correctly adjust gas used when refunding gas to the sender and paying for gas to the miner" in new TestSetup {
 
@@ -65,7 +63,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
         gasRefund = gasRefund,
         error = error
       ))
-      val ledger = new Ledger(mockVM)
+      val ledger = new LedgerImpl(mockVM)
 
       val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
 
@@ -81,7 +79,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-    val ledger = new Ledger(new MockVM(c => createResult(c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)))
+    val ledger = new LedgerImpl(new MockVM())
 
     val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
 
@@ -98,7 +96,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-    val ledger = new Ledger(new MockVM(c => createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)))
+    val ledger = new LedgerImpl(new MockVM())
 
     val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
 
@@ -109,13 +107,13 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
     val validBlock = Block(validBlockHeader, validBlockBody)
 
-    val ledger = new Ledger(new MockVM(c => createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)))
+    val ledger = new LedgerImpl(new MockVM(c => createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)))
 
     val txsExecResult = ledger.executeBlockTransactions(
       validBlock,
       blockchain,
       storagesInstance.storages,
-      storagesInstance.storages.nodeStorage
+      Fixtures.EmptyValidators
     )
 
     assert(txsExecResult.isRight)
@@ -140,7 +138,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
     forAll(table) { (gasUsed, logs, addressesToDelete, executionShouldNotFail) =>
 
-      val ledger = new Ledger(new MockVM(c => createResult(
+      val ledger = new LedgerImpl(new MockVM(c => createResult(
         context = c,
         gasUsed = UInt256(gasUsed),
         gasLimit = UInt256(validStx.tx.gasLimit),
@@ -153,7 +151,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
         validBlock,
         blockchain,
         blockchainStorages,
-        blockchainStorages.nodeStorage
+        Fixtures.EmptyValidators
       )
 
       txsExecResult.isRight shouldBe executionShouldNotFail
@@ -196,6 +194,61 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
   it should "fail to run executeBlock if a block is invalid after executing it" in new TestSetup {}
 
   it should "correctly run executeBlockTransactions if an OutOfGas error where to happen" in new TestSetup {} //FIXME: Or in more scenarios?
+
+  it should "allow to create an account and not run out of gas before Homestead" in new TestSetup {
+
+    val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
+    val stx = SignedTransaction.sign(tx, keyPair)
+
+    val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = Config.Blockchain.homesteadBlockNumber - 1)
+
+    val ledger = new LedgerImpl(new MockVM(c => createResult(
+      context = c,
+      gasUsed = defaultGasLimit,
+      gasLimit = defaultGasLimit,
+      gasRefund = 0,
+      error = None, returnData = ByteString("contract code")
+    )))
+
+    val txResult = ledger.executeTransaction(stx, header, initialWorld)
+    val postTxWorld = txResult.worldState
+
+    val newContractAddress = {
+      val hash = kec256(rlp.encode(RLPList(originAddress.bytes, initialOriginNonce)))
+      Address(hash)
+    }
+
+    postTxWorld.accountExists(newContractAddress) shouldBe true
+    postTxWorld.getCode(newContractAddress) shouldBe ByteString()
+  }
+
+  it should "run out of gas in contract creation after Homestead" in new TestSetup {
+
+    val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
+    val stx = SignedTransaction.sign(tx, keyPair)
+
+    val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = Config.Blockchain.homesteadBlockNumber + 1)
+
+    val ledger = new LedgerImpl(new MockVM(c => createResult(
+      context = c,
+      gasUsed = defaultGasLimit,
+      gasLimit = defaultGasLimit,
+      gasRefund = 0,
+      error = None,
+      returnData = ByteString("contract code")
+    )))
+
+    val txResult = ledger.executeTransaction(stx, header, initialWorld)
+    val postTxWorld = txResult.worldState
+
+    val newContractAddress = {
+      val hash = kec256(rlp.encode(RLPList(originAddress.bytes, initialOriginNonce)))
+      Address(hash)
+    }
+
+    postTxWorld.accountExists(newContractAddress) shouldBe false
+    postTxWorld.getCode(newContractAddress) shouldBe ByteString()
+  }
 
   trait TestSetup {
     val keyPair = generateKeyPair()
