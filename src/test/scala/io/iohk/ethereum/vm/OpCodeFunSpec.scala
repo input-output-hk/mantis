@@ -12,6 +12,8 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   import MockWorldState.PS
 
+  override val config = EvmConfig.PostEIP160Config
+
   def executeOp(op: OpCode, stateIn: PS): PS = {
     // gas is not tested in this spec
     op.execute(stateIn).copy(gas = stateIn.gas, gasRefund = stateIn.gasRefund)
@@ -593,10 +595,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  ignore("CREATE") {
-    // to be implemented
-  }
-
   test(RETURN) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(maxWord = UInt256(256)),
@@ -647,7 +645,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  verifyAllOpCodesRegistered(except = CALL, CALLCODE, DELEGATECALL)
+  verifyAllOpCodesRegistered(except = CREATE, CALL, CALLCODE, DELEGATECALL)
 
 }
 

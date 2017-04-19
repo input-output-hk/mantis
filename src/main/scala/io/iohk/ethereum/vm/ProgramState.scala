@@ -40,6 +40,8 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   error: Option[ProgramError] = None
 ) {
 
+  def config: EvmConfig = context.config
+
   def env: ExecEnv = context.env
 
   def ownAddress: Address = env.ownerAddr
@@ -92,6 +94,9 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def withLog(log: TxLogEntry): ProgramState[W, S] =
     copy(logs = logs :+ log)
+
+  def withLogs(log: Seq[TxLogEntry]): ProgramState[W, S] =
+    copy(logs = logs ++ log)
 
   def halt: ProgramState[W, S] =
     copy(halted = true)

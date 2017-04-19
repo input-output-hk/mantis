@@ -14,7 +14,7 @@ import io.iohk.ethereum.rlp.RLPList
   * should be kept in memory and applied only after a transaction completes without errors. This does not forbid mutable
   * caches for DB retrieval operations.
   */
-trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] {
+trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS =>
 
   protected def getAccount(address: Address): Option[Account]
   protected def saveAccount(address: Address, account: Account): WS
@@ -46,16 +46,35 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] {
     getAccount(address).map(a => UInt256(a.balance)).getOrElse(UInt256.Zero)
 
   def transfer(from: Address, to: Address, value: UInt256): WS = {
-    val debited = getGuaranteedAccount(from).increaseBalance(-value)
-    val credited = getAccount(to).getOrElse(Account.Empty).increaseBalance(value)
-    saveAccount(from, debited).saveAccount(to, credited)
+    if(from == to) this
+    else {
+      val debited = getGuaranteedAccount(from).increaseBalance(-value)
+      val credited = getAccount(to).getOrElse(Account.Empty).increaseBalance(value)
+      saveAccount(from, debited).saveAccount(to, credited)
+    }
   }
 
-  def newAddress(creatorAddr: Address): (Address, WS) = {
-    val creator = getGuaranteedAccount(creatorAddr)
-    val hash = kec256(rlp.encode(RLPList(creatorAddr.bytes, creator.nonce)))
-    val addr = Address(hash)
-    val updated = saveAccount(creatorAddr, creator.increaseNonce)
-    (addr, updated)
+  /**
+    * Creates a new address based on the address and nonce of the creator. YP equation 82
+    *
+    * @param creatorAddr, the address of the creator of the new address
+    * @return the new address
+    */
+  def createAddress(creatorAddr: Address): Address = {
+    val creatorAccount = getGuaranteedAccount(creatorAddr)
+    val hash = kec256(rlp.encode(RLPList(creatorAddr.bytes, creatorAccount.nonce - 1)))
+    Address(hash)
+  }
+
+  /**
+    * Increases the creator's nonce and creates a new address based on the address and the new nonce of the creator
+    *
+    * @param creatorAddr, the address of the creator of the new address
+    * @return the new address and the state world after the creator's nonce was increased
+    */
+  def createAddressWithOpCode(creatorAddr: Address): (Address, WS) = {
+    val creatorAccount = getGuaranteedAccount(creatorAddr)
+    val updatedWorld = saveAccount(creatorAddr, creatorAccount.increaseNonce)
+    updatedWorld.createAddress(creatorAddr) -> updatedWorld
   }
 }

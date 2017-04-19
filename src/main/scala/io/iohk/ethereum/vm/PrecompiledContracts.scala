@@ -3,7 +3,6 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
-import GasFee.wordsForBytes
 import io.iohk.ethereum.utils.ByteUtils
 
 import scala.util.Try

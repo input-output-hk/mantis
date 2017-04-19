@@ -7,6 +7,8 @@ import WorldState.{PC, PR}
 
 object State {
 
+  val evmConfig = EvmConfig.PostEIP160Config
+
   val creatorAddress = Address(0xabcdef) //scalastyle:off magic.number
 
   private var currentWorld = {
@@ -19,15 +21,15 @@ object State {
 
 
   def createAccount(name: String, balance: BigInt, gas: BigInt, code: ByteString, abis: Seq[ABI]): (Address, PR) = {
-    val (newAddress, _) = world.newAddress(creatorAddress)
+    val (newAddress, _) = world.createAddressWithOpCode(creatorAddress)
     val tx = MockVmInput.transaction(creatorAddress, code, balance, gas)
     val bh = MockVmInput.blockHeader
 
-    val context: PC = ProgramContext(tx, bh, world)
+    val context: PC = ProgramContext(tx, bh, world, evmConfig)
     val intermediateResult: PR = VM.run(context)
 
     val result: PR = if (intermediateResult.error.isDefined) intermediateResult else {
-      val depositCost = GasFee.G_codedeposit * intermediateResult.returnData.size
+      val depositCost = evmConfig.feeSchedule.G_codedeposit * intermediateResult.returnData.size
       intermediateResult.copy(
         gasRemaining = intermediateResult.gasRemaining - depositCost,
         error = if (intermediateResult.gasRemaining < depositCost) Some(OutOfGas) else None
@@ -54,7 +56,7 @@ object State {
     val tx = MockVmInput.transaction(creatorAddress, callData, value, gas, receivingAddress = Some(xAccount.address))
     val bh = MockVmInput.blockHeader
 
-    val context: PC = ProgramContext(tx, bh, world)
+    val context: PC = ProgramContext(tx, bh, world, evmConfig)
     val result: PR = VM.run(context)
 
     if (result.error.isEmpty) {

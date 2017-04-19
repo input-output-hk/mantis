@@ -3,13 +3,17 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import org.scalatest.{Matchers, WordSpec}
 import Assembly._
-import GasFee._
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
 
+// scalastyle:off object.name
 class CallOpcodesSpec extends WordSpec with Matchers {
+
+  val config = EvmConfig.PostEIP160Config
+
+  import config.feeSchedule._
 
   object fxt {
 
@@ -50,15 +54,16 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     )
 
     val inputData = Generators.getUInt256Gen().sample.get.bytes
-    val expectedMemCost = calcMemCost(inputData.size, inputData.size, inputData.size / 2)
+    val expectedMemCost = config.calcMemCost(inputData.size, inputData.size, inputData.size / 2)
 
     val initialBalance = UInt256(1000)
 
     val requiredGas = {
       val storageCost = 3 * G_sset
-      val memCost = calcMemCost(0, 0, 32)
+      val memCost = config.calcMemCost(0, 0, 32)
       val copyCost = G_copy * wordsForBytes(32)
-      extCode.linearConstGas + storageCost + memCost + copyCost
+
+      extCode.linearConstGas(config) + storageCost + memCost + copyCost
     }
 
     val gasMargin = 13
@@ -75,7 +80,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       .saveCode(extAddr, invalidProgram.code)
 
     val env = ExecEnv(ownerAddr, callerAddr, callerAddr, 1, ByteString.empty, 123, Program(ByteString.empty), null, 0)
-    val context: PC = ProgramContext(env, ownerAddr, 2 * requiredGas, worldWithExtAccount)
+    val context: PC = ProgramContext(env, ownerAddr, 2 * requiredGas, worldWithExtAccount, config)
   }
 
   case class CallResult(
@@ -141,7 +146,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     "call depth limit is reached" should {
 
-      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = OpCode.MaxCallDepth))
+      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth))
       val call = CallResult(op = CALL, context = context)
 
       "not modify world state" in {
@@ -153,7 +158,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 16)
+        val expectedGas = G_call + G_callvalue - G_callstipend + config.calcMemCost(32, 32, 16)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -171,7 +176,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas (refund call gas)" in {
-        val expectedGas = G_call + G_callvalue - G_callstipend + calcMemCost(32, 32, 16)
+        val expectedGas = G_call + G_callvalue - G_callstipend + config.calcMemCost(32, 32, 16)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -291,7 +296,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     "call depth limit is reached" should {
 
-      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = OpCode.MaxCallDepth))
+      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth))
       val call = CallResult(op = CALLCODE, context = context)
 
       "not modify world state" in {
@@ -398,7 +403,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
       "consume correct gas" in {
         val contractCost = 60 + 12 * wordsForBytes(inputData.size)
-        val expectedGas = contractCost - G_callstipend + G_call + G_callvalue + calcMemCost(128, 128, 32)
+        val expectedGas = contractCost - G_callstipend + G_call + G_callvalue + config.calcMemCost(128, 128, 32)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -436,7 +441,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     "call depth limit is reached" should {
 
-      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = OpCode.MaxCallDepth))
+      val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth))
       val call = CallResult(op = DELEGATECALL, context = context)
 
       "not modify world state" in {
@@ -516,7 +521,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
       "consume correct gas" in {
         val contractCost = 600 + 120 * wordsForBytes(inputData.size)
-        val expectedGas = contractCost + G_call + calcMemCost(128, 128, 20)
+        val expectedGas = contractCost + G_call + config.calcMemCost(128, 128, 20)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }

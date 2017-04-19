@@ -25,6 +25,8 @@ trait EvmTestEnv {
 
   import EvmTestEnv._
 
+  val config = EvmConfig.PostEIP160Config
+
   private var contractsAddresses: Map[String, Address] = Map.empty
   private var contractsAbis: Map[String, Seq[ABI]] = Map.empty
 
@@ -53,10 +55,7 @@ trait EvmTestEnv {
                      constructorArgs: Seq[Any] = Nil): (ProgramResult[MockWorldState, MockStorage], Contract) = {
     val creator = world.getAccount(creatorAddress).get
 
-    val contractAddress = {
-      val hash = crypto.kec256(rlp.encode(RLPList(creatorAddress.bytes, creator.nonce)))
-      Address(hash.takeRight(Address.Length))
-    }
+    val (contractAddress, worldAfterNonceIncrease) = world.createAddressWithOpCode(creatorAddress)
 
     val contractInitCode = Utils.loadContractCodeFromFile(new File(s"$ContractsDir/$name.bin"))
     val contractAbi = Utils.loadContractAbiFromFile(new File(s"$ContractsDir/$name.abi"))
@@ -66,14 +65,13 @@ trait EvmTestEnv {
     val tx = MockVmInput.transaction(creatorAddress, payload, value, gasLimit, gasPrice)
     val bh = MockVmInput.blockHeader
 
-    val context = ProgramContext[MockWorldState, MockStorage](tx, bh, world)
+    val context = ProgramContext[MockWorldState, MockStorage](tx, bh, worldAfterNonceIncrease, config)
     val result = VM.run(context)
 
     contractsAbis += (name -> contractAbi.right.get)
     contractsAddresses += (name -> contractAddress)
 
     internalWorld = result.world
-      .saveAccount(creatorAddress, creator.increaseNonce)
       .saveAccount(contractAddress, Account(UInt256(0), UInt256(value), Account.EmptyStorageRootHash, kec256(result.returnData)))
       .saveCode(contractAddress, result.returnData)
 
@@ -133,7 +131,7 @@ trait EvmTestEnv {
              sender: Address = defaultSender): ProgramResult[MockWorldState, MockStorage] = {
       val transaction = MockVmInput.transaction(sender, callData, value, gasLimit, gasPrice, Some(contract.address))
       val blockHeader = MockVmInput.blockHeader
-      val pc = ProgramContext[MockWorldState, MockStorage](transaction, blockHeader, world)
+      val pc = ProgramContext[MockWorldState, MockStorage](transaction, blockHeader, world, config)
 
       val res = VM.run(pc)
       internalWorld = res.world
