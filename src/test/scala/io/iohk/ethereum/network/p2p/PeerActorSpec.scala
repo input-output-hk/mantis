@@ -670,6 +670,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       override val connectRetryDelay: FiniteDuration = 1 second
       override val disconnectPoisonPillTimeout: FiniteDuration = 5 seconds
       override val maxPeers = 10
+      override val networkId: Int = 1
     }
 
   }

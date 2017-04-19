@@ -5,6 +5,7 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.vm.UInt256
+import org.spongycastle.util.encoders.Hex
 
 object Account {
   val EmptyStorageRootHash = ByteString(kec256(rlp.encode(Array.empty[Byte])))
@@ -30,4 +31,9 @@ case class Account(
 
   def withStorage(storageRoot: ByteString): Account =
     copy(storageRoot = storageRoot)
+
+  override def toString: String =
+    s"Account(nonce: $nonce, balance: $balance, " +
+      s"storageRoot: ${Hex.toHexString(storageRoot.toArray[Byte])}, codeHash: ${Hex.toHexString(codeHash.toArray[Byte])})"
+
 }

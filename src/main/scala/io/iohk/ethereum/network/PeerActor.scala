@@ -5,7 +5,6 @@ import java.net.{InetSocketAddress, URI}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 
 import scala.concurrent.duration._
-
 import akka.actor._
 import akka.agent.Agent
 import akka.util.ByteString
@@ -151,7 +150,7 @@ class PeerActor(
     val bestBlockHeader = getBestBlockHeader()
     msg.Status(
       protocolVersion = Message.PV63,
-      networkId = Config.Network.networkId,
+      networkId = peerConfiguration.networkId,
       totalDifficulty = bestBlockHeader.difficulty,
       bestHash = bestBlockHeader.hash,
       genesisHash = blockchain.genesisHeader.hash)

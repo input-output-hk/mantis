@@ -63,7 +63,7 @@ object CommonMessages {
           val receivingAddressOpt = if(receivingAddress.bytes.isEmpty) None else Some(Address(receivingAddress.bytes))
           SignedTransaction(
             Transaction(nonce, gasPrice, gasLimit, receivingAddressOpt, value, payload),
-            pointSign,
+            (pointSign: Int).toByte,
             signatureRandom.bytes,
             signature.bytes,
             chainId

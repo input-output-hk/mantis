@@ -27,8 +27,6 @@ object Config {
   object Network {
     private val networkConfig = config.getConfig("network")
 
-    val networkId: Int = networkConfig.getInt("network-id")
-
     object Server {
       private val serverConfig = networkConfig.getConfig("server-address")
 
@@ -40,7 +38,7 @@ object Config {
     object Discovery {
       private val discoveryConfig = networkConfig.getConfig("discovery")
 
-      val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet
+      val bootstrapNodes: Set[String] = discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet
       val bootstrapNodesScanInterval = discoveryConfig.getDuration("bootstrap-nodes-scan-interval").toMillis.millis
     }
 
@@ -53,6 +51,7 @@ object Config {
       val waitForStatusTimeout: FiniteDuration = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
       val waitForChainCheckTimeout: FiniteDuration = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
       val maxPeers: Int = peerConfig.getInt("max-peers")
+      val networkId: Int = peerConfig.getInt("network-id")
 
       val fastSyncHostConfiguration = new FastSyncHostConfiguration {
         val maxBlocksHeadersPerMessage: Int = peerConfig.getInt("max-blocks-headers-per-message")
