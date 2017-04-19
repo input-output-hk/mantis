@@ -7,6 +7,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.PeerActor.Status.Handshaking
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.utils.BlockchainConfig
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -155,27 +156,30 @@ object PeerManagerActor {
   def props(nodeStatusHolder: Agent[NodeStatus],
             peerConfiguration: PeerConfiguration,
             appStateStorage: AppStateStorage,
-            blockchain: Blockchain): Props =
+            blockchain: Blockchain,
+            blockchainConfig: BlockchainConfig): Props =
     Props(new PeerManagerActor(peerConfiguration,
-      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain)))
+      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, blockchainConfig)))
 
   def props(nodeStatusHolder: Agent[NodeStatus],
     peerConfiguration: PeerConfiguration,
     appStateStorage: AppStateStorage,
     blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig,
     bootstrapNodes: Set[String]): Props =
     Props(new PeerManagerActor(peerConfiguration,
-      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain), bootstrapNodes = bootstrapNodes))
+      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, blockchainConfig), bootstrapNodes = bootstrapNodes))
 
   def peerFactory(nodeStatusHolder: Agent[NodeStatus],
                   peerConfiguration: PeerConfiguration,
                   appStateStorage: AppStateStorage,
-                  blockchain: Blockchain): (ActorContext, InetSocketAddress) => ActorRef = {
+                  blockchain: Blockchain,
+                  blockchainConfig: BlockchainConfig): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
       val forkResolverOpt =
-        if (Config.Blockchain.customGenesisFileOpt.isDefined) None
-        else Some(ForkResolver.EtcForkResolver)
+        if (blockchainConfig.customGenesisFileOpt.isDefined) None
+        else Some(new ForkResolver.EtcForkResolver(blockchainConfig))
       ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, forkResolverOpt), id)
   }
 

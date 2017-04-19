@@ -1,6 +1,7 @@
 package io.iohk.ethereum.validators
 
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError._
 
@@ -10,7 +11,21 @@ trait OmmersValidator {
 
 }
 
-object OmmersValidator extends OmmersValidator {
+object OmmersValidator {
+  sealed trait OmmersError
+
+  object OmmersError {
+    case object OmmersLengthError extends OmmersError
+    case object OmmersNotValidError extends OmmersError
+    case object OmmersUsedBeforeError extends OmmersError
+    case object OmmersAncestorsError extends OmmersError
+    case object OmmersDuplicatedError extends OmmersError
+  }
+}
+
+class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersValidator {
+
+  val blockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
 
   val OmmerGenerationLimit: Int = 6 //Stated on section 11.1, eq. (143) of the YP
   val OmmerSizeLimit: Int = 2
@@ -25,6 +40,7 @@ object OmmersValidator extends OmmersValidator {
     * and implemented in the different ETC clients:
     *   - OmmersValidator.validateOmmersNotUsed
     *   - OmmersValidator.validateDuplicatedOmmers
+    *
     * @param blockNumber    The number of the block to which the ommers belong
     * @param ommers         The list of ommers to validate
     * @param blockchain     from where the previous blocks are obtained
@@ -61,7 +77,7 @@ object OmmersValidator extends OmmersValidator {
     * @return ommers if valid, an [[OmmersNotValidError]] otherwise
     */
   private def validateOmmersHeaders(ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit] = {
-    if(ommers.forall(BlockHeaderValidator.validate(_, blockchain).isRight)) Right(())
+    if(ommers.forall(blockHeaderValidator.validate(_, blockchain).isRight)) Right(())
     else Left(OmmersNotValidError)
   }
 
@@ -134,14 +150,4 @@ object OmmersValidator extends OmmersValidator {
 
   private def ancestorsBlockNumbers(blockNumber: BigInt, numberOfBlocks: Int): Seq[BigInt] =
     (blockNumber - numberOfBlocks).max(0) until blockNumber
-
-  sealed trait OmmersError
-
-  object OmmersError {
-    case object OmmersLengthError extends OmmersError
-    case object OmmersNotValidError extends OmmersError
-    case object OmmersUsedBeforeError extends OmmersError
-    case object OmmersAncestorsError extends OmmersError
-    case object OmmersDuplicatedError extends OmmersError
-  }
 }

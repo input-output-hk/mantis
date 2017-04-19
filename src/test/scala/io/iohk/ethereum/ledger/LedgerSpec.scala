@@ -9,7 +9,7 @@ import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.ledger.Ledger.{PC, PR}
 import io.iohk.ethereum.vm._
 import org.scalatest.{FlatSpec, Matchers}
@@ -19,6 +19,8 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 
 class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
+
+  val blockchainConfig = BlockchainConfig(Config.config)
 
   def createResult(context: PC,
                    gasUsed: UInt256,
@@ -56,12 +58,12 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
         .saveAccount(minerAddress, Account(balance = initialMinerBalance))
 
       val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit)
-      val stx = SignedTransaction.sign(tx, keyPair)
+      val stx = SignedTransaction.sign(tx, keyPair, blockchainConfig.chainId)
 
       val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
       val mockVM = new MockVM(createResult(_, gasUsed, defaultGasLimit, gasRefund, error))
-      val ledger = new LedgerImpl(mockVM)
+      val ledger = new LedgerImpl(mockVM, blockchainConfig)
 
       val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
 
@@ -82,11 +84,11 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       .saveAccount(minerAddress, Account(balance = initialMinerBalance))
 
     val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
-    val stx = SignedTransaction.sign(tx, keyPair)
+    val stx = SignedTransaction.sign(tx, keyPair, blockchainConfig.chainId)
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-    val ledger = new LedgerImpl(new MockVM())
+    val ledger = new LedgerImpl(new MockVM(), blockchainConfig)
 
     val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
 
@@ -108,11 +110,11 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       gasPrice = defaultGasPrice, gasLimit = defaultGasLimit,
       receivingAddress = Some(originAddress), payload = ByteString.empty
     )
-    val stx = SignedTransaction.sign(tx, keyPair)
+    val stx = SignedTransaction.sign(tx, keyPair, blockchainConfig.chainId)
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-    val ledger = new LedgerImpl(new MockVM())
+    val ledger = new LedgerImpl(new MockVM(), blockchainConfig)
 
     val postTxWorld = ledger.executeTransaction(stx, header, initialWorld).worldState
 
@@ -128,11 +130,11 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
 
     val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
-    val stx = SignedTransaction.sign(tx, keyPair)
+    val stx = SignedTransaction.sign(tx, keyPair, blockchainConfig.chainId)
 
-    val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = Config.Blockchain.homesteadBlockNumber - 1)
+    val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.homesteadBlockNumber - 1)
 
-    val ledger = new LedgerImpl(new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))))
+    val ledger = new LedgerImpl(new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))), blockchainConfig)
 
     val txResult = ledger.executeTransaction(stx, header, initialWorld)
     val postTxWorld = txResult.worldState
@@ -155,11 +157,11 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
 
     val tx = defaultTx.copy(gasPrice = defaultGasPrice, gasLimit = defaultGasLimit, receivingAddress = None, payload = ByteString.empty)
-    val stx = SignedTransaction.sign(tx, keyPair)
+    val stx = SignedTransaction.sign(tx, keyPair, blockchainConfig.chainId)
 
-    val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = Config.Blockchain.homesteadBlockNumber + 1)
+    val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.homesteadBlockNumber + 1)
 
-    val ledger = new LedgerImpl(new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))))
+    val ledger = new LedgerImpl(new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))), blockchainConfig)
 
     val txResult = ledger.executeTransaction(stx, header, initialWorld)
     val postTxWorld = txResult.worldState
@@ -187,7 +189,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       receiptsRoot = bEmpty,
       logsBloom = bEmpty,
       difficulty = 1000000,
-      number = Config.Blockchain.homesteadBlockNumber + 1,
+      number = blockchainConfig.homesteadBlockNumber + 1,
       gasLimit = 1000000,
       gasUsed = 0,
       unixTimestamp = 1486752441,

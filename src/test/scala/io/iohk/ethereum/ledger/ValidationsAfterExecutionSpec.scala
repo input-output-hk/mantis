@@ -4,13 +4,14 @@ import akka.util.ByteString
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.utils.{Config, BlockchainConfig}
 import io.iohk.ethereum.validators.BlockValidator
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 class ValidationsAfterExecutionSpec extends FlatSpec with Matchers {
 
-  val ledger = new LedgerImpl(new Mocks.MockVM())
+  val ledger = new LedgerImpl(new Mocks.MockVM(), BlockchainConfig(Config.config))
 
   val block: Block = Block(
     BlockHeader(
@@ -43,7 +44,8 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers {
           ),
           pointSign = 0x9d.toByte,
           signatureRandom = ByteString(Hex.decode("5b496e526a65eac3c4312e683361bfdb873741acd3714c3bf1bcd7f01dd57ccb")),
-          signature = ByteString(Hex.decode("3a30af5f529c7fc1d43cfed773275290475337c5e499f383afd012edcc8d7299"))
+          signature = ByteString(Hex.decode("3a30af5f529c7fc1d43cfed773275290475337c5e499f383afd012edcc8d7299")),
+          chainId = 0x3d.toByte
         ).get, SignedTransaction(
           tx = Transaction(
             nonce = BigInt("438551"),
@@ -55,7 +57,8 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers {
           ),
           pointSign = 0x9d.toByte,
           signatureRandom = ByteString(Hex.decode("377e542cd9cd0a4414752a18d0862a5d6ced24ee6dba26b583cd85bc435b0ccf")),
-          signature = ByteString(Hex.decode("579fee4fd96ecf9a92ec450be3c9a139a687aa3c72c7e43cfac8c1feaf65c4ac"))
+          signature = ByteString(Hex.decode("579fee4fd96ecf9a92ec450be3c9a139a687aa3c72c7e43cfac8c1feaf65c4ac")),
+          chainId = 0x3d.toByte
         ).get, SignedTransaction(
           tx = Transaction(
             nonce = BigInt("438552"),
@@ -67,7 +70,8 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers {
           ),
           pointSign = 0x9d.toByte,
           signatureRandom = ByteString(Hex.decode("a70267341ba0b33f7e6f122080aa767d52ba4879776b793c35efec31dc70778d")),
-          signature = ByteString(Hex.decode("3f66ed7f0197627cbedfe80fd8e525e8bc6c5519aae7955e7493591dcdf1d6d2"))
+          signature = ByteString(Hex.decode("3f66ed7f0197627cbedfe80fd8e525e8bc6c5519aae7955e7493591dcdf1d6d2")),
+          chainId = 0x3d.toByte
         ).get, SignedTransaction(
           tx = Transaction(
             nonce = BigInt("438553"),
@@ -79,7 +83,8 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers {
           ),
           pointSign = 0x9d.toByte,
           signatureRandom = ByteString(Hex.decode("beb8226bdb90216ca29967871a6663b56bdd7b86cf3788796b52fd1ea3606698")),
-          signature = ByteString(Hex.decode("2446994156bc1780cb5806e730b171b38307d5de5b9b0d9ad1f9de82e00316b5"))
+          signature = ByteString(Hex.decode("2446994156bc1780cb5806e730b171b38307d5de5b9b0d9ad1f9de82e00316b5")),
+          chainId = 0x3d.toByte
         ).get
       ),
       uncleNodesList = Seq[BlockHeader]()
