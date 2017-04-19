@@ -23,26 +23,6 @@ object ProgramContext {
 
     ProgramContext(env, recipientAddress, UInt256(gasLimit), world, config)
   }
-
-  private def callOrCreate[W <: WorldStateProxy[W, S], S <: Storage[S]](world: W, tx: Transaction, senderAddress: Address): (W, Address, Program) = {
-    tx.receivingAddress match {
-      case None =>
-        // contract create
-        val address = world.createAddress(senderAddress)
-        val world1 = world.newEmptyAccount(address)
-        val world2 = world1.transfer(senderAddress, address, UInt256(tx.value))
-        val code = tx.payload
-
-        (world2, address, Program(code))
-
-      case Some(txReceivingAddress) =>
-        // message call
-        val worldAfterTransfer = world.transfer(senderAddress, txReceivingAddress, UInt256(tx.value))
-        val code = worldAfterTransfer.getCode(txReceivingAddress)
-
-        (worldAfterTransfer, txReceivingAddress, Program(code))
-    }
-  }
 }
 
 /**
