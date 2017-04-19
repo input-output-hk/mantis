@@ -32,6 +32,14 @@ object ECDSASignature {
     else (v - 27).toByte
   }
 
+  def recoverPubBytes(h: ByteString, v: ByteString, r: ByteString, s: ByteString): Option[ByteString] =
+    recoverPubBytes(
+      new BigInteger(1, r.toArray),
+      new BigInteger(1, s.toArray),
+      recIdFromSignatureV(BigInt(v.toArray).toInt),
+      h.toArray
+    ).map(ByteString(_))
+
   def recoverPubBytes(r: BigInteger, s: BigInteger, recId: Int, message: Array[Byte]): Option[Array[Byte]] = {
     def decompressKey(xBN: BigInteger, yBit: Boolean): ECPoint = {
       val x9 = new X9IntegerConverter
@@ -91,12 +99,18 @@ object ECDSASignature {
 
 case class ECDSASignature(r: BigInteger, s: BigInteger, v: Byte) {
 
+  import ECDSASignature._
+
   lazy val encoded: ByteString = {
-    import ECDSASignature.{RLength, SLength}
     ByteString(
       asUnsignedByteArray(r).reverse.padTo(RLength, 0.toByte).reverse ++
-      asUnsignedByteArray(s).reverse.padTo(SLength, 0.toByte).reverse ++
-      Array(ECDSASignature.recIdFromSignatureV(v)))
+        asUnsignedByteArray(s).reverse.padTo(SLength, 0.toByte).reverse ++
+        Array(recIdFromSignatureV(v)))
   }
 
+  def recoverPubBytes(message: Array[Byte]): Option[Array[Byte]] =
+    ECDSASignature.recoverPubBytes(r, s, recIdFromSignatureV(v), message)
+
+  def recoverPubBytes(message: ByteString): Option[ByteString] =
+    recoverPubBytes(message.toArray).map(ByteString(_))
 }
