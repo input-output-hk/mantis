@@ -9,7 +9,7 @@ import io.iohk.ethereum.domain.{Blockchain, _}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.p2p.messages.{PV62, PV63}
 import io.iohk.ethereum.network.{PeerManagerActor, loadAsymmetricCipherKeyPair}
-import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -22,6 +22,8 @@ object DumpChainApp extends App{
     val privateNetworkId = conf.getInt("networkId")
     val startBlock = conf.getInt("startBlock")
     val maxBlocks = conf.getInt("maxBlocks")
+
+    val blockchainConfig = BlockchainConfig(Config.config)
 
     val peerConfig = new PeerConfiguration {
       override val connectRetryDelay: FiniteDuration = Config.Network.peer.connectRetryDelay
@@ -53,6 +55,7 @@ object DumpChainApp extends App{
       peerConfiguration = peerConfig,
       appStateStorage = storagesInstance.storages.appStateStorage,
       blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
       bootstrapNodes = Set(node)), "peer-manager")
     actorSystem.actorOf(DumpChainActor.props(peerManager,startBlock,maxBlocks), "dumper")
   }

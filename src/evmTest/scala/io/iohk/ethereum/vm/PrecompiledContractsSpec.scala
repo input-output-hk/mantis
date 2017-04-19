@@ -11,14 +11,14 @@ class PrecompiledContractsSpec extends FunSuite with Matchers {
   test("Precompiled Contracts") {
     val keyPair = generateKeyPair()
     val tx = Transaction(42, 10, 1000, Address(123), 0, ByteString.empty)
-    val stx = SignedTransaction.sign(tx, keyPair)
+    val stx = SignedTransaction.sign(tx, keyPair, 0x3d.toByte)
 
     val expectedOutput = ripemd160(kec256(stx.senderAddress.bytes))
 
     new EvmTestEnv {
       val (_, contract) = deployContract("PrecompiledContracts")
       //FIXME: stx should use BigInts?
-      val bytes = SignedTransaction.bytesToSign(tx)
+      val bytes = SignedTransaction.bytesToSign(tx, 0x3d.toByte)
       val result = contract.usePrecompiledContracts(bytes, stx.signature.v,
         BigInt(stx.signature.r), BigInt(stx.signature.s)).call()
 

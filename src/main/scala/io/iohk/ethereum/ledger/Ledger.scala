@@ -5,8 +5,8 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.Ledger.{PC, PR}
-import io.iohk.ethereum.utils.{Config, Logger}
-import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockValidator, OmmersValidator, SignedTransactionValidator}
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
@@ -18,7 +18,7 @@ trait Ledger {
 
 }
 
-class LedgerImpl(vm: VM) extends Ledger with Logger {
+class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with Logger {
 
   case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
   case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry])
@@ -35,7 +35,7 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
 
       execResult <- executeBlockTransactions(block, blockchain, storages, validators)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
-      worldToPersist = payBlockReward(Config.Blockchain.blockReward, block, resultingWorldStateProxy)
+      worldToPersist = payBlockReward(blockchainConfig.blockReward, block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
 
       _ <- validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed, validators.blockValidator)
@@ -63,7 +63,7 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = InMemoryWorldStateProxy(storages, storages.nodeStorage, parentStateRoot)
 
-    val config = EvmConfig.forBlock(block.header.number)
+    val config = EvmConfig.forBlock(block.header.number, blockchainConfig)
 
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
     val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, config, validators.signedTransactionValidator)
@@ -244,7 +244,7 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
     signedTransactionValidator: SignedTransactionValidator,
     config: EvmConfig): Either[String, SignedTransaction] = {
     for {
-      _ <- signedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = blockHeader.number < Config.Blockchain.homesteadBlockNumber)
+      _ <- signedTransactionValidator.validateTransaction(stx, fromBeforeHomestead = blockHeader.number < blockchainConfig.homesteadBlockNumber)
         .left.map(_.toString)
       _ <- validateNonce(stx, worldState)
       _ <- validateGas(stx, config)
@@ -320,7 +320,7 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
   }
 
   private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): PR = {
-    val config = EvmConfig.forBlock(blockHeader.number)
+    val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
     val context: PC = ProgramContext(stx, blockHeader, worldStateProxy, config)
     val result: PR = vm.run(context)
     if (stx.tx.isContractInit && result.error.isEmpty)
