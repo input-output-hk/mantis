@@ -464,6 +464,58 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     )
   }
 
+  val invalidBlock = 399501
+  it should "should only ask a peer once for BlockHeaders in case execution of a block were to fail" in new TestSetup(Seq(invalidBlock)) {
+
+    val peer1: TestProbe = TestProbe()(system)
+    val peer2: TestProbe = TestProbe()(system)
+
+    time.advance(1.seconds)
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    val peer2Status= Status(1, 1, totalDifficulty = 0, ByteString("peer2_bestHash"), ByteString("unused"))
+
+    peerManager.expectMsg(GetPeers)
+    peerManager.reply(Peers(Map(
+      Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref) -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty),
+      Peer(new InetSocketAddress("127.0.0.2", 0), peer2.ref) -> PeerActor.Status.Handshaked(peer2Status, true, peer2Status.totalDifficulty)
+    )))
+
+    val expectedMaxBlock = 399500
+    val newBlockDifficulty = 23
+    val maxBlocTotalDifficulty = 12340
+    val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock)
+    val newBlockHeader: BlockHeader = baseBlockHeader
+      .copy(number = invalidBlock, parentHash = maxBlockHeader.hash, difficulty = newBlockDifficulty)
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
+    storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
+    storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
+    storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, maxBlocTotalDifficulty)
+
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    fastSyncController ! SyncController.StartSync
+
+    peer1.ignoreMsg { case u => u == Unsubscribe }
+
+    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
+    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeader))))
+
+    peer1.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash))))
+    peer1.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
+    peer1.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil)))))
+
+    //As block execution failed for a block received from peer1, the same block is asked to peer2
+    peer2.expectMsgAllOf(10.seconds,
+      PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
+      PeerActor.Subscribe(Set(BlockHeaders.code)))
+
+    //No other message should be received as no response was sent to peer2
+    peer2.expectNoMsg()
+  }
+
   class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil) extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("FastSyncControllerSpec_System")
 
