@@ -1,47 +1,55 @@
 package io.iohk.ethereum.txExecTest
 
-import io.iohk.ethereum.ledger.Ledger
+import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
+import io.iohk.ethereum.validators._
+import io.iohk.ethereum.vm.VM
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.language.postfixOps
 
 class ContractTest extends FlatSpec with Matchers {
   val noErrors: Right[Nothing, Unit] = Right(())
+  val validators = new Validators {
+    val blockValidator: BlockValidator = BlockValidator
+    val blockHeaderValidator: BlockHeaderValidator = BlockHeaderValidator
+    val ommersValidator: OmmersValidator = OmmersValidator
+    val signedTransactionValidator: SignedTransactionValidator = SignedTransactionValidator
+  }
 
   "Ledger" should "transfer ether" in {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContract/")
 
-    val (storage, stateStorage) = FixtureProvider.prepareStorages(0, fixtures)
+    val storage = FixtureProvider.prepareStorages(0, fixtures)
 
     //block only with ether transfers
-    Ledger.executeBlock(fixtures.blockByNumber(1), storage, stateStorage) shouldBe noErrors
+    new LedgerImpl(VM).executeBlock(fixtures.blockByNumber(1), storage, validators) shouldBe noErrors
   }
 
   it should "deploy contract" in {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContract/")
 
-    val (storage, stateStorage) = FixtureProvider.prepareStorages(1, fixtures)
+    val storage = FixtureProvider.prepareStorages(1, fixtures)
 
     //contract creation
-    Ledger.executeBlock(fixtures.blockByNumber(2), storage, stateStorage) shouldBe noErrors
+    new LedgerImpl(VM).executeBlock(fixtures.blockByNumber(2), storage, validators) shouldBe noErrors
   }
 
   it should "execute contract call" in {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContract/")
 
-    val (storage, stateStorage) = FixtureProvider.prepareStorages(2, fixtures)
+    val storage = FixtureProvider.prepareStorages(2, fixtures)
 
     //block with ether transfers and contract call
-    Ledger.executeBlock(fixtures.blockByNumber(3), storage, stateStorage) shouldBe noErrors
+    new LedgerImpl(VM).executeBlock(fixtures.blockByNumber(3), storage, validators) shouldBe noErrors
   }
 
   it should "execute contract that pays 2 accounts" in {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/transactionTest/purchaseContract/")
 
-    val (storage, stateStorage) = FixtureProvider.prepareStorages(2, fixtures)
+    val storage = FixtureProvider.prepareStorages(2, fixtures)
 
     //block contains contract paying 2 accounts
-    Ledger.executeBlock(fixtures.blockByNumber(3), storage, stateStorage) shouldBe noErrors
+    new LedgerImpl(VM).executeBlock(fixtures.blockByNumber(3), storage, validators) shouldBe noErrors
   }
 }

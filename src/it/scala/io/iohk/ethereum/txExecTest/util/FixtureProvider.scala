@@ -29,7 +29,7 @@ object FixtureProvider {
   )
 
   // scalastyle:off
-  def prepareStorages(blockNumber: BigInt, fixtures: Fixture): (BlockchainStorages, NodeStorage) = {
+  def prepareStorages(blockNumber: BigInt, fixtures: Fixture): BlockchainStorages = {
 
     val storages: BlockchainStorages = new BlockchainStorages {
       override val receiptStorage: ReceiptStorage = new ReceiptStorage(EphemDataSource())
@@ -39,9 +39,8 @@ object FixtureProvider {
       override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(EphemDataSource())
       override val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(EphemDataSource())
       override val totalDifficultyStorage: TotalDifficultyStorage = new TotalDifficultyStorage(EphemDataSource())
+      override val nodeStorage: NodeStorage = new NodeStorage(EphemDataSource())
     }
-
-    val stateStorage: NodeStorage = new NodeStorage(EphemDataSource())
 
     val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile { case (number, _) => number <= blockNumber }
 
@@ -54,12 +53,12 @@ object FixtureProvider {
       def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
         case Some(m: MptBranch) =>
           storages.mptNodeStorage.put(m)
-          stateStorage.put(m.hash, encode(m: MptNode)(MptNode.rlpEncDec))
+          storages.nodeStorage.put(m.hash, encode(m: MptNode)(MptNode.rlpEncDec))
           m.children.collect { case Left(MptHash(hash)) if hash.nonEmpty => hash }.foreach(traverse)
 
         case Some(m: MptExtension) =>
           storages.mptNodeStorage.put(m)
-          stateStorage.put(m.hash, encode(m: MptNode)(MptNode.rlpEncDec))
+          storages.nodeStorage.put(m.hash, encode(m: MptNode)(MptNode.rlpEncDec))
           m.child match {
             case Left(MptHash(hash)) if hash.nonEmpty => traverse(hash)
             case _ =>
@@ -67,7 +66,7 @@ object FixtureProvider {
 
         case Some(m: MptLeaf) =>
           storages.mptNodeStorage.put(m)
-          stateStorage.put(m.hash, encode(m: MptNode)(MptNode.rlpEncDec))
+          storages.nodeStorage.put(m.hash, encode(m: MptNode)(MptNode.rlpEncDec))
           Try(m.getAccount).toOption.foreach { account =>
             if (account.codeHash != DumpChainActor.emptyEvm) {
               storages.evmCodeStorage.put(account.codeHash, fixtures.evmCode(account.codeHash))
@@ -83,7 +82,7 @@ object FixtureProvider {
       traverse(block.header.stateRoot)
     }
 
-    (storages, stateStorage)
+    storages
   }
 
   def loadFixtures(path: String): Fixture = {
