@@ -6,17 +6,21 @@ import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.{Fixtures, Mocks}
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.domain.{Account, Block, BlockHeader, BlockchainStorages}
+import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationBeforeExecError}
+import io.iohk.ethereum.ledger.{BlockExecutionError, BloomFilter, Ledger}
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerActor.Unsubscribe
-import io.iohk.ethereum.network.PeerManagerActor.{Peers, GetPeers, Peer}
+import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, Peers}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
+import io.iohk.ethereum.validators._
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -25,7 +29,7 @@ import scala.concurrent.duration._
 
 class SyncControllerSpec extends FlatSpec with Matchers {
 
-  "FastSyncController" should "download target block and request state nodes" in new TestSetup {
+  "FastSyncController" should "download target block and request state nodes" in new TestSetup() {
 
     val peer1: TestProbe = TestProbe()(system)
     val peer2: TestProbe = TestProbe()(system)
@@ -71,7 +75,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer2.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
   }
 
-  it should "download target block, request state, blocks and finish when downloaded" in new TestSetup {
+  it should "download target block, request state, blocks and finish when downloaded" in new TestSetup() {
     val peer2: TestProbe = TestProbe()(system)
 
     val expectedTargetBlock = 399500
@@ -128,7 +132,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer2.expectMsgAllOf(PeerActor.Subscribe(Set(BlockHeaders.code)))
   }
 
-  it should "not use (blacklist) a peer that fails to respond within time limit" in new TestSetup {
+  it should "not use (blacklist) a peer that fails to respond within time limit" in new TestSetup() {
     val peer2: TestProbe = TestProbe()(system)
 
     time.advance(1.seconds)
@@ -168,7 +172,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer2.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
   }
 
-  it should "start regular download " in new TestSetup {
+  it should "start regular download " in new TestSetup() {
     val peer: TestProbe = TestProbe()(system)
 
     time.advance(1.seconds)
@@ -183,7 +187,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val newBlockDifficulty = 23
     val maxBlocTotalDifficulty = 12340
     val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock)
-    val newBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock + 1, parentHash = maxBlockHeader.hash, difficulty = newBlockDifficulty)
+    val newBlockHeader: BlockHeader = baseBlockHeader
+      .copy(number = expectedMaxBlock + 1, parentHash = maxBlockHeader.hash, difficulty = newBlockDifficulty,
+        stateRoot = ByteString(Hex.decode("d0aedc3838a3d7f9a526bdd642b55fb1b6292596985cfab2eedb751da19b8bb4")))
 
     storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
     storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
@@ -212,7 +218,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     blockchain.getTotalDifficultyByHash(newBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + newBlockHeader.difficulty)
   }
 
-  it should "resolve branch conflict" in new TestSetup {
+  it should "resolve branch conflict" in new TestSetup() {
     val peer: TestProbe = TestProbe()(system)
 
     time.advance(1.seconds)
@@ -230,9 +236,13 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val commonRoot: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock - 1)
     val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock, parentHash = commonRoot.hash, difficulty = 5)
 
-    val newBlockHeaderParent: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock, parentHash = commonRoot.hash, difficulty = newBlockDifficulty)
-    val newBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock + 1, parentHash = newBlockHeaderParent.hash, difficulty = newBlockDifficulty)
-    val nextNewBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock + 2, parentHash = newBlockHeader.hash, difficulty = newBlockDifficulty)
+    val newBlockHeaderParent: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock, parentHash = commonRoot.hash, difficulty = newBlockDifficulty,
+      stateRoot = ByteString(Hex.decode("d0aedc3838a3d7f9a526bdd642b55fb1b6292596985cfab2eedb751da19b8bb4")))
+    val newBlockHeader: BlockHeader = baseBlockHeader
+      .copy(number = expectedMaxBlock + 1, parentHash = newBlockHeaderParent.hash, difficulty = newBlockDifficulty,
+        stateRoot = ByteString(Hex.decode("36c8b1c29ea8aeee08516f182721a9e0af77f924f7fc8d7db60a11e3223d11ee")))
+    val nextNewBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock + 2, parentHash = newBlockHeader.hash, difficulty = newBlockDifficulty,
+      stateRoot = ByteString(Hex.decode("f5915b81ca32d039e187b92a0d63b8c545f0496ade014f86afaaa596696c45cf")))
 
     storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
 
@@ -292,7 +302,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     blockchain.getTotalDifficultyByHash(maxBlockHeader.hash) shouldBe None
   }
 
-  it should "only use ETC peer to choose target block" in new TestSetup {
+  it should "only use ETC peer to choose target block" in new TestSetup() {
     val peer1: TestProbe = TestProbe()(system)
     val peer2: TestProbe = TestProbe()(system)
     val peer3: TestProbe = TestProbe()(system)
@@ -332,7 +342,127 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer4.expectMsg(PeerActor.Unsubscribe)
   }
 
-  trait TestSetup extends EphemBlockchainTestSetup {
+  it should "broadcast all blocks if they were all valid" in new TestSetup() {
+    val peer1: TestProbe = TestProbe()(system)
+
+    time.advance(1.seconds)
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+
+    peerManager.expectMsg(GetPeers)
+    peerManager.reply(Peers(Map(
+      Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref) -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty)
+    )))
+
+    val expectedMaxBlock = 399500
+    val newBlockDifficulty = 23
+    val maxBlocTotalDifficulty = 12340
+    val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock)
+    val newBlockHeader: BlockHeader = baseBlockHeader
+      .copy(number = expectedMaxBlock + 1, parentHash = maxBlockHeader.hash, difficulty = newBlockDifficulty,
+        stateRoot = ByteString(Hex.decode("d0aedc3838a3d7f9a526bdd642b55fb1b6292596985cfab2eedb751da19b8bb4")))
+    val nextNewBlockHeader: BlockHeader = baseBlockHeader
+      .copy(number = expectedMaxBlock + 2, parentHash = newBlockHeader.hash, difficulty = newBlockDifficulty,
+        stateRoot = ByteString(Hex.decode("36c8b1c29ea8aeee08516f182721a9e0af77f924f7fc8d7db60a11e3223d11ee")))
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
+    storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
+    storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
+    storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, maxBlocTotalDifficulty)
+
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    fastSyncController ! SyncController.StartSync
+
+    //Turn broadcasting on the RegularSync on by sending an empty BlockHeaders message:
+    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
+    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq())))
+    peer1.expectMsg(Unsubscribe)
+    time.advance(Config.FastSync.checkForNewBlockInterval)
+
+    peer1.ignoreMsg { case u => u == Unsubscribe }
+
+    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
+    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeader, nextNewBlockHeader))))
+
+    peer1.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash, nextNewBlockHeader.hash))))
+    peer1.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
+    peer1.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil)))))
+
+    peer1.expectMsgAllOf(10.seconds,
+      PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 3), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
+      PeerActor.Subscribe(Set(BlockHeaders.code)),
+      PeerActor.BroadcastBlocks(Seq(
+        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty),
+        NewBlock(Block(nextNewBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + 2 * newBlockDifficulty)
+      ))
+    )
+  }
+
+  val invalidBlockNumber = 399502
+
+  it should "only broadcast blocks that it was able to successfully execute" in new TestSetup(Seq(invalidBlockNumber)) {
+
+    val peer1: TestProbe = TestProbe()(system)
+    val peer2: TestProbe = TestProbe()(system)
+
+    time.advance(1.seconds)
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    val peer2Status= Status(1, 1, totalDifficulty = 0, ByteString("peer2_bestHash"), ByteString("unused"))
+
+    peerManager.expectMsg(GetPeers)
+    peerManager.reply(Peers(Map(
+      Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref) -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty),
+      Peer(new InetSocketAddress("127.0.0.2", 0), peer2.ref) -> PeerActor.Status.Handshaked(peer2Status, true, peer2Status.totalDifficulty)
+    )))
+
+    val expectedMaxBlock = 399500
+    val newBlockDifficulty = 23
+    val maxBlocTotalDifficulty = 12340
+    val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock)
+    val newBlockHeader: BlockHeader = baseBlockHeader
+      .copy(number = expectedMaxBlock + 1, parentHash = maxBlockHeader.hash, difficulty = newBlockDifficulty,
+        stateRoot = ByteString(Hex.decode("d0aedc3838a3d7f9a526bdd642b55fb1b6292596985cfab2eedb751da19b8bb4")))
+    val invalidNextNewBlockHeader: BlockHeader = baseBlockHeader
+      .copy(number = invalidBlockNumber, parentHash = newBlockHeader.hash, difficulty = newBlockDifficulty) //Wrong state root hash
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
+    storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
+    storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
+    storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, maxBlocTotalDifficulty)
+
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    fastSyncController ! SyncController.StartSync
+
+    //Turn broadcasting on the RegularSync on by sending an empty BlockHeaders message:
+    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
+    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq())))
+    peer1.expectMsg(Unsubscribe)
+    time.advance(Config.FastSync.checkForNewBlockInterval)
+
+    peer1.ignoreMsg { case u => u == Unsubscribe }
+
+    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
+    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeader, invalidNextNewBlockHeader))))
+
+    peer1.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash, invalidNextNewBlockHeader.hash))))
+    peer1.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
+    peer1.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil)))))
+
+    peer2.expectMsgAllOf(10.seconds,
+      PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
+      PeerActor.Subscribe(Set(BlockHeaders.code)),
+      PeerActor.BroadcastBlocks(Seq(NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty)))
+    )
+  }
+
+  class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil) extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("FastSyncControllerSpec_System")
 
     val time = new VirtualTime
@@ -340,22 +470,27 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val dataSource = EphemDataSource()
 
+    val ledger: Ledger = new Mocks.MockLedger((block, _, _) => !blocksForWhichLedgerFails.contains(block.header.number))
+
     val fastSyncController = TestActorRef(Props(new SyncController(peerManager.ref,
       storagesInstance.storages.appStateStorage,
       blockchain,
-      storagesInstance.storages.mptNodeStorage,
+      storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
-      (h, b) => Right(Block(h, b)),
+      ledger,
+      Fixtures.EmptyValidators,
       externalSchedulerOpt = Some(time.scheduler))))
+
+    val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
 
     val baseBlockHeader = BlockHeader(
       parentHash = ByteString("unused"),
       ommersHash = ByteString("unused"),
       beneficiary = ByteString("unused"),
-      stateRoot = ByteString("unused"),
-      transactionsRoot = ByteString("unused"),
-      receiptsRoot = ByteString("unused"),
-      logsBloom = ByteString("unused"),
+      stateRoot = EmptyTrieRootHash,
+      transactionsRoot = EmptyTrieRootHash,
+      receiptsRoot = EmptyTrieRootHash,
+      logsBloom = BloomFilter.EmptyBloomFilter,
       difficulty = 0,
       number = 0,
       gasLimit = 0,
