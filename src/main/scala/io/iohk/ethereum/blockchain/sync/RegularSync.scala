@@ -140,7 +140,9 @@ trait RegularSync {
             }
           }
         case None =>
-          log.error("no total difficulty for latest block") //FIXME: How do we handle this error on our blockchain?
+          //TODO: Investigate if we can recover from this error (EC-165)
+          val parentHash = Hex.toHexString(blocks.head.header.parentHash.toArray)
+          throw new IllegalStateException(s"No total difficulty for the latest block with number ${blocks.head.header.number - 1} (and hash $parentHash)")
       }
 
     } else {
