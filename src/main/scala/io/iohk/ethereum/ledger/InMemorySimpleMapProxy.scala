@@ -7,9 +7,9 @@ object InMemorySimpleMapProxy {
     new InMemorySimpleMapProxy(inner, Map.empty[K, Option[V]])
 }
 /**
-  * This class keeps holds changes made to the inner [[SimpleMap]] until data is commited
+  * This class keeps holds changes made to the inner [[io.iohk.ethereum.common.SimpleMap]] until data is commited
   *
-  * @param inner [[SimpleMap]] to proxy
+  * @param inner [[io.iohk.ethereum.common.SimpleMap]] to proxy
   * @param cache InMemory map where data is going to be cached
   * @tparam K data type of the key to be used within this Proxy
   * @tparam V data type of the value to be used within this Proxy
@@ -27,7 +27,7 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private(val inner: I
   }
 
   /**
-    * Persists the changes into the underlying [[SimpleMap]]
+    * Persists the changes into the underlying [[io.iohk.ethereum.common.SimpleMap]]
     *
     * @return Updated proxy
     */
