@@ -4,17 +4,19 @@ import java.math.BigInteger
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.{Account, Address, Block, SignedTransaction, Transaction}
+import io.iohk.ethereum.domain.{Account, Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.validators.SignedTransactionError.{TransactionSignatureError, TransactionSyntaxError}
-import io.iohk.ethereum.vm.{EvmConfig, UInt256}
+import io.iohk.ethereum.vm.UInt256
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
 
   val blockchainConfig = BlockchainConfig(Config.config)
+
+  val signedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
 
   //From block 0x228943f4ef720ac91ca09c08056d7764c2a1650181925dfaeb484f27e544404e with number 1100000 (tx index 0)
   val txBeforeHomestead = Transaction(
@@ -63,17 +65,15 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
   val stubCalculateUpfrontGasCost: Transaction => UInt256 = _ => UInt256(senderBalance / 2)
 
   def validateStx(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransaction] = {
-    val (senderAccount, blockHeader, config) =
+    val (senderAccount, blockHeader) =
       if(fromBeforeHomestead)
-        (senderAccountBeforeHomestead, blockHeaderBeforeHomestead, EvmConfig.FrontierConfig)
+        (senderAccountBeforeHomestead, blockHeaderBeforeHomestead)
       else
-        (senderAccountAfterHomestead, blockHeaderAfterHomestead, EvmConfig.HomesteadConfig)
-    SignedTransactionValidator.validate(
+        (senderAccountAfterHomestead, blockHeaderAfterHomestead)
+    signedTransactionValidator.validate(
       stx = stx,
       senderAccount = senderAccount,
       blockHeader = blockHeader,
-      config = config,
-      blockchainConfig = blockchainConfig,
       calculateUpfrontGasCost = stubCalculateUpfrontGasCost,
       accumGasUsed = accumGasUsed
     )
@@ -157,7 +157,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
   }
 
   it should "report a tx with invalid s as having invalid signature" in {
-    val signatureWithInvalidS = signedTxAfterHomestead.signature.copy(s = (SignedTransactionValidator.secp256k1n / 2 + 1).bigInteger)
+    val signatureWithInvalidS = signedTxAfterHomestead.signature.copy(s = (signedTransactionValidator.secp256k1n / 2 + 1).bigInteger)
     val signedTxWithInvalidSignature = signedTxAfterHomestead.copy(signature = signatureWithInvalidS)
     validateStx(signedTxWithInvalidSignature, fromBeforeHomestead = false) match {
       case Left(TransactionSignatureError) => succeed

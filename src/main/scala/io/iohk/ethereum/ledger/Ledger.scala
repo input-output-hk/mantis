@@ -5,7 +5,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.Ledger.{PC, PR, TxResult, BlockResult}
-import io.iohk.ethereum.utils.{Config, BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
@@ -60,10 +60,8 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = InMemoryWorldStateProxy(storages, storages.nodeStorage, parentStateRoot)
 
-    val config = EvmConfig.forBlock(block.header.number, blockchainConfig)
-
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
-    val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, config, signedTransactionValidator)
+    val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, signedTransactionValidator)
     blockTxsExecResult match {
       case Right(_) => log.debug(s"All txs from block ${block.header.hashAsHexString} were executed successfully")
       case Left(error) => log.debug(s"Not all txs from block ${block.header.hashAsHexString} were executed correctly, due to ${error.reason}")
@@ -77,7 +75,6 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     * @param signedTransactions from the block that are left to execute
     * @param world that will be updated by the execution of the signedTransactions
     * @param blockHeader of the block we are currently executing
-    * @param config used to validate the signed transactions
     * @param signedTransactionValidator used to validate the signed transactions
     * @param acumGas, accumulated gas of the previoulsy executed transactions of the same block
     * @param acumReceipts, accumulated receipts of the previoulsy executed transactions of the same block
@@ -86,7 +83,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     */
   @tailrec
   private def executeTransactions(signedTransactions: Seq[SignedTransaction], world: InMemoryWorldStateProxy,
-                                  blockHeader: BlockHeader, config: EvmConfig, signedTransactionValidator: SignedTransactionValidator,
+                                  blockHeader: BlockHeader, signedTransactionValidator: SignedTransactionValidator,
                                   acumGas: BigInt = 0, acumReceipts: Seq[Receipt] = Nil): Either[TxsExecutionError, BlockResult] =
     signedTransactions match {
       case Nil =>
@@ -96,7 +93,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
         val senderAccount = world.getAccount(stx.senderAddress)
         val validatedStx = senderAccount
           .toRight(Left(TxsExecutionError(s"Account of tx sender ${Hex.toHexString(stx.senderAddress.toArray)} not found")))
-          .flatMap(account => signedTransactionValidator.validate(stx, account, blockHeader, config, blockchainConfig, calculateUpfrontCost, acumGas))
+          .flatMap(account => signedTransactionValidator.validate(stx, account, blockHeader, calculateUpfrontCost, acumGas))
         validatedStx match {
           case Right(_) =>
             val TxResult(newWorld, gasUsed, logs) = executeTransaction(stx, blockHeader, world)
@@ -108,7 +105,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
               logs = logs
             )
 
-            executeTransactions(otherStxs, newWorld, blockHeader, config, signedTransactionValidator, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
+            executeTransactions(otherStxs, newWorld, blockHeader, signedTransactionValidator, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
           case Left(error) => Left(TxsExecutionError(error.toString))
         }
     }
@@ -218,7 +215,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     * @param tx Target transaction
     * @return Upfront cost
     */
-  private[ledger] def calculateUpfrontGas(tx: Transaction): UInt256 = UInt256(tx.gasLimit * tx.gasPrice)
+  private def calculateUpfrontGas(tx: Transaction): UInt256 = UInt256(tx.gasLimit * tx.gasPrice)
 
   /**
     * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price) + Tv (Tx value). See YP equation number (65)
@@ -255,20 +252,6 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
         val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
         ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, config)
     }
-
-  /**
-    * The sum of the transaction’s gas limit and the gas utilised in this block prior must be no greater than the
-    * block’s gasLimit
-    *
-    * @param stx           Transaction to validate
-    * @param accumGasLimit Gas spent within tx container block prior executing stx
-    * @param blockGasLimit Block gas limit
-    * @return Either the validated transaction or an error description
-    */
-  def validateGasLimit(stx: SignedTransaction, accumGasLimit: BigInt, blockGasLimit: BigInt): Either[String, SignedTransaction] = {
-    if (stx.tx.gasLimit + accumGasLimit <= blockGasLimit) Right(stx)
-    else Left("Transaction gas limit plus accumulated gas exceeds block gas limit")
-  }
 
   private def runVM(stx: SignedTransaction, context: PC, config: EvmConfig): PR = {
     val result: PR = vm.run(context)
