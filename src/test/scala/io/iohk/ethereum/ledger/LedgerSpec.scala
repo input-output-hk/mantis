@@ -177,40 +177,37 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     postTxWorld.getCode(newContractAddress) shouldBe ByteString()
   }
 
-  it should "clear logs if execution results in an error" in new TestSetup {
-    val initialOriginBalance: UInt256 = 1000000
+  it should "clear logs only if vm execution results in an error" in new TestSetup {
 
-    val initialOriginNonce = defaultTx.nonce
+    val defaultsLogs = Seq(defaultLog)
 
-    val initialWorld = emptyWorld
-      .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
+    val table = Table[Option[ProgramError], Int](
+      ("Execution Error", "Logs size"),
+      (Some(InvalidOpCode(1)), 0),
+      (Some(OutOfGas), 0),
+      (Some(InvalidJump(23)), 0),
+      (Some(StackOverflow), 0),
+      (Some(StackUnderflow), 0),
+      (None, defaultsLogs.size)
+    )
 
-    val stx = SignedTransaction.sign(defaultTx, keyPair, blockchainConfig.chainId)
+    forAll(table) { (maybeError, logsSize) =>
+      val initialOriginBalance: UInt256 = 1000000
 
-    val mockVM = new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, Some(InvalidJump(23)), bEmpty, Seq(defaultLog)))
-    val ledger = new LedgerImpl(mockVM, blockchainConfig)
+      val initialOriginNonce = defaultTx.nonce
 
-    val txResult = ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
+      val initialWorld = emptyWorld
+        .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
 
-    txResult.logs shouldBe Seq.empty
-  }
+      val stx = SignedTransaction.sign(defaultTx, keyPair, blockchainConfig.chainId)
 
-  it should "keep logs if execution results in an error" in new TestSetup {
-    val initialOriginBalance: UInt256 = 1000000
+      val mockVM = new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, maybeError, bEmpty, defaultsLogs))
+      val ledger = new LedgerImpl(mockVM, blockchainConfig)
 
-    val initialOriginNonce = defaultTx.nonce
+      val txResult = ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
 
-    val initialWorld = emptyWorld
-      .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
-
-    val stx = SignedTransaction.sign(defaultTx, keyPair, blockchainConfig.chainId)
-
-    val mockVM = new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, None, bEmpty, Seq(defaultLog)))
-    val ledger = new LedgerImpl(mockVM, blockchainConfig)
-
-    val txResult = ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
-
-    txResult.logs shouldEqual Seq(defaultLog)
+      txResult.logs.size shouldBe logsSize
+    }
   }
 
   trait TestSetup {
