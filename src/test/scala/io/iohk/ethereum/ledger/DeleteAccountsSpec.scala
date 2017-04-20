@@ -30,6 +30,17 @@ class DeleteAccountsSpec extends FlatSpec with Matchers {
     newWorld.stateRootHash shouldBe Account.EmptyStorageRootHash
   }
 
+  it should "delete account that had storage updated before" in new TestSetup {
+    val worldStateWithStorage = worldState.saveStorage(
+      validAccountAddress,
+      worldState.getStorage(validAccountAddress).store(1, 123))
+
+    val updatedWorldState = ledger.deleteAccounts(accountAddresses)(worldStateWithStorage)
+
+    val newWorld = InMemoryWorldStateProxy.persistState(updatedWorldState)
+    newWorld.getAccount(validAccountAddress) shouldBe 'empty
+  }
+
   trait TestSetup extends EphemBlockchainTestSetup {
 
     val validAccountAddress = Address(0xababab)
