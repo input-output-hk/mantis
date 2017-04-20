@@ -45,15 +45,17 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     val initialOriginBalance: UInt256 = 1000000
     val initialMinerBalance: UInt256 = 2000000
 
-    val table = Table[UInt256, UInt256, Option[ProgramError], UInt256, BigInt](
-      ("execGasUsed", "refundsFromVM", "maybeError", "balanceDelta", "gasUsed"),
-      (25000, 20000, None, (25000 / 2) * defaultGasPrice, defaultGasLimit - ((defaultGasLimit - 25000) + 12500)),
-      (25000, 10000, None, (25000 - 10000) * 10, defaultGasLimit - ((defaultGasLimit - 25000) + 10000)),
-      (125000, 10000, Some(OutOfGas), defaultGasLimit * defaultGasPrice, defaultGasLimit),
-      (125000, 100000, Some(OutOfGas), defaultGasLimit * defaultGasPrice, defaultGasLimit)
+    val table = Table[UInt256, UInt256, Option[ProgramError], BigInt](
+      ("execGasUsed", "refundsFromVM", "maybeError", "gasUsed"),
+      (25000, 20000, None, 25000 - 12500),
+      (25000, 10000, None, 25000 - 10000),
+      (125000, 10000, Some(OutOfGas), defaultGasLimit),
+      (125000, 100000, Some(OutOfGas), defaultGasLimit)
     )
 
-    forAll(table) { (execGasUsed, gasRefundFromVM, error, balanceDelta, gasUsed) =>
+    forAll(table) { (execGasUsed, gasRefundFromVM, error, gasUsed) =>
+
+      val balanceDelta = UInt256(gasUsed * defaultGasPrice)
 
       val initialWorld = emptyWorld
         .saveAccount(originAddress, Account(nonce = UInt256(defaultTx.nonce), balance = initialOriginBalance))
