@@ -8,7 +8,7 @@ import org.scalatest.{FunSuite, Matchers}
 import MockWorldState._
 import io.iohk.ethereum.utils.ByteUtils
 
-class PrecompiledContractsSpecc extends FunSuite with Matchers with PropertyChecks {
+class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyChecks {
 
   def buildContext(recipient: Address, inputData: ByteString, gas: UInt256 = 1000000): PC = {
     val origin = Address(0xcafebabe)

@@ -1,7 +1,8 @@
 package io.iohk.ethereum.txExecTest
 
-import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
+import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
 import org.scalatest.{FlatSpec, Matchers}
@@ -9,11 +10,13 @@ import org.scalatest.{FlatSpec, Matchers}
 import scala.language.postfixOps
 
 class ContractTest extends FlatSpec with Matchers {
+  val blockchainConfig = BlockchainConfig(Config.config)
+
   val noErrors: Right[Nothing, Unit] = Right(())
   val validators = new Validators {
     val blockValidator: BlockValidator = BlockValidator
-    val blockHeaderValidator: BlockHeaderValidator = BlockHeaderValidator
-    val ommersValidator: OmmersValidator = OmmersValidator
+    val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
+    val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig)
     val signedTransactionValidator: SignedTransactionValidator = SignedTransactionValidator
   }
 
@@ -23,7 +26,7 @@ class ContractTest extends FlatSpec with Matchers {
     val storage = FixtureProvider.prepareStorages(0, fixtures)
 
     //block only with ether transfers
-    new LedgerImpl(VM).executeBlock(fixtures.blockByNumber(1), storage, validators) shouldBe noErrors
+    new LedgerImpl(VM, blockchainConfig).executeBlock(fixtures.blockByNumber(1), storage, validators) shouldBe noErrors
   }
 
   it should "deploy contract" in {
@@ -32,7 +35,7 @@ class ContractTest extends FlatSpec with Matchers {
     val storage = FixtureProvider.prepareStorages(1, fixtures)
 
     //contract creation
-    new LedgerImpl(VM).executeBlock(fixtures.blockByNumber(2), storage, validators) shouldBe noErrors
+    new LedgerImpl(VM, blockchainConfig).executeBlock(fixtures.blockByNumber(2), storage, validators) shouldBe noErrors
   }
 
   it should "execute contract call" in {
@@ -41,7 +44,7 @@ class ContractTest extends FlatSpec with Matchers {
     val storage = FixtureProvider.prepareStorages(2, fixtures)
 
     //block with ether transfers and contract call
-    new LedgerImpl(VM).executeBlock(fixtures.blockByNumber(3), storage, validators) shouldBe noErrors
+    new LedgerImpl(VM, blockchainConfig).executeBlock(fixtures.blockByNumber(3), storage, validators) shouldBe noErrors
   }
 
   it should "execute contract that pays 2 accounts" in {
@@ -50,6 +53,6 @@ class ContractTest extends FlatSpec with Matchers {
     val storage = FixtureProvider.prepareStorages(2, fixtures)
 
     //block contains contract paying 2 accounts
-    new LedgerImpl(VM).executeBlock(fixtures.blockByNumber(3), storage, validators) shouldBe noErrors
+    new LedgerImpl(VM, blockchainConfig).executeBlock(fixtures.blockByNumber(3), storage, validators) shouldBe noErrors
   }
 }
