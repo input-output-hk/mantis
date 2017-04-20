@@ -1,7 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.BlockchainConfig
 
 // scalastyle:off number.of.methods
 // scalastyle:off number.of.types
@@ -15,7 +15,13 @@ object EvmConfig {
   /**
     * returns the evm config that should be used for given block
     */
-  def forBlock(blockNumber: BigInt): EvmConfig = {
+  def forBlock(blockNumber: BigInt, blockchainConfig: BlockchainConfig): EvmConfig = {
+    val transitionBlockToConfigMapping: Map[BigInt, EvmConfig] = Map(
+      blockchainConfig.frontierBlockNumber -> FrontierConfig,
+      blockchainConfig.homesteadBlockNumber -> HomesteadConfig,
+      blockchainConfig.eip150BlockNumber -> PostEIP150Config,
+      blockchainConfig.eip160BlockNumber -> PostEIP160Config)
+
     // highest transition block that is less/equal to `blockNumber`
     transitionBlockToConfigMapping
       .filterKeys(_ <= blockNumber)
@@ -30,14 +36,6 @@ object EvmConfig {
     subGasCapDivisor = None,
     chargeSelfDestructForNewAccount = false)
 
-  /*
-    TODO (CREATE):
-    If contract creation does not have enough gas to pay for the final gas fee
-    for adding the contract code to the state, the contract creation fails (ie. goes out-of-gas)
-    rather than leaving an empty contract.
-
-    See: exceptional_failed_code_deposit in Parity
-   */
   val HomesteadConfig = EvmConfig(
     feeSchedule = new FeeSchedule.HomesteadFeeSchedule,
     opCodes = OpCodes.HomesteadOpCodes,
@@ -45,11 +43,6 @@ object EvmConfig {
     subGasCapDivisor = None,
     chargeSelfDestructForNewAccount = false)
 
-  /*
-  TODO(CREATE): sub_gas_cap_divisor
-    If Some(x): let limit = GAS * (x - 1) / x; let CALL's gas = min(requested, limit). let CREATE's gas = limit.
-    If None: let CALL's gas = (requested > GAS ? [OOG] : GAS). let CREATE's gas = GAS
-   */
   val PostEIP150Config = HomesteadConfig.copy(
     feeSchedule = new FeeSchedule.PostEIP150FeeSchedule,
     subGasCapDivisor = Some(64),
@@ -57,13 +50,6 @@ object EvmConfig {
 
   val PostEIP160Config = PostEIP150Config.copy(
     feeSchedule = new FeeSchedule.PostEIP160FeeSchedule)
-
-  private val transitionBlockToConfigMapping: Map[BigInt, EvmConfig] = Map(
-    Config.Blockchain.frontierBlockNumber -> FrontierConfig,
-    Config.Blockchain.homesteadBlockNumber -> HomesteadConfig,
-    Config.Blockchain.eip150BlockNumber -> PostEIP150Config,
-    Config.Blockchain.eip160BlockNumber -> PostEIP160Config)
-
 }
 
 case class EvmConfig(

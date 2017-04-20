@@ -100,7 +100,7 @@ object Interpreter {
     callData = args.foldLeft(sig)(_ ++ _)
 
     result = State.runTransaction(xAccount, callData, attr.gas, attr.value)
-  } yield vmSummary(result)
+  } yield vmSummary(attr.gas, result)
 
   def createContract(name: String, attributes: Seq[Attr]): Either[RunnerError, String] = {
     val binFile = new File(name + ".bin")
@@ -121,7 +121,7 @@ object Interpreter {
         val recap =
           if (result.error.isDefined) s"Failed to create contract $name"
           else s"Created contract: $name @ $addr"
-        "  " + recap + "\n" + vmSummary(result)
+        "  " + recap + "\n" + vmSummary(attr.gas, result)
       }
     }
   }
@@ -162,10 +162,10 @@ object Interpreter {
     }
   }
 
-  def vmSummary(result: PR): String =
-    s"""|  gas remaining:  ${result.gasRemaining}
-        |  error:          ${result.error.getOrElse("n/a")}
-        |  return:         ${Hex.toHexString(result.returnData.toArray)}
+  def vmSummary(initialGas: BigInt, result: PR): String =
+    s"""|  gas used:  ${initialGas - result.gasRemaining}
+        |  error:     ${result.error.getOrElse("n/a")}
+        |  return:    ${Hex.toHexString(result.returnData.toArray)}
      """.stripMargin
 
 }

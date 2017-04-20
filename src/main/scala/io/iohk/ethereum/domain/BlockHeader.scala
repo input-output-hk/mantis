@@ -48,6 +48,8 @@ case class BlockHeader(
       * @return - hash that can be used to get block bodies / receipts
       */
     lazy val hash: ByteString = ByteString(kec256(rlpEncode[BlockHeader](this)))
+
+    lazy val hashAsHexString: String = Hex.toHexString(hash.toArray)
   }
 
 object BlockHeader {

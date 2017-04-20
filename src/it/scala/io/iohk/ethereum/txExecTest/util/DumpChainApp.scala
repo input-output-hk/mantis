@@ -1,4 +1,4 @@
-package io.iohk.ethereum.transactionTest.util
+package io.iohk.ethereum.txExecTest.util
 
 import akka.actor.ActorSystem
 import akka.agent.Agent
@@ -9,22 +9,21 @@ import io.iohk.ethereum.domain.{Blockchain, _}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.p2p.messages.{PV62, PV63}
 import io.iohk.ethereum.network.{PeerManagerActor, loadAsymmetricCipherKeyPair}
-import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 
-object DumpChainApp {
-  // scalastyle:off
-  def main(args: Array[String]): Unit = {
-
+object DumpChainApp extends App{
     val conf = ConfigFactory.load("transactionTest/chainDump.conf")
     val node = conf.getString("node")
     val genesisHash = ByteString(Hex.decode(conf.getString("genesisHash")))
     val privateNetworkId = conf.getInt("networkId")
     val startBlock = conf.getInt("startBlock")
     val maxBlocks = conf.getInt("maxBlocks")
+
+    val blockchainConfig = BlockchainConfig(Config.config)
 
     val peerConfig = new PeerConfiguration {
       override val connectRetryDelay: FiniteDuration = Config.Network.peer.connectRetryDelay
@@ -56,13 +55,15 @@ object DumpChainApp {
       peerConfiguration = peerConfig,
       appStateStorage = storagesInstance.storages.appStateStorage,
       blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
       bootstrapNodes = Set(node)), "peer-manager")
     actorSystem.actorOf(DumpChainActor.props(peerManager,startBlock,maxBlocks), "dumper")
   }
 
   class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
-    class FakeHeader() extends BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty, 0, 0, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty) {
+    class FakeHeader() extends BlockHeader(ByteString.empty, ByteString.empty, ByteString.empty, ByteString.empty,
+      ByteString.empty, ByteString.empty, ByteString.empty, 0, 0, 0, 0, 0, ByteString.empty, ByteString.empty, ByteString.empty) {
       override lazy val hash: ByteString = genesisHash
     }
 
@@ -93,6 +94,4 @@ object DumpChainApp {
     override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = ???
 
     override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = ???
-  }
-
 }

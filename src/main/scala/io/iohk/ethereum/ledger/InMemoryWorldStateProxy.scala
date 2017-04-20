@@ -121,7 +121,12 @@ object InMemoryWorldStateProxy {
 class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]])
   extends Storage[InMemoryWorldStateProxyStorage] {
 
-  override def store(addr: UInt256, value: UInt256): InMemoryWorldStateProxyStorage = new InMemoryWorldStateProxyStorage(wrapped.put(addr, value))
+  override def store(addr: UInt256, value: UInt256): InMemoryWorldStateProxyStorage = {
+    val newWrapped =
+      if(value.isZero) wrapped - addr
+      else wrapped + (addr -> value)
+    new InMemoryWorldStateProxyStorage(newWrapped)
+  }
 
   override def load(addr: UInt256): UInt256 = wrapped.get(addr).getOrElse(UInt256.Zero)
 }
