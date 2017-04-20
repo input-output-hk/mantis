@@ -115,14 +115,16 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
   private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
     val gasPrice = UInt256(stx.tx.gasPrice)
     val gasLimit = UInt256(stx.tx.gasLimit)
+    val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
-    val worldBeforeTransfer = updateSenderAccountBeforeExecution(stx, world)
-    val result = runVM(stx, blockHeader, worldBeforeTransfer)
+    val checkpointWorldState = updateSenderAccountBeforeExecution(stx, world)
+    val context = prepareProgramContext(stx, blockHeader, checkpointWorldState, config)
+    val result = runVM(stx, context, config)
 
     val resultWithErrorHandling: PR =
       if(result.error.isDefined) {
         //Rollback to the world before transfer was done if an error happened
-        result.copy(world = worldBeforeTransfer, addressesToDelete = Nil)
+        result.copy(world = checkpointWorldState, addressesToDelete = Nil)
       } else
         result
 
@@ -304,6 +306,19 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce)
   }
 
+  private[ledger] def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy, config: EvmConfig): PC =
+    stx.tx.receivingAddress match {
+      case None =>
+        val address = worldStateProxy.createAddress(stx.senderAddress)
+        val world1 = worldStateProxy.newEmptyAccount(address)
+        val world2 = world1.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
+        ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, world2, config)
+
+      case Some(txReceivingAddress) =>
+        val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
+        ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, config)
+    }
+
   /**
     * The sum of the transaction’s gas limit and the gas utilised in this block prior must be no greater than the
     * block’s gasLimit
@@ -318,9 +333,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     else Left("Transaction gas limit plus accumulated gas exceeds block gas limit")
   }
 
-  private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): PR = {
-    val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
-    val context: PC = ProgramContext(stx, blockHeader, worldStateProxy, config)
+  private def runVM(stx: SignedTransaction, context: PC, config: EvmConfig): PR = {
     val result: PR = vm.run(context)
     if (stx.tx.isContractInit && result.error.isEmpty)
       saveNewContract(context.env.ownerAddr, result, config)

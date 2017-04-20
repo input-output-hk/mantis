@@ -22,7 +22,7 @@ object SignedTransactionValidator extends SignedTransactionValidator {
     *
     * @param stx                  Transaction to validate
     * @param fromBeforeHomestead  Whether the block to which this transaction belongs is from
-    *                             before the [[Config.Blockchain.HomesteadBlock]]
+    *                             before the HomesteadBlock
     * @return Transaction if valid, error otherwise
     */
   def validateTransaction(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransaction] = {

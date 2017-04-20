@@ -6,6 +6,8 @@ import io.iohk.ethereum.domain._
 object ProgramContext {
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
     stx: SignedTransaction,
+    recipientAddress: Address,
+    program: Program,
     blockHeader: BlockHeader,
     world: W,
     config: EvmConfig): ProgramContext[W, S] = {
@@ -13,34 +15,13 @@ object ProgramContext {
     import stx.tx
 
     val senderAddress = stx.senderAddress
-    val (world1, recipientAddress, program) = callOrCreate[W, S](world, tx, senderAddress)
 
     val env = ExecEnv(recipientAddress, senderAddress, senderAddress, UInt256(tx.gasPrice), tx.payload,
       UInt256(tx.value), program, blockHeader, callDepth = 0)
 
     val gasLimit = tx.gasLimit - config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
 
-    ProgramContext(env, recipientAddress, UInt256(gasLimit), world1, config)
-  }
-
-  private def callOrCreate[W <: WorldStateProxy[W, S], S <: Storage[S]](world: W, tx: Transaction, senderAddress: Address): (W, Address, Program) = {
-    tx.receivingAddress match {
-      case None =>
-        // contract create
-        val address = world.createAddress(senderAddress)
-        val world1 = world.newEmptyAccount(address)
-        val world2 = world1.transfer(senderAddress, address, UInt256(tx.value))
-        val code = tx.payload
-
-        (world2, address, Program(code))
-
-      case Some(txReceivingAddress) =>
-        // message call
-        val worldAfterTransfer = world.transfer(senderAddress, txReceivingAddress, UInt256(tx.value))
-        val code = worldAfterTransfer.getCode(txReceivingAddress)
-
-        (worldAfterTransfer, txReceivingAddress, Program(code))
-    }
+    ProgramContext(env, recipientAddress, UInt256(gasLimit), world, config)
   }
 }
 
