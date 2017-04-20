@@ -356,8 +356,8 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
   }
 
   /**
-    * Calculate gas refund
-    * See YP, eq (72) - only the right addend
+    * Calculate total gas to be refunded
+    * See YP, eq (72)
     */
   private def calcTotalGasToRefund(stx: SignedTransaction, result: PR): UInt256 = {
     if (result.error.isDefined)
