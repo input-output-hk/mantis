@@ -124,7 +124,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val resultWithErrorHandling: PR =
       if(result.error.isDefined) {
         //Rollback to the world before transfer was done if an error happened
-        result.copy(world = checkpointWorldState, addressesToDelete = Nil)
+        result.copy(world = checkpointWorldState, addressesToDelete = Nil, logs = Nil)
       } else
         result
 
