@@ -3,83 +3,28 @@ package io.iohk.ethereum.crypto
 import java.math.BigInteger
 
 import akka.util.ByteString
+import io.iohk.ethereum.utils.Config.Blockchain
 import org.spongycastle.asn1.x9.X9IntegerConverter
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.digests.SHA256Digest
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.crypto.signers.{ECDSASigner, HMacDSAKCalculator}
-import org.spongycastle.math.ec.{ECAlgorithms, ECCurve, ECPoint}
-import org.spongycastle.util.BigIntegers._
+import org.spongycastle.math.ec.{ECCurve, ECPoint}
 
 object ECDSASignature {
 
   val SLength = 32
   val RLength = 32
-  val EncodedLength = RLength + SLength + 1
+  val EncodedLength: Int = RLength + SLength + 1
 
-  def decode(input: Array[Byte]): ECDSASignature = {
-    val SIndex = 32
-    val VIndex = 64
+  //only naming convention
+  val negativePointSign: Byte = 27
+  val newNegativePointSign: Byte = 35
+  val positivePointSign: Byte = 28
+  val newPositivePointSign: Byte = 36
 
-    val r = input.take(RLength)
-    val s = input.slice(SIndex, SIndex + SLength)
-    val v = input(VIndex) + 27
-    ECDSASignature(new BigInteger(1, r), new BigInteger(1, s), v.toByte)
-  }
-
-  def recIdFromSignatureV(v: Int): Byte = {
-    if (v >= 31) (v - 31).toByte
-    else (v - 27).toByte
-  }
-
-  def recoverPubBytes(h: ByteString, v: ByteString, r: ByteString, s: ByteString): Option[ByteString] =
-    recoverPubBytes(
-      new BigInteger(1, r.toArray),
-      new BigInteger(1, s.toArray),
-      recIdFromSignatureV(BigInt(v.toArray).toInt),
-      h.toArray
-    ).map(ByteString(_))
-
-  def recoverPubBytes(r: BigInteger, s: BigInteger, recId: Int, message: Array[Byte]): Option[Array[Byte]] = {
-    def decompressKey(xBN: BigInteger, yBit: Boolean): ECPoint = {
-      val x9 = new X9IntegerConverter
-      val compEnc = x9.integerToBytes(xBN, 1 + x9.getByteLength(curve.getCurve))
-      compEnc(0) = if (yBit) 3.toByte else 2.toByte
-      curve.getCurve.decodePoint(compEnc)
-    }
-
-    val n = curve.getN
-    val i = BigInteger.valueOf(recId.toLong / 2)
-    val x = r.add(i.multiply(n))
-    val curveFp = curve.getCurve.asInstanceOf[ECCurve.Fp]
-    val prime = curveFp.getQ
-
-    if (x.compareTo(prime) < 0) {
-      val R = decompressKey(x, (recId & 1) == 1)
-      if (R.multiply(n).isInfinity) {
-        val e = new BigInteger(1, message)
-        val eInv = BigInteger.ZERO.subtract(e).mod(n)
-        val rInv = r.modInverse(n)
-        val srInv = rInv.multiply(s).mod(n)
-        val eInvrInv = rInv.multiply(eInv).mod(n)
-        val q = ECAlgorithms.sumOfTwoMultiplies(curve.getG, eInvrInv, R, srInv).asInstanceOf[ECPoint.Fp]
-        Some(q.getEncoded(false))
-      } else None
-    } else None
-  }
-
-  def calculateV(r: BigInteger, s: BigInteger, key: AsymmetricCipherKeyPair, message: Array[Byte]): Option[Byte] = {
-    val pubKey = key.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
-    val recIdOpt = (0 until 4).find { i =>
-      recoverPubBytes(r, s, i, message).exists(java.util.Arrays.equals(_, pubKey))
-    }
-    recIdOpt.map(recId => (recId + 27).toByte)
-  }
-
-  def canonicalise(s: BigInteger): BigInteger = {
-    val halfCurveOrder = curveParams.getN.shiftRight(1)
-    if (s.compareTo(halfCurveOrder) > 0) curve.getN.subtract(s)
-    else s
+  def apply(r: ByteString, s: ByteString, v: ByteString): ECDSASignature = {
+    ECDSASignature(new BigInteger(1, r.toArray), new BigInteger(1, s.toArray), BigInt(v.toArray).toByte)
   }
 
   def sign(message: Array[Byte], keyPair: AsymmetricCipherKeyPair): ECDSASignature = {
@@ -95,22 +40,66 @@ object ECDSASignature {
     ECDSASignature(r, s, v)
   }
 
+  /**
+    * new formula for calculating point sign post EIP 155 adoption
+    * v = CHAIN_ID * 2 + 35 or v = CHAIN_ID * 2 + 36
+    */
+  private def getRecoveredPointSign(pointSign: Byte): Option[Int] = {
+    if (pointSign == negativePointSign || pointSign == (Blockchain.chainId * 2 + newNegativePointSign).toByte) {
+      Some(negativePointSign)
+    } else if (pointSign == positivePointSign || pointSign == (Blockchain.chainId * 2 + newPositivePointSign).toByte) {
+      Some(positivePointSign)
+    } else {
+      None
+    }
+  }
+
+  private def canonicalise(s: BigInteger): BigInteger = {
+    val halfCurveOrder = curveParams.getN.shiftRight(1)
+    if (s.compareTo(halfCurveOrder) > 0) curve.getN.subtract(s)
+    else s
+  }
+
+  private def calculateV(r: BigInteger, s: BigInteger, key: AsymmetricCipherKeyPair, message: Array[Byte]): Option[Byte] = {
+    val pubKey = key.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
+    val recIdOpt = Seq(positivePointSign, negativePointSign).find { i =>
+      recoverPubBytes(r, s, i, message).exists(java.util.Arrays.equals(_, pubKey))
+    }
+    recIdOpt
+  }
+
+  private def recoverPubBytes(r: BigInteger, s: BigInteger, recId: Byte, message: Array[Byte]): Option[Array[Byte]] = {
+    val order = curve.getCurve.getOrder
+    val xCoordinate = r //ignore case when x = r + order because it is negligibly improbable
+    val curveFp = curve.getCurve.asInstanceOf[ECCurve.Fp]
+    val prime = curveFp.getQ
+
+    getRecoveredPointSign(recId).flatMap { recovery =>
+      if (xCoordinate.compareTo(prime) < 0) {
+        val R = constructPoint(xCoordinate, recovery)
+        if (R.multiply(order).isInfinity) {
+          val e = new BigInteger(1, message)
+          val rInv = r.modInverse(order)
+          //Q = r^(-1)(sR - eG)
+          val q = R.multiply(s).subtract(curve.getG.multiply(e)).multiply(rInv)
+          Some(q.getEncoded(false))
+        } else None
+      } else None
+    }
+  }
+
+  private def constructPoint(xCoordinate: BigInteger, recId: Int): ECPoint = {
+    val x9 = new X9IntegerConverter
+    val compEnc = x9.integerToBytes(xCoordinate, 1 + x9.getByteLength(curve.getCurve))
+    compEnc(0) = if (recId == ECDSASignature.positivePointSign) 3.toByte else 2.toByte
+    curve.getCurve.decodePoint(compEnc)
+  }
+
 }
 
 case class ECDSASignature(r: BigInteger, s: BigInteger, v: Byte) {
 
-  import ECDSASignature._
+  def publicKey(message: Array[Byte]): Option[Array[Byte]] = ECDSASignature.recoverPubBytes(r, s, v, message)
 
-  lazy val encoded: ByteString = {
-    ByteString(
-      asUnsignedByteArray(r).reverse.padTo(RLength, 0.toByte).reverse ++
-        asUnsignedByteArray(s).reverse.padTo(SLength, 0.toByte).reverse ++
-        Array(recIdFromSignatureV(v)))
-  }
-
-  def recoverPubBytes(message: Array[Byte]): Option[Array[Byte]] =
-    ECDSASignature.recoverPubBytes(r, s, recIdFromSignatureV(v), message)
-
-  def recoverPubBytes(message: ByteString): Option[ByteString] =
-    recoverPubBytes(message.toArray).map(ByteString(_))
+  def publicKey(message: ByteString): Option[ByteString] = publicKey(message.toArray[Byte]).map(ByteString(_))
 }

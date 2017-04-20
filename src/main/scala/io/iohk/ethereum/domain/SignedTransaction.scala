@@ -19,31 +19,13 @@ object SignedTransaction {
 
   val FirstByteOfAddress = 12
   val LastByteOfAddress: Int = FirstByteOfAddress + Address.Length
-  val negativePointSign = 27
-  val newNegativePointSign = 35
-  val positivePointSign = 28
-  val newPositivePointSign = 36
   val valueForEmptyR = 0
   val valueForEmptyS = 0
 
-  /**
-    * new formula for calculating point sign post EIP 155 adoption
-    * v = CHAIN_ID * 2 + 35 or v = CHAIN_ID * 2 + 36
-    */
-  private def getRecoveredPointSign(pointSign: Byte): Option[Int] = {
-    if (pointSign == negativePointSign || pointSign == (Blockchain.chainId * 2 + newNegativePointSign).toByte) {
-      Some(negativePointSign)
-    } else if (pointSign == positivePointSign || pointSign == (Blockchain.chainId * 2 + newPositivePointSign).toByte) {
-      Some(positivePointSign)
-    } else {
-      None
-    }
-  }
-
-  private def getSender(tx: Transaction, signature: ECDSASignature, recoveredPointSign: Int): Option[Address] = {
-    val ECDSASignature(r, s, v) = signature
+  private def getSender(tx: Transaction, signature: ECDSASignature): Option[Address] = {
+    val ECDSASignature(_, _, v) = signature
     val receivingAddressAsArray: Array[Byte] = tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray)
-    val bytesToSign: Array[Byte] = if (v == negativePointSign || v == positivePointSign) {
+    val bytesToSign: Array[Byte] = if (v == ECDSASignature.negativePointSign || v == ECDSASignature.positivePointSign) {
       //global transaction
       crypto.kec256(
         rlpEncode(RLPList(
@@ -68,19 +50,10 @@ object SignedTransaction {
           valueForEmptyS)))
     }
 
-    val recoveredPublicKey: Option[Array[Byte]] =
-      ECDSASignature.recoverPubBytes(
-        new BigInteger(1, r.toByteArray),
-        new BigInteger(1, s.toByteArray),
-        ECDSASignature.recIdFromSignatureV(recoveredPointSign),
-        bytesToSign
-      )
+    val recoveredPublicKey: Option[Array[Byte]] = signature.publicKey(bytesToSign)
 
     for {
       key <- recoveredPublicKey
-
-      //TODO: Parity doesn't do this (https://github.com/paritytech/parity/blob/master/ethkey/src/keypair.rs#L23-L28)
-      //      more research is needed on why `key.tail` is needed
       addrBytes = crypto.kec256(key.tail).slice(FirstByteOfAddress, LastByteOfAddress)
       if addrBytes.length == Address.Length
     } yield Address(addrBytes)
@@ -96,8 +69,7 @@ object SignedTransaction {
 
   def apply(tx: Transaction, signature: ECDSASignature): Option[SignedTransaction] = {
     for {
-      recoveredPointSign <- SignedTransaction.getRecoveredPointSign(signature.v)
-      sender <- SignedTransaction.getSender(tx, signature, recoveredPointSign)
+      sender <- SignedTransaction.getSender(tx, signature)
     } yield SignedTransaction(tx, signature, sender)
   }
 

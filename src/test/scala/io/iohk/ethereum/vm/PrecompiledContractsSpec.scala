@@ -8,7 +8,7 @@ import org.scalatest.{FunSuite, Matchers}
 import MockWorldState._
 import io.iohk.ethereum.utils.ByteUtils
 
-class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyChecks {
+class PrecompiledContractsSpecc extends FunSuite with Matchers with PropertyChecks {
 
   def buildContext(recipient: Address, inputData: ByteString, gas: UInt256 = 1000000): PC = {
     val origin = Address(0xcafebabe)
@@ -23,7 +23,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     forAll(bytesGen) { bytes =>
       val hash = kec256(bytes)
       val validSig = ECDSASignature.sign(hash.toArray, keyPair)
-      val recoveredPub = ByteUtils.padLeft(kec256(validSig.recoverPubBytes(hash).get).slice(12, 32), 32, 0)
+      val recoveredPub = ByteUtils.padLeft(kec256(validSig.publicKey(hash).get).slice(12, 32), 32, 0)
 
       val inputData = hash ++ UInt256(validSig.v).bytes ++ UInt256(validSig.r).bytes ++ UInt256(validSig.s).bytes
 

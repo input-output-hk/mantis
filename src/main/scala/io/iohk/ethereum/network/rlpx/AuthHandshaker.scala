@@ -146,12 +146,7 @@ case class AuthHandshaker(
     val token = bigIntegerToBytes(sharedSecret, NonceSize)
     val signed = xor(token, nonce.toArray)
 
-    val signaturePubBytes =
-      ECDSASignature.recoverPubBytes(
-        r = signature.r,
-        s = signature.s,
-        recId = ECDSASignature.recIdFromSignatureV(signature.v),
-        message = signed).get
+    val signaturePubBytes = signature.publicKey(signed).get
 
     curve.getCurve.decodePoint(signaturePubBytes)
   }
@@ -165,19 +160,8 @@ case class AuthHandshaker(
 
     val publicKey = nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ
 
-    val signature = {
-      val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
-      signer.init(true, ephemeralKey.getPrivate)
-      val messageToSign = xor(sharedSecret, nonce.toArray)
-      val components = signer.generateSignature(messageToSign)
-      val r = components(0)
-      val s = ECDSASignature.canonicalise(components(1))
-      val v = ECDSASignature
-        .calculateV(r, s, ephemeralKey, messageToSign)
-        .getOrElse(throw new RuntimeException("Failed to calculate signature rec id"))
-
-      ECDSASignature(r, s, v)
-    }
+    val messageToSign = xor(sharedSecret, nonce.toArray)
+    val signature = ECDSASignature.sign(messageToSign, ephemeralKey)
 
     AuthInitiateMessageV4(signature, publicKey, nonce, Version)
   }
