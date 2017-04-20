@@ -392,7 +392,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer1.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil)))))
 
     //TODO: investigate why such a long timeout is required
-    peer1.expectMsgAllOf(15.seconds,
+    peer1.expectMsgAllOf(20.seconds,
       PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 3), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
       PeerActor.Subscribe(Set(BlockHeaders.code)),
       PeerActor.BroadcastBlocks(Seq(
@@ -457,7 +457,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peer1.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil)))))
 
     //TODO: investigate why such a long timeout is required
-    peer2.expectMsgAllOf(15.seconds,
+    peer2.expectMsgAllOf(20.seconds,
       PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
       PeerActor.Subscribe(Set(BlockHeaders.code)),
       PeerActor.BroadcastBlocks(Seq(NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty)))
