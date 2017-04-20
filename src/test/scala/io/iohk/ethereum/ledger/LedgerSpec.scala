@@ -38,15 +38,15 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
   )
 
 
-  "Ledger" should "correctly adjust gas used when refunding gas to the sender and paying for gas to the miner" in new TestSetup {
+  "Ledger" should "correctly calculate the total gas refund to be returned to the sender and paying for gas to the miner" in new TestSetup {
 
     val initialOriginBalance: UInt256 = 1000000
     val initialMinerBalance: UInt256 = 2000000
 
     val table = Table[UInt256, UInt256, Option[ProgramError], UInt256, BigInt](
-      ("execGasUsed", "refundsFromVM", "maybeError", "balanceDelta", "gasRefund"),
-      (25000, 20000, None, (25000 / 2) * defaultGasPrice, defaultGasLimit - ((defaultGasLimit - 25000) + (25000 / 2).min(20000))),
-      (25000, 10000, None, (25000 - 10000) * 10, defaultGasLimit - ((defaultGasLimit - 25000) + (25000 / 2).min(10000))),
+      ("execGasUsed", "refundsFromVM", "maybeError", "balanceDelta", "gasUsed"),
+      (25000, 20000, None, (25000 / 2) * defaultGasPrice, defaultGasLimit - ((defaultGasLimit - 25000) + 12500)),
+      (25000, 10000, None, (25000 - 10000) * 10, defaultGasLimit - ((defaultGasLimit - 25000) + 10000)),
       (125000, 10000, Some(OutOfGas), defaultGasLimit * defaultGasPrice, defaultGasLimit),
       (125000, 100000, Some(OutOfGas), defaultGasLimit * defaultGasPrice, defaultGasLimit)
     )
