@@ -44,7 +44,7 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
     * @param blockNumber    The number of the block to which the ommers belong
     * @param ommers         The list of ommers to validate
     * @param blockchain     from where the previous blocks are obtained
-    * @return ommers if valid, an [[OmmersError]] otherwise
+    * @return ommers if valid, an [[OmmersValidator.OmmersError]] otherwise
     */
   def validate(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit] = {
     for {
