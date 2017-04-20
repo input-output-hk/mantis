@@ -3,6 +3,7 @@ package io.iohk.ethereum.network.p2p
 import java.net.{InetSocketAddress, URI}
 
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.utils.BlockchainConfig
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -30,6 +31,8 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 class PeerActorSpec extends FlatSpec with Matchers {
+
+  val blockchainConfig = BlockchainConfig(Config.config)
 
   "PeerActor" should "create rlpx connection and send hello message" in new TestSetup {
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
@@ -66,7 +69,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
       }, peerConf, storagesInstance.storages.appStateStorage, blockchain, Some(time.scheduler),
-        Some(ForkResolver.EtcForkResolver))))
+        Some(new ForkResolver.EtcForkResolver(blockchainConfig)))))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -96,7 +99,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Message.PV63,
       networkId = 0,
-      totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
 
@@ -123,7 +126,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val header = BlockHeader(
       ByteString("unused"), ByteString("unused"), ByteString("unused"), ByteString("unused"),
       ByteString("unused"), ByteString("unused"), ByteString("unused"),
-      Config.Blockchain.daoForkBlockTotalDifficulty + 100000, 3000000 ,0, 0, 0,
+      blockchainConfig.daoForkBlockTotalDifficulty + 100000, 3000000 ,0, 0, 0,
       ByteString("unused"),ByteString("unused"),ByteString("unused"))
     storagesInstance.storages.appStateStorage.putBestBlockNumber(3000000) // after the fork
     blockchain.save(header)
@@ -132,7 +135,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Message.PV63,
       networkId = 0,
-      totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
 
@@ -157,7 +160,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Message.PV63,
       networkId = 0,
-      totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
 
@@ -183,7 +186,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Message.PV63,
       networkId = 0,
-      totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty - 2000000, // remote is before the fork
+      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty - 2000000, // remote is before the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
 
@@ -568,7 +571,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Message.PV63,
       networkId = 0,
-      totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
 
@@ -667,6 +670,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       override val connectRetryDelay: FiniteDuration = 1 second
       override val disconnectPoisonPillTimeout: FiniteDuration = 5 seconds
       override val maxPeers = 10
+      override val networkId: Int = 1
     }
 
   }
@@ -688,7 +692,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       val remoteStatus = Status(
         protocolVersion = Message.PV63,
         networkId = 0,
-        totalDifficulty = Config.Blockchain.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+        totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
         bestHash = ByteString("blockhash"),
         genesisHash = genesisHash)
 
@@ -711,7 +715,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       storagesInstance.storages.appStateStorage,
       blockchain,
       Some(time.scheduler),
-      Some(ForkResolver.EtcForkResolver))))
+      Some(new ForkResolver.EtcForkResolver(blockchainConfig)))))
   }
 
 }

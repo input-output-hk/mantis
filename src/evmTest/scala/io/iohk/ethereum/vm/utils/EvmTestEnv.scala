@@ -10,8 +10,6 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import io.iohk.ethereum.vmrunner.{ABI, MockVmInput}
-import io.iohk.ethereum.vmrunner.Utils
 import io.iohk.ethereum.{rlp, crypto}
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm._
@@ -65,7 +63,7 @@ trait EvmTestEnv {
     val tx = MockVmInput.transaction(creatorAddress, payload, value, gasLimit, gasPrice)
     val bh = MockVmInput.blockHeader
 
-    val context = ProgramContext[MockWorldState, MockStorage](tx, bh, worldAfterNonceIncrease, config)
+    val context = ProgramContext[MockWorldState, MockStorage](tx, contractAddress, Program(payload), bh, worldAfterNonceIncrease, config)
     val result = VM.run(context)
 
     contractsAbis += (name -> contractAbi.right.get)
@@ -83,6 +81,7 @@ trait EvmTestEnv {
     case b: BigInt => UInt256(b).bytes
     case a: Array[Byte] => UInt256(a).bytes
     case i: Int => UInt256(i).bytes
+    case b: Byte => UInt256(b).bytes
     case a: Address => UInt256(a.bytes).bytes
     case other => throw new RuntimeException("Invalid call argument")
   }
@@ -130,7 +129,7 @@ trait EvmTestEnv {
              sender: Address = defaultSender): ProgramResult[MockWorldState, MockStorage] = {
       val transaction = MockVmInput.transaction(sender, callData, value, gasLimit, gasPrice, Some(contract.address))
       val blockHeader = MockVmInput.blockHeader
-      val pc = ProgramContext[MockWorldState, MockStorage](transaction, blockHeader, world, config)
+      val pc = ProgramContext[MockWorldState, MockStorage](transaction, contract.address, Program(world.getCode(contract.address)), blockHeader, world, config)
 
       val res = VM.run(pc)
       internalWorld = res.world

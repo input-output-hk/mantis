@@ -16,7 +16,7 @@ import scala.util.Try
 
 object Config {
 
-  private val config = ConfigFactory.load().getConfig("etc-client")
+  val config = ConfigFactory.load().getConfig("etc-client")
 
   val clientId: String = config.getString("client-id")
 
@@ -26,8 +26,6 @@ object Config {
 
   object Network {
     private val networkConfig = config.getConfig("network")
-
-    val networkId: Int = networkConfig.getInt("network-id")
 
     object Server {
       private val serverConfig = networkConfig.getConfig("server-address")
@@ -40,7 +38,7 @@ object Config {
     object Discovery {
       private val discoveryConfig = networkConfig.getConfig("discovery")
 
-      val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet
+      val bootstrapNodes: Set[String] = discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet
       val bootstrapNodesScanInterval = discoveryConfig.getDuration("bootstrap-nodes-scan-interval").toMillis.millis
     }
 
@@ -53,6 +51,7 @@ object Config {
       val waitForStatusTimeout: FiniteDuration = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
       val waitForChainCheckTimeout: FiniteDuration = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
       val maxPeers: Int = peerConfig.getInt("max-peers")
+      val networkId: Int = peerConfig.getInt("network-id")
 
       val fastSyncHostConfiguration = new FastSyncHostConfiguration {
         val maxBlocksHeadersPerMessage: Int = peerConfig.getInt("max-blocks-headers-per-message")
@@ -70,25 +69,6 @@ object Config {
       val port = rpcConfig.getInt("port")
     }
 
-  }
-
-  object Blockchain {
-    private val blockchainConfig = config.getConfig("blockchain")
-
-    val frontierBlockNumber = BigInt(blockchainConfig.getString("frontier-block-number"))
-    val homesteadBlockNumber = BigInt(blockchainConfig.getString("homestead-block-number"))
-    val eip150BlockNumber = BigInt(blockchainConfig.getString("eip150-block-number"))
-    val eip160BlockNumber = BigInt(blockchainConfig.getString("eip160-block-number"))
-
-    val customGenesisFileOpt = Try(blockchainConfig.getString("custom-genesis-file")).toOption
-
-    val daoForkBlockNumber = BigInt(blockchainConfig.getString("dao-fork-block-number"))
-    val daoForkBlockTotalDifficulty = BigInt(blockchainConfig.getString("dao-fork-block-total-difficulty"))
-    val daoForkBlockHash = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
-
-    val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
-
-    val blockReward = UInt256(BigInt(blockchainConfig.getString("block-reward")))
   }
 
   object FastSync {
@@ -137,4 +117,44 @@ object Config {
 
   }
 
+}
+
+trait BlockchainConfig {
+  val frontierBlockNumber: BigInt
+  val homesteadBlockNumber: BigInt
+  val eip150BlockNumber: BigInt
+  val eip160BlockNumber: BigInt
+
+  val customGenesisFileOpt: Option[String]
+
+  val daoForkBlockNumber: BigInt
+  val daoForkBlockTotalDifficulty: BigInt
+  val daoForkBlockHash: ByteString
+
+  val chainId: Byte
+
+  val blockReward: UInt256
+}
+
+object BlockchainConfig {
+  def apply(etcClientConfig: com.typesafe.config.Config): BlockchainConfig = {
+    val blockchainConfig = etcClientConfig.getConfig("blockchain")
+
+    new BlockchainConfig {
+      override val frontierBlockNumber: BigInt = BigInt(blockchainConfig.getString("frontier-block-number"))
+      override val homesteadBlockNumber: BigInt = BigInt(blockchainConfig.getString("homestead-block-number"))
+      override val eip150BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip150-block-number"))
+      override val eip160BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip160-block-number"))
+
+      override val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
+
+      override val daoForkBlockNumber: BigInt = BigInt(blockchainConfig.getString("dao-fork-block-number"))
+      override val daoForkBlockTotalDifficulty: BigInt = BigInt(blockchainConfig.getString("dao-fork-block-total-difficulty"))
+      override val daoForkBlockHash: ByteString = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
+
+      override val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
+
+      override val blockReward: UInt256 = UInt256(BigInt(blockchainConfig.getString("block-reward")))
+    }
+  }
 }

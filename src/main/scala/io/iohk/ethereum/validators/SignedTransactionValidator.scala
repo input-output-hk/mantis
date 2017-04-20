@@ -5,12 +5,12 @@ import java.math.BigInteger
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators.SignedTransactionError._
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.vm.{EvmConfig, UInt256}
 
 trait SignedTransactionValidator {
 
-  def validate(stx: SignedTransaction, senderAccount: Account, blockHeader: BlockHeader, config: EvmConfig,
+  def validate(stx: SignedTransaction, senderAccount: Account, blockHeader: BlockHeader, config: EvmConfig, blockchainConfig: BlockchainConfig,
                calculateUpfrontGasCost: Transaction => UInt256, accumGasLimit: BigInt): Either[SignedTransactionError, SignedTransaction]
 
 }
@@ -30,11 +30,11 @@ object SignedTransactionValidator extends SignedTransactionValidator {
     * @param accumGasUsed               Total amount of gas spent prior this transaction within the container block
     * @return Transaction if valid, error otherwise
     */
-  def validate(stx: SignedTransaction, senderAccount: Account, blockHeader: BlockHeader, config: EvmConfig,
+  def validate(stx: SignedTransaction, senderAccount: Account, blockHeader: BlockHeader, config: EvmConfig, blockchainConfig: BlockchainConfig,
                calculateUpfrontGasCost: Transaction => UInt256, accumGasUsed: BigInt): Either[SignedTransactionError, SignedTransaction] = {
     for {
       _ <- checkSyntacticValidity(stx)
-      _ <- validateSignature(stx, fromBeforeHomestead = blockHeader.number < Config.Blockchain.homesteadBlockNumber)
+      _ <- validateSignature(stx, fromBeforeHomestead = blockHeader.number < blockchainConfig.homesteadBlockNumber)
       _ <- validateNonce(stx, senderAccount.nonce)
       _ <- validateGas(stx, config)
       _ <- validateAccountHasEnoughGasToPayUpfrontCost(stx, senderAccount.balance, calculateUpfrontGasCost)

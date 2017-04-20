@@ -4,8 +4,9 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.Ledger._
-import io.iohk.ethereum.utils.{Config, Logger}
+import io.iohk.ethereum.ledger.Ledger.{PC, PR, TxResult, BlockResult}
+import io.iohk.ethereum.utils.{Config, BlockchainConfig, Logger}
+import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
@@ -17,7 +18,7 @@ trait Ledger {
 
 }
 
-class LedgerImpl(vm: VM) extends Ledger with Logger {
+class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with Logger {
 
   def executeBlock(
     block: Block,
@@ -31,7 +32,7 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
 
       execResult <- executeBlockTransactions(block, blockchain, storages, validators.signedTransactionValidator)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
-      worldToPersist = payBlockReward(Config.Blockchain.blockReward, block, resultingWorldStateProxy)
+      worldToPersist = payBlockReward(blockchainConfig.blockReward, block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
 
       _ <- validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed, validators.blockValidator)
@@ -59,7 +60,7 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = InMemoryWorldStateProxy(storages, storages.nodeStorage, parentStateRoot)
 
-    val config = EvmConfig.forBlock(block.header.number)
+    val config = EvmConfig.forBlock(block.header.number, blockchainConfig)
 
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
     val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, config, signedTransactionValidator)
@@ -95,7 +96,7 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
         val senderAccount = world.getAccount(stx.senderAddress)
         val validatedStx = senderAccount
           .toRight(Left(TxsExecutionError(s"Account of tx sender ${Hex.toHexString(stx.senderAddress.toArray)} not found")))
-          .flatMap(account => signedTransactionValidator.validate(stx, account, blockHeader, config, calculateUpfrontCost, acumGas))
+          .flatMap(account => signedTransactionValidator.validate(stx, account, blockHeader, config, blockchainConfig, calculateUpfrontCost, acumGas))
         validatedStx match {
           case Right(_) =>
             val TxResult(newWorld, gasUsed, logs) = executeTransaction(stx, blockHeader, world)
@@ -115,14 +116,16 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
   private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
     val gasPrice = UInt256(stx.tx.gasPrice)
     val gasLimit = UInt256(stx.tx.gasLimit)
+    val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
-    val worldBeforeTransfer = updateSenderAccountBeforeExecution(stx, world)
-    val result = runVM(stx, blockHeader, worldBeforeTransfer)
+    val checkpointWorldState = updateSenderAccountBeforeExecution(stx, world)
+    val context = prepareProgramContext(stx, blockHeader, checkpointWorldState, config)
+    val result = runVM(stx, context, config)
 
     val resultWithErrorHandling: PR =
       if(result.error.isDefined) {
         //Rollback to the world before transfer was done if an error happened
-        result.copy(world = worldBeforeTransfer, addressesToDelete = Nil)
+        result.copy(world = checkpointWorldState, addressesToDelete = Nil, logs = Nil)
       } else
         result
 
@@ -240,9 +243,34 @@ class LedgerImpl(vm: VM) extends Ledger with Logger {
     worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce)
   }
 
-  private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy): PR = {
-    val config = EvmConfig.forBlock(blockHeader.number)
-    val context: PC = ProgramContext(stx, blockHeader, worldStateProxy, config)
+  private[ledger] def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy, config: EvmConfig): PC =
+    stx.tx.receivingAddress match {
+      case None =>
+        val address = worldStateProxy.createAddress(stx.senderAddress)
+        val world1 = worldStateProxy.newEmptyAccount(address)
+        val world2 = world1.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
+        ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, world2, config)
+
+      case Some(txReceivingAddress) =>
+        val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
+        ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, config)
+    }
+
+  /**
+    * The sum of the transaction’s gas limit and the gas utilised in this block prior must be no greater than the
+    * block’s gasLimit
+    *
+    * @param stx           Transaction to validate
+    * @param accumGasLimit Gas spent within tx container block prior executing stx
+    * @param blockGasLimit Block gas limit
+    * @return Either the validated transaction or an error description
+    */
+  def validateGasLimit(stx: SignedTransaction, accumGasLimit: BigInt, blockGasLimit: BigInt): Either[String, SignedTransaction] = {
+    if (stx.tx.gasLimit + accumGasLimit <= blockGasLimit) Right(stx)
+    else Left("Transaction gas limit plus accumulated gas exceeds block gas limit")
+  }
+
+  private def runVM(stx: SignedTransaction, context: PC, config: EvmConfig): PR = {
     val result: PR = vm.run(context)
     if (stx.tx.isContractInit && result.error.isEmpty)
       saveNewContract(context.env.ownerAddr, result, config)

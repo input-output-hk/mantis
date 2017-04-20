@@ -7,6 +7,7 @@ import fr.cryptohash.{Keccak256, Keccak512}
 import org.spongycastle.asn1.sec.SECNamedCurves
 import org.spongycastle.asn1.x9.X9ECParameters
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.spongycastle.crypto.digests.RIPEMD160Digest
 import org.spongycastle.crypto.generators.ECKeyPairGenerator
 import org.spongycastle.crypto.params.{ECDomainParameters, ECKeyGenerationParameters}
 
@@ -42,4 +43,14 @@ package object crypto {
     generator.generateKeyPair()
   }
 
+  def ripemd160(input: Array[Byte]): Array[Byte] = {
+    val digest = new RIPEMD160Digest
+    digest.update(input, 0, input.length)
+    val out = Array.ofDim[Byte](digest.getDigestSize)
+    digest.doFinal(out, 0)
+    out
+  }
+
+  def ripemd160(input: ByteString): ByteString =
+    ByteString(ripemd160(input.toArray))
 }

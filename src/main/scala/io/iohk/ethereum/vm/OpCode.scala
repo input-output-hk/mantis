@@ -262,11 +262,11 @@ case object SDIV extends BinaryOp(0x05, _.G_low)(_ sdiv _) with ConstGas
 
 case object MOD extends BinaryOp(0x06, _.G_low)(_ mod _) with ConstGas
 
-case object SMOD extends BinaryOp(0x06, _.G_low)(_ smod _) with ConstGas
+case object SMOD extends BinaryOp(0x07, _.G_low)(_ smod _) with ConstGas
 
-case object ADDMOD extends TernaryOp(0x07, _.G_mid)(_.addmod(_, _)) with ConstGas
+case object ADDMOD extends TernaryOp(0x08, _.G_mid)(_.addmod(_, _)) with ConstGas
 
-case object MULMOD extends TernaryOp(0x08, _.G_mid)(_.mulmod(_, _)) with ConstGas
+case object MULMOD extends TernaryOp(0x09, _.G_mid)(_.mulmod(_, _)) with ConstGas
 
 case object EXP extends BinaryOp(0x0a, _.G_exp)(_ ** _) {
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
@@ -692,7 +692,7 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
       val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
       val startGas = state.config.gasCap(availableGas)
 
-      val context = ProgramContext[W, S](newEnv, startGas, world2, state.config)
+      val context = ProgramContext[W, S](newEnv, newAddress, startGas, world2, state.config)
       val result = VM.run(context)
 
       val codeDepositGas = state.config.calcCodeDepositCost(result.returnData)
@@ -773,6 +773,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
 
       val context: ProgramContext[W, S] = state.context.copy(
         env = env,
+        receivingAddr = toAddr,
         startGas = startGas,
         world = world1)
 

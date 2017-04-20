@@ -6,12 +6,15 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Account, Address, Block, SignedTransaction, Transaction}
 import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.validators.SignedTransactionError.{TransactionSignatureError, TransactionSyntaxError}
 import io.iohk.ethereum.vm.{EvmConfig, UInt256}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
+
+  val blockchainConfig = BlockchainConfig(Config.config)
 
   //From block 0x228943f4ef720ac91ca09c08056d7764c2a1650181925dfaeb484f27e544404e with number 1100000 (tx index 0)
   val txBeforeHomestead = Transaction(
@@ -25,7 +28,8 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
     txBeforeHomestead,
     pointSign = 0x1b,
     signatureRandom = ByteString(Hex.decode("12bfc6e767e518c50f59006556ecc9911593094cfb6f6ef78c9959e3327137a3")),
-    signature = ByteString(Hex.decode("13696dc6b5b601d19960a4f764416d36b271fc292bb87e2c36aea25d52f49064"))).get
+    signature = ByteString(Hex.decode("13696dc6b5b601d19960a4f764416d36b271fc292bb87e2c36aea25d52f49064")),
+    chainId = 0x3d.toByte).get
 
   //From block 0xdc7874d8ea90b63aa0ba122055e514db8bb75c0e7d51a448abd12a31ca3370cf with number 1200003 (tx index 0)
   val txAfterHomestead = Transaction(
@@ -39,7 +43,8 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
     txAfterHomestead,
     pointSign = 0x1c,
     signatureRandom = ByteString(Hex.decode("f337e8ca3306c131eabb756aa3701ec7b00bef0d6cc21fbf6a6f291463d58baf")),
-    signature = ByteString(Hex.decode("72216654137b4b58a4ece0a6df87aa1a4faf18ec4091839dd1c722fa9604fd09"))).get
+    signature = ByteString(Hex.decode("72216654137b4b58a4ece0a6df87aa1a4faf18ec4091839dd1c722fa9604fd09")),
+    chainId = 0x3d.toByte).get
 
   val senderBalance = 100
 
@@ -68,6 +73,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
       senderAccount = senderAccount,
       blockHeader = blockHeader,
       config = config,
+      blockchainConfig = blockchainConfig,
       calculateUpfrontGasCost = stubCalculateUpfrontGasCost,
       accumGasUsed = accumGasUsed
     )

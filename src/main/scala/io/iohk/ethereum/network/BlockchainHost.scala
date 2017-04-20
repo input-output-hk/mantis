@@ -1,7 +1,6 @@
 package io.iohk.ethereum.network
 
-import akka.actor.Actor
-import akka.event.LoggingAdapter
+import akka.actor.{ActorLogging, Actor}
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerActor.RLPxConnection
@@ -10,11 +9,13 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, Ge
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 
-trait FastSyncHost {
+trait BlockchainHost {
+  self: Actor with ActorLogging =>
+
   val peerConfiguration: PeerConfiguration
   val blockchain: Blockchain
 
-  def handleEvmMptFastDownload(rlpxConnection: RLPxConnection): Actor.Receive = {
+  def handleEvmMptFastDownload(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(request: GetNodeData) =>
       import io.iohk.ethereum.rlp.encode
 
@@ -26,7 +27,7 @@ trait FastSyncHost {
       rlpxConnection.sendMessage(NodeData(result))
   }
 
-  def handleBlockFastDownload(rlpxConnection: RLPxConnection, log: LoggingAdapter): Actor.Receive = {
+  def handleBlockFastDownload(rlpxConnection: RLPxConnection): Receive = {
     case RLPxConnectionHandler.MessageReceived(request: GetReceipts) =>
       val receipts = request.blockHashes.take(peerConfiguration.fastSyncHostConfiguration.maxReceiptsPerMessage)
         .flatMap(hash => blockchain.getReceiptsByHash(hash))

@@ -5,6 +5,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
 import io.iohk.ethereum.ledger.{BlockExecutionError, Ledger}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.validators.BlockValidator.BlockTransactionsHashError
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError.OmmersNotValidError
@@ -54,14 +55,14 @@ object Mocks {
     }
 
     override val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidator {
-      override def validate(stx: SignedTransaction, account: Account, blockHeader: BlockHeader, config: EvmConfig,
+      override def validate(stx: SignedTransaction, account: Account, blockHeader: BlockHeader, config: EvmConfig, blockchainConfig: BlockchainConfig,
                             calculateUpfrontGasCost: (Transaction) => UInt256, accumGasLimit: BigInt) = Right(stx)
     }
   }
 
   object MockValidatorsAlwaysFail extends Validators {
     override val signedTransactionValidator = new SignedTransactionValidator {
-      def validate(stx: SignedTransaction, account: Account, blockHeader: BlockHeader, config: EvmConfig,
+      def validate(stx: SignedTransaction, account: Account, blockHeader: BlockHeader, config: EvmConfig, blockchainConfig: BlockchainConfig,
                    calculateUpfrontGasCost: Transaction => UInt256, accumGasLimit: BigInt) = Left(SignedTransactionError.TransactionSignatureError)
     }
 
