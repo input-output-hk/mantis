@@ -156,7 +156,8 @@ class InMemoryWorldStateProxy private(
 
   override def deleteAccount(address: Address): InMemoryWorldStateProxy =
     copyWith(accountsStateTrie = accountsStateTrie.remove(address.bytes),
-      contractStorages = contractStorages - address)
+      contractStorages = contractStorages - address,
+      accountCodes = accountCodes - address)
 
   override def getCode(address: Address): ByteString =
     accountCodes.getOrElse(
