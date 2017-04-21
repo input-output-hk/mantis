@@ -801,6 +801,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
 
       state
         .spendGas(-result.gasRemaining)
+        .refundGas(result.gasRefund)
         .withStack(stack2)
         .withMemory(mem2)
         .withWorld(result.world)

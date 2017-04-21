@@ -53,6 +53,23 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       RETURN
     )
 
+    val selfDestructCode = Assembly(
+      PUSH1, callerAddr.toUInt256.toInt,
+      SELFDESTRUCT
+    )
+
+    val sstoreWithClearCode = Assembly(
+      //Save an value to the storage
+      PUSH1, 10,
+      PUSH1, 0,
+      SSTORE,
+
+      //Clear the store
+      PUSH1, 0,
+      PUSH1, 0,
+      SSTORE
+    )
+
     val inputData = Generators.getUInt256Gen().sample.get.bytes
     val expectedMemCost = config.calcMemCost(inputData.size, inputData.size, inputData.size / 2)
 
@@ -72,12 +89,20 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     val extProgram = extCode.program
     val invalidProgram = Program(extProgram.code.init :+ INVALID.code)
+    val selfDestructProgram = selfDestructCode.program
+    val sstoreWithClearProgram = sstoreWithClearCode.program
 
     val worldWithoutExtAccount = MockWorldState().saveAccount(ownerAddr, initialOwnerAccount)
     val worldWithExtAccount = worldWithoutExtAccount.saveAccount(extAddr, Account.Empty)
       .saveCode(extAddr, extProgram.code)
     val worldWithInvalidProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.Empty)
       .saveCode(extAddr, invalidProgram.code)
+
+    val worldWithSelfDestructProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.Empty)
+      .saveCode(extAddr, selfDestructProgram.code)
+
+    val worldWithSstoreWithClearProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.Empty)
+      .saveCode(extAddr, sstoreWithClearProgram.code)
 
     val env = ExecEnv(ownerAddr, callerAddr, callerAddr, 1, ByteString.empty, 123, Program(ByteString.empty), null, 0)
     val context: PC = ProgramContext(env, ownerAddr, 2 * requiredGas, worldWithExtAccount, config)
@@ -262,6 +287,28 @@ class CallOpcodesSpec extends WordSpec with Matchers {
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
+
+    "calling a program that executes a SELFDESTRUCT" should {
+
+      val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructProgram)
+      val call = CallResult(op = CALL, context)
+
+      "refund the correct amount of gas" in {
+        call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_selfdestruct
+      }
+
+    }
+
+    "calling a program that executes a SSTORE that clears the storage" should {
+
+      val context: PC = fxt.context.copy(world = fxt.worldWithSstoreWithClearProgram)
+      val call = CallResult(op = CALL, context)
+
+      "refund the correct amount of gas" in {
+        call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
+      }
+
+    }
   }
 
   "CALLCODE" when {
@@ -407,6 +454,28 @@ class CallOpcodesSpec extends WordSpec with Matchers {
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
+
+    "calling a program that executes a SELFDESTRUCT" should {
+
+      val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructProgram)
+      val call = CallResult(op = CALL, context)
+
+      "refund the correct amount of gas" in {
+        call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_selfdestruct
+      }
+
+    }
+
+    "calling a program that executes a SSTORE that clears the storage" should {
+
+      val context: PC = fxt.context.copy(world = fxt.worldWithSstoreWithClearProgram)
+      val call = CallResult(op = CALL, context)
+
+      "refund the correct amount of gas" in {
+        call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
+      }
+
+    }
   }
 
   "DELEGATECALL" when {
@@ -524,6 +593,28 @@ class CallOpcodesSpec extends WordSpec with Matchers {
         val expectedGas = contractCost + G_call + config.calcMemCost(128, 128, 20)
         call.stateOut.gasUsed shouldEqual expectedGas
       }
+    }
+
+    "calling a program that executes a SELFDESTRUCT" should {
+
+      val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructProgram)
+      val call = CallResult(op = CALL, context)
+
+      "refund the correct amount of gas" in {
+        call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_selfdestruct
+      }
+
+    }
+
+    "calling a program that executes a SSTORE that clears the storage" should {
+
+      val context: PC = fxt.context.copy(world = fxt.worldWithSstoreWithClearProgram)
+      val call = CallResult(op = CALL, context)
+
+      "refund the correct amount of gas" in {
+        call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
+      }
+
     }
   }
 
