@@ -59,7 +59,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     )
 
     val sstoreWithClearCode = Assembly(
-      //Save an value to the storage
+      //Save a value to the storage
       PUSH1, 10,
       PUSH1, 0,
       SSTORE,

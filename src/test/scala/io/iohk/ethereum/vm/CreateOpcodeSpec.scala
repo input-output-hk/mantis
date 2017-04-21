@@ -42,6 +42,23 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       RETURN
     )
 
+    val initWithSelfDestruct = Assembly(
+      PUSH1, creatorAddr.toUInt256.toInt,
+      SELFDESTRUCT
+    )
+
+    val initWithSstoreWithClear = Assembly(
+      //Save a value to the storage
+      PUSH1, 10,
+      PUSH1, 0,
+      SSTORE,
+
+      //Clear the store
+      PUSH1, 0,
+      PUSH1, 0,
+      SSTORE
+    )
+
     val createCode = Assembly(initPart.byteCode ++ contractCode.byteCode: _*)
 
     val copyCodeGas = G_copy * wordsForBytes(contractCode.code.size) + config.calcMemCost(0, 0, contractCode.code.size)
@@ -54,9 +71,9 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val context: PC = ProgramContext(env, Address(0), 2 * gasRequiredForCreation, initWorld, config)
   }
 
-  case class CreateResult(context: PC = fxt.context, value: UInt256 = fxt.endowment) {
-    val mem = Memory.empty.store(0, fxt.createCode.code)
-    val stack = Stack.empty().push(Seq[UInt256](fxt.createCode.code.size, 0, value))
+  case class CreateResult(context: PC = fxt.context, value: UInt256 = fxt.endowment, createCode: Assembly = fxt.createCode) {
+    val mem = Memory.empty.store(0, createCode.code)
+    val stack = Stack.empty().push(Seq[UInt256](createCode.code.size, 0, value))
     val stateIn: PS = ProgramState(context).withStack(stack).withMemory(mem)
     val stateOut: PS = CREATE.execute(stateIn)
 
@@ -155,5 +172,33 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
         result.stateOut.gasUsed shouldEqual G_create
       }
     }
+  }
+
+  "initialization includes SELFDESTRUCT opcode" should {
+    val gasRequiredForInit = fxt.initWithSelfDestruct.linearConstGas(config) + G_newaccount
+    val gasRequiredForCreation = gasRequiredForInit + G_create
+
+    val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation)
+    val result = CreateResult(context = context, createCode = fxt.initWithSelfDestruct)
+
+    "refund the correct amount of gas" in {
+      result.stateOut.gasRefund shouldBe result.stateOut.config.feeSchedule.R_selfdestruct
+    }
+
+  }
+
+  "initialization includes a SSTORE opcode that clears the storage" should {
+
+    val codeExecGas = G_sreset + G_sset
+    val gasRequiredForInit = fxt.initWithSstoreWithClear.linearConstGas(config) + codeExecGas
+    val gasRequiredForCreation = gasRequiredForInit + G_create
+
+    val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation)
+    val call = CreateResult(context = context, createCode = fxt.initWithSstoreWithClear)
+
+    "refund the correct amount of gas" in {
+      call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
+    }
+
   }
 }

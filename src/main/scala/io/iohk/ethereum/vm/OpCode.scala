@@ -719,6 +719,7 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
           }
 
         state1
+          .refundGas(result.gasRefund)
           .withStack(stack2)
           .withAddressesToDelete(result.addressesToDelete)
           .withLogs(result.logs)
