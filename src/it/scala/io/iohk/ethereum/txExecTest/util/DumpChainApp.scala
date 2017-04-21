@@ -16,7 +16,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 
 object DumpChainApp extends App{
-    val conf = ConfigFactory.load("transactionTest/chainDump.conf")
+    val conf = ConfigFactory.load("txExecTest/chainDump.conf")
     val node = conf.getString("node")
     val genesisHash = ByteString(Hex.decode(conf.getString("genesisHash")))
     val privateNetworkId = conf.getInt("networkId")
