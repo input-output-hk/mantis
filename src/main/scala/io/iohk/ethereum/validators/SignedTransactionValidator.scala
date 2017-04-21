@@ -100,7 +100,7 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     */
   private def validateNonce(stx: SignedTransaction, senderNonce: UInt256): Either[SignedTransactionError, SignedTransaction] = {
     if (senderNonce == UInt256(stx.tx.nonce)) Right(stx)
-    else Left(TransactionNonceError(s"Expected nonce ${UInt256(stx.tx.nonce)} but got $senderNonce"))
+    else Left(TransactionNonceError(UInt256(stx.tx.nonce), senderNonce))
   }
 
   /**
@@ -115,7 +115,7 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     val config = EvmConfig.forBlock(blockHeaderNumber, blockchainConfig)
     val txIntrinsicGas = config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
     if (stx.tx.gasLimit >= txIntrinsicGas) Right(stx)
-    else Left(TransactionNotEnoughGasForIntrinsicError(s"Tx gas limit ${stx.tx.gasLimit} < tx intrinsic gas $txIntrinsicGas"))
+    else Left(TransactionNotEnoughGasForIntrinsicError(stx.tx.gasLimit, txIntrinsicGas))
   }
 
   /**
@@ -130,7 +130,7 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
   : Either[SignedTransactionError, SignedTransaction] = {
     val upfrontCost = calculateUpfrontCost(stx.tx)
     if (senderBalance >= upfrontCost) Right(stx)
-    else Left(TransactionSenderCantPayUpfrontCostError(s"Upfrontcost ($upfrontCost) > sender balance ($senderBalance)"))
+    else Left(TransactionSenderCantPayUpfrontCostError(upfrontCost, senderBalance))
   }
 
   /**
@@ -145,7 +145,7 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
   private def validateBlockHasEnoughGasLimitForTx(stx: SignedTransaction, accumGasUsed: BigInt, blockGasLimit: BigInt)
   : Either[SignedTransactionError, SignedTransaction] = {
     if (stx.tx.gasLimit + accumGasUsed <= blockGasLimit) Right(stx)
-    else Left(TransactionGasLimitTooBigError(s"Tx gas limit (${stx.tx.gasLimit}) + gas accum (${accumGasUsed}) > block gas limit ($blockGasLimit)"))
+    else Left(TransactionGasLimitTooBigError(stx.tx.gasLimit, accumGasUsed, blockGasLimit))
   }
 }
 
@@ -154,8 +154,20 @@ sealed trait SignedTransactionError
 object SignedTransactionError {
   case object TransactionSignatureError extends SignedTransactionError
   case class TransactionSyntaxError(reason: String) extends SignedTransactionError
-  case class TransactionNonceError(reason: String) extends SignedTransactionError
-  case class TransactionNotEnoughGasForIntrinsicError(reason: String) extends SignedTransactionError
-  case class TransactionSenderCantPayUpfrontCostError(reason: String) extends SignedTransactionError
-  case class TransactionGasLimitTooBigError(reason: String) extends SignedTransactionError
+  case class TransactionNonceError(txNonce: UInt256, senderNonce: UInt256) extends SignedTransactionError {
+    override def toString: String =
+      s"${getClass.getSimpleName}(Expected nonce $txNonce but got $senderNonce)"
+  }
+  case class TransactionNotEnoughGasForIntrinsicError(txGasLimit: BigInt, txIntrinsicGas: UInt256) extends SignedTransactionError {
+    override def toString: String =
+      s"${getClass.getSimpleName}(Tx gas limit ($txGasLimit) < tx intrinsic gas ($txIntrinsicGas))"
+  }
+  case class TransactionSenderCantPayUpfrontCostError(upfrontCost: UInt256, senderBalance: UInt256) extends SignedTransactionError {
+    override def toString: String =
+      s"${getClass.getSimpleName}(Upfrontcost ($upfrontCost) > sender balance ($senderBalance))"
+  }
+  case class TransactionGasLimitTooBigError(txGasLimit: BigInt, accumGasUsed: BigInt, blockGasLimit: BigInt) extends SignedTransactionError {
+    override def toString: String =
+      s"${getClass.getSimpleName}(Tx gas limit ($txGasLimit) + gas accum ($accumGasUsed) > block gas limit ($blockGasLimit))"
+  }
 }

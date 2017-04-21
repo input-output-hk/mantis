@@ -51,7 +51,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     * @param storages
     * @param signedTransactionValidator
     */
-  private[ledger] def executeBlockTransactions(
+  private def executeBlockTransactions(
     block: Block,
     blockchain: Blockchain,
     storages: BlockchainStorages,
@@ -92,7 +92,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
       case Seq(stx, otherStxs@_*) =>
         val senderAccount = world.getAccount(stx.senderAddress)
         val validatedStx = senderAccount
-          .toRight(Left(TxsExecutionError(s"Account of tx sender ${Hex.toHexString(stx.senderAddress.toArray)} not found")))
+          .toRight(Left(TxsExecutionError(s"Account of tx sender ${stx.senderAddress.toString} not found")))
           .flatMap(account => signedTransactionValidator.validate(stx, account, blockHeader, calculateUpfrontCost, acumGas))
         validatedStx match {
           case Right(_) =>
@@ -325,7 +325,7 @@ object Ledger {
   case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry])
 }
 
-trait BlockExecutionError
+sealed trait BlockExecutionError
 
 object BlockExecutionError {
   case class ValidationBeforeExecError(reason: String) extends BlockExecutionError
