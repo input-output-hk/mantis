@@ -262,11 +262,11 @@ case object SDIV extends BinaryOp(0x05, _.G_low)(_ sdiv _) with ConstGas
 
 case object MOD extends BinaryOp(0x06, _.G_low)(_ mod _) with ConstGas
 
-case object SMOD extends BinaryOp(0x06, _.G_low)(_ smod _) with ConstGas
+case object SMOD extends BinaryOp(0x07, _.G_low)(_ smod _) with ConstGas
 
-case object ADDMOD extends TernaryOp(0x07, _.G_mid)(_.addmod(_, _)) with ConstGas
+case object ADDMOD extends TernaryOp(0x08, _.G_mid)(_.addmod(_, _)) with ConstGas
 
-case object MULMOD extends TernaryOp(0x08, _.G_mid)(_.mulmod(_, _)) with ConstGas
+case object MULMOD extends TernaryOp(0x09, _.G_mid)(_.mulmod(_, _)) with ConstGas
 
 case object EXP extends BinaryOp(0x0a, _.G_exp)(_ ** _) {
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): UInt256 = {
