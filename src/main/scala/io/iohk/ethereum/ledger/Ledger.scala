@@ -128,17 +128,16 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
       } else
         result
 
-    val gasUsed = if(resultWithErrorHandling.error.isDefined) gasLimit else gasLimit - resultWithErrorHandling.gasRemaining
-    val gasRefund = calcGasRefund(stx, resultWithErrorHandling)
+    val totalGasToRefund = calcTotalGasToRefund(stx, resultWithErrorHandling)
 
-    val refundGasFn = pay(stx.senderAddress, gasRefund * gasPrice) _
-    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (gasLimit - gasRefund) * gasPrice) _
+    val refundGasFn = pay(stx.senderAddress, totalGasToRefund * gasPrice) _
+    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (gasLimit - totalGasToRefund) * gasPrice) _
     val deleteAccountsFn = deleteAccounts(resultWithErrorHandling.addressesToDelete) _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
 
     val world2 = (refundGasFn andThen payMinerForGasFn andThen deleteAccountsFn andThen persistStateFn)(resultWithErrorHandling.world)
 
-    TxResult(world2, gasUsed, resultWithErrorHandling.logs)
+    TxResult(world2, gasLimit - totalGasToRefund, resultWithErrorHandling.logs)
   }
 
   private def validateBlockBeforeExecution(block: Block, blockchain: Blockchain, validators: Validators): Either[BlockExecutionError, Unit] = {
@@ -357,10 +356,10 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
   }
 
   /**
-    * Calculate gas refund
-    * See YP, eq (72) - only the right addend
+    * Calculate total gas to be refunded
+    * See YP, eq (72)
     */
-  private def calcGasRefund(stx: SignedTransaction, result: PR): UInt256 = {
+  private def calcTotalGasToRefund(stx: SignedTransaction, result: PR): UInt256 = {
     if (result.error.isDefined)
       0
     else {
