@@ -77,7 +77,7 @@ object SignedTransaction {
 
   def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Byte): SignedTransaction = {
     val bytes = bytesToSign(tx, chainId)
-    val sig = ECDSASignature.sign(bytes, keyPair)
+    val sig = ECDSASignature.sign(bytes, keyPair, Some(chainId))
     val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
     val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
     SignedTransaction(tx, sig, address)

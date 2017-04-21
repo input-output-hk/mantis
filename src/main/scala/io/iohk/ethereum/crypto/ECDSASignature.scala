@@ -24,7 +24,7 @@ object ECDSASignature {
     ECDSASignature(BigInt(1, r.toArray), BigInt(1, s.toArray), BigInt(v.toArray).toByte)
   }
 
-  def sign(message: Array[Byte], keyPair: AsymmetricCipherKeyPair): ECDSASignature = {
+  def sign(message: Array[Byte], keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte] = None): ECDSASignature = {
     val signer = new ECDSASigner(new HMacDSAKCalculator(new SHA256Digest))
     signer.init(true, keyPair.getPrivate)
     val components = signer.generateSignature(message)
@@ -34,7 +34,13 @@ object ECDSASignature {
       .calculateV(r, s, keyPair, message)
       .getOrElse(throw new RuntimeException("Failed to calculate signature rec id"))
 
-    ECDSASignature(r, s, v)
+    val pointSign = chainId match {
+      case Some(id) if v == negativePointSign => (id * 2 + newNegativePointSign).toByte
+      case Some(id) if v == positivePointSign => (id * 2 + newPositivePointSign).toByte
+      case None => v
+    }
+
+    ECDSASignature(r, s, pointSign)
   }
 
   /**
