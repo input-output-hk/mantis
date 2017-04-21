@@ -16,10 +16,10 @@ case class Receipt(
   override def toString: String = {
     s"""
        |Receipt{
-       |postTransactionStateHash: ${Hex.toHexString(postTransactionStateHash.toArray[Byte])}
-       |cumulativeGasUsed: $cumulativeGasUsed
-       |logsBloomFilter: ${Hex.toHexString(logsBloomFilter.toArray[Byte])}
-       |logs: $logs
+       | postTransactionStateHash: ${Hex.toHexString(postTransactionStateHash.toArray[Byte])}
+       | cumulativeGasUsed: $cumulativeGasUsed
+       | logsBloomFilter: ${Hex.toHexString(logsBloomFilter.toArray[Byte])}
+       | logs: $logs
        |}
        """.stripMargin
   }
