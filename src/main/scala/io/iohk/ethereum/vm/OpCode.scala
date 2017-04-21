@@ -796,7 +796,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
 
     } else {
       val stack2 = stack1.push(UInt256.One)
-      val output = result.returnData.take(outSize.toInt)
+      val output = result.returnData.take(outSize.toInt).padTo(outSize.toInt, 0.toByte)
       val mem2 = mem1.store(outOffset, output)
 
       state

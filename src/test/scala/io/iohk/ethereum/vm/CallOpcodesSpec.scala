@@ -138,6 +138,18 @@ class CallOpcodesSpec extends WordSpec with Matchers {
         call.stateOut.stack.pop._1 shouldEqual UInt256.One
       }
 
+      "should store contract's return data in memory" in {
+        //here the passed data size is equal to the contract's return data size
+
+        val expectedData = fxt.inputData.take(fxt.inputData.size / 2)
+        val actualData = call.stateOut.memory.load(call.outOffset, call.outSize)._1
+        actualData shouldEqual expectedData
+
+        val expectedSize = (call.outOffset + call.outSize).toInt
+        val actualSize = call.stateOut.memory.size
+        expectedSize shouldEqual actualSize
+      }
+
       "consume correct gas (refund unused gas)" in {
         val expectedGas = fxt.requiredGas - G_callstipend + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
@@ -266,7 +278,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
   "CALLCODE" when {
     "external code terminates normally" should {
-      val call = CallResult(op = CALLCODE)
+      val call = CallResult(op = CALLCODE, outSize = fxt.inputData.size * 2)
 
       "update own account's storage" in {
         call.extStorage shouldEqual MockStorage.Empty
@@ -288,8 +300,21 @@ class CallOpcodesSpec extends WordSpec with Matchers {
         call.stateOut.stack.pop._1 shouldEqual UInt256(1)
       }
 
+      "should store contract's return data in memory" in {
+        //here the passed data size is greater than the contract's return data size
+
+        val expectedData = fxt.inputData.take(fxt.inputData.size / 2).padTo(call.outSize.toInt, 0)
+        val actualData = call.stateOut.memory.load(call.outOffset, call.outSize)._1
+        actualData shouldEqual expectedData
+
+        val expectedSize = (call.outOffset + call.outSize).toInt
+        val actualSize = call.stateOut.memory.size
+        expectedSize shouldEqual actualSize
+      }
+
       "consume correct gas (refund unused gas)" in {
-        val expectedGas = fxt.requiredGas - G_callstipend + G_call + G_callvalue + fxt.expectedMemCost
+        val expectedMemCost = config.calcMemCost(fxt.inputData.size, fxt.inputData.size, call.outSize)
+        val expectedGas = fxt.requiredGas - G_callstipend + G_call + G_callvalue + expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
@@ -411,7 +436,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
   "DELEGATECALL" when {
     "external code terminates normally" should {
-      val call = CallResult(op = DELEGATECALL)
+      val call = CallResult(op = DELEGATECALL, outSize = fxt.inputData.size / 4)
 
       "update own account's storage" in {
         call.extStorage shouldEqual MockStorage.Empty
@@ -433,8 +458,21 @@ class CallOpcodesSpec extends WordSpec with Matchers {
         call.stateOut.stack.pop._1 shouldEqual UInt256(1)
       }
 
+      "should store contract's return data in memory" in {
+        //here the passed data size is less than the contract's return data size
+
+        val expectedData = fxt.inputData.take(call.outSize.toInt)
+        val actualData = call.stateOut.memory.load(call.outOffset, call.outSize)._1
+        actualData shouldEqual expectedData
+
+        val expectedSize = (call.outOffset + call.outSize).toInt
+        val actualSize = call.stateOut.memory.size
+        expectedSize shouldEqual actualSize
+      }
+
       "consume correct gas (refund unused gas)" in {
-        val expectedGas = fxt.requiredGas + G_call + fxt.expectedMemCost
+        val expectedMemCost = config.calcMemCost(fxt.inputData.size, fxt.inputData.size, call.outSize)
+        val expectedGas = fxt.requiredGas + G_call + expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
     }
