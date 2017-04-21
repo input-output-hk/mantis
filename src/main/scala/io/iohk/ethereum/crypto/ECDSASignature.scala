@@ -1,7 +1,5 @@
 package io.iohk.ethereum.crypto
 
-import java.math.BigInteger
-
 import akka.util.ByteString
 import org.spongycastle.asn1.x9.X9IntegerConverter
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
@@ -23,7 +21,7 @@ object ECDSASignature {
   val newPositivePointSign: Byte = 36
 
   def apply(r: ByteString, s: ByteString, v: ByteString): ECDSASignature = {
-    ECDSASignature(new BigInteger(1, r.toArray), new BigInteger(1, s.toArray), BigInt(v.toArray).toByte)
+    ECDSASignature(BigInt(1, r.toArray), BigInt(1, s.toArray), BigInt(v.toArray).toByte)
   }
 
   def sign(message: Array[Byte], keyPair: AsymmetricCipherKeyPair): ECDSASignature = {
@@ -57,13 +55,13 @@ object ECDSASignature {
     }
   }
 
-  private def canonicalise(s: BigInteger): BigInteger = {
-    val halfCurveOrder = curveParams.getN.shiftRight(1)
-    if (s.compareTo(halfCurveOrder) > 0) curve.getN.subtract(s)
+  private def canonicalise(s: BigInt): BigInt = {
+    val halfCurveOrder: BigInt = curveParams.getN.shiftRight(1)
+    if (s > halfCurveOrder) BigInt(curve.getN) - s
     else s
   }
 
-  private def calculateV(r: BigInteger, s: BigInteger, key: AsymmetricCipherKeyPair, message: Array[Byte]): Option[Byte] = {
+  private def calculateV(r: BigInt, s: BigInt, key: AsymmetricCipherKeyPair, message: Array[Byte]): Option[Byte] = {
     val pubKey = key.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
     val recIdOpt = Seq(positivePointSign, negativePointSign).find { i =>
       recoverPubBytes(r, s, i, None, message).exists(java.util.Arrays.equals(_, pubKey))
@@ -71,9 +69,11 @@ object ECDSASignature {
     recIdOpt
   }
 
-  private def recoverPubBytes(r: BigInteger, s: BigInteger, recId: Byte, chainId: Option[Byte], message: Array[Byte]): Option[Array[Byte]] = {
+  private def recoverPubBytes(r: BigInt, s: BigInt, recId: Byte, chainId: Option[Byte], message: Array[Byte]): Option[Array[Byte]] = {
     val order = curve.getCurve.getOrder
-    val xCoordinate = r //ignore case when x = r + order because it is negligibly improbable
+    //ignore case when x = r + order because it is negligibly improbable
+    //says: https://github.com/paritytech/rust-secp256k1/blob/f998f9a8c18227af200f0f7fdadf8a6560d391ff/depend/secp256k1/src/ecdsa_impl.h#L282
+    val xCoordinate = r
     val curveFp = curve.getCurve.asInstanceOf[ECCurve.Fp]
     val prime = curveFp.getQ
 
@@ -81,26 +81,32 @@ object ECDSASignature {
       if (xCoordinate.compareTo(prime) < 0) {
         val R = constructPoint(xCoordinate, recovery)
         if (R.multiply(order).isInfinity) {
-          val e = new BigInteger(1, message)
+          val e = BigInt(1, message)
           val rInv = r.modInverse(order)
           //Q = r^(-1)(sR - eG)
-          val q = R.multiply(s).subtract(curve.getG.multiply(e)).multiply(rInv)
+          val q = R.multiply(s.bigInteger).subtract(curve.getG.multiply(e.bigInteger)).multiply(rInv.bigInteger)
           Some(q.getEncoded(false))
         } else None
       } else None
     }
   }
 
-  private def constructPoint(xCoordinate: BigInteger, recId: Int): ECPoint = {
+  private def constructPoint(xCoordinate: BigInt, recId: Int): ECPoint = {
     val x9 = new X9IntegerConverter
-    val compEnc = x9.integerToBytes(xCoordinate, 1 + x9.getByteLength(curve.getCurve))
+    val compEnc = x9.integerToBytes(xCoordinate.bigInteger, 1 + x9.getByteLength(curve.getCurve))
     compEnc(0) = if (recId == ECDSASignature.positivePointSign) 3.toByte else 2.toByte
     curve.getCurve.decodePoint(compEnc)
   }
 
 }
 
-case class ECDSASignature(r: BigInteger, s: BigInteger, v: Byte) {
+/**
+  * ECDSASignature r and s are same as in documentation where signature is represented by tuple (r, s)
+  * @param r - x coordinate of ephemeral public key modulo curve order N
+  * @param s - part of the signature calculated with signer private key
+  * @param v - public key recovery id
+  */
+case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
 
   def publicKey(message: Array[Byte], chainId: Option[Byte] = None): Option[Array[Byte]] =
     ECDSASignature.recoverPubBytes(r, s, v, chainId, message)

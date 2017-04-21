@@ -19,8 +19,7 @@ class PrecompiledContractsSpecEvm extends FunSuite with Matchers {
       val (_, contract) = deployContract("PrecompiledContracts")
       //FIXME: stx should use BigInts?
       val bytes = SignedTransaction.bytesToSign(tx, 0x3d.toByte)
-      val result = contract.usePrecompiledContracts(bytes, stx.signature.v,
-        BigInt(stx.signature.r), BigInt(stx.signature.s)).call()
+      val result = contract.usePrecompiledContracts(bytes, stx.signature.v, stx.signature.r, stx.signature.s).call()
 
       // even though contract specifies bytes20 as the return type, 32-byte (right zero padded) value is returned
       result.returnData.take(20) shouldEqual expectedOutput

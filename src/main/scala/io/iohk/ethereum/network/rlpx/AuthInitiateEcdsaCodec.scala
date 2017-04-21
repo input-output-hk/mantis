@@ -12,12 +12,12 @@ trait AuthInitiateEcdsaCodec {
   def encodeECDSA(sig: ECDSASignature): ByteString = {
     import sig._
 
-    val recId: Byte = (v - 27).toByte
+    val recoveryId: Byte = (v - 27).toByte
 
     ByteString(
-      asUnsignedByteArray(r).reverse.padTo(RLength, 0.toByte).reverse ++
-        asUnsignedByteArray(s).reverse.padTo(SLength, 0.toByte).reverse ++
-        Array(recId))
+      asUnsignedByteArray(r.bigInteger).reverse.padTo(RLength, 0.toByte).reverse ++
+        asUnsignedByteArray(s.bigInteger).reverse.padTo(SLength, 0.toByte).reverse ++
+        Array(recoveryId))
   }
 
   def decodeECDSA(input: Array[Byte]): ECDSASignature = {
