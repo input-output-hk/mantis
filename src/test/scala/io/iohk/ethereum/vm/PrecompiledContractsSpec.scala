@@ -23,8 +23,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     forAll(bytesGen) { bytes =>
       val hash = kec256(bytes)
       val validSig = ECDSASignature.sign(hash.toArray, keyPair)
-      //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
-      val recoveredPub = ByteUtils.padLeft(kec256(validSig.publicKey(hash).get.tail).slice(12, 32), 32, 0)
+      val recoveredPub = ByteUtils.padLeft(kec256(validSig.publicKey(hash).get).slice(12, 32), 32, 0)
 
       val inputData = hash ++ UInt256(validSig.v).bytes ++ UInt256(validSig.r).bytes ++ UInt256(validSig.s).bytes
 
