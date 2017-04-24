@@ -4,14 +4,14 @@ import java.math.BigInteger
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
-
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 
 object SignedTransaction {
 
@@ -111,4 +111,7 @@ case class SignedTransaction (
          |sender: ${Hex.toHexString(senderAddress.bytes.toArray)}
          |}""".stripMargin
   }
+
+  lazy val hash: ByteString = ByteString(kec256(rlpEncode[SignedTransaction](this)))
+  lazy val hashAsHexString: String = Hex.toHexString(hash.toArray[Byte])
 }
