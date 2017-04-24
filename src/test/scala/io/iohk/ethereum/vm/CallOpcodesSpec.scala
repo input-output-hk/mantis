@@ -139,7 +139,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "should store contract's return data in memory" in {
-        //here the passed data size is equal to the contract's return data size
+        //here the passed data size is equal to the contract's return data size (half of the input data)
 
         val expectedData = fxt.inputData.take(fxt.inputData.size / 2)
         val actualData = call.stateOut.memory.load(call.outOffset, call.outSize)._1
