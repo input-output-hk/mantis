@@ -86,7 +86,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @return BlockHeader if valid, an [[HeaderDifficultyError]] otherwise
     */
   private def validateDifficulty(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] =
-    if(calculateDifficulty(blockHeader, parentHeader) == blockHeader.difficulty) Right(blockHeader)
+    if (calculateDifficulty(blockHeader, parentHeader) == blockHeader.difficulty) Right(blockHeader)
     else Left(HeaderDifficultyError)
 
   /**
@@ -147,9 +147,9 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
 
     val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision
     val c: BigInt =
-      if(blockHeader.number < homesteadBlockNumber){
-        if(blockHeader.unixTimestamp < parentHeader.unixTimestamp + 13) 1 else -1
-      }else{
+      if (blockHeader.number < homesteadBlockNumber) {
+        if (blockHeader.unixTimestamp < parentHeader.unixTimestamp + 13) 1 else -1
+      } else {
         val timestampDiff = blockHeader.unixTimestamp - parentHeader.unixTimestamp
         math.max(1 - timestampDiff / 10, FrontierTimestampDiffLimit)
       }
