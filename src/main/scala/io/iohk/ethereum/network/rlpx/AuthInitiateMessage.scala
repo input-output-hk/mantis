@@ -19,7 +19,7 @@ object AuthInitiateMessage extends AuthInitiateEcdsaCodec {
     AuthInitiateMessage(
       signature = decodeECDSA(input.take(ECDSASignature.EncodedLength)),
       ephemeralPublicHash = ByteString(input.slice(ECDSASignature.EncodedLength, publicKeyIndex)),
-      publicKey = curve.getCurve.decodePoint(Array(4.toByte) ++ input.slice(publicKeyIndex, nonceIndex)),
+      publicKey = curve.getCurve.decodePoint(ECDSASignature.uncompressedIndicator +: input.slice(publicKeyIndex, nonceIndex)),
       nonce = ByteString(input.slice(nonceIndex, knownPeerIndex)),
       knownPeer = input(knownPeerIndex) == 1)
   }
@@ -35,6 +35,7 @@ case class AuthInitiateMessage(
   lazy val encoded: ByteString = {
     encodeECDSA(signature) ++
     ephemeralPublicHash ++
+    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
     publicKey.getEncoded(false).drop(1) ++
     nonce ++
     ByteString(if (knownPeer) 1.toByte else 0.toByte)

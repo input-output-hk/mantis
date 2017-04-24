@@ -56,7 +56,7 @@ object SignedTransaction {
 
     for {
       key <- recoveredPublicKey
-      addrBytes = crypto.kec256(key.tail).slice(FirstByteOfAddress, LastByteOfAddress)
+      addrBytes = crypto.kec256(key).slice(FirstByteOfAddress, LastByteOfAddress)
       if addrBytes.length == Address.Length
     } yield Address(addrBytes)
   }
@@ -78,7 +78,8 @@ object SignedTransaction {
   def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Byte): SignedTransaction = {
     val bytes = bytesToSign(tx, chainId)
     val sig = ECDSASignature.sign(bytes, keyPair, Some(chainId))
-    val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
+    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+    val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
     val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
     SignedTransaction(tx, sig, address)
   }

@@ -148,7 +148,7 @@ case class AuthHandshaker(
 
     val signaturePubBytes = signature.publicKey(signed).get
 
-    curve.getCurve.decodePoint(signaturePubBytes)
+    curve.getCurve.decodePoint(ECDSASignature.uncompressedIndicator +: signaturePubBytes)
   }
 
   private def createAuthInitiateMessageV4(remotePubKey: ECPoint) = {

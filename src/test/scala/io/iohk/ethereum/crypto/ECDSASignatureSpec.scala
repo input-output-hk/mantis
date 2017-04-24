@@ -32,7 +32,7 @@ class ECDSASignatureSpec extends FlatSpec with Matchers with PropertyChecks {
         val signature = ECDSASignature.sign(msg, keys)
         val recPubKey = signature.publicKey(msg)
 
-        val result = recPubKey.map(curve.getCurve.decodePoint).map(_.getEncoded(true)).map(ByteString(_))
+        val result = recPubKey.map(a => ECDSASignature.uncompressedIndicator +: a).map(curve.getCurve.decodePoint).map(_.getEncoded(true)).map(ByteString(_))
         val expected = Some(pubKey.getEncoded(true)).map(ByteString(_))
 
         result shouldBe expected
