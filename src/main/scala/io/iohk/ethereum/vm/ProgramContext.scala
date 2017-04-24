@@ -16,13 +16,13 @@ object ProgramContext {
     import stx.tx
 
     // YP eq (91)
-    val programInput =
+    val inputData =
       if(tx.isContractInit) ByteString.empty
       else tx.payload
 
     val senderAddress = stx.senderAddress
 
-    val env = ExecEnv(recipientAddress, senderAddress, senderAddress, UInt256(tx.gasPrice), programInput,
+    val env = ExecEnv(recipientAddress, senderAddress, senderAddress, UInt256(tx.gasPrice), inputData,
       UInt256(tx.value), program, blockHeader, callDepth = 0)
 
     val gasLimit = tx.gasLimit - config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
