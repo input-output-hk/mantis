@@ -13,7 +13,7 @@ import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.vm._
+import io.iohk.ethereum.vm.{UInt256, _}
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
 import org.spongycastle.crypto.params.ECPublicKeyParameters
@@ -596,6 +596,34 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       val txResult = ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
 
       txResult.logs.size shouldBe logsSize
+    }
+  }
+
+  it should "correctly send the transaction input data whether it's a contract creation or not" in new TestSetup {
+
+    val txPayload = ByteString("the payload")
+
+    val table = Table[Option[Address], ByteString](
+      ("Receiving Address", "Input Data"),
+      (defaultTx.receivingAddress, txPayload),
+      (None, ByteString.empty)
+    )
+
+    forAll(table) { (maybeReceivingAddress, inputData) =>
+
+      val initialWorld = emptyWorld
+        .saveAccount(originAddress, Account(nonce = UInt256(defaultTx.nonce), balance = UInt256.MaxValue))
+
+      val mockVM = new MockVM((pc: Ledger.PC) => {
+        pc.env.inputData shouldEqual inputData
+        createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
+      })
+      val ledger = new LedgerImpl(mockVM, blockchainConfig)
+
+      val tx = defaultTx.copy(receivingAddress = maybeReceivingAddress, payload = txPayload)
+      val stx = SignedTransaction.sign(tx, originKeyPair, blockchainConfig.chainId)
+
+      ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
     }
   }
 
