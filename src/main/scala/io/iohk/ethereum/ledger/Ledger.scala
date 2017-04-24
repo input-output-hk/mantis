@@ -105,12 +105,15 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
               logs = logs
             )
 
+            log.debug(s"Receipt generated for tx ${stx.hashAsHexString}, $receipt")
+
             executeTransactions(otherStxs, newWorld, blockHeader, signedTransactionValidator, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
           case Left(error) => Left(TxsExecutionError(error.toString))
         }
     }
 
   private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
+    log.debug(s"Transaction ${stx.hashAsHexString} execution start")
     val gasPrice = UInt256(stx.tx.gasPrice)
     val gasLimit = UInt256(stx.tx.gasLimit)
     val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
@@ -127,13 +130,20 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
         result
 
     val totalGasToRefund = calcTotalGasToRefund(stx, resultWithErrorHandling)
+    val executionGasToPayToMiner = gasLimit - totalGasToRefund
 
     val refundGasFn = pay(stx.senderAddress, totalGasToRefund * gasPrice) _
-    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (gasLimit - totalGasToRefund) * gasPrice) _
+    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), executionGasToPayToMiner * gasPrice) _
     val deleteAccountsFn = deleteAccounts(resultWithErrorHandling.addressesToDelete) _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
 
     val world2 = (refundGasFn andThen payMinerForGasFn andThen deleteAccountsFn andThen persistStateFn)(resultWithErrorHandling.world)
+
+    log.debug(
+      s"""Transaction ${stx.hashAsHexString} execution end. Summary:
+         | - Error: ${result.error}.
+         | - Total Gas to Refund: $totalGasToRefund
+         | - Execution gas paid to miner: $executionGasToPayToMiner""".stripMargin)
 
     TxResult(world2, gasLimit - totalGasToRefund, resultWithErrorHandling.logs)
   }

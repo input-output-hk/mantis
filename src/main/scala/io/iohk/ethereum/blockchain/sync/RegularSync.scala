@@ -113,7 +113,7 @@ trait RegularSync {
   }
 
   private def handleBlockBodies(peer: ActorRef, m: Seq[BlockBody]) = {
-    if (m.nonEmpty) {
+    if (m.nonEmpty && headersQueue.nonEmpty) {
       val blocks = headersQueue.zip(m).map{ case (header, body) => Block(header, body) }
 
       blockchain.getBlockHeaderByHash(blocks.head.header.parentHash)
@@ -130,18 +130,21 @@ trait RegularSync {
           if(error.isDefined){
             val numberBlockFailed = blocks.head.header.number + newBlocks.length
             resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.get.toString}, in block $numberBlockFailed")
+          } else {
+            headersQueue = headersQueue.drop(blocks.length)
+            if (headersQueue.nonEmpty) {
+              val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
+              waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
+            } else {
+              context.self ! ResumeRegularSync
+            }
           }
         case None =>
-          log.error("no total difficulty for latest block") //FIXME: How do we handle this error on our blockchain?
+          //TODO: Investigate if we can recover from this error (EC-165)
+          val parentHash = Hex.toHexString(blocks.head.header.parentHash.toArray)
+          throw new IllegalStateException(s"No total difficulty for the latest block with number ${blocks.head.header.number - 1} (and hash $parentHash)")
       }
 
-      headersQueue = headersQueue.drop(blocks.length)
-      if (headersQueue.nonEmpty) {
-        val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-        waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
-      } else {
-        context.self ! ResumeRegularSync
-      }
     } else {
       //we got empty response for bodies from peer but we got block headers earlier
       resumeWithDifferentPeer(peer)

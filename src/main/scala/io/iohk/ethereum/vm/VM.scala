@@ -1,11 +1,13 @@
 package io.iohk.ethereum.vm
 
+import io.iohk.ethereum.utils.Logger
+
 import scala.annotation.tailrec
 
 /**
   * Entry point to executing a program.
   */
-class VM {
+class VM extends Logger {
 
   /**
     * Executes a program
@@ -32,6 +34,8 @@ class VM {
     state.config.byteToOpCode.get(byte) match {
       case Some(opCode) =>
         val newState = opCode.execute(state)
+        import newState._
+        log.trace(s"$opCode | pc: $pc | depth: ${env.callDepth} | stack: ${stack}")
         if (newState.halted)
           newState
         else
