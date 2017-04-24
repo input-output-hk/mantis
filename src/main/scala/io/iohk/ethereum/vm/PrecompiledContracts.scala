@@ -66,8 +66,7 @@ object PrecompiledContracts {
 
       val recovered = Try(ECDSASignature(r,s,v).publicKey(h)).getOrElse(None)
       recovered.map { bytes =>
-        //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
-        val hash = kec256(bytes.tail).slice(12, 32)
+        val hash = kec256(bytes).slice(12, 32)
         ByteUtils.padLeft(hash, 32)
       }.getOrElse(ByteString.empty)
     }
