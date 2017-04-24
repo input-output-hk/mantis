@@ -74,7 +74,7 @@ object BlockController {
       ommersHash = ommersHash,
       stateRoot = stateRoot,
       unixTimestamp = unixTimestamp,
-      transactions = transactionList.map(tx => ByteString(kec256(encode[SignedTransaction](tx)))),
+      transactions = transactionList.map(_.hash),
       transactionsRoot = transactionsRoot,
       uncles = uncleNodesList.map(h => h.hash),
       size = Block.size(block)
