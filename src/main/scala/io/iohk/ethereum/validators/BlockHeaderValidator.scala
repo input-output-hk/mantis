@@ -142,20 +142,33 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     else Left(HeaderPoWError)
   }
 
-  private def calculateDifficulty(blockHeader: BlockHeader, parentHeader: BlockHeader): BigInt = {
+  def calculateDifficulty(blockHeader: BlockHeader, parentHeader: BlockHeader): BigInt = {
+    import blockchainConfig.{homesteadBlockNumber, difficultyBombPauseBlockNumber, difficultyBombContinueBlockNumber}
+
     val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision
     val c: BigInt =
-      if(blockHeader.number < blockchainConfig.homesteadBlockNumber){
+      if(blockHeader.number < homesteadBlockNumber){
         if(blockHeader.unixTimestamp < parentHeader.unixTimestamp + 13) 1 else -1
       }else{
         val timestampDiff = blockHeader.unixTimestamp - parentHeader.unixTimestamp
         math.max(1 - timestampDiff / 10, FrontierTimestampDiffLimit)
       }
-    val difficultyBombExponent: Int = (blockHeader.number / ExpDifficultyPeriod - 2).toInt
+
+    val difficultyBombExponent: Int =
+      if (blockHeader.number < difficultyBombPauseBlockNumber)
+        (blockHeader.number / ExpDifficultyPeriod - 2).toInt
+      else if (blockHeader.number < difficultyBombContinueBlockNumber)
+        ((difficultyBombPauseBlockNumber / 100000) - 2).toInt
+      else {
+        val delay = (difficultyBombContinueBlockNumber - difficultyBombPauseBlockNumber) / 100000
+        ((blockHeader.number / 100000) - delay - 2).toInt
+      }
+
     val difficultyBomb: BigInt =
       if(difficultyBombExponent >= 0)
         BigInt(2).pow(difficultyBombExponent)
       else 0
+
     val difficultyWithoutBomb = MinimumDifficulty.max(parentHeader.difficulty + x * c)
     difficultyWithoutBomb + difficultyBomb
   }
