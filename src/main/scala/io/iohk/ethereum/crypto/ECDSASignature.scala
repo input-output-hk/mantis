@@ -118,9 +118,20 @@ object ECDSASignature {
   */
 case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
 
+  /**
+    * returns ECC point encoded with on compression and without leading byte indicating compression
+    * @param message message to be signed
+    * @param chainId optional value if you want new signing schema with recovery id calculated with chain id
+    * @return
+    */
   def publicKey(message: Array[Byte], chainId: Option[Byte] = None): Option[Array[Byte]] =
     ECDSASignature.recoverPubBytes(r, s, v, chainId, message)
 
+  /**
+    * returns ECC point encoded with on compression and without leading byte indicating compression
+    * @param message message to be signed
+    * @return
+    */
   def publicKey(message: ByteString): Option[ByteString] =
     ECDSASignature.recoverPubBytes(r, s, v, None, message.toArray[Byte]).map(ByteString(_))
 }
