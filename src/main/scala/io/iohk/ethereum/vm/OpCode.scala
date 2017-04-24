@@ -834,9 +834,9 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
   }
 
   private def gasCap[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], g: UInt256, gExtra: UInt256): UInt256 = {
-   if (state.gas >= gExtra)
+    if (state.config.subGasCapDivisor.isDefined && state.gas >= gExtra)
       g min state.config.gasCap(state.gas - gExtra)
-   else
+    else
       g
   }
 
