@@ -7,7 +7,6 @@ object Memory {
   def empty: Memory = new Memory(ByteString())
 
   private def zeros(size: Int): ByteString = ByteString(Array.fill[Byte](size)(0))
-
 }
 
 /**
@@ -18,7 +17,7 @@ object Memory {
  * https://solidity.readthedocs.io/en/latest/frequently-asked-questions.html#what-is-the-memory-keyword-what-does-it-do
  * https://github.com/ethereum/go-ethereum/blob/master/core/vm/memory.go
  */
-class Memory(private[vm] val underlying: ByteString) {
+class Memory private(private val underlying: ByteString) {
 
   import Memory.zeros
 
@@ -46,7 +45,7 @@ class Memory(private[vm] val underlying: ByteString) {
 
   def load(offset: UInt256): (UInt256, Memory) = {
     doLoad(offset, UInt256.Size) match {
-      case (bs, memory) => UInt256(bs) -> memory
+      case (bs, memory) => (UInt256(bs), memory)
     }
   }
 
@@ -56,15 +55,20 @@ class Memory(private[vm] val underlying: ByteString) {
     * The memory is automatically expanded (with zeroes) when reading previously uninitialised regions,
     * hence an OOM error may be thrown.
     */
-  private def doLoad(offset: UInt256, size: Int): (ByteString, Memory) = {
-    val start: Int = offset.toInt
-    val end: Int = start + size
-    val newUnderlying = if (end <= underlying.size)
-      underlying
-    else
-      underlying ++ zeros(end - underlying.size)
-    newUnderlying.slice(start, end) -> new Memory(newUnderlying)
-  }
+  private def doLoad(offset: UInt256, size: Int): (ByteString, Memory) =
+    if (size <= 0)
+      (ByteString.empty, this)
+    else {
+      val start: Int = offset.toInt
+      val end: Int = start + size
+
+      val newUnderlying = if (end <= underlying.size)
+        underlying
+      else
+        underlying ++ zeros(end - underlying.size)
+
+      (newUnderlying.slice(start, end), new Memory(newUnderlying))
+    }
 
   /**
     * @return memory size in bytes
