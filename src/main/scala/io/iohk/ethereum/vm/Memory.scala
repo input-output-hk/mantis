@@ -77,7 +77,7 @@ class Memory private(private val underlying: ByteString) {
     */
   def expand(offset: UInt256, size: UInt256): Memory = {
     val totalSize = (offset + size).toInt
-    if (this.size >= totalSize)
+    if (this.size >= totalSize || size.isZero)
       this
     else {
       val fill = zeros(totalSize - this.size)
