@@ -16,7 +16,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   val stackOpsFees = (pushOps ++ dupOps ++ swapOps).map(_ -> G_verylow)
   val constOpsFees = constOps.map(_ -> G_base)
 
-  val constGasFees = Map[OpCode, UInt256](
+  val constGasFees = Map[OpCode, BigInt](
     STOP -> G_zero,
     ADD -> G_verylow,
     MUL -> G_low,
@@ -59,7 +59,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     JUMPDEST -> G_jumpdest
   ) ++ stackOpsFees ++ constOpsFees
 
-  def verifyGas(expectedGas: UInt256, stateIn: PS, stateOut: PS, allowOOG: Boolean = true): Unit = {
+  def verifyGas(expectedGas: BigInt, stateIn: PS, stateOut: PS, allowOOG: Boolean = true): Unit = {
     if (stateOut.error.contains(OutOfGas) && allowOOG)
       stateIn.gas should be < expectedGas
     else if (stateOut.error.contains(OutOfGas) && !allowOOG)

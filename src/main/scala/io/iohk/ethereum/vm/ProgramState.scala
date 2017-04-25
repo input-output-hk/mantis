@@ -27,13 +27,13 @@ object ProgramState {
   */
 case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   context: ProgramContext[W, S],
-  gas: UInt256,
+  gas: BigInt,
   world: W,
   stack: Stack = Stack.empty(),
   memory: Memory = Memory.empty,
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
-  gasRefund: UInt256 = 0,
+  gasRefund: BigInt = 0,
   addressesToDelete: Seq[Address] = Nil,
   logs: Vector[TxLogEntry] = Vector.empty,
   halted: Boolean = false,
@@ -62,10 +62,10 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def inputData: ByteString = env.inputData
 
-  def spendGas(amount: UInt256): ProgramState[W, S] =
+  def spendGas(amount: BigInt): ProgramState[W, S] =
     copy(gas = gas - amount)
 
-  def refundGas(amount: UInt256): ProgramState[W, S] =
+  def refundGas(amount: BigInt): ProgramState[W, S] =
     copy(gasRefund = gasRefund + amount)
 
   def step(i: Int = 1): ProgramState[W, S] =

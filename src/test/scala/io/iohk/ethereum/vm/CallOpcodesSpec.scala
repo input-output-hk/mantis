@@ -112,7 +112,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     op: CallOp,
     context: ProgramContext[MockWorldState, MockStorage] = fxt.context,
     inputData: ByteString = fxt.inputData,
-    gas: UInt256 = fxt.requiredGas + fxt.gasMargin,
+    gas: BigInt = fxt.requiredGas + fxt.gasMargin,
     to: Address = fxt.extAddr,
     value: UInt256 = fxt.initialBalance / 2,
     inOffset: UInt256 = UInt256.Zero,
@@ -120,7 +120,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     outOffset: UInt256 = fxt.inputData.size,
     outSize: UInt256 = fxt.inputData.size / 2
   ) {
-    private val params = Seq(gas, to.toUInt256, value, inOffset, inSize, outOffset, outSize).reverse
+    private val params = Seq(UInt256(gas), to.toUInt256, value, inOffset, inSize, outOffset, outSize).reverse
 
     private val paramsForDelegate = params.take(4) ++ params.drop(5)
 

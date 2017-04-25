@@ -93,7 +93,7 @@ case class EvmConfig(
     * Calculates transaction intrinsic gas. See YP section 6.2
     *
     */
-  def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean): UInt256 = {
+  def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean): BigInt = {
     val txDataZero = txData.count(_ == 0)
     val txDataNonZero = txData.length - txDataZero
 
@@ -110,7 +110,7 @@ case class EvmConfig(
     * @param executionResultData Transaction code initialization result
     * @return Calculated gas cost
     */
-  def calcCodeDepositCost(executionResultData: ByteString): UInt256 =
+  def calcCodeDepositCost(executionResultData: ByteString): BigInt =
     G_codedeposit * executionResultData.size
 
   /**
@@ -178,39 +178,39 @@ object FeeSchedule {
 }
 
 trait FeeSchedule {
-  val G_zero: UInt256
-  val G_base: UInt256
-  val G_verylow: UInt256
-  val G_low: UInt256
-  val G_mid: UInt256
-  val G_high: UInt256
-  val G_balance: UInt256
-  val G_sload: UInt256
-  val G_jumpdest: UInt256
-  val G_sset: UInt256
-  val G_sreset: UInt256
-  val R_sclear: UInt256
-  val R_selfdestruct: UInt256
-  val G_selfdestruct: UInt256
-  val G_create: UInt256
-  val G_codedeposit: UInt256
-  val G_call: UInt256
-  val G_callvalue: UInt256
-  val G_callstipend: UInt256
-  val G_newaccount: UInt256
-  val G_exp: UInt256
-  val G_expbyte: UInt256
-  val G_memory: UInt256
-  val G_txcreate: UInt256
-  val G_txdatazero: UInt256
-  val G_txdatanonzero: UInt256
-  val G_transaction: UInt256
-  val G_log: UInt256
-  val G_logdata: UInt256
-  val G_logtopic: UInt256
-  val G_sha3: UInt256
-  val G_sha3word: UInt256
-  val G_copy: UInt256
-  val G_blockhash: UInt256
-  val G_extcode: UInt256
+  val G_zero: BigInt
+  val G_base: BigInt
+  val G_verylow: BigInt
+  val G_low: BigInt
+  val G_mid: BigInt
+  val G_high: BigInt
+  val G_balance: BigInt
+  val G_sload: BigInt
+  val G_jumpdest: BigInt
+  val G_sset: BigInt
+  val G_sreset: BigInt
+  val R_sclear: BigInt
+  val R_selfdestruct: BigInt
+  val G_selfdestruct: BigInt
+  val G_create: BigInt
+  val G_codedeposit: BigInt
+  val G_call: BigInt
+  val G_callvalue: BigInt
+  val G_callstipend: BigInt
+  val G_newaccount: BigInt
+  val G_exp: BigInt
+  val G_expbyte: BigInt
+  val G_memory: BigInt
+  val G_txcreate: BigInt
+  val G_txdatazero: BigInt
+  val G_txdatanonzero: BigInt
+  val G_transaction: BigInt
+  val G_log: BigInt
+  val G_logdata: BigInt
+  val G_logtopic: BigInt
+  val G_sha3: BigInt
+  val G_sha3word: BigInt
+  val G_copy: BigInt
+  val G_blockhash: BigInt
+  val G_extcode: BigInt
 }

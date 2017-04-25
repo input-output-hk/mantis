@@ -173,8 +173,8 @@ object OpCode {
   * @param delta number of words to be popped from stack
   * @param alpha number of words to be pushed to stack
   */
-sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constGasFn: FeeSchedule => UInt256) {
-  def this(code: Int, pop: Int, push: Int, constGasFn: FeeSchedule => UInt256) = this(code.toByte, pop, push, constGasFn)
+sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constGasFn: FeeSchedule => BigInt) {
+  def this(code: Int, pop: Int, push: Int, constGasFn: FeeSchedule => BigInt) = this(code.toByte, pop, push, constGasFn)
 
   def execute[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     if (state.stack.size < delta)
@@ -208,7 +208,7 @@ case object STOP extends OpCode(0x00, 0, 0, _.G_zero) with ConstGas {
 
 sealed abstract class UnaryOp(
     code: Int,
-    constGasFn: FeeSchedule => UInt256)(val f: UInt256 => UInt256)
+    constGasFn: FeeSchedule => BigInt)(val f: UInt256 => UInt256)
   extends OpCode(code, 1, 1, constGasFn) with ConstGas {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -219,7 +219,7 @@ sealed abstract class UnaryOp(
   }
 }
 
-sealed abstract class BinaryOp(code: Int, constGasFn: FeeSchedule => UInt256)(val f: (UInt256, UInt256) => UInt256)
+sealed abstract class BinaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val f: (UInt256, UInt256) => UInt256)
   extends OpCode(code.toByte, 2, 1, constGasFn) {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -230,7 +230,7 @@ sealed abstract class BinaryOp(code: Int, constGasFn: FeeSchedule => UInt256)(va
   }
 }
 
-sealed abstract class TernaryOp(code: Int, constGasFn: FeeSchedule => UInt256)(val f: (UInt256, UInt256, UInt256) => UInt256)
+sealed abstract class TernaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val f: (UInt256, UInt256, UInt256) => UInt256)
     extends OpCode(code.toByte, 3, 1, constGasFn) {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -489,7 +489,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(offset, value), stack1) = state.stack.pop(2)
     val oldValue = state.storage.load(offset)
-    val refund = if (value.isZero && !oldValue.isZero) state.config.feeSchedule.R_sclear else UInt256.Zero
+    val refund: BigInt = if (value.isZero && !oldValue.isZero) state.config.feeSchedule.R_sclear else 0
     val updatedStorage = state.storage.store(offset, value)
     state.withStack(stack1).withStorage(updatedStorage).refundGas(refund).step()
   }
@@ -841,8 +841,8 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
   }
 
   private def gasExtra[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], endowment: UInt256, to: Address): BigInt = {
-    val c_new = if (!state.world.accountExists(to) && this == CALL) state.config.feeSchedule.G_newaccount else UInt256.Zero
-    val c_xfer = if (endowment.isZero) UInt256.Zero else state.config.feeSchedule.G_callvalue
+    val c_new: BigInt = if (!state.world.accountExists(to) && this == CALL) state.config.feeSchedule.G_newaccount else 0
+    val c_xfer: BigInt = if (endowment.isZero) 0 else state.config.feeSchedule.G_callvalue
     state.config.feeSchedule.G_call + c_xfer + c_new
   }
 }
@@ -873,7 +873,7 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (refund, stack1) = state.stack.pop
     val refundAddr: Address = Address(refund)
-    val gasRefund = if (state.addressesToDelete contains state.ownAddress) UInt256.Zero else state.config.feeSchedule.R_selfdestruct
+    val gasRefund: BigInt = if (state.addressesToDelete contains state.ownAddress) 0 else state.config.feeSchedule.R_selfdestruct
     val world = state.world.transfer(state.ownAddress, refundAddr, state.ownBalance)
 
     state
