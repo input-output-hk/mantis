@@ -320,9 +320,8 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     stx.tx.receivingAddress match {
       case None =>
         val address = worldStateProxy.createAddress(stx.senderAddress)
-        val world1 = worldStateProxy.newEmptyAccount(address)
-        val world2 = world1.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
-        ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, world2, config)
+        val world1 = worldStateProxy.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
+        ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, world1, config)
 
       case Some(txReceivingAddress) =>
         val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
