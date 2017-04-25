@@ -62,9 +62,9 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
 
   val accumGasUsed = 0 //Both are the first tx in the block
 
-  val stubCalculateUpfrontGasCost: Transaction => UInt256 = _ => UInt256(senderBalance / 2)
+  val upfrontGasCost: UInt256 = UInt256(senderBalance / 2)
 
-  def validateStx(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransaction] = {
+  def validateStx(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, Unit] = {
     val (senderAccount, blockHeader) =
       if(fromBeforeHomestead)
         (senderAccountBeforeHomestead, blockHeaderBeforeHomestead)
@@ -74,21 +74,21 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
       stx = stx,
       senderAccount = senderAccount,
       blockHeader = blockHeader,
-      calculateUpfrontGasCost = stubCalculateUpfrontGasCost,
+      upfrontGasCost = upfrontGasCost,
       accumGasUsed = accumGasUsed
     )
   }
 
   it should "report as valid a tx from before homestead" in {
     validateStx(signedTxBeforeHomestead, fromBeforeHomestead = true) match {
-      case Right(validated) if validated == signedTxBeforeHomestead => succeed
+      case Right(_)  => succeed
       case _ => fail
     }
   }
 
   it should "report as valid a tx from after homestead" in {
     validateStx(signedTxAfterHomestead, fromBeforeHomestead = false) match {
-      case Right(validated) if validated == signedTxAfterHomestead => succeed
+      case Right(_) => succeed
       case _ => fail
     }
   }
@@ -186,13 +186,12 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
   }
 
   it should "report as invalid a tx with upfront cost higher than the sender's balance" in {
-    val upfrontCost = stubCalculateUpfrontGasCost(txAfterHomestead)
-    val senderAccountWithLowBalance = senderAccountAfterHomestead.copy(balance = upfrontCost / 2)
+    val senderAccountWithLowBalance = senderAccountAfterHomestead.copy(balance = upfrontGasCost / 2)
     signedTransactionValidator.validate(
       stx = signedTxAfterHomestead,
       senderAccount = senderAccountWithLowBalance,
       blockHeader = blockHeaderAfterHomestead,
-      calculateUpfrontGasCost = stubCalculateUpfrontGasCost,
+      upfrontGasCost = upfrontGasCost,
       accumGasUsed = accumGasUsed
     ) match {
       case Left(_: TransactionSenderCantPayUpfrontCostError) => succeed

@@ -91,9 +91,10 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
       case Seq(stx, otherStxs@_*) =>
         val senderAccount = world.getAccount(stx.senderAddress)
+        val upfrontCost = calculateUpfrontCost(stx.tx)
         val validatedStx = senderAccount
           .toRight(Left(TxsExecutionError(s"Account of tx sender ${stx.senderAddress.toString} not found")))
-          .flatMap(account => signedTransactionValidator.validate(stx, account, blockHeader, calculateUpfrontCost, acumGas))
+          .flatMap(account => signedTransactionValidator.validate(stx, account, blockHeader, upfrontCost, acumGas))
         validatedStx match {
           case Right(_) =>
             val TxResult(newWorld, gasUsed, logs) = executeTransaction(stx, blockHeader, world)

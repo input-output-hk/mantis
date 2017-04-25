@@ -252,8 +252,8 @@ object Fixtures {
 
     override val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidator {
       override def validate(stx: SignedTransaction, senderAccount: Account, blockHeader: BlockHeader,
-                            calculateUpfrontGasCost: Transaction => UInt256, accumGasUsed: BigInt)
-      : Either[SignedTransactionError, SignedTransaction] = Right(stx)
+                            upfrontGasCost: UInt256, accumGasUsed: BigInt)
+      : Either[SignedTransactionError, Unit] = Right(())
     }
   }
 
