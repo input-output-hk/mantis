@@ -1,6 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+import org.spongycastle.util.encoders.Hex
 
 object Memory {
 
@@ -84,6 +85,6 @@ class Memory private(private val underlying: ByteString) {
 
   override def hashCode: Int = underlying.hashCode()
 
-  override def toString: String = underlying.toString.replace("ByteString", this.getClass.getSimpleName)
+  override def toString: String = s"${this.getClass.getSimpleName}(${Hex.toHexString(underlying.toArray[Byte])})"
 
 }

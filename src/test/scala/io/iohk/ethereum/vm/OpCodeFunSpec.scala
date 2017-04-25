@@ -622,9 +622,24 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val stateOut = executeOp(op, stateIn)
 
       withStackVerification(op, stateIn, stateOut) {
+        val (Seq(offset), _) = stateIn.stack.pop(1)
+        val (data, mem1) = stateIn.memory.load(offset, 0)
+
+        mem1.size should be >= stateIn.memory.size
+
+        val expectedState = stateIn.withStack(stateOut.stack).withMemory(mem1).withReturnData(data).halt
+        stateOut shouldEqual expectedState
+      }
+
+      withStackVerification(op, stateIn, stateOut) {
         val (Seq(offset, size), _) = stateIn.stack.pop(2)
         val (data, mem1) = stateIn.memory.load(offset, size)
-        mem1.size should be >= (offset + size).toInt
+
+        if(size == UInt256.Zero){
+          mem1.size should be >= stateIn.memory.size
+        }else{
+          mem1.size should be >= (offset + size).toInt
+        }
 
         val expectedState = stateIn.withStack(stateOut.stack).withMemory(mem1).withReturnData(data).halt
         stateOut shouldEqual expectedState
