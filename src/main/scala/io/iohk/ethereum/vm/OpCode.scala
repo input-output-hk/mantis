@@ -527,7 +527,7 @@ case object JUMPI extends OpCode(0x57, 2, 0, _.G_high) with ConstGas {
 
 case object PC extends ConstOp(0x58)(_.pc)
 
-case object MSIZE extends ConstOp(0x59)(_.memory.size)
+case object MSIZE extends ConstOp(0x59)(s => UInt256.Size * wordsForBytes(s.memory.size))
 
 case object GAS extends ConstOp(0x5a)(state => state.gas - state.config.feeSchedule.G_base)
 
@@ -797,7 +797,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
 
     } else {
       val stack2 = stack1.push(UInt256.One)
-      val output = result.returnData.take(outSize.toInt)
+      val output = result.returnData.take(outSize.toInt).padTo(outSize.toInt, 0.toByte)
       val mem2 = mem1.store(outOffset, output)
 
       state

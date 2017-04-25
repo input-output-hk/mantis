@@ -95,7 +95,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     }
   }
 
-  test(constOps: _*) { op =>
+  test(constOps.filter(_ != MSIZE): _*) { op =>
     forAll(getProgramStateGen()) { stateIn =>
       val stateOut = executeOp(op, stateIn)
 
@@ -104,6 +104,23 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         result shouldEqual op.f(stateIn)
 
         val expectedState = stateIn.withStack(stateOut.stack).step()
+        stateOut shouldEqual expectedState
+      }
+    }
+  }
+
+  test(MSIZE) { op =>
+    val stateGen = getProgramStateGen(
+      memGen = getMemoryGen(256)
+    )
+
+    forAll(stateGen) { stateIn =>
+      val stateOut = executeOp(op, stateIn)
+
+      withStackVerification(op, stateIn, stateOut) {
+        val expectedSize = wordsForBytes(stateIn.memory.size) * 32
+        val expectedState = stateIn.withStack(stateIn.stack.push(expectedSize)).step()
+
         stateOut shouldEqual expectedState
       }
     }
