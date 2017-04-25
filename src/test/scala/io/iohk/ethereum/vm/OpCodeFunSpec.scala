@@ -625,9 +625,9 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         val (Seq(offset, size), _) = stateIn.stack.pop(2)
         val (data, mem1) = stateIn.memory.load(offset, size)
 
-        if(size == UInt256.Zero){
-          mem1.size should be >= stateIn.memory.size
-        }else{
+        if (size.isZero) {
+          mem1.size shouldBe stateIn.memory.size
+        } else {
           mem1.size should be >= (offset + size).toInt
         }
 
