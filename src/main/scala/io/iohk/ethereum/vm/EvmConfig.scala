@@ -116,7 +116,7 @@ case class EvmConfig(
   /**
     * a helper method used for gas adjustment in CALL and CREATE opcode, see YP eq. (224)
     */
-  def gasCap(g: UInt256): UInt256 =
+  def gasCap(g: BigInt): BigInt =
     subGasCapDivisor.map(d => g - g / d).getOrElse(g)
 }
 
