@@ -7,6 +7,7 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
+import org.scalatest.prop.PropertyChecks
 
 // scalastyle:off object.name
 class CallOpcodesSpec extends WordSpec with Matchers {
@@ -70,6 +71,16 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       SSTORE
     )
 
+    val valueToReturn = 23
+    val returnSingleByteProgram = Assembly(
+      PUSH1, valueToReturn,
+      PUSH1, 0,
+      MSTORE,
+      PUSH1, 1,
+      PUSH1, 31,
+      RETURN
+    )
+
     val inputData = Generators.getUInt256Gen().sample.get.bytes
     val expectedMemCost = config.calcMemCost(inputData.size, inputData.size, inputData.size / 2)
 
@@ -103,6 +114,9 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     val worldWithSstoreWithClearProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.Empty)
       .saveCode(extAddr, sstoreWithClearProgram.code)
+
+    val worldWithReturnSingleByteCode = worldWithoutExtAccount.saveAccount(extAddr, Account.Empty)
+      .saveCode(extAddr, returnSingleByteProgram.code)
 
     val env = ExecEnv(ownerAddr, callerAddr, callerAddr, 1, ByteString.empty, 123, Program(ByteString.empty), null, 0)
     val context: PC = ProgramContext(env, ownerAddr, 2 * requiredGas, worldWithExtAccount, config)
@@ -653,6 +667,44 @@ class CallOpcodesSpec extends WordSpec with Matchers {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
       }
 
+    }
+  }
+
+
+
+  "CallOpCodes" when {
+
+    Seq(CALL, CALLCODE, DELEGATECALL).foreach { opCode =>
+
+      s"$opCode processes returned data" should {
+
+        "handle memory expansion properly" in {
+
+          val inputData = ByteString(Array[Byte](1).padTo(32, 1.toByte))
+          val context: PC = fxt.context.copy(world = fxt.worldWithReturnSingleByteCode)
+
+          val outOffsets = Seq(0, inputData.size / 2, inputData.size * 2)
+
+          outOffsets.foreach { outOffset =>
+
+            val call = CallResult(
+              op = CALL,
+              outSize = inputData.size,
+              outOffset = outOffset,
+              context = context,
+              inputData = inputData
+            )
+
+            val expectedSize = inputData.size + outOffset
+            val expectedMemoryBytes = call.stateIn.memory.store(outOffset, fxt.valueToReturn.toByte).load(0, expectedSize)._1
+            val resultingMemoryBytes = call.stateOut.memory.load(0, expectedSize)._1
+
+            call.stateOut.memory.size shouldEqual expectedSize
+            resultingMemoryBytes shouldEqual expectedMemoryBytes
+
+          }
+        }
+      }
     }
   }
 
