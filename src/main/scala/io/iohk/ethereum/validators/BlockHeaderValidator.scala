@@ -158,10 +158,10 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
       if (blockHeader.number < difficultyBombPauseBlockNumber)
         (blockHeader.number / ExpDifficultyPeriod - 2).toInt
       else if (blockHeader.number < difficultyBombContinueBlockNumber)
-        ((difficultyBombPauseBlockNumber / 100000) - 2).toInt
+        ((difficultyBombPauseBlockNumber / ExpDifficultyPeriod) - 2).toInt
       else {
-        val delay = (difficultyBombContinueBlockNumber - difficultyBombPauseBlockNumber) / 100000
-        ((blockHeader.number / 100000) - delay - 2).toInt
+        val delay = (difficultyBombContinueBlockNumber - difficultyBombPauseBlockNumber) / ExpDifficultyPeriod
+        ((blockHeader.number / ExpDifficultyPeriod) - delay - 2).toInt
       }
 
     val difficultyBomb: BigInt =
