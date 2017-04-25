@@ -51,7 +51,7 @@ object Generators extends ObjectGenerators {
     getStackGen(uint256Gen = getUInt256Gen(max = maxWord), maxSize = testStackMaxSize)
 
   def getMemoryGen(maxSize: Int = 0): Gen[Memory] =
-    getByteStringGen(0, maxSize).map(Memory.empty.store(UInt256(0), _))
+    getByteStringGen(0, maxSize).map(Memory.empty.store(0, _))
 
   def getStorageGen(maxSize: Int = 0, uint256Gen: Gen[UInt256] = getUInt256Gen()): Gen[MockStorage] =
     getListGen(0, maxSize, uint256Gen).map(MockStorage.fromSeq)

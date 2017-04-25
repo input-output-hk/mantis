@@ -11,7 +11,7 @@ import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.ledger.Ledger.{PC, PR}
-import io.iohk.ethereum.vm._
+import io.iohk.ethereum.vm.{UInt256, _}
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
 import org.spongycastle.crypto.params.ECPublicKeyParameters
@@ -213,6 +213,71 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       txResult.logs.size shouldBe logsSize
     }
   }
+
+  it should "correctly send the transaction input data whether it's a contract creation or not" in new TestSetup {
+
+    val txPayload = ByteString("the payload")
+
+    val table = Table[Option[Address], ByteString](
+      ("Receiving Address", "Input Data"),
+      (defaultTx.receivingAddress, txPayload),
+      (None, ByteString.empty)
+    )
+
+    forAll(table) { (maybeReceivingAddress, inputData) =>
+
+      val initialWorld = emptyWorld
+        .saveAccount(originAddress, Account(nonce = UInt256(defaultTx.nonce), balance = UInt256.MaxValue))
+
+      val mockVM = new MockVM((pc: Ledger.PC) => {
+        pc.env.inputData shouldEqual inputData
+        createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
+      })
+      val ledger = new LedgerImpl(mockVM, blockchainConfig)
+
+      val tx = defaultTx.copy(receivingAddress = maybeReceivingAddress, payload = txPayload)
+      val stx = SignedTransaction.sign(tx, keyPair, blockchainConfig.chainId)
+
+      ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
+    }
+  }
+
+  it should "should handle pre-existing and new destination accounts when processing a contract init transaction" in new TestSetup {
+
+    val originAccount = Account(nonce = UInt256(0), balance = UInt256.MaxValue)
+    val worldWithoutPreexistingAccount = emptyWorld.saveAccount(originAddress, originAccount)
+
+    // In order to get contract address we need to increase the nonce as ledger will do within the first
+    // steps of execution
+    val contractAddress = worldWithoutPreexistingAccount
+      .saveAccount(originAddress, originAccount.increaseNonce)
+      .createAddress(originAddress)
+
+    val preExistingAccount = Account(nonce = UInt256(defaultTx.nonce), balance = 1000)
+    val worldWithPreexistingAccount = worldWithoutPreexistingAccount
+      .saveAccount(contractAddress, preExistingAccount)
+
+    val tx = defaultTx.copy(receivingAddress = None, value = 23)
+    val stx = SignedTransaction.sign(tx, keyPair, blockchainConfig.chainId)
+
+
+    val table = Table[InMemoryWorldStateProxy, BigInt](
+      ("Initial World", "Contract Account Balance"),
+      (worldWithoutPreexistingAccount, tx.value),
+      (worldWithPreexistingAccount, preExistingAccount.balance + tx.value)
+    )
+
+    forAll(table) { (initialWorld, contractAccountBalance) =>
+      val mockVM = new MockVM((pc: Ledger.PC) => {
+        pc.world.getGuaranteedAccount(contractAddress).balance shouldEqual contractAccountBalance
+        createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
+      })
+      val ledger = new LedgerImpl(mockVM, blockchainConfig)
+
+      ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
+    }
+  }
+
 
   trait TestSetup {
     val keyPair = generateKeyPair()
