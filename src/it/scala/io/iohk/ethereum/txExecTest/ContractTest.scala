@@ -17,7 +17,7 @@ class ContractTest extends FlatSpec with Matchers {
     val blockValidator: BlockValidator = BlockValidator
     val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
     val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig)
-    val signedTransactionValidator: SignedTransactionValidator = SignedTransactionValidator
+    val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
   }
 
   "Ledger" should "transfer ether" in {
