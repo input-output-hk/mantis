@@ -64,10 +64,10 @@ object PrecompiledContracts {
       val r = data.slice(64, 96)
       val s = data.slice(96, 128)
 
-      val recovered = Try(ECDSASignature.recoverPubBytes(h, v, r, s)).getOrElse(None)
+      val recovered = Try(ECDSASignature(r,s,v).publicKey(h)).getOrElse(None)
       recovered.map { bytes =>
         val hash = kec256(bytes).slice(12, 32)
-        ByteUtils.padLeft(hash, 32, 0)
+        ByteUtils.padLeft(hash, 32)
       }.getOrElse(ByteString.empty)
     }
 
