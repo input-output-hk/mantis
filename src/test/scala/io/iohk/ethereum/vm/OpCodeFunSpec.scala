@@ -670,5 +670,46 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   verifyAllOpCodesRegistered(except = CREATE, CALL, CALLCODE, DELEGATECALL)
 
+  test("sliceBytes helper") {
+    def zeroes(i: Int): ByteString =
+      ByteString(Array.fill[Byte](i)(0))
+
+    val table = Table[Int, UInt256, UInt256, Int, ByteString => ByteString](
+      ("dataSize", "sliceOffset", "sliceSize", "expectedSize", "expectedContentFn"),
+
+      // both offset and size are greater than data size
+      (0, 16, 32, 32, _ => zeroes(32)),
+
+      // offset is within bounds, offset + size is greater than data size
+      (20, 16, 32, 32, bs => bs.drop(16) ++ zeroes(28)),
+
+      // offset + size are within bounds
+      (64, 16, 31, 31, bs => bs.slice(16, 47)),
+
+      // offset is greater than Int.MaxValue
+      (64, Two ** 128, 32, 32, _ => zeroes(32)),
+
+      // offset is within bounds, size is greater than Int.MaxValue
+      (64, 16, Two ** 64 + 7, 48, bs => bs.drop(16)),
+
+      // offset is within bounds, size is greater than Int.MaxValue and size.toInt > dataSize
+      // this case a bit strange because we purposefully let size overflow when converting to Int
+      // but sliceBytes is supposed to copy the behaviour of geth:
+      // https://github.com/ethereum/go-ethereum/blob/5f7826270c9e87509fd7731ec64953a5e4761de0/core/vm/common.go#L42
+      (64, 40, Two ** 64 + 124, 124, bs => bs.drop(40) ++ zeroes(100)),
+
+      // both offset and size are greater than Int.MaxValue
+      (64, Two ** 33, Two ** 96 + 13, 13, _ => zeroes(13))
+    )
+
+    forAll(table) { (dataSize, sliceOffset, sliceSize, expectedSize, expectedContentFn) =>
+      val bytes = getByteStringGen(dataSize, dataSize).sample.get
+      val slice = OpCode.sliceBytes(bytes, sliceOffset, sliceSize)
+
+      slice.size shouldEqual expectedSize
+      slice shouldEqual expectedContentFn(bytes)
+    }
+  }
+
 }
 
