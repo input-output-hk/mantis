@@ -80,7 +80,7 @@ object Generators extends ObjectGenerators {
     stackGen: Gen[Stack] = getStackGen(),
     memGen: Gen[Memory] = getMemoryGen(),
     storageGen: Gen[MockStorage] = getStorageGen(),
-    gasGen: Gen[UInt256] = getUInt256Gen(min = UInt256.MaxValue, max = UInt256.MaxValue),
+    gasGen: Gen[BigInt] = getBigIntGen(min = UInt256.MaxValue.toBigInt, max = UInt256.MaxValue.toBigInt),
     codeGen: Gen[ByteString] = getByteStringGen(0, 0),
     inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
     valueGen: Gen[UInt256] = getUInt256Gen(),

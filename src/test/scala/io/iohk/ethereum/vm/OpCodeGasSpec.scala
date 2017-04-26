@@ -82,7 +82,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test("calcMemCost helper") {
-    val testData = Table[UInt256, UInt256, UInt256, UInt256](
+    val testData = Table[UInt256, UInt256, UInt256, BigInt](
       ("memSize", "offset", "dataSize", "expectedCost"),
       (0, 0, 0, 0),
       (256, 128, 128, 0),
@@ -107,12 +107,12 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       val memNeeded: UInt256 = if (dataSize > 0) offset + dataSize else 0
 
-      def c(ms: UInt256): UInt256 = {
+      def c(ms: UInt256): BigInt = {
         val a = wordsForBytes(ms)
         G_memory * a + a * a / 512
       }
 
-      val expectedCost: UInt256 =
+      val expectedCost: BigInt =
         if (memNeeded > EvmConfig.MaxMemory)
           UInt256.MaxValue / 2
         else if (memSize > memNeeded)
@@ -127,7 +127,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   test(constGasOps: _*) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = op.delta),
-      gasGen = getUInt256Gen(max = op.constGasFn(config.feeSchedule) * 2))
+      gasGen = getBigIntGen(max = op.constGasFn(config.feeSchedule) * 2))
 
     forAll(stateGen) { stateIn =>
       val stateOut = op.execute(stateIn)
@@ -136,7 +136,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(EXP) { op =>
-    val table = Table[UInt256, UInt256](("exponent", "expectedGas"),
+    val table = Table[UInt256, BigInt](("exponent", "expectedGas"),
       (0,  G_exp),
       (1, G_exp + G_expbyte),
       (255, G_exp + G_expbyte),
@@ -157,7 +157,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val maxGas = G_exp + G_expbyte * 32
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 2),
-      gasGen = getUInt256Gen(max = maxGas)
+      gasGen = getBigIntGen(max = maxGas)
     )
 
     forAll(stateGen) { stateIn =>
@@ -171,7 +171,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(SHA3) { op =>
-    val table = Table[UInt256, UInt256](("size", "expectedGas"),
+    val table = Table[UInt256, BigInt](("size", "expectedGas"),
       (0,  G_sha3),
       (1, G_sha3 + G_sha3word * 1),
       (32, G_sha3 + G_sha3word * 1),
@@ -192,7 +192,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val maxGas = G_sha3 + G_sha3word * 8
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 2, maxUInt = UInt256(memSize)),
-      gasGen = getUInt256Gen(max = maxGas),
+      gasGen = getBigIntGen(max = maxGas),
       memGen = getMemoryGen(memSize)
     )
 
@@ -209,7 +209,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(CALLDATACOPY) { op =>
-    val table = Table[UInt256, UInt256](("size", "expectedGas"),
+    val table = Table[UInt256, BigInt](("size", "expectedGas"),
       (0,  G_verylow),
       (1, G_verylow + G_copy * 1),
       (32, G_verylow + G_copy * 1),
@@ -231,7 +231,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 3, maxUInt = UInt256(256)),
       memGen = getMemoryGen(256),
-      gasGen = getUInt256Gen(max = maxGas),
+      gasGen = getBigIntGen(max = maxGas),
       codeGen = getByteStringGen(0, 256)
     )
 
@@ -270,7 +270,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 3, maxUInt = UInt256(256)),
       memGen = getMemoryGen(256),
-      gasGen = getUInt256Gen(max = maxGas),
+      gasGen = getBigIntGen(max = maxGas),
       codeGen = getByteStringGen(0, 256)
     )
 
@@ -287,7 +287,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(EXTCODECOPY) { op =>
-    val table = Table[UInt256, UInt256](("size", "expectedGas"),
+    val table = Table[UInt256, BigInt](("size", "expectedGas"),
       (0,  G_extcode),
       (1, G_extcode + G_copy * 1),
       (32, G_extcode + G_copy * 1),
@@ -307,7 +307,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val maxGas = 2 * (G_extcode + G_copy * 8)
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 4, maxUInt = UInt256(256)),
-      gasGen = getUInt256Gen(max = maxGas),
+      gasGen = getBigIntGen(max = maxGas),
       memGen = getMemoryGen(256)
     )
 
@@ -328,7 +328,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val maxGasUsage = G_verylow + config.calcMemCost(memSize, memSize, memSize)
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 2, maxUInt = UInt256(memSize)),
-      gasGen = getUInt256Gen(max = maxGasUsage),
+      gasGen = getBigIntGen(max = maxGasUsage),
       memGen = getMemoryGen(memSize)
     )
 
@@ -346,7 +346,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val maxGasUsage = G_verylow + config.calcMemCost(memSize, memSize, memSize)
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 2, maxUInt = UInt256(memSize)),
-      gasGen = getUInt256Gen(max = maxGasUsage),
+      gasGen = getBigIntGen(max = maxGasUsage),
       memGen = getMemoryGen(memSize)
     )
 
@@ -364,7 +364,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val maxGasUsage = G_verylow + config.calcMemCost(memSize, memSize, memSize)
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 2, maxUInt = UInt256(memSize)),
-      gasGen = getUInt256Gen(max = maxGasUsage),
+      gasGen = getBigIntGen(max = maxGasUsage),
       memGen = getMemoryGen(memSize)
     )
 
@@ -379,7 +379,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   test(SSTORE) { op =>
     val storage = MockStorage.Empty.store(Zero, One)
-    val table = Table[UInt256, UInt256, UInt256, UInt256](("offset", "value", "expectedGas", "expectedRefund"),
+    val table = Table[UInt256, UInt256, BigInt, BigInt](("offset", "value", "expectedGas", "expectedRefund"),
       (0, 1, G_sreset, 0),
       (0, 0, G_sreset, R_sclear),
       (1, 0, G_sreset, 0),
@@ -397,7 +397,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val maxGasUsage = G_sset + G_sreset
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 2, maxUInt = Two),
-      gasGen = getUInt256Gen(max = maxGasUsage),
+      gasGen = getBigIntGen(max = maxGasUsage),
       storageGen = getStorageGen(3, getUInt256Gen(max = One))
     )
 
@@ -406,8 +406,8 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       val (Seq(offset, value), _) = stateIn.stack.pop(2)
       val oldValue = stateIn.storage.load(offset)
-      val expectedGas: UInt256 = if (oldValue.isZero && !value.isZero) G_sset else G_sreset
-      val expectedRefund: UInt256 = if (value.isZero && !oldValue.isZero) R_sclear else Zero
+      val expectedGas: BigInt = if (oldValue.isZero && !value.isZero) G_sset else G_sreset
+      val expectedRefund: BigInt = if (value.isZero && !oldValue.isZero) R_sclear else Zero
 
       verifyGas(expectedGas, stateIn, stateOut)
 
@@ -418,7 +418,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(logOps: _*) { op =>
-    val table = Table[UInt256, UInt256](("size", "expectedGas"),
+    val table = Table[UInt256, BigInt](("size", "expectedGas"),
       (0, G_log + G_logtopic * op.i),
       (13, G_log + G_logtopic * op.i + G_logdata * 13)
     )
@@ -435,7 +435,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val maxGas = G_log + G_logdata * 256 + G_logtopic * 4 + config.calcMemCost(256, 256, 256)
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 6, maxUInt = UInt256(256)),
-      gasGen = getUInt256Gen(max = maxGas)
+      gasGen = getBigIntGen(max = maxGas)
     )
 
     forAll(stateGen) { stateIn =>
@@ -444,7 +444,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val (Seq(offset, size, _*), _) = stateIn.stack.pop(op.delta)
       val memCost = config.calcMemCost(stateIn.memory.size, offset, size)
       val logCost: UInt256 = G_logdata * size + op.i * G_logtopic
-      val expectedGas: UInt256 = G_log + memCost + logCost
+      val expectedGas: BigInt = G_log + memCost + logCost
 
       verifyGas(expectedGas, stateIn, stateOut)
     }
@@ -454,7 +454,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val maxGas = config.calcMemCost(256, 256, 256)
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 2, maxUInt = UInt256(256)),
-      gasGen = getUInt256Gen(max = maxGas)
+      gasGen = getBigIntGen(max = maxGas)
     )
 
     forAll(stateGen) { stateIn =>

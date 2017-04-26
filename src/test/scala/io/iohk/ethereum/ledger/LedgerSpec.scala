@@ -24,9 +24,9 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
   val blockchainConfig = BlockchainConfig(Config.config)
 
   def createResult(context: PC,
-                   gasUsed: UInt256,
-                   gasLimit: UInt256,
-                   gasRefund: UInt256,
+                   gasUsed: BigInt,
+                   gasLimit: BigInt,
+                   gasRefund: BigInt,
                    error: Option[ProgramError],
                    returnData: ByteString = bEmpty,
                    logs: Seq[TxLogEntry] = Nil): PR = ProgramResult(
@@ -45,7 +45,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     val initialOriginBalance: UInt256 = 1000000
     val initialMinerBalance: UInt256 = 2000000
 
-    val table = Table[UInt256, UInt256, Option[ProgramError], BigInt](
+    val table = Table[BigInt, BigInt, Option[ProgramError], BigInt](
       ("execGasUsed", "refundsFromVM", "maybeError", "gasUsed"),
       (25000, 20000, None, 25000 - 12500),
       (25000, 10000, None, 25000 - 10000),
@@ -323,8 +323,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       storagesInstance.storages.nodeStorage
     )
 
-    val defaultGasPrice: UInt256 = 10
-    val defaultGasLimit: UInt256 = 1000000
+    val defaultGasPrice: BigInt = 10
+    val defaultGasLimit: BigInt = 1000000
   }
 
 }

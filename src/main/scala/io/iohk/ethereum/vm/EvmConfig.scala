@@ -73,9 +73,9 @@ case class EvmConfig(
     * @param dataSize size of data to be written/read in bytes
     * @return gas cost
     */
-  def calcMemCost(memSize: UInt256, offset: UInt256, dataSize: UInt256): UInt256 = {
+  def calcMemCost(memSize: UInt256, offset: UInt256, dataSize: UInt256): BigInt = {
     /** See YP H.1 (222) */
-    def c(m: UInt256): UInt256 = {
+    def c(m: UInt256): BigInt = {
       val a = wordsForBytes(m)
       G_memory * a + a * a / 512
     }

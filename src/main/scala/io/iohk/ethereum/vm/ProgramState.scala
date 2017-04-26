@@ -50,7 +50,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def storage: S = world.getStorage(ownAddress)
 
-  def gasUsed: UInt256 = context.startGas - gas
+  def gasUsed: BigInt = context.startGas - gas
 
   def withWorld(updated: W): ProgramState[W, S] =
     copy(world = updated)

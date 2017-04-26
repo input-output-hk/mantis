@@ -743,7 +743,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
     val (inputData, mem1) = state.memory.load(inOffset, inSize)
     val endowment = if (this == DELEGATECALL) UInt256.Zero else callValue
 
-    val startGas: UInt256 = {
+    val startGas = {
       val gExtra = gasExtra(state, endowment, Address(to))
       val gCap = gasCap(state, gas, gExtra)
       if (endowment.isZero) gCap else gCap + state.config.feeSchedule.G_callstipend
@@ -787,7 +787,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
 
     if (!validCall || result.error.isDefined) {
       val stack2 = stack1.push(UInt256.Zero)
-      val gasAdjustment = if (validCall) UInt256.Zero else -startGas
+      val gasAdjustment: BigInt = if (validCall) 0 else -startGas
 
       state
         .withStack(stack2)

@@ -24,7 +24,7 @@ case class Assembly(byteCode: ByteCode*) {
 
   val program: Program = Program(code)
 
-  def linearConstGas(config: EvmConfig): UInt256 = byteCode.foldLeft(UInt256.Zero) {
+  def linearConstGas(config: EvmConfig): BigInt = byteCode.foldLeft(BigInt(0)) {
     case (g, b: OpCodeAsByteCode) => g + b.op.constGasFn(config.feeSchedule)
     case (g, _) => g
   }

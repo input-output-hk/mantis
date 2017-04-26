@@ -294,7 +294,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas" in {
-        val contractCost = UInt256(3000)
+        val contractCost = 3000
         val expectedGas = contractCost - G_callstipend + G_call + G_callvalue // memory not increased
         call.stateOut.gasUsed shouldEqual expectedGas
       }
@@ -320,6 +320,34 @@ class CallOpcodesSpec extends WordSpec with Matchers {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
       }
 
+    }
+
+    /**
+      * This test should result in an OutOfGas error as (following the equations. on the CALL opcode in the YP):
+      * CALL cost = memoryCost + C_extra + C_gascap
+      * and
+      * memoryCost = 0 (result written were input was)
+      * C_gascap = u_s[0] = UInt256.MaxValue - C_extra + 1
+      * Then
+      * CALL cost = UInt256.MaxValue + 1
+      * As the starting gas (startGas = C_extra - 1) is much lower than the cost this should result in an OutOfGas exception
+      */
+    "gas cost bigger than available gas" should {
+
+      val memCost = 0
+      val c_extra: UInt256 = config.feeSchedule.G_call + config.feeSchedule.G_callvalue
+      val startGas = c_extra - 1
+      val gas = UInt256.MaxValue - c_extra + 1 //u_s[0]
+      val context: PC = fxt.context.copy(startGas = startGas)
+      val call = CallResult(
+        op = CALL,
+        gas = gas,
+        context = context,
+        outOffset = UInt256.Zero
+      )
+      "return an OutOfGas error" in {
+        call.stateOut.error shouldBe Some(OutOfGas)
+      }
     }
   }
 
@@ -501,6 +529,35 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
     }
+
+    /**
+      * This test should result in an OutOfGas error as (following the equations. on the CALLCODE opcode in the YP):
+      * CALLCODE cost = memoryCost + C_extra + C_gascap
+      * and
+      * memoryCost = 0 (result written were input was)
+      * C_gascap = u_s[0] = UInt256.MaxValue - C_extra + 1
+      * Then
+      * CALL cost = UInt256.MaxValue + 1
+      * As the starting gas (startGas = C_extra - 1) is much lower than the cost this should result in an OutOfGas exception
+      */
+    "gas cost bigger than available gas" should {
+
+      val memCost = 0
+      val c_extra: UInt256 = config.feeSchedule.G_call + config.feeSchedule.G_callvalue
+      val startGas = c_extra - 1
+      val gas = UInt256.MaxValue - c_extra + 1 //u_s[0]
+      val context: PC = fxt.context.copy(startGas = startGas)
+      val call = CallResult(
+        op = CALLCODE,
+        gas = gas,
+        context = context,
+        outOffset = UInt256.Zero
+      )
+      "return an OutOfGas error" in {
+        call.stateOut.error shouldBe Some(OutOfGas)
+      }
+    }
+
   }
 
   "DELEGATECALL" when {
@@ -653,6 +710,34 @@ class CallOpcodesSpec extends WordSpec with Matchers {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
       }
 
+    }
+  }
+
+  /**
+    * This test should result in an OutOfGas error as (following the equations. on the DELEGATECALL opcode in the YP):
+    * DELEGATECALL cost = memoryCost + C_extra + C_gascap
+    * and
+    * memoryCost = 0 (result written were input was)
+    * C_gascap = u_s[0] = UInt256.MaxValue - C_extra + 1
+    * Then
+    * CALL cost = UInt256.MaxValue + 1
+    * As the starting gas (startGas = C_extra - 1) is much lower than the cost this should result in an OutOfGas exception
+    */
+  "gas cost bigger than available gas DELEGATECALL" should {
+
+    val memCost = 0
+    val c_extra: UInt256 = config.feeSchedule.G_call
+    val startGas = c_extra - 1
+    val gas = UInt256.MaxValue - c_extra + 1 //u_s[0]
+    val context: PC = fxt.context.copy(startGas = startGas)
+    val call = CallResult(
+      op = DELEGATECALL,
+      gas = gas,
+      context = context,
+      outOffset = UInt256.Zero
+    )
+    "return an OutOfGas error" in {
+      call.stateOut.error shouldBe Some(OutOfGas)
     }
   }
 
