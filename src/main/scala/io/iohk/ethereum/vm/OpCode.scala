@@ -164,12 +164,9 @@ object OpCodes {
 
 object OpCode {
   def sliceBytes(bytes: ByteString, offset: UInt256, size: UInt256): ByteString = {
-    if (size > Int.MaxValue)
-      throw new Exception(s"We're not supporting arrays of length > ${Int.MaxValue} ($size requested)")
-    else if (offset >= bytes.size)
-      ByteString(Array.fill[Byte](size.toInt)(0))
-    else
-      bytes.slice(offset.toInt, offset.toInt + size.toInt).padTo(size.toInt, 0.toByte)
+    val start = offset.min(bytes.size).toInt
+    val end = (offset + size).min(bytes.size).toInt
+    bytes.slice(start, end).padTo(size.toInt, 0.toByte)
   }
 }
 
