@@ -50,7 +50,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     forAll(bytesGen) { bytes =>
       val context = buildContext(PrecompiledContracts.Sha256Addr, bytes)
       val result = VM.run(context)
-      result.returnData shouldEqual kec256(bytes)
+      result.returnData shouldEqual sha256(bytes)
 
       val gasUsed = context.startGas - result.gasRemaining
       val expectedGas = 60 + 12 * wordsForBytes(bytes.size)

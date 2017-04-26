@@ -77,7 +77,7 @@ object PrecompiledContracts {
 
   object Sha256 extends PrecompiledContract {
     def exec(inputData: ByteString): ByteString =
-      kec256(inputData)
+      sha256(inputData)
 
     def gas(inputData: ByteString): UInt256 =
       60 + 12 * wordsForBytes(inputData.size)

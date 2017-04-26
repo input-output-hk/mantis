@@ -16,7 +16,7 @@ class PrecompiledContractsSpecEvm extends FunSuite with Matchers {
     val signature = ECDSASignature.sign(bytes, keyPair)
     val pubKey = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
     val address = crypto.kec256(pubKey.tail).slice(FirstByteOfAddress, LastByteOfAddress)
-    val expectedOutput = ripemd160(kec256(address))
+    val expectedOutput = ripemd160(sha256(address))
 
     new EvmTestEnv {
       val (_, contract) = deployContract("PrecompiledContracts")
