@@ -7,6 +7,7 @@ import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, Validatio
 import io.iohk.ethereum.ledger.Ledger.{PC, PR}
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
+import io.iohk.ethereum.vm.UInt256._
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
@@ -134,8 +135,8 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val totalGasToRefund = calcTotalGasToRefund(stx, resultWithErrorHandling)
     val executionGasToPayToMiner = gasLimit - totalGasToRefund
 
-    val refundGasFn = pay(stx.senderAddress, totalGasToRefund * gasPrice) _
-    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), executionGasToPayToMiner * gasPrice) _
+    val refundGasFn = pay(stx.senderAddress, (totalGasToRefund * gasPrice).toUInt256) _
+    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256) _
     val deleteAccountsFn = deleteAccounts(resultWithErrorHandling.addressesToDelete) _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
 

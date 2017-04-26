@@ -248,7 +248,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(CODECOPY) { op =>
-    val table = Table[UInt256, UInt256](("size", "expectedGas"),
+    val table = Table[UInt256, BigInt](("size", "expectedGas"),
       (0,  G_verylow),
       (1, G_verylow + G_copy * 1),
       (32, G_verylow + G_copy * 1),
@@ -443,7 +443,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       val (Seq(offset, size, _*), _) = stateIn.stack.pop(op.delta)
       val memCost = config.calcMemCost(stateIn.memory.size, offset, size)
-      val logCost: UInt256 = G_logdata * size + op.i * G_logtopic
+      val logCost = G_logdata * size + op.i * G_logtopic
       val expectedGas: BigInt = G_log + memCost + logCost
 
       verifyGas(expectedGas, stateIn, stateOut)

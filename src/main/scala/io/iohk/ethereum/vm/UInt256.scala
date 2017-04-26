@@ -38,7 +38,9 @@ object UInt256 {
   def apply(n: Long): UInt256 =
     apply(BigInt(n))
 
-  implicit def bigIntToUInt256(bigInt: BigInt): UInt256 = UInt256(bigInt)
+  implicit class BigIntAsUInt256(val bigInt: BigInt) extends AnyVal {
+    def toUInt256: UInt256 = UInt256(bigInt)
+  }
 
   implicit def uint256ToBigInt(uint: UInt256): BigInt = uint.toBigInt
 

@@ -3,6 +3,7 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Address, TxLogEntry}
+import io.iohk.ethereum.vm.UInt256._
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
@@ -527,9 +528,9 @@ case object JUMPI extends OpCode(0x57, 2, 0, _.G_high) with ConstGas {
 
 case object PC extends ConstOp(0x58)(_.pc)
 
-case object MSIZE extends ConstOp(0x59)(s => UInt256.Size * wordsForBytes(s.memory.size))
+case object MSIZE extends ConstOp(0x59)(s => (UInt256.Size * wordsForBytes(s.memory.size)).toUInt256)
 
-case object GAS extends ConstOp(0x5a)(state => state.gas - state.config.feeSchedule.G_base)
+case object GAS extends ConstOp(0x5a)(state => (state.gas - state.config.feeSchedule.G_base).toUInt256)
 
 case object JUMPDEST extends OpCode(0x5b, 0, 0, _.G_jumpdest) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {

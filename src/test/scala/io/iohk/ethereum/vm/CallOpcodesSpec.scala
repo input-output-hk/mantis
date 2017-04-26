@@ -350,7 +350,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     "gas cost bigger than available gas" should {
 
       val memCost = 0
-      val c_extra: UInt256 = config.feeSchedule.G_call + config.feeSchedule.G_callvalue
+      val c_extra = config.feeSchedule.G_call + config.feeSchedule.G_callvalue
       val startGas = c_extra - 1
       val gas = UInt256.MaxValue - c_extra + 1
       //u_s[0]
@@ -573,7 +573,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     "gas cost bigger than available gas" should {
 
       val memCost = 0
-      val c_extra: UInt256 = config.feeSchedule.G_call + config.feeSchedule.G_callvalue
+      val c_extra = config.feeSchedule.G_call + config.feeSchedule.G_callvalue
       val startGas = c_extra - 1
       val gas = UInt256.MaxValue - c_extra + 1 //u_s[0]
       val context: PC = fxt.context.copy(startGas = startGas)
@@ -770,7 +770,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
   "gas cost bigger than available gas DELEGATECALL" should {
 
     val memCost = 0
-    val c_extra: UInt256 = config.feeSchedule.G_call
+    val c_extra = config.feeSchedule.G_call
     val startGas = c_extra - 1
     val gas = UInt256.MaxValue - c_extra + 1 //u_s[0]
     val context: PC = fxt.context.copy(startGas = startGas)
