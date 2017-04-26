@@ -13,7 +13,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers {
     val tx = Transaction(42, 10, 1000, Address(123), 0, ByteString.empty)
     val stx = SignedTransaction.sign(tx, keyPair, 0x3d.toByte)
 
-    val expectedOutput = ripemd160(kec256(stx.senderAddress.bytes))
+    val expectedOutput = ripemd160(sha256(stx.senderAddress.bytes))
 
     new EvmTestEnv {
       val (_, contract) = deployContract("PrecompiledContracts")
