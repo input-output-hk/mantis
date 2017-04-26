@@ -281,7 +281,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
   trait TestSetup {
     val keyPair = generateKeyPair()
-    val originAddress = Address(kec256(keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)))
+    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+    val originAddress = Address(kec256(keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
     val minerAddress = Address(666)
 
     val defaultBlockHeader = BlockHeader(

@@ -322,6 +322,21 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     }
 
+    "more gas than available is provided" should {
+      def call(config: EvmConfig): CallResult = {
+        val context: PC = fxt.context.copy(config = config)
+        CallResult(op = CALL, context = context, gas = UInt256.MaxValue / 2)
+      }
+
+      "go OOG before EIP-150" in {
+        call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+      }
+
+      "cap the provided gas after EIP-150" in {
+        call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+      }
+    }
+
     /**
       * This test should result in an OutOfGas error as (following the equations. on the CALL opcode in the YP):
       * CALL cost = memoryCost + C_extra + C_gascap
@@ -337,7 +352,8 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       val memCost = 0
       val c_extra: UInt256 = config.feeSchedule.G_call + config.feeSchedule.G_callvalue
       val startGas = c_extra - 1
-      val gas = UInt256.MaxValue - c_extra + 1 //u_s[0]
+      val gas = UInt256.MaxValue - c_extra + 1
+      //u_s[0]
       val context: PC = fxt.context.copy(startGas = startGas)
       val call = CallResult(
         op = CALL,
@@ -487,7 +503,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
       "compute a correct result" in {
         val (result, _) = call.stateOut.memory.load(call.outOffset, call.outSize)
-        val expected = kec256(inputData)
+        val expected = sha256(inputData)
 
         result shouldEqual expected
       }
@@ -527,7 +543,21 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       "refund the correct amount of gas" in {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
       }
+    }
 
+    "more gas than available is provided" should {
+      def call(config: EvmConfig): CallResult = {
+        val context: PC = fxt.context.copy(config = config)
+        CallResult(op = CALLCODE, context = context, gas = UInt256.MaxValue / 2)
+      }
+
+      "go OOG before EIP-150" in {
+        call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+      }
+
+      "cap the provided gas after EIP-150" in {
+        call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+      }
     }
 
     /**
@@ -709,7 +739,21 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       "refund the correct amount of gas" in {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
       }
+    }
 
+    "more gas than available is provided" should {
+      def call(config: EvmConfig): CallResult = {
+        val context: PC = fxt.context.copy(config = config)
+        CallResult(op = DELEGATECALL, context = context, gas = UInt256.MaxValue / 2)
+      }
+
+      "go OOG before EIP-150" in {
+        call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+      }
+
+      "cap the provided gas after EIP-150" in {
+        call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+      }
     }
   }
 
