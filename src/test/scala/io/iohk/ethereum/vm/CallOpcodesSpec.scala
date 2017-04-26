@@ -740,7 +740,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       call.stateOut.error shouldBe Some(OutOfGas)
     }
   }
- 
+
   "CallOpCodes" when {
 
     Seq(CALL, CALLCODE, DELEGATECALL).foreach { opCode =>
