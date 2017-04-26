@@ -323,7 +323,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     }
 
     "more gas than available is provided" should {
-      def call(config: EvmConfig) = {
+      def call(config: EvmConfig): CallResult = {
         val context: PC = fxt.context.copy(config = config)
         CallResult(op = CALL, context = context, gas = UInt256.MaxValue / 2)
       }
@@ -517,7 +517,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     }
 
     "more gas than available is provided" should {
-      def call(config: EvmConfig) = {
+      def call(config: EvmConfig): CallResult = {
         val context: PC = fxt.context.copy(config = config)
         CallResult(op = CALLCODE, context = context, gas = UInt256.MaxValue / 2)
       }
@@ -684,7 +684,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     }
 
     "more gas than available is provided" should {
-      def call(config: EvmConfig) = {
+      def call(config: EvmConfig): CallResult = {
         val context: PC = fxt.context.copy(config = config)
         CallResult(op = DELEGATECALL, context = context, gas = UInt256.MaxValue / 2)
       }
