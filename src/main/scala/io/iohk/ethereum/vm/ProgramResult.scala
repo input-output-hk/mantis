@@ -14,9 +14,9 @@ import io.iohk.ethereum.domain.{Address, TxLogEntry}
  */
 case class ProgramResult[W <: WorldStateProxy[W, S], S <: Storage[S]](
   returnData: ByteString,
-  gasRemaining: UInt256,
+  gasRemaining: BigInt,
   world: W,
   addressesToDelete: Seq[Address],
   logs: Seq[TxLogEntry],
-  gasRefund: UInt256,
+  gasRefund: BigInt,
   error: Option[ProgramError])
