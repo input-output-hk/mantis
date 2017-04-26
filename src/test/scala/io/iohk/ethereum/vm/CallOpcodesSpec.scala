@@ -321,6 +321,21 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
     }
+
+    "more gas than available is provided" should {
+      def call(config: EvmConfig): CallResult = {
+        val context: PC = fxt.context.copy(config = config)
+        CallResult(op = CALL, context = context, gas = UInt256.MaxValue / 2)
+      }
+
+      "go OOG before EIP-150" in {
+        call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+      }
+
+      "cap the provided gas after EIP-150" in {
+        call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+      }
+    }
   }
 
   "CALLCODE" when {
@@ -499,7 +514,21 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       "refund the correct amount of gas" in {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
       }
+    }
 
+    "more gas than available is provided" should {
+      def call(config: EvmConfig): CallResult = {
+        val context: PC = fxt.context.copy(config = config)
+        CallResult(op = CALLCODE, context = context, gas = UInt256.MaxValue / 2)
+      }
+
+      "go OOG before EIP-150" in {
+        call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+      }
+
+      "cap the provided gas after EIP-150" in {
+        call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+      }
     }
   }
 
@@ -652,7 +681,21 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       "refund the correct amount of gas" in {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
       }
+    }
 
+    "more gas than available is provided" should {
+      def call(config: EvmConfig): CallResult = {
+        val context: PC = fxt.context.copy(config = config)
+        CallResult(op = DELEGATECALL, context = context, gas = UInt256.MaxValue / 2)
+      }
+
+      "go OOG before EIP-150" in {
+        call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+      }
+
+      "cap the provided gas after EIP-150" in {
+        call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+      }
     }
   }
 
