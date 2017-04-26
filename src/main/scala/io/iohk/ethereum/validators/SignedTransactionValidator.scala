@@ -157,7 +157,7 @@ object SignedTransactionError {
     override def toString: String =
       s"${getClass.getSimpleName}(Expected nonce $txNonce but got $senderNonce)"
   }
-  case class TransactionNotEnoughGasForIntrinsicError(txGasLimit: BigInt, txIntrinsicGas: UInt256) extends SignedTransactionError {
+  case class TransactionNotEnoughGasForIntrinsicError(txGasLimit: BigInt, txIntrinsicGas: BigInt) extends SignedTransactionError {
     override def toString: String =
       s"${getClass.getSimpleName}(Tx gas limit ($txGasLimit) < tx intrinsic gas ($txIntrinsicGas))"
   }
