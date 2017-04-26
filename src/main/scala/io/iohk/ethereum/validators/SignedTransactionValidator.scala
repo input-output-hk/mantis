@@ -64,9 +64,9 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
       Left(TransactionSyntaxError(s"Invalid gasPrice: $gasPrice > $maxGasValue"))
     else if(value > maxValue)
       Left(TransactionSyntaxError(s"Invalid value: $value > $maxValue"))
-    else if(BigInt(signature.r) > maxR)
+    else if(signature.r > maxR)
       Left(TransactionSyntaxError(s"Invalid signatureRandom: ${signature.r} > $maxR"))
-    else if(BigInt(signature.s) > maxS)
+    else if(signature.s > maxS)
       Left(TransactionSyntaxError(s"Invalid signature: ${signature.s} > $maxS"))
     else
       Right(stx)
@@ -81,8 +81,8 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     * @return Either the validated transaction or TransactionSignatureError if an error was detected
     */
   private def validateSignature(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransaction] = {
-    val r = BigInt(stx.signature.r)
-    val s = BigInt(stx.signature.s)
+    val r = stx.signature.r
+    val s = stx.signature.s
 
     val validR = r > 0 && r < secp256k1n
     val validS = s > 0 && s < (if(fromBeforeHomestead) secp256k1n else secp256k1n / 2)

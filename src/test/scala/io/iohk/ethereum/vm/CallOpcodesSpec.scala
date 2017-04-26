@@ -459,7 +459,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
       "compute a correct result" in {
         val (result, _) = call.stateOut.memory.load(call.outOffset, call.outSize)
-        val expected = kec256(inputData)
+        val expected = sha256(inputData)
 
         result shouldEqual expected
       }

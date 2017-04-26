@@ -122,6 +122,21 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
         case _ => Seq.empty
       }
 
+      stateNodesHashes = stateNodesHashes ++ children.toSet
+      contractNodesHashes = contractNodesHashes ++ contractChildren.toSet
+
+      evmCode.foreach { e =>
+        evmCodeStorage = evmCodeStorage + (kec256(e) -> e)
+      }
+
+      nodes.foreach { n =>
+        stateStorage = stateStorage + (n.hash -> n)
+      }
+
+      cNodes.foreach { n =>
+        contractStorage = contractStorage + (n.hash -> n)
+      }
+
       if (children.isEmpty && contractChildren.isEmpty && evmTorequest.isEmpty) {
         val headersFile = new FileWriter("headers.txt", true)
         val stateTreeFile = new FileWriter("stateTree.txt", true)
@@ -145,20 +160,6 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
       } else {
         peers.headOption.foreach { case Peer(_, actor) =>
           actor ! SendMessage(GetNodeData(children ++ contractChildren ++ evmTorequest))
-          stateNodesHashes = stateNodesHashes ++ children.toSet
-          contractNodesHashes = contractNodesHashes ++ contractChildren.toSet
-        }
-
-        evmCode.foreach { e =>
-          evmCodeStorage = evmCodeStorage + (kec256(e) -> e)
-        }
-
-        nodes.foreach { n =>
-          stateStorage = stateStorage + (n.hash -> n)
-        }
-
-        cNodes.foreach { n =>
-          contractStorage = contractStorage + (n.hash -> n)
         }
       }
   }

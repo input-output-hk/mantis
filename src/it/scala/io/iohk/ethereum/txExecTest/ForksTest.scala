@@ -24,6 +24,8 @@ class ForksTest extends FlatSpec with Matchers {
     override val daoForkBlockNumber: BigInt = 10000
     override val daoForkBlockHash: ByteString = ByteString("unused")
     override val daoForkBlockTotalDifficulty: BigInt = 1000000
+    override val difficultyBombPauseBlockNumber: BigInt = Long.MaxValue
+    override val difficultyBombContinueBlockNumber: BigInt = Long.MaxValue
   }
 
   val ledger = new LedgerImpl(VM, blockchainConfig)
