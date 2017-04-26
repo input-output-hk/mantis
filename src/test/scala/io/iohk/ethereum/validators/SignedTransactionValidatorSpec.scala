@@ -7,8 +7,8 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Account, Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.validators.SignedTransactionError.{TransactionSignatureError, TransactionSyntaxError}
-import io.iohk.ethereum.vm.UInt256
+import io.iohk.ethereum.validators.SignedTransactionError._
+import io.iohk.ethereum.vm.{EvmConfig, UInt256}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -62,9 +62,9 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
 
   val accumGasUsed = 0 //Both are the first tx in the block
 
-  val stubCalculateUpfrontGasCost: Transaction => UInt256 = _ => UInt256(senderBalance / 2)
+  val upfrontGasCost: UInt256 = UInt256(senderBalance / 2)
 
-  def validateStx(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransaction] = {
+  def validateStx(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, Unit] = {
     val (senderAccount, blockHeader) =
       if(fromBeforeHomestead)
         (senderAccountBeforeHomestead, blockHeaderBeforeHomestead)
@@ -74,21 +74,21 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
       stx = stx,
       senderAccount = senderAccount,
       blockHeader = blockHeader,
-      calculateUpfrontGasCost = stubCalculateUpfrontGasCost,
+      upfrontGasCost = upfrontGasCost,
       accumGasUsed = accumGasUsed
     )
   }
 
   it should "report as valid a tx from before homestead" in {
     validateStx(signedTxBeforeHomestead, fromBeforeHomestead = true) match {
-      case Right(validated) if validated == signedTxBeforeHomestead => succeed
+      case Right(_)  => succeed
       case _ => fail
     }
   }
 
   it should "report as valid a tx from after homestead" in {
     validateStx(signedTxAfterHomestead, fromBeforeHomestead = false) match {
-      case Right(validated) if validated == signedTxAfterHomestead => succeed
+      case Right(_) => succeed
       case _ => fail
     }
   }
@@ -161,6 +161,49 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
     val signedTxWithInvalidSignature = signedTxAfterHomestead.copy(signature = signatureWithInvalidS)
     validateStx(signedTxWithInvalidSignature, fromBeforeHomestead = false) match {
       case Left(TransactionSignatureError) => succeed
+      case _ => fail
+    }
+  }
+
+  it should "report as invalid a tx with invalid nonce" in {
+    val txWithInvalidNonce = txAfterHomestead.copy(nonce = txAfterHomestead.nonce + 1)
+    val signedTxWithInvalidNonce = signedTxAfterHomestead.copy(tx = txWithInvalidNonce)
+    validateStx(signedTxWithInvalidNonce, fromBeforeHomestead = false) match {
+      case Left(_: TransactionNonceError) => succeed
+      case _ => fail
+    }
+  }
+
+  it should "report as invalid a tx with too low gas limit for intrinsic gas" in {
+    val txIntrinsicGas = EvmConfig.forBlock(blockHeaderAfterHomestead.number, blockchainConfig)
+      .calcTransactionIntrinsicGas(txAfterHomestead.payload, txAfterHomestead.isContractInit)
+    val txWithInvalidGasLimit = txAfterHomestead.copy(gasLimit = txIntrinsicGas / 2)
+    val signedTxWithInvalidGasLimit = signedTxAfterHomestead.copy(tx = txWithInvalidGasLimit)
+    validateStx(signedTxWithInvalidGasLimit, fromBeforeHomestead = false) match {
+      case Left(_: TransactionNotEnoughGasForIntrinsicError) => succeed
+      case _ => fail
+    }
+  }
+
+  it should "report as invalid a tx with upfront cost higher than the sender's balance" in {
+    val senderAccountWithLowBalance = senderAccountAfterHomestead.copy(balance = upfrontGasCost / 2)
+    signedTransactionValidator.validate(
+      stx = signedTxAfterHomestead,
+      senderAccount = senderAccountWithLowBalance,
+      blockHeader = blockHeaderAfterHomestead,
+      upfrontGasCost = upfrontGasCost,
+      accumGasUsed = accumGasUsed
+    ) match {
+      case Left(_: TransactionSenderCantPayUpfrontCostError) => succeed
+      case _ => fail
+    }
+  }
+
+  it should "report as invalid a tx with too high gas limit for block gas limit" in {
+    val txWithInvalidGasLimit = txAfterHomestead.copy(gasLimit = blockHeaderAfterHomestead.gasLimit + 1)
+    val signedTxWithInvalidGasLimit = signedTxAfterHomestead.copy(tx = txWithInvalidGasLimit)
+    validateStx(signedTxWithInvalidGasLimit, fromBeforeHomestead = false) match {
+      case Left(_: TransactionGasLimitTooBigError) => succeed
       case _ => fail
     }
   }

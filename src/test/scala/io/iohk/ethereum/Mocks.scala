@@ -55,14 +55,14 @@ object Mocks {
 
     override val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidator {
       override def validate(stx: SignedTransaction, account: Account, blockHeader: BlockHeader,
-                            calculateUpfrontGasCost: (Transaction) => UInt256, accumGasLimit: BigInt) = Right(stx)
+                            upfrontGasCost: UInt256, accumGasLimit: BigInt) = Right(())
     }
   }
 
   object MockValidatorsAlwaysFail extends Validators {
     override val signedTransactionValidator = new SignedTransactionValidator {
       def validate(stx: SignedTransaction, account: Account, blockHeader: BlockHeader,
-                   calculateUpfrontGasCost: Transaction => UInt256, accumGasLimit: BigInt) = Left(SignedTransactionError.TransactionSignatureError)
+                   upfrontGasCost: UInt256, accumGasLimit: BigInt) = Left(SignedTransactionError.TransactionSignatureError)
     }
 
     override val blockHeaderValidator = new BlockHeaderValidator {

@@ -91,9 +91,10 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
       case Seq(stx, otherStxs@_*) =>
         val senderAccount = world.getAccount(stx.senderAddress)
+        val upfrontCost = calculateUpfrontCost(stx.tx)
         val validatedStx = senderAccount
-          .toRight(Left(TxsExecutionError(s"Account of tx sender ${Hex.toHexString(stx.senderAddress.toArray)} not found")))
-          .flatMap(account => signedTransactionValidator.validate(stx, account, blockHeader, calculateUpfrontCost, acumGas))
+          .toRight(Left(TxsExecutionError(s"Account of tx sender ${stx.senderAddress.toString} not found")))
+          .flatMap(account => signedTransactionValidator.validate(stx, account, blockHeader, upfrontCost, acumGas))
         validatedStx match {
           case Right(_) =>
             val TxResult(newWorld, gasUsed, logs) = executeTransaction(stx, blockHeader, world)
@@ -110,7 +111,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
             executeTransactions(otherStxs, newWorld, blockHeader, signedTransactionValidator, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
           case Left(error) => Left(TxsExecutionError(error.toString))
         }
-    }
+  }
 
   private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
     log.debug(s"Transaction ${stx.hashAsHexString} execution start")
@@ -325,7 +326,7 @@ object Ledger {
   case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry])
 }
 
-trait BlockExecutionError
+sealed trait BlockExecutionError
 
 object BlockExecutionError {
   case class ValidationBeforeExecError(reason: String) extends BlockExecutionError
