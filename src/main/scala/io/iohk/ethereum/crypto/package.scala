@@ -1,6 +1,6 @@
 package io.iohk.ethereum
 
-import java.security.SecureRandom
+import java.security.{MessageDigest, SecureRandom}
 
 import akka.util.ByteString
 import fr.cryptohash.{Keccak256, Keccak512}
@@ -15,6 +15,8 @@ package object crypto {
 
   val curveParams: X9ECParameters = SECNamedCurves.getByName("secp256k1")
   val curve: ECDomainParameters = new ECDomainParameters(curveParams.getCurve, curveParams.getG, curveParams.getN, curveParams.getH)
+
+  val sha256Digest = MessageDigest.getInstance("SHA-256")
 
   def kec256(input: Array[Byte], start: Int, length: Int): Array[Byte] = {
     val digest = new Keccak256
@@ -53,4 +55,10 @@ package object crypto {
 
   def ripemd160(input: ByteString): ByteString =
     ByteString(ripemd160(input.toArray))
+
+  def sha256(input: Array[Byte]): Array[Byte] =
+    sha256Digest.digest(input)
+
+  def sha256(input: ByteString): ByteString =
+    ByteString(sha256(input.toArray))
 }
