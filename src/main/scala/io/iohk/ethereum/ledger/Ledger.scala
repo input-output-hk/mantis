@@ -7,6 +7,7 @@ import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, Validatio
 import io.iohk.ethereum.ledger.Ledger.{PC, PR, TxResult, BlockResult}
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
+import io.iohk.ethereum.vm.UInt256._
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
@@ -116,7 +117,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
   private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
     log.debug(s"Transaction ${stx.hashAsHexString} execution start")
     val gasPrice = UInt256(stx.tx.gasPrice)
-    val gasLimit = UInt256(stx.tx.gasLimit)
+    val gasLimit = stx.tx.gasLimit
     val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
     val checkpointWorldState = updateSenderAccountBeforeExecution(stx, world)
@@ -133,8 +134,8 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val totalGasToRefund = calcTotalGasToRefund(stx, resultWithErrorHandling)
     val executionGasToPayToMiner = gasLimit - totalGasToRefund
 
-    val refundGasFn = pay(stx.senderAddress, totalGasToRefund * gasPrice) _
-    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), executionGasToPayToMiner * gasPrice) _
+    val refundGasFn = pay(stx.senderAddress, (totalGasToRefund * gasPrice).toUInt256) _
+    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256) _
     val deleteAccountsFn = deleteAccounts(resultWithErrorHandling.addressesToDelete) _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
 
@@ -288,11 +289,11 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     * Calculate total gas to be refunded
     * See YP, eq (72)
     */
-  private def calcTotalGasToRefund(stx: SignedTransaction, result: PR): UInt256 = {
+  private def calcTotalGasToRefund(stx: SignedTransaction, result: PR): BigInt = {
     if (result.error.isDefined)
       0
     else {
-      val gasUsed = UInt256(stx.tx.gasLimit) - result.gasRemaining
+      val gasUsed = stx.tx.gasLimit - result.gasRemaining
       result.gasRemaining + (gasUsed / 2).min(result.gasRefund)
     }
   }

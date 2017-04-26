@@ -27,7 +27,7 @@ object ProgramContext {
 
     val gasLimit = tx.gasLimit - config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
 
-    ProgramContext(env, recipientAddress, UInt256(gasLimit), world, config)
+    ProgramContext(env, recipientAddress, gasLimit, world, config)
   }
 }
 
@@ -45,6 +45,6 @@ object ProgramContext {
 case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
   env: ExecEnv,
   receivingAddr: Address,
-  startGas: UInt256,
+  startGas: BigInt,
   world: W,
   config: EvmConfig)

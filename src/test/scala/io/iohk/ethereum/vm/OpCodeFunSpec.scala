@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address, TxLogEntry}
 import io.iohk.ethereum.vm.Generators._
+import io.iohk.ethereum.vm.UInt256._
 import org.scalacheck.Gen
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
@@ -119,7 +120,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       withStackVerification(op, stateIn, stateOut) {
         val expectedSize = wordsForBytes(stateIn.memory.size) * 32
-        val expectedState = stateIn.withStack(stateIn.stack.push(expectedSize)).step()
+        val expectedState = stateIn.withStack(stateIn.stack.push(expectedSize.toUInt256)).step()
 
         stateOut shouldEqual expectedState
       }

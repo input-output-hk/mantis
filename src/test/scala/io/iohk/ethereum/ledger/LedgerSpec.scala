@@ -29,9 +29,9 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
   val blockchainConfig = BlockchainConfig(Config.config)
 
   def createResult(context: PC,
-                   gasUsed: UInt256,
-                   gasLimit: UInt256,
-                   gasRefund: UInt256,
+                   gasUsed: BigInt,
+                   gasLimit: BigInt,
+                   gasRefund: BigInt,
                    error: Option[ProgramError] = None,
                    returnData: ByteString = bEmpty,
                    logs: Seq[TxLogEntry] = Nil,
@@ -70,7 +70,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
   "Ledger" should "correctly calculate the total gas refund to be returned to the sender and paying for gas to the miner" in new TestSetup {
 
-    val table = Table[UInt256, UInt256, Option[ProgramError], BigInt](
+    val table = Table[BigInt, BigInt, Option[ProgramError], BigInt](
       ("execGasUsed", "refundsFromVM", "maybeError", "gasUsed"),
       (25000, 20000, None, 25000 - 12500),
       (25000, 10000, None, 25000 - 10000),

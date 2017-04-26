@@ -71,6 +71,21 @@ class Memory private(private val underlying: ByteString) {
       (newUnderlying.slice(start, end), new Memory(newUnderlying))
     }
 
+  /** This function will expand the Memory size as if storing data given the `offset` and `size`.
+    * If the memory is already initialised at that region it will not be modified, otherwise it will be filled with
+    * zeroes.
+    * This is required to satisfy memory expansion semantics for *CALL* opcodes.
+    */
+  def expand(offset: UInt256, size: UInt256): Memory = {
+    val totalSize = (offset + size).toInt
+    if (this.size >= totalSize || size.isZero)
+      this
+    else {
+      val fill = zeros(totalSize - this.size)
+      new Memory(underlying ++ fill)
+    }
+  }
+
   /**
     * @return memory size in bytes
     */

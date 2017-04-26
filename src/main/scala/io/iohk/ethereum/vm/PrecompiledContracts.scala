@@ -33,12 +33,12 @@ object PrecompiledContracts {
 
   sealed trait PrecompiledContract {
     protected def exec(inputData: ByteString): ByteString
-    protected def gas(inputData: ByteString): UInt256
+    protected def gas(inputData: ByteString): BigInt
 
     def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
       val g = gas(context.env.inputData)
 
-      val (result, error, gasRemaining): (ByteString, Option[ProgramError], UInt256) =
+      val (result, error, gasRemaining): (ByteString, Option[ProgramError], BigInt) =
         if (g <= context.startGas)
           (exec(context.env.inputData), None, context.startGas - g)
         else
@@ -71,7 +71,7 @@ object PrecompiledContracts {
       }.getOrElse(ByteString.empty)
     }
 
-    def gas(inputData: ByteString): UInt256 =
+    def gas(inputData: ByteString): BigInt =
       3000
   }
 
@@ -79,7 +79,7 @@ object PrecompiledContracts {
     def exec(inputData: ByteString): ByteString =
       sha256(inputData)
 
-    def gas(inputData: ByteString): UInt256 =
+    def gas(inputData: ByteString): BigInt =
       60 + 12 * wordsForBytes(inputData.size)
   }
 
@@ -87,7 +87,7 @@ object PrecompiledContracts {
     def exec(inputData: ByteString): ByteString =
       ByteUtils.padLeft(ripemd160(inputData), 32)
 
-    def gas(inputData: ByteString): UInt256 =
+    def gas(inputData: ByteString): BigInt =
       600 + 120 * wordsForBytes(inputData.size)
   }
 
@@ -95,7 +95,7 @@ object PrecompiledContracts {
     def exec(inputData: ByteString): ByteString =
       inputData
 
-    def gas(inputData: ByteString): UInt256 =
+    def gas(inputData: ByteString): BigInt =
       15 + 3 * wordsForBytes(inputData.size)
   }
 }
