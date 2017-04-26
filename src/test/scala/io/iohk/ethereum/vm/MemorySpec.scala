@@ -189,4 +189,24 @@ class MemorySpec extends FunSuite with PropertyChecks with Matchers {
       (updatedMem.size - initMem.size) shouldEqual expectedDelta
     }
   }
+
+  test("Correctly increase memory size when expanding") {
+
+    val table = Table(
+      ("initialSize", "offset", "dataSize", "expectedDelta"),
+      (0, 0, 1, 1),
+      (0, 0, 32, 32),
+      (0, 32, 31, 63),
+      (64, 32, 64, 32),
+      (64, 32, 16, 0),
+      (64, 96, 0, 0),
+      (0, 32, 0, 0)
+    )
+
+    forAll(table) { (initialSize, offset, dataSize, expectedDelta) =>
+      val initMem = Memory.empty.store(0, zeros(initialSize))
+      val updatedMem = initMem.expand(offset, dataSize)
+      (updatedMem.size - initMem.size) shouldEqual expectedDelta
+    }
+  }
 }

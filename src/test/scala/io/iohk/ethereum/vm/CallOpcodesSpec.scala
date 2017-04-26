@@ -7,9 +7,10 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
+import org.scalatest.prop.PropertyChecks
 
 // scalastyle:off object.name
-class CallOpcodesSpec extends WordSpec with Matchers {
+class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
   val config = EvmConfig.PostEIP160Config
 
@@ -70,6 +71,16 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       SSTORE
     )
 
+    val valueToReturn = 23
+    val returnSingleByteProgram = Assembly(
+      PUSH1, valueToReturn,
+      PUSH1, 0,
+      MSTORE,
+      PUSH1, 1,
+      PUSH1, 31,
+      RETURN
+    )
+
     val inputData = Generators.getUInt256Gen().sample.get.bytes
     val expectedMemCost = config.calcMemCost(inputData.size, inputData.size, inputData.size / 2)
 
@@ -103,6 +114,9 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
     val worldWithSstoreWithClearProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.Empty)
       .saveCode(extAddr, sstoreWithClearProgram.code)
+
+    val worldWithReturnSingleByteCode = worldWithoutExtAccount.saveAccount(extAddr, Account.Empty)
+      .saveCode(extAddr, returnSingleByteProgram.code)
 
     val env = ExecEnv(ownerAddr, callerAddr, callerAddr, 1, ByteString.empty, 123, Program(ByteString.empty), null, 0)
     val context: PC = ProgramContext(env, ownerAddr, 2 * requiredGas, worldWithExtAccount, config)
@@ -294,7 +308,7 @@ class CallOpcodesSpec extends WordSpec with Matchers {
       }
 
       "consume correct gas" in {
-        val contractCost = 3000
+        val contractCost = UInt256(3000)
         val expectedGas = contractCost - G_callstipend + G_call + G_callvalue // memory not increased
         call.stateOut.gasUsed shouldEqual expectedGas
       }
@@ -334,35 +348,6 @@ class CallOpcodesSpec extends WordSpec with Matchers {
 
       "cap the provided gas after EIP-150" in {
         call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
-      }
-    }
-
-    /**
-      * This test should result in an OutOfGas error as (following the equations. on the CALL opcode in the YP):
-      * CALL cost = memoryCost + C_extra + C_gascap
-      * and
-      * memoryCost = 0 (result written were input was)
-      * C_gascap = u_s[0] = UInt256.MaxValue - C_extra + 1
-      * Then
-      * CALL cost = UInt256.MaxValue + 1
-      * As the starting gas (startGas = C_extra - 1) is much lower than the cost this should result in an OutOfGas exception
-      */
-    "gas cost bigger than available gas" should {
-
-      val memCost = 0
-      val c_extra = config.feeSchedule.G_call + config.feeSchedule.G_callvalue
-      val startGas = c_extra - 1
-      val gas = UInt256.MaxValue - c_extra + 1
-      //u_s[0]
-      val context: PC = fxt.context.copy(startGas = startGas)
-      val call = CallResult(
-        op = CALL,
-        gas = gas,
-        context = context,
-        outOffset = UInt256.Zero
-      )
-      "return an OutOfGas error" in {
-        call.stateOut.error shouldBe Some(OutOfGas)
       }
     }
   }
@@ -559,35 +544,6 @@ class CallOpcodesSpec extends WordSpec with Matchers {
         call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
       }
     }
-
-    /**
-      * This test should result in an OutOfGas error as (following the equations. on the CALLCODE opcode in the YP):
-      * CALLCODE cost = memoryCost + C_extra + C_gascap
-      * and
-      * memoryCost = 0 (result written were input was)
-      * C_gascap = u_s[0] = UInt256.MaxValue - C_extra + 1
-      * Then
-      * CALL cost = UInt256.MaxValue + 1
-      * As the starting gas (startGas = C_extra - 1) is much lower than the cost this should result in an OutOfGas exception
-      */
-    "gas cost bigger than available gas" should {
-
-      val memCost = 0
-      val c_extra = config.feeSchedule.G_call + config.feeSchedule.G_callvalue
-      val startGas = c_extra - 1
-      val gas = UInt256.MaxValue - c_extra + 1 //u_s[0]
-      val context: PC = fxt.context.copy(startGas = startGas)
-      val call = CallResult(
-        op = CALLCODE,
-        gas = gas,
-        context = context,
-        outOffset = UInt256.Zero
-      )
-      "return an OutOfGas error" in {
-        call.stateOut.error shouldBe Some(OutOfGas)
-      }
-    }
-
   }
 
   "DELEGATECALL" when {
@@ -782,6 +738,47 @@ class CallOpcodesSpec extends WordSpec with Matchers {
     )
     "return an OutOfGas error" in {
       call.stateOut.error shouldBe Some(OutOfGas)
+    }
+  }
+
+  "CallOpCodes" when {
+
+    Seq(CALL, CALLCODE, DELEGATECALL).foreach { opCode =>
+
+      s"$opCode processes returned data" should {
+
+        "handle memory expansion properly" in {
+
+          val inputData = ByteString(Array[Byte](1).padTo(32, 1.toByte))
+          val context: PC = fxt.context.copy(world = fxt.worldWithReturnSingleByteCode)
+
+          val table = Table[Int](
+            "Out Offset",
+            0,
+            inputData.size / 2,
+            inputData.size * 2
+          )
+
+          forAll(table) { outOffset =>
+
+            val call = CallResult(
+              op = opCode,
+              outSize = inputData.size,
+              outOffset = outOffset,
+              context = context,
+              inputData = inputData
+            )
+
+            val expectedSize = inputData.size + outOffset
+            val expectedMemoryBytes = call.stateIn.memory.store(outOffset, fxt.valueToReturn.toByte).load(0, expectedSize)._1
+            val resultingMemoryBytes = call.stateOut.memory.load(0, expectedSize)._1
+
+            call.stateOut.memory.size shouldEqual expectedSize
+            resultingMemoryBytes shouldEqual expectedMemoryBytes
+
+          }
+        }
+      }
     }
   }
 
