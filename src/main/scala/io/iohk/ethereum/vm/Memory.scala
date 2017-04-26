@@ -1,13 +1,13 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+import org.spongycastle.util.encoders.Hex
 
 object Memory {
 
   def empty: Memory = new Memory(ByteString())
 
   private def zeros(size: Int): ByteString = ByteString(Array.fill[Byte](size)(0))
-
 }
 
 /**
@@ -18,59 +18,58 @@ object Memory {
  * https://solidity.readthedocs.io/en/latest/frequently-asked-questions.html#what-is-the-memory-keyword-what-does-it-do
  * https://github.com/ethereum/go-ethereum/blob/master/core/vm/memory.go
  */
-class Memory(private[vm] val underlying: ByteString) {
+class Memory private(private val underlying: ByteString) {
 
   import Memory.zeros
 
   def store(offset: UInt256, b: Byte): Memory = store(offset, ByteString(b))
 
-  def store(offset: UInt256, dw: UInt256): Memory = store(offset, dw.bytes)
+  def store(offset: UInt256, uint: UInt256): Memory = store(offset, uint.bytes)
 
   def store(offset: UInt256, bytes: Array[Byte]): Memory = store(offset, ByteString(bytes))
 
-  /** Stores a ByteString under the given address.
-   * Underlying byte array is expanded if a ByteString doesn't fit into it.
-   * All empty cells of an expanded array are set to 0.
-   * This method may throw OOM.
-   */
-  def store(offset: UInt256, bs: ByteString): Memory = {
+  /** Stores data at the given offset.
+    * The memory is automatically expanded to accommodate new data - filling empty regions with zeroes if necessary -
+    * hence an OOM error may be thrown.
+    */
+  def store(offset: UInt256, data: ByteString): Memory = {
     val idx: Int = offset.toInt
-    val newUnderlying: ByteString = if (idx + bs.length <= underlying.length) {
-      // a new buffer fits into an old buffer
-      val (prepending, following) = underlying.splitAt(idx)
-      prepending ++ bs ++ following.drop(bs.length)
-    } else if (idx <= underlying.length) {
-      // a new buffer partially fits into an old buffer
-      underlying.take(idx) ++ bs
-    } else {
-      // there is a gap (possibly empty) between an old buffer and a new buffer
-      underlying ++ zeros(idx - underlying.length) ++ bs
-    }
+
+    val newUnderlying: ByteString =
+      if (data.isEmpty)
+        underlying
+      else
+        underlying.take(idx).padTo(idx, 0.toByte) ++ data ++ underlying.drop(idx + data.length)
+
     new Memory(newUnderlying)
   }
 
   def load(offset: UInt256): (UInt256, Memory) = {
     doLoad(offset, UInt256.Size) match {
-      case (bs, memory) => UInt256(bs) -> memory
+      case (bs, memory) => (UInt256(bs), memory)
     }
   }
 
   def load(offset: UInt256, size: UInt256): (ByteString, Memory) = doLoad(offset, size.toInt)
 
-  /** Returns a ByteString of a given size starting at the given address of the Memory.
-   * Underlying byte array is expanded and filled with 0's if addr + size exceeds size
-   * of the memory.
-   * This method may throw OOM.
-   */
-  private def doLoad(offset: UInt256, size: Int): (ByteString, Memory) = {
-    val start: Int = offset.toInt
-    val end: Int = start + size
-    val newUnderlying = if (end <= underlying.size)
-      underlying
-    else
-      underlying ++ zeros(end - underlying.size)
-    newUnderlying.slice(start, end) -> new Memory(newUnderlying)
-  }
+  /** Returns a ByteString of a given size starting at the given offset of the Memory.
+    * The memory is automatically expanded (with zeroes) when reading previously uninitialised regions,
+    * hence an OOM error may be thrown.
+    */
+  private def doLoad(offset: UInt256, size: Int): (ByteString, Memory) =
+    if (size <= 0)
+      (ByteString.empty, this)
+    else {
+      val start: Int = offset.toInt
+      val end: Int = start + size
+
+      val newUnderlying = if (end <= underlying.size)
+        underlying
+      else
+        underlying ++ zeros(end - underlying.size)
+
+      (newUnderlying.slice(start, end), new Memory(newUnderlying))
+    }
 
   /**
     * @return memory size in bytes
@@ -86,6 +85,6 @@ class Memory(private[vm] val underlying: ByteString) {
 
   override def hashCode: Int = underlying.hashCode()
 
-  override def toString: String = underlying.toString.replace("ByteString", this.getClass.getSimpleName)
+  override def toString: String = s"${this.getClass.getSimpleName}(${Hex.toHexString(underlying.toArray[Byte])})"
 
 }

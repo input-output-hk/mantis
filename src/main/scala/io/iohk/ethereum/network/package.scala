@@ -21,8 +21,7 @@ package object network {
   }
 
   def publicKeyFromNodeId(nodeId: String): ECPoint = {
-    val bytes = Array(4.toByte) ++ // uncompressed
-      Hex.decode(nodeId)
+    val bytes = ECDSASignature.uncompressedIndicator +: Hex.decode(nodeId)
     curve.getCurve.decodePoint(bytes)
   }
 
