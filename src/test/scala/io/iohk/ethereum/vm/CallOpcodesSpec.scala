@@ -10,7 +10,7 @@ import io.iohk.ethereum.vm.MockWorldState._
 import org.scalatest.prop.PropertyChecks
 
 // scalastyle:off object.name
-class CallOpcodesSpec extends WordSpec with Matchers {
+class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
   val config = EvmConfig.PostEIP160Config
 
@@ -683,12 +683,17 @@ class CallOpcodesSpec extends WordSpec with Matchers {
           val inputData = ByteString(Array[Byte](1).padTo(32, 1.toByte))
           val context: PC = fxt.context.copy(world = fxt.worldWithReturnSingleByteCode)
 
-          val outOffsets = Seq(0, inputData.size / 2, inputData.size * 2)
+          val table = Table[Int](
+            "Out Offset",
+            0,
+            inputData.size / 2,
+            inputData.size * 2
+          )
 
-          outOffsets.foreach { outOffset =>
+          forAll(table) { outOffset =>
 
             val call = CallResult(
-              op = CALL,
+              op = opCode,
               outSize = inputData.size,
               outOffset = outOffset,
               context = context,
