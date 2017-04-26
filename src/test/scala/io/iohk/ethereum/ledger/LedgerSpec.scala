@@ -242,9 +242,47 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     }
   }
 
+  it should "should handle pre-existing and new destination accounts when processing a contract init transaction" in new TestSetup {
+
+    val originAccount = Account(nonce = UInt256(0), balance = UInt256.MaxValue)
+    val worldWithoutPreexistingAccount = emptyWorld.saveAccount(originAddress, originAccount)
+
+    // In order to get contract address we need to increase the nonce as ledger will do within the first
+    // steps of execution
+    val contractAddress = worldWithoutPreexistingAccount
+      .saveAccount(originAddress, originAccount.increaseNonce)
+      .createAddress(originAddress)
+
+    val preExistingAccount = Account(nonce = UInt256(defaultTx.nonce), balance = 1000)
+    val worldWithPreexistingAccount = worldWithoutPreexistingAccount
+      .saveAccount(contractAddress, preExistingAccount)
+
+    val tx = defaultTx.copy(receivingAddress = None, value = 23)
+    val stx = SignedTransaction.sign(tx, keyPair, blockchainConfig.chainId)
+
+
+    val table = Table[InMemoryWorldStateProxy, BigInt](
+      ("Initial World", "Contract Account Balance"),
+      (worldWithoutPreexistingAccount, tx.value),
+      (worldWithPreexistingAccount, preExistingAccount.balance + tx.value)
+    )
+
+    forAll(table) { (initialWorld, contractAccountBalance) =>
+      val mockVM = new MockVM((pc: Ledger.PC) => {
+        pc.world.getGuaranteedAccount(contractAddress).balance shouldEqual contractAccountBalance
+        createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
+      })
+      val ledger = new LedgerImpl(mockVM, blockchainConfig)
+
+      ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
+    }
+  }
+
+
   trait TestSetup {
     val keyPair = generateKeyPair()
-    val originAddress = Address(kec256(keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)))
+    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+    val originAddress = Address(kec256(keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
     val minerAddress = Address(666)
 
     val defaultBlockHeader = BlockHeader(

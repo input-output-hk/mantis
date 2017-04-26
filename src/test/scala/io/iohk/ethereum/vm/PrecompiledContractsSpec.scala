@@ -23,7 +23,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     forAll(bytesGen) { bytes =>
       val hash = kec256(bytes)
       val validSig = ECDSASignature.sign(hash.toArray, keyPair)
-      val recoveredPub = ByteUtils.padLeft(kec256(validSig.recoverPubBytes(hash).get).slice(12, 32), 32, 0)
+      val recoveredPub = ByteUtils.padLeft(kec256(validSig.publicKey(hash).get).slice(12, 32), 32, 0)
 
       val inputData = hash ++ UInt256(validSig.v).bytes ++ UInt256(validSig.r).bytes ++ UInt256(validSig.s).bytes
 
@@ -50,7 +50,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
     forAll(bytesGen) { bytes =>
       val context = buildContext(PrecompiledContracts.Sha256Addr, bytes)
       val result = VM.run(context)
-      result.returnData shouldEqual kec256(bytes)
+      result.returnData shouldEqual sha256(bytes)
 
       val gasUsed = context.startGas - result.gasRemaining
       val expectedGas = 60 + 12 * wordsForBytes(bytes.size)
