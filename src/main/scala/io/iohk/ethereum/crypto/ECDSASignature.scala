@@ -14,7 +14,7 @@ object ECDSASignature {
   val RLength = 32
   val EncodedLength: Int = RLength + SLength + 1
   //byte value that indicates that bytes representing ECC point are in uncompressed format, and should be decoded properly
-  val uncompressedIndicator: Byte = 0x04
+  val uncompressedIndicator:Byte = 0x04
 
   //only naming convention
   val negativePointSign: Byte = 27
@@ -114,7 +114,6 @@ object ECDSASignature {
 
 /**
   * ECDSASignature r and s are same as in documentation where signature is represented by tuple (r, s)
-  *
   * @param r - x coordinate of ephemeral public key modulo curve order N
   * @param s - part of the signature calculated with signer private key
   * @param v - public key recovery id
@@ -123,7 +122,6 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
 
   /**
     * returns ECC point encoded with on compression and without leading byte indicating compression
-    *
     * @param message message to be signed
     * @param chainId optional value if you want new signing schema with recovery id calculated with chain id
     * @return
@@ -133,7 +131,6 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
 
   /**
     * returns ECC point encoded with on compression and without leading byte indicating compression
-    *
     * @param message message to be signed
     * @return
     */
