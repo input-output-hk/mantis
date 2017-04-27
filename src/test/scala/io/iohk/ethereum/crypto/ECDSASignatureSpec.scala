@@ -20,6 +20,17 @@ class ECDSASignatureSpec extends FlatSpec with Matchers with PropertyChecks {
     sig.publicKey(bytesToSign).isEmpty shouldBe false
   }
 
+  it should "fail on case from transaction 74c45d0cf2332cc021bebdfee6b1c1da0b58e8f4154537adb79b025f722920a4" in {
+    val bytesToSign = Hex.decode("2bb3925f178aa22c11435c61899e134fb7b1227016274b5f7b9d85c4469130ba")
+    val signatureRandom = ByteString(Hex.decode("fbe3df0cf030655d817a89936850d1cc00c07c35d3b21be73cfe9a730ea8b753"))
+    val signature = ByteString(Hex.decode("62d73b6a92ac23ff514315fad795bbac6d485481d356329d71467e93c87dfa42"))
+    val pointSign = 0x1f
+
+    val sig = ECDSASignature(BigInt(1, signatureRandom.toArray[Byte]), BigInt(1, signature.toArray[Byte]), pointSign.toByte)
+
+    sig.publicKey(bytesToSign).isEmpty shouldBe true
+  }
+
   it should "sign message and recover public key" in {
     forAll(arbitrary[Array[Byte]], Arbitrary.arbitrary[Unit].map(_ => generateKeyPair())) {
       (message, keys) =>
