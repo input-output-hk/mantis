@@ -22,6 +22,8 @@ object ECDSASignature {
   val positivePointSign: Byte = 28
   val newPositivePointSign: Byte = 36
 
+  val allowedPointSigns = Set(negativePointSign, positivePointSign)
+
   def apply(r: ByteString, s: ByteString, v: ByteString): ECDSASignature = {
     ECDSASignature(BigInt(1, r.toArray), BigInt(1, s.toArray), BigInt(v.toArray).toByte)
   }
@@ -49,7 +51,7 @@ object ECDSASignature {
     * new formula for calculating point sign post EIP 155 adoption
     * v = CHAIN_ID * 2 + 35 or v = CHAIN_ID * 2 + 36
     */
-  private def getRecoveredPointSign(pointSign: Byte, chainId: Option[Byte]): Option[Int] = {
+  private def getRecoveredPointSign(pointSign: Byte, chainId: Option[Byte]): Option[Byte] = {
     chainId match {
       case Some(id) =>
         if (pointSign == negativePointSign || pointSign == (id * 2 + newNegativePointSign).toByte) {
@@ -86,19 +88,21 @@ object ECDSASignature {
     val curveFp = curve.getCurve.asInstanceOf[ECCurve.Fp]
     val prime = curveFp.getQ
 
-    getRecoveredPointSign(recId, chainId).flatMap { recovery =>
-      if (xCoordinate.compareTo(prime) < 0) {
-        val R = constructPoint(xCoordinate, recovery)
-        if (R.multiply(order).isInfinity) {
-          val e = BigInt(1, message)
-          val rInv = r.modInverse(order)
-          //Q = r^(-1)(sR - eG)
-          val q = R.multiply(s.bigInteger).subtract(curve.getG.multiply(e.bigInteger)).multiply(rInv.bigInteger)
-          //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
-          Some(q.getEncoded(false).tail)
+    getRecoveredPointSign(recId, chainId)
+      .filter { recovery => allowedPointSigns.contains(recovery) }
+      .flatMap { recovery =>
+        if (xCoordinate.compareTo(prime) < 0) {
+          val R = constructPoint(xCoordinate, recovery)
+          if (R.multiply(order).isInfinity) {
+            val e = BigInt(1, message)
+            val rInv = r.modInverse(order)
+            //Q = r^(-1)(sR - eG)
+            val q = R.multiply(s.bigInteger).subtract(curve.getG.multiply(e.bigInteger)).multiply(rInv.bigInteger)
+            //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+            Some(q.getEncoded(false).tail)
+          } else None
         } else None
-      } else None
-    }
+      }
   }
 
   private def constructPoint(xCoordinate: BigInt, recId: Int): ECPoint = {
