@@ -163,8 +163,11 @@ object OpCodes {
 }
 
 object OpCode {
-  def sliceBytes(bytes: ByteString, offset: Int, size: Int): ByteString =
-    bytes.slice(offset, offset + size).padTo(size, 0.toByte)
+  def sliceBytes(bytes: ByteString, offset: UInt256, size: UInt256): ByteString = {
+    val start = offset.min(bytes.size).toInt
+    val end = (offset + size).min(bytes.size).toInt
+    bytes.slice(start, end).padTo(size.toInt, 0.toByte)
+  }
 }
 
 /**
@@ -338,7 +341,7 @@ case object CALLVALUE extends ConstOp(0x34)(_.env.value)
 case object CALLDATALOAD extends OpCode(0x35, 1, 1, _.G_verylow) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (offset, stack1) = state.stack.pop
-    val data = OpCode.sliceBytes(state.inputData, offset.toInt, 32)
+    val data = OpCode.sliceBytes(state.inputData, offset, 32)
     val stack2 = stack1.push(UInt256(data))
     state.withStack(stack2).step()
   }
@@ -349,7 +352,7 @@ case object CALLDATASIZE extends ConstOp(0x36)(_.inputData.size)
 case object CALLDATACOPY extends OpCode(0x37, 3, 0, _.G_verylow) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(memOffset, dataOffset, size), stack1) = state.stack.pop(3)
-    val data = OpCode.sliceBytes(state.inputData, dataOffset.toInt, size.toInt)
+    val data = OpCode.sliceBytes(state.inputData, dataOffset, size)
     val mem1 = state.memory.store(memOffset, data)
     state.withStack(stack1).withMemory(mem1).step()
   }
@@ -367,7 +370,7 @@ case object CODESIZE extends ConstOp(0x38)(_.env.program.length)
 case object CODECOPY extends OpCode(0x39, 3, 0, _.G_verylow) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(memOffset, codeOffset, size), stack1) = state.stack.pop(3)
-    val bytes = state.program.getBytes(codeOffset.toInt, size.toInt)
+    val bytes = OpCode.sliceBytes(state.program.code, codeOffset, size)
     val mem1 = state.memory.store(memOffset, bytes)
     state.withStack(stack1).withMemory(mem1).step()
   }
@@ -394,7 +397,7 @@ case object EXTCODESIZE extends OpCode(0x3b, 1, 1, _.G_extcode) with ConstGas {
 case object EXTCODECOPY extends OpCode(0x3c, 4, 0, _.G_extcode) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(address, memOffset, codeOffset, size), stack1) = state.stack.pop(4)
-    val codeCopy = OpCode.sliceBytes(state.world.getCode(Address(address)), codeOffset.toInt, size.toInt)
+    val codeCopy = OpCode.sliceBytes(state.world.getCode(Address(address)), codeOffset, size)
     val mem1 = state.memory.store(memOffset, codeCopy)
     state.withStack(stack1).withMemory(mem1).step()
   }
@@ -798,7 +801,8 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
 
     } else {
       val stack2 = stack1.push(UInt256.One)
-      val output = result.returnData.take(outSize.toInt)
+      val sizeCap = outSize.min(result.returnData.size).toInt
+      val output = result.returnData.take(sizeCap)
       val mem2 = mem1.store(outOffset, output).expand(outOffset, outSize)
 
       state
