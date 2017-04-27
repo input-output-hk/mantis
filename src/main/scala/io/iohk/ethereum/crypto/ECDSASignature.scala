@@ -14,7 +14,7 @@ object ECDSASignature {
   val RLength = 32
   val EncodedLength: Int = RLength + SLength + 1
   //byte value that indicates that bytes representing ECC point are in uncompressed format, and should be decoded properly
-  val uncompressedIndicator:Byte = 0x04
+  val uncompressedIndicator: Byte = 0x04
 
   //only naming convention
   val negativePointSign: Byte = 27
@@ -52,7 +52,7 @@ object ECDSASignature {
     * v = CHAIN_ID * 2 + 35 or v = CHAIN_ID * 2 + 36
     */
   private def getRecoveredPointSign(pointSign: Byte, chainId: Option[Byte]): Option[Byte] = {
-    chainId match {
+    (chainId match {
       case Some(id) =>
         if (pointSign == negativePointSign || pointSign == (id * 2 + newNegativePointSign).toByte) {
           Some(negativePointSign)
@@ -62,7 +62,7 @@ object ECDSASignature {
           None
         }
       case None => Some(pointSign)
-    }
+    }).filter(pointSign => allowedPointSigns.contains(pointSign))
   }
 
   private def canonicalise(s: BigInt): BigInt = {
@@ -88,21 +88,19 @@ object ECDSASignature {
     val curveFp = curve.getCurve.asInstanceOf[ECCurve.Fp]
     val prime = curveFp.getQ
 
-    getRecoveredPointSign(recId, chainId)
-      .filter { recovery => allowedPointSigns.contains(recovery) }
-      .flatMap { recovery =>
-        if (xCoordinate.compareTo(prime) < 0) {
-          val R = constructPoint(xCoordinate, recovery)
-          if (R.multiply(order).isInfinity) {
-            val e = BigInt(1, message)
-            val rInv = r.modInverse(order)
-            //Q = r^(-1)(sR - eG)
-            val q = R.multiply(s.bigInteger).subtract(curve.getG.multiply(e.bigInteger)).multiply(rInv.bigInteger)
-            //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
-            Some(q.getEncoded(false).tail)
-          } else None
+    getRecoveredPointSign(recId, chainId).flatMap { recovery =>
+      if (xCoordinate.compareTo(prime) < 0) {
+        val R = constructPoint(xCoordinate, recovery)
+        if (R.multiply(order).isInfinity) {
+          val e = BigInt(1, message)
+          val rInv = r.modInverse(order)
+          //Q = r^(-1)(sR - eG)
+          val q = R.multiply(s.bigInteger).subtract(curve.getG.multiply(e.bigInteger)).multiply(rInv.bigInteger)
+          //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
+          Some(q.getEncoded(false).tail)
         } else None
-      }
+      } else None
+    }
   }
 
   private def constructPoint(xCoordinate: BigInt, recId: Int): ECPoint = {
@@ -116,6 +114,7 @@ object ECDSASignature {
 
 /**
   * ECDSASignature r and s are same as in documentation where signature is represented by tuple (r, s)
+  *
   * @param r - x coordinate of ephemeral public key modulo curve order N
   * @param s - part of the signature calculated with signer private key
   * @param v - public key recovery id
@@ -124,6 +123,7 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
 
   /**
     * returns ECC point encoded with on compression and without leading byte indicating compression
+    *
     * @param message message to be signed
     * @param chainId optional value if you want new signing schema with recovery id calculated with chain id
     * @return
@@ -133,6 +133,7 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
 
   /**
     * returns ECC point encoded with on compression and without leading byte indicating compression
+    *
     * @param message message to be signed
     * @return
     */
