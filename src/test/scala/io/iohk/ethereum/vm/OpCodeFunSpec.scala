@@ -183,7 +183,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       withStackVerification(op, stateIn, stateOut) {
         val (offset, _) = stateIn.stack.pop
         val (data, _) = stateOut.stack.pop
-        data shouldEqual UInt256(OpCode.sliceBytes(stateIn.inputData, offset.toInt, 32))
+        data shouldEqual UInt256(OpCode.sliceBytes(stateIn.inputData, offset, 32))
 
         val expectedState = stateIn.withStack(stateOut.stack).step()
         stateOut shouldEqual expectedState
@@ -203,7 +203,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       withStackVerification(op, stateIn, stateOut) {
         val (Seq(memOffset, dataOffset, size), _) = stateIn.stack.pop(3)
-        val data = OpCode.sliceBytes(stateIn.inputData, dataOffset.toInt, size.toInt)
+        val data = OpCode.sliceBytes(stateIn.inputData, dataOffset, size)
         val (storedInMem, _) = stateOut.memory.load(memOffset, size)
         data shouldEqual storedInMem
 
@@ -225,7 +225,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       withStackVerification(op, stateIn, stateOut) {
         val (Seq(memOffset, codeOffset, size), _) = stateIn.stack.pop(3)
-        val code = stateIn.program.getBytes(codeOffset.toInt, size.toInt)
+        val code = OpCode.sliceBytes(stateIn.program.code, codeOffset, size)
         val (storedInMem, _) = stateOut.memory.load(memOffset, size)
         code shouldEqual storedInMem
 
@@ -284,7 +284,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       withStackVerification(op, stateIn, stateOut) {
         val (Seq(addr, memOffset, codeOffset, size), _) = stateIn.stack.pop(4)
-        val code = OpCode.sliceBytes(stateIn.world.getCode(Address(addr)), codeOffset.toInt, size.toInt)
+        val code = OpCode.sliceBytes(stateIn.world.getCode(Address(addr)), codeOffset, size)
         val (storedInMem, _) = stateOut.memory.load(memOffset, size)
         code shouldEqual storedInMem
 
