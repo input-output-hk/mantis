@@ -52,7 +52,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     * @param storages
     * @param signedTransactionValidator
     */
-  private def executeBlockTransactions(
+  private[ledger] def executeBlockTransactions(
     block: Block,
     blockchain: Blockchain,
     storages: BlockchainStorages,
@@ -108,6 +108,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
             )
 
             log.debug(s"Receipt generated for tx ${stx.hashAsHexString}, $receipt")
+
             executeTransactions(otherStxs, newWorld, blockHeader, signedTransactionValidator, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
           case Left(error) => Left(TxsExecutionError(error.toString))
         }
