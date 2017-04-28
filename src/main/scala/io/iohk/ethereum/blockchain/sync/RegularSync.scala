@@ -119,7 +119,7 @@ trait RegularSync {
       blockchain.getBlockHeaderByHash(blocks.head.header.parentHash)
         .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
         case Some(blockParentTd) =>
-          val (newBlocks, error) = processBlocks(blocks, blockParentTd)
+          val (newBlocks, errorOpt) = processBlocks(blocks, blockParentTd)
 
           if(newBlocks.nonEmpty){
             context.self ! BroadcastBlocks(newBlocks)
@@ -127,17 +127,18 @@ trait RegularSync {
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
           }
 
-          if(error.isDefined){
-            val numberBlockFailed = blocks.head.header.number + newBlocks.length
-            resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.get.toString}, in block $numberBlockFailed")
-          } else {
-            headersQueue = headersQueue.drop(blocks.length)
-            if (headersQueue.nonEmpty) {
-              val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-              waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
-            } else {
-              context.self ! ResumeRegularSync
-            }
+          errorOpt match {
+            case Some(error) =>
+              val numberBlockFailed = blocks.head.header.number + newBlocks.length
+              resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.toString}, in block $numberBlockFailed")
+            case None =>
+              headersQueue = headersQueue.drop(blocks.length)
+              if (headersQueue.nonEmpty) {
+                val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
+                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
+              } else {
+                context.self ! ResumeRegularSync
+              }
           }
         case None =>
           //TODO: Investigate if we can recover from this error (EC-165)

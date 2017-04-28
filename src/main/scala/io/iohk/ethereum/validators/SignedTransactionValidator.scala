@@ -34,7 +34,7 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
       _ <- validateSignature(stx, fromBeforeHomestead = blockHeader.number < blockchainConfig.homesteadBlockNumber)
       _ <- validateNonce(stx, senderAccount.nonce)
       _ <- validateGasLimitEnoughForIntrinsicGas(stx, blockHeader.number)
-      _ <- validateAccountHasEnoughGasToPayUpfrontCost(stx, senderAccount.balance, upfrontGasCost)
+      _ <- validateAccountHasEnoughGasToPayUpfrontCost(senderAccount.balance, upfrontGasCost)
       _ <- validateBlockHasEnoughGasLimitForTx(stx, accumGasUsed, blockHeader.gasLimit)
     } yield ()
   }
@@ -121,12 +121,11 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
   /**
     * Validates the sender account balance contains at least the cost required in up-front payment.
     *
-    * @param stx Transaction to validate
     * @param senderBalance Balance of the sender of the tx
     * @param upfrontCost Upfront cost of the transaction tx
     * @return Either the validated transaction or a TransactionSenderCantPayUpfrontCostError
     */
-  private def validateAccountHasEnoughGasToPayUpfrontCost(stx: SignedTransaction, senderBalance: UInt256, upfrontCost: UInt256)
+  private def validateAccountHasEnoughGasToPayUpfrontCost(senderBalance: UInt256, upfrontCost: UInt256)
   : Either[SignedTransactionError, Unit] = {
     if (senderBalance >= upfrontCost) Right(())
     else Left(TransactionSenderCantPayUpfrontCostError(upfrontCost, senderBalance))
