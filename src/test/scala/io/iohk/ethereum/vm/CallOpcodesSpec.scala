@@ -316,11 +316,18 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "calling a program that executes a SELFDESTRUCT" should {
 
-      val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructProgram)
-      val call = CallResult(op = CALL, context)
-
       "refund the correct amount of gas" in {
+        val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructProgram)
+        val call = CallResult(op = CALL, context)
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_selfdestruct
+      }
+
+      "not refund gas if account was already self destructed" in {
+        val context: PC = fxt.context.copy(
+          world = fxt.worldWithSelfDestructProgram,
+          initialAddressesToDelete = Set(fxt.extAddr))
+        val call = CallResult(op = CALL, context)
+        call.stateOut.gasRefund shouldBe 0
       }
 
     }

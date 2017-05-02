@@ -8,7 +8,8 @@ object ProgramState {
     ProgramState(
       context = context,
       gas = context.startGas,
-      world = context.world)
+      world = context.world,
+      addressesToDelete = context.initialAddressesToDelete)
 }
 
 /**
@@ -34,7 +35,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
   gasRefund: BigInt = 0,
-  addressesToDelete: Seq[Address] = Nil,
+  addressesToDelete: Set[Address] = Set.empty,
   logs: Vector[TxLogEntry] = Vector.empty,
   halted: Boolean = false,
   error: Option[ProgramError] = None
@@ -87,9 +88,9 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
     copy(returnData = data)
 
   def withAddressToDelete(addr: Address): ProgramState[W, S] =
-    copy(addressesToDelete = addressesToDelete :+ addr)
+    copy(addressesToDelete = addressesToDelete + addr)
 
-  def withAddressesToDelete(addresses: Seq[Address]): ProgramState[W, S] =
+  def withAddressesToDelete(addresses: Set[Address]): ProgramState[W, S] =
     copy(addressesToDelete = addressesToDelete ++ addresses)
 
   def withLog(log: TxLogEntry): ProgramState[W, S] =

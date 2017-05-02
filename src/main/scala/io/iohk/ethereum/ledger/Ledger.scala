@@ -127,7 +127,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val resultWithErrorHandling: PR =
       if(result.error.isDefined) {
         //Rollback to the world before transfer was done if an error happened
-        result.copy(world = checkpointWorldState, addressesToDelete = Nil, logs = Nil)
+        result.copy(world = checkpointWorldState, addressesToDelete = Set.empty, logs = Nil)
       } else
         result
 
@@ -314,7 +314,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     * @param worldStateProxy
     * @return a worldState equal worldStateProxy except that the accounts from addressesToDelete are deleted
     */
-  private[ledger] def deleteAccounts(addressesToDelete: Seq[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
+  private[ledger] def deleteAccounts(addressesToDelete: Set[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => world.deleteAccount(address) }
 
 }
