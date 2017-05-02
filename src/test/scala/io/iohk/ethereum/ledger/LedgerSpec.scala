@@ -663,6 +663,9 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     }
   }
 
+  it should "create sender account if it does not exists" in new TestSetup {
+    //todo add test
+  }
 
   trait TestSetup {
     val originKeyPair = generateKeyPair()

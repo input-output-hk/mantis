@@ -91,14 +91,14 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
         Right(BlockResult(worldState = world, gasUsed = acumGas, receipts = acumReceipts))
 
       case Seq(stx, otherStxs@_*) =>
-        val senderAccount = world.getAccount(stx.senderAddress)
+        val (senderAccount, worldForTx) = world.getAccount(stx.senderAddress).map(a => (a, world))
+          .getOrElse ((Account.Empty, world.saveAccount(stx.senderAddress, Account.Empty)))
         val upfrontCost = calculateUpfrontCost(stx.tx)
-        val validatedStx = senderAccount
-          .toRight(Left(TxsExecutionError(s"Account of tx sender ${stx.senderAddress.toString} not found")))
-          .flatMap(account => signedTransactionValidator.validate(stx, account, blockHeader, upfrontCost, acumGas))
+        val validatedStx = signedTransactionValidator.validate(stx, senderAccount, blockHeader, upfrontCost, acumGas)
+
         validatedStx match {
           case Right(_) =>
-            val TxResult(newWorld, gasUsed, logs) = executeTransaction(stx, blockHeader, world)
+            val TxResult(newWorld, gasUsed, logs) = executeTransaction(stx, blockHeader, worldForTx)
 
             val receipt = Receipt(
               postTransactionStateHash = newWorld.stateRootHash,
@@ -254,7 +254,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
   private[ledger] def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy, config: EvmConfig): PC =
     stx.tx.receivingAddress match {
       case None =>
-        val address = worldStateProxy.createAddress(stx.senderAddress)
+        val address = worldStateProxy.createAddress(creatorAddr = stx.senderAddress)
         val world1 = worldStateProxy.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
         ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, world1, config)
 
