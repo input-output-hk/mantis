@@ -27,7 +27,7 @@ object Mocks {
     returnData = ByteString.empty,
     gasRemaining = 1000000 - 25000,
     world = context.world,
-    addressesToDelete = Nil,
+    addressesToDelete = Set.empty,
     logs = Nil,
     gasRefund = 20000,
     error = None

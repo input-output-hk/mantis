@@ -48,7 +48,7 @@ object PrecompiledContracts {
         result,
         gasRemaining,
         context.world,
-        Nil,
+        Set.empty,
         Nil,
         0,
         error
