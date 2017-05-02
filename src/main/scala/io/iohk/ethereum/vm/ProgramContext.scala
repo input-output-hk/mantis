@@ -41,10 +41,12 @@ object ProgramContext {
   * @param startGas initial gas for the execution
   * @param world provides interactions with world state
   * @param config evm config
+  * @param initialAddressesToDelete contains initial set of addresses to delete (from lower depth calls)
   */
 case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
   env: ExecEnv,
   receivingAddr: Address,
   startGas: BigInt,
   world: W,
-  config: EvmConfig)
+  config: EvmConfig,
+  initialAddressesToDelete: Set[Address] = Set.empty)

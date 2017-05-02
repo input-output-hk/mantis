@@ -696,7 +696,7 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
       val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
       val startGas = state.config.gasCap(availableGas)
 
-      val context = ProgramContext[W, S](newEnv, newAddress, startGas, world2, state.config)
+      val context = ProgramContext[W, S](newEnv, newAddress, startGas, world2, state.config, state.addressesToDelete)
       val result = VM.run(context)
 
       val codeDepositGas = state.config.calcCodeDepositCost(result.returnData)
@@ -780,7 +780,8 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
         env = env,
         receivingAddr = toAddr,
         startGas = startGas,
-        world = world1)
+        world = world1,
+        initialAddressesToDelete = state.addressesToDelete)
 
       VM.run(context)
     }

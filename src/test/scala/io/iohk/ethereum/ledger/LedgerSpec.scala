@@ -35,7 +35,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
                    error: Option[ProgramError] = None,
                    returnData: ByteString = bEmpty,
                    logs: Seq[TxLogEntry] = Nil,
-                   addressesToDelete: Seq[Address] = Nil): PR =
+                   addressesToDelete: Set[Address] = Set.empty): PR =
     ProgramResult(
       returnData = returnData,
       gasRemaining = gasLimit - gasUsed,
@@ -164,11 +164,11 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
   it should "correctly run executeBlockTransactions for a block with one tx (that produces no errors)" in new BlockchainSetup {
 
-    val table = Table[BigInt, Seq[TxLogEntry], Seq[Address], Boolean](
+    val table = Table[BigInt, Seq[TxLogEntry], Set[Address], Boolean](
       ("gasLimit/gasUsed", "logs", "addressesToDelete", "txValidAccordingToValidators"),
-      (defaultGasLimit, Nil, Nil, true),
+      (defaultGasLimit, Nil, Set.empty, true),
       (defaultGasLimit / 2, Nil, defaultAddressesToDelete, true),
-      (2 * defaultGasLimit, defaultLogs, Nil, true),
+      (2 * defaultGasLimit, defaultLogs, Set.empty, true),
       (defaultGasLimit, defaultLogs, defaultAddressesToDelete, true),
       (defaultGasLimit, defaultLogs, defaultAddressesToDelete, false)
     )
@@ -714,7 +714,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
     val initialOriginNonce = defaultTx.nonce
 
-    val defaultAddressesToDelete = Seq(Address(Hex.decode("01")), Address(Hex.decode("02")), Address(Hex.decode("03")))
+    val defaultAddressesToDelete = Set(Address(Hex.decode("01")), Address(Hex.decode("02")), Address(Hex.decode("03")))
     val defaultLogs = Seq(defaultLog.copy(loggerAddress = defaultAddressesToDelete.head))
     val defaultGasPrice: UInt256 = 10
     val defaultGasLimit: UInt256 = 1000000

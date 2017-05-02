@@ -13,7 +13,7 @@ class DeleteAccountsSpec extends FlatSpec with Matchers {
   val ledger = new LedgerImpl(new Mocks.MockVM(), blockchainConfig)
 
   it should "delete no accounts when none of them should be deleted" in new TestSetup {
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteAccounts(Nil)(worldState))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteAccounts(Set.empty)(worldState))
     accountAddresses.foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.stateRootHash shouldBe worldState.stateRootHash
   }
@@ -47,7 +47,7 @@ class DeleteAccountsSpec extends FlatSpec with Matchers {
     val validAccountAddress2 = Address(0xcdcdcd)
     val validAccountAddress3 = Address(0xefefef)
 
-    val accountAddresses = Seq(validAccountAddress, validAccountAddress2, validAccountAddress3)
+    val accountAddresses = Set(validAccountAddress, validAccountAddress2, validAccountAddress3)
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages,
