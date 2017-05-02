@@ -11,8 +11,8 @@ class CallSelfDestructSpec extends FreeSpec with Matchers {
       val (_, callSelfDestruct) = deployContract("CallSelfDestruct")
 
       val callRes = callSelfDestruct.callDestruct().call()
-      callRes.error shouldBe None
 
+      callRes.error shouldBe None
       callRes.gasRefund shouldBe 24000
     }
   }

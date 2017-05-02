@@ -328,7 +328,6 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
           initialAddressesToDelete = Set(fxt.extAddr))
         val call = CallResult(op = CALL, context)
         call.stateOut.gasRefund shouldBe 0
-
       }
 
     }
