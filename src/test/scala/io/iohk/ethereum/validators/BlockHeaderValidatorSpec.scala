@@ -110,12 +110,15 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
   }
 
   it should "return a failure if created based on invalid nonce/mixHash" in {
-    forAll(byteStringOfLengthNGen(NonceLength), byteStringOfLengthNGen(MixHashLength)) { case (nonce, mixHash) =>
-      val blockHeader =validBlockHeader.copy(nonce = nonce, mixHash = mixHash)
-      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
-      if(nonce != validBlockHeader.nonce || mixHash != validBlockHeader.mixHash) assert(validateResult == Left(HeaderPoWError))
-      else assert(validateResult == Right(blockHeader))
-    }
+    val invalidNonce = ByteString(Hex.decode("0b80f001ae0c017f"))
+    val invalidMixHash = ByteString(Hex.decode("1f947f00807f7f7f2f7f00ff82ff00de015980607f129c77afedff4680c10171"))
+    val blockHeaderWithInvalidNonce = validBlockHeader.copy(nonce = invalidNonce)
+    val blockHeaderWithInvalidMixHash = validBlockHeader.copy(mixHash = invalidMixHash)
+    val blockHeaderWithInvalidNonceAndMixHash = validBlockHeader.copy(nonce = invalidNonce, mixHash = invalidMixHash)
+
+    blockHeaderValidator.validate(blockHeaderWithInvalidNonce, validBlockParent) shouldBe Left(HeaderPoWError)
+    blockHeaderValidator.validate(blockHeaderWithInvalidMixHash, validBlockParent) shouldBe Left(HeaderPoWError)
+    blockHeaderValidator.validate(blockHeaderWithInvalidNonceAndMixHash, validBlockParent) shouldBe Left(HeaderPoWError)
   }
 
   it should "validate correctly a block whose parent is in storage" in new EphemBlockchainTestSetup {
