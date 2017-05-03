@@ -663,10 +663,35 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     }
   }
 
+  it should "create sender account if it does not exists" in new TestSetup {
+
+    val inputData = ByteString("the payload")
+
+    val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair()
+    val newAccountAddress = Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
+
+    val mockVM = new MockVM((pc: Ledger.PC) => {
+      pc.env.inputData shouldEqual ByteString.empty
+      createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
+    })
+    val ledger = new LedgerImpl(mockVM, blockchainConfig)
+
+    val tx: Transaction = defaultTx.copy(gasPrice = 0, receivingAddress = None, payload = inputData)
+    val stx: SignedTransaction = SignedTransaction.sign(tx, newAccountKeyPair, blockchainConfig.chainId)
+
+    val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] = ledger.executeTransactions(
+      Seq(stx),
+      initialWorld,
+      defaultBlockHeader,
+      (new Mocks.MockValidatorsAlwaysSucceed).signedTransactionValidator)
+
+    result shouldBe a[Right[_, BlockResult]]
+    result.map(br => br.worldState.getAccount(newAccountAddress)) shouldBe Right(Some(Account(nonce = 1)))
+  }
 
   trait TestSetup {
-    val originKeyPair = generateKeyPair()
-    val receiverKeyPair = generateKeyPair()
+    val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair()
+    val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair()
     //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
     val originAddress = Address(kec256(originKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
     val receiverAddress = Address(kec256(receiverKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
