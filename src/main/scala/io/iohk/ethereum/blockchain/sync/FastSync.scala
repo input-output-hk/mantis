@@ -162,10 +162,10 @@ trait FastSync {
       scheduler.schedule(persistStateSnapshotInterval, persistStateSnapshotInterval) {
         syncStateStorageActor ! SyncState(
           initialSyncState.targetBlock,
-          mptNodesQueue ++ requestedMptNodes.values.flatten.toSeq.distinct,
-          nonMptNodesQueue ++ requestedNonMptNodes.values.flatten.toSeq.distinct,
-          blockBodiesQueue ++ requestedBlockBodies.values.flatten.toSeq.distinct,
-          receiptsQueue ++ requestedReceipts.values.flatten.toSeq.distinct,
+          requestedMptNodes.values.flatten.toSeq.distinct ++ mptNodesQueue,
+          requestedNonMptNodes.values.flatten.toSeq.distinct ++ nonMptNodesQueue,
+          requestedBlockBodies.values.flatten.toSeq.distinct ++ blockBodiesQueue,
+          requestedReceipts.values.flatten.toSeq.distinct ++ receiptsQueue,
           downloadedNodesCount,
           bestBlockHeaderNumber)
       }
