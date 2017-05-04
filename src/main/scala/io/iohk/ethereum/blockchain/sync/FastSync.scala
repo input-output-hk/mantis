@@ -149,7 +149,12 @@ trait FastSync {
 
     private var assignedHandlers: Map[ActorRef, ActorRef] = Map.empty
 
-    private val syncStateStorageActor= context.actorOf(Props[FastSyncStateActor], "state-storage")
+    private val syncStateStorageActor = context.actorOf(Props[FastSyncStateActor], "state-storage")
+
+    private var requestedMptNodes: Map[ActorRef, Seq[HashType]] = Map.empty
+    private var requestedNonMptNodes: Map[ActorRef, Seq[HashType]] = Map.empty
+    private var requestedBlockBodies: Map[ActorRef, Seq[ByteString]] = Map.empty
+    private var requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
 
     syncStateStorageActor ! fastSyncStateStorage
 
@@ -157,10 +162,10 @@ trait FastSync {
       scheduler.schedule(persistStateSnapshotInterval, persistStateSnapshotInterval) {
         syncStateStorageActor ! SyncState(
           initialSyncState.targetBlock,
-          mptNodesQueue,
-          nonMptNodesQueue,
-          blockBodiesQueue,
-          receiptsQueue,
+          mptNodesQueue ++ requestedMptNodes.values.flatten.toSeq.distinct,
+          nonMptNodesQueue ++ requestedNonMptNodes.values.flatten.toSeq.distinct,
+          blockBodiesQueue ++ requestedBlockBodies.values.flatten.toSeq.distinct,
+          receiptsQueue ++ requestedReceipts.values.flatten.toSeq.distinct,
           downloadedNodesCount,
           bestBlockHeaderNumber)
       }
@@ -195,11 +200,19 @@ trait FastSync {
       case SyncRequestHandler.Done =>
         context unwatch sender()
         assignedHandlers -= sender()
+        requestedMptNodes = requestedMptNodes - sender()
+        requestedNonMptNodes = requestedNonMptNodes - sender()
+        requestedBlockBodies = requestedBlockBodies - sender()
+        requestedReceipts = requestedReceipts - sender()
         processSyncing()
 
       case Terminated(ref) if assignedHandlers.contains(ref) =>
         context unwatch ref
         assignedHandlers -= ref
+        requestedMptNodes = requestedMptNodes - ref
+        requestedNonMptNodes = requestedNonMptNodes - ref
+        requestedBlockBodies = requestedBlockBodies - ref
+        requestedReceipts = requestedReceipts - ref
 
       case PrintStatus =>
         val totalNodesCount = downloadedNodesCount + mptNodesQueue.size + nonMptNodesQueue.size
@@ -300,6 +313,7 @@ trait FastSync {
       context watch handler
       assignedHandlers += (handler -> peer)
       receiptsQueue = remainingReceipts
+      requestedReceipts += handler -> receiptsToGet
     }
 
     def requestBlockBodies(peer: ActorRef): Unit = {
@@ -308,6 +322,7 @@ trait FastSync {
       context watch handler
       assignedHandlers += (handler -> peer)
       blockBodiesQueue = remainingBlockBodies
+      requestedBlockBodies += handler -> blockBodiesToGet
     }
 
     def requestBlockHeaders(peer: ActorRef): Unit = {
@@ -331,6 +346,8 @@ trait FastSync {
       assignedHandlers += (handler -> peer)
       nonMptNodesQueue = remainingNonMptNodes
       mptNodesQueue = remainingMptNodes
+      requestedMptNodes += handler -> mptNodesToGet
+      requestedNonMptNodes += handler -> nonMptNodesToGet
     }
 
     def unassignedPeers: Set[ActorRef] = peersToDownloadFrom.keySet diff assignedHandlers.values.toSet
