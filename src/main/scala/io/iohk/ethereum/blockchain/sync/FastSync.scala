@@ -200,19 +200,17 @@ trait FastSync {
       case SyncRequestHandler.Done =>
         context unwatch sender()
         assignedHandlers -= sender()
-        requestedMptNodes = requestedMptNodes - sender()
-        requestedNonMptNodes = requestedNonMptNodes - sender()
-        requestedBlockBodies = requestedBlockBodies - sender()
-        requestedReceipts = requestedReceipts - sender()
+        cleanupRequestedMaps(sender())
         processSyncing()
 
       case Terminated(ref) if assignedHandlers.contains(ref) =>
         context unwatch ref
         assignedHandlers -= ref
-        requestedMptNodes = requestedMptNodes - ref
-        requestedNonMptNodes = requestedNonMptNodes - ref
-        requestedBlockBodies = requestedBlockBodies - ref
-        requestedReceipts = requestedReceipts - ref
+        mptNodesQueue ++= requestedMptNodes.getOrElse(ref, Nil)
+        nonMptNodesQueue ++= requestedNonMptNodes.getOrElse(ref, Nil)
+        blockBodiesQueue ++= requestedBlockBodies.getOrElse(ref, Nil)
+        receiptsQueue ++= requestedReceipts.getOrElse(ref, Nil)
+        cleanupRequestedMaps(ref)
 
       case PrintStatus =>
         val totalNodesCount = downloadedNodesCount + mptNodesQueue.size + nonMptNodesQueue.size
@@ -220,6 +218,13 @@ trait FastSync {
           s"""|Block: ${appStateStorage.getBestBlockNumber()}/${initialSyncState.targetBlock.number}.
               |Peers: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
               |State: $downloadedNodesCount/$totalNodesCount known nodes.""".stripMargin.replace("\n", " "))
+    }
+
+    private def cleanupRequestedMaps(handler: ActorRef): Unit = {
+      requestedMptNodes = requestedMptNodes - handler
+      requestedNonMptNodes = requestedNonMptNodes - handler
+      requestedBlockBodies = requestedBlockBodies - handler
+      requestedReceipts = requestedReceipts - handler
     }
 
     private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
