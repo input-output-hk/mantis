@@ -2,45 +2,51 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
-import org.json4s.JsonAST.JArray
+import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
 
 import scala.concurrent.Future
-import scala.util.Try
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object JsonRpcController {
   trait JsonDecoder[T] {
-    def decodeJson(params: JArray): Try[T]
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, T]
   }
 
   trait JsonEncoder[T] {
-    def encodeJson(t: T): JArray
+    def encodeJson(t: T): JValue
   }
 }
 
 class JsonRpcController(web3Service: Web3Service) {
 
   import JsonMethodsImplicits._
+  import JsonRpcErrors._
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
     request.method match {
       case "web3_sha3" => handle[Sha3Request, Sha3Response](web3Service.sha3, request)
       case "web3_clientVersion" => handle[ClientVersionRequest, ClientVersionResponse](web3Service.clientVersion, request)
-      case _ => Future.successful {
-        JsonRpcResponse(request.jsonrpc, None, Some(JsonRpcError(0, s"Unknown RPC method ${request.method}", None)), request.id.getOrElse(1))
-      }
+      case _ => Future.successful(errorResponse(request, MethodNotFound))
     }
   }
 
   private def handle[Req, Res](fn: Req => Future[Res], rpcReq: JsonRpcRequest)
                               (implicit dec: JsonDecoder[Req], enc: JsonEncoder[Res]): Future[JsonRpcResponse] = {
-    val req = dec.decodeJson(rpcReq.params).get
-    fn(req) map { res =>
-      JsonRpcResponse(rpcReq.jsonrpc, Some(enc.encodeJson(res)), None, rpcReq.id.getOrElse(0))
-    } recover { case ex =>
-      JsonRpcResponse(rpcReq.jsonrpc, None, Some(JsonRpcError(0, ex.getMessage, None)), rpcReq.id.getOrElse(0))
+    dec.decodeJson(rpcReq.params) match {
+      case Right(req) =>
+        fn(req)
+          .map(successResponse(rpcReq, _))
+          .recover { case ex => errorResponse(rpcReq, InternalError) }
+      case Left(error) =>
+        Future.successful(errorResponse(rpcReq, error))
     }
   }
+
+  private def successResponse[T](req: JsonRpcRequest, result: T)(implicit enc: JsonEncoder[T]): JsonRpcResponse =
+    JsonRpcResponse(req.jsonrpc, Some(enc.encodeJson(result)), None, req.id.getOrElse(0))
+
+  private def errorResponse[T](req: JsonRpcRequest, error: JsonRpcError): JsonRpcResponse =
+    JsonRpcResponse(req.jsonrpc, None, Some(error), req.id.getOrElse(0))
 
 }

@@ -2,6 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
+import io.iohk.ethereum.utils.Config
 
 import scala.concurrent.Future
 
@@ -21,7 +22,7 @@ class Web3Service {
   }
 
   def clientVersion(req: ClientVersionRequest): Future[ClientVersionResponse] = {
-    Future.successful(ClientVersionResponse("etc-client/v0.1"))
+    Future.successful(ClientVersionResponse(Config.clientVersion))
   }
 
 }
