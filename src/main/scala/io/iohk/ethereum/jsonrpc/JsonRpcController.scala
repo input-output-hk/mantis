@@ -1,5 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
+import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
 import org.json4s.JsonAST.{JArray, JValue}
@@ -18,7 +19,7 @@ object JsonRpcController {
   }
 }
 
-class JsonRpcController(web3Service: Web3Service) {
+class JsonRpcController(web3Service: Web3Service, ethService: EthService) {
 
   import JsonMethodsImplicits._
   import JsonRpcErrors._
@@ -27,6 +28,12 @@ class JsonRpcController(web3Service: Web3Service) {
     request.method match {
       case "web3_sha3" => handle[Sha3Request, Sha3Response](web3Service.sha3, request)
       case "web3_clientVersion" => handle[ClientVersionRequest, ClientVersionResponse](web3Service.clientVersion, request)
+      case "eth_getBlockTransactionCountByHash" =>
+        handle[TxCountByBlockHashRequest, TxCountByBlockHashResponse](ethService.getBlockTransactionCountByHash, request)
+      case "eth_getBlockByHash" =>
+        handle[BlockByBlockHashRequest, BlockByBlockHashResponse](ethService.getByBlockHash, request)
+      case "eth_getUncleByBlockHashAndIndex" =>
+        handle[UncleByBlockHashAndIndexRequest, UncleByBlockHashAndIndexResponse](ethService.getUncleByBlockHashAndIndex, request)
       case _ => Future.successful(errorResponse(request, MethodNotFound))
     }
   }
