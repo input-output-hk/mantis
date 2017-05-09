@@ -1,11 +1,9 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.nio.ByteBuffer
-
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
-import io.iohk.ethereum.jsonrpc.JsonSerializers.BlockViewSerializer
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{BlockResponseSerializer, QuantitiesSerializer}
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
 import org.json4s.{DefaultFormats, Extraction, Formats, JValue}
 import org.json4s.JsonAST._
@@ -18,7 +16,7 @@ object JsonMethodsImplicits {
 
   import JsonRpcErrors._
 
-  implicit val formats: Formats = DefaultFormats + BlockViewSerializer
+  implicit val formats: Formats = DefaultFormats + BlockResponseSerializer + QuantitiesSerializer
 
   implicit val web3_sha3 = new JsonDecoder[Sha3Request] with JsonEncoder[Sha3Response] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, Sha3Request] =
@@ -44,22 +42,15 @@ object JsonMethodsImplicits {
         case _ => Left(InvalidParams)
       }
 
-    override def encodeJson(t: TxCountByBlockHashResponse): JValue = {
-      t.txsQuantity match {
-        case Some(txsCount) =>
-          val intAsHexNoZeroes = Hex.toHexString(ByteBuffer.allocate(Integer.BYTES).putInt(txsCount).array().dropWhile(_ == 0))
-          val intAsHex = if(intAsHexNoZeroes.isEmpty) "0" else intAsHexNoZeroes
-          JString(s"0x$intAsHex")
-        case None => JNull
-      }
-    }
+    override def encodeJson(t: TxCountByBlockHashResponse): JValue =
+      t.txsQuantity.map(txsCount => Extraction.decompose(BigInt(txsCount))).getOrElse(JNull)
   }
 
   implicit val eth_getBlockByHash = new JsonDecoder[BlockByBlockHashRequest] with JsonEncoder[BlockByBlockHashResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BlockByBlockHashRequest] = {
       params match {
-        case Some(JArray((blockHash: JString) :: (txHashed: JBool) :: Nil)) =>
-          tryExtractUnformattedData(blockHash).map(BlockByBlockHashRequest(_, txHashed.value))
+        case Some(JArray((blockHash: JString) :: JBool(txHashed) :: Nil)) =>
+          tryExtractUnformattedData(blockHash).map(BlockByBlockHashRequest(_, txHashed))
         case _ => Left(InvalidParams)
       }
     }
@@ -71,13 +62,21 @@ object JsonMethodsImplicits {
   implicit val eth_getUncleByBlockHashAndIndex = new JsonDecoder[UncleByBlockHashAndIndexRequest] with JsonEncoder[UncleByBlockHashAndIndexResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, UncleByBlockHashAndIndexRequest] =
       params match {
-        case Some(JArray((blockHash: JString) :: (uncleIndex: JInt) :: Nil)) =>
-          tryExtractUnformattedData(blockHash).map(UncleByBlockHashAndIndexRequest(_, uncleIndex.num.toInt))
+        case Some(JArray((blockHash: JString) :: (uncleIndex: JString) :: Nil)) =>
+          for {
+            hash <- tryExtractUnformattedData(blockHash)
+            uncleBlockIndex <- tryExtractQuantity(uncleIndex)
+          } yield UncleByBlockHashAndIndexRequest(hash, uncleBlockIndex)
         case _ => Left(InvalidParams)
       }
 
-    override def encodeJson(t: UncleByBlockHashAndIndexResponse): JValue =
-      t.uncleBlockView.map(Extraction.decompose).getOrElse(JNull)
+    override def encodeJson(t: UncleByBlockHashAndIndexResponse): JValue = {
+      val uncleBlockView = t.uncleBlockView.map(Extraction.decompose).getOrElse(JNull)
+      uncleBlockView.removeField{
+        case JField("transactions", _) => true
+        case _ => false
+      }
+    }
   }
 
   private def encodeAsHex(input: ByteString): JString =

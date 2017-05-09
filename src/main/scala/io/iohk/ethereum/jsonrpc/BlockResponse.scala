@@ -10,7 +10,7 @@ case class BlockResponse(
                           parentHash: ByteString,
                           nonce: Option[ByteString],
                           sha3Uncles: ByteString,
-                          logsBloom: ByteString,
+                          logsBloom: Option[ByteString],
                           transactionsRoot: ByteString,
                           stateRoot: ByteString,
                           receiptsRoot: ByteString,
@@ -28,14 +28,14 @@ case class BlockResponse(
 
 object BlockResponse {
 
-  def apply(block: Block, txHashed: Boolean = false, totalDifficulty: Option[BigInt] = None): BlockResponse = {
+  def apply(block: Block, fullTxs: Boolean = false, totalDifficulty: Option[BigInt] = None): BlockResponse = {
     val transactions =
-      if (txHashed)
-        Left(block.body.transactionList.map(_.hash))
-      else
+      if (fullTxs)
         Right(block.body.transactionList.zipWithIndex.map { case (stx, transactionIndex) =>
           TransactionResponse(stx = stx, blockHeader = Some(block.header), transactionIndex = Some(transactionIndex))
         })
+      else
+        Left(block.body.transactionList.map(_.hash))
 
     BlockResponse(
       number = Some(block.header.number),
@@ -43,7 +43,7 @@ object BlockResponse {
       parentHash = block.header.parentHash,
       nonce = Some(block.header.nonce),
       sha3Uncles = block.header.ommersHash,
-      logsBloom = block.header.logsBloom,
+      logsBloom = Some(block.header.logsBloom),
       transactionsRoot = block.header.transactionsRoot,
       stateRoot = block.header.stateRoot,
       receiptsRoot = block.header.receiptsRoot,

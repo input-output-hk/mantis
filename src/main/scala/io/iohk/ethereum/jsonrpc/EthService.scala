@@ -4,17 +4,16 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.Blockchain
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
 
 object EthService {
 
   case class TxCountByBlockHashRequest(blockHash: ByteString)
   case class TxCountByBlockHashResponse(txsQuantity: Option[Int])
 
-  case class BlockByBlockHashRequest(blockHash: ByteString, txHashed: Boolean)
+  case class BlockByBlockHashRequest(blockHash: ByteString, fullTxs: Boolean)
   case class BlockByBlockHashResponse(blockView: Option[BlockResponse])
 
-  case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: Int)
+  case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
   case class UncleByBlockHashAndIndexResponse(uncleBlockView: Option[BlockResponse])
 }
 
@@ -42,11 +41,11 @@ class EthService(blockchain: Blockchain) {
     */
   def getByBlockHash(request: BlockByBlockHashRequest)
                     (implicit executor: ExecutionContext): Future[BlockByBlockHashResponse] = Future {
-    val BlockByBlockHashRequest(blockHash, txHashed) = request
+    val BlockByBlockHashRequest(blockHash, fullTxs) = request
     val blockOpt = blockchain.getBlockByHash(blockHash)
     val totalDifficulty = blockchain.getTotalDifficultyByHash(blockHash)
 
-    val blockViewOpt = blockOpt.map(block => BlockResponse(block, txHashed, totalDifficulty))
+    val blockViewOpt = blockOpt.map(block => BlockResponse(block, fullTxs, totalDifficulty))
     BlockByBlockHashResponse(blockViewOpt)
   }
 
@@ -60,7 +59,11 @@ class EthService(blockchain: Blockchain) {
                                  (implicit executor: ExecutionContext): Future[UncleByBlockHashAndIndexResponse] = Future {
     val UncleByBlockHashAndIndexRequest(blockHash, uncleIndex) = request
     val uncleHeaderOpt = blockchain.getBlockBodyByHash(blockHash)
-      .flatMap(body => Try{body.uncleNodesList.apply(uncleIndex)}.toOption)
+      .flatMap{body =>
+        if(uncleIndex >=0 && uncleIndex < body.uncleNodesList.size)
+          Some(body.uncleNodesList.apply(uncleIndex.toInt))
+        else
+          None}
     val totalDifficulty = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getTotalDifficultyByHash(uncleHeader.hash))
 
     //The block in the response will not have any txs or uncles

@@ -19,46 +19,46 @@ object JsonSerializers {
       {PartialFunction.empty},
       {
         case n: BigInt =>
-          val res = if(n == 0)
+          if(n == 0)
             JString("0x0")
           else
             JString(s"0x${Hex.toHexString(n.toByteArray).dropWhile(_ == '0')}")
-          res
       }
     )
   )
 
-  object OptionToJNullSerializer extends CustomSerializer[Option[_]](formats =>
+  object OptionNoneToJNullSerializer extends CustomSerializer[Option[_]](formats =>
     (
       {PartialFunction.empty},
       { case None => JNull }
     )
   )
 
-  object SignedTransactionViewSerializer extends CustomSerializer[TransactionResponse](_ =>
+  object SignedTransactionResponseSerializer extends CustomSerializer[TransactionResponse](_ =>
     (
       {PartialFunction.empty},
-      { case stxView: TransactionResponse =>
+      { case stxResponse: TransactionResponse =>
           implicit val formats = DefaultFormats.preservingEmptyValues +
             UnformattedDataJsonSerializer +
-            OptionToJNullSerializer
+            QuantitiesSerializer +
+            OptionNoneToJNullSerializer
 
-          Extraction.decompose(stxView)
+          Extraction.decompose(stxResponse)
       }
     )
   )
 
-  object BlockViewSerializer extends CustomSerializer[BlockResponse](_ =>
+  object BlockResponseSerializer extends CustomSerializer[BlockResponse](_ =>
     (
       {PartialFunction.empty},
-      { case blockView: BlockResponse =>
+      { case blockResponse: BlockResponse =>
           implicit val formats = DefaultFormats.preservingEmptyValues +
             UnformattedDataJsonSerializer +
-            OptionToJNullSerializer +
-            SignedTransactionViewSerializer +
-            QuantitiesSerializer
+            QuantitiesSerializer +
+            OptionNoneToJNullSerializer +
+            SignedTransactionResponseSerializer
 
-          Extraction.decompose(blockView)
+          Extraction.decompose(blockResponse)
       }
     )
   )

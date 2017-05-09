@@ -19,7 +19,9 @@ case class TransactionResponse(
 
 object TransactionResponse {
 
-  def apply(stx: SignedTransaction, blockHeader: Option[BlockHeader] = None, transactionIndex: Option[Int] = None): TransactionResponse =
+  def apply(stx: SignedTransaction,
+            blockHeader: Option[BlockHeader] = None,
+            transactionIndex: Option[Int] = None): TransactionResponse =
     TransactionResponse(
       hash = stx.hash,
       nonce = stx.tx.nonce,
