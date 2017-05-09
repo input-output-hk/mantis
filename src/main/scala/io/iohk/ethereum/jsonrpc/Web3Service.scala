@@ -36,21 +36,23 @@ class Web3Service {
   }
 
   def submitHashRate(req: SubmitHashRateRequest): Future[SubmitHashRateResponse] = {
-    //todo add logic
+    //todo do we care about hash rate for now?
     Future.successful(SubmitHashRateResponse(true))
   }
 
   def getWork(req: GetWorkRequest): Future[GetWorkResponse] = {
-    //todo add logic
+    import io.iohk.ethereum.pow.PowCache._
+    //todo add logic for generating block for mining and generating powHeaderHash for block
+    val blockNumber = 5000
     Future.successful(GetWorkResponse(
-      ByteString(Hex.decode("de09f39b6f4f611b60e0ea7aceab7ca334bd35da94ed971f561bb75f6cab4ccf")),
-      ByteString(Hex.decode("e586ce62651f6de0be923da595f6773a2d1bd9b41ca0ad927456061ed15c0a14")),
-      ByteString(Hex.decode("00fffffffffa2b84b57eb59d5f3c8c8c87b4fd803357e2c582f01912a4c72e38"))
+      powHeaderHash = ByteString(Hex.decode("de09f39b6f4f611b60e0ea7aceab7ca334bd35da94ed971f561bb75f6cab4ccf")),
+      dagSeed = seedForBlock(blockNumber),
+      target = ByteString(Hex.decode("00000ffffffa2b84b57eb59d5f3c8c8c87b4fd803357e2c582f01912a4c72e38"))
     ))
   }
 
   def submitWork(req: SubmitWorkRequest): Future[SubmitWorkResponse] = {
-    //todo add logic
+    //todo add logic for including mined block into blockchain
     Future.successful(SubmitWorkResponse(true))
   }
 }
