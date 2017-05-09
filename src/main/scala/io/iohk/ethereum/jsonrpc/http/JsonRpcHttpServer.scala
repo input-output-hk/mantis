@@ -2,14 +2,16 @@ package io.iohk.ethereum.jsonrpc.http
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler}
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
-import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcRequest}
+import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcErrors, JsonRpcRequest, JsonRpcResponse}
 import io.iohk.ethereum.utils.Logger
+import org.json4s.JsonAST.JInt
 import org.json4s.{DefaultFormats, native}
 
 import scala.util.{Failure, Success}
@@ -22,6 +24,13 @@ class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHtt
   implicit val serialization = native.Serialization
 
   implicit val formats = DefaultFormats
+
+  implicit def myRejectionHandler: RejectionHandler =
+    RejectionHandler.newBuilder()
+      .handle { case _: MalformedRequestContentRejection =>
+        complete((StatusCodes.BadRequest, JsonRpcResponse("2.0", None, Some(JsonRpcErrors.ParseError), JInt(0))))
+      }
+      .result()
 
   val route: Route = {
     (pathEndOrSingleSlash & post & entity(as[JsonRpcRequest])) { request =>

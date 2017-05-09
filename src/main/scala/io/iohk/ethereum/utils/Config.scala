@@ -20,6 +20,8 @@ object Config {
 
   val clientId: String = config.getString("client-id")
 
+  val clientVersion: String = config.getString("client-version")
+
   val keysFile: String = config.getString("keys-file")
 
   val shutdownTimeout: Duration = config.getDuration("shutdown-timeout").toMillis.millis

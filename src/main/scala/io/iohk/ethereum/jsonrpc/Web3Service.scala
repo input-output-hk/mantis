@@ -3,6 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.utils.Config
 
 import scala.concurrent.Future
 
@@ -13,11 +14,14 @@ object Web3Service {
   case class ClientVersionRequest()
   case class ClientVersionResponse(value: String)
 
-  case class HashRateSubmitRequest(hashRate: ByteString, id: ByteString)
-  case class HashRateSubmitResponse(success: Boolean)
+  case class SubmitHashRateRequest(hashRate: ByteString, id: ByteString)
+  case class SubmitHashRateResponse(success: Boolean)
 
   case class GetWorkRequest()
   case class GetWorkResponse(powHeaderHash: ByteString, dagSeed: ByteString, target: ByteString)
+
+  case class SubmitWorkRequest(nonce: ByteString, powHeaderHash: ByteString, mixHash: ByteString)
+  case class SubmitWorkResponse(success:Boolean)
 }
 
 class Web3Service {
@@ -28,12 +32,12 @@ class Web3Service {
   }
 
   def clientVersion(req: ClientVersionRequest): Future[ClientVersionResponse] = {
-    Future.successful(ClientVersionResponse("etc-client/v0.1"))
+    Future.successful(ClientVersionResponse(Config.clientVersion))
   }
 
-  def submitHashRate(req: HashRateSubmitRequest): Future[HashRateSubmitResponse] = {
+  def submitHashRate(req: SubmitHashRateRequest): Future[SubmitHashRateResponse] = {
     //todo add logic
-    Future.successful(HashRateSubmitResponse(true))
+    Future.successful(SubmitHashRateResponse(true))
   }
 
   def getWork(req: GetWorkRequest): Future[GetWorkResponse] = {
@@ -43,5 +47,10 @@ class Web3Service {
       ByteString(Hex.decode("e586ce62651f6de0be923da595f6773a2d1bd9b41ca0ad927456061ed15c0a14")),
       ByteString(Hex.decode("00000000000a2b84b57eb59d5f3c8c8c87b4fd803357e2c582f01912a4c72e38"))
     ))
+  }
+
+  def submitWork(req: SubmitWorkRequest): Future[SubmitWorkResponse] = {
+    //todo add logic
+    Future.successful(SubmitWorkResponse(true))
   }
 }
