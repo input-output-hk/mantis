@@ -7,10 +7,24 @@ import org.spongycastle.util.encoders.Hex
 
 object JsonSerializers {
 
-  object ByteStringJsonSerializer extends CustomSerializer[ByteString](formats =>
+  object UnformattedDataJsonSerializer extends CustomSerializer[ByteString](_ =>
     (
       { PartialFunction.empty },
-      { case bs: ByteString => serializeByteString(bs) }
+      { case bs: ByteString => JString(s"0x${Hex.toHexString(bs.toArray)}") }
+    )
+  )
+
+  object QuantitiesSerializer extends CustomSerializer[BigInt](_ =>
+    (
+      {PartialFunction.empty},
+      {
+        case n: BigInt =>
+          val res = if(n == 0)
+            JString("0x0")
+          else
+            JString(s"0x${Hex.toHexString(n.toByteArray).dropWhile(_ == '0')}")
+          res
+      }
     )
   )
 
@@ -21,12 +35,12 @@ object JsonSerializers {
     )
   )
 
-  object SignedTransactionViewSerializer extends CustomSerializer[SignedTransactionView](formats =>
+  object SignedTransactionViewSerializer extends CustomSerializer[TransactionResponse](_ =>
     (
       {PartialFunction.empty},
-      { case stxView: SignedTransactionView =>
+      { case stxView: TransactionResponse =>
           implicit val formats = DefaultFormats.preservingEmptyValues +
-            ByteStringJsonSerializer +
+            UnformattedDataJsonSerializer +
             OptionToJNullSerializer
 
           Extraction.decompose(stxView)
@@ -34,7 +48,19 @@ object JsonSerializers {
     )
   )
 
-  private def serializeByteString(bs: ByteString): JValue =
-    JString(s"0x${Hex.toHexString(bs.toArray[Byte])}")
+  object BlockViewSerializer extends CustomSerializer[BlockResponse](_ =>
+    (
+      {PartialFunction.empty},
+      { case blockView: BlockResponse =>
+          implicit val formats = DefaultFormats.preservingEmptyValues +
+            UnformattedDataJsonSerializer +
+            OptionToJNullSerializer +
+            SignedTransactionViewSerializer +
+            QuantitiesSerializer
+
+          Extraction.decompose(blockView)
+      }
+    )
+  )
 
 }

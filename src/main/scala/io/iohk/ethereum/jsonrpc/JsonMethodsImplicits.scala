@@ -5,8 +5,9 @@ import java.nio.ByteBuffer
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.BlockViewSerializer
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
-import org.json4s.{DefaultFormats, Formats, JValue}
+import org.json4s.{DefaultFormats, Extraction, Formats, JValue}
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.spongycastle.util.encoders.Hex
@@ -17,7 +18,7 @@ object JsonMethodsImplicits {
 
   import JsonRpcErrors._
 
-  implicit val formats: Formats = DefaultFormats
+  implicit val formats: Formats = DefaultFormats + BlockViewSerializer
 
   implicit val web3_sha3 = new JsonDecoder[Sha3Request] with JsonEncoder[Sha3Response] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, Sha3Request] =
@@ -64,7 +65,7 @@ object JsonMethodsImplicits {
     }
 
     override def encodeJson(t: BlockByBlockHashResponse): JValue =
-      t.blockView.map(BlockView.jsonEncode).getOrElse(JNull)
+      t.blockView.map(Extraction.decompose).getOrElse(JNull)
   }
 
   implicit val eth_getUncleByBlockHashAndIndex = new JsonDecoder[UncleByBlockHashAndIndexRequest] with JsonEncoder[UncleByBlockHashAndIndexResponse] {
@@ -76,7 +77,7 @@ object JsonMethodsImplicits {
       }
 
     override def encodeJson(t: UncleByBlockHashAndIndexResponse): JValue =
-      t.uncleBlockView.map(BlockView.jsonEncode).getOrElse(JNull)
+      t.uncleBlockView.map(Extraction.decompose).getOrElse(JNull)
   }
 
   private def encodeAsHex(input: ByteString): JString =

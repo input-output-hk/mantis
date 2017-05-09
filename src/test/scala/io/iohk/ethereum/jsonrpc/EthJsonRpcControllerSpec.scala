@@ -11,7 +11,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 //FIXME: Use Async and move to JsonRpcControllerSpec (?)
-class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
+class EthJsonRpcControllerSpec extends WordSpec with Matchers with PropertyChecks {
 
   def validateResponse[A](responseFuture: Future[A])(isValid: A => Unit): Unit = {
     responseFuture.onComplete { response =>
@@ -57,7 +57,7 @@ class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
     val blockToRequestHash = blockToRequest.header.hash
     val blockTd = blockToRequest.header.difficulty
     val stxsViews = blockToRequest.body.transactionList.zipWithIndex.map { case (stx, txIndex) =>
-      SignedTransactionView(stx, Some(blockToRequest), Some(txIndex))
+      TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
     }
 
     val request = BlockByBlockHashRequest(blockToRequestHash, txHashed = false)
@@ -75,7 +75,7 @@ class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
       val responseFuture = ethService.getByBlockHash(request)
 
       validateResponse(responseFuture) { response =>
-        response.blockView shouldBe Some(BlockView(blockToRequest, txHashed = false, totalDifficulty = Some(blockTd)))
+        response.blockView shouldBe Some(BlockResponse(blockToRequest, txHashed = false, totalDifficulty = Some(blockTd)))
         response.blockView.get.totalDifficulty shouldBe Some(blockTd)
         response.blockView.get.transactions.right.toOption shouldBe Some(stxsViews)
       }
@@ -86,7 +86,7 @@ class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
       val responseFuture = ethService.getByBlockHash(request)
 
       validateResponse(responseFuture) { response =>
-        response.blockView shouldBe Some(BlockView(blockToRequest, txHashed = false))
+        response.blockView shouldBe Some(BlockResponse(blockToRequest, txHashed = false))
         response.blockView.get.totalDifficulty shouldBe None
         response.blockView.get.transactions.right.toOption shouldBe Some(stxsViews)
       }
@@ -98,7 +98,7 @@ class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
       val responseFuture = ethService.getByBlockHash(request.copy(txHashed = true))
 
       validateResponse(responseFuture) { response =>
-        response.blockView shouldBe Some(BlockView(blockToRequest, txHashed = true, totalDifficulty = Some(blockTd)))
+        response.blockView shouldBe Some(BlockResponse(blockToRequest, txHashed = true, totalDifficulty = Some(blockTd)))
         response.blockView.get.totalDifficulty shouldBe Some(blockTd)
         response.blockView.get.transactions.left.toOption shouldBe Some(blockToRequest.body.transactionList.map(_.hash))
       }
@@ -155,10 +155,10 @@ class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
       val responseFuture = ethService.getUncleByBlockHashAndIndex(request)
 
       validateResponse(responseFuture) { response =>
-        response.uncleBlockView shouldBe Some(BlockView(uncle, None))
+        response.uncleBlockView shouldBe Some(BlockResponse(uncle, None))
         response.uncleBlockView.get.totalDifficulty shouldBe None
         response.uncleBlockView.get.transactions shouldBe Right(Nil)
-        response.uncleBlockView.get.unclesHash shouldBe Nil
+        response.uncleBlockView.get.uncles shouldBe Nil
       }
     }
 
@@ -168,10 +168,10 @@ class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
       val responseFuture = ethService.getUncleByBlockHashAndIndex(request)
 
       validateResponse(responseFuture) { response =>
-        response.uncleBlockView shouldBe Some(BlockView(uncle, Some(uncleTd)))
+        response.uncleBlockView shouldBe Some(BlockResponse(uncle, Some(uncleTd)))
         response.uncleBlockView.get.totalDifficulty shouldBe Some(uncleTd)
         response.uncleBlockView.get.transactions shouldBe Right(Nil)
-        response.uncleBlockView.get.unclesHash shouldBe Nil
+        response.uncleBlockView.get.uncles shouldBe Nil
       }
     }
   }
