@@ -1,37 +1,39 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, Block, SignedTransaction}
-import org.json4s.JsonAST._
-import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.domain.{Block, SignedTransaction}
 
 case class SignedTransactionView(
                                   hash: ByteString,
-                                  nonce: BigInt,
+                                  nonce: ByteString,
                                   blockHash: Option[ByteString],
-                                  blockNumber: Option[BigInt],
-                                  transactionIndex: Option[Int],
-                                  senderAddress: Address,
-                                  receivingAddress: Option[Address],
-                                  value: BigInt,
-                                  gasPrice: BigInt,
-                                  gasLimit: BigInt,
+                                  blockNumber: Option[ByteString],
+                                  transactionIndex: Option[ByteString],
+                                  from: ByteString,
+                                  to: Option[ByteString],
+                                  value: ByteString,
+                                  gasPrice: ByteString,
+                                  gas: ByteString,
                                   input: ByteString
                                 )
 
 object SignedTransactionView {
+
+  private def bigIntAsByteString(n: BigInt): ByteString = ByteString(n.toByteArray)
+
   def apply(stx: SignedTransaction, block: Option[Block] = None, transactionIndex: Option[Int] = None): SignedTransactionView =
     SignedTransactionView(
       hash = stx.hash,
-      nonce = stx.tx.nonce,
+      nonce = bigIntAsByteString(stx.tx.nonce),
       blockHash = block.map(_.header.hash),
-      blockNumber = block.map(_.header.number),
-      transactionIndex = transactionIndex,
-      senderAddress = stx.senderAddress,
-      receivingAddress = stx.tx.receivingAddress,
-      value = stx.tx.value,
-      gasPrice = stx.tx.gasPrice,
-      gasLimit = stx.tx.gasLimit,
+      blockNumber = block.map(b => bigIntAsByteString(b.header.number)),
+      transactionIndex = transactionIndex.map(txIndex => bigIntAsByteString(BigInt(txIndex))),
+      from = stx.senderAddress.bytes,
+      to = stx.tx.receivingAddress.map(_.bytes),
+      value = bigIntAsByteString(stx.tx.value),
+      gasPrice = bigIntAsByteString(stx.tx.gasPrice),
+      gas = bigIntAsByteString(stx.tx.gasLimit),
       input = stx.tx.payload
     )
+
 }

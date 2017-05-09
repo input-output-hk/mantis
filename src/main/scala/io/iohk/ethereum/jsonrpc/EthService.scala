@@ -3,11 +3,9 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Blockchain
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
-//FIXME: Add explanation
 object EthService {
 
   case class TxCountByBlockHashRequest(blockHash: ByteString)
@@ -30,7 +28,8 @@ class EthService(blockchain: Blockchain) {
     * @param request with the hash of the block requested
     * @return the number of txs that the block has or None if the client doesn't have the block requested
     */
-  def getBlockTransactionCountByHash(request: TxCountByBlockHashRequest): Future[TxCountByBlockHashResponse] = Future {
+  def getBlockTransactionCountByHash(request: TxCountByBlockHashRequest)
+                                    (implicit executor: ExecutionContext): Future[TxCountByBlockHashResponse] = Future {
     val txsCount = blockchain.getBlockBodyByHash(request.blockHash).map(_.transactionList.size)
     TxCountByBlockHashResponse(txsCount)
   }
@@ -41,7 +40,8 @@ class EthService(blockchain: Blockchain) {
     * @param request with the hash of the block requested
     * @return the block requested or None if the client doesn't have the block
     */
-  def getByBlockHash(request: BlockByBlockHashRequest): Future[BlockByBlockHashResponse] = Future {
+  def getByBlockHash(request: BlockByBlockHashRequest)
+                    (implicit executor: ExecutionContext): Future[BlockByBlockHashResponse] = Future {
     val BlockByBlockHashRequest(blockHash, txHashed) = request
     val blockOpt = blockchain.getBlockByHash(blockHash)
     val totalDifficulty = blockchain.getTotalDifficultyByHash(blockHash)
@@ -56,7 +56,8 @@ class EthService(blockchain: Blockchain) {
     * @param request with the hash of the block and the index of the uncle requested
     * @return the uncle that the block has at the given index or None if the client doesn't have the block or if there's no uncle in that index
     */
-  def getUncleByBlockHashAndIndex(request: UncleByBlockHashAndIndexRequest): Future[UncleByBlockHashAndIndexResponse] = Future {
+  def getUncleByBlockHashAndIndex(request: UncleByBlockHashAndIndexRequest)
+                                 (implicit executor: ExecutionContext): Future[UncleByBlockHashAndIndexResponse] = Future {
     val UncleByBlockHashAndIndexRequest(blockHash, uncleIndex) = request
     val uncleHeaderOpt = blockchain.getBlockBodyByHash(blockHash)
       .flatMap(body => Try{body.uncleNodesList.apply(uncleIndex)}.toOption)
