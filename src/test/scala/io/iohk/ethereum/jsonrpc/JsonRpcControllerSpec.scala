@@ -28,7 +28,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
-    response.error shouldBe Some(JsonRpcErrors.InvalidParams)
+    response.error shouldBe Some(JsonRpcErrors.InvalidParams.copy(message = "Data 'asdasd' should have 0x prefix"))
   }
 
   it should "handle clientVersion request" in new TestSetup {
