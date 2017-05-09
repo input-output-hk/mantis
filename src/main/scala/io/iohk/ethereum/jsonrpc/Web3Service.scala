@@ -14,7 +14,7 @@ object Web3Service {
   case class ClientVersionRequest()
   case class ClientVersionResponse(value: String)
 
-  case class SubmitHashRateRequest(hashRate: ByteString, id: ByteString)
+  case class SubmitHashRateRequest(hashRate: BigInt, id: ByteString)
   case class SubmitHashRateResponse(success: Boolean)
 
   case class GetWorkRequest()
@@ -45,7 +45,7 @@ class Web3Service {
     Future.successful(GetWorkResponse(
       ByteString(Hex.decode("de09f39b6f4f611b60e0ea7aceab7ca334bd35da94ed971f561bb75f6cab4ccf")),
       ByteString(Hex.decode("e586ce62651f6de0be923da595f6773a2d1bd9b41ca0ad927456061ed15c0a14")),
-      ByteString(Hex.decode("00000000000a2b84b57eb59d5f3c8c8c87b4fd803357e2c582f01912a4c72e38"))
+      ByteString(Hex.decode("00fffffffffa2b84b57eb59d5f3c8c8c87b4fd803357e2c582f01912a4c72e38"))
     ))
   }
 

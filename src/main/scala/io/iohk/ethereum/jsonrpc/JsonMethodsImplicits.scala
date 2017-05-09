@@ -35,8 +35,10 @@ object JsonMethodsImplicits {
 
   implicit val eth_submitHashrate = new JsonDecoder[SubmitHashRateRequest] with JsonEncoder[SubmitHashRateResponse] {
     override def decodeJson(params: Option[JsonAST.JArray]): Either[JsonRpcError, SubmitHashRateRequest] = params match {
-      case Some(JArray(hashRate :: id :: Nil)) =>
-        Right(SubmitHashRateRequest(hashRate.extract[ByteString], id.extract[ByteString]))
+      case Some(JArray((hashRate: JString) :: (id: JString) :: Nil)) =>
+        tryExtractQuantity(hashRate)
+          .flatMap(h => tryExtractUnformattedData(id).map(i => (h, i)))
+          .map { case (h, i) => SubmitHashRateRequest(h, i) }
       case _ =>
         Left(InvalidParams)
     }
@@ -60,8 +62,11 @@ object JsonMethodsImplicits {
 
   implicit val eth_submitWork = new JsonDecoder[SubmitWorkRequest] with JsonEncoder[SubmitWorkResponse] {
     override def decodeJson(params: Option[JsonAST.JArray]): Either[JsonRpcError, SubmitWorkRequest] = params match {
-      case Some(JArray(nonce :: powHeaderHash :: mixHash :: Nil)) =>
-        Right(SubmitWorkRequest(nonce.extract[ByteString], powHeaderHash.extract[ByteString], mixHash.extract[ByteString]))
+      case Some(JArray((nonce: JString) :: (powHeaderHash: JString) :: (mixHash: JString) :: Nil)) =>
+        tryExtractUnformattedData(nonce)
+          .flatMap(n => tryExtractUnformattedData(powHeaderHash).map(p => (n, p)))
+          .flatMap { case (n, p) => tryExtractUnformattedData(mixHash).map(m => (n, p, m)) }
+          .map { case (n, p, m) => SubmitWorkRequest(n, p, m) }
       case _ =>
         Left(InvalidParams)
     }
