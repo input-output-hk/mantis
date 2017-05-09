@@ -8,7 +8,7 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
-import io.iohk.ethereum.jsonrpc.{JsonRpcController, Web3Service}
+import io.iohk.ethereum.jsonrpc.{JsonRpcController, NetService, Web3Service}
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -90,10 +90,16 @@ trait Web3ServiceBuilder {
   lazy val web3Service = new Web3Service
 }
 
-trait JSONRpcControllerBuilder {
-  this: Web3ServiceBuilder =>
+trait NetServiceBuilder {
+  this: PeerManagerActorBuilder with NodeStatusBuilder =>
 
-  lazy val jsonRpcController = new JsonRpcController(web3Service)
+  lazy val netService = new NetService(nodeStatusHolder, peerManager)
+}
+
+trait JSONRpcControllerBuilder {
+  this: Web3ServiceBuilder with NetServiceBuilder =>
+
+  lazy val jsonRpcController = new JsonRpcController(web3Service, netService)
 }
 
 trait JSONRpcHttpServerBuilder {
@@ -167,6 +173,7 @@ trait Node extends NodeKeyBuilder
   with ServerActorBuilder
   with SyncControllerBuilder
   with Web3ServiceBuilder
+  with NetServiceBuilder
   with JSONRpcControllerBuilder
   with JSONRpcHttpServerBuilder
   with ShutdownHookBuilder

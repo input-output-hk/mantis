@@ -3,6 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import io.circe.Json.JString
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.Await
@@ -42,9 +43,10 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
     response.result shouldBe Some(JString("etc-client/v0.1"))
   }
 
-  trait TestSetup {
+  trait TestSetup extends MockFactory {
     val web3Service = new Web3Service
-    val jsonRpcController = new JsonRpcController(web3Service)
+    val netService = mock[NetService]
+    val jsonRpcController = new JsonRpcController(web3Service, netService)
   }
 
 }
