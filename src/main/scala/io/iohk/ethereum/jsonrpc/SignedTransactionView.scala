@@ -2,6 +2,8 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, Block, SignedTransaction}
+import org.json4s.JsonAST._
+import org.spongycastle.util.encoders.Hex
 
 case class SignedTransactionView(
                                   hash: ByteString,

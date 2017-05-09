@@ -8,7 +8,7 @@ val commonSettings = Seq(
 
 val dep = {
   val akkaVersion = "2.4.17"
-  val akkaHttpVersion = "10.0.3"
+  val akkaHttpVersion = "10.0.6"
   val circeVersion = "0.7.0"
 
   Seq(
@@ -27,6 +27,7 @@ val dep = {
     "org.scorexfoundation" %% "iodb" % "0.3.0",
     "ch.qos.logback" % "logback-classic" % "1.1.9",
     "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
+    "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % "test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
     "ch.qos.logback" % "logback-classic" % "1.1.9",

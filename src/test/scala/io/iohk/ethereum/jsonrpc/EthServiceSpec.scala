@@ -10,6 +10,7 @@ import org.scalatest.prop.PropertyChecks
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
+//FIXME: Use Async and move to JsonRpcControllerSpec (?)
 class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
 
   def validateResponse[A](responseFuture: Future[A])(isValid: A => Unit): Unit = {
