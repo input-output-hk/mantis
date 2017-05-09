@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
-import io.iohk.ethereum.rpc.RpcServerConfig
+import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
@@ -19,6 +19,8 @@ object Config {
   val config = ConfigFactory.load().getConfig("etc-client")
 
   val clientId: String = config.getString("client-id")
+
+  val clientVersion: String = config.getString("client-version")
 
   val keysFile: String = config.getString("keys-file")
 
@@ -61,7 +63,7 @@ object Config {
       }
     }
 
-    object Rpc extends RpcServerConfig {
+    object Rpc extends JsonRpcHttpServerConfig {
       private val rpcConfig = networkConfig.getConfig("rpc")
 
       val enabled = rpcConfig.getBoolean("enabled")

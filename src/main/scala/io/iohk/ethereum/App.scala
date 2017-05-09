@@ -29,7 +29,7 @@ object App {
       server ! ServerActor.StartServer(networkConfig.Server.listenAddress)
       syncController ! SyncController.StartSync
 
-      if(rpcServerConfig.enabled) startJSONRpcServer()
+      if (jsonRpcHttpServerConfig.enabled) jsonRpcHttpServer.run()
     }
 
   }

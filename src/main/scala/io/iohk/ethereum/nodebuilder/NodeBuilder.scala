@@ -8,7 +8,9 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
-import io.iohk.ethereum.rpc.{JsonRpcServer, RpcServerConfig}
+import io.iohk.ethereum.jsonrpc.{JsonRpcController, Web3Service}
+import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer
+import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 
@@ -84,15 +86,23 @@ trait ServerActorBuilder {
 
 }
 
+trait Web3ServiceBuilder {
+  lazy val web3Service = new Web3Service
+}
 
-trait JSONRpcServerBuilder {
+trait JSONRpcControllerBuilder {
+  this: Web3ServiceBuilder =>
 
-  self: ActorSystemBuilder with BlockChainBuilder =>
+  lazy val jsonRpcController = new JsonRpcController(web3Service)
+}
 
-  def startJSONRpcServer(): Unit = JsonRpcServer.run(actorSystem, blockchain, Config.Network.Rpc)
+trait JSONRpcHttpServerBuilder {
 
-  lazy val rpcServerConfig: RpcServerConfig = Config.Network.Rpc
+  self: ActorSystemBuilder with BlockChainBuilder with JSONRpcControllerBuilder =>
 
+  lazy val jsonRpcHttpServerConfig: JsonRpcHttpServerConfig = Config.Network.Rpc
+
+  lazy val jsonRpcHttpServer = new JsonRpcHttpServer(jsonRpcController, jsonRpcHttpServerConfig)
 }
 
 trait SyncControllerBuilder {
@@ -156,7 +166,9 @@ trait Node extends NodeKeyBuilder
   with PeerManagerActorBuilder
   with ServerActorBuilder
   with SyncControllerBuilder
-  with JSONRpcServerBuilder
+  with Web3ServiceBuilder
+  with JSONRpcControllerBuilder
+  with JSONRpcHttpServerBuilder
   with ShutdownHookBuilder
   with GenesisDataLoaderBuilder
   with BlockchainConfigBuilder

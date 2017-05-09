@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.data
 
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.ByteStringJsonSerializer
 import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -13,8 +14,8 @@ import io.iohk.ethereum.mpt.{MerklePatriciaTrie, RLPByteArraySerializable}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.vm.UInt256
+import org.json4s.{CustomSerializer, DefaultFormats, JString, JValue}
 import org.spongycastle.util.encoders.Hex
-import spray.json._
 
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
@@ -25,8 +26,6 @@ class GenesisDataLoader(
     blockchainConfig: BlockchainConfig)
   extends Logger{
 
-  import GenesisDataLoader._
-  import JsonProtocol._
   import AccountImplicits._
 
   private val bloomLength = 512
@@ -76,8 +75,10 @@ class GenesisDataLoader(
   }
 
   private def loadGenesisData(genesisJson: String): Try[Unit] = {
+    import org.json4s.native.JsonMethods.parse
+    implicit val formats = DefaultFormats + ByteStringJsonSerializer
     for {
-      genesisData <- Try(genesisJson.parseJson.convertTo[GenesisData](genesisDataFormat))
+      genesisData <- Try(parse(genesisJson).extract[GenesisData])
       _ <- loadGenesisData(genesisData)
     } yield ()
   }
@@ -137,27 +138,27 @@ class GenesisDataLoader(
 }
 
 object GenesisDataLoader {
-  implicit object JsonProtocol extends DefaultJsonProtocol {
+  object JsonSerializers {
 
-    implicit object ByteStringJsonFormat extends RootJsonFormat[ByteString] {
-      def read(value: JsValue): ByteString = value match {
-        case s: JsString =>
-          val noPrefix = s.value.replace("0x", "")
-          val inp =
-            if (noPrefix.length % 2 == 0) noPrefix
-            else "0" ++ noPrefix
-          Try(ByteString(Hex.decode(inp))) match {
-            case Success(bs) => bs
-            case Failure(ex) => deserializationError("Cannot parse hex string: " + s)
-          }
-        case other => deserializationError("Expected hex string, but got: " + other)
-      }
-
-      override def write(obj: ByteString): JsValue =
-        throw new RuntimeException("ByteStringJsonFormat.write should never be called")
+    def deserializeByteString(jv: JValue): ByteString = jv match {
+      case JString(s) =>
+        val noPrefix = s.replace("0x", "")
+        val inp =
+          if (noPrefix.length % 2 == 0) noPrefix
+          else "0" ++ noPrefix
+        Try(ByteString(Hex.decode(inp))) match {
+          case Success(bs) => bs
+          case Failure(ex) => throw new RuntimeException("Cannot parse hex string: " + s)
+        }
+      case other => throw new RuntimeException("Expected hex string, but got: " + other)
     }
 
-    implicit val allocAccountFormat = jsonFormat1(AllocAccount)
-    implicit val genesisDataFormat = jsonFormat8(GenesisData)
+    object ByteStringJsonSerializer extends CustomSerializer[ByteString](formats =>
+      (
+        { case jv => deserializeByteString(jv) },
+        PartialFunction.empty
+      )
+    )
+
   }
 }
