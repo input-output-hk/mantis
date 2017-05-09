@@ -2,13 +2,13 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
-import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
-import org.json4s.{CustomSerializer, DefaultFormats, Formats, JsonAST}
-import org.json4s.JsonAST.{JArray, JString}
+import io.iohk.ethereum.jsonrpc.Web3Service._
+import org.json4s.{CustomSerializer, DefaultFormats, Formats, JValue, JsonAST}
+import org.json4s.JsonAST.{JArray, JBool, JString}
 import org.json4s.JsonDSL._
 import org.spongycastle.util.encoders.Hex
 
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 object JsonMethodsImplicits {
 
@@ -29,9 +29,33 @@ object JsonMethodsImplicits {
     override def encodeJson(t: ClientVersionResponse): JsonAST.JArray = JArray(List(t.value))
   }
 
+  implicit val eth_submitHashrate = new JsonDecoder[HashRateSubmitRequest] with JsonEncoder[HashRateSubmitResponse] {
+    override def decodeJson(params: JsonAST.JArray): Try[HashRateSubmitRequest] = params match {
+      case JArray(hashRate :: id :: Nil) =>
+        Success(HashRateSubmitRequest(hashRate.extract[ByteString], id.extract[ByteString]))
+      case _ =>
+        Failure(new RuntimeException(s"got malformed HashRateSubmitRequest, JSON: $params"))
+    }
+
+    override def encodeJson(t: HashRateSubmitResponse): JValue = JBool(t.success)
+  }
+
+  implicit val eth_getWork = new JsonDecoder[GetWorkRequest] with JsonEncoder[GetWorkResponse] {
+    override def decodeJson(params: JArray): Try[GetWorkRequest] =
+      Success(GetWorkRequest())
+
+    override def encodeJson(t: GetWorkResponse): JsonAST.JValue ={
+      val powHeaderHash = s"0x${Hex.toHexString(t.powHeaderHash.toArray[Byte])}"
+      val dagSeed = s"0x${Hex.toHexString(t.dagSeed.toArray[Byte])}"
+      val target = s"0x${Hex.toHexString(t.target.toArray[Byte])}"
+      JArray(List(powHeaderHash, dagSeed, target))
+    }
+  }
+
   object ByteStringSerializer extends CustomSerializer[ByteString](formats =>
     (
-      { case JString(str) => ByteString(Hex.decode(str.drop(2)))},
+      { case JString("0x0") => ByteString("0x00")
+        case JString(str) => ByteString(Hex.decode(str.drop(2)))},
       { case bs: ByteString => JString(s"0x${Hex.toHexString(bs.toArray[Byte])}") }
     ))
 }

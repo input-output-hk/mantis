@@ -2,8 +2,9 @@ package io.iohk.ethereum.jsonrpc.http
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
@@ -22,10 +23,16 @@ class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHtt
 
   implicit val formats = DefaultFormats
 
-  val route: Route =
+  val route: Route = {
     (pathEndOrSingleSlash & post & entity(as[JsonRpcRequest])) { request =>
       handleRequest(request)
+    } ~ post {
+      extractRequest { r =>
+        log.debug(s"got unsupported request with ${r.entity}")
+        complete(HttpResponse(StatusCodes.BadRequest))
+      }
     }
+  }
 
   def run(): Unit = {
     implicit val materializer = ActorMaterializer()

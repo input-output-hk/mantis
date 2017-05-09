@@ -8,7 +8,7 @@ val commonSettings = Seq(
 
 val dep = {
   val akkaVersion = "2.4.17"
-  val akkaHttpVersion = "10.0.3"
+  val akkaHttpVersion = "10.0.6"
   val circeVersion = "0.7.0"
 
   Seq(
