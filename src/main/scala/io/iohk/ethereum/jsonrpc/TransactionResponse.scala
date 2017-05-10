@@ -4,18 +4,17 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
 
 case class TransactionResponse(
-                                  hash: ByteString,
-                                  nonce: BigInt,
-                                  blockHash: Option[ByteString],
-                                  blockNumber: Option[BigInt],
-                                  transactionIndex: Option[BigInt],
-                                  from: ByteString,
-                                  to: Option[ByteString],
-                                  value: BigInt,
-                                  gasPrice: BigInt,
-                                  gas: BigInt,
-                                  input: ByteString
-                                )
+    hash: ByteString,
+    nonce: BigInt,
+    blockHash: Option[ByteString],
+    blockNumber: Option[BigInt],
+    transactionIndex: Option[BigInt],
+    from: ByteString,
+    to: Option[ByteString],
+    value: BigInt,
+    gasPrice: BigInt,
+    gas: BigInt,
+    input: ByteString)
 
 object TransactionResponse {
 

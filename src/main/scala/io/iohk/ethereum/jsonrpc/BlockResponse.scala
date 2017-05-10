@@ -5,26 +5,25 @@ import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
 case class BlockResponse(
-                          number: Option[BigInt],
-                          hash: Option[ByteString],
-                          parentHash: ByteString,
-                          nonce: Option[ByteString],
-                          sha3Uncles: ByteString,
-                          logsBloom: Option[ByteString],
-                          transactionsRoot: ByteString,
-                          stateRoot: ByteString,
-                          receiptsRoot: ByteString,
-                          miner: ByteString,
-                          difficulty: BigInt,
-                          totalDifficulty: Option[BigInt],
-                          extraData: ByteString,
-                          size: BigInt,
-                          gasLimit: BigInt,
-                          gasUsed: BigInt,
-                          timestamp: BigInt,
-                          transactions: Either[Seq[ByteString], Seq[TransactionResponse]],
-                          uncles: Seq[ByteString]
-                        )
+    number: Option[BigInt],
+    hash: Option[ByteString],
+    parentHash: ByteString,
+    nonce: Option[ByteString],
+    sha3Uncles: ByteString,
+    logsBloom: Option[ByteString],
+    transactionsRoot: ByteString,
+    stateRoot: ByteString,
+    receiptsRoot: ByteString,
+    miner: ByteString,
+    difficulty: BigInt,
+    totalDifficulty: Option[BigInt],
+    extraData: ByteString,
+    size: BigInt,
+    gasLimit: BigInt,
+    gasUsed: BigInt,
+    timestamp: BigInt,
+    transactions: Either[Seq[ByteString], Seq[TransactionResponse]],
+    uncles: Seq[ByteString])
 
 object BlockResponse {
 
