@@ -8,14 +8,14 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 
 class JsonRpcControllerSpec extends FlatSpec with Matchers {
 
   "JsonRpcController" should "handle valid sha3 request" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "web3_sha3", Some(JArray(JString("0x1234") :: Nil)), Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -26,7 +26,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
   it should "fail when invalid request is received" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "web3_sha3", Some(JArray(JString("asdasd") :: Nil)), Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -36,7 +36,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
   it should "handle clientVersion request" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "web3_clientVersion", None, Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -49,7 +49,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
 
     val rpcRequest = JsonRpcRequest("2.0", "net_peerCount", None, Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
 
     response.result shouldBe Some(JString("0x7b"))
   }
@@ -59,7 +59,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
 
     val rpcRequest = JsonRpcRequest("2.0", "net_listening", None, Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
 
     response.result shouldBe Some(JBool(false))
   }

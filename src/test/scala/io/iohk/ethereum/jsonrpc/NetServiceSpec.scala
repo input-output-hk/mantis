@@ -15,7 +15,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class NetServiceSpec extends FlatSpec with Matchers with MockFactory {
@@ -29,11 +29,11 @@ class NetServiceSpec extends FlatSpec with Matchers with MockFactory {
       Peer(new InetSocketAddress(2), testRef) -> PeerActor.Status.Handshaked(mock[Status], true, 0),
       Peer(new InetSocketAddress(3), testRef) -> PeerActor.Status.Connecting)))
 
-    Await.result(resF, Duration.Inf) shouldBe PeerCountResponse(2)
+    Await.result(resF, 3.seconds) shouldBe PeerCountResponse(2)
   }
 
   it should "return listening response" in new TestSetup {
-    Await.result(netService.listening(ListeningRequest()), Duration.Inf) shouldBe ListeningResponse(true)
+    Await.result(netService.listening(ListeningRequest()), 3.seconds) shouldBe ListeningResponse(true)
   }
 
   trait TestSetup {
