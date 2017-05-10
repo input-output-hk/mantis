@@ -11,10 +11,10 @@ object EthService {
   case class TxCountByBlockHashResponse(txsQuantity: Option[Int])
 
   case class BlockByBlockHashRequest(blockHash: ByteString, fullTxs: Boolean)
-  case class BlockByBlockHashResponse(blockView: Option[BlockResponse])
+  case class BlockByBlockHashResponse(blockResponse: Option[BlockResponse])
 
   case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
-  case class UncleByBlockHashAndIndexResponse(uncleBlockView: Option[BlockResponse])
+  case class UncleByBlockHashAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
 }
 
 class EthService(blockchain: Blockchain) {
@@ -45,8 +45,8 @@ class EthService(blockchain: Blockchain) {
     val blockOpt = blockchain.getBlockByHash(blockHash)
     val totalDifficulty = blockchain.getTotalDifficultyByHash(blockHash)
 
-    val blockViewOpt = blockOpt.map(block => BlockResponse(block, fullTxs, totalDifficulty))
-    BlockByBlockHashResponse(blockViewOpt)
+    val blockResponseOpt = blockOpt.map(block => BlockResponse(block, fullTxs, totalDifficulty))
+    BlockByBlockHashResponse(blockResponseOpt)
   }
 
   /**
@@ -67,7 +67,7 @@ class EthService(blockchain: Blockchain) {
     val totalDifficulty = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getTotalDifficultyByHash(uncleHeader.hash))
 
     //The block in the response will not have any txs or uncles
-    val uncleBlockViewOpt = uncleHeaderOpt.map { uncleHeader => BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty) }
-    UncleByBlockHashAndIndexResponse(uncleBlockViewOpt)
+    val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader => BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty) }
+    UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt)
   }
 }

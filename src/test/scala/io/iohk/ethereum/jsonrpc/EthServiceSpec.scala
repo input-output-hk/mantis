@@ -44,7 +44,7 @@ class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash
     val blockTd = blockToRequest.header.difficulty
-    val stxsViews = blockToRequest.body.transactionList.zipWithIndex.map { case (stx, txIndex) =>
+    val stxResponses = blockToRequest.body.transactionList.zipWithIndex.map { case (stx, txIndex) =>
       TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
     }
 
@@ -52,36 +52,36 @@ class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
 
     "return None when the requested block isn't in the blockchain" in new TestSetup {
       val response = Await.result(ethService.getByBlockHash(request), Duration.Inf)
-      response.blockView shouldBe None
+      response.blockResponse shouldBe None
     }
 
-    "return the block view correctly when it's totalDifficulty is in blockchain" in new TestSetup {
+    "return the block response correctly when it's totalDifficulty is in blockchain" in new TestSetup {
       blockchain.save(blockToRequest)
       blockchain.save(blockToRequestHash, blockTd)
       val response = Await.result(ethService.getByBlockHash(request), Duration.Inf)
 
-      response.blockView shouldBe Some(BlockResponse(blockToRequest, fullTxs = true, totalDifficulty = Some(blockTd)))
-      response.blockView.get.totalDifficulty shouldBe Some(blockTd)
-      response.blockView.get.transactions.right.toOption shouldBe Some(stxsViews)
+      response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true, totalDifficulty = Some(blockTd)))
+      response.blockResponse.get.totalDifficulty shouldBe Some(blockTd)
+      response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses)
     }
 
-    "return the block view correctly when it's totalDifficulty is not in blockchain" in new TestSetup {
+    "return the block response correctly when it's totalDifficulty is not in blockchain" in new TestSetup {
       blockchain.save(blockToRequest)
       val response = Await.result(ethService.getByBlockHash(request), Duration.Inf)
 
-      response.blockView shouldBe Some(BlockResponse(blockToRequest, fullTxs = true))
-      response.blockView.get.totalDifficulty shouldBe None
-      response.blockView.get.transactions.right.toOption shouldBe Some(stxsViews)
+      response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true))
+      response.blockResponse.get.totalDifficulty shouldBe None
+      response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses)
     }
 
-    "return the block view correctly when the txs should be hashed" in new TestSetup {
+    "return the block response correctly when the txs should be hashed" in new TestSetup {
       blockchain.save(blockToRequest)
       blockchain.save(blockToRequestHash, blockTd)
       val response = Await.result(ethService.getByBlockHash(request.copy(fullTxs = false)), Duration.Inf)
 
-      response.blockView shouldBe Some(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
-      response.blockView.get.totalDifficulty shouldBe Some(blockTd)
-      response.blockView.get.transactions.left.toOption shouldBe Some(blockToRequest.body.transactionList.map(_.hash))
+      response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
+      response.blockResponse.get.totalDifficulty shouldBe Some(blockTd)
+      response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.transactionList.map(_.hash))
     }
 
   }
@@ -102,14 +102,14 @@ class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
 
     "return None when the requested block isn't in the blockchain" in new TestSetup {
       val response = Await.result(ethService.getUncleByBlockHashAndIndex(request), Duration.Inf)
-      response.uncleBlockView shouldBe None
+      response.uncleBlockResponse shouldBe None
     }
 
     "return None when there's no uncle" in new TestSetup {
       blockchain.save(blockToRequest)
       val response = Await.result(ethService.getUncleByBlockHashAndIndex(request), Duration.Inf)
 
-      response.uncleBlockView shouldBe None
+      response.uncleBlockResponse shouldBe None
     }
 
     "return None when there's no uncle in the requested index" in new TestSetup {
@@ -118,29 +118,29 @@ class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
       val response1 = Await.result(ethService.getUncleByBlockHashAndIndex(request.copy(uncleIndex = 1)), Duration.Inf)
       val response2 = Await.result(ethService.getUncleByBlockHashAndIndex(request.copy(uncleIndex = -1)), Duration.Inf)
 
-      response1.uncleBlockView shouldBe None
-      response2.uncleBlockView shouldBe None
+      response1.uncleBlockResponse shouldBe None
+      response2.uncleBlockResponse shouldBe None
     }
 
-    "return the uncle block view correctly when the requested index has one but there's no total difficulty for it" in new TestSetup {
+    "return the uncle block response correctly when the requested index has one but there's no total difficulty for it" in new TestSetup {
       blockchain.save(blockToRequestWithUncles)
       val response = Await.result(ethService.getUncleByBlockHashAndIndex(request), Duration.Inf)
 
-      response.uncleBlockView shouldBe Some(BlockResponse(uncle, None))
-      response.uncleBlockView.get.totalDifficulty shouldBe None
-      response.uncleBlockView.get.transactions shouldBe Left(Nil)
-      response.uncleBlockView.get.uncles shouldBe Nil
+      response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None))
+      response.uncleBlockResponse.get.totalDifficulty shouldBe None
+      response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
+      response.uncleBlockResponse.get.uncles shouldBe Nil
     }
 
-    "return the uncle block view correctly when the requested index has one and there's total difficulty for it" in new TestSetup {
+    "return the uncle block response correctly when the requested index has one and there's total difficulty for it" in new TestSetup {
       blockchain.save(blockToRequestWithUncles)
       blockchain.save(uncle.hash, uncleTd)
       val response = Await.result(ethService.getUncleByBlockHashAndIndex(request), Duration.Inf)
 
-      response.uncleBlockView shouldBe Some(BlockResponse(uncle, Some(uncleTd)))
-      response.uncleBlockView.get.totalDifficulty shouldBe Some(uncleTd)
-      response.uncleBlockView.get.transactions shouldBe Left(Nil)
-      response.uncleBlockView.get.uncles shouldBe Nil
+      response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleTd)))
+      response.uncleBlockResponse.get.totalDifficulty shouldBe Some(uncleTd)
+      response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
+      response.uncleBlockResponse.get.uncles shouldBe Nil
     }
   }
 

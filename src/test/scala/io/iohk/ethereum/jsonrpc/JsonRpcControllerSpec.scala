@@ -88,12 +88,12 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
     )
     val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
 
-    val expectedBlockView = Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
+    val expectedBlockResponse = Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(expectedBlockView)
+    response.result shouldBe Some(expectedBlockResponse)
   }
 
   it should "handle eth_getUncleByBlockHashAndIndex request" in new TestSetup {
@@ -115,7 +115,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
     )
     val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
 
-    val expectedUncleBlockView = Extraction.decompose(BlockResponse(uncle, None))
+    val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None))
       .removeField{
         case ("transactions", _) => true
         case _ => false
@@ -124,7 +124,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(expectedUncleBlockView)
+    response.result shouldBe Some(expectedUncleBlockResponse)
   }
 
   trait TestSetup {
