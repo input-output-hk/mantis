@@ -1,12 +1,13 @@
 package io.iohk.ethereum.jsonrpc
 
 import io.circe.Json.JString
+import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse}
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 
 class JsonRpcControllerSpec extends FlatSpec with Matchers {
@@ -41,6 +42,26 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JString("etc-client/v0.1"))
+  }
+
+  it should "Handle net_peerCount request" in new TestSetup {
+    (netService.peerCount _).expects(*).returning(Future.successful(PeerCountResponse(123)))
+
+    val rpcRequest = JsonRpcRequest("2.0", "net_peerCount", None, Some(1))
+
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+
+    response.result shouldBe Some(JString("0x7b"))
+  }
+
+  it should "Handle net_listening request" in new TestSetup {
+    (netService.listening _).expects(*).returning(Future.successful(ListeningResponse(false)))
+
+    val rpcRequest = JsonRpcRequest("2.0", "net_listening", None, Some(1))
+
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+
+    response.result shouldBe Some(JBool(false))
   }
 
   trait TestSetup extends MockFactory {
