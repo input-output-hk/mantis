@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import akka.agent.Agent
 import akka.testkit.TestProbe
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.jsonrpc.NetService.{ListeningRequest, ListeningResponse, PeerCountRequest, PeerCountResponse}
+import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
 import io.iohk.ethereum.network.PeerManagerActor.Peer
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
@@ -34,6 +34,10 @@ class NetServiceSpec extends FlatSpec with Matchers with MockFactory {
 
   it should "return listening response" in new TestSetup {
     Await.result(netService.listening(ListeningRequest()), 3.seconds) shouldBe ListeningResponse(true)
+  }
+
+  it should "return version response" in new TestSetup {
+    Await.result(netService.version(VersionRequest()), 3.seconds) shouldBe VersionResponse("1")
   }
 
   trait TestSetup {

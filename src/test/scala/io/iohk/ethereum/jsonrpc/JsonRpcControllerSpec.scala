@@ -1,7 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import io.circe.Json.JString
-import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse}
+import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalamock.scalatest.MockFactory
@@ -62,6 +62,16 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
     val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
 
     response.result shouldBe Some(JBool(false))
+  }
+
+  it should "Handle net_version request" in new TestSetup {
+    (netService.version _).expects(*).returning(Future.successful(VersionResponse("99")))
+
+    val rpcRequest = JsonRpcRequest("2.0", "net_version", None, Some(1))
+
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
+
+    response.result shouldBe Some(JString("99"))
   }
 
   trait TestSetup extends MockFactory {
