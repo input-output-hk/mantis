@@ -42,9 +42,21 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
     response.result shouldBe Some(JString("etc-client/v0.1"))
   }
 
+  it should "eth_protocolVersion" in new TestSetup {
+    val rpcRequest = JsonRpcRequest("2.0", "eth_protocolVersion", None, Some(1))
+
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x3f"))
+  }
+
   trait TestSetup {
     val web3Service = new Web3Service
-    val jsonRpcController = new JsonRpcController(web3Service)
+    val ethService = new EthService
+    val jsonRpcController = new JsonRpcController(web3Service, ethService)
   }
 
 }
