@@ -12,7 +12,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
 
-class EthJsonRpcControllerSpec extends WordSpec with Matchers with PropertyChecks {
+class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
 
   "eth_getBlockTransactionCountByHash" should {
 
