@@ -1,7 +1,9 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain.{Blockchain, SignedTransaction}
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -15,11 +17,28 @@ object EthService {
 
   case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
   case class UncleByBlockHashAndIndexResponse(uncleBlockView: Option[BlockResponse])
+
+  case class BlockByNumberRequest()
+  case class BlockByNumberResponse(bestBlockNumber: BigInt)
+
+  case class GetTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
+  case class GetTransactionByBlockHashAndIndexResponse(transactionResponse: Option[TransactionResponse])
+
 }
 
-class EthService(blockchain: Blockchain) {
+class EthService(private val blockchain: Blockchain,
+                 private val appStateStorage: AppStateStorage) {
 
   import EthService._
+
+  /**
+    * eth_blockNumber that returns the number of most recent block.
+    *
+    * @return Current block number the client is on.
+    */
+  def bestBlockNumber(req: BlockByNumberRequest)(implicit executionContext: ExecutionContext): Future[BlockByNumberResponse] = Future {
+    BlockByNumberResponse(appStateStorage.getBestBlockNumber())
+  }
 
   /**
     * Implements the eth_getBlockTransactionCountByHash method that fetches the number of txs that a certain block has.
@@ -47,6 +66,25 @@ class EthService(blockchain: Blockchain) {
 
     val blockViewOpt = blockOpt.map(block => BlockResponse(block, fullTxs, totalDifficulty))
     BlockByBlockHashResponse(blockViewOpt)
+  }
+
+  /**
+    * eth_getTransactionByBlockHashAndIndex that returns information about a transaction by block hash and
+    * transaction index position.
+    *
+    * @return the tx requested or None if the client doesn't have the block or if there's no tx in the that index
+    */
+  def getTransactionByBlockHashAndIndexRequest(req: GetTransactionByBlockHashAndIndexRequest)(implicit executionContext: ExecutionContext)
+  : Future[GetTransactionByBlockHashAndIndexResponse] = Future {
+    import req._
+    val maybeTransactionResponse = blockchain.getBlockByHash(blockHash).flatMap{
+      blockWithTx =>
+        val blockTxs = blockWithTx.body.transactionList
+        if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
+          Some(TransactionResponse(blockTxs(transactionIndex.toInt), Some(blockWithTx.header), Some(transactionIndex.toInt)))
+        else None
+    }
+    GetTransactionByBlockHashAndIndexResponse(maybeTransactionResponse)
   }
 
   /**

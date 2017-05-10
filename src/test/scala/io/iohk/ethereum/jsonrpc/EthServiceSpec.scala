@@ -14,6 +14,18 @@ import scala.concurrent.Await
 
 class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
 
+  "eth_blockNumber" should {
+
+    "return the latest block number" in new TestSetup {
+      val bestBlockNumber = 10
+      storagesInstance.storages.appStateStorage.putBestBlockNumber(bestBlockNumber)
+
+      val response = Await.result(ethService.bestBlockNumber(BlockByNumberRequest()), Duration.Inf)
+      response.bestBlockNumber shouldEqual bestBlockNumber
+    }
+
+  }
+
   "eth_getBlockTransactionCountByHash" should {
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
@@ -86,6 +98,39 @@ class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
 
   }
 
+  "eth_getTransactionByBlockHashAndIndex" should {
+
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+    val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
+
+    "return None when there is no block with the requested hash" in new TestSetup {
+      val response = Await.result(ethService.getTransactionByBlockHashAndIndexRequest(request), Duration.Inf)
+
+      response.transactionResponse shouldBe None
+    }
+
+    "return None when there is no tx in requested index" in new TestSetup {
+      blockchain.save(blockToRequest)
+      val invalidTxIndex = blockToRequest.body.transactionList.size
+      val response = Await.result(
+        ethService.getTransactionByBlockHashAndIndexRequest(request.copy(transactionIndex = invalidTxIndex)),
+        Duration.Inf
+      )
+
+      response.transactionResponse shouldBe None
+    }
+
+    "return the transaction response correctly when the requested index has one" in new TestSetup {
+      blockchain.save(blockToRequest)
+      val response = Await.result(ethService.getTransactionByBlockHashAndIndexRequest(request), Duration.Inf)
+
+      val requestedStx = blockToRequest.body.transactionList.apply(txIndexToRequest)
+      val expectedTxResponse = TransactionResponse(requestedStx, Some(blockToRequest.header), Some(txIndexToRequest))
+      response.transactionResponse shouldBe Some(expectedTxResponse)
+    }
+
+  }
 
   "eth_getUncleByBlockHashAndIndex" should {
 
@@ -148,7 +193,7 @@ class EthServiceSpec extends WordSpec with Matchers with PropertyChecks {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
 
-    val ethService = new EthService(blockchain)
+    val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage)
   }
 
 }

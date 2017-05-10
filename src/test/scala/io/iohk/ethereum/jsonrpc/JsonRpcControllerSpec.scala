@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Block, BlockchainImpl}
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{BlockResponseSerializer, QuantitiesSerializer}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{BlockResponseSerializer, QuantitiesSerializer, SignedTransactionResponseSerializer}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import org.json4s.{DefaultFormats, Extraction}
 import org.json4s.JsonAST._
@@ -46,6 +46,20 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JString("etc-client/v0.1"))
+  }
+
+  it should "handle eth_blockNumber request" in new TestSetup {
+    val bestBlockNumber = 10
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(bestBlockNumber)
+
+    val rpcRequest = JsonRpcRequest("2.0", "eth_blockNumber", None, Some(1))
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString(s"0xa"))
+
   }
 
   it should "handle eth_getBlockTransactionCountByHash request" in new TestSetup {
@@ -127,12 +141,41 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
     response.result shouldBe Some(expectedUncleBlockView)
   }
 
+  it should "handle eth_getTransactionByBlockHashAndIndex request" in new TestSetup {
+    implicit val format = DefaultFormats + SignedTransactionResponseSerializer
+
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+
+    blockchain.save(blockToRequest)
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getTransactionByBlockHashAndIndex",
+      Some(JArray(List(
+        JString(s"0x${blockToRequest.header.hashAsHexString}"),
+        JString(s"0x${Hex.toHexString(BigInt(txIndexToRequest).toByteArray)}")
+      ))),
+      Some(JInt(1))
+    )
+    val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
+    val expectedStx = blockToRequest.body.transactionList.apply(txIndexToRequest)
+    val expectedTxResponse = Extraction.decompose(
+      TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndexToRequest))
+    )
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(expectedTxResponse)
+  }
+
   trait TestSetup {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
 
     val web3Service = new Web3Service
-    val ethService = new EthService(blockchain)
+    val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage)
     val jsonRpcController = new JsonRpcController(web3Service, ethService)
   }
 

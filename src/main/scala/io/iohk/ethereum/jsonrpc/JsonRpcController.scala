@@ -28,10 +28,16 @@ class JsonRpcController(web3Service: Web3Service, ethService: EthService) {
     request.method match {
       case "web3_sha3" => handle[Sha3Request, Sha3Response](web3Service.sha3, request)
       case "web3_clientVersion" => handle[ClientVersionRequest, ClientVersionResponse](web3Service.clientVersion, request)
+      case "eth_blockNumber" => handle[BlockByNumberRequest, BlockByNumberResponse](ethService.bestBlockNumber, request)
       case "eth_getBlockTransactionCountByHash" =>
         handle[TxCountByBlockHashRequest, TxCountByBlockHashResponse](ethService.getBlockTransactionCountByHash, request)
       case "eth_getBlockByHash" =>
         handle[BlockByBlockHashRequest, BlockByBlockHashResponse](ethService.getByBlockHash, request)
+      case "eth_getTransactionByBlockHashAndIndex" =>
+        handle[GetTransactionByBlockHashAndIndexRequest, GetTransactionByBlockHashAndIndexResponse](
+          ethService.getTransactionByBlockHashAndIndexRequest,
+          request
+        )
       case "eth_getUncleByBlockHashAndIndex" =>
         handle[UncleByBlockHashAndIndexRequest, UncleByBlockHashAndIndexResponse](ethService.getUncleByBlockHashAndIndex, request)
       case _ => Future.successful(errorResponse(request, MethodNotFound))

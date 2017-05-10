@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{BlockResponseSerializer, QuantitiesSerializer}
+import io.iohk.ethereum.jsonrpc.JsonSerializers._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
 import org.json4s.{DefaultFormats, Extraction, Formats, JValue}
 import org.json4s.JsonAST._
@@ -16,7 +16,9 @@ object JsonMethodsImplicits {
 
   import JsonRpcErrors._
 
-  implicit val formats: Formats = DefaultFormats + BlockResponseSerializer + QuantitiesSerializer
+  implicit val formats: Formats =
+    DefaultFormats + BlockResponseSerializer + SignedTransactionResponseSerializer +
+      QuantitiesSerializer + UnformattedDataJsonSerializer
 
   implicit val web3_sha3 = new JsonDecoder[Sha3Request] with JsonEncoder[Sha3Response] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, Sha3Request] =
@@ -32,6 +34,12 @@ object JsonMethodsImplicits {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, ClientVersionRequest] = Right(ClientVersionRequest())
 
     override def encodeJson(t: ClientVersionResponse): JValue = t.value
+  }
+
+  implicit val eth_blockNumber = new JsonDecoder[BlockByNumberRequest] with JsonEncoder[BlockByNumberResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BlockByNumberRequest] = Right(BlockByNumberRequest())
+
+    override def encodeJson(t: BlockByNumberResponse): JValue = Extraction.decompose(t.bestBlockNumber)
   }
 
   implicit val eth_getBlockTransactionCountByHash = new JsonDecoder[TxCountByBlockHashRequest] with JsonEncoder[TxCountByBlockHashResponse] {
@@ -58,6 +66,21 @@ object JsonMethodsImplicits {
     override def encodeJson(t: BlockByBlockHashResponse): JValue =
       t.blockView.map(Extraction.decompose).getOrElse(JNull)
   }
+
+  implicit val eth_getTransactionByBlockHashAndIndex =
+    new JsonDecoder[GetTransactionByBlockHashAndIndexRequest] with JsonEncoder[GetTransactionByBlockHashAndIndexResponse] {
+      override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetTransactionByBlockHashAndIndexRequest] = params match {
+        case Some(JArray((blockHash: JString) :: (transactionIndex: JString) :: Nil)) =>
+          for {
+            parsedBlockHash <- tryExtractUnformattedData(blockHash)
+            parsedTransactionIndex <- tryExtractQuantity(transactionIndex)
+          } yield GetTransactionByBlockHashAndIndexRequest(parsedBlockHash, parsedTransactionIndex)
+        case _ => Left(InvalidParams)
+      }
+
+      override def encodeJson(t: GetTransactionByBlockHashAndIndexResponse): JValue =
+        t.transactionResponse.map(Extraction.decompose).getOrElse(JNull)
+    }
 
   implicit val eth_getUncleByBlockHashAndIndex = new JsonDecoder[UncleByBlockHashAndIndexRequest] with JsonEncoder[UncleByBlockHashAndIndexResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, UncleByBlockHashAndIndexRequest] =

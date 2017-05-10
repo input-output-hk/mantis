@@ -92,9 +92,9 @@ trait Web3ServiceBuilder {
 
 trait EthServiceBuilder {
 
-  self: BlockChainBuilder =>
+  self: BlockChainBuilder with StorageBuilder =>
 
-  lazy val ethService = new EthService(blockchain)
+  lazy val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage)
 }
 
 trait JSONRpcControllerBuilder {
