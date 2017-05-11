@@ -58,7 +58,8 @@ object JsonMethodsImplicits {
     JString(s"0x${Hex.toHexString(input.toArray[Byte])}")
 
   private def encodeAsHex(input: BigInt): JString =
-    JString(s"0x${Hex.toHexString(input.toByteArray)}")
+    if (input == 0) JString("0x0")
+    else JString(s"0x${Hex.toHexString(input.toByteArray).dropWhile(_ == '0')}")
 
   private def tryExtractUnformattedData(input: JString): Either[JsonRpcError, ByteString] = {
     if (input.s.startsWith("0x")) {
