@@ -41,7 +41,7 @@ class Web3Service {
   }
 
   def getWork(req: GetWorkRequest): Future[GetWorkResponse] = {
-    import io.iohk.ethereum.pow.PowCache._
+    import io.iohk.ethereum.mining.pow.PowCache._
     //todo add logic for generating block for mining and generating powHeaderHash for block
     val blockNumber = 5000
     Future.successful(GetWorkResponse(

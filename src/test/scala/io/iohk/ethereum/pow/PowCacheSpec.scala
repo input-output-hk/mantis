@@ -2,7 +2,7 @@ package io.iohk.ethereum.pow
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.pow.PowCache._
+import io.iohk.ethereum.mining.pow.PowCache._
 import io.iohk.ethereum.utils.Logger
 import org.scalacheck.Arbitrary
 import org.scalatest.prop.PropertyChecks
