@@ -2,6 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
+import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
 import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
@@ -19,7 +20,7 @@ object JsonRpcController {
   }
 }
 
-class JsonRpcController(web3Service: Web3Service, ethService: EthService) {
+class JsonRpcController(web3Service: Web3Service, netService: NetService, ethService: EthService) {
 
   import JsonMethodsImplicits._
   import JsonRpcErrors._
@@ -28,6 +29,9 @@ class JsonRpcController(web3Service: Web3Service, ethService: EthService) {
     request.method match {
       case "web3_sha3" => handle[Sha3Request, Sha3Response](web3Service.sha3, request)
       case "web3_clientVersion" => handle[ClientVersionRequest, ClientVersionResponse](web3Service.clientVersion, request)
+      case "net_version" => handle[VersionRequest, VersionResponse](netService.version, request)
+      case "net_listening" => handle[ListeningRequest, ListeningResponse](netService.listening, request)
+      case "net_peerCount" => handle[PeerCountRequest, PeerCountResponse](netService.peerCount, request)
       case "eth_protocolVersion" => handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, request)
       case "eth_getBlockTransactionCountByHash" =>
         handle[TxCountByBlockHashRequest, TxCountByBlockHashResponse](ethService.getBlockTransactionCountByHash, request)

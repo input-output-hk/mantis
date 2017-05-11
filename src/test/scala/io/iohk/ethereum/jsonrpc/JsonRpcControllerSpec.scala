@@ -6,13 +6,15 @@ import io.iohk.ethereum.domain.{Block, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import org.json4s.{DefaultFormats, Extraction, Formats}
+import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 
 class JsonRpcControllerSpec extends FlatSpec with Matchers {
 
@@ -22,7 +24,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
   "JsonRpcController" should "handle valid sha3 request" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "web3_sha3", Some(JArray(JString("0x1234") :: Nil)), Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -33,7 +35,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
   it should "fail when invalid request is received" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "web3_sha3", Some(JArray(JString("asdasd") :: Nil)), Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -43,12 +45,42 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
   it should "handle clientVersion request" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "web3_clientVersion", None, Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JString("etc-client/v0.1"))
+  }
+
+  it should "Handle net_peerCount request" in new TestSetup {
+    (netService.peerCount _).expects(*).returning(Future.successful(PeerCountResponse(123)))
+
+    val rpcRequest = JsonRpcRequest("2.0", "net_peerCount", None, Some(1))
+
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
+
+    response.result shouldBe Some(JString("0x7b"))
+  }
+
+  it should "Handle net_listening request" in new TestSetup {
+    (netService.listening _).expects(*).returning(Future.successful(ListeningResponse(false)))
+
+    val rpcRequest = JsonRpcRequest("2.0", "net_listening", None, Some(1))
+
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
+
+    response.result shouldBe Some(JBool(false))
+  }
+
+  it should "Handle net_version request" in new TestSetup {
+    (netService.version _).expects(*).returning(Future.successful(VersionResponse("99")))
+
+    val rpcRequest = JsonRpcRequest("2.0", "net_version", None, Some(1))
+
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
+
+    response.result shouldBe Some(JString("99"))
   }
 
   it should "eth_protocolVersion" in new TestSetup {
@@ -136,13 +168,14 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
     response.result shouldBe Some(expectedUncleBlockResponse)
   }
 
-  trait TestSetup {
+  trait TestSetup extends MockFactory {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
 
     val web3Service = new Web3Service
     val ethService = new EthService(blockchain)
-    val jsonRpcController = new JsonRpcController(web3Service, ethService)
+    val netService = mock[NetService]
+    val jsonRpcController = new JsonRpcController(web3Service, netService, ethService)
   }
 
 }
