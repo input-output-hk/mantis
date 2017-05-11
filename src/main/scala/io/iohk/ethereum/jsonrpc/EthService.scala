@@ -9,21 +9,25 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object EthService {
 
+  val CurrentProtocolVersion = 63
+
+  case class ProtocolVersionRequest()
+  case class ProtocolVersionResponse(value: String)
+
+  case class BestBlockNumberRequest()
+  case class BestBlockNumberResponse(bestBlockNumber: BigInt)
+
   case class TxCountByBlockHashRequest(blockHash: ByteString)
   case class TxCountByBlockHashResponse(txsQuantity: Option[Int])
 
   case class BlockByBlockHashRequest(blockHash: ByteString, fullTxs: Boolean)
-  case class BlockByBlockHashResponse(blockView: Option[BlockResponse])
+  case class BlockByBlockHashResponse(blockResponse: Option[BlockResponse])
 
   case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
-  case class UncleByBlockHashAndIndexResponse(uncleBlockView: Option[BlockResponse])
-
-  case class BlockByNumberRequest()
-  case class BlockByNumberResponse(bestBlockNumber: BigInt)
+  case class UncleByBlockHashAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
 
   case class GetTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
   case class GetTransactionByBlockHashAndIndexResponse(transactionResponse: Option[TransactionResponse])
-
 }
 
 class EthService(private val blockchain: Blockchain,
@@ -31,13 +35,16 @@ class EthService(private val blockchain: Blockchain,
 
   import EthService._
 
+  def protocolVersion(req: ProtocolVersionRequest): Future[ProtocolVersionResponse] =
+    Future.successful(ProtocolVersionResponse(f"0x$CurrentProtocolVersion%x"))
+
   /**
     * eth_blockNumber that returns the number of most recent block.
     *
     * @return Current block number the client is on.
     */
-  def bestBlockNumber(req: BlockByNumberRequest)(implicit executionContext: ExecutionContext): Future[BlockByNumberResponse] = Future {
-    BlockByNumberResponse(appStateStorage.getBestBlockNumber())
+  def bestBlockNumber(req: BestBlockNumberRequest)(implicit executionContext: ExecutionContext): Future[BestBlockNumberResponse] = Future {
+    BestBlockNumberResponse(appStateStorage.getBestBlockNumber())
   }
 
   /**
@@ -64,8 +71,8 @@ class EthService(private val blockchain: Blockchain,
     val blockOpt = blockchain.getBlockByHash(blockHash)
     val totalDifficulty = blockchain.getTotalDifficultyByHash(blockHash)
 
-    val blockViewOpt = blockOpt.map(block => BlockResponse(block, fullTxs, totalDifficulty))
-    BlockByBlockHashResponse(blockViewOpt)
+    val blockResponseOpt = blockOpt.map(block => BlockResponse(block, fullTxs, totalDifficulty))
+    BlockByBlockHashResponse(blockResponseOpt)
   }
 
   /**
@@ -97,15 +104,16 @@ class EthService(private val blockchain: Blockchain,
                                  (implicit executor: ExecutionContext): Future[UncleByBlockHashAndIndexResponse] = Future {
     val UncleByBlockHashAndIndexRequest(blockHash, uncleIndex) = request
     val uncleHeaderOpt = blockchain.getBlockBodyByHash(blockHash)
-      .flatMap{body =>
-        if(uncleIndex >=0 && uncleIndex < body.uncleNodesList.size)
+      .flatMap { body =>
+        if (uncleIndex >= 0 && uncleIndex < body.uncleNodesList.size)
           Some(body.uncleNodesList.apply(uncleIndex.toInt))
         else
-          None}
+          None
+      }
     val totalDifficulty = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getTotalDifficultyByHash(uncleHeader.hash))
 
     //The block in the response will not have any txs or uncles
-    val uncleBlockViewOpt = uncleHeaderOpt.map { uncleHeader => BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty) }
-    UncleByBlockHashAndIndexResponse(uncleBlockViewOpt)
+    val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader => BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty) }
+    UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt)
   }
 }

@@ -3,7 +3,8 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
-import io.iohk.ethereum.jsonrpc.JsonSerializers._
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
 import org.json4s.{DefaultFormats, Extraction, Formats, JValue}
 import org.json4s.JsonAST._
@@ -16,9 +17,8 @@ object JsonMethodsImplicits {
 
   import JsonRpcErrors._
 
-  implicit val formats: Formats =
-    DefaultFormats + BlockResponseSerializer + SignedTransactionResponseSerializer +
-      QuantitiesSerializer + UnformattedDataJsonSerializer
+  implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
+    QuantitiesSerializer + UnformattedDataJsonSerializer
 
   implicit val web3_sha3 = new JsonDecoder[Sha3Request] with JsonEncoder[Sha3Response] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, Sha3Request] =
@@ -32,17 +32,37 @@ object JsonMethodsImplicits {
 
   implicit val web3_clientVersion = new JsonDecoder[ClientVersionRequest] with JsonEncoder[ClientVersionResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, ClientVersionRequest] = Right(ClientVersionRequest())
-
     override def encodeJson(t: ClientVersionResponse): JValue = t.value
   }
 
-  implicit val eth_blockNumber = new JsonDecoder[BlockByNumberRequest] with JsonEncoder[BlockByNumberResponse] {
-    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BlockByNumberRequest] = Right(BlockByNumberRequest())
-
-    override def encodeJson(t: BlockByNumberResponse): JValue = Extraction.decompose(t.bestBlockNumber)
+  implicit val net_version = new JsonDecoder[VersionRequest] with JsonEncoder[VersionResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, VersionRequest] = Right(VersionRequest())
+    override def encodeJson(t: VersionResponse): JValue = t.value
   }
 
-  implicit val eth_getBlockTransactionCountByHash = new JsonDecoder[TxCountByBlockHashRequest] with JsonEncoder[TxCountByBlockHashResponse] {
+  implicit val net_listening = new JsonDecoder[ListeningRequest] with JsonEncoder[ListeningResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, ListeningRequest] = Right(ListeningRequest())
+    override def encodeJson(t: ListeningResponse): JValue = t.value
+  }
+
+  implicit val net_peerCount = new JsonDecoder[PeerCountRequest] with JsonEncoder[PeerCountResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, PeerCountRequest] = Right(PeerCountRequest())
+    override def encodeJson(t: PeerCountResponse): JValue = encodeAsHex(t.value)
+  }
+
+  implicit val eth_protocolVersion = new JsonDecoder[ProtocolVersionRequest] with JsonEncoder[ProtocolVersionResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, ProtocolVersionRequest] = Right(ProtocolVersionRequest())
+
+    def encodeJson(t: ProtocolVersionResponse): JValue = t.value
+  }
+
+  implicit val eth_blockNumber = new JsonDecoder[BestBlockNumberRequest] with JsonEncoder[BestBlockNumberResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BestBlockNumberRequest] = Right(BestBlockNumberRequest())
+
+    override def encodeJson(t: BestBlockNumberResponse): JValue = Extraction.decompose(t.bestBlockNumber)
+  }
+
+    implicit val eth_getBlockTransactionCountByHash = new JsonDecoder[TxCountByBlockHashRequest] with JsonEncoder[TxCountByBlockHashResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, TxCountByBlockHashRequest] =
       params match {
         case Some(JArray((input: JString) :: Nil)) =>
@@ -51,7 +71,7 @@ object JsonMethodsImplicits {
       }
 
     override def encodeJson(t: TxCountByBlockHashResponse): JValue =
-      t.txsQuantity.map(txsCount => Extraction.decompose(BigInt(txsCount))).getOrElse(JNull)
+      Extraction.decompose(t.txsQuantity.map(BigInt(_)))
   }
 
   implicit val eth_getBlockByHash = new JsonDecoder[BlockByBlockHashRequest] with JsonEncoder[BlockByBlockHashResponse] {
@@ -64,7 +84,7 @@ object JsonMethodsImplicits {
     }
 
     override def encodeJson(t: BlockByBlockHashResponse): JValue =
-      t.blockView.map(Extraction.decompose).getOrElse(JNull)
+      Extraction.decompose(t.blockResponse)
   }
 
   implicit val eth_getTransactionByBlockHashAndIndex =
@@ -94,8 +114,8 @@ object JsonMethodsImplicits {
       }
 
     override def encodeJson(t: UncleByBlockHashAndIndexResponse): JValue = {
-      val uncleBlockView = t.uncleBlockView.map(Extraction.decompose).getOrElse(JNull)
-      uncleBlockView.removeField{
+      val uncleBlockResponse = Extraction.decompose(t.uncleBlockResponse)
+      uncleBlockResponse.removeField{
         case JField("transactions", _) => true
         case _ => false
       }
@@ -106,7 +126,7 @@ object JsonMethodsImplicits {
     JString(s"0x${Hex.toHexString(input.toArray[Byte])}")
 
   private def encodeAsHex(input: BigInt): JString =
-    JString(s"0x${Hex.toHexString(input.toByteArray)}")
+    JString(s"0x${input.toString(16)}")
 
   private def tryExtractUnformattedData(input: JString): Either[JsonRpcError, ByteString] = {
     if (input.s.startsWith("0x")) {
