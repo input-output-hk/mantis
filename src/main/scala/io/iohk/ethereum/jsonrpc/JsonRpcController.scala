@@ -32,7 +32,7 @@ class JsonRpcController(web3Service: Web3Service, netService: NetService, ethSer
       case "net_version" => handle[VersionRequest, VersionResponse](netService.version, request)
       case "net_listening" => handle[ListeningRequest, ListeningResponse](netService.listening, request)
       case "net_peerCount" => handle[PeerCountRequest, PeerCountResponse](netService.peerCount, request)
-      case "eth_protocolVersion" => handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, request)   
+      case "eth_protocolVersion" => handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, request)
       case _ => Future.successful(errorResponse(request, MethodNotFound))
     }
   }
