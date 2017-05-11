@@ -34,33 +34,4 @@ object JsonSerializers {
     )
   )
 
-  object SignedTransactionResponseSerializer extends CustomSerializer[TransactionResponse](_ =>
-    (
-      {PartialFunction.empty},
-      { case stxResponse: TransactionResponse =>
-          implicit val formats = DefaultFormats.preservingEmptyValues +
-            UnformattedDataJsonSerializer +
-            QuantitiesSerializer +
-            OptionNoneToJNullSerializer
-
-          Extraction.decompose(stxResponse)
-      }
-    )
-  )
-
-  object BlockResponseSerializer extends CustomSerializer[BlockResponse](_ =>
-    (
-      {PartialFunction.empty},
-      { case blockResponse: BlockResponse =>
-          implicit val formats = DefaultFormats.preservingEmptyValues +
-            UnformattedDataJsonSerializer +
-            QuantitiesSerializer +
-            OptionNoneToJNullSerializer +
-            SignedTransactionResponseSerializer
-
-          Extraction.decompose(blockResponse)
-      }
-    )
-  )
-
 }

@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{BlockResponseSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
 import org.json4s.{DefaultFormats, Extraction, Formats, JValue}
 import org.json4s.JsonAST._
@@ -16,7 +16,8 @@ object JsonMethodsImplicits {
 
   import JsonRpcErrors._
 
-  implicit val formats: Formats = DefaultFormats + BlockResponseSerializer + QuantitiesSerializer + UnformattedDataJsonSerializer
+  implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
+    QuantitiesSerializer + UnformattedDataJsonSerializer
 
   implicit val web3_sha3 = new JsonDecoder[Sha3Request] with JsonEncoder[Sha3Response] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, Sha3Request] =
@@ -49,7 +50,7 @@ object JsonMethodsImplicits {
       }
 
     override def encodeJson(t: TxCountByBlockHashResponse): JValue =
-      t.txsQuantity.map(txsCount => Extraction.decompose(BigInt(txsCount))).getOrElse(JNull)
+      Extraction.decompose(t.txsQuantity.map(BigInt(_)))
   }
 
   implicit val eth_getBlockByHash = new JsonDecoder[BlockByBlockHashRequest] with JsonEncoder[BlockByBlockHashResponse] {
@@ -62,7 +63,7 @@ object JsonMethodsImplicits {
     }
 
     override def encodeJson(t: BlockByBlockHashResponse): JValue =
-      t.blockResponse.map(Extraction.decompose).getOrElse(JNull)
+      Extraction.decompose(t.blockResponse)
   }
 
   implicit val eth_getUncleByBlockHashAndIndex = new JsonDecoder[UncleByBlockHashAndIndexRequest] with JsonEncoder[UncleByBlockHashAndIndexResponse] {
@@ -77,7 +78,7 @@ object JsonMethodsImplicits {
       }
 
     override def encodeJson(t: UncleByBlockHashAndIndexResponse): JValue = {
-      val uncleBlockResponse = t.uncleBlockResponse.map(Extraction.decompose).getOrElse(JNull)
+      val uncleBlockResponse = Extraction.decompose(t.uncleBlockResponse)
       uncleBlockResponse.removeField{
         case JField("transactions", _) => true
         case _ => false

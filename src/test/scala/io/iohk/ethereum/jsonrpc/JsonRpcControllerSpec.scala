@@ -3,9 +3,9 @@ package io.iohk.ethereum.jsonrpc
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Block, BlockchainImpl}
-import io.iohk.ethereum.jsonrpc.JsonSerializers.{BlockResponseSerializer, QuantitiesSerializer}
+import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import org.json4s.{DefaultFormats, Extraction}
+import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalatest.{FlatSpec, Matchers}
@@ -15,6 +15,9 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 class JsonRpcControllerSpec extends FlatSpec with Matchers {
+
+  implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
+    QuantitiesSerializer + UnformattedDataJsonSerializer
 
   "JsonRpcController" should "handle valid sha3 request" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "web3_sha3", Some(JArray(JString("0x1234") :: Nil)), Some(1))
@@ -60,8 +63,6 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
   }
 
   it should "handle eth_getBlockTransactionCountByHash request" in new TestSetup {
-    implicit val format = DefaultFormats + BlockResponseSerializer + QuantitiesSerializer
-
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
 
     blockchain.save(blockToRequest)
@@ -83,7 +84,6 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
   }
 
   it should "handle eth_getBlockByHash request" in new TestSetup {
-    implicit val format = DefaultFormats + BlockResponseSerializer + QuantitiesSerializer
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockTd = blockToRequest.header.difficulty
@@ -108,8 +108,6 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
   }
 
   it should "handle eth_getUncleByBlockHashAndIndex request" in new TestSetup {
-    implicit val format = DefaultFormats + BlockResponseSerializer + QuantitiesSerializer
-
     val uncle = Fixtures.Blocks.DaoForkBlock.header
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, BlockBody(Nil, Seq(uncle)))
 
