@@ -1,11 +1,12 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
+import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, ProtocolVersionResponse}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
 import org.json4s.{DefaultFormats, Formats, JValue}
-import org.json4s.JsonAST.{JArray, JString}
+import org.json4s.JsonAST.{JArray, JString, JValue}
 import org.json4s.JsonDSL._
 import org.spongycastle.util.encoders.Hex
 
@@ -45,6 +46,12 @@ object JsonMethodsImplicits {
   implicit val net_peerCount = new JsonDecoder[PeerCountRequest] with JsonEncoder[PeerCountResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, PeerCountRequest] = Right(PeerCountRequest())
     override def encodeJson(t: PeerCountResponse): JValue = encodeAsHex(t.value)
+  }
+
+  implicit val eth_protocolVersion = new JsonDecoder[ProtocolVersionRequest] with JsonEncoder[ProtocolVersionResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, ProtocolVersionRequest] = Right(ProtocolVersionRequest())
+
+    def encodeJson(t: ProtocolVersionResponse): JValue = t.value
   }
 
   private def encodeAsHex(input: ByteString): JString =
