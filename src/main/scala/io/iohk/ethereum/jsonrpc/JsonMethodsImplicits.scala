@@ -1,11 +1,12 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
+import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, ProtocolVersionResponse, SyncingRequest, SyncingResponse}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
-import org.json4s.{DefaultFormats, Formats, JValue}
-import org.json4s.JsonAST.{JArray, JString}
+import org.json4s.{DefaultFormats, Extraction, Formats, JValue}
+import org.json4s.JsonAST.{JArray, JString, JValue}
 import org.json4s.JsonDSL._
 import org.spongycastle.util.encoders.Hex
 
@@ -47,11 +48,23 @@ object JsonMethodsImplicits {
     override def encodeJson(t: PeerCountResponse): JValue = encodeAsHex(t.value)
   }
 
+  implicit val eth_protocolVersion = new JsonDecoder[ProtocolVersionRequest] with JsonEncoder[ProtocolVersionResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, ProtocolVersionRequest] = Right(ProtocolVersionRequest())
+
+    def encodeJson(t: ProtocolVersionResponse): JValue = t.value
+  }
+
+  implicit val eth_syncing = new JsonDecoder[SyncingRequest] with JsonEncoder[SyncingResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, SyncingRequest] = Right(SyncingRequest())
+
+    def encodeJson(t: SyncingResponse): JValue = Extraction.decompose(t)
+  }
+
   private def encodeAsHex(input: ByteString): JString =
     JString(s"0x${Hex.toHexString(input.toArray[Byte])}")
 
   private def encodeAsHex(input: BigInt): JString =
-    JString(s"0x${Hex.toHexString(input.toByteArray)}")
+    JString(s"0x${input.toString(16)}")
 
   private def tryExtractUnformattedData(input: JString): Either[JsonRpcError, ByteString] = {
     if (input.s.startsWith("0x")) {
