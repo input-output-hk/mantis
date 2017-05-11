@@ -87,12 +87,10 @@ trait RegularSync {
   private def handleDownload(peer: ActorRef, message: Seq[BlockHeader]) = if (message.nonEmpty) {
     headersQueue = message
     processBlockHeaders(peer, message)
-    // TODO: syncing = true
   } else {
     //no new headers to process, schedule to ask again in future, we are at the top of chain
     broadcasting = true
     scheduleResume()
-    // TODO: syncing = false
   }
 
   private def processBlockHeaders(peer: ActorRef, headers: Seq[BlockHeader]) = {
