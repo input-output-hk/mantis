@@ -57,6 +57,10 @@ trait FastSync {
     case PeerActor.MessageReceived(BlockHeaders(Seq(blockHeader))) =>
       sender() ! PeerActor.Unsubscribe
 
+      if (appStateStorage.getEstimatedHighestBlock() < blockHeader.number) {
+        appStateStorage.putEstimatedHighestBlock(blockHeader.number)
+      }
+
       val newWaitingFor = waitingFor - sender()
       val newReceived = received + (sender() -> blockHeader)
 
