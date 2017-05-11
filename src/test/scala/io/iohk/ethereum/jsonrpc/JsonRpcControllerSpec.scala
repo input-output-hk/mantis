@@ -48,6 +48,17 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
     response.result shouldBe Some(JString("etc-client/v0.1"))
   }
 
+  it should "eth_protocolVersion" in new TestSetup {
+    val rpcRequest = JsonRpcRequest("2.0", "eth_protocolVersion", None, Some(1))
+
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x3f"))
+  }
+
   it should "handle eth_getBlockTransactionCountByHash request" in new TestSetup {
     implicit val format = DefaultFormats + BlockResponseSerializer + QuantitiesSerializer
 
@@ -116,7 +127,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
     val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
 
     val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None))
-      .removeField{
+      .removeField {
         case ("transactions", _) => true
         case _ => false
       }

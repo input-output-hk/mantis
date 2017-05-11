@@ -34,6 +34,12 @@ object JsonMethodsImplicits {
     override def encodeJson(t: ClientVersionResponse): JValue = t.value
   }
 
+  implicit val eth_protocolVersion = new JsonDecoder[ProtocolVersionRequest] with JsonEncoder[ProtocolVersionResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, ProtocolVersionRequest] = Right(ProtocolVersionRequest())
+
+    def encodeJson(t: ProtocolVersionResponse): JValue = t.value
+  }
+
   implicit val eth_getBlockTransactionCountByHash = new JsonDecoder[TxCountByBlockHashRequest] with JsonEncoder[TxCountByBlockHashResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, TxCountByBlockHashRequest] =
       params match {

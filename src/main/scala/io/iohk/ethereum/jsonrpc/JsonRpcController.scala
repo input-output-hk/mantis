@@ -28,6 +28,7 @@ class JsonRpcController(web3Service: Web3Service, ethService: EthService) {
     request.method match {
       case "web3_sha3" => handle[Sha3Request, Sha3Response](web3Service.sha3, request)
       case "web3_clientVersion" => handle[ClientVersionRequest, ClientVersionResponse](web3Service.clientVersion, request)
+      case "eth_protocolVersion" => handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, request)
       case "eth_getBlockTransactionCountByHash" =>
         handle[TxCountByBlockHashRequest, TxCountByBlockHashResponse](ethService.getBlockTransactionCountByHash, request)
       case "eth_getBlockByHash" =>

@@ -7,6 +7,11 @@ import scala.concurrent.{ExecutionContext, Future}
 
 object EthService {
 
+  val CurrentProtocolVersion = 63
+
+  case class ProtocolVersionRequest()
+  case class ProtocolVersionResponse(value: String)
+
   case class TxCountByBlockHashRequest(blockHash: ByteString)
   case class TxCountByBlockHashResponse(txsQuantity: Option[Int])
 
@@ -20,6 +25,9 @@ object EthService {
 class EthService(blockchain: Blockchain) {
 
   import EthService._
+
+  def protocolVersion(req: ProtocolVersionRequest): Future[ProtocolVersionResponse] =
+    Future.successful(ProtocolVersionResponse(f"0x$CurrentProtocolVersion%x"))
 
   /**
     * Implements the eth_getBlockTransactionCountByHash method that fetches the number of txs that a certain block has.
@@ -59,11 +67,12 @@ class EthService(blockchain: Blockchain) {
                                  (implicit executor: ExecutionContext): Future[UncleByBlockHashAndIndexResponse] = Future {
     val UncleByBlockHashAndIndexRequest(blockHash, uncleIndex) = request
     val uncleHeaderOpt = blockchain.getBlockBodyByHash(blockHash)
-      .flatMap{body =>
-        if(uncleIndex >=0 && uncleIndex < body.uncleNodesList.size)
+      .flatMap { body =>
+        if (uncleIndex >= 0 && uncleIndex < body.uncleNodesList.size)
           Some(body.uncleNodesList.apply(uncleIndex.toInt))
         else
-          None}
+          None
+      }
     val totalDifficulty = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getTotalDifficultyByHash(uncleHeader.hash))
 
     //The block in the response will not have any txs or uncles
