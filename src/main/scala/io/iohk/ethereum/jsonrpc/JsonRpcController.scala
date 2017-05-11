@@ -1,5 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
+import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, ProtocolVersionResponse}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
@@ -19,7 +20,7 @@ object JsonRpcController {
   }
 }
 
-class JsonRpcController(web3Service: Web3Service, netService: NetService) {
+class JsonRpcController(web3Service: Web3Service, netService: NetService, ethService: EthService) {
 
   import JsonMethodsImplicits._
   import JsonRpcErrors._
@@ -31,6 +32,7 @@ class JsonRpcController(web3Service: Web3Service, netService: NetService) {
       case "net_version" => handle[VersionRequest, VersionResponse](netService.version, request)
       case "net_listening" => handle[ListeningRequest, ListeningResponse](netService.listening, request)
       case "net_peerCount" => handle[PeerCountRequest, PeerCountResponse](netService.peerCount, request)
+      case "eth_protocolVersion" => handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, request)
       case _ => Future.successful(errorResponse(request, MethodNotFound))
     }
   }
