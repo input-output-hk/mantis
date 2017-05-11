@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.BlockPreparationError.{TxError, ValidationError}
+import io.iohk.ethereum.ledger.BlockPreparationError.TxError
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR, TxResult}
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
@@ -54,9 +54,6 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val blockchain = BlockchainImpl(storages)
 
     val blockExecResult = for {
-      //todo remove PoW validation from validators.blockHeaderValidator.validate
-      //block for mining has to have gasUsed set to 0
-      _ <- validators.blockHeaderValidator.validate(block.header, blockchain).left.map(error => ValidationError(error.toString))
       //todo why do we require in executeBlockTransactions separate blockchain and blockchain storage
       //todo blockchain storage is part of blockchain
       execResult <- executeBlockTransactions(block, blockchain, storages, validators.signedTransactionValidator).left.map(e => TxError(e.reason))
@@ -367,6 +364,5 @@ object BlockExecutionError {
 trait BlockPreparationError
 
 object BlockPreparationError {
-  case class ValidationError(reason: String) extends BlockPreparationError
   case class TxError(reason: String) extends BlockPreparationError
 }

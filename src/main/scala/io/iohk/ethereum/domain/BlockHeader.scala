@@ -1,7 +1,7 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.crypto.{kec256, kec512}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.rlp.{RLPList, encode => rlpEncode}
 import org.spongycastle.util.encoders.Hex
@@ -60,5 +60,13 @@ object BlockHeader {
       case _ => throw new Exception("BlockHeader cannot be encoded without nonce and mixHash")
     }
     rlpEncode(rlpEncoded)
+  }
+
+  def calculatePoWValue(blockHeader: BlockHeader): ByteString = {
+    val nonceReverted = blockHeader.nonce.reverse
+    val hashBlockWithoutNonce = kec256(BlockHeader.getEncodedWithoutNonce(blockHeader))
+    val seedHash = kec512(hashBlockWithoutNonce ++ nonceReverted)
+
+    ByteString(kec256(seedHash ++ blockHeader.mixHash))
   }
 }
