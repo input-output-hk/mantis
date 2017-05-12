@@ -3,6 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, ProtocolVersionResponse}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
+import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
 import io.iohk.ethereum.jsonrpc.Web3Service._
 import org.json4s.{DefaultFormats, Formats, JsonAST}
@@ -30,8 +31,22 @@ object JsonMethodsImplicits {
 
   implicit val web3_clientVersion = new JsonDecoder[ClientVersionRequest] with JsonEncoder[ClientVersionResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, ClientVersionRequest] = Right(ClientVersionRequest())
-
     override def encodeJson(t: ClientVersionResponse): JValue = t.value
+  }
+
+  implicit val net_version = new JsonDecoder[VersionRequest] with JsonEncoder[VersionResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, VersionRequest] = Right(VersionRequest())
+    override def encodeJson(t: VersionResponse): JValue = t.value
+  }
+
+  implicit val net_listening = new JsonDecoder[ListeningRequest] with JsonEncoder[ListeningResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, ListeningRequest] = Right(ListeningRequest())
+    override def encodeJson(t: ListeningResponse): JValue = t.value
+  }
+
+  implicit val net_peerCount = new JsonDecoder[PeerCountRequest] with JsonEncoder[PeerCountResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, PeerCountRequest] = Right(PeerCountRequest())
+    override def encodeJson(t: PeerCountResponse): JValue = encodeAsHex(t.value)
   }
 
   implicit val eth_protocolVersion = new JsonDecoder[ProtocolVersionRequest] with JsonEncoder[ProtocolVersionResponse] {
@@ -85,7 +100,7 @@ object JsonMethodsImplicits {
     JString(s"0x${Hex.toHexString(input.toArray[Byte])}")
 
   private def encodeAsHex(input: BigInt): JString =
-    JString(s"0x${Hex.toHexString(input.toByteArray)}")
+    JString(s"0x${input.toString(16)}")
 
   private def tryExtractUnformattedData(input: JString): Either[JsonRpcError, ByteString] = {
     if (input.s.startsWith("0x")) {
