@@ -97,7 +97,10 @@ trait NetServiceBuilder {
 }
 
 trait EthServiceBuilder {
-  lazy val ethService = new EthService
+
+  self: BlockChainBuilder =>
+
+  lazy val ethService = new EthService(blockchain)
 }
 
 trait JSONRpcControllerBuilder {
