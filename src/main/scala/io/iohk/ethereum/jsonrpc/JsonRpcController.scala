@@ -1,10 +1,9 @@
 package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, ProtocolVersionResponse, SyncingRequest, SyncingResponse}
-import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
+import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
-import io.iohk.ethereum.utils.Config
 import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
 
@@ -12,6 +11,7 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object JsonRpcController {
+
   trait JsonDecoder[T] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, T]
   }
@@ -19,22 +19,38 @@ object JsonRpcController {
   trait JsonEncoder[T] {
     def encodeJson(t: T): JValue
   }
+
+
+  trait JsonRpcConfig {
+    def apis: Seq[String]
+  }
+
+  object Apis {
+    val Eth = "eth"
+    val Web3 = "web3"
+    val Net = "net"
+    val Db = "db"
+    val Personal = "personal"
+    val Admin = "admin"
+    val Debug = "debug"
+  }
+
 }
 
-class JsonRpcController(web3Service: Web3Service, netService: NetService, ethService: EthService) {
+class JsonRpcController(web3Service: Web3Service, netService: NetService, ethService: EthService, config: JsonRpcConfig) {
 
+  import JsonRpcController._
   import JsonMethodsImplicits._
   import JsonRpcErrors._
-  import Config.Network.{Rpc => RpcConfig}
 
   val apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
-    RpcConfig.Apis.Eth -> handleEthRequest,
-    RpcConfig.Apis.Web3 -> handleWeb3Request,
-    RpcConfig.Apis.Net -> handleNetRequest,
-    RpcConfig.Apis.Db -> PartialFunction.empty,
-    RpcConfig.Apis.Personal -> PartialFunction.empty,
-    RpcConfig.Apis.Admin -> PartialFunction.empty,
-    RpcConfig.Apis.Debug -> PartialFunction.empty
+    Apis.Eth -> handleEthRequest,
+    Apis.Web3 -> handleWeb3Request,
+    Apis.Net -> handleNetRequest,
+    Apis.Db -> PartialFunction.empty,
+    Apis.Personal -> PartialFunction.empty,
+    Apis.Admin -> PartialFunction.empty,
+    Apis.Debug -> PartialFunction.empty
   )
 
   private def handleWeb3Request: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
@@ -59,7 +75,7 @@ class JsonRpcController(web3Service: Web3Service, netService: NetService, ethSer
       case _ => Future.successful(errorResponse(request, MethodNotFound))
     }
 
-    val handleFn = RpcConfig.apis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
+    val handleFn = config.apis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
 
     handleFn(request)
   }

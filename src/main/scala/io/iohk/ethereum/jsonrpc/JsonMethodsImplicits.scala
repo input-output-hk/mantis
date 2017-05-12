@@ -5,8 +5,8 @@ import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, ProtocolVers
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
-import org.json4s.{DefaultFormats, Extraction, Formats, JValue}
-import org.json4s.JsonAST.{JArray, JString, JValue}
+import org.json4s.{CustomSerializer, DefaultFormats, Extraction, Formats, JValue}
+import org.json4s.JsonAST.{JArray, JObject, JString, JValue}
 import org.json4s.JsonDSL._
 import org.spongycastle.util.encoders.Hex
 
@@ -16,7 +16,12 @@ object JsonMethodsImplicits {
 
   import JsonRpcErrors._
 
-  implicit val formats: Formats = DefaultFormats
+  case object BigIntFormat extends CustomSerializer[BigInt](format => (
+    { PartialFunction.empty },
+    { case x: BigInt => encodeAsHex(x) }
+  ))
+
+  implicit val formats: Formats = DefaultFormats + BigIntFormat
 
   implicit val web3_sha3 = new JsonDecoder[Sha3Request] with JsonEncoder[Sha3Response] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, Sha3Request] =

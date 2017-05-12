@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
+import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.vm.UInt256
@@ -65,7 +66,7 @@ object Config {
       }
     }
 
-    object Rpc extends JsonRpcHttpServerConfig {
+    object Rpc extends JsonRpcHttpServerConfig with JsonRpcConfig {
       private val rpcConfig = networkConfig.getConfig("rpc")
 
       val enabled = rpcConfig.getBoolean("enabled")
@@ -73,16 +74,6 @@ object Config {
       val port = rpcConfig.getInt("port")
 
       val apis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
-
-      object Apis {
-        val Eth = "eth"
-        val Web3 = "web3"
-        val Net = "net"
-        val Db = "db"
-        val Personal = "personal"
-        val Admin = "admin"
-        val Debug = "debug"
-      }
     }
 
   }

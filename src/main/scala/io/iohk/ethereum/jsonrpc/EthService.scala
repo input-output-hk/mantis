@@ -1,6 +1,5 @@
 package io.iohk.ethereum.jsonrpc
 
-
 import io.iohk.ethereum.db.storage.AppStateStorage
 
 import scala.concurrent.Future
