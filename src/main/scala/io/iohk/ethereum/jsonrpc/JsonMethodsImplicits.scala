@@ -5,14 +5,16 @@ import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.NetService._
+import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
 import org.json4s.{DefaultFormats, Extraction, Formats, JValue}
-import org.json4s.JsonAST._
+import org.json4s.JsonAST.{JValue, _}
 import org.json4s.JsonDSL._
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
 
+// scalastyle:off number.of.methods
 object JsonMethodsImplicits {
 
   import JsonRpcErrors._
@@ -24,7 +26,7 @@ object JsonMethodsImplicits {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, Sha3Request] =
       params match {
         case Some(JArray((input: JString) :: Nil)) => tryExtractUnformattedData(input).map(Sha3Request)
-        case _ => Left(InvalidParams)
+        case _ => Left(InvalidParams())
       }
 
     override def encodeJson(t: Sha3Response): JValue = encodeAsHex(t.data)
@@ -67,7 +69,7 @@ object JsonMethodsImplicits {
       params match {
         case Some(JArray((input: JString) :: Nil)) =>
           tryExtractUnformattedData(input).map(TxCountByBlockHashRequest)
-        case _ => Left(InvalidParams)
+        case _ => Left(InvalidParams())
       }
 
     override def encodeJson(t: TxCountByBlockHashResponse): JValue =
@@ -79,7 +81,7 @@ object JsonMethodsImplicits {
       params match {
         case Some(JArray((blockHash: JString) :: JBool(txHashed) :: Nil)) =>
           tryExtractUnformattedData(blockHash).map(BlockByBlockHashRequest(_, txHashed))
-        case _ => Left(InvalidParams)
+        case _ => Left(InvalidParams())
       }
     }
 
@@ -95,7 +97,7 @@ object JsonMethodsImplicits {
             parsedBlockHash <- tryExtractUnformattedData(blockHash)
             parsedTransactionIndex <- tryExtractQuantity(transactionIndex)
           } yield GetTransactionByBlockHashAndIndexRequest(parsedBlockHash, parsedTransactionIndex)
-        case _ => Left(InvalidParams)
+        case _ => Left(InvalidParams())
       }
 
       override def encodeJson(t: GetTransactionByBlockHashAndIndexResponse): JValue =
@@ -110,7 +112,7 @@ object JsonMethodsImplicits {
             hash <- tryExtractUnformattedData(blockHash)
             uncleBlockIndex <- tryExtractQuantity(uncleIndex)
           } yield UncleByBlockHashAndIndexRequest(hash, uncleBlockIndex)
-        case _ => Left(InvalidParams)
+        case _ => Left(InvalidParams())
       }
 
     override def encodeJson(t: UncleByBlockHashAndIndexResponse): JValue = {
@@ -128,6 +130,40 @@ object JsonMethodsImplicits {
     def encodeJson(t: SyncingResponse): JValue = Extraction.decompose(t)
   }
 
+  implicit val personal_importRawKey = new JsonDecoder[ImportRawKeyRequest] with JsonEncoder[ImportRawKeyResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, ImportRawKeyRequest] =
+      params match {
+        case Some(JArray(JString(key) :: JString(passphrase) :: _)) =>
+          Right(ImportRawKeyRequest(key, passphrase))
+        case _ =>
+          Left(InvalidParams())
+      }
+
+    def encodeJson(t: ImportRawKeyResponse): JValue =
+      JString(t.address)
+  }
+
+  implicit val personal_newAccount = new JsonDecoder[NewAccountRequest] with JsonEncoder[NewAccountResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, NewAccountRequest] =
+      params match {
+        case Some(JArray(JString(passphrase) :: _)) =>
+          Right(NewAccountRequest(passphrase))
+        case _ =>
+          Left(InvalidParams())
+      }
+
+    def encodeJson(t: NewAccountResponse): JValue =
+      JString(t.address)
+  }
+
+  implicit val personal_listAccounts = new JsonDecoder[ListAccountsRequest] with JsonEncoder[ListAccountsResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, ListAccountsRequest] =
+      Right(ListAccountsRequest())
+
+    def encodeJson(t: ListAccountsResponse): JValue =
+      JArray(t.addresses.map(JString))
+  }
+
   private def encodeAsHex(input: ByteString): JString =
     JString(s"0x${Hex.toHexString(input.toArray[Byte])}")
 
@@ -138,9 +174,9 @@ object JsonMethodsImplicits {
     if (input.s.startsWith("0x")) {
       Try(ByteString(Hex.decode(input.s.drop(2)))) match {
         case Success(bs) => Right(bs)
-        case Failure(_) => Left(InvalidParams.copy(message = s"Unable to parse data from '${input.s}'"))
+        case Failure(_) => Left(InvalidParams(s"Unable to parse data from '${input.s}'"))
       }
-    } else Left(InvalidParams.copy(message = s"Data '${input.s}' should have 0x prefix"))
+    } else Left(InvalidParams(s"Data '${input.s}' should have 0x prefix"))
   }
 
   private def tryExtractQuantity(input: JString): Either[JsonRpcError, BigInt] = {
@@ -148,9 +184,9 @@ object JsonMethodsImplicits {
       val noPrefix = input.s.replace("0x", "")
       Try(BigInt(noPrefix, 16)) match {
         case Success(bi) => Right(bi)
-        case Failure(_) => Left(InvalidParams.copy(message = s"Unable to parse quantity from '${input.s}'"))
+        case Failure(_) => Left(InvalidParams(s"Unable to parse quantity from '${input.s}'"))
       }
-    } else Left(InvalidParams.copy(message = s"Quantity '${input.s}' should have 0x prefix"))
+    } else Left(InvalidParams(s"Quantity '${input.s}' should have 0x prefix"))
   }
 
 }

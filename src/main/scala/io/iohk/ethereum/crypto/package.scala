@@ -1,5 +1,6 @@
 package io.iohk.ethereum
 
+import java.math.BigInteger
 import java.security.{MessageDigest, SecureRandom}
 
 import akka.util.ByteString
@@ -9,7 +10,7 @@ import org.spongycastle.asn1.x9.X9ECParameters
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.digests.RIPEMD160Digest
 import org.spongycastle.crypto.generators.ECKeyPairGenerator
-import org.spongycastle.crypto.params.{ECDomainParameters, ECKeyGenerationParameters}
+import org.spongycastle.crypto.params.{ECDomainParameters, ECKeyGenerationParameters, ECPrivateKeyParameters, ECPublicKeyParameters}
 
 package object crypto {
 
@@ -44,6 +45,24 @@ package object crypto {
     generator.init(new ECKeyGenerationParameters(curve, secureRandom))
     generator.generateKeyPair()
   }
+
+  /** @return (privateKey, publicKey) pair */
+  def keyPairToByteArrays(keyPair: AsymmetricCipherKeyPair): (Array[Byte], Array[Byte]) = {
+    val prvKey = keyPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD.toByteArray
+    val pubKey = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
+    (prvKey, pubKey)
+  }
+
+  def keyPairFromPrvKey(prvKeyBytes: Array[Byte]): AsymmetricCipherKeyPair = {
+    val privateKey = new BigInteger(1, prvKeyBytes)
+    val publicKey = curve.getG.multiply(privateKey).normalize()
+    new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(privateKey, curve))
+  }
+
+  def pubKeyFromPrvKey(prvKey: Array[Byte]): Array[Byte] = {
+    keyPairToByteArrays(keyPairFromPrvKey(prvKey))._2
+  }
+
 
   def ripemd160(input: Array[Byte]): Array[Byte] = {
     val digest = new RIPEMD160Digest

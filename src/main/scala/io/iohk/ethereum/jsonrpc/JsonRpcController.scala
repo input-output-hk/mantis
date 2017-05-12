@@ -3,6 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService._
+import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
 import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
@@ -37,7 +38,12 @@ object JsonRpcController {
 
 }
 
-class JsonRpcController(web3Service: Web3Service, netService: NetService, ethService: EthService, config: JsonRpcConfig) {
+class JsonRpcController(
+  web3Service: Web3Service,
+  netService: NetService,
+  ethService: EthService,
+  personalService: PersonalService,
+  config: JsonRpcConfig) {
 
   import JsonRpcController._
   import JsonMethodsImplicits._
@@ -48,7 +54,7 @@ class JsonRpcController(web3Service: Web3Service, netService: NetService, ethSer
     Apis.Web3 -> handleWeb3Request,
     Apis.Net -> handleNetRequest,
     Apis.Db -> PartialFunction.empty,
-    Apis.Personal -> PartialFunction.empty,
+    Apis.Personal -> handlePersonalRequest,
     Apis.Admin -> PartialFunction.empty,
     Apis.Debug -> PartialFunction.empty
   )
@@ -84,6 +90,19 @@ class JsonRpcController(web3Service: Web3Service, netService: NetService, ethSer
       handle[GetTransactionByBlockHashAndIndexRequest, GetTransactionByBlockHashAndIndexResponse](ethService.getTransactionByBlockHashAndIndexRequest, req)
     case req @ JsonRpcRequest(_, "eth_getUncleByBlockHashAndIndex", _, _) =>
       handle[UncleByBlockHashAndIndexRequest, UncleByBlockHashAndIndexResponse](ethService.getUncleByBlockHashAndIndex, req)
+    case req @ JsonRpcRequest(_, "eth_accounts", _, _) =>
+      handle[ListAccountsRequest, ListAccountsResponse](personalService.listAccounts, req)
+  }
+
+  private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "personal_importRawKey", _, _) =>
+      handle[ImportRawKeyRequest, ImportRawKeyResponse](personalService.importRawKey, req)
+
+    case req @ JsonRpcRequest(_, "personal_newAccount", _, _) =>
+      handle[NewAccountRequest, NewAccountResponse](personalService.newAccount, req)
+
+    case req @ JsonRpcRequest(_, "personal_listAccounts", _, _) =>
+      handle[ListAccountsRequest, ListAccountsResponse](personalService.listAccounts, req)
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
@@ -96,12 +115,15 @@ class JsonRpcController(web3Service: Web3Service, netService: NetService, ethSer
     handleFn(request)
   }
 
-  private def handle[Req, Res](fn: Req => Future[Res], rpcReq: JsonRpcRequest)
+  private def handle[Req, Res](fn: Req => Future[Either[JsonRpcError, Res]], rpcReq: JsonRpcRequest)
                               (implicit dec: JsonDecoder[Req], enc: JsonEncoder[Res]): Future[JsonRpcResponse] = {
     dec.decodeJson(rpcReq.params) match {
       case Right(req) =>
         fn(req)
-          .map(successResponse(rpcReq, _))
+          .map {
+            case Right(success) => successResponse(rpcReq, success)
+            case Left(error) => errorResponse(rpcReq, error)
+          }
           .recover { case ex => errorResponse(rpcReq, InternalError) }
       case Left(error) =>
         Future.successful(errorResponse(rpcReq, error))
