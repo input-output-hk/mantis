@@ -71,6 +71,18 @@ object Config {
       val enabled = rpcConfig.getBoolean("enabled")
       val interface = rpcConfig.getString("interface")
       val port = rpcConfig.getInt("port")
+
+      val apis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
+
+      object Apis {
+        val Eth = "eth"
+        val Web3 = "web3"
+        val Net = "net"
+        val Db = "db"
+        val Personal = "personal"
+        val Admin = "admin"
+        val Debug = "debug"
+      }
     }
 
   }

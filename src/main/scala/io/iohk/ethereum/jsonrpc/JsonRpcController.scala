@@ -4,6 +4,7 @@ import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, ProtocolVers
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
+import io.iohk.ethereum.utils.Config
 import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
 
@@ -24,18 +25,43 @@ class JsonRpcController(web3Service: Web3Service, netService: NetService, ethSer
 
   import JsonMethodsImplicits._
   import JsonRpcErrors._
+  import Config.Network.{Rpc => RpcConfig}
+
+  val apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
+    RpcConfig.Apis.Eth -> handleEthRequest,
+    RpcConfig.Apis.Web3 -> handleWeb3Request,
+    RpcConfig.Apis.Net -> handleNetRequest,
+    RpcConfig.Apis.Db -> PartialFunction.empty,
+    RpcConfig.Apis.Personal -> PartialFunction.empty,
+    RpcConfig.Apis.Admin -> PartialFunction.empty,
+    RpcConfig.Apis.Debug -> PartialFunction.empty
+  )
+
+  private def handleWeb3Request: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "web3_sha3", _, _) => handle[Sha3Request, Sha3Response](web3Service.sha3, req)
+    case req @ JsonRpcRequest(_, "web3_clientVersion", _, _) => handle[ClientVersionRequest, ClientVersionResponse](web3Service.clientVersion, req)
+  }
+
+  private def handleNetRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "net_version", _, _) => handle[VersionRequest, VersionResponse](netService.version, req)
+    case req @ JsonRpcRequest(_, "net_listening", _, _) => handle[ListeningRequest, ListeningResponse](netService.listening, req)
+    case req @ JsonRpcRequest(_, "net_peerCount", _, _) => handle[PeerCountRequest, PeerCountResponse](netService.peerCount, req)
+  }
+
+  private def handleEthRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) => handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
+    case req @ JsonRpcRequest(_, "eth_syncing", _, _) => handle[SyncingRequest, SyncingResponse](ethService.syncing, req)
+
+  }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
-    request.method match {
-      case "web3_sha3" => handle[Sha3Request, Sha3Response](web3Service.sha3, request)
-      case "web3_clientVersion" => handle[ClientVersionRequest, ClientVersionResponse](web3Service.clientVersion, request)
-      case "net_version" => handle[VersionRequest, VersionResponse](netService.version, request)
-      case "net_listening" => handle[ListeningRequest, ListeningResponse](netService.listening, request)
-      case "net_peerCount" => handle[PeerCountRequest, PeerCountResponse](netService.peerCount, request)
-      case "eth_protocolVersion" => handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, request)
-      case "eth_syncing" => handle[SyncingRequest, SyncingResponse](ethService.syncing, request)
+    val notFoundFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
       case _ => Future.successful(errorResponse(request, MethodNotFound))
     }
+
+    val handleFn = RpcConfig.apis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
+
+    handleFn(request)
   }
 
   private def handle[Req, Res](fn: Req => Future[Res], rpcReq: JsonRpcRequest)
