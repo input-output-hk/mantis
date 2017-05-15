@@ -1,6 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, ProtocolVersionResponse, SyncingRequest, SyncingResponse}
+import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
@@ -54,20 +54,32 @@ class JsonRpcController(web3Service: Web3Service, netService: NetService, ethSer
   )
 
   private def handleWeb3Request: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
-    case req @ JsonRpcRequest(_, "web3_sha3", _, _) => handle[Sha3Request, Sha3Response](web3Service.sha3, req)
-    case req @ JsonRpcRequest(_, "web3_clientVersion", _, _) => handle[ClientVersionRequest, ClientVersionResponse](web3Service.clientVersion, req)
+    case req @ JsonRpcRequest(_, "web3_sha3", _, _) =>
+      handle[Sha3Request, Sha3Response](web3Service.sha3, req)
+    case req @ JsonRpcRequest(_, "web3_clientVersion", _, _) =>
+      handle[ClientVersionRequest, ClientVersionResponse](web3Service.clientVersion, req)
   }
 
   private def handleNetRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
-    case req @ JsonRpcRequest(_, "net_version", _, _) => handle[VersionRequest, VersionResponse](netService.version, req)
-    case req @ JsonRpcRequest(_, "net_listening", _, _) => handle[ListeningRequest, ListeningResponse](netService.listening, req)
-    case req @ JsonRpcRequest(_, "net_peerCount", _, _) => handle[PeerCountRequest, PeerCountResponse](netService.peerCount, req)
+    case req @ JsonRpcRequest(_, "net_version", _, _) =>
+      handle[VersionRequest, VersionResponse](netService.version, req)
+    case req @ JsonRpcRequest(_, "net_listening", _, _) =>
+      handle[ListeningRequest, ListeningResponse](netService.listening, req)
+    case req @ JsonRpcRequest(_, "net_peerCount", _, _) =>
+      handle[PeerCountRequest, PeerCountResponse](netService.peerCount, req)
   }
 
   private def handleEthRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
-    case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) => handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
-    case req @ JsonRpcRequest(_, "eth_syncing", _, _) => handle[SyncingRequest, SyncingResponse](ethService.syncing, req)
-
+    case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) =>
+      handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
+    case req @ JsonRpcRequest(_, "eth_syncing", _, _) =>
+      handle[SyncingRequest, SyncingResponse](ethService.syncing, req)
+    case req @ JsonRpcRequest(_, "eth_getBlockTransactionCountByHash", _, _) =>
+      handle[TxCountByBlockHashRequest, TxCountByBlockHashResponse](ethService.getBlockTransactionCountByHash, req)
+    case req @ JsonRpcRequest(_, "eth_getBlockByHash", _, _) =>
+      handle[BlockByBlockHashRequest, BlockByBlockHashResponse](ethService.getByBlockHash, req)
+    case req @ JsonRpcRequest(_, "eth_getUncleByBlockHashAndIndex", _, _) =>
+      handle[UncleByBlockHashAndIndexRequest, UncleByBlockHashAndIndexResponse](ethService.getUncleByBlockHashAndIndex, req)
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {

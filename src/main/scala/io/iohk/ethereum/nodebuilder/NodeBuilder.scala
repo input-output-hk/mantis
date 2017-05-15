@@ -97,9 +97,9 @@ trait NetServiceBuilder {
 }
 
 trait EthServiceBuilder {
-  self: StorageBuilder =>
+  self: StorageBuilder with BlockChainBuilder =>
 
-  lazy val ethService = new EthService(storagesInstance.storages.appStateStorage)
+  lazy val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage)
 }
 
 trait JSONRpcControllerBuilder {
