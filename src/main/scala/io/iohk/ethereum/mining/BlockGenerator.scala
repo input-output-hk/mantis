@@ -3,6 +3,7 @@ package io.iohk.ethereum.mining
 import java.time.Instant
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage
@@ -22,6 +23,9 @@ import io.iohk.ethereum.utils.ByteUtils.or
 import io.iohk.ethereum.validators.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.validators.Validators
+import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
+import io.iohk.ethereum.crypto._
 
 class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: BlockchainConfig, ledger: Ledger, validators: Validators) {
   val difficulty = new DifficultyCalculator(blockchainConfig)
@@ -89,6 +93,11 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
     )(intByteArraySerializable, vSerializable)
     val hash = entities.zipWithIndex.foldLeft(mpt) { case (trie, (value, key)) => trie.put(key, value) }.getRootHash
     ByteString(hash)
+  }
+
+  private def getKeyPair(prvKey: BigInt): AsymmetricCipherKeyPair = {
+    val publicKey = curve.getG.multiply(prvKey.bigInteger).normalize()
+    new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(prvKey.bigInteger, curve))
   }
 }
 
