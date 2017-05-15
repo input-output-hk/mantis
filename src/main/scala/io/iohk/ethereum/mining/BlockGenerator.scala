@@ -26,11 +26,11 @@ import io.iohk.ethereum.validators.Validators
 class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: BlockchainConfig, ledger: Ledger, validators: Validators) {
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
-  def generateBlockForMining(): Block = {
-    //todo add logic
-    val fakeAddress = 42
-    generateBlockForMining(1, Nil, Nil, Address(fakeAddress)).fold(e => null, identity)
-  }
+  //todo add logic
+  private val fakeAddress = 42
+  private val block = generateBlockForMining(1, Nil, Nil, Address(fakeAddress)).fold(e => null, identity)
+
+  def generateBlockForMining(): Block = block
 
   def generateBlockForMining(blockNumber: BigInt, transactions: Seq[SignedTransaction], ommers: Seq[BlockHeader], beneficiary: Address):
   Either[BlockPreparationError, Block] = {
@@ -94,6 +94,5 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
 
 object BlockGenerator {
   case object NoParent extends BlockPreparationError
-
   case class InvalidOmmers(reason: OmmersError) extends BlockPreparationError
 }

@@ -1,9 +1,8 @@
 package io.iohk.ethereum.validators
 
-import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, DifficultyCalculator}
-import io.iohk.ethereum.crypto.{kec256, kec512}
 import io.iohk.ethereum.utils.BlockchainConfig
+import org.spongycastle.util.encoders.Hex
 
 trait BlockHeaderValidator {
 

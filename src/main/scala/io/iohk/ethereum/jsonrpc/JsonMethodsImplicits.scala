@@ -1,11 +1,10 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, ProtocolVersionResponse}
+import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
-import io.iohk.ethereum.jsonrpc.Web3Service._
 import org.json4s.{DefaultFormats, Formats, JsonAST}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue}
 import org.json4s.JsonDSL._

@@ -12,15 +12,6 @@ object Web3Service {
 
   case class ClientVersionRequest()
   case class ClientVersionResponse(value: String)
-
-  case class SubmitHashRateRequest(hashRate: BigInt, id: ByteString)
-  case class SubmitHashRateResponse(success: Boolean)
-
-  case class GetWorkRequest()
-  case class GetWorkResponse(powHeaderHash: ByteString, dagSeed: ByteString, target: ByteString)
-
-  case class SubmitWorkRequest(nonce: ByteString, powHeaderHash: ByteString, mixHash: ByteString)
-  case class SubmitWorkResponse(success:Boolean)
 }
 
 class Web3Service {

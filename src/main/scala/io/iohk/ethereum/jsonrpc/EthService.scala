@@ -2,8 +2,8 @@ package io.iohk.ethereum.jsonrpc
 
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.jsonrpc.Web3Service._
 import io.iohk.ethereum.mining.BlockGenerator
 
 import scala.concurrent.Future
@@ -14,6 +14,15 @@ object EthService {
 
   case class ProtocolVersionRequest()
   case class ProtocolVersionResponse(value: String)
+
+  case class SubmitHashRateRequest(hashRate: BigInt, id: ByteString)
+  case class SubmitHashRateResponse(success: Boolean)
+
+  case class GetWorkRequest()
+  case class GetWorkResponse(powHeaderHash: ByteString, dagSeed: ByteString, target: ByteString)
+
+  case class SubmitWorkRequest(nonce: ByteString, powHeaderHash: ByteString, mixHash: ByteString)
+  case class SubmitWorkResponse(success:Boolean)
 }
 
 class EthService(blockGenerator: BlockGenerator) {
@@ -31,7 +40,7 @@ class EthService(blockGenerator: BlockGenerator) {
     import io.iohk.ethereum.mining.pow.PowCache._
     val block = blockGenerator.generateBlockForMining()
     Future.successful(GetWorkResponse(
-      powHeaderHash = BlockHeader.calculatePoWValue(block.header),
+      powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(block.header))),
       dagSeed = seedForBlock(block.header.number),
       target = ByteString((BigInt(2).pow(256) / block.header.difficulty).toByteArray)
     ))

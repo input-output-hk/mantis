@@ -1,4 +1,4 @@
-package io.iohk.ethereum.pow
+package io.iohk.ethereum.mining.pow
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256

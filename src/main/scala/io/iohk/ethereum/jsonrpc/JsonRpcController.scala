@@ -1,6 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, ProtocolVersionResponse}
+import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.Web3Service._
