@@ -28,7 +28,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
 
   //todo add logic
   private val fakeAddress = 42
-  private val block = generateBlockForMining(1, Nil, Nil, Address(fakeAddress)).fold(e => null, identity)
+  private lazy val block = generateBlockForMining(1, Nil, Nil, Address(fakeAddress)).fold(e => null, identity)
 
   def generateBlockForMining(): Block = block
 

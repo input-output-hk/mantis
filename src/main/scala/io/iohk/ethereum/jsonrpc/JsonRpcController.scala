@@ -38,6 +38,12 @@ class JsonRpcController(web3Service: Web3Service, netService: NetService, ethSer
       case "eth_getWork" => handle[GetWorkRequest, GetWorkResponse](ethService.getWork, request)
       case "eth_submitWork" => handle[SubmitWorkRequest, SubmitWorkResponse](ethService.submitWork, request)
 
+      case "eth_getBlockTransactionCountByHash" =>
+        handle[TxCountByBlockHashRequest, TxCountByBlockHashResponse](ethService.getBlockTransactionCountByHash, request)
+      case "eth_getBlockByHash" =>
+        handle[BlockByBlockHashRequest, BlockByBlockHashResponse](ethService.getByBlockHash, request)
+      case "eth_getUncleByBlockHashAndIndex" =>
+        handle[UncleByBlockHashAndIndexRequest, UncleByBlockHashAndIndexResponse](ethService.getUncleByBlockHashAndIndex, request)
       case _ => Future.successful(errorResponse(request, MethodNotFound))
     }
   }

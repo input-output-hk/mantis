@@ -107,8 +107,10 @@ trait BlockGeneratorBuilder {
 }
 
 trait EthServiceBuilder {
-  self: BlockGeneratorBuilder =>
-  lazy val ethService = new EthService(blockGenerator)
+  self: BlockChainBuilder with
+    BlockGeneratorBuilder=>
+
+  lazy val ethService = new EthService(blockchain, blockGenerator)
 }
 
 trait JSONRpcControllerBuilder {
