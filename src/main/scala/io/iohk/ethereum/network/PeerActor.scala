@@ -169,7 +169,7 @@ class PeerActor(
           val timeout = scheduler.scheduleOnce(peerConfiguration.waitForChainCheckTimeout, self, ForkHeaderReceiveTimeout)
           context become waitingForForkHeader(rlpxConnection, status, timeout, forkResolver)
         case None =>
-          startMessageHandler(rlpxConnection, status, true)
+          startMessageHandler(rlpxConnection, status, 0, true)
       }
 
     case StatusReceiveTimeout =>
@@ -198,7 +198,7 @@ class PeerActor(
 
           if (forkResolver.isAccepted(fork)) {
             log.info("Fork is accepted")
-            startMessageHandler(rlpxConnection, remoteStatus, true)
+            startMessageHandler(rlpxConnection, remoteStatus, forkBlockHeader.number, true)
           } else {
             log.warning("Fork is not accepted")
             disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
@@ -206,7 +206,7 @@ class PeerActor(
 
         case None =>
           log.info("Peer did not respond with fork block header")
-          startMessageHandler(rlpxConnection, remoteStatus, false)
+          startMessageHandler(rlpxConnection, remoteStatus, 0, false)
       }
 
     case ForkHeaderReceiveTimeout => disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
@@ -214,8 +214,8 @@ class PeerActor(
     case GetStatus => sender() ! StatusResponse(Handshaking(0))
   }
 
-  private def startMessageHandler(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, forkAccepted: Boolean): Unit = {
-    context become new MessageHandler(rlpxConnection, remoteStatus, 0, forkAccepted).receive
+  private def startMessageHandler(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, currentMaxBlockNumber: BigInt, forkAccepted: Boolean): Unit = {
+    context become new MessageHandler(rlpxConnection, remoteStatus, currentMaxBlockNumber, forkAccepted).receive
     rlpxConnection.sendMessage(GetBlockHeaders(Right(remoteStatus.bestHash), 1, 0, false))
     unstashAll()
   }
@@ -309,11 +309,13 @@ class PeerActor(
 
       case BroadcastBlocks(blocks) =>
         blocks.foreach { b =>
-          if (b.block.header.number > currentMaxBlockNumber)
+          if (b.block.header.number > currentMaxBlockNumber) {
             self ! SendMessage(b)
+          }
 
-          if (b.block.header.number > appStateStorage.getEstimatedHighestBlock())
+          if (b.block.header.number > appStateStorage.getEstimatedHighestBlock()) {
             appStateStorage.putEstimatedHighestBlock(b.block.header.number)
+          }
         }
 
     }
