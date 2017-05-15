@@ -1,5 +1,7 @@
 package io.iohk.ethereum.validators
 
+import akka.util.ByteString
+import io.iohk.ethereum.crypto.{kec256, kec512}
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, DifficultyCalculator}
 import io.iohk.ethereum.utils.BlockchainConfig
 import org.spongycastle.util.encoders.Hex
@@ -133,9 +135,17 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
   //FIXME: Simple PoW validation without using DAG
   private def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
     val powBoundary = BigInt(2).pow(256) / blockHeader.difficulty
-    val powValue = BigInt(1, BlockHeader.calculatePoWValue(blockHeader).toArray)
+    val powValue = BigInt(1, calculatePoWValue(blockHeader).toArray)
     if(powValue <= powBoundary) Right(blockHeader)
     else Left(HeaderPoWError)
+  }
+
+  private def calculatePoWValue(blockHeader: BlockHeader): ByteString = {
+    val nonceReverted = blockHeader.nonce.reverse
+    val hashBlockWithoutNonce = kec256(BlockHeader.getEncodedWithoutNonce(blockHeader))
+    val seedHash = kec512(hashBlockWithoutNonce ++ nonceReverted)
+
+    ByteString(kec256(seedHash ++ blockHeader.mixHash))
   }
 
   /**

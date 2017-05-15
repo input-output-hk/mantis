@@ -61,12 +61,4 @@ object BlockHeader {
     }
     rlpEncode(rlpEncoded)
   }
-
-  def calculatePoWValue(blockHeader: BlockHeader): ByteString = {
-    val nonceReverted = blockHeader.nonce.reverse
-    val hashBlockWithoutNonce = kec256(BlockHeader.getEncodedWithoutNonce(blockHeader))
-    val seedHash = kec512(hashBlockWithoutNonce ++ nonceReverted)
-
-    ByteString(kec256(seedHash ++ blockHeader.mixHash))
-  }
 }
