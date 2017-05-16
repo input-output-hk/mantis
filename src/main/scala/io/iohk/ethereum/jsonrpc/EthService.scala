@@ -6,6 +6,7 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 
 import scala.concurrent.ExecutionContext
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.mining.BlockGenerator
@@ -118,7 +119,7 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
   def submitWork(req: SubmitWorkRequest): Future[SubmitWorkResponse] = {
     blockGenerator.mined(req.powHeaderHash) match {
       case Some(block) =>
-        syncingController ! MinedBlock()
+        syncingController ! MinedBlock(block)
         Future.successful(SubmitWorkResponse(true))
       case None =>
         Future.successful(SubmitWorkResponse(false))

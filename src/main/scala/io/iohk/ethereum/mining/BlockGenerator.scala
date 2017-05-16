@@ -1,10 +1,10 @@
 package io.iohk.ethereum.mining
 
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicReference
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto
-import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction, _}
@@ -28,15 +28,17 @@ import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParame
 import io.iohk.ethereum.crypto._
 
 class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: BlockchainConfig, ledger: Ledger, validators: Validators) {
-  def mined(powHeaderHash: ByteString): Option[Block] = ???
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
   //todo add logic
   private val fakeAddress = 42
-  private lazy val block = generateBlockForMining(1, Nil, Nil, Address(fakeAddress)).fold(e => null, identity)
+  private val txList = Nil
+  private val pmmersList = Nil
 
-  def generateBlockForMining(): Block = block
+  private val cache = new AtomicReference(Map[(BigInt, ByteString), Block]())
+
+  def generateBlockForMining(blockNumber: BigInt): Block = block
 
   def generateBlockForMining(blockNumber: BigInt, transactions: Seq[SignedTransaction], ommers: Seq[BlockHeader], beneficiary: Address):
   Either[BlockPreparationError, Block] = {
@@ -79,6 +81,8 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
       }.getOrElse(Left(NoParent))
     }
   }
+
+  def mined(powHeaderHash: ByteString): Option[Block] = Some(block)
 
   //returns maximal limit to be able to include as many transactions as possible
   private def calculateGasLimit(parentGas: BigInt): BigInt = {
