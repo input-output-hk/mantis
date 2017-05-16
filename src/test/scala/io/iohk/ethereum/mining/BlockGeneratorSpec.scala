@@ -30,8 +30,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     val fulBlock: Either[BlockPreparationError, Block] = result.right
       .map(b => b.copy(header = b.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
-    val v = fulBlock.right.map(b => b.header.toString)
     fulBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
+    fulBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe Right(()))
   }
 
   "BlockGenerator" should "generate correct block with transactions" in new Envirnoment {
@@ -46,6 +46,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val fulBlock: Either[BlockPreparationError, Block] = result.right
       .map(b => b.copy(header = b.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fulBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
+    fulBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe Right(()))
   }
 
   trait Envirnoment {
