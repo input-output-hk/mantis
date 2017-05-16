@@ -5,7 +5,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.BlockPreparationError.TxError
-import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR, TxResult}
+import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR, TxResult, BlockPreparationResult}
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
 import io.iohk.ethereum.vm.UInt256._
@@ -18,7 +18,7 @@ trait Ledger {
 
   def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockExecutionError, Unit]
 
-  def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockPreparationError, (BlockResult, ByteString)]
+  def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockPreparationError, BlockPreparationResult]
 }
 
 class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with Logger {
@@ -49,7 +49,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
   def prepareBlock(
     block: Block,
     storages: BlockchainStorages,
-    validators: Validators): Either[BlockPreparationError, (BlockResult, ByteString)] = {
+    validators: Validators): Either[BlockPreparationError, BlockPreparationResult] = {
 
     val blockchain = BlockchainImpl(storages)
 
@@ -60,7 +60,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
       BlockResult(resultingWorldStateProxy, _, _) = execResult
       worldToPersist = payBlockReward(blockchainConfig.blockReward, block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for prepared block
-    } yield (execResult, worldPersisted.stateRootHash)
+    } yield BlockPreparationResult(execResult, worldPersisted.stateRootHash)
 
     if(blockExecResult.isRight)
       log.debug(s"Prepared for mining block with number ${block.header.number}")
@@ -348,6 +348,7 @@ object Ledger {
   type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
 
   case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
+  case class BlockPreparationResult(blockResult: BlockResult, stateRootHash: ByteString)
   case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry])
 }
 

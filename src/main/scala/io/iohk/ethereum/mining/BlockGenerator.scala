@@ -3,12 +3,11 @@ package io.iohk.ethereum.mining
 import java.time.Instant
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction, _}
-import io.iohk.ethereum.ledger.Ledger.BlockResult
+import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
 import io.iohk.ethereum.ledger.{BlockPreparationError, BloomFilter, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator.{InvalidOmmers, NoParent}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, RLPByteArraySerializable}
@@ -64,7 +63,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
         val body = BlockBody(transactions, ommers)
         val block = Block(header, body)
 
-        ledger.prepareBlock(block, blockchainStorages, validators).right.map { case (BlockResult(_, gasUsed, receipts), stateRoot) =>
+        ledger.prepareBlock(block, blockchainStorages, validators).right.map { case BlockPreparationResult(BlockResult(_, gasUsed, receipts), stateRoot) =>
           val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
           val bloomFilter = ByteString(or(receiptsLogs: _*))
 

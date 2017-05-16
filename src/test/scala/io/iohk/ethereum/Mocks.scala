@@ -3,6 +3,7 @@ package io.iohk.ethereum
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
+import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockPreparationError, Ledger}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderNumberError
@@ -23,7 +24,7 @@ object Mocks {
     }
 
     override def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators):
-    Either[BlockPreparationError, (Ledger.BlockResult, ByteString)] = {
+    Either[BlockPreparationError, BlockPreparationResult] = {
       ???
     }
   }

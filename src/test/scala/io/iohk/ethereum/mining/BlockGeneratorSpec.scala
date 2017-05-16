@@ -100,9 +100,4 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     val blockGenerator = new BlockGenerator(blockchainStorages.storages, blockchainConfig, ledger, validators)
   }
-
-  private def getKeyPair(prvKey: BigInt): AsymmetricCipherKeyPair = {
-    val publicKey = curve.getG.multiply(prvKey.bigInteger).normalize()
-    new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(prvKey.bigInteger, curve))
-  }
 }

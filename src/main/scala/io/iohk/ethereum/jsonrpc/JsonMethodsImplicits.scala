@@ -6,7 +6,7 @@ import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
-import org.json4s.{DefaultFormats, Extraction, Formats, JValue}
+import org.json4s.Extraction
 import org.json4s.JsonAST._
 import org.json4s.{DefaultFormats, Formats, JsonAST}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue}
@@ -78,9 +78,9 @@ object JsonMethodsImplicits {
     }
 
     override def encodeJson(t: GetWorkResponse): JsonAST.JValue ={
-      val powHeaderHash = s"0x${Hex.toHexString(t.powHeaderHash.toArray[Byte])}"
-      val dagSeed = s"0x${Hex.toHexString(t.dagSeed.toArray[Byte])}"
-      val target = s"0x${Hex.toHexString(t.target.toArray[Byte])}"
+      val powHeaderHash = encodeAsHex(t.powHeaderHash)
+      val dagSeed = encodeAsHex(t.dagSeed)
+      val target = encodeAsHex(t.target)
       JArray(List(powHeaderHash, dagSeed, target))
     }
   }
