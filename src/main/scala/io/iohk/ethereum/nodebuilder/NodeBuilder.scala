@@ -107,16 +107,17 @@ trait BlockGeneratorBuilder {
 }
 
 trait EthServiceBuilder {
-  self: BlockChainBuilder with
-    BlockGeneratorBuilder=>
+  self: StorageBuilder with
+    BlockChainBuilder with
+    BlockGeneratorBuilder =>
 
-  lazy val ethService = new EthService(blockchain, blockGenerator)
+  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage)
 }
 
 trait JSONRpcControllerBuilder {
   this: Web3ServiceBuilder with EthServiceBuilder with NetServiceBuilder =>
 
-  lazy val jsonRpcController = new JsonRpcController(web3Service, netService, ethService)
+  lazy val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, Config.Network.Rpc)
 }
 
 trait JSONRpcHttpServerBuilder {

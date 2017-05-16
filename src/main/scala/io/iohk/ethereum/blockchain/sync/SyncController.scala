@@ -48,6 +48,7 @@ class SyncController(
 
   def idle: Receive = handlePeerUpdates orElse {
     case StartSync =>
+      appStateStorage.putSyncStartingBlock(appStateStorage.getBestBlockNumber())
       scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
       (appStateStorage.isFastSyncDone(), doFastSync) match {
         case (false, true) =>

@@ -2,6 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.domain.Blockchain
 
+import io.iohk.ethereum.db.storage.AppStateStorage
 import scala.concurrent.ExecutionContext
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
@@ -35,9 +36,12 @@ object EthService {
 
   case class SubmitWorkRequest(nonce: ByteString, powHeaderHash: ByteString, mixHash: ByteString)
   case class SubmitWorkResponse(success:Boolean)
+
+  case class SyncingRequest()
+  case class SyncingResponse(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
 }
 
-class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator) {
+class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStateStorage: AppStateStorage) {
 
   import EthService._
 
@@ -114,4 +118,12 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator) {
     //todo add logic for including mined block into blockchain
     Future.successful(SubmitWorkResponse(true))
   }
+
+ def syncing(req: SyncingRequest): Future[SyncingResponse] = {
+    Future.successful(SyncingResponse(
+      startingBlock = appStateStorage.getSyncStartingBlock(),
+      currentBlock = appStateStorage.getBestBlockNumber(),
+      highestBlock = appStateStorage.getEstimatedHighestBlock()))
+  }
+
 }
