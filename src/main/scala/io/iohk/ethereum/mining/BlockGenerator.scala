@@ -28,6 +28,8 @@ import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParame
 import io.iohk.ethereum.crypto._
 
 class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: BlockchainConfig, ledger: Ledger, validators: Validators) {
+  def mined(powHeaderHash: ByteString): Option[Block] = ???
+
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
   //todo add logic
