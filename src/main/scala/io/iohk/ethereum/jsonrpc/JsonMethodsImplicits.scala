@@ -122,6 +122,12 @@ object JsonMethodsImplicits {
     }
   }
 
+  implicit val eth_syncing = new JsonDecoder[SyncingRequest] with JsonEncoder[SyncingResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, SyncingRequest] = Right(SyncingRequest())
+
+    def encodeJson(t: SyncingResponse): JValue = Extraction.decompose(t)
+  }
+
   private def encodeAsHex(input: ByteString): JString =
     JString(s"0x${Hex.toHexString(input.toArray[Byte])}")
 

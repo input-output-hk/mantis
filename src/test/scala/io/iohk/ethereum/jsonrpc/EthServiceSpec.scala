@@ -2,9 +2,11 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -18,7 +20,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures {
 
   it should "answer eth_blockNumber with the latest block number" in new TestSetup {
     val bestBlockNumber = 10
-    storagesInstance.storages.appStateStorage.putBestBlockNumber(bestBlockNumber)
+    (appStateStorage.getBestBlockNumber _).expects().returning(bestBlockNumber)
 
     val response = Await.result(ethService.bestBlockNumber(BestBlockNumberRequest()), Duration.Inf)
     response.bestBlockNumber shouldEqual bestBlockNumber
@@ -190,11 +192,26 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures {
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
 
-  trait TestSetup {
+  it should "return syncing info" in new TestSetup {
+    (appStateStorage.getSyncStartingBlock _).expects().returning(999)
+    (appStateStorage.getEstimatedHighestBlock _).expects().returning(10000)
+    (appStateStorage.getBestBlockNumber _).expects().returning(200)
+    val response = ethService.syncing(SyncingRequest())
+
+    response.futureValue shouldEqual SyncingResponse(
+      startingBlock = 999,
+      currentBlock = 200,
+      highestBlock = 10000
+    )
+  }
+
+  trait TestSetup extends MockFactory {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
 
-    val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage)
+    val appStateStorage = mock[AppStateStorage]
+
+    val ethService = new EthService(blockchain, appStateStorage)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash

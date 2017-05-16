@@ -1,22 +1,28 @@
 package io.iohk.ethereum.jsonrpc
 
+import io.circe.Json.JString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockchainImpl}
+import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionResponse, SyncingResponse}
+import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import org.json4s.{DefaultFormats, Extraction, Formats}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.utils.Config
+import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
-class JsonRpcControllerSpec extends FlatSpec with Matchers {
+class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures {
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer
@@ -96,16 +102,47 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
 
   it should "handle eth_blockNumber request" in new TestSetup {
     val bestBlockNumber = 10
-    storagesInstance.storages.appStateStorage.putBestBlockNumber(bestBlockNumber)
+  (appStateStorage.getBestBlockNumber _).expects().returning(bestBlockNumber)
 
     val rpcRequest = JsonRpcRequest("2.0", "eth_blockNumber", None, Some(1))
+
     val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JString(s"0xa"))
+  }
 
+  it should "eth_syncing" in new TestSetup {
+    (appStateStorage.getSyncStartingBlock _).expects().returning(100)
+    (appStateStorage.getBestBlockNumber _).expects().returning(200)
+    (appStateStorage.getEstimatedHighestBlock _).expects().returning(300)
+
+    val rpcRequest = JsonRpcRequest("2.0", "eth_syncing", None, Some(1))
+
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JObject("startingBlock" -> "0x64", "currentBlock" -> "0xc8", "highestBlock" -> "0x12c"))
+  }
+
+  it should "only allow to call mehtods of enabled apis" in new TestSetup {
+    override def config: JsonRpcConfig = new JsonRpcConfig { override val apis = Seq("web3") }
+
+    val ethRpcRequest = JsonRpcRequest("2.0", "eth_protocolVersion", None, Some(1))
+    val ethResponse = jsonRpcController.handleRequest(ethRpcRequest).futureValue
+
+    ethResponse.error shouldBe Some(JsonRpcErrors.MethodNotFound)
+    ethResponse.result shouldBe None
+
+    val web3RpcRequest = JsonRpcRequest("2.0", "web3_clientVersion", None, Some(1))
+    val web3Response = jsonRpcController.handleRequest(web3RpcRequest).futureValue
+
+    web3Response.error shouldBe None
+    web3Response.result shouldBe Some(JString("etc-client/v0.1"))
   }
 
   it should "handle eth_getBlockTransactionCountByHash request" in new TestSetup {
@@ -210,13 +247,16 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers {
   }
 
   trait TestSetup extends MockFactory {
+    def config: JsonRpcConfig = Config.Network.Rpc
+
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
 
+    val appStateStorage = mock[AppStateStorage]
     val web3Service = new Web3Service
-    val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage)
+    val ethService = new EthService(blockchain, appStateStorage)
     val netService = mock[NetService]
-    val jsonRpcController = new JsonRpcController(web3Service, netService, ethService)
+    val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, config)
   }
 
 }

@@ -2,8 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Blockchain, SignedTransaction}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.domain.Blockchain
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -23,15 +22,18 @@ object EthService {
   case class BlockByBlockHashRequest(blockHash: ByteString, fullTxs: Boolean)
   case class BlockByBlockHashResponse(blockResponse: Option[BlockResponse])
 
+  case class GetTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
+  case class GetTransactionByBlockHashAndIndexResponse(transactionResponse: Option[TransactionResponse])
+
   case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
   case class UncleByBlockHashAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
 
-  case class GetTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
-  case class GetTransactionByBlockHashAndIndexResponse(transactionResponse: Option[TransactionResponse])
+  case class SyncingRequest()
+  case class SyncingResponse(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
+
 }
 
-class EthService(private val blockchain: Blockchain,
-                 private val appStateStorage: AppStateStorage) {
+class EthService(blockchain: Blockchain, appStateStorage: AppStateStorage) {
 
   import EthService._
 
@@ -116,4 +118,12 @@ class EthService(private val blockchain: Blockchain,
     val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader => BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty) }
     UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt)
   }
+
+ def syncing(req: SyncingRequest): Future[SyncingResponse] = {
+    Future.successful(SyncingResponse(
+      startingBlock = appStateStorage.getSyncStartingBlock(),
+      currentBlock = appStateStorage.getBestBlockNumber(),
+      highestBlock = appStateStorage.getEstimatedHighestBlock()))
+  }
+
 }
