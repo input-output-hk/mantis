@@ -56,11 +56,15 @@ trait RegularSync {
       //we are at the top of chain we can insert new block
       blockchain.getBlockHeaderByHash(block.header.parentHash)
         .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
-        case Some(parentTd) =>
+        case Some(parentTd) if appStateStorage.getBestBlockNumber() <= block.header.number =>
+          //just insert block and let resolve it with regular download
           blockchain.save(block)
           appStateStorage.putBestBlockNumber(block.header.number)
           val newTd = parentTd + block.header.difficulty
           blockchain.save(block.header.hash, newTd)
+
+          context.self ! BroadcastBlocks(Seq(NewBlock(block, newTd)))
+
           log.info(s"added new block $block")
         case _ =>
           log.error("fail to add mined block")

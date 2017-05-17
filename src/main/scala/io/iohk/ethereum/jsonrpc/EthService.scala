@@ -164,7 +164,7 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
 
   def submitWork(req: SubmitWorkRequest): Future[SubmitWorkResponse] = {
     blockGenerator.getPrepared(req.powHeaderHash) match {
-      case Some(block) if appStateStorage.getBestBlockNumber() < block.header.number =>
+      case Some(block) if appStateStorage.getBestBlockNumber() <= block.header.number =>
         syncingController ! MinedBlock(block)
         Future.successful(SubmitWorkResponse(true))
       case _ =>
