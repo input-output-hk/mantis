@@ -84,6 +84,8 @@ class JsonRpcController(web3Service: Web3Service, netService: NetService, ethSer
       handle[GetTransactionByBlockHashAndIndexRequest, GetTransactionByBlockHashAndIndexResponse](ethService.getTransactionByBlockHashAndIndexRequest, req)
     case req @ JsonRpcRequest(_, "eth_getUncleByBlockHashAndIndex", _, _) =>
       handle[UncleByBlockHashAndIndexRequest, UncleByBlockHashAndIndexResponse](ethService.getUncleByBlockHashAndIndex, req)
+    case req @ JsonRpcRequest(_, "eth_sendRawTransaction", _, _) =>
+      handle[SendRawTransactionRequest, SendRawTransactionResponse](ethService.sendRawTransaction, req)
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {

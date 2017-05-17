@@ -1,8 +1,11 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorRef
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 
 import scala.concurrent.{ExecutionContext, Future}
 
