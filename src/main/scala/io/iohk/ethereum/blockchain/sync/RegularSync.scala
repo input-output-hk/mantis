@@ -52,7 +52,8 @@ trait RegularSync {
       //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
       peersToDownloadFrom.keys.foreach(_ ! block)
 
-    case MinedBlock(block) =>
+    case MinedBlock(block) if headersQueue.isEmpty && waitingForActor.isEmpty =>
+      //we are at the top of chain we can insert new block
       blockchain.getBlockHeaderByHash(block.header.parentHash)
         .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
         case Some(parentTd) =>
@@ -60,7 +61,7 @@ trait RegularSync {
           appStateStorage.putBestBlockNumber(block.header.number)
           val newTd = parentTd + block.header.difficulty
           blockchain.save(block.header.hash, newTd)
-          log.debug(s"added new block $block")
+          log.info(s"added new block $block")
         case _ =>
           log.error("fail to add mined block")
       }
@@ -114,6 +115,7 @@ trait RegularSync {
         //we have same chain
         if (parent.hash == headers.head.parentHash) {
           val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
+          //TODO compare weights of branches
           waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
         } else {
           val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
