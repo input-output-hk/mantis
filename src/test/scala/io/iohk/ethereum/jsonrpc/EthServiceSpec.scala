@@ -23,6 +23,14 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   behavior of "EthService"
 
+  it should "answer eth_blockNumber with the latest block number" in new TestSetup {
+    val bestBlockNumber = 10
+    (appStateStorage.getBestBlockNumber _).expects().returning(bestBlockNumber)
+
+    val response = Await.result(ethService.bestBlockNumber(BestBlockNumberRequest()), Duration.Inf)
+    response.bestBlockNumber shouldEqual bestBlockNumber
+  }
+
   it should "return ethereum protocol version" in new TestSetup {
     val response = ethService.protocolVersion(ProtocolVersionRequest())
     val protocolVersion = response.futureValue.value
@@ -44,11 +52,44 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.txsQuantity shouldBe Some(0)
   }
 
-  it should "answer eth_getBlockTransactionCountByHash with the correct number of txs when the requested block is in the blockchain and has some tx" in new TestSetup {
+  it should "answer eth_getBlockTransactionCountByHash correctly when the requested block is in the blockchain and has some tx" in new TestSetup {
     blockchain.save(blockToRequest)
     val request = TxCountByBlockHashRequest(blockToRequestHash)
     val response = Await.result(ethService.getBlockTransactionCountByHash(request), Duration.Inf)
     response.txsQuantity shouldBe Some(blockToRequest.body.transactionList.size)
+  }
+
+  it should "answer eth_getTransactionByBlockHashAndIndex with None when there is no block with the requested hash" in new TestSetup {
+    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+    val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
+    val response = Await.result(ethService.getTransactionByBlockHashAndIndexRequest(request), Duration.Inf)
+
+    response.transactionResponse shouldBe None
+  }
+
+  it should "answer eth_getTransactionByBlockHashAndIndex with None when there is no tx in requested index" in new TestSetup {
+    blockchain.save(blockToRequest)
+
+    val invalidTxIndex = blockToRequest.body.transactionList.size
+    val requestWithInvalidIndex = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, invalidTxIndex)
+    val response = Await.result(
+      ethService.getTransactionByBlockHashAndIndexRequest(requestWithInvalidIndex),
+      Duration.Inf
+    )
+
+    response.transactionResponse shouldBe None
+  }
+
+  it should "answer eth_getTransactionByBlockHashAndIndex with the transaction response correctly when the requested index has one" in new TestSetup {
+    blockchain.save(blockToRequest)
+
+    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+    val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
+    val response = Await.result(ethService.getTransactionByBlockHashAndIndexRequest(request), Duration.Inf)
+
+    val requestedStx = blockToRequest.body.transactionList.apply(txIndexToRequest)
+    val expectedTxResponse = TransactionResponse(requestedStx, Some(blockToRequest.header), Some(txIndexToRequest))
+    response.transactionResponse shouldBe Some(expectedTxResponse)
   }
 
   it should "answer eth_getBlockByHash with None when the requested block isn't in the blockchain" in new TestSetup {
