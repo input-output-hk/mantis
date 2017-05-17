@@ -1,8 +1,11 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorRef
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{Blockchain, SignedTransaction}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -24,9 +27,12 @@ object EthService {
 
   case class SyncingRequest()
   case class SyncingResponse(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
+
+  case class SendRawTransactionRequest(data: ByteString)
+  case class SendRawTransactionResponse(transactionHash: ByteString)
 }
 
-class EthService(blockchain: Blockchain, appStateStorage: AppStateStorage) {
+class EthService(blockchain: Blockchain, appStateStorage: AppStateStorage, pendingTransactionsManager: ActorRef) {
 
   import EthService._
 
@@ -89,6 +95,13 @@ class EthService(blockchain: Blockchain, appStateStorage: AppStateStorage) {
       startingBlock = appStateStorage.getSyncStartingBlock(),
       currentBlock = appStateStorage.getBestBlockNumber(),
       highestBlock = appStateStorage.getEstimatedHighestBlock()))
+  }
+
+  def sendRawTransaction(req: SendRawTransactionRequest): Future[SendRawTransactionResponse] = {
+    import io.iohk.ethereum.rlp.RLPImplicitConversions._
+    val signedTransaction = SignedTransactions.txRlpEncDec.decode(req.data)
+    pendingTransactionsManager ! PendingTransactionsManager.BroadcastTransaction(signedTransaction)
+    Future.successful(SendRawTransactionResponse(signedTransaction.hash))
   }
 
 }

@@ -111,3 +111,4 @@ class JsonRpcController(web3Service: Web3Service, netService: NetService, ethSer
     JsonRpcResponse(req.jsonrpc, None, Some(error), req.id.getOrElse(0))
 
 }
+
