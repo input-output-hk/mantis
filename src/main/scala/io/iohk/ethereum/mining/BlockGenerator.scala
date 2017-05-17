@@ -8,7 +8,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction, _}
-import io.iohk.ethereum.ledger.Ledger.BlockResult
+import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
 import io.iohk.ethereum.ledger.{BlockPreparationError, BloomFilter, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator.{InvalidOmmers, NoParent}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, RLPByteArraySerializable}
@@ -23,8 +23,6 @@ import io.iohk.ethereum.utils.ByteUtils.or
 import io.iohk.ethereum.validators.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.validators.Validators
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
 import io.iohk.ethereum.crypto._
 
 class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: BlockchainConfig, ledger: Ledger, validators: Validators) {
@@ -63,7 +61,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
         val body = BlockBody(transactions, ommers)
         val block = Block(header, body)
 
-        ledger.prepareBlock(block, blockchainStorages, validators).right.map { case (BlockResult(_, gasUsed, receipts), stateRoot) =>
+        ledger.prepareBlock(block, blockchainStorages, validators).right.map { case BlockPreparationResult(BlockResult(_, gasUsed, receipts), stateRoot) =>
           val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
           val bloomFilter = ByteString(or(receiptsLogs: _*))
 
@@ -110,10 +108,6 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
     ByteString(hash)
   }
 
-  private def getKeyPair(prvKey: BigInt): AsymmetricCipherKeyPair = {
-    val publicKey = curve.getG.multiply(prvKey.bigInteger).normalize()
-    new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(prvKey.bigInteger, curve))
-  }
 }
 
 object BlockGenerator {

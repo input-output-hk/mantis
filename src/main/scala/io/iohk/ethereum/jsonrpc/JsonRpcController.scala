@@ -40,6 +40,7 @@ object JsonRpcController {
 class JsonRpcController(web3Service: Web3Service, netService: NetService, ethService: EthService, config: JsonRpcConfig) {
 
   import JsonRpcController._
+  import EthJsonMethodsImplicits._
   import JsonMethodsImplicits._
   import JsonRpcErrors._
 
@@ -80,10 +81,14 @@ class JsonRpcController(web3Service: Web3Service, netService: NetService, ethSer
       handle[GetWorkRequest, GetWorkResponse](ethService.getWork, req)
     case req @ JsonRpcRequest(_, "eth_submitWork", _, _) =>
       handle[SubmitWorkRequest, SubmitWorkResponse](ethService.submitWork, req)
+    case req @ JsonRpcRequest(_, "eth_blockNumber", _, _) =>
+      handle[BestBlockNumberRequest, BestBlockNumberResponse](ethService.bestBlockNumber, req)
     case req @ JsonRpcRequest(_, "eth_getBlockTransactionCountByHash", _, _) =>
       handle[TxCountByBlockHashRequest, TxCountByBlockHashResponse](ethService.getBlockTransactionCountByHash, req)
     case req @ JsonRpcRequest(_, "eth_getBlockByHash", _, _) =>
       handle[BlockByBlockHashRequest, BlockByBlockHashResponse](ethService.getByBlockHash, req)
+    case req @ JsonRpcRequest(_, "eth_getTransactionByBlockHashAndIndex", _, _) =>
+      handle[GetTransactionByBlockHashAndIndexRequest, GetTransactionByBlockHashAndIndexResponse](ethService.getTransactionByBlockHashAndIndexRequest, req)
     case req @ JsonRpcRequest(_, "eth_getUncleByBlockHashAndIndex", _, _) =>
       handle[UncleByBlockHashAndIndexRequest, UncleByBlockHashAndIndexResponse](ethService.getUncleByBlockHashAndIndex, req)
   }
