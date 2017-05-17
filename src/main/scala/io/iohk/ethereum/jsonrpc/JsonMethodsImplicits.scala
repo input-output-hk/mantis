@@ -56,6 +56,12 @@ object JsonMethodsImplicits {
     def encodeJson(t: ProtocolVersionResponse): JValue = t.value
   }
 
+  implicit val eth_blockNumber = new JsonDecoder[BestBlockNumberRequest] with JsonEncoder[BestBlockNumberResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BestBlockNumberRequest] = Right(BestBlockNumberRequest())
+
+    override def encodeJson(t: BestBlockNumberResponse): JValue = Extraction.decompose(t.bestBlockNumber)
+  }
+
   implicit val eth_getBlockTransactionCountByHash = new JsonDecoder[TxCountByBlockHashRequest] with JsonEncoder[TxCountByBlockHashResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, TxCountByBlockHashRequest] =
       params match {
@@ -80,6 +86,21 @@ object JsonMethodsImplicits {
     override def encodeJson(t: BlockByBlockHashResponse): JValue =
       Extraction.decompose(t.blockResponse)
   }
+
+  implicit val eth_getTransactionByBlockHashAndIndex =
+    new JsonDecoder[GetTransactionByBlockHashAndIndexRequest] with JsonEncoder[GetTransactionByBlockHashAndIndexResponse] {
+      override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetTransactionByBlockHashAndIndexRequest] = params match {
+        case Some(JArray((blockHash: JString) :: (transactionIndex: JString) :: Nil)) =>
+          for {
+            parsedBlockHash <- tryExtractUnformattedData(blockHash)
+            parsedTransactionIndex <- tryExtractQuantity(transactionIndex)
+          } yield GetTransactionByBlockHashAndIndexRequest(parsedBlockHash, parsedTransactionIndex)
+        case _ => Left(InvalidParams)
+      }
+
+      override def encodeJson(t: GetTransactionByBlockHashAndIndexResponse): JValue =
+        t.transactionResponse.map(Extraction.decompose).getOrElse(JNull)
+    }
 
   implicit val eth_getUncleByBlockHashAndIndex = new JsonDecoder[UncleByBlockHashAndIndexRequest] with JsonEncoder[UncleByBlockHashAndIndexResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, UncleByBlockHashAndIndexRequest] =

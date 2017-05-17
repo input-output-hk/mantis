@@ -100,6 +100,20 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures {
     response.result shouldBe Some(JString("0x3f"))
   }
 
+  it should "handle eth_blockNumber request" in new TestSetup {
+    val bestBlockNumber = 10
+  (appStateStorage.getBestBlockNumber _).expects().returning(bestBlockNumber)
+
+    val rpcRequest = JsonRpcRequest("2.0", "eth_blockNumber", None, Some(1))
+
+    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString(s"0xa"))
+  }
+
   it should "eth_syncing" in new TestSetup {
     (appStateStorage.getSyncStartingBlock _).expects().returning(100)
     (appStateStorage.getBestBlockNumber _).expects().returning(200)
@@ -130,7 +144,6 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures {
     web3Response.error shouldBe None
     web3Response.result shouldBe Some(JString("etc-client/v0.1"))
   }
-
 
   it should "handle eth_getBlockTransactionCountByHash request" in new TestSetup {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
@@ -206,6 +219,32 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures {
     response.result shouldBe Some(expectedUncleBlockResponse)
   }
 
+  it should "handle eth_getTransactionByBlockHashAndIndex request" in new TestSetup {
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val txIndexToRequest = blockToRequest.body.transactionList.size / 2
+
+    blockchain.save(blockToRequest)
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getTransactionByBlockHashAndIndex",
+      Some(JArray(List(
+        JString(s"0x${blockToRequest.header.hashAsHexString}"),
+        JString(s"0x${Hex.toHexString(BigInt(txIndexToRequest).toByteArray)}")
+      ))),
+      Some(JInt(1))
+    )
+    val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
+    val expectedStx = blockToRequest.body.transactionList.apply(txIndexToRequest)
+    val expectedTxResponse = Extraction.decompose(
+      TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndexToRequest))
+    )
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(expectedTxResponse)
+  }
 
   trait TestSetup extends MockFactory {
     def config: JsonRpcConfig = Config.Network.Rpc
