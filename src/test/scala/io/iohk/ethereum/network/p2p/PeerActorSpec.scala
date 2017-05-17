@@ -15,11 +15,13 @@ import akka.util.ByteString
 import io.iohk.ethereum
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import io.iohk.ethereum.network.{ForkResolver, PeerActor}
 import io.iohk.ethereum.network.PeerActor.{GetMaxBlockNumber, MaxBlockNumber}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts, _}
@@ -59,17 +61,17 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgClass(classOf[Terminated])
   }
 
-  it should "try to reconnect on broken rlpx connection" in new NodeStatusSetup {
+  it should "try to reconnect on broken rlpx connection" in new NodeStatusSetup with HandshakerSetup {
     implicit val system = ActorSystem("PeerActorSpec_System")
 
     val time = new VirtualTime
 
     var rlpxConnection = TestProbe() // var as we actually need new instances
-    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
+    val peer = TestActorRef(Props(new PeerActor(_ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
       }, peerConf, storagesInstance.storages.appStateStorage, blockchain, Some(time.scheduler),
-        Some(new ForkResolver.EtcForkResolver(blockchainConfig)))))
+        Some(new ForkResolver.EtcForkResolver(blockchainConfig)), handshaker)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -675,6 +677,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
         val maxReceiptsPerMessage: Int = 200
         val maxMptComponentsPerMessage: Int = 200
       }
+      override val waitForHelloTimeout: FiniteDuration = 3 seconds
       override val waitForStatusTimeout: FiniteDuration = 30 seconds
       override val waitForChainCheckTimeout: FiniteDuration = 15 seconds
       override val connectMaxRetries: Int = 3
@@ -686,7 +689,19 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
   }
 
-  trait TestSetup extends NodeStatusSetup with BlockUtils {
+  trait HandshakerSetup extends NodeStatusSetup {
+    val handshakerConfiguration = new EtcHandshakerConfiguration {
+      override val forkResolverOpt: Option[ForkResolver] = Some(new ForkResolver.EtcForkResolver(blockchainConfig))
+      override val nodeStatusHolder: Agent[NodeStatus] = HandshakerSetup.this.nodeStatusHolder
+      override val peerConfiguration: PeerConfiguration = HandshakerSetup.this.peerConf
+      override val blockchain: Blockchain = HandshakerSetup.this.blockchain
+      override val appStateStorage: AppStateStorage = HandshakerSetup.this.storagesInstance.storages.appStateStorage
+    }
+
+    val handshaker = EtcHandshaker(handshakerConfiguration)
+  }
+
+  trait TestSetup extends NodeStatusSetup with BlockUtils with HandshakerSetup {
 
     val genesisHash = ByteString(Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"))
 
@@ -724,13 +739,14 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val time = new VirtualTime
 
-    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder,
+    val peer = TestActorRef(Props(new PeerActor(
       _ => rlpxConnection.ref,
       peerConf,
       storagesInstance.storages.appStateStorage,
       blockchain,
       Some(time.scheduler),
-      Some(new ForkResolver.EtcForkResolver(blockchainConfig)))))
+      Some(new ForkResolver.EtcForkResolver(blockchainConfig)),
+      handshaker)))
   }
 
 }

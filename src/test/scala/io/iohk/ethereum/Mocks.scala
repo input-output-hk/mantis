@@ -4,6 +4,9 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
 import io.iohk.ethereum.ledger.{BlockExecutionError, Ledger}
+import io.iohk.ethereum.network.PeerActor.PeerInfo
+import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.validators.BlockValidator.BlockTransactionsHashError
@@ -77,5 +80,17 @@ object Mocks {
       def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
       def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
     }
+  }
+
+  case class MockHandshakerAlwaysSucceeds(initialStatus: Status, currentMaxBlockNumber: BigInt,
+                                          forkAccepted: Boolean) extends Handshaker[PeerInfo] {
+    override val handshakerState: HandshakerState[PeerInfo] =
+      ConnectedState(PeerInfo(initialStatus, currentMaxBlockNumber, forkAccepted))
+    override def copy(handshakerState: HandshakerState[PeerInfo]): Handshaker[PeerInfo] = this
+  }
+
+  case class MockHandshakerAlwaysFails(reason: Int) extends Handshaker[PeerInfo] {
+    override val handshakerState: HandshakerState[PeerInfo] = DisconnectedState(reason)
+    override def copy(handshakerState: HandshakerState[PeerInfo]): Handshaker[PeerInfo] = this
   }
 }

@@ -16,6 +16,8 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
 import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.network.PeerActor.PeerInfo
+import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 import scala.util.{Failure, Success}
@@ -157,36 +159,45 @@ object PeerManagerActor {
             peerConfiguration: PeerConfiguration,
             appStateStorage: AppStateStorage,
             blockchain: Blockchain,
-            blockchainConfig: BlockchainConfig): Props =
+            blockchainConfig: BlockchainConfig,
+            forkResolverOpt: Option[ForkResolver],
+            handshaker: Handshaker[PeerInfo]): Props =
     Props(new PeerManagerActor(peerConfiguration,
-      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, blockchainConfig)))
+      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, blockchainConfig, forkResolverOpt, handshaker)))
 
   def props(nodeStatusHolder: Agent[NodeStatus],
     peerConfiguration: PeerConfiguration,
     appStateStorage: AppStateStorage,
     blockchain: Blockchain,
     blockchainConfig: BlockchainConfig,
-    bootstrapNodes: Set[String]): Props =
+    bootstrapNodes: Set[String],
+    forkResolverOpt: Option[ForkResolver],
+    handshaker: Handshaker[PeerInfo]): Props =
     Props(new PeerManagerActor(peerConfiguration,
-      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, blockchainConfig), bootstrapNodes = bootstrapNodes))
+      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, blockchainConfig, forkResolverOpt, handshaker),
+      bootstrapNodes = bootstrapNodes)
+    )
 
   def peerFactory(nodeStatusHolder: Agent[NodeStatus],
                   peerConfiguration: PeerConfiguration,
                   appStateStorage: AppStateStorage,
                   blockchain: Blockchain,
-                  blockchainConfig: BlockchainConfig): (ActorContext, InetSocketAddress) => ActorRef = {
+                  blockchainConfig: BlockchainConfig,
+                  forkResolverOpt: Option[ForkResolver],
+                  handshaker: Handshaker[PeerInfo]): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
-      val forkResolverOpt =
-        if (blockchainConfig.customGenesisFileOpt.isDefined) None
-        else Some(new ForkResolver.EtcForkResolver(blockchainConfig))
-      ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, forkResolverOpt), id)
+      ctx.actorOf(
+        PeerActor.props(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, forkResolverOpt, handshaker),
+        id
+      )
   }
 
   trait PeerConfiguration {
     val connectRetryDelay: FiniteDuration
     val connectMaxRetries: Int
     val disconnectPoisonPillTimeout: FiniteDuration
+    val waitForHelloTimeout: FiniteDuration
     val waitForStatusTimeout: FiniteDuration
     val waitForChainCheckTimeout: FiniteDuration
     val fastSyncHostConfiguration: FastSyncHostConfiguration
