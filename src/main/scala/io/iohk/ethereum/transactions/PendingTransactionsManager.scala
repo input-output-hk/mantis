@@ -28,8 +28,10 @@ class PendingTransactionsManager(peerManager: ActorRef, peerMessageBus: ActorRef
 
   override def receive: Receive = {
     case BroadcastTransaction(signedTransaction) =>
-      peerManager ! PeerManagerActor.BroadcastMessage(SignedTransactions(Seq(signedTransaction)))
-      pendingTransactions :+= signedTransaction
+      if (!pendingTransactions.contains(signedTransaction)) {
+        peerManager ! PeerManagerActor.BroadcastMessage(SignedTransactions(Seq(signedTransaction)))
+        pendingTransactions :+= signedTransaction
+      }
 
     case GetPendingTransactions =>
       sender() ! PendingTransactions(pendingTransactions)

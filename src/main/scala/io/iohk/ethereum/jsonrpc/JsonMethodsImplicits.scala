@@ -138,7 +138,7 @@ object JsonMethodsImplicits {
         case _ => Left(InvalidParams)
       }
 
-    def encodeJson(t: SendRawTransactionResponse): JValue = Extraction.decompose(t)
+    def encodeJson(t: SendRawTransactionResponse): JValue = encodeAsHex(t.transactionHash)
   }
 
   private def encodeAsHex(input: ByteString): JString =

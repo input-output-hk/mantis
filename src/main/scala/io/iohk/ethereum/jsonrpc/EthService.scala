@@ -3,8 +3,9 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorRef
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{Blockchain, SignedTransaction}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
+import io.iohk.ethereum.rlp
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -132,8 +133,8 @@ class EthService(blockchain: Blockchain, appStateStorage: AppStateStorage, pendi
   }
 
   def sendRawTransaction(req: SendRawTransactionRequest): Future[SendRawTransactionResponse] = {
-    import io.iohk.ethereum.rlp.RLPImplicitConversions._
-    val signedTransaction = SignedTransactions.txRlpEncDec.decode(req.data)
+    import SignedTransactions._
+    val signedTransaction = rlp.decode[SignedTransaction](req.data.toArray[Byte])
     pendingTransactionsManager ! PendingTransactionsManager.BroadcastTransaction(signedTransaction)
     Future.successful(SendRawTransactionResponse(signedTransaction.hash))
   }
