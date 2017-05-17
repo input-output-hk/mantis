@@ -1,11 +1,12 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorSystem
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.{Fixtures, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import org.scalatest.concurrent.ScalaFutures
@@ -170,7 +171,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "return requested work" in new TestSetup {
-    (blockGenerator.generateBlockForMining _).expects().returning(block)
+    (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(block))
 
     val response = ethService.getWork(GetWorkRequest())
 
@@ -182,8 +183,10 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val blockchain = BlockchainImpl(storagesInstance.storages)
     val blockGenerator = mock[BlockGenerator]
     val appStateStorage = mock[AppStateStorage]
+    implicit val system = ActorSystem("EthServiceSpec_System")
+    val syncingController = TestProbe()
 
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage)
+    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, syncingController.ref)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash

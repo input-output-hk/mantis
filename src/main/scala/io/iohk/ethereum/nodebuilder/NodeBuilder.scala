@@ -109,9 +109,10 @@ trait BlockGeneratorBuilder {
 trait EthServiceBuilder {
   self: StorageBuilder with
     BlockChainBuilder with
-    BlockGeneratorBuilder =>
+    BlockGeneratorBuilder with
+    SyncControllerBuilder =>
 
-  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage)
+  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage, syncController)
 }
 
 trait JSONRpcControllerBuilder {

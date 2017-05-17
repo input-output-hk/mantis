@@ -1,14 +1,13 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{Address, BlockHeader, Blockchain}
 import io.iohk.ethereum.db.storage.AppStateStorage
 
 import scala.concurrent.ExecutionContext
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.mining.BlockGenerator
 
 import scala.concurrent.Future
@@ -108,20 +107,32 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
 
   def getWork(req: GetWorkRequest): Future[GetWorkResponse] = {
     import io.iohk.ethereum.mining.pow.PowCache._
-    val block = blockGenerator.generateBlockForMining()
-    Future.successful(GetWorkResponse(
-      powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(block.header))),
-      dagSeed = seedForBlock(block.header.number),
-      target = ByteString((BigInt(2).pow(256) / block.header.difficulty).toByteArray)
-    ))
+
+    val fakeAddress = 42
+    val txList = Nil
+    val ommersList = Nil
+
+    val blockNumber = appStateStorage.getBestBlockNumber() + 1
+    val block = blockGenerator.generateBlockForMining(blockNumber, txList, ommersList, Address(fakeAddress))
+
+    block match {
+      case Right(b) =>
+        Future.successful(GetWorkResponse(
+          powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))),
+          dagSeed = seedForBlock(b.header.number),
+          target = ByteString((BigInt(2).pow(256) / b.header.difficulty).toByteArray)
+        ))
+      case Left(err) =>
+        Future.failed(new RuntimeException(s"unable to prepare block because of $err"))
+    }
   }
 
   def submitWork(req: SubmitWorkRequest): Future[SubmitWorkResponse] = {
-    blockGenerator.mined(req.powHeaderHash) match {
-      case Some(block) =>
+    blockGenerator.getPrepared(req.powHeaderHash) match {
+      case Some(block) if appStateStorage.getBestBlockNumber() < block.header.number =>
         syncingController ! MinedBlock(block)
         Future.successful(SubmitWorkResponse(true))
-      case None =>
+      case _ =>
         Future.successful(SubmitWorkResponse(false))
     }
   }

@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor._
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
-import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
+import io.iohk.ethereum.blockchain.sync.SyncController._
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
@@ -51,6 +51,19 @@ trait RegularSync {
     case block: BroadcastBlocks if broadcasting =>
       //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
       peersToDownloadFrom.keys.foreach(_ ! block)
+
+    case MinedBlock(block) =>
+      blockchain.getBlockHeaderByHash(block.header.parentHash)
+        .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
+        case Some(parentTd) =>
+          blockchain.save(block)
+          appStateStorage.putBestBlockNumber(block.header.number)
+          val newTd = parentTd + block.header.difficulty
+          blockchain.save(block.header.hash, newTd)
+          log.debug(s"added new block $block")
+        case _ =>
+          log.error("fail to add mined block")
+      }
 
     case PrintStatus =>
       log.info(s"Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).")

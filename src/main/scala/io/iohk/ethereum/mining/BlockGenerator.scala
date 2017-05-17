@@ -2,9 +2,9 @@ package io.iohk.ethereum.mining
 
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.UnaryOperator
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction, _}
@@ -32,21 +32,16 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
   //todo add logic
-  private val fakeAddress = 42
-  private val txList = Nil
-  private val pmmersList = Nil
-
-  private val cache = new AtomicReference(Map[(BigInt, ByteString), Block]())
-
-  def generateBlockForMining(blockNumber: BigInt): Block = block
+  private val cacheLimit = 30
+  private val cache: AtomicReference[List[Block]] = new AtomicReference(Nil)
 
   def generateBlockForMining(blockNumber: BigInt, transactions: Seq[SignedTransaction], ommers: Seq[BlockHeader], beneficiary: Address):
   Either[BlockPreparationError, Block] = {
     val blockchain = BlockchainImpl(blockchainStorages)
 
-    validators.ommersValidator.validate(blockNumber, ommers, blockchain).left.map(InvalidOmmers).flatMap { _ =>
-      val blockTimestamp = Instant.now.getEpochSecond
+    val result = validators.ommersValidator.validate(blockNumber, ommers, blockchain).left.map(InvalidOmmers).flatMap { _ =>
       blockchain.getBlockByNumber(blockNumber - 1).map { parent =>
+        val blockTimestamp = Instant.now.getEpochSecond
         val header = BlockHeader(
           parentHash = parent.header.hash,
           ommersHash = ByteString(kec256(encode(toRlpList(ommers)))),
@@ -80,9 +75,23 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
         }
       }.getOrElse(Left(NoParent))
     }
+
+    result.right.foreach(b => cache.updateAndGet(new UnaryOperator[List[Block]] {
+      override def apply(t: List[Block]): List[Block] =
+        (b :: t).take(cacheLimit)
+    }))
+
+    result
   }
 
-  def mined(powHeaderHash: ByteString): Option[Block] = Some(block)
+  def getPrepared(powHeaderHash: ByteString): Option[Block] = {
+    cache.getAndUpdate(new UnaryOperator[List[Block]] {
+      override def apply(t: List[Block]): List[Block] =
+        t.filterNot(b => ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))) == powHeaderHash)
+    }).find { b =>
+      ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))) == powHeaderHash
+    }
+  }
 
   //returns maximal limit to be able to include as many transactions as possible
   private def calculateGasLimit(parentGas: BigInt): BigInt = {
