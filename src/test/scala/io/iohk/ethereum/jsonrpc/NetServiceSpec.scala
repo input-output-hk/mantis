@@ -7,8 +7,7 @@ import akka.agent.Agent
 import akka.testkit.TestProbe
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.jsonrpc.NetService._
-import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
-import io.iohk.ethereum.network.PeerManagerActor.Peer
+import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import org.scalamock.scalatest.MockFactory

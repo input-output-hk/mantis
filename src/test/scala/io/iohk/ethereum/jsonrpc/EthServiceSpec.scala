@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorSystem
+import akka.testkit.TestProbe
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -211,7 +213,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures {
 
     val appStateStorage = mock[AppStateStorage]
 
-    val ethService = new EthService(blockchain, appStateStorage)
+    implicit val system = ActorSystem("test_system")
+    val pendingTransactionsManager = TestProbe()
+    val ethService = new EthService(blockchain, appStateStorage, pendingTransactionsManager.ref)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash

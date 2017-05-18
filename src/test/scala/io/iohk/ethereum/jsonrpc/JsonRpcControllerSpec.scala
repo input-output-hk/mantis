@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorSystem
+import akka.testkit.TestProbe
 import io.circe.Json.JString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
@@ -252,9 +254,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
 
+    implicit val system = ActorSystem("test_system")
     val appStateStorage = mock[AppStateStorage]
     val web3Service = new Web3Service
-    val ethService = new EthService(blockchain, appStateStorage)
+    val pendingTransactionsManager = TestProbe()
+    val ethService = new EthService(blockchain, appStateStorage, pendingTransactionsManager.ref)
     val netService = mock[NetService]
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, config)
   }
