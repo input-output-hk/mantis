@@ -111,11 +111,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     validateInitialWorld(persistedWorldState)
 
     // Create a new WS instance based on storages and new root state and check
-    val newWorldState = InMemoryWorldStateProxy(
-      storagesInstance.storages,
-      storagesInstance.storages.nodeStorage,
-      Some(persistedWorldState.stateRootHash)
-    )
+    val newWorldState = InMemoryWorldStateProxy(storagesInstance.storages, Some(persistedWorldState.stateRootHash))
     validateInitialWorld(newWorldState)
 
     // Update this new WS check everything is ok
@@ -148,10 +144,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   trait TestSetup {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
 
-    val worldState = InMemoryWorldStateProxy(
-      storagesInstance.storages,
-      storagesInstance.storages.nodeStorage
-    )
+    val worldState = InMemoryWorldStateProxy(storagesInstance.storages)
 
     val address1 = Address(0x123456)
     val address2 = Address(0xabcdef)

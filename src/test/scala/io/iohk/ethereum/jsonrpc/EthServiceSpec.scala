@@ -1,20 +1,25 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.Fixtures
+import akka.util.ByteString
+import io.iohk.ethereum.blockchain.data.GenesisDataLoader
+import io.iohk.ethereum.{Fixtures, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Block, BlockchainImpl}
+import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
+import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
+import io.iohk.ethereum.mining.BlockGenerator
+import org.scalamock.scalatest.MockFactory
+import org.spongycastle.util.encoders.Hex
 
-class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures {
+class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockFactory {
 
   behavior of "EthService"
 
@@ -205,13 +210,21 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures {
     )
   }
 
+  it should "return requested work" in new TestSetup {
+    (blockGenerator.generateBlockForMining _).expects().returning(block)
+
+    val response = ethService.getWork(GetWorkRequest())
+
+    response.futureValue shouldEqual GetWorkResponse(powHash, seedHash, target)
+  }
+
   trait TestSetup extends MockFactory {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
-
+    val blockGenerator = mock[BlockGenerator]
     val appStateStorage = mock[AppStateStorage]
 
-    val ethService = new EthService(blockchain, appStateStorage)
+    val ethService = new EthService(blockchain, blockGenerator, appStateStorage)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash
@@ -220,6 +233,32 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures {
     val uncle = Fixtures.Blocks.DaoForkBlock.header
     val uncleTd = uncle.difficulty
     val blockToRequestWithUncles = blockToRequest.copy(body = BlockBody(Nil, Seq(uncle)))
+    val difficulty = 131072
+    val block = Block(
+      header = BlockHeader(
+        parentHash = ByteString(Hex.decode("fae40e0347c422194d9a0abd00e76774dd85b607ac8614b9bb0abd09ceee8df2")),
+        ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
+        beneficiary = ByteString(Hex.decode("000000000000000000000000000000000000002a")),
+        stateRoot = ByteString(Hex.decode("2627314387b135a548040d3ca99dbf308265a3f9bd9246bee3e34d12ea9ff0dc")),
+        transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+        receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+        logsBloom = ByteString(Hex.decode("00" * 256)),
+        difficulty = difficulty,
+        number = 1,
+        gasLimit = 16733003,
+        gasUsed = 0,
+        unixTimestamp = 1494604913,
+        extraData = ByteString(Hex.decode("6d696e6564207769746820657463207363616c61")),
+        mixHash = ByteString.empty,
+        nonce = ByteString.empty
+      ),
+      body = BlockBody(Nil, Nil)
+    )
+    val mixHash = ByteString(Hex.decode("40d9bd2064406d7f22390766d6fe5eccd2a67aa89bf218e99df35b2dbb425fb1"))
+    val nonce = ByteString(Hex.decode("ce1b500070aeec4f"))
+    val seedHash = ByteString(crypto.kec256(Hex.decode("00" * 32)))
+    val powHash = ByteString(Hex.decode("f5877d30b85d6cd0f80d2c4711e3cfb7d386e331f801f903d9ca52fc5e8f7cc2"))
+    val target = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
   }
 
 }

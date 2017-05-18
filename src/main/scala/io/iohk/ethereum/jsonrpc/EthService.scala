@@ -1,10 +1,16 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.util.ByteString
-import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Blockchain
 
-import scala.concurrent.{ExecutionContext, Future}
+import io.iohk.ethereum.db.storage.AppStateStorage
+import scala.concurrent.ExecutionContext
+import akka.util.ByteString
+import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.mining.BlockGenerator
+
+import scala.concurrent.Future
+
 
 object EthService {
 
@@ -28,12 +34,21 @@ object EthService {
   case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
   case class UncleByBlockHashAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
 
+  case class SubmitHashRateRequest(hashRate: BigInt, id: ByteString)
+  case class SubmitHashRateResponse(success: Boolean)
+
+  case class GetWorkRequest()
+  case class GetWorkResponse(powHeaderHash: ByteString, dagSeed: ByteString, target: ByteString)
+
+  case class SubmitWorkRequest(nonce: ByteString, powHeaderHash: ByteString, mixHash: ByteString)
+  case class SubmitWorkResponse(success:Boolean)
+
   case class SyncingRequest()
   case class SyncingResponse(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
 
 }
 
-class EthService(blockchain: Blockchain, appStateStorage: AppStateStorage) {
+class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStateStorage: AppStateStorage) {
 
   import EthService._
 
@@ -117,6 +132,26 @@ class EthService(blockchain: Blockchain, appStateStorage: AppStateStorage) {
     //The block in the response will not have any txs or uncles
     val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader => BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty) }
     UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt)
+  }
+
+  def submitHashRate(req: SubmitHashRateRequest): Future[SubmitHashRateResponse] = {
+    //todo do we care about hash rate for now?
+    Future.successful(SubmitHashRateResponse(true))
+  }
+
+  def getWork(req: GetWorkRequest): Future[GetWorkResponse] = {
+    import io.iohk.ethereum.mining.pow.PowCache._
+    val block = blockGenerator.generateBlockForMining()
+    Future.successful(GetWorkResponse(
+      powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(block.header))),
+      dagSeed = seedForBlock(block.header.number),
+      target = ByteString((BigInt(2).pow(256) / block.header.difficulty).toByteArray)
+    ))
+  }
+
+  def submitWork(req: SubmitWorkRequest): Future[SubmitWorkResponse] = {
+    //todo add logic for including mined block into blockchain
+    Future.successful(SubmitWorkResponse(true))
   }
 
  def syncing(req: SyncingRequest): Future[SyncingResponse] = {

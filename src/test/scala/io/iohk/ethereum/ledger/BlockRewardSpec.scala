@@ -56,8 +56,7 @@ class BlockRewardSpec extends FlatSpec with Matchers {
     val ommerFiveBlocksDifferenceReward = BigInt("1875000000000000000")
 
     val worldState: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
-      storagesInstance.storages,
-      storagesInstance.storages.nodeStorage
+      storagesInstance.storages
     ).saveAccount(validAccountAddress, Account(balance = 10))
       .saveAccount(validAccountAddress2, Account(balance = 20))
       .saveAccount(validAccountAddress3, Account(balance = 30))
