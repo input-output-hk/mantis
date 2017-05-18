@@ -1,14 +1,18 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
-import akka.util.ByteString
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain, SignedTransaction}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Blockchain, SignedTransaction}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
+
+import scala.concurrent.ExecutionContext
+import akka.util.ByteString
+import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
+
 
 object EthService {
 
@@ -32,6 +36,15 @@ object EthService {
   case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
   case class UncleByBlockHashAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
 
+  case class SubmitHashRateRequest(hashRate: BigInt, id: ByteString)
+  case class SubmitHashRateResponse(success: Boolean)
+
+  case class GetWorkRequest()
+  case class GetWorkResponse(powHeaderHash: ByteString, dagSeed: ByteString, target: ByteString)
+
+  case class SubmitWorkRequest(nonce: ByteString, powHeaderHash: ByteString, mixHash: ByteString)
+  case class SubmitWorkResponse(success:Boolean)
+
   case class SyncingRequest()
   case class SyncingResponse(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
 
@@ -39,7 +52,7 @@ object EthService {
   case class SendRawTransactionResponse(transactionHash: ByteString)
 }
 
-class EthService(blockchain: Blockchain, appStateStorage: AppStateStorage, pendingTransactionsManager: ActorRef) {
+class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStateStorage: AppStateStorage, pendingTransactionsManager: ActorRef) {
 
   import EthService._
 
@@ -125,6 +138,26 @@ class EthService(blockchain: Blockchain, appStateStorage: AppStateStorage, pendi
     UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt)
   }
 
+  def submitHashRate(req: SubmitHashRateRequest): Future[SubmitHashRateResponse] = {
+    //todo do we care about hash rate for now?
+    Future.successful(SubmitHashRateResponse(true))
+  }
+
+  def getWork(req: GetWorkRequest): Future[GetWorkResponse] = {
+    import io.iohk.ethereum.mining.pow.PowCache._
+    val block = blockGenerator.generateBlockForMining()
+    Future.successful(GetWorkResponse(
+      powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(block.header))),
+      dagSeed = seedForBlock(block.header.number),
+      target = ByteString((BigInt(2).pow(256) / block.header.difficulty).toByteArray)
+    ))
+  }
+
+  def submitWork(req: SubmitWorkRequest): Future[SubmitWorkResponse] = {
+    //todo add logic for including mined block into blockchain
+    Future.successful(SubmitWorkResponse(true))
+  }
+
  def syncing(req: SyncingRequest): Future[SyncingResponse] = {
     Future.successful(SyncingResponse(
       startingBlock = appStateStorage.getSyncStartingBlock(),
@@ -133,7 +166,7 @@ class EthService(blockchain: Blockchain, appStateStorage: AppStateStorage, pendi
   }
 
   def sendRawTransaction(req: SendRawTransactionRequest): Future[SendRawTransactionResponse] = {
-    import SignedTransactions._
+    import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
     val signedTransaction = rlp.decode[SignedTransaction](req.data.toArray[Byte])
     pendingTransactionsManager ! PendingTransactionsManager.BroadcastTransaction(signedTransaction)
     Future.successful(SendRawTransactionResponse(signedTransaction.hash))

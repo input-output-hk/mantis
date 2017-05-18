@@ -11,6 +11,7 @@ import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.jsonrpc.{EthService, JsonRpcController, NetService, Web3Service}
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 
@@ -112,12 +113,22 @@ trait PendingTransactionsManagerBuilder {
   lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(peerManager, peerMessageBus))
 }
 
-trait EthServiceBuilder {
-  self: StorageBuilder
-    with BlockChainBuilder
-    with PendingTransactionsManagerBuilder =>
+trait BlockGeneratorBuilder {
+  self: StorageBuilder with
+    BlockchainConfigBuilder with
+    ValidatorsBuilder with
+    LedgerBuilder =>
 
-  lazy val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage, pendingTransactionsManager)
+  lazy val blockGenerator = new BlockGenerator(storagesInstance.storages, blockchainConfig, ledger, validators)
+}
+
+trait EthServiceBuilder {
+  self: StorageBuilder with
+    BlockChainBuilder with
+    BlockGeneratorBuilder with
+    PendingTransactionsManagerBuilder =>
+
+  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage, pendingTransactionsManager)
 }
 
 trait JSONRpcControllerBuilder {
@@ -135,16 +146,8 @@ trait JSONRpcHttpServerBuilder {
   lazy val jsonRpcHttpServer = new JsonRpcHttpServer(jsonRpcController, jsonRpcHttpServerConfig)
 }
 
-trait SyncControllerBuilder {
-
-  self: ActorSystemBuilder
-    with ServerActorBuilder
-    with BlockChainBuilder
-    with NodeStatusBuilder
-    with PeerManagerActorBuilder
-    with StorageBuilder
-    with BlockchainConfigBuilder
-    with PeerMessageBusBuilder =>
+trait ValidatorsBuilder {
+  self: BlockchainConfigBuilder =>
 
   val validators = new Validators {
     val blockValidator: BlockValidator = BlockValidator
@@ -152,8 +155,26 @@ trait SyncControllerBuilder {
     val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig)
     val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
   }
+}
 
-  val ledger: Ledger = new LedgerImpl(VM, blockchainConfig)
+trait LedgerBuilder {
+  self: BlockchainConfigBuilder =>
+
+  lazy val ledger: Ledger = new LedgerImpl(VM, blockchainConfig)
+}
+
+trait SyncControllerBuilder {
+
+  self: ActorSystemBuilder with
+    ServerActorBuilder with
+    BlockChainBuilder with
+    NodeStatusBuilder with
+    PeerManagerActorBuilder with
+    StorageBuilder with
+    BlockchainConfigBuilder with
+    ValidatorsBuilder with
+    LedgerBuilder with
+    PeerMessageBusBuilder =>
 
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
@@ -201,6 +222,9 @@ trait Node extends NodeKeyBuilder
   with Web3ServiceBuilder
   with EthServiceBuilder
   with NetServiceBuilder
+  with BlockGeneratorBuilder
+  with ValidatorsBuilder
+  with LedgerBuilder
   with JSONRpcControllerBuilder
   with JSONRpcHttpServerBuilder
   with ShutdownHookBuilder

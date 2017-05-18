@@ -50,8 +50,7 @@ class DeleteAccountsSpec extends FlatSpec with Matchers {
     val accountAddresses = Set(validAccountAddress, validAccountAddress2, validAccountAddress3)
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
-      storagesInstance.storages,
-      storagesInstance.storages.nodeStorage
+      storagesInstance.storages
     ).saveAccount(validAccountAddress, Account(balance = 10))
       .saveAccount(validAccountAddress2, Account(balance = 20))
       .saveAccount(validAccountAddress3, Account(balance = 30))
