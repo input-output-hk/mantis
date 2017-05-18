@@ -126,11 +126,24 @@ trait RegularSync {
 
     parentByNumber match {
       case Some(parent) if checkHeaders(headers) =>
-        //we have same chain
+        //we have same chain prefix
         if (parent.hash == headers.head.parentHash) {
-          val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          //TODO compare weights of branches
-          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
+
+          val currentBranchTotalDifficulty = headersQueue.map(_.number)
+            .map(blockNumber => blockchain.getBlockByNumber(blockNumber))
+            .collect{
+              case Some(b) => b.header.difficulty
+              case None => BigInt(0)
+            }.sum
+
+          val newBranchTotalDifficulty = headersQueue.map(_.difficulty).sum
+
+          if (currentBranchTotalDifficulty < newBranchTotalDifficulty) {
+            val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
+            waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
+          } else {
+            scheduleResume()
+          }
         } else {
           val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
           waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = true)))
