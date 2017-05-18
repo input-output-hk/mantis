@@ -4,7 +4,7 @@ import akka.actor._
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController._
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor._
@@ -58,14 +58,7 @@ trait RegularSync {
         .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
         case Some(parentTd) if appStateStorage.getBestBlockNumber() <= block.header.number =>
           //just insert block and let resolve it with regular download
-          blockchain.save(block)
-          appStateStorage.putBestBlockNumber(block.header.number)
-          val newTd = parentTd + block.header.difficulty
-          blockchain.save(block.header.hash, newTd)
-
-          context.self ! BroadcastBlocks(Seq(NewBlock(block, newTd)))
-
-          log.info(s"added new block $block")
+          insertMinedBlock(block, parentTd)
         case _ =>
           log.error("fail to add mined block")
       }
@@ -78,6 +71,23 @@ trait RegularSync {
         //actor is done and we did not get response
         scheduleResume()
       }
+  }
+
+  private def insertMinedBlock(block: Block, parentTd: BigInt) = {
+    val result: Either[BlockExecutionError, Seq[Receipt]] = ledger.executeBlock(block, blockchainStorages, validators)
+
+    result match {
+      case Right(receipts) =>
+        blockchain.save(block)
+        blockchain.save(block.header.hash, receipts)
+        appStateStorage.putBestBlockNumber(block.header.number)
+        val newTd = parentTd + block.header.difficulty
+        blockchain.save(block.header.hash, newTd)
+        context.self ! BroadcastBlocks(Seq(NewBlock(block, newTd)))
+        log.info(s"added new block $block")
+      case Left(err) =>
+        log.info(s"fail to execute mined block because of $err")
+    }
   }
 
   private def askForHeaders() = {
@@ -191,8 +201,9 @@ trait RegularSync {
       val blockHashToDelete = blockchain.getBlockHeaderByNumber(block.header.number).map(_.hash).filter(_ != block.header.hash)
       val blockExecResult = ledger.executeBlock(block, blockchainStorages, validators)
       blockExecResult match {
-        case Right(_) =>
+        case Right(receipts) =>
           blockchain.save(block)
+          blockchain.save(block.header.hash, receipts)
           appStateStorage.putBestBlockNumber(block.header.number)
           val newTd = blockParentTd + block.header.difficulty
           blockchain.save(block.header.hash, newTd)
