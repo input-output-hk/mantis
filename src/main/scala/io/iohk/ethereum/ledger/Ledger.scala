@@ -15,7 +15,7 @@ import scala.annotation.tailrec
 
 trait Ledger {
 
-  def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockExecutionError, Unit]
+  def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockExecutionError, Seq[Receipt]]
 
 }
 
@@ -24,7 +24,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
   def executeBlock(
     block: Block,
     storages: BlockchainStorages,
-    validators: Validators): Either[BlockExecutionError, Unit] = {
+    validators: Validators): Either[BlockExecutionError, Seq[Receipt]] = {
 
     val blockchain = BlockchainImpl(storages)
 
@@ -37,7 +37,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
 
       _ <- validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed, validators.blockValidator)
-    } yield ()
+    } yield receipts
 
     if(blockExecResult.isRight)
       log.debug(s"Block ${block.header.number} (with hash: ${block.header.hashAsHexString}) executed correctly")
