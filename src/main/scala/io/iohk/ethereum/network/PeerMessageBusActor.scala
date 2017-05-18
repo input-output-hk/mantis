@@ -61,13 +61,22 @@ object PeerMessageBusActor {
     }
 
     override def publish(event: MessageFromPeer): Unit = {
-      subscriptions.filter(_.classifier.peerSelector.contains(event.peerId)).foreach(_.subscriber ! event)
+      subscriptions
+        .filter { sub =>
+          sub.classifier.peerSelector.contains(event.peerId) &&
+          sub.classifier.messageCodes.contains(event.message.code)
+        }
+        .foreach(_.subscriber ! event)
     }
 
   }
 
   case class Subscribe(to: MessageClassifier)
-  case class Unsubscribe(from: MessageClassifier)
+  object Unsubscribe {
+    def apply(): Unsubscribe = Unsubscribe(None)
+    def apply(from: MessageClassifier): Unsubscribe = Unsubscribe(Some(from))
+  }
+  case class Unsubscribe(from: Option[MessageClassifier] = None)
   case class Publish(ev: MessageFromPeer)
 }
 
@@ -79,7 +88,8 @@ class PeerMessageBusActor extends Actor {
 
   override def receive: Receive = {
     case Subscribe(to) => peerMessageBus.subscribe(sender(), to)
-    case Unsubscribe(from) => peerMessageBus.unsubscribe(sender(), from)
+    case Unsubscribe(Some(from)) => peerMessageBus.unsubscribe(sender(), from)
+    case Unsubscribe(None) => peerMessageBus.unsubscribe(sender())
     case Publish(ev: MessageFromPeer) => peerMessageBus.publish(ev)
   }
 
