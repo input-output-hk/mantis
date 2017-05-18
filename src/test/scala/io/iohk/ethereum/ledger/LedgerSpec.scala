@@ -52,7 +52,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
   case object DeleteAccount extends Changes
 
   def applyChanges(stateRootHash: ByteString, blockchainStorages: BlockchainStorages, changes: Seq[(Address, Changes)]): ByteString = {
-    val initialWorld = InMemoryWorldStateProxy(blockchainStorages, blockchainStorages.nodeStorage, Some(stateRootHash))
+    val initialWorld = InMemoryWorldStateProxy(blockchainStorages, Some(stateRootHash))
     val newWorld = changes.foldLeft[InMemoryWorldStateProxy](initialWorld){ case (recWorld, (address, change)) =>
         change match {
           case UpdateBalance(balanceIncrease) =>
@@ -742,7 +742,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     val defaultGasLimit: UInt256 = 1000000
     val defaultValue: BigInt = 1000
 
-    val emptyWorld = InMemoryWorldStateProxy(storagesInstance.storages, storagesInstance.storages.nodeStorage)
+    val emptyWorld = InMemoryWorldStateProxy(storagesInstance.storages)
 
     val worldWithMinerAndOriginAccounts = InMemoryWorldStateProxy.persistState(emptyWorld
       .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))

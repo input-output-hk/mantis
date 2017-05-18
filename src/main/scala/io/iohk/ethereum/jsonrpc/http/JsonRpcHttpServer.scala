@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc.http
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
-import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route}
+import akka.http.scaladsl.server.{MalformedRequestContentRejection, Rejection, RejectionHandler, Route}
 import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
@@ -31,10 +31,11 @@ class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHtt
       }
       .result()
 
-  val route: Route =
+  val route: Route = {
     (pathEndOrSingleSlash & post & entity(as[JsonRpcRequest])) { request =>
       handleRequest(request)
     }
+  }
 
   def run(): Unit = {
     implicit val materializer = ActorMaterializer()

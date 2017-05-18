@@ -3,10 +3,11 @@ package io.iohk.ethereum
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
-import io.iohk.ethereum.ledger.{BlockExecutionError, Ledger}
+import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.PeerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.ledger.{BlockExecutionError, BlockPreparationError, Ledger}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.validators.BlockValidator.BlockTransactionsHashError
@@ -23,6 +24,11 @@ object Mocks {
         Right(())
       else
         Left(TxsExecutionError("StubLedger was set to fail for this case"))
+    }
+
+    override def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators):
+    Either[BlockPreparationError, BlockPreparationResult] = {
+      ???
     }
   }
 
