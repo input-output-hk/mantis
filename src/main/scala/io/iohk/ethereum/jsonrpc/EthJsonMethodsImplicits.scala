@@ -36,7 +36,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
 
   implicit val eth_getWork = new JsonDecoder[GetWorkRequest] with JsonEncoder[GetWorkResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetWorkRequest] = params match {
-      case None => Right(GetWorkRequest())
+      case None | Some(JArray(Nil)) => Right(GetWorkRequest())
       case Some(_) => Left(InvalidParams)
     }
 

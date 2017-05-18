@@ -4,7 +4,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.BlockPreparationError.TxError
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR, TxResult, BlockPreparationResult}
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
@@ -62,8 +61,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for prepared block
     } yield BlockPreparationResult(execResult, worldPersisted.stateRootHash)
 
-    if(blockExecResult.isRight)
-      log.debug(s"Prepared for mining block with number ${block.header.number}")
+    blockExecResult.foreach { _ => log.debug(s"Prepared for mining block with number ${block.header.number}") }
 
     blockExecResult
   }
@@ -364,6 +362,4 @@ object BlockExecutionError {
 
 trait BlockPreparationError
 
-object BlockPreparationError {
-  case class TxError(reason: String) extends BlockPreparationError
-}
+case class TxError(reason: String) extends BlockPreparationError
