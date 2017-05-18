@@ -1,6 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.{DefaultPatience, Fixtures}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl}
@@ -21,7 +21,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures {
+class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience {
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer

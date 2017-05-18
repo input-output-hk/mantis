@@ -1,5 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
+import io.iohk.ethereum.DefaultPatience
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
@@ -12,7 +13,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 
-class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures {
+class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures with DefaultPatience {
 
   "PersonalService" should "import private keys" in new TestSetup {
     (keyStore.importPrivateKey _).expects(array(Hex.decode(prvKey)), passphrase).returning(Right(address))

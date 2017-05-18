@@ -1,6 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.{DefaultPatience, Fixtures}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockchainImpl}
@@ -14,7 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
 
-class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures {
+class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience {
 
   behavior of "EthService"
 
