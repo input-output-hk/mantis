@@ -112,6 +112,6 @@ case class SignedTransaction (
          |}""".stripMargin
   }
 
-  lazy val hash: ByteString = ByteString(kec256(rlpEncode[SignedTransaction](this)))
+  lazy val hash: ByteString = ByteString(kec256(this.toBytes : Array[Byte]))
   lazy val hashAsHexString: String = Hex.toHexString(hash.toArray[Byte])
 }

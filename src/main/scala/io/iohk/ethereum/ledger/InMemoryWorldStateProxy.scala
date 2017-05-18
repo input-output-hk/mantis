@@ -7,17 +7,22 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits._
-import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.vm.{Storage, UInt256, WorldStateProxy}
 
 object InMemoryWorldStateProxy {
+
+  import Account._
 
   val byteArrayUInt256Serializer = new ByteArrayEncoder[UInt256] {
     override def toBytes(input: UInt256): Array[Byte] = input.bytes.toArray[Byte]
   }
 
-  val rlpUInt256Serializer = new RLPByteArraySerializable[UInt256]
-  implicit val accountSerializer = new RLPByteArraySerializable[Account]
+  val rlpUInt256Serializer = new ByteArraySerializable[UInt256] {
+    override def fromBytes(bytes: Array[Byte]): UInt256 = ByteString(bytes).toUInt256
+
+    override def toBytes(input: UInt256): Array[Byte] = input.toBytes
+  }
 
   def apply(
     storages: BlockchainStorages,

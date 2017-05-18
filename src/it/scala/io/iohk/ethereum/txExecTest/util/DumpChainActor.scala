@@ -9,12 +9,10 @@ import io.iohk.ethereum.domain.{BlockHeader, Receipt}
 import io.iohk.ethereum.network.PeerActor.{MessageReceived, SendMessage, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, Peers}
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits.receiptRlpEncDec
 import io.iohk.ethereum.network.p2p.messages.PV63._
-import io.iohk.ethereum.rlp.RLPImplicitConversions.toRlpList
-import io.iohk.ethereum.rlp.{RLPEncoder, RLPImplicitConversions, encode}
 import org.spongycastle.util.encoders.Hex
-
+import ReceiptImplicits._
+import BlockHeaderImplicits._
 import scala.collection.immutable.HashMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -69,7 +67,7 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
         blockBodyStorage = blockBodyStorage + (h -> b)
       }
       val bodiesFile = new FileWriter("bodies.txt", true)
-      blockBodyStorage.foreach{case (h,v) =>  bodiesFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(encode(v))}\n")}
+      blockBodyStorage.foreach{case (h,v) =>  bodiesFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toBytes)}\n")}
       bodiesFile.close()
 
     case MessageReceived(m: Receipts) =>
@@ -77,7 +75,7 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
         blockReceiptsStorage = blockReceiptsStorage + (h -> r)
       }
       val receiptsFile = new FileWriter("receipts.txt", true)
-      blockReceiptsStorage.foreach { case (h, v: Seq[Receipt]) => receiptsFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(encode(toRlpList(v)))}\n") }
+      blockReceiptsStorage.foreach { case (h, v: Seq[Receipt]) => receiptsFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toBytes)}\n") }
       receiptsFile.close()
 
     case MessageReceived(m: NodeData) =>
@@ -143,13 +141,13 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
         val contractTreesFile = new FileWriter("contractTrees.txt", true)
         val evmCodeFile = new FileWriter("evmCode.txt", true)
 
-        def dumpToFile[T](fw: FileWriter, element: (ByteString, T))(implicit enc: RLPEncoder[T]): Unit = element match {
-          case (h, v) => fw.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(encode(v))}\n")
+        def dumpToFile(fw: FileWriter, element: (ByteString, ByteString)): Unit = element match {
+          case (h, v) => fw.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toArray)}\n")
         }
 
-        blockHeadersStorage.foreach(dumpToFile(headersFile, _)(BlockHeaderImplicits.headerRlpEncDec))
-        stateStorage.foreach(dumpToFile(stateTreeFile, _))
-        contractStorage.foreach(dumpToFile(contractTreesFile, _))
+        blockHeadersStorage.foreach(h => dumpToFile(headersFile, h._1 -> h._2.toBytes))
+        stateStorage.foreach(s => dumpToFile(stateTreeFile, s._1 -> s._2.toBytes))
+        contractStorage.foreach(c => dumpToFile(contractTreesFile, c._1 -> c._2.toBytes))
         evmCodeStorage.foreach { case (h, v) => evmCodeFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toArray[Byte])}\n") }
 
         headersFile.close()

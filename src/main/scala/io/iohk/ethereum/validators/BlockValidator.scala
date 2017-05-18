@@ -1,14 +1,12 @@
 package io.iohk.ethereum.validators
 
+import akka.serialization.ByteArraySerializer
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction}
 import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.mpt.RLPByteArraySerializable
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+import io.iohk.ethereum.mpt.ByteArraySerializable
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits.headerRlpEncDec
-import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits.receiptRlpEncDec
 import io.iohk.ethereum.rlp.RLPImplicitConversions.toRlpList
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.ByteUtils.or
@@ -34,7 +32,13 @@ object BlockValidator extends BlockValidator {
   private def validateTransactionRoot(block: Block): Either[BlockError, Block] = {
     val isValid = MptListValidator.isValid[SignedTransaction](block.header.transactionsRoot.toArray[Byte],
       block.body.transactionList,
-      new RLPByteArraySerializable[SignedTransaction]
+      new ByteArraySerializable[SignedTransaction] {
+        import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+
+        override def fromBytes(bytes: Array[Byte]): SignedTransaction = bytes.toSignedTransaction
+
+        override def toBytes(input: SignedTransaction): Array[Byte] = input.toBytes
+      }
     )
     if (isValid) Right(block)
     else Left(BlockTransactionsHashError)
@@ -49,7 +53,8 @@ object BlockValidator extends BlockValidator {
     */
   private def validateOmmersHash(block: Block): Either[BlockError, Block] = {
     // FIXME Can we avoid encoding ommers again?
-    val encodedOmmers = encode(toRlpList(block.body.uncleNodesList))
+    import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
+    val encodedOmmers: Array[Byte] = block.body.uncleNodesList.toBytes
     if (kec256(encodedOmmers) sameElements block.header.ommersHash) Right(block)
     else Left(BlockOmmersHashError)
   }
@@ -66,7 +71,13 @@ object BlockValidator extends BlockValidator {
 
     val isValid = MptListValidator.isValid[Receipt](block.header.receiptsRoot.toArray[Byte],
       receipts,
-      new RLPByteArraySerializable[Receipt]
+      new ByteArraySerializable[Receipt] {
+        import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits._
+
+        override def fromBytes(bytes: Array[Byte]): Receipt = bytes.toReceipt
+
+        override def toBytes(input: Receipt): Array[Byte] = input.toBytes
+      }
     )
     if (isValid) Right(block)
     else Left(BlockReceiptsHashError)

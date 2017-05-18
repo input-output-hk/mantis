@@ -40,7 +40,7 @@ class ForksTest extends FlatSpec with Matchers {
   }
 
   "Ledger" should "execute blocks with respect to forks" in {
-    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/forksTest/")
+    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/forksTest")
 
     val startBlock = 1
     val endBlock = 11
