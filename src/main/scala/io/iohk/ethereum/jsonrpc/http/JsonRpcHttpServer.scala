@@ -34,11 +34,6 @@ class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHtt
   val route: Route = {
     (pathEndOrSingleSlash & post & entity(as[JsonRpcRequest])) { request =>
       handleRequest(request)
-    } ~ post {
-      extractRequest { r =>
-        log.debug(s"got unsupported request with ${r.entity}")
-        complete(HttpResponse(StatusCodes.BadRequest))
-      }
     }
   }
 
