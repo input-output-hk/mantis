@@ -26,16 +26,16 @@ object InMemoryWorldStateProxy {
 
   def apply(
     storages: BlockchainStorages,
-    stateStorage: NodeStorage,
     stateRootHash: Option[ByteString] = None): InMemoryWorldStateProxy = {
 
     val accountsStateTrieProxy = createProxiedAccountsStateTrie(
-      stateStorage,
+      storages.nodeStorage,
       stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.calculateEmptyRootHash(kec256(_: Array[Byte]))))
     )
+    //todo why do we create blockchain every time we are calling this function?
     val getBlockHashByNumber = (number: BigInt) => BlockchainImpl(storages).getBlockHeaderByNumber(number).map(_.hash)
 
-    new InMemoryWorldStateProxy(stateStorage, accountsStateTrieProxy, Map.empty, storages.evmCodeStorage, Map.empty, getBlockHashByNumber)
+    new InMemoryWorldStateProxy(storages.nodeStorage, accountsStateTrieProxy, Map.empty, storages.evmCodeStorage, Map.empty, getBlockHashByNumber)
   }
 
   /**

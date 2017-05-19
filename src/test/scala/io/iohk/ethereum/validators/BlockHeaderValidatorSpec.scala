@@ -37,6 +37,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
   }
 
   val blockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
+  val difficultyCalculator = new DifficultyCalculator(blockchainConfig)
 
   "BlockHeaderValidator" should "validate correctly formed BlockHeaders" in {
     blockHeaderValidator.validate(validBlockHeader, validBlockParent) match {
@@ -142,16 +143,15 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
   }
 
   it should "properly calculate the difficulty after difficulty bomb resume" in new EphemBlockchainTestSetup {
-    val parentHeader = validBlockParent.copy(
+    val parentHeader: BlockHeader = validBlockParent.copy(
       number = 5000101,
       unixTimestamp = 1513175023,
       difficulty = BigInt("22627021745803"))
 
-    val blockHeader = validBlockHeader.copy(
-      number = parentHeader.number + 1,
-      unixTimestamp = parentHeader.unixTimestamp + 6)
+    val blockNumber: BigInt = parentHeader.number + 1
+    val blockTimestamp: Long = parentHeader.unixTimestamp + 6
 
-    val difficulty = blockHeaderValidator.calculateDifficulty(blockHeader, parentHeader)
+    val difficulty: BigInt = difficultyCalculator.calculateDifficulty(blockNumber, blockTimestamp, parentHeader)
     val expected = BigInt("22638338531720")
 
     difficulty shouldBe expected

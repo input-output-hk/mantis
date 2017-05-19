@@ -172,8 +172,7 @@ class PeerActor(
           val timeout = scheduler.scheduleOnce(peerConfiguration.waitForChainCheckTimeout, self, ForkHeaderReceiveTimeout)
           context become waitingForForkHeader(rlpxConnection, status, timeout, forkResolver)
         case None =>
-          context become new MessageHandler(rlpxConnection, status, 0, true).receive
-          unstashAll()
+          startMessageHandler(rlpxConnection, status, 0, true)
       }
 
     case StatusReceiveTimeout =>
@@ -202,8 +201,7 @@ class PeerActor(
 
           if (forkResolver.isAccepted(fork)) {
             log.info("Fork is accepted")
-            context become new MessageHandler(rlpxConnection, remoteStatus, forkBlockHeader.number, true).receive
-            unstashAll()
+            startMessageHandler(rlpxConnection, remoteStatus, forkBlockHeader.number, true)
           } else {
             log.warning("Fork is not accepted")
             disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
@@ -211,13 +209,18 @@ class PeerActor(
 
         case None =>
           log.info("Peer did not respond with fork block header")
-          context become new MessageHandler(rlpxConnection, remoteStatus, 0, false).receive
-          unstashAll()
+          startMessageHandler(rlpxConnection, remoteStatus, 0, false)
       }
 
     case ForkHeaderReceiveTimeout => disconnectFromPeer(rlpxConnection, Disconnect.Reasons.TimeoutOnReceivingAMessage)
 
     case GetStatus => sender() ! StatusResponse(Handshaking(0))
+  }
+
+  private def startMessageHandler(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, currentMaxBlockNumber: BigInt, forkAccepted: Boolean): Unit = {
+    context become new MessageHandler(rlpxConnection, remoteStatus, currentMaxBlockNumber, forkAccepted).receive
+    rlpxConnection.sendMessage(GetBlockHeaders(Right(remoteStatus.bestHash), 1, 0, false))
+    unstashAll()
   }
 
   private def disconnectFromPeer(rlpxConnection: RLPxConnection, reason: Int): Unit = {
@@ -308,9 +311,14 @@ class PeerActor(
         sender() ! StatusResponse(Handshaked(initialStatus, forkAccepted, totalDifficulty))
 
       case BroadcastBlocks(blocks) =>
-        blocks.foreach{b =>
-          if(b.block.header.number > currentMaxBlockNumber)
+        blocks.foreach { b =>
+          if (b.block.header.number > currentMaxBlockNumber) {
             self ! SendMessage(b)
+          }
+
+          if (b.block.header.number > appStateStorage.getEstimatedHighestBlock()) {
+            appStateStorage.putEstimatedHighestBlock(b.block.header.number)
+          }
         }
 
     }
@@ -337,6 +345,10 @@ class PeerActor(
         val maxBlockNumber = ns.fold(0: BigInt) { case (a, b) => if (a > b) a else b }
         if (maxBlockNumber > currentMaxBlockNumber) {
           currentMaxBlockNumber = maxBlockNumber
+        }
+
+        if (maxBlockNumber> appStateStorage.getEstimatedHighestBlock()) {
+          appStateStorage.putEstimatedHighestBlock(maxBlockNumber)
         }
       }
     }

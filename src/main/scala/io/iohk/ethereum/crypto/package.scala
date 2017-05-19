@@ -9,7 +9,7 @@ import org.spongycastle.asn1.x9.X9ECParameters
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.digests.RIPEMD160Digest
 import org.spongycastle.crypto.generators.ECKeyPairGenerator
-import org.spongycastle.crypto.params.{ECDomainParameters, ECKeyGenerationParameters}
+import org.spongycastle.crypto.params.{ECDomainParameters, ECKeyGenerationParameters, ECPrivateKeyParameters, ECPublicKeyParameters}
 
 package object crypto {
 
@@ -61,4 +61,9 @@ package object crypto {
 
   def sha256(input: ByteString): ByteString =
     ByteString(sha256(input.toArray))
+
+  def getKeyPair(prvKey: BigInt): AsymmetricCipherKeyPair = {
+    val publicKey = curve.getG.multiply(prvKey.bigInteger).normalize()
+    new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(prvKey.bigInteger, curve))
+  }
 }

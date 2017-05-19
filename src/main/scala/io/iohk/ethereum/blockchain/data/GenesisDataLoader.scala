@@ -1,5 +1,7 @@
 package io.iohk.ethereum.blockchain.data
 
+import java.io.FileNotFoundException
+
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.ByteStringJsonSerializer
 import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits
@@ -42,16 +44,20 @@ class GenesisDataLoader(
       case Some(customGenesisFile) =>
         log.debug(s"Trying to load custom genesis data from file: $customGenesisFile")
 
-        Try(Source.fromFile(customGenesisFile)) match {
+        Try(Source.fromFile(customGenesisFile)).recoverWith { case _: FileNotFoundException =>
+          log.info(s"Cannot load custom genesis data from file: $customGenesisFile")
+          log.info(s"Trying to load from resources: $customGenesisFile")
+          Try(Source.fromResource(customGenesisFile))
+        } match {
           case Success(customGenesis) =>
-            log.info(s"Using custom genesis data from file: $customGenesisFile")
+            log.info(s"Using custom genesis data from: $customGenesisFile")
             try {
               customGenesis.getLines().mkString
             } finally {
               customGenesis.close()
             }
           case Failure(ex) =>
-            log.error(s"Cannot load custom genesis data from file: $customGenesisFile", ex)
+            log.error(s"Cannot load custom genesis data from: $customGenesisFile", ex)
             throw ex
         }
       case None =>
