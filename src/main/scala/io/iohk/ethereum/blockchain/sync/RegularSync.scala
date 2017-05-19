@@ -83,7 +83,10 @@ trait RegularSync {
         appStateStorage.putBestBlockNumber(block.header.number)
         val newTd = parentTd + block.header.difficulty
         blockchain.save(block.header.hash, newTd)
-        context.self ! BroadcastBlocks(Seq(NewBlock(block, newTd)))
+
+        //todo optimize
+        handshakedPeers.keys.foreach(actor => actor ! SendMessage(NewBlock(block, newTd)))
+
         log.info(s"added new block $block")
       case Left(err) =>
         log.info(s"fail to execute mined block because of $err")
@@ -164,6 +167,7 @@ trait RegularSync {
           val (newBlocks, errorOpt) = processBlocks(blocks, blockParentTd)
 
           if(newBlocks.nonEmpty){
+            //TODO wrong !!!
             context.self ! BroadcastBlocks(newBlocks)
             log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
