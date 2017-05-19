@@ -144,14 +144,14 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
   def getWork(req: GetWorkRequest): Future[GetWorkResponse] = {
     import io.iohk.ethereum.mining.pow.PowCache._
 
+    //todo delete stub
     val fakeAddress = 42
-
     val privateKey = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
     val keyPair = getKeyPair(privateKey)
     val txGasLimit = 21000
     val txTransfer = 9000
     val transaction = Transaction(
-      nonce = 1,
+      nonce = 0,
       gasPrice = 1,
       gasLimit = txGasLimit,
       receivingAddress = Address(fakeAddress),
@@ -161,7 +161,7 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
 
     val txList = Seq(signedTransaction)
     val ommersList = Nil
-
+    //todo --------------
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
     val block = blockGenerator.generateBlockForMining(blockNumber, txList, ommersList, Address(fakeAddress))
 
