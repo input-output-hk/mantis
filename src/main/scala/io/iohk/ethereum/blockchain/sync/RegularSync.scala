@@ -56,7 +56,7 @@ trait RegularSync {
       //we are at the top of chain we can insert new block
       blockchain.getBlockHeaderByHash(block.header.parentHash)
         .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
-        case Some(parentTd) if appStateStorage.getBestBlockNumber() <= block.header.number =>
+        case Some(parentTd) if appStateStorage.getBestBlockNumber() < block.header.number =>
           //just insert block and let resolve it with regular download
           insertMinedBlock(block, parentTd)
         case _ =>
