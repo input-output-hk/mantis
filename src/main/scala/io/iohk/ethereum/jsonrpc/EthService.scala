@@ -1,9 +1,16 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.util.ByteString
 import io.iohk.ethereum.domain.Blockchain
 
-import scala.concurrent.{ExecutionContext, Future}
+import io.iohk.ethereum.db.storage.AppStateStorage
+import scala.concurrent.ExecutionContext
+import akka.util.ByteString
+import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.mining.BlockGenerator
+
+import scala.concurrent.Future
+
 
 object EthService {
 
@@ -12,22 +19,50 @@ object EthService {
   case class ProtocolVersionRequest()
   case class ProtocolVersionResponse(value: String)
 
+  case class BestBlockNumberRequest()
+  case class BestBlockNumberResponse(bestBlockNumber: BigInt)
+
   case class TxCountByBlockHashRequest(blockHash: ByteString)
   case class TxCountByBlockHashResponse(txsQuantity: Option[Int])
 
   case class BlockByBlockHashRequest(blockHash: ByteString, fullTxs: Boolean)
   case class BlockByBlockHashResponse(blockResponse: Option[BlockResponse])
 
+  case class GetTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
+  case class GetTransactionByBlockHashAndIndexResponse(transactionResponse: Option[TransactionResponse])
+
   case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
   case class UncleByBlockHashAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
+
+  case class SubmitHashRateRequest(hashRate: BigInt, id: ByteString)
+  case class SubmitHashRateResponse(success: Boolean)
+
+  case class GetWorkRequest()
+  case class GetWorkResponse(powHeaderHash: ByteString, dagSeed: ByteString, target: ByteString)
+
+  case class SubmitWorkRequest(nonce: ByteString, powHeaderHash: ByteString, mixHash: ByteString)
+  case class SubmitWorkResponse(success:Boolean)
+
+  case class SyncingRequest()
+  case class SyncingResponse(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
+
 }
 
-class EthService(blockchain: Blockchain) {
+class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStateStorage: AppStateStorage) {
 
   import EthService._
 
   def protocolVersion(req: ProtocolVersionRequest): Future[ProtocolVersionResponse] =
     Future.successful(ProtocolVersionResponse(f"0x$CurrentProtocolVersion%x"))
+
+  /**
+    * eth_blockNumber that returns the number of most recent block.
+    *
+    * @return Current block number the client is on.
+    */
+  def bestBlockNumber(req: BestBlockNumberRequest)(implicit executionContext: ExecutionContext): Future[BestBlockNumberResponse] = Future {
+    BestBlockNumberResponse(appStateStorage.getBestBlockNumber())
+  }
 
   /**
     * Implements the eth_getBlockTransactionCountByHash method that fetches the number of txs that a certain block has.
@@ -58,6 +93,25 @@ class EthService(blockchain: Blockchain) {
   }
 
   /**
+    * eth_getTransactionByBlockHashAndIndex that returns information about a transaction by block hash and
+    * transaction index position.
+    *
+    * @return the tx requested or None if the client doesn't have the block or if there's no tx in the that index
+    */
+  def getTransactionByBlockHashAndIndexRequest(req: GetTransactionByBlockHashAndIndexRequest)(implicit executionContext: ExecutionContext)
+  : Future[GetTransactionByBlockHashAndIndexResponse] = Future {
+    import req._
+    val maybeTransactionResponse = blockchain.getBlockByHash(blockHash).flatMap{
+      blockWithTx =>
+        val blockTxs = blockWithTx.body.transactionList
+        if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
+          Some(TransactionResponse(blockTxs(transactionIndex.toInt), Some(blockWithTx.header), Some(transactionIndex.toInt)))
+        else None
+    }
+    GetTransactionByBlockHashAndIndexResponse(maybeTransactionResponse)
+  }
+
+  /**
     * Implements the eth_getUncleByBlockHashAndIndex method that fetches an uncle from a certain index in a requested block.
     *
     * @param request with the hash of the block and the index of the uncle requested
@@ -79,4 +133,32 @@ class EthService(blockchain: Blockchain) {
     val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader => BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty) }
     UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt)
   }
+
+  def submitHashRate(req: SubmitHashRateRequest): Future[SubmitHashRateResponse] = {
+    //todo do we care about hash rate for now?
+    Future.successful(SubmitHashRateResponse(true))
+  }
+
+  def getWork(req: GetWorkRequest): Future[GetWorkResponse] = {
+    import io.iohk.ethereum.mining.pow.PowCache._
+    val block = blockGenerator.generateBlockForMining()
+    Future.successful(GetWorkResponse(
+      powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(block.header))),
+      dagSeed = seedForBlock(block.header.number),
+      target = ByteString((BigInt(2).pow(256) / block.header.difficulty).toByteArray)
+    ))
+  }
+
+  def submitWork(req: SubmitWorkRequest): Future[SubmitWorkResponse] = {
+    //todo add logic for including mined block into blockchain
+    Future.successful(SubmitWorkResponse(true))
+  }
+
+ def syncing(req: SyncingRequest): Future[SyncingResponse] = {
+    Future.successful(SyncingResponse(
+      startingBlock = appStateStorage.getSyncStartingBlock(),
+      currentBlock = appStateStorage.getBestBlockNumber(),
+      highestBlock = appStateStorage.getEstimatedHighestBlock()))
+  }
+
 }

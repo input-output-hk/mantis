@@ -26,7 +26,7 @@ trait BlockValidator {
 object BlockValidator extends BlockValidator {
   /**
     * Validates [[io.iohk.ethereum.domain.BlockHeader.transactionsRoot]] matches [[BlockBody.transactionList]]
-    * based on validations stated in section 4.2.2 of http://paper.gavwood.com/
+    * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param block Block to validate
     * @return Block if valid, a Some otherwise
@@ -42,7 +42,7 @@ object BlockValidator extends BlockValidator {
 
   /**
     * Validates [[BlockBody.uncleNodesList]] against [[io.iohk.ethereum.domain.BlockHeader.ommersHash]]
-    * based on validations stated in section 4.2.2 of http://paper.gavwood.com/
+    * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param block Block to validate
     * @return Block if valid, a Some otherwise
@@ -56,7 +56,7 @@ object BlockValidator extends BlockValidator {
 
   /**
     * Validates [[Receipt]] against [[io.iohk.ethereum.domain.BlockHeader.receiptsRoot]]
-    * based on validations stated in section 4.2.2 of http://paper.gavwood.com/
+    * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param block    Block to validate
     * @param receipts Receipts to use
@@ -74,7 +74,7 @@ object BlockValidator extends BlockValidator {
 
   /**
     * Validates [[io.iohk.ethereum.domain.BlockHeader.logsBloom]] against [[Receipt.logsBloomFilter]]
-    * based on validations stated in section 4.2.2 of http://paper.gavwood.com/
+    * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param block    Block to validate
     * @param receipts Receipts to use
@@ -90,7 +90,7 @@ object BlockValidator extends BlockValidator {
 
   /**
     * This method allows validate a Block. It only perfoms the following validations (stated on
-    * section 4.2.2 of http://paper.gavwood.com/):
+    * section 4.4.2 of http://paper.gavwood.com/):
     *   - BlockValidator.validateTransactionRoot
     *   - BlockValidator.validateOmmersHash
     *   - BlockValidator.validateReceipts
@@ -109,7 +109,7 @@ object BlockValidator extends BlockValidator {
 
   /**
     * This method allows validate that a BlockHeader matches a BlockBody. It only perfoms the following validations (stated on
-    * section 4.2.2 of http://paper.gavwood.com/):
+    * section 4.4.2 of http://paper.gavwood.com/):
     *   - BlockValidator.validateTransactionRoot
     *   - BlockValidator.validateOmmersHash
     *
@@ -127,7 +127,7 @@ object BlockValidator extends BlockValidator {
 
   /**
     * This method allows validations of the block with its associated receipts.
-    * It only perfoms the following validations (stated on section 4.2.2 of http://paper.gavwood.com/):
+    * It only perfoms the following validations (stated on section 4.4.2 of http://paper.gavwood.com/):
     *   - BlockValidator.validateReceipts
     *   - BlockValidator.validateLogBloom
     *
