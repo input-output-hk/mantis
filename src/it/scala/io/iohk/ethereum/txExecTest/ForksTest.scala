@@ -1,11 +1,12 @@
 package io.iohk.ethereum.txExecTest
 
 import akka.util.ByteString
+import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators._
-import io.iohk.ethereum.vm.{VM, UInt256}
+import io.iohk.ethereum.vm.{UInt256, VM}
 import org.scalatest.{FlatSpec, Matchers}
 
 class ForksTest extends FlatSpec with Matchers {
@@ -30,7 +31,7 @@ class ForksTest extends FlatSpec with Matchers {
 
   val ledger = new LedgerImpl(VM, blockchainConfig)
 
-  val noErrors: Right[Nothing, Unit] = Right(())
+  val noErrors = a[Right[_, Seq[Receipt]]]
 
   val validators = new Validators {
     val blockValidator: BlockValidator = BlockValidator
