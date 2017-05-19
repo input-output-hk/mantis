@@ -215,7 +215,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val response = ethService.getWork(GetWorkRequest())
 
-    response.futureValue shouldEqual GetWorkResponse(powHash, seedHash, target)
+    response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
   }
 
   trait TestSetup extends MockFactory {

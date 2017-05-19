@@ -1,6 +1,5 @@
 package io.iohk.ethereum
 
-import java.math.BigInteger
 import java.security.{MessageDigest, SecureRandom}
 
 import akka.util.ByteString
@@ -54,15 +53,18 @@ package object crypto {
   }
 
   def keyPairFromPrvKey(prvKeyBytes: Array[Byte]): AsymmetricCipherKeyPair = {
-    val privateKey = new BigInteger(1, prvKeyBytes)
-    val publicKey = curve.getG.multiply(privateKey).normalize()
-    new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(privateKey, curve))
+    val privateKey = BigInt(1, prvKeyBytes)
+    keyPairFromPrvKey(privateKey)
+  }
+
+  def keyPairFromPrvKey(prvKey: BigInt): AsymmetricCipherKeyPair = {
+    val publicKey = curve.getG.multiply(prvKey.bigInteger).normalize()
+    new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(prvKey.bigInteger, curve))
   }
 
   def pubKeyFromPrvKey(prvKey: Array[Byte]): Array[Byte] = {
     keyPairToByteArrays(keyPairFromPrvKey(prvKey))._2
   }
-
 
   def ripemd160(input: Array[Byte]): Array[Byte] = {
     val digest = new RIPEMD160Digest
@@ -81,8 +83,4 @@ package object crypto {
   def sha256(input: ByteString): ByteString =
     ByteString(sha256(input.toArray))
 
-  def getKeyPair(prvKey: BigInt): AsymmetricCipherKeyPair = {
-    val publicKey = curve.getG.multiply(prvKey.bigInteger).normalize()
-    new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(prvKey.bigInteger, curve))
-  }
 }

@@ -134,24 +134,24 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
     Right(UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt))
   }
 
-  def submitHashRate(req: SubmitHashRateRequest): Future[SubmitHashRateResponse] = {
+  def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] = {
     //todo do we care about hash rate for now?
-    Future.successful(SubmitHashRateResponse(true))
+    Future.successful(Right(SubmitHashRateResponse(true)))
   }
 
-  def getWork(req: GetWorkRequest): Future[GetWorkResponse] = {
+  def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] = {
     import io.iohk.ethereum.mining.pow.PowCache._
     val block = blockGenerator.generateBlockForMining()
-    Future.successful(GetWorkResponse(
+    Future.successful(Right(GetWorkResponse(
       powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(block.header))),
       dagSeed = seedForBlock(block.header.number),
       target = ByteString((BigInt(2).pow(256) / block.header.difficulty).toByteArray)
-    ))
+    )))
   }
 
-  def submitWork(req: SubmitWorkRequest): Future[SubmitWorkResponse] = {
+  def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
     //todo add logic for including mined block into blockchain
-    Future.successful(SubmitWorkResponse(true))
+    Future.successful(Right(SubmitWorkResponse(true)))
   }
 
  def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = {

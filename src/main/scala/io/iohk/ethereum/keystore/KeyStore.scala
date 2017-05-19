@@ -6,6 +6,7 @@ import java.nio.file.{Files, Paths}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.utils.Logger
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.Try
@@ -30,7 +31,9 @@ trait KeyStore {
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet]
 }
 
-class KeyStoreImpl(keyStoreDir: String) extends KeyStore {
+class KeyStoreImpl(keyStoreDir: String) extends KeyStore with Logger {
+
+  init()
 
   def newAccount(passphrase: String): Either[KeyStoreError, Address] = {
     val keyPair = generateKeyPair()
@@ -62,12 +65,17 @@ class KeyStoreImpl(keyStoreDir: String) extends KeyStore {
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet] =
     load(address, passphrase).map(bytes => Wallet(address, ByteString(bytes)))
 
+  private def init(): Unit = {
+    val dir = new File(keyStoreDir)
+    val res = Try(dir.mkdirs()).filter(identity)
+    res.failed.foreach(ex => log.error(s"Could not initialise keystore directory ($dir): $ex"))
+  }
+
   private def save(address: Address, key: Array[Byte], passphrase: String): Either[KeyStoreError, Unit] = {
     val addrString = Hex.toHexString(address.toArray)
     val prvKeyString = Hex.encode(key)
     val path = Paths.get(keyStoreDir, addrString)
     Try {
-      new File(keyStoreDir).mkdirs()
       Files.write(path, prvKeyString)
       ()
     }.toEither.left.map(ioError)
