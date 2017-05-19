@@ -20,7 +20,7 @@ case class EtcHandshaker private (handshakerState: HandshakerState[PeerInfo],
 object EtcHandshaker {
 
   def apply(handshakerConfiguration: EtcHandshakerConfiguration): EtcHandshaker = {
-    val initialState = HelloExchangeState(handshakerConfiguration)
+    val initialState = EtcHelloExchangeState(handshakerConfiguration)
     EtcHandshaker(initialState, handshakerConfiguration)
   }
 

@@ -7,7 +7,7 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnect, Hello}
 import io.iohk.ethereum.utils.{Config, Logger, ServerStatus}
 
-case class HelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] with Logger {
+case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] with Logger {
 
   import handshakerConfiguration._
 
@@ -24,7 +24,7 @@ case class HelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguratio
     case hello: Hello =>
       log.info("Protocol handshake finished with peer ({})", hello)
       if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte)))
-        NodeStatusExchangeState(handshakerConfiguration)
+        EtcNodeStatusExchangeState(handshakerConfiguration)
       else {
         log.warn("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
         DisconnectedState[PeerInfo](Disconnect.Reasons.IncompatibleP2pProtocolVersion)
@@ -44,7 +44,7 @@ case class HelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguratio
       case ServerStatus.NotListening => 0
     }
     Hello(
-      p2pVersion = HelloExchangeState.P2pVersion,
+      p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = Config.clientId,
       capabilities = Seq(Capability("eth", Message.PV63.toByte)),
       listenPort = listenPort,
@@ -53,6 +53,6 @@ case class HelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguratio
   }
 }
 
-object HelloExchangeState {
+object EtcHelloExchangeState {
   val P2pVersion = 4
 }

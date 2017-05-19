@@ -7,7 +7,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Logger
 
-case class NodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] with Logger{
+case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] with Logger {
 
   import handshakerConfiguration._
 
@@ -24,7 +24,7 @@ case class NodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConfigu
 
       forkResolverOpt match {
         case Some(forkResolver) =>
-          ForkBlockExchangeState(handshakerConfiguration, forkResolver, remoteStatus)
+          EtcForkBlockExchangeState(handshakerConfiguration, forkResolver, remoteStatus)
         case None =>
           ConnectedState[PeerInfo](PeerInfo(remoteStatus, 0, true))
       }

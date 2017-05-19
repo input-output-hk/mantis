@@ -9,8 +9,8 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Logger
 
-case class ForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfiguration,
-                                  forkResolver: ForkResolver, remoteStatus: Status) extends InProgressState[PeerInfo] with Logger {
+case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfiguration,
+                                     forkResolver: ForkResolver, remoteStatus: Status) extends InProgressState[PeerInfo] with Logger {
 
   import handshakerConfiguration._
 

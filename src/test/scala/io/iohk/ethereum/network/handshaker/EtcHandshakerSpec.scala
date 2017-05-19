@@ -165,7 +165,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
 
   trait LocalPeerSetup extends TestSetup {
     val localHello = Hello(
-      p2pVersion = HelloExchangeState.P2pVersion,
+      p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = Config.clientId,
       capabilities = Seq(Capability("eth", Message.PV63.toByte)),
       listenPort = 0, //Local node not listening
@@ -188,7 +188,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     val remotePort = 8545
 
     val remoteHello = Hello(
-      p2pVersion = HelloExchangeState.P2pVersion,
+      p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = "remote-peer",
       capabilities = Seq(Capability("eth", Message.PV63.toByte)),
       listenPort = remotePort,
