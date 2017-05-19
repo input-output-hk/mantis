@@ -19,9 +19,9 @@ object Mocks {
 
   class MockLedger(shouldExecuteCorrectly: (Block, BlockchainStorages, Validators) => Boolean) extends Ledger{
     override def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators)
-    : Either[BlockExecutionError, Unit] = {
+    : Either[BlockExecutionError, Seq[Receipt]] = {
       if(shouldExecuteCorrectly(block, storages, validators))
-        Right(())
+        Right(Nil)
       else
         Left(TxsExecutionError("StubLedger was set to fail for this case"))
     }

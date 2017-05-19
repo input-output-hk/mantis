@@ -172,8 +172,9 @@ trait RegularSync {
       val blockHashToDelete = blockchain.getBlockHeaderByNumber(block.header.number).map(_.hash).filter(_ != block.header.hash)
       val blockExecResult = ledger.executeBlock(block, blockchainStorages, validators)
       blockExecResult match {
-        case Right(_) =>
+        case Right(receipts) =>
           blockchain.save(block)
+          blockchain.save(block.header.hash, receipts)
           appStateStorage.putBestBlockNumber(block.header.number)
           val newTd = blockParentTd + block.header.difficulty
           blockchain.save(block.header.hash, newTd)
