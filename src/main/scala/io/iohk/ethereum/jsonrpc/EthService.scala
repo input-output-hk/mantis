@@ -1,7 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
-import io.iohk.ethereum.domain.{Address, BlockHeader, Blockchain}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.db.storage.AppStateStorage
 
 import scala.concurrent.ExecutionContext
@@ -9,6 +9,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.mining.BlockGenerator
+import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.Future
 
@@ -144,7 +145,21 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
     import io.iohk.ethereum.mining.pow.PowCache._
 
     val fakeAddress = 42
-    val txList = Nil
+
+    val privateKey = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
+    val keyPair = getKeyPair(privateKey)
+    val txGasLimit = 21000
+    val txTransfer = 9000
+    val transaction = Transaction(
+      nonce = 1,
+      gasPrice = 1,
+      gasLimit = txGasLimit,
+      receivingAddress = Address(fakeAddress),
+      value = txTransfer,
+      payload = ByteString.empty)
+    val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, None)
+
+    val txList = Seq(signedTransaction)
     val ommersList = Nil
 
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
@@ -165,7 +180,7 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
   def submitWork(req: SubmitWorkRequest): Future[SubmitWorkResponse] = {
     blockGenerator.getPrepared(req.powHeaderHash) match {
       case Some(block) if appStateStorage.getBestBlockNumber() <= block.header.number =>
-        syncingController ! MinedBlock(block)
+        syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
         Future.successful(SubmitWorkResponse(true))
       case _ =>
         Future.successful(SubmitWorkResponse(false))

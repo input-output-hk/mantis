@@ -66,7 +66,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       receivingAddress = Address(testAddress),
       value = txTransfer,
       payload = ByteString.empty)
-    val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, 0x3d.toByte)
+    val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
 
     val blockchainStorages = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchainConfig = new BlockchainConfig {
