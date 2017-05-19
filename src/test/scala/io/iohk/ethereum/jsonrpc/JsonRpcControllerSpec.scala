@@ -10,9 +10,11 @@ import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Config
+import org.json4s.{DefaultFormats, Extraction, Formats}
+import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
+import io.iohk.ethereum.mining.BlockGenerator
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
-import org.json4s.{DefaultFormats, Extraction, Formats}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
@@ -301,10 +303,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
 
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
+    val blockGenerator: BlockGenerator = mock[BlockGenerator]
 
     val appStateStorage = mock[AppStateStorage]
     val web3Service = new Web3Service
-    val ethService = new EthService(blockchain, appStateStorage)
+    val ethService = new EthService(blockchain, blockGenerator, appStateStorage)
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)

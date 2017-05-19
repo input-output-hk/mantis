@@ -4,7 +4,7 @@ import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
+import io.iohk.ethereum.jsonrpc.Web3Service._
 import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
 
@@ -46,6 +46,7 @@ class JsonRpcController(
   config: JsonRpcConfig) {
 
   import JsonRpcController._
+  import EthJsonMethodsImplicits._
   import JsonMethodsImplicits._
   import JsonRpcErrors._
 
@@ -80,6 +81,12 @@ class JsonRpcController(
       handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
     case req @ JsonRpcRequest(_, "eth_syncing", _, _) =>
       handle[SyncingRequest, SyncingResponse](ethService.syncing, req)
+    case req @ JsonRpcRequest(_, "eth_submitHashrate", _, _) =>
+      handle[SubmitHashRateRequest, SubmitHashRateResponse](ethService.submitHashRate, req)
+    case req @ JsonRpcRequest(_, "eth_getWork", _, _) =>
+      handle[GetWorkRequest, GetWorkResponse](ethService.getWork, req)
+    case req @ JsonRpcRequest(_, "eth_submitWork", _, _) =>
+      handle[SubmitWorkRequest, SubmitWorkResponse](ethService.submitWork, req)
     case req @ JsonRpcRequest(_, "eth_blockNumber", _, _) =>
       handle[BestBlockNumberRequest, BestBlockNumberResponse](ethService.bestBlockNumber, req)
     case req @ JsonRpcRequest(_, "eth_getBlockTransactionCountByHash", _, _) =>

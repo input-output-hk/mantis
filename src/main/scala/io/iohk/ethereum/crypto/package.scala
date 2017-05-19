@@ -80,4 +80,9 @@ package object crypto {
 
   def sha256(input: ByteString): ByteString =
     ByteString(sha256(input.toArray))
+
+  def getKeyPair(prvKey: BigInt): AsymmetricCipherKeyPair = {
+    val publicKey = curve.getG.multiply(prvKey.bigInteger).normalize()
+    new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(prvKey.bigInteger, curve))
+  }
 }
