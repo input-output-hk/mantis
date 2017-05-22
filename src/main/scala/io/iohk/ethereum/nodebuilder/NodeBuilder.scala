@@ -8,9 +8,10 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
-import io.iohk.ethereum.jsonrpc.{EthService, JsonRpcController, NetService, Web3Service}
+import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
@@ -131,10 +132,20 @@ trait EthServiceBuilder {
   lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage, pendingTransactionsManager)
 }
 
-trait JSONRpcControllerBuilder {
-  this: Web3ServiceBuilder with EthServiceBuilder with NetServiceBuilder =>
+trait PersonalServiceBuilder {
+  self: KeyStoreBuilder =>
 
-  lazy val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, Config.Network.Rpc)
+  lazy val personalService = new PersonalService(keyStore)
+}
+
+trait KeyStoreBuilder {
+  lazy val keyStore: KeyStore = new KeyStoreImpl(Config.keyStoreDir)
+}
+
+trait JSONRpcControllerBuilder {
+  this: Web3ServiceBuilder with EthServiceBuilder with NetServiceBuilder with PersonalServiceBuilder =>
+
+  lazy val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, Config.Network.Rpc)
 }
 
 trait JSONRpcHttpServerBuilder {
@@ -222,6 +233,8 @@ trait Node extends NodeKeyBuilder
   with Web3ServiceBuilder
   with EthServiceBuilder
   with NetServiceBuilder
+  with PersonalServiceBuilder
+  with KeyStoreBuilder
   with BlockGeneratorBuilder
   with ValidatorsBuilder
   with LedgerBuilder

@@ -2,15 +2,13 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
-import io.circe.Json.JString
-import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.{DefaultPatience, Fixtures}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Block, BlockchainImpl}
-import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionResponse, SyncingResponse}
+import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
-import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
+import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Config
 import org.json4s.{DefaultFormats, Extraction, Formats}
@@ -23,10 +21,10 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
-class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures {
+class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience {
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer
@@ -49,7 +47,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures {
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
-    response.error shouldBe Some(JsonRpcErrors.InvalidParams.copy(message = "Data 'asdasd' should have 0x prefix"))
+    response.error shouldBe Some(JsonRpcErrors.InvalidParams("Data 'asdasd' should have 0x prefix"))
   }
 
   it should "handle clientVersion request" in new TestSetup {
@@ -64,7 +62,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures {
   }
 
   it should "Handle net_peerCount request" in new TestSetup {
-    (netService.peerCount _).expects(*).returning(Future.successful(PeerCountResponse(123)))
+    (netService.peerCount _).expects(*).returning(Future.successful(Right(PeerCountResponse(123))))
 
     val rpcRequest = JsonRpcRequest("2.0", "net_peerCount", None, Some(1))
 
@@ -74,7 +72,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures {
   }
 
   it should "Handle net_listening request" in new TestSetup {
-    (netService.listening _).expects(*).returning(Future.successful(ListeningResponse(false)))
+    (netService.listening _).expects(*).returning(Future.successful(Right(ListeningResponse(false))))
 
     val rpcRequest = JsonRpcRequest("2.0", "net_listening", None, Some(1))
 
@@ -84,7 +82,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures {
   }
 
   it should "Handle net_version request" in new TestSetup {
-    (netService.version _).expects(*).returning(Future.successful(VersionResponse("99")))
+    (netService.version _).expects(*).returning(Future.successful(Right(VersionResponse("99"))))
 
     val rpcRequest = JsonRpcRequest("2.0", "net_version", None, Some(1))
 
@@ -250,6 +248,57 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures {
     response.result shouldBe Some(expectedTxResponse)
   }
 
+  it should "personal_importRawKey" in new TestSetup {
+    val key = "7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"
+    val addr = "0x00000000000000000000000000000000000000ff"
+    val pass = "aaa"
+
+    (personalService.importRawKey _).expects(ImportRawKeyRequest(key, pass))
+      .returning(Future.successful(Right(ImportRawKeyResponse(addr))))
+
+    val params = JArray(JString(key) :: JString(pass) :: Nil)
+    val rpcRequest = JsonRpcRequest("2.0", "personal_importRawKey", Some(params), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString(addr))
+  }
+
+  it should "personal_newAccount" in new TestSetup {
+    val addr = "0x00000000000000000000000000000000000000ff"
+    val pass = "aaa"
+
+    (personalService.newAccount _).expects(NewAccountRequest(pass))
+      .returning(Future.successful(Right(NewAccountResponse(addr))))
+
+    val params = JArray(JString(pass) :: Nil)
+    val rpcRequest = JsonRpcRequest("2.0", "personal_newAccount", Some(params), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString(addr))
+  }
+
+  it should "personal_listAccounts" in new TestSetup {
+    val addresses = List(34, 12391, 123).map(i => Address(i).toString)
+    val pass = "aaa"
+
+    (personalService.listAccounts _).expects(ListAccountsRequest())
+      .returning(Future.successful(Right(ListAccountsResponse(addresses))))
+
+    val rpcRequest = JsonRpcRequest("2.0", "personal_listAccounts", None, Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JArray(addresses.map(JString)))
+  }
+
   trait TestSetup extends MockFactory {
     def config: JsonRpcConfig = Config.Network.Rpc
 
@@ -263,7 +312,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures {
     val web3Service = new Web3Service
     val ethService = new EthService(blockchain, blockGenerator, appStateStorage, pendingTransactionsManager.ref)
     val netService = mock[NetService]
-    val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, config)
+    val personalService = mock[PersonalService]
+    val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
   }
 
 }

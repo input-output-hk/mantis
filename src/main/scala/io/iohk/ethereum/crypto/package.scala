@@ -45,6 +45,27 @@ package object crypto {
     generator.generateKeyPair()
   }
 
+  /** @return (privateKey, publicKey) pair */
+  def keyPairToByteArrays(keyPair: AsymmetricCipherKeyPair): (Array[Byte], Array[Byte]) = {
+    val prvKey = keyPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD.toByteArray
+    val pubKey = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
+    (prvKey, pubKey)
+  }
+
+  def keyPairFromPrvKey(prvKeyBytes: Array[Byte]): AsymmetricCipherKeyPair = {
+    val privateKey = BigInt(1, prvKeyBytes)
+    keyPairFromPrvKey(privateKey)
+  }
+
+  def keyPairFromPrvKey(prvKey: BigInt): AsymmetricCipherKeyPair = {
+    val publicKey = curve.getG.multiply(prvKey.bigInteger).normalize()
+    new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(prvKey.bigInteger, curve))
+  }
+
+  def pubKeyFromPrvKey(prvKey: Array[Byte]): Array[Byte] = {
+    keyPairToByteArrays(keyPairFromPrvKey(prvKey))._2
+  }
+
   def ripemd160(input: Array[Byte]): Array[Byte] = {
     val digest = new RIPEMD160Digest
     digest.update(input, 0, input.length)
@@ -62,8 +83,4 @@ package object crypto {
   def sha256(input: ByteString): ByteString =
     ByteString(sha256(input.toArray))
 
-  def getKeyPair(prvKey: BigInt): AsymmetricCipherKeyPair = {
-    val publicKey = curve.getG.multiply(prvKey.bigInteger).normalize()
-    new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(prvKey.bigInteger, curve))
-  }
 }

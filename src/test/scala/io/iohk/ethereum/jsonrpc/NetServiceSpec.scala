@@ -28,15 +28,15 @@ class NetServiceSpec extends FlatSpec with Matchers with MockFactory {
       Peer(new InetSocketAddress(2), testRef) -> PeerActor.Status.Handshaked(mock[Status], true, 0),
       Peer(new InetSocketAddress(3), testRef) -> PeerActor.Status.Connecting)))
 
-    Await.result(resF, 3.seconds) shouldBe PeerCountResponse(2)
+    Await.result(resF, 3.seconds) shouldBe Right(PeerCountResponse(2))
   }
 
   it should "return listening response" in new TestSetup {
-    Await.result(netService.listening(ListeningRequest()), 3.seconds) shouldBe ListeningResponse(true)
+    Await.result(netService.listening(ListeningRequest()), 3.seconds) shouldBe Right(ListeningResponse(true))
   }
 
   it should "return version response" in new TestSetup {
-    Await.result(netService.version(VersionRequest()), 3.seconds) shouldBe VersionResponse("1")
+    Await.result(netService.version(VersionRequest()), 3.seconds) shouldBe Right(VersionResponse("1"))
   }
 
   trait TestSetup {
