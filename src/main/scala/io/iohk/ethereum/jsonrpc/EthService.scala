@@ -168,7 +168,7 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
   def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
     val signedTransaction = rlp.decode[SignedTransaction](req.data.toArray[Byte])
-    pendingTransactionsManager ! PendingTransactionsManager.BroadcastTransaction(signedTransaction)
+    pendingTransactionsManager ! PendingTransactionsManager.AddTransaction(signedTransaction)
     Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
   }
 

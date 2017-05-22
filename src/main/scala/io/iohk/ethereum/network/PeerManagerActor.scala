@@ -77,9 +77,6 @@ class PeerManagerActor(
 
     case Terminated(ref) =>
       peers -= PeerId(ref.path.name)
-
-    case bm @ BroadcastMessage(message) =>
-      peers.values.foreach(_.ref ! PeerActor.SendMessage(message)(bm.enc))
   }
 
   def tryingToConnect: Receive = handleCommonMessages orElse {
@@ -221,6 +218,4 @@ object PeerManagerActor {
   }
 
   private case object ScanBootstrapNodes
-
-  case class BroadcastMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
 }
