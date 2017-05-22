@@ -3,24 +3,21 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.{DefaultPatience, Fixtures, crypto}
-import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.{Fixtures, crypto}
+import io.iohk.ethereum.{DefaultPatience, Fixtures}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, _}
+import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
+import org.spongycastle.util.encoders.Hex
 
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
-import scala.concurrent.Await
-import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
-import io.iohk.ethereum.mining.BlockGenerator
-import org.scalamock.scalatest.MockFactory
-import org.spongycastle.util.encoders.Hex
 
 class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockFactory with DefaultPatience {
 
@@ -220,6 +217,30 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val response = ethService.getWork(GetWorkRequest())
 
     response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
+  }
+
+  it should "accept submitted correct PoW" in new TestSetup {
+    val headerHash = ByteString(Hex.decode("01" * 32))
+
+    (blockGenerator.getPrepared _).expects(headerHash).returning(Some(block))
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+
+    val req = SubmitWorkRequest(ByteString("nonce"), headerHash, ByteString(Hex.decode("01" * 32)))
+
+    val response = ethService.submitWork(req)
+    response.futureValue shouldEqual Right(SubmitWorkResponse(true))
+  }
+
+  it should "reject submitted correct PoW when header is no longer in cache" in new TestSetup {
+    val headerHash = ByteString(Hex.decode("01" * 32))
+
+    (blockGenerator.getPrepared _).expects(headerHash).returning(None)
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+
+    val req = SubmitWorkRequest(ByteString("nonce"), headerHash, ByteString(Hex.decode("01" * 32)))
+
+    val response = ethService.submitWork(req)
+    response.futureValue shouldEqual Right(SubmitWorkResponse(false))
   }
 
   trait TestSetup extends MockFactory {
