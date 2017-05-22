@@ -25,26 +25,28 @@ object NetService {
 class NetService(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) {
   import NetService._
 
-  def version(req: VersionRequest): Future[VersionResponse] = {
-    Future.successful(VersionResponse(Config.Network.protocolVersion))
+  def version(req: VersionRequest): ServiceResponse[VersionResponse] = {
+    Future.successful(Right(VersionResponse(Config.Network.protocolVersion)))
   }
 
-  def listening(req: ListeningRequest): Future[ListeningResponse] = {
+  def listening(req: ListeningRequest): ServiceResponse[ListeningResponse] = {
     Future.successful {
-      nodeStatusHolder().serverStatus match {
-        case _: Listening => ListeningResponse(true)
-        case NotListening => ListeningResponse(false)
-      }
+      Right(
+        nodeStatusHolder().serverStatus match {
+          case _: Listening => ListeningResponse(true)
+          case NotListening => ListeningResponse(false)
+        }
+      )
     }
   }
 
-  def peerCount(req: PeerCountRequest): Future[PeerCountResponse] = {
+  def peerCount(req: PeerCountRequest): ServiceResponse[PeerCountResponse] = {
     import akka.pattern.ask
     implicit val timeout = Timeout(2.seconds)
 
     (peerManager ? PeerManagerActor.GetPeers)
       .mapTo[PeerManagerActor.Peers]
-      .map { peers => PeerCountResponse(peers.handshaked.size) }
+      .map { peers => Right(PeerCountResponse(peers.handshaked.size)) }
   }
 
 }

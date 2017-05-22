@@ -28,7 +28,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
           .flatMap(h => tryExtractUnformattedData(id).map(i => (h, i)))
           .map { case (h, i) => SubmitHashRateRequest(h, i) }
       case _ =>
-        Left(InvalidParams)
+        Left(InvalidParams())
     }
 
     override def encodeJson(t: SubmitHashRateResponse): JValue = JBool(t.success)
@@ -37,7 +37,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_getWork = new JsonDecoder[GetWorkRequest] with JsonEncoder[GetWorkResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetWorkRequest] = params match {
       case None | Some(JArray(Nil)) => Right(GetWorkRequest())
-      case Some(_) => Left(InvalidParams)
+      case Some(_) => Left(InvalidParams())
     }
 
     override def encodeJson(t: GetWorkResponse): JsonAST.JValue ={
@@ -56,7 +56,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
           .flatMap { case (n, p) => tryExtractUnformattedData(mixHash).map(m => (n, p, m)) }
           .map { case (n, p, m) => SubmitWorkRequest(n, p, m) }
       case _ =>
-        Left(InvalidParams)
+        Left(InvalidParams())
     }
 
     override def encodeJson(t: SubmitWorkResponse): JValue = JBool(t.success)
@@ -67,7 +67,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       params match {
         case Some(JArray((input: JString) :: Nil)) =>
           tryExtractUnformattedData(input).map(TxCountByBlockHashRequest)
-        case _ => Left(InvalidParams)
+        case _ => Left(InvalidParams())
       }
 
     override def encodeJson(t: TxCountByBlockHashResponse): JValue =
@@ -79,7 +79,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       params match {
         case Some(JArray((blockHash: JString) :: JBool(txHashed) :: Nil)) =>
           tryExtractUnformattedData(blockHash).map(BlockByBlockHashRequest(_, txHashed))
-        case _ => Left(InvalidParams)
+        case _ => Left(InvalidParams())
       }
     }
 
@@ -95,7 +95,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
             parsedBlockHash <- tryExtractUnformattedData(blockHash)
             parsedTransactionIndex <- tryExtractQuantity(transactionIndex)
           } yield GetTransactionByBlockHashAndIndexRequest(parsedBlockHash, parsedTransactionIndex)
-        case _ => Left(InvalidParams)
+        case _ => Left(InvalidParams())
       }
 
       override def encodeJson(t: GetTransactionByBlockHashAndIndexResponse): JValue =
@@ -110,7 +110,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
             hash <- tryExtractUnformattedData(blockHash)
             uncleBlockIndex <- tryExtractQuantity(uncleIndex)
           } yield UncleByBlockHashAndIndexRequest(hash, uncleBlockIndex)
-        case _ => Left(InvalidParams)
+        case _ => Left(InvalidParams())
       }
 
     override def encodeJson(t: UncleByBlockHashAndIndexResponse): JValue = {
