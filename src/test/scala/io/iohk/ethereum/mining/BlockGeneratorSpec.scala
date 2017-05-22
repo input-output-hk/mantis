@@ -31,7 +31,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val fulBlock: Either[BlockPreparationError, Block] = result.right
       .map(b => b.copy(header = b.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fulBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
-    fulBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe Right(()))
+    fulBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
 
   "BlockGenerator" should "generate correct block with transactions" in new Envirnoment {
@@ -46,14 +46,14 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val fulBlock: Either[BlockPreparationError, Block] = result.right
       .map(b => b.copy(header = b.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fulBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
-    fulBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe Right(()))
+    fulBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
 
   trait Envirnoment {
 
     val testAddress = 42
     val privateKey = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
-    val keyPair: AsymmetricCipherKeyPair = getKeyPair(privateKey)
+    val keyPair: AsymmetricCipherKeyPair = keyPairFromPrvKey(privateKey)
     val pubKey: Array[Byte] = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
     val address = Address(crypto.kec256(pubKey).drop(FirstByteOfAddress))
 
