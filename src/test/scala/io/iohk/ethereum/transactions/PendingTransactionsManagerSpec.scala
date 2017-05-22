@@ -18,7 +18,7 @@ import scala.concurrent.duration._
 
 class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFutures {
 
-  implicit val timeout = Timeout(2.seconds)
+  implicit val timeout = Timeout(10.seconds)
 
   "PendingTransactionsManager" should "store pending transactions received from peers" in new TestSetup {
     val msg = SignedTransactions(Seq.fill(10)(newStx()))
