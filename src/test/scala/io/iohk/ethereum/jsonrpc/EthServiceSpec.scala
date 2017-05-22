@@ -260,7 +260,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     )
     val mixHash = ByteString(Hex.decode("40d9bd2064406d7f22390766d6fe5eccd2a67aa89bf218e99df35b2dbb425fb1"))
     val nonce = ByteString(Hex.decode("ce1b500070aeec4f"))
-    val seedHash = ByteString(crypto.kec256(Hex.decode("00" * 32)))
+    val seedHash = ByteString(Hex.decode("00" * 32))
     val powHash = ByteString(Hex.decode("f5877d30b85d6cd0f80d2c4711e3cfb7d386e331f801f903d9ca52fc5e8f7cc2"))
     val target = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
   }

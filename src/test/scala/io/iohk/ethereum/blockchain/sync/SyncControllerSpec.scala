@@ -212,7 +212,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peer.expectMsgAllOf(10.seconds,
       PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
-      PeerActor.Subscribe(Set(BlockHeaders.code)))
+      PeerActor.Subscribe(Set(BlockHeaders.code)),
+      PeerActor.BroadcastBlocks(Seq(NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty))))
 
     blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(newBlockHeader, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(newBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + newBlockHeader.difficulty)
@@ -276,7 +277,12 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     //start next download cycle
 
-    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    peer.expectMsgAllOf(
+      PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
+      PeerActor.BroadcastBlocks(Seq(
+        NewBlock(Block(newBlockHeaderParent, BlockBody(Nil, Nil)), commonRootTotalDifficulty + newBlockDifficulty),
+        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), commonRootTotalDifficulty + 2 * newBlockDifficulty)
+      )))
     peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(nextNewBlockHeader))))
     peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(nextNewBlockHeader.hash))))
