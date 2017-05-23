@@ -23,7 +23,6 @@ class SyncController(
     val fastSyncStateStorage: FastSyncStateStorage,
     val ledger: Ledger,
     val validators: Validators,
-    val peerMessageBus: ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor
     with ActorLogging
@@ -112,10 +111,9 @@ object SyncController {
             blockchainStorages: BlockchainStorages,
             syncStateStorage: FastSyncStateStorage,
             ledger: Ledger,
-            validators: Validators,
-            peerMessageBus: ActorRef):
+            validators: Validators):
   Props = Props(new SyncController(peerManager, appStateStorage, blockchain, blockchainStorages,
-    syncStateStorage, ledger, validators, peerMessageBus))
+    syncStateStorage, ledger, validators))
 
   case class BlockHeadersToResolve(peer: Peer, headers: Seq[BlockHeader])
 

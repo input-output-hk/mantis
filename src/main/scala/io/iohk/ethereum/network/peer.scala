@@ -4,7 +4,8 @@ import java.net.InetSocketAddress
 
 import akka.actor.ActorRef
 import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
-import io.iohk.ethereum.network.PeerEventBusActor.{Subscribe, SubscriptionClassifier, Unsubscribe}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, SubscriptionClassifier, Unsubscribe}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPEncoder
 
@@ -37,6 +38,9 @@ trait Peer {
     */
   def disconnectFromPeer(reason: Int): Unit
 
+  def subscribeToSetOfMsgs(msgs: Set[Int])(implicit subscriber: ActorRef): Unit
+  def unsubscribeFromSetOfMsgs(msgs: Set[Int])(implicit subscriber: ActorRef): Unit
+
   /**
     * Subscribes the actor sender to the event of the peer disconnecting.
     * The subscriber will receive a [[io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected]] when the
@@ -66,6 +70,12 @@ case class PeerImpl(remoteAddress: InetSocketAddress, ref: ActorRef, peerEventBu
 
   override def disconnectFromPeer(reason: Int): Unit =
     ref ! DisconnectPeer(reason)
+
+  override def subscribeToSetOfMsgs(msgsCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
+    peerEventBusActor.tell(Subscribe(MessageClassifier(msgsCodes, PeerSelector.WithId(id))), subscriber)
+
+  override def unsubscribeFromSetOfMsgs(msgsCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
+    peerEventBusActor.tell(Unsubscribe(MessageClassifier(msgsCodes, PeerSelector.WithId(id))), subscriber)
 
   override def subscribeToDisconnect()(implicit subscriber: ActorRef): Unit =
     peerEventBusActor.tell(Subscribe(SubscriptionClassifier.PeerDisconnection(id)), subscriber)

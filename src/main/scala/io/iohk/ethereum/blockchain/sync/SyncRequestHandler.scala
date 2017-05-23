@@ -12,8 +12,7 @@ import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.Config.FastSync._
 
 abstract class SyncRequestHandler[RequestMsg <: Message : RLPEncoder,
-                                  ResponseMsg <: Message : ClassTag](peer: Peer, peerMessageBus: ActorRef)
-                                                                    (implicit scheduler: Scheduler)
+                                  ResponseMsg <: Message : ClassTag](peer: Peer)(implicit scheduler: Scheduler)
   extends Actor with ActorLogging {
 
   import SyncRequestHandler._
@@ -31,14 +30,12 @@ abstract class SyncRequestHandler[RequestMsg <: Message : RLPEncoder,
 
   val startTime: Long = System.currentTimeMillis()
 
-  private def subscribeMessageClassifier = MessageClassifier(Set(responseMsgCode), PeerSelector.WithId(peer.id))
-
   def timeTakenSoFar(): Long = System.currentTimeMillis() - startTime
 
   override def preStart(): Unit = {
     peer.subscribeToDisconnect()
     peer.send(requestMsg)
-    peerMessageBus ! Subscribe(subscribeMessageClassifier)
+    peer.subscribeToSetOfMsgs(Set(responseMsgCode))
   }
 
   override def receive: Receive = {
@@ -55,7 +52,7 @@ abstract class SyncRequestHandler[RequestMsg <: Message : RLPEncoder,
   def cleanupAndStop(): Unit = {
     timeout.cancel()
     peer.unsubscribeFromDisconnect()
-    peerMessageBus ! Unsubscribe(subscribeMessageClassifier)
+    peer.unsubscribeFromSetOfMsgs(Set(responseMsgCode))
     syncController ! Done
     context stop self
   }

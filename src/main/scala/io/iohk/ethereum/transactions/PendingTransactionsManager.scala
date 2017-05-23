@@ -7,7 +7,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerManagerActor.Peers
-import io.iohk.ethereum.network.{Peer, PeerActor, PeerId, PeerManagerActor}
+import io.iohk.ethereum.network.{Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 
 import scala.concurrent.duration._

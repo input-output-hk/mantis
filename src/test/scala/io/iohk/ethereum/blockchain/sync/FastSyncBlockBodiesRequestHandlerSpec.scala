@@ -80,7 +80,6 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     val fastSyncBlockBodiesRequestHandler: ActorRef =
       parent.childActorOf(SyncBlockBodiesRequestHandler.props(
         peer,
-        peerEventBus.ref,
         requestedHashes)(time.scheduler))
   }
 

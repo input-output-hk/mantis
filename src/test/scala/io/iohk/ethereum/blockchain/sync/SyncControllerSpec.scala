@@ -606,7 +606,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       new Mocks.MockValidatorsAlwaysSucceed,
-      peerEventBus.ref,
       externalSchedulerOpt = Some(time.scheduler))))
 
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash

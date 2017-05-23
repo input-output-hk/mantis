@@ -67,7 +67,7 @@ trait RegularSync {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
         val request = GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
-        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerMessageBus, request, resolveBranches = false)))
+        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false)))
       case None =>
         log.warning("no peers to download from")
         scheduleResume()
@@ -101,10 +101,10 @@ trait RegularSync {
         //we have same chain
         if (parent.hash == headers.head.parentHash) {
           val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, hashes)))
+          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
         } else {
           val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
-          waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerMessageBus, request, resolveBranches = true)))
+          waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = true)))
         }
       case _ =>
         log.warning("got header that does not have parent")
@@ -135,7 +135,7 @@ trait RegularSync {
               headersQueue = headersQueue.drop(blocks.length)
               if (headersQueue.nonEmpty) {
                 val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, hashes)))
+                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
               } else {
                 context.self ! ResumeRegularSync
               }

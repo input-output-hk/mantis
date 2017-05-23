@@ -81,7 +81,6 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     val fastSyncReceiptsRequestHandler =
       parent.childActorOf(FastSyncReceiptsRequestHandler.props(
         peer,
-        peerEventBus.ref,
         requestedHashes,
         storagesInstance.storages.appStateStorage,
         blockchain)(time.scheduler))

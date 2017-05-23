@@ -184,8 +184,7 @@ trait SyncControllerBuilder {
     StorageBuilder with
     BlockchainConfigBuilder with
     ValidatorsBuilder with
-    LedgerBuilder with
-    PeerEventBusBuilder =>
+    LedgerBuilder =>
 
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
@@ -195,8 +194,7 @@ trait SyncControllerBuilder {
       storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
-      validators,
-      peerEventBus),
+      validators),
     "sync-controller")
 
 }
