@@ -56,10 +56,10 @@ trait BlockChainBuilder {
   lazy val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
 }
 
-trait PeerMessageBusBuilder {
+trait PeerEventBusBuilder {
   self: ActorSystemBuilder =>
 
-  lazy val peerMessageBus = actorSystem.actorOf(PeerMessageBusActor.props)
+  lazy val peerEventBus = actorSystem.actorOf(PeerEventBusActor.props)
 }
 
 trait PeerManagerActorBuilder {
@@ -69,7 +69,7 @@ trait PeerManagerActorBuilder {
     with StorageBuilder
     with BlockChainBuilder
     with BlockchainConfigBuilder
-    with PeerMessageBusBuilder =>
+    with PeerEventBusBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
@@ -79,7 +79,7 @@ trait PeerManagerActorBuilder {
     storagesInstance.storages.appStateStorage,
     blockchain,
     blockchainConfig,
-    peerMessageBus), "peer-manager")
+    peerEventBus), "peer-manager")
 
 }
 
@@ -109,9 +109,9 @@ trait NetServiceBuilder {
 trait PendingTransactionsManagerBuilder {
   self: ActorSystemBuilder
     with PeerManagerActorBuilder
-    with PeerMessageBusBuilder =>
+    with PeerEventBusBuilder =>
 
-  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(peerManager, peerMessageBus))
+  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(peerManager, peerEventBus))
 }
 
 trait BlockGeneratorBuilder {
@@ -185,7 +185,7 @@ trait SyncControllerBuilder {
     BlockchainConfigBuilder with
     ValidatorsBuilder with
     LedgerBuilder with
-    PeerMessageBusBuilder =>
+    PeerEventBusBuilder =>
 
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
@@ -196,7 +196,7 @@ trait SyncControllerBuilder {
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       validators,
-      peerMessageBus),
+      peerEventBus),
     "sync-controller")
 
 }
@@ -243,5 +243,5 @@ trait Node extends NodeKeyBuilder
   with ShutdownHookBuilder
   with GenesisDataLoaderBuilder
   with BlockchainConfigBuilder
-  with PeerMessageBusBuilder
+  with PeerEventBusBuilder
   with PendingTransactionsManagerBuilder

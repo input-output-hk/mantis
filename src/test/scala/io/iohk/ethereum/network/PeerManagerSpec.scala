@@ -19,7 +19,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
 
   "PeerManager" should "try to connect to bootstrap nodes on startup" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(
-      peerConfiguration, peerFactory, Some(time.scheduler))))(system)
+      peerConfiguration, peerEventBus.ref, peerFactory, Some(time.scheduler))))(system)
 
     time.advance(800) // wait for bootstrap nodes scan
 
@@ -39,7 +39,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
 
   it should "retry connections to remaining bootstrap nodes" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(
-      peerConfiguration, peerFactory, Some(time.scheduler))))(system)
+      peerConfiguration, peerEventBus.ref, peerFactory, Some(time.scheduler))))(system)
 
     time.advance(800)
 
@@ -76,7 +76,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
 
   it should "disconnect the worst handshaking peer when limit is reached" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(
-      peerConfiguration, peerFactory, Some(time.scheduler))))
+      peerConfiguration, peerEventBus.ref, peerFactory, Some(time.scheduler))))
 
     time.advance(800) // connect to 2 bootstrap peers
 
@@ -129,6 +129,8 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
     var createdPeers: Seq[TestProbe] = Nil
 
     val peerConfiguration = Config.Network.peer
+
+    val peerEventBus = TestProbe()
 
     val peerFactory: (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
       val peer = TestProbe()

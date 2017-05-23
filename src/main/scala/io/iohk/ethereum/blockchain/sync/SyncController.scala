@@ -9,8 +9,9 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.network.PeerActor.{Status => PeerStatus}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
+import io.iohk.ethereum.network.{Peer, PeerActor, PeerId, PeerManagerActor}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.validators.Validators
 
@@ -72,18 +73,18 @@ class SyncController(
     case peers: PeerManagerActor.Peers =>
       peers.peers.foreach {
         case (peer, _: PeerActor.Status.Handshaked) =>
-          if (!handshakedPeers.contains(peer)) context watch peer.ref
+          if (!handshakedPeers.contains(peer)) peer.subscribeToDisconnect()
 
         case (peer, _) if handshakedPeers.contains(peer) =>
-          removePeer(peer.ref)
+          removePeer(peer.id)
 
         case _ => // nothing
       }
 
       handshakedPeers = peers.handshaked
 
-    case Terminated(ref) if handshakedPeers.exists(_._1.ref == ref) =>
-      removePeer(ref)
+    case PeerDisconnected(peerId) if handshakedPeers.exists(_._1.id == peerId) =>
+      removePeer(peerId)
 
     case BlacklistPeer(ref, reason) =>
       blacklist(ref, blacklistDuration, reason)
@@ -92,10 +93,12 @@ class SyncController(
       undoBlacklist(ref)
   }
 
-  def removePeer(peerRef: ActorRef): Unit = {
-    context.unwatch(peerRef)
-    handshakedPeers.find(_._1.ref == peerRef).foreach { case (peer, _) => undoBlacklist(peer.id) }
-    handshakedPeers = handshakedPeers.filterNot(_._1.ref == peerRef)
+  def removePeer(peerId: PeerId): Unit = {
+    handshakedPeers.find(_._1.id == peerId).foreach { case (handshakedPeer, _) =>
+      handshakedPeer.unsubscribeFromDisconnect()
+      undoBlacklist(handshakedPeer.id)
+    }
+    handshakedPeers = handshakedPeers.filterNot(_._1.id == peerId)
   }
 
   def peersToDownloadFrom: Map[Peer, PeerStatus.Handshaked] =

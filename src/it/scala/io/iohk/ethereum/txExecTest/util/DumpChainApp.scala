@@ -8,7 +8,7 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, _}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.p2p.messages.{PV62, PV63}
-import io.iohk.ethereum.network.{PeerManagerActor, PeerMessageBusActor, loadAsymmetricCipherKeyPair}
+import io.iohk.ethereum.network.{PeerManagerActor, PeerEventBusActor, loadAsymmetricCipherKeyPair}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 
@@ -50,7 +50,7 @@ object DumpChainApp extends App{
 
     lazy val nodeStatusHolder = Agent(nodeStatus)
 
-    val peerMessageBus = actorSystem.actorOf(PeerMessageBusActor.props)
+    val peerMessageBus = actorSystem.actorOf(PeerEventBusActor.props)
 
     val peerManager = actorSystem.actorOf(PeerManagerActor.props(
       nodeStatusHolder = nodeStatusHolder,

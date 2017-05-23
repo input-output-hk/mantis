@@ -5,9 +5,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.{Peer, PeerActor}
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerMessageBusActor._
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.utils.Config.FastSync._
 
@@ -40,7 +42,7 @@ trait FastSync {
     if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
       peersUsedToChooseTarget.foreach { case (peer, Handshaked(status, _, _)) =>
         peerMessageBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
-        peer.ref ! PeerActor.SendMessage(GetBlockHeaders(Right(status.bestHash), 1, 0, reverse = false))
+        peer.send(GetBlockHeaders(Right(status.bestHash), 1, 0, reverse = false))
       }
       log.info("Asking {} peers for block headers", peersUsedToChooseTarget.size)
       val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, BlockHeadersTimeout)
@@ -53,8 +55,8 @@ trait FastSync {
   }
 
   private def waitingForBlockHeaders(waitingFor: Set[Peer],
-                             received: Map[Peer, BlockHeader],
-                             timeout: Cancellable): Receive = handlePeerUpdates orElse {
+                                     received: Map[Peer, BlockHeader],
+                                     timeout: Cancellable): Receive = handlePeerUpdates orElse {
     case MessageFromPeer(BlockHeaders(Seq(blockHeader)), peerId) =>
       peerMessageBus ! Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peerId)))
 
@@ -99,7 +101,7 @@ trait FastSync {
         log.info("Starting fast sync. Asking peer {} for target block header ({})", mostUpToDatePeer.id, targetBlock)
 
         peerMessageBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(mostUpToDatePeer.id)))
-        mostUpToDatePeer.ref ! PeerActor.SendMessage(GetBlockHeaders(Left(targetBlock), 1, 0, reverse = false))
+        mostUpToDatePeer.send(GetBlockHeaders(Left(targetBlock), 1, 0, reverse = false))
         val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
         context become waitingForTargetBlock(mostUpToDatePeer, targetBlock, timeout)
       }

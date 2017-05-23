@@ -17,7 +17,8 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
-import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerMessageBusActor}
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
+import io.iohk.ethereum.network.{EtcMessageHandler, ForkResolver, Peer, PeerActor, PeerEventBusActor}
 import io.iohk.ethereum.network.PeerActor.{GetMaxBlockNumber, MaxBlockNumber}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
@@ -64,13 +65,15 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val time = new VirtualTime
 
-    val peerMessageBus = system.actorOf(PeerMessageBusActor.props)
+    val peerMessageBus = system.actorOf(PeerEventBusActor.props)
     var rlpxConnection = TestProbe() // var as we actually need new instances
-    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder, _ => {
+    val peer = TestActorRef(Props(new PeerActor(
+      defaultAddr, nodeStatusHolder, _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
       }, peerConf, storagesInstance.storages.appStateStorage, blockchain, peerMessageBus, Some(time.scheduler),
-        Some(new ForkResolver.EtcForkResolver(blockchainConfig)))))
+        Some(forkResolver),
+        messageHandlerBuilder)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -685,6 +688,12 @@ class PeerActorSpec extends FlatSpec with Matchers {
       override val networkId: Int = 1
     }
 
+    val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig)
+
+    val messageHandlerBuilder: (EtcPeerInfo, Peer) => EtcMessageHandler = (initialPeerInfo, peer) =>
+      EtcMessageHandler(peer, initialPeerInfo, Some(forkResolver), storagesInstance.storages.appStateStorage, peerConf, blockchain)
+
+    val defaultAddr = new InetSocketAddress("", 8545)
   }
 
   trait TestSetup extends NodeStatusSetup with BlockUtils {
@@ -725,16 +734,19 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val time = new VirtualTime
 
-    val peerMessageBus = system.actorOf(PeerMessageBusActor.props)
+    val peerMessageBus = system.actorOf(PeerEventBusActor.props)
 
-    val peer = TestActorRef(Props(new PeerActor(nodeStatusHolder,
+    val peer = TestActorRef(Props(new PeerActor(
+      defaultAddr,
+      nodeStatusHolder,
       _ => rlpxConnection.ref,
       peerConf,
       storagesInstance.storages.appStateStorage,
       blockchain,
       peerMessageBus,
       Some(time.scheduler),
-      Some(new ForkResolver.EtcForkResolver(blockchainConfig)))))
+      forkResolverOpt = Some(forkResolver),
+      messageHandlerBuilder = messageHandlerBuilder)))
   }
 
 }

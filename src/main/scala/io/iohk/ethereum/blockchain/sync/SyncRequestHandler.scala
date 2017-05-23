@@ -3,8 +3,10 @@ package io.iohk.ethereum.blockchain.sync
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.reflect.ClassTag
 import akka.actor._
-import io.iohk.ethereum.network.PeerMessageBusActor._
-import io.iohk.ethereum.network.{Peer, PeerActor}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor._
+import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.Config.FastSync._
@@ -34,8 +36,8 @@ abstract class SyncRequestHandler[RequestMsg <: Message : RLPEncoder,
   def timeTakenSoFar(): Long = System.currentTimeMillis() - startTime
 
   override def preStart(): Unit = {
-    context watch peer.ref
-    peer.ref ! PeerActor.SendMessage(requestMsg)
+    peer.subscribeToDisconnect()
+    peer.send(requestMsg)
     peerMessageBus ! Subscribe(subscribeMessageClassifier)
   }
 
@@ -46,13 +48,13 @@ abstract class SyncRequestHandler[RequestMsg <: Message : RLPEncoder,
     case Timeout =>
       handleTimeout()
 
-    case Terminated(ref) if ref == peer.ref =>
+    case PeerDisconnected(peerId) if peerId == peer.id =>
       handleTerminated()
   }
 
   def cleanupAndStop(): Unit = {
     timeout.cancel()
-    context unwatch peer.ref
+    peer.unsubscribeFromDisconnect()
     peerMessageBus ! Unsubscribe(subscribeMessageClassifier)
     syncController ! Done
     context stop self

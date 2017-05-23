@@ -16,14 +16,15 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
 import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.rlp.RLPEncoder
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish}
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 import scala.util.{Failure, Success}
 
 class PeerManagerActor(
     peerConfiguration: PeerConfiguration,
+    peerEventBus: ActorRef,
     peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None,
     bootstrapNodes: Set[String] = Config.Network.Discovery.bootstrapNodes)
@@ -33,7 +34,7 @@ class PeerManagerActor(
   import PeerManagerActor._
   import Config.Network.Discovery._
 
-  var peers: Map[PeerId, Peer] = Map.empty
+  var peers: Map[PeerId, PeerImpl] = Map.empty
 
   private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
@@ -76,7 +77,10 @@ class PeerManagerActor(
       getPeers().pipeTo(sender())
 
     case Terminated(ref) =>
-      peers -= PeerId(ref.path.name)
+      val peerId = PeerId(ref.path.name)
+      peers -= peerId
+      peerEventBus ! Publish(PeerEvent.PeerDisconnected(peerId))
+
   }
 
   def tryingToConnect: Receive = handleCommonMessages orElse {
@@ -109,10 +113,10 @@ class PeerManagerActor(
       unstashAll()
   }
 
-  def createPeer(addr: InetSocketAddress): Peer = {
+  def createPeer(addr: InetSocketAddress): PeerImpl = {
     val ref = peerFactory(context, addr)
     context watch ref
-    val peer = Peer(addr, ref)
+    val peer = PeerImpl(addr, ref, peerEventBus)
     peers += peer.id -> peer
     peer
   }
@@ -146,7 +150,7 @@ class PeerManagerActor(
           case _ => 2
         }.take(numPeersToDisconnect)
 
-        peersToDisconnect.foreach { case (p, _) => p.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers) }
+        peersToDisconnect.foreach { case (p, _) => p.disconnectFromPeer(Disconnect.Reasons.TooManyPeers) }
         Future.successful(())
       }
     }
@@ -161,7 +165,7 @@ object PeerManagerActor {
             blockchain: Blockchain,
             blockchainConfig: BlockchainConfig,
             peerMessageBus: ActorRef): Props =
-    Props(new PeerManagerActor(peerConfiguration,
+    Props(new PeerManagerActor(peerConfiguration, peerMessageBus,
       peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, blockchainConfig, peerMessageBus)))
 
   def props(nodeStatusHolder: Agent[NodeStatus],
@@ -171,7 +175,7 @@ object PeerManagerActor {
     blockchainConfig: BlockchainConfig,
     bootstrapNodes: Set[String],
     peerMessageBus: ActorRef): Props =
-    Props(new PeerManagerActor(peerConfiguration,
+    Props(new PeerManagerActor(peerConfiguration, peerMessageBus,
       peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain,
         blockchainConfig, peerMessageBus), bootstrapNodes = bootstrapNodes))
 
@@ -186,7 +190,11 @@ object PeerManagerActor {
       val forkResolverOpt =
         if (blockchainConfig.customGenesisFileOpt.isDefined) None
         else Some(new ForkResolver.EtcForkResolver(blockchainConfig))
-      ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, peerMessageBus, forkResolverOpt), id)
+      val messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo] =
+        (initialPeerInfo, peer) =>
+          EtcMessageHandler(peer, initialPeerInfo, forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
+      ctx.actorOf(PeerActor.props(addr, nodeStatusHolder,
+        peerConfiguration, appStateStorage, blockchain, peerMessageBus, forkResolverOpt, messageHandlerBuilder), id)
   }
 
   trait PeerConfiguration {
