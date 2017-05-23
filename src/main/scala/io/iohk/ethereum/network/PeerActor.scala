@@ -2,7 +2,7 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
-import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.PeerManagerActor.{Peer, PeerConfiguration}
 
 import scala.concurrent.duration._
 import akka.actor._
@@ -11,7 +11,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, _}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
@@ -19,6 +18,10 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
+import io.iohk.ethereum.network.MessageHandler.MessageAction.TransmitMessage
+import io.iohk.ethereum.network.MessageHandler.MessageHandlingResult
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 /**
@@ -28,15 +31,18 @@ import org.spongycastle.crypto.AsymmetricCipherKeyPair
   * and `Status` exchange).
   * Once that's done it can send/receive messages with peer (HandshakedHandler.receive).
   */
+//FIXME: MessageHandler type should be configurable, this is dependant on PR 185
 class PeerActor(
+    peerAddress: InetSocketAddress,
     nodeStatusHolder: Agent[NodeStatus],
     rlpxConnectionFactory: ActorContext => ActorRef,
     val peerConfiguration: PeerConfiguration,
     appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
     externalSchedulerOpt: Option[Scheduler] = None,
-    forkResolverOpt: Option[ForkResolver])
-  extends Actor with ActorLogging with BlockchainHost with Stash {
+    forkResolverOpt: Option[ForkResolver],
+    messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo])
+  extends Actor with ActorLogging with Stash {
 
   import PeerActor._
   import context.{dispatcher, system}
@@ -46,6 +52,7 @@ class PeerActor(
   val P2pVersion = 4
 
   val peerId: String = self.path.name
+  val peer: Peer = Peer(peerAddress, self)
 
   private var messageSubscribers: Seq[Subscriber] = Nil
 
@@ -183,7 +190,7 @@ class PeerActor(
                            forkResolver: ForkResolver): Receive =
     handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
     handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse
-    handleBlockFastDownload(rlpxConnection) orElse stashMessages orElse {
+    handlePeerChainCheck(rlpxConnection, forkResolver) orElse stashMessages orElse {
 
     case RLPxConnectionHandler.MessageReceived(msg @ BlockHeaders(blockHeaders)) =>
       timeout.cancel()
@@ -214,8 +221,11 @@ class PeerActor(
     case GetStatus => sender() ! StatusResponse(Handshaking(0))
   }
 
-  private def startMessageHandler(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, currentMaxBlockNumber: BigInt, forkAccepted: Boolean): Unit = {
-    context become new MessageHandler(rlpxConnection, remoteStatus, currentMaxBlockNumber, forkAccepted).receive
+  private def startMessageHandler(rlpxConnection: RLPxConnection, remoteStatus: msg.Status,
+                                  currentMaxBlockNumber: BigInt, forkAccepted: Boolean): Unit = {
+    val peerInfo = EtcPeerInfo(remoteStatus, remoteStatus.totalDifficulty, forkAccepted, currentMaxBlockNumber)
+    val messageHandler = messageHandlerBuilder(peerInfo, peer)
+    context become new HandshakedPeer(rlpxConnection, messageHandler).receive
     rlpxConnection.sendMessage(GetBlockHeaders(Right(remoteStatus.bestHash), 1, 0, false))
     unstashAll()
   }
@@ -268,16 +278,23 @@ class PeerActor(
       messageSubscribers = messageSubscribers.filterNot(_.ref == sender())
   }
 
+  //FIXME: As the peer chain check is part of the handshaker, it should be incorporated into the handshake
+  def handlePeerChainCheck(rlpxConnection: RLPxConnection, forkResolver: ForkResolver): Receive = {
+    case RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Left(number), numHeaders, _, _))
+      if number == forkResolver.forkBlockNumber && numHeaders == 1 =>
+      log.debug("Received request for fork block")
+      blockchain.getBlockHeaderByNumber(number) match {
+        case Some(header) => rlpxConnection.sendMessage(BlockHeaders(Seq(header)))
+        case None => rlpxConnection.sendMessage(BlockHeaders(Nil))
+      }
+  }
+
   def stashMessages: Receive = {
     case _: SendMessage[_] | _: DisconnectPeer => stash()
   }
 
-  class MessageHandler(rlpxConnection: RLPxConnection,
-                          initialStatus: msg.Status,
-                          var currentMaxBlockNumber: BigInt,
-                          var forkAccepted: Boolean) {
-
-    var totalDifficulty = initialStatus.totalDifficulty
+  class HandshakedPeer(rlpxConnection: RLPxConnection,
+                       messageHandler: MessageHandler[EtcPeerInfo, EtcPeerInfo]) {
 
     /**
       * main behavior of actor that handles peer communication and subscriptions for messages
@@ -285,64 +302,31 @@ class PeerActor(
     def receive: Receive =
       handleSubscriptions orElse
       handlePingMsg(rlpxConnection) orElse
-      handleBlockFastDownload(rlpxConnection) orElse
-      handleEvmMptFastDownload(rlpxConnection) orElse
-      handleTerminated(rlpxConnection) orElse {
+        handleDisconnectMsg orElse
+        handleTerminated(rlpxConnection) orElse {
 
-      case RLPxConnectionHandler.MessageReceived(message) =>
-        log.debug("Received message: {}", message)
-        updateMaxBlock(message)
-        notifySubscribers(message)
-        processMessage(message)
+        case RLPxConnectionHandler.MessageReceived(message) =>
+          log.debug("Received message: {}", message)
+          val MessageHandlingResult(newHandler, messageAction) = messageHandler.receivingMessage(message)
+          if(messageAction == TransmitMessage)
+            notifySubscribers(message)
+          context become new HandshakedPeer(rlpxConnection, newHandler).receive
 
-      case DisconnectPeer(reason) =>
-        disconnectFromPeer(rlpxConnection, reason)
+        case DisconnectPeer(reason) =>
+          disconnectFromPeer(rlpxConnection, reason)
 
-      case s: SendMessage[_] =>
-        updateMaxBlock(s.message)
-        rlpxConnection.sendMessage(s.message)(s.enc)
+        case s@SendMessage(message) =>
+          val MessageHandlingResult(newHandler, messageAction) = messageHandler.sendingMessage(message)
+          if(messageAction == TransmitMessage)
+            rlpxConnection.sendMessage(message)(s.enc)
+          context become new HandshakedPeer(rlpxConnection, newHandler).receive
 
-      case GetMaxBlockNumber(actor) => actor ! MaxBlockNumber(currentMaxBlockNumber)
+        case GetStatus =>
+          sender() ! StatusResponse(
+            Handshaked(messageHandler.peerInfo.remoteStatus,
+              messageHandler.peerInfo.forkAccepted, messageHandler.peerInfo.totalDifficulty))
 
-      case GetStatus =>
-        sender() ! StatusResponse(Handshaked(initialStatus, forkAccepted, totalDifficulty))
-
-      case BroadcastBlocks(blocks) =>
-        blocks.foreach { b =>
-          if (b.block.header.number > currentMaxBlockNumber) {
-            self ! SendMessage(b)
-          }
-
-          if (b.block.header.number > appStateStorage.getEstimatedHighestBlock()) {
-            appStateStorage.putEstimatedHighestBlock(b.block.header.number)
-          }
-        }
-
-    }
-
-    private def updateMaxBlock(message: Message) = {
-      message match {
-        case m: BlockHeaders =>
-          update(m.headers.map(_.number))
-        case m: NewBlock =>
-
-          update(Seq(m.block.header.number))
-        case m: NewBlockHashes =>
-          update(m.hashes.map(_.number))
-        case _ =>
       }
-
-      def update(ns: Seq[BigInt]) = {
-        val maxBlockNumber = ns.fold(0: BigInt) { case (a, b) => if (a > b) a else b }
-        if (maxBlockNumber > currentMaxBlockNumber) {
-          currentMaxBlockNumber = maxBlockNumber
-        }
-
-        if (maxBlockNumber> appStateStorage.getEstimatedHighestBlock()) {
-          appStateStorage.putEstimatedHighestBlock(maxBlockNumber)
-        }
-      }
-    }
 
     private def notifySubscribers(message: Message): Unit = {
       val subscribers = messageSubscribers.filter(_.messageCodes.contains(message.code))
@@ -350,49 +334,27 @@ class PeerActor(
       toNotify.foreach { _ ! MessageReceived(message) }
     }
 
-    private def processMessage(message: Message): Unit = message match {
-      case d: Disconnect =>
-        log.info("Received {}. Closing connection", d)
-        context stop self
-
-      case newBlock: NewBlock =>
-        totalDifficulty = newBlock.totalDifficulty
-
-      case msg@BlockHeaders(blockHeaders) =>
-        for {
-          forkResolver <- forkResolverOpt
-          forkBlockHeader <- blockHeaders.find(_.number == forkResolver.forkBlockNumber)
-        } {
-          val newFork = forkResolver.recognizeFork(forkBlockHeader)
-          log.info("Received fork block header with fork: {}", newFork)
-
-          if (!forkResolver.isAccepted(newFork)) {
-            log.warning("Peer is not running the accepted fork, disconnecting")
-            disconnectFromPeer(rlpxConnection, Disconnect.Reasons.UselessPeer)
-          } else {
-            forkAccepted = true
-          }
-        }
-
-      case _ => // nothing
-    }
   }
 
 }
 
 object PeerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus],
+  def props(peerAddress: InetSocketAddress,
+            nodeStatusHolder: Agent[NodeStatus],
             peerConfiguration: PeerConfiguration,
             appStateStorage: AppStateStorage,
             blockchain: Blockchain,
-            forkResolverOpt: Option[ForkResolver]): Props =
+            forkResolverOpt: Option[ForkResolver],
+            messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo]): Props =
     Props(new PeerActor(
+      peerAddress,
       nodeStatusHolder,
       rlpxConnectionFactory(nodeStatusHolder().key),
       peerConfiguration,
       appStateStorage,
       blockchain,
-      forkResolverOpt = forkResolverOpt))
+      forkResolverOpt = forkResolverOpt,
+      messageHandlerBuilder = messageHandlerBuilder))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
@@ -409,10 +371,6 @@ object PeerActor {
   case class ConnectTo(uri: URI)
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
-
-  case class GetMaxBlockNumber(from: ActorRef)
-
-  case class MaxBlockNumber(number: BigInt)
 
   case class BroadcastBlocks(blocks: Seq[NewBlock])
 

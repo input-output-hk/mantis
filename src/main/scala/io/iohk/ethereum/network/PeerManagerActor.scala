@@ -16,6 +16,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
 import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 import scala.util.{Failure, Success}
@@ -180,7 +181,11 @@ object PeerManagerActor {
       val forkResolverOpt =
         if (blockchainConfig.customGenesisFileOpt.isDefined) None
         else Some(new ForkResolver.EtcForkResolver(blockchainConfig))
-      ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, forkResolverOpt), id)
+      val messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo] =
+        (initialPeerInfo, peer) =>
+          EtcMessageHandler(peer, initialPeerInfo, forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
+      ctx.actorOf(PeerActor.props(addr, nodeStatusHolder,
+        peerConfiguration, appStateStorage, blockchain, forkResolverOpt, messageHandlerBuilder), id)
   }
 
   trait PeerConfiguration {
