@@ -44,7 +44,7 @@ object EthService {
   case class GetWorkResponse(powHeaderHash: ByteString, dagSeed: ByteString, target: ByteString)
 
   case class SubmitWorkRequest(nonce: ByteString, powHeaderHash: ByteString, mixHash: ByteString)
-  case class SubmitWorkResponse(success:Boolean)
+  case class SubmitWorkResponse(success: Boolean)
 
   case class SyncingRequest()
   case class SyncingResponse(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
@@ -146,7 +146,7 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
     import io.iohk.ethereum.mining.pow.PowCache._
 
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
-    //todo delete stub
+    //todo delete stub, this transaction is only for demo this code will be deleted in next iteration
     val fakeAddress = 42
     val privateKey = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
     val keyPair = keyPairFromPrvKey(privateKey)

@@ -52,6 +52,7 @@ trait RegularSync {
       //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
       peersToDownloadFrom.keys.foreach(_ ! block)
 
+    //todo improve mined block handling - add info that block was not included because of syncing
     case MinedBlock(block) if headersQueue.isEmpty && waitingForActor.isEmpty =>
       //we are at the top of chain we can insert new block
       blockchain.getBlockHeaderByHash(block.header.parentHash)

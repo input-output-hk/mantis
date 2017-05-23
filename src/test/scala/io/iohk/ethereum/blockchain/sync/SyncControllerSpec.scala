@@ -6,12 +6,11 @@ import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.{Fixtures, Mocks}
+import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.domain.{Account, Block, BlockHeader, BlockchainStorages}
-import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.{BlockExecutionError, BloomFilter, Ledger}
+import io.iohk.ethereum.domain.{Account, Block, BlockHeader}
+import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
 import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerActor.Unsubscribe
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, Peers}
@@ -20,11 +19,9 @@ import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
-import io.iohk.ethereum.validators._
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class SyncControllerSpec extends FlatSpec with Matchers {
@@ -44,7 +41,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref) -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty),
       Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref) -> PeerActor.Status.Handshaked(peer2Status, true, peer1Status.totalDifficulty))))
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
     peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))
@@ -95,7 +92,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peerManager.reply(Peers(Map(
       Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref) -> PeerActor.Status.Handshaked(peer2Status, true, peer2Status.totalDifficulty))))
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
     peer2.expectMsgAllOf(
       PeerActor.SendMessage(GetBlockHeaders(Left(targetBlockHeader.number), expectedTargetBlock - bestBlockHeaderNumber, 0, reverse = false)),
@@ -119,7 +116,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 
     val watcher = TestProbe()
-    watcher.watch(fastSyncController)
+    watcher.watch(syncController)
 
     peer2.expectMsgAllOf(
       PeerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot))),
@@ -150,7 +147,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       .copy(bestBlockHeaderNumber = targetBlockHeader.number,
         mptNodesQueue = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
     peer2.expectMsg(PeerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot))))
     peer2.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
@@ -198,7 +195,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     storagesInstance.storages.appStateStorage.fastSyncDone()
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
     peer.ignoreMsg { case u => u == Unsubscribe }
 
@@ -259,7 +256,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     storagesInstance.storages.appStateStorage.fastSyncDone()
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
     peer.ignoreMsg { case u => u == Unsubscribe }
 
@@ -332,7 +329,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
     storagesInstance.storages.appStateStorage.putBestBlockNumber(targetBlockHeader.number)
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
     peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
     peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))
@@ -378,7 +375,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     storagesInstance.storages.appStateStorage.fastSyncDone()
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
     //Turn broadcasting on the RegularSync on by sending an empty BlockHeaders message:
     peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
@@ -443,7 +440,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     storagesInstance.storages.appStateStorage.fastSyncDone()
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
     //Turn broadcasting on the RegularSync on by sending an empty BlockHeaders message:
     peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
@@ -501,7 +498,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     storagesInstance.storages.appStateStorage.fastSyncDone()
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
     peer1.ignoreMsg { case u => u == Unsubscribe }
 
@@ -532,7 +529,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val ledger: Ledger = new Mocks.MockLedger((block, _, _) => !blocksForWhichLedgerFails.contains(block.header.number))
 
-    val fastSyncController = TestActorRef(Props(new SyncController(peerManager.ref,
+    val syncController = TestActorRef(Props(new SyncController(peerManager.ref,
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages,
