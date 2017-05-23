@@ -1,6 +1,8 @@
 package io.iohk.ethereum
 
 import java.security.{MessageDigest, SecureRandom}
+import javax.crypto.Cipher
+import javax.crypto.spec.SecretKeySpec
 
 import akka.util.ByteString
 import fr.cryptohash.{Keccak256, Keccak512}
@@ -83,4 +85,19 @@ package object crypto {
   def sha256(input: ByteString): ByteString =
     ByteString(sha256(input.toArray))
 
+  // Simple AES encryption
+  // TODO: replace with more robust functions for different AES modes, accepting IV vectors and parameterised KDFs
+  def encrypt(message: Array[Byte], secret: Array[Byte]): Array[Byte] = {
+    val cipher = Cipher.getInstance("AES")
+    cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(kec256(secret).take(16), "AES"))
+    cipher.doFinal(message)
+  }
+
+  // Simple AES decryption
+  // TODO: replace with more robust functions for different AES modes, accepting IV vectors and parameterised KDFs
+  def decrypt(encrypted: Array[Byte], secret: Array[Byte]): Option[Array[Byte]] = {
+    val cipher = Cipher.getInstance("AES")
+    cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(kec256(secret).take(16), "AES"))
+    Option(cipher.doFinal(encrypted))
+  }
 }

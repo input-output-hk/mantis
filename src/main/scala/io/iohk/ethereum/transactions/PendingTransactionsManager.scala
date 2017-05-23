@@ -45,6 +45,8 @@ class PendingTransactionsManager(peerManager: ActorRef, peerMessageBus: ActorRef
 
   override def receive: Receive = {
     case AddTransaction(signedTransaction) =>
+      // TODO: we should check whether a transaction with the same header and nonce exists, and if so replace it with the
+      // new version
       if (!pendingTransactions.contains(signedTransaction)) {
         pendingTransactions :+= signedTransaction
         (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>

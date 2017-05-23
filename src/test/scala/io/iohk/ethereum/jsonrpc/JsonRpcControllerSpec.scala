@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
+import akka.util.ByteString
 import io.iohk.ethereum.{DefaultPatience, Fixtures}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -257,10 +258,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
 
   it should "personal_importRawKey" in new TestSetup {
     val key = "7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"
-    val addr = "0x00000000000000000000000000000000000000ff"
+    val keyBytes = ByteString(Hex.decode(key))
+    val addr = Address("0x00000000000000000000000000000000000000ff")
     val pass = "aaa"
 
-    (personalService.importRawKey _).expects(ImportRawKeyRequest(key, pass))
+    (personalService.importRawKey _).expects(ImportRawKeyRequest(keyBytes, pass))
       .returning(Future.successful(Right(ImportRawKeyResponse(addr))))
 
     val params = JArray(JString(key) :: JString(pass) :: Nil)
@@ -270,11 +272,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(JString(addr))
+    response.result shouldBe Some(JString(addr.toString))
   }
 
   it should "personal_newAccount" in new TestSetup {
-    val addr = "0x00000000000000000000000000000000000000ff"
+    val addr = Address("0x00000000000000000000000000000000000000ff")
     val pass = "aaa"
 
     (personalService.newAccount _).expects(NewAccountRequest(pass))
@@ -287,11 +289,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(JString(addr))
+    response.result shouldBe Some(JString(addr.toString))
   }
 
   it should "personal_listAccounts" in new TestSetup {
-    val addresses = List(34, 12391, 123).map(i => Address(i).toString)
+    val addresses = List(34, 12391, 123).map(Address(_))
     val pass = "aaa"
 
     (personalService.listAccounts _).expects(ListAccountsRequest())
@@ -303,7 +305,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(JArray(addresses.map(JString)))
+    response.result shouldBe Some(JArray(addresses.map(a => JString(a.toString))))
   }
 
   it should "eth_getWork" in new TestSetup {

@@ -1,9 +1,10 @@
 package io.iohk.ethereum.keystore
 
 
-import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
+import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
-case class Wallet(address: Address, privKey: ByteString) {
-  def signTx(tx: Transaction): SignedTransaction = ???
+case class Wallet(address: Address, keyPair: AsymmetricCipherKeyPair) {
+  def signTx(tx: Transaction): SignedTransaction =
+    SignedTransaction.sign(tx, keyPair, 1)
 }

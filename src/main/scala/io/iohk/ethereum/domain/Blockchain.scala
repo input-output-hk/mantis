@@ -1,10 +1,10 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.network.p2p.messages.PV63.{MptLeaf, MptNode}
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
@@ -78,7 +78,6 @@ trait Blockchain {
     * @return MPT node
     */
   def getMptNodeByHash(hash: ByteString): Option[MptNode]
-
 
   /**
     * Returns the total difficulty based on a block hash

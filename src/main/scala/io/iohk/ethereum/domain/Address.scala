@@ -21,6 +21,11 @@ object Address {
 
   def apply(addr: Long): Address = Address(UInt256(addr))
 
+  def apply(hexString: String): Address = {
+    val bytes = Hex.decode(hexString.replaceFirst("^0x", ""))
+    require(bytes.length <= Length)
+    Address(bytes)
+  }
 }
 
 class Address private(val bytes: ByteString) {
