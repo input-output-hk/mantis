@@ -18,7 +18,7 @@ import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
-import io.iohk.ethereum.network.{ForkResolver, PeerActor}
+import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerMessageBusActor}
 import io.iohk.ethereum.network.PeerActor.{GetMaxBlockNumber, MaxBlockNumber}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
@@ -66,11 +66,12 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val time = new VirtualTime
 
+    val peerMessageBus = system.actorOf(PeerMessageBusActor.props)
     var rlpxConnection = TestProbe() // var as we actually need new instances
     val peer = TestActorRef(Props(new PeerActor(_ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }, peerConf, storagesInstance.storages.appStateStorage, blockchain, Some(time.scheduler),
+      }, peerConf, storagesInstance.storages.appStateStorage, blockchain, peerMessageBus, Some(time.scheduler),
         Some(new ForkResolver.EtcForkResolver(blockchainConfig)), handshaker)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
@@ -739,11 +740,14 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val time = new VirtualTime
 
+    val peerMessageBus = system.actorOf(PeerMessageBusActor.props)
+
     val peer = TestActorRef(Props(new PeerActor(
       _ => rlpxConnection.ref,
       peerConf,
       storagesInstance.storages.appStateStorage,
       blockchain,
+      peerMessageBus,
       Some(time.scheduler),
       Some(new ForkResolver.EtcForkResolver(blockchainConfig)),
       handshaker)))

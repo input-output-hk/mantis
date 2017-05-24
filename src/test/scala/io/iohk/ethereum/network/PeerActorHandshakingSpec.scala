@@ -147,12 +147,14 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
 
     val uri = new URI("enode://18a551bee469c2e02de660ab01dede06503c986f6b8520cb5a65ad122df88b17b285e3fef09a40a0d44f99e014f8616cf1ebc2e094f96c6e09e2f390f5d34857@47.90.36.129:30303")
     val rlpxConnectionProbe = TestProbe()
+    val peerMessageBus = TestProbe()
 
     def peerActor(handshaker: Handshaker[PeerInfo]): TestActorRef[PeerActor] = TestActorRef(Props(new PeerActor(
       rlpxConnectionFactory = _ => rlpxConnectionProbe.ref,
       peerConfiguration = Config.Network.peer,
       appStateStorage = storagesInstance.storages.appStateStorage,
       blockchain = blockchain,
+      peerMessageBus = peerMessageBus.ref,
       externalSchedulerOpt = Some(time.scheduler),
       forkResolverOpt = None,
       initHandshaker = handshaker

@@ -6,15 +6,17 @@ import io.iohk.ethereum.blockchain.sync.FastSync._
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.MptNodeStorage
 import io.iohk.ethereum.domain.{Account, Blockchain}
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import org.spongycastle.util.encoders.Hex
 
 class FastSyncNodesRequestHandler(
-    peer: ActorRef,
+    peer: Peer,
+    peerMessageBus: ActorRef,
     requestedHashes: Seq[HashType],
     blockchain: Blockchain,
     mptNodeStorage: MptNodeStorage)(implicit scheduler: Scheduler)
-  extends SyncRequestHandler[GetNodeData, NodeData](peer) {
+  extends SyncRequestHandler[GetNodeData, NodeData](peer, peerMessageBus) {
 
   override val requestMsg = GetNodeData(requestedHashes.map(_.v))
   override val responseMsgCode: Int = NodeData.code
@@ -22,7 +24,7 @@ class FastSyncNodesRequestHandler(
   override def handleResponseMsg(nodeData: NodeData): Unit = {
     if (nodeData.values.isEmpty) {
       val reason = s"got empty mpt node response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}"
-      syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
+      syncController ! BlacklistSupport.BlacklistPeer(peer.id, reason)
     }
 
     val receivedHashes = nodeData.values.map(v => ByteString(kec256(v.toArray[Byte])))
@@ -59,7 +61,7 @@ class FastSyncNodesRequestHandler(
 
   override def handleTimeout(): Unit = {
     val reason = s"time out on mpt node response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}"
-    syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
+    syncController ! BlacklistSupport.BlacklistPeer(peer.id, reason)
     syncController ! FastSync.EnqueueNodes(requestedHashes)
     cleanupAndStop()
   }
@@ -119,7 +121,8 @@ class FastSyncNodesRequestHandler(
 }
 
 object FastSyncNodesRequestHandler {
-  def props(peer: ActorRef, requestedHashes: Seq[HashType], blockchain: Blockchain, mptNodeStorage: MptNodeStorage)
+  def props(peer: Peer, peerMessageBus: ActorRef,
+            requestedHashes: Seq[HashType], blockchain: Blockchain, mptNodeStorage: MptNodeStorage)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncNodesRequestHandler(peer, requestedHashes, blockchain, mptNodeStorage))
+    Props(new FastSyncNodesRequestHandler(peer, peerMessageBus, requestedHashes, blockchain, mptNodeStorage))
 }

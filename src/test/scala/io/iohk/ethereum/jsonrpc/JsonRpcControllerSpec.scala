@@ -1,12 +1,13 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorSystem
+import akka.testkit.TestProbe
 import io.iohk.ethereum.{DefaultPatience, Fixtures}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
-import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Config
@@ -305,9 +306,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val blockchain = BlockchainImpl(storagesInstance.storages)
     val blockGenerator: BlockGenerator = mock[BlockGenerator]
 
+    implicit val system = ActorSystem("test-system")
+    val pendingTransactionsManager = TestProbe()
     val appStateStorage = mock[AppStateStorage]
     val web3Service = new Web3Service
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage)
+    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, pendingTransactionsManager.ref)
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
