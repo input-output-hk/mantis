@@ -1,6 +1,6 @@
 package io.iohk.ethereum.nodebuilder
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.SyncController
@@ -18,6 +18,7 @@ import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
 
@@ -55,6 +56,11 @@ trait BlockChainBuilder {
   lazy val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
 }
 
+trait PeerMessageBusBuilder {
+  self: ActorSystemBuilder =>
+
+  lazy val peerMessageBus = actorSystem.actorOf(PeerMessageBusActor.props)
+}
 
 trait PeerManagerActorBuilder {
 
@@ -62,7 +68,8 @@ trait PeerManagerActorBuilder {
     with NodeStatusBuilder
     with StorageBuilder
     with BlockChainBuilder
-    with BlockchainConfigBuilder =>
+    with BlockchainConfigBuilder
+    with PeerMessageBusBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
@@ -71,7 +78,8 @@ trait PeerManagerActorBuilder {
     Config.Network.peer,
     storagesInstance.storages.appStateStorage,
     blockchain,
-    blockchainConfig), "peer-manager")
+    blockchainConfig,
+    peerMessageBus), "peer-manager")
 
 }
 
@@ -98,6 +106,14 @@ trait NetServiceBuilder {
   lazy val netService = new NetService(nodeStatusHolder, peerManager)
 }
 
+trait PendingTransactionsManagerBuilder {
+  self: ActorSystemBuilder
+    with PeerManagerActorBuilder
+    with PeerMessageBusBuilder =>
+
+  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(peerManager, peerMessageBus))
+}
+
 trait BlockGeneratorBuilder {
   self: StorageBuilder with
     BlockchainConfigBuilder with
@@ -110,9 +126,10 @@ trait BlockGeneratorBuilder {
 trait EthServiceBuilder {
   self: StorageBuilder with
     BlockChainBuilder with
-    BlockGeneratorBuilder =>
+    BlockGeneratorBuilder with
+    PendingTransactionsManagerBuilder =>
 
-  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage)
+  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage, pendingTransactionsManager)
 }
 
 trait PersonalServiceBuilder {
@@ -167,7 +184,8 @@ trait SyncControllerBuilder {
     StorageBuilder with
     BlockchainConfigBuilder with
     ValidatorsBuilder with
-    LedgerBuilder =>
+    LedgerBuilder with
+    PeerMessageBusBuilder =>
 
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
@@ -177,7 +195,8 @@ trait SyncControllerBuilder {
       storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
-      validators),
+      validators,
+      peerMessageBus),
     "sync-controller")
 
 }
@@ -224,3 +243,5 @@ trait Node extends NodeKeyBuilder
   with ShutdownHookBuilder
   with GenesisDataLoaderBuilder
   with BlockchainConfigBuilder
+  with PeerMessageBusBuilder
+  with PendingTransactionsManagerBuilder

@@ -6,8 +6,10 @@ import akka.actor.{Actor, ActorRef, _}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{BlockHeader, Receipt}
-import io.iohk.ethereum.network.PeerActor.{MessageReceived, SendMessage, Subscribe}
-import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, Peers}
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerActor.SendMessage
+import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
+import io.iohk.ethereum.network.PeerMessageBusActor.{MessageClassifier, MessageFromPeer, PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits.receiptRlpEncDec
 import io.iohk.ethereum.network.p2p.messages.PV63._
@@ -20,7 +22,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigInt) extends Actor {
+class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock: BigInt, maxBlocks: BigInt) extends Actor {
   var stateNodesHashes: Set[ByteString] = Set.empty
   var contractNodesHashes: Set[ByteString] = Set.empty
   var evmCodeHashes: Set[ByteString] = Set.empty
@@ -44,12 +46,12 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
     case Peers(p) =>
       //TODO ask for block headers
       peers = p.keys.toSeq
-      peers.headOption.foreach { case Peer(_, actor) =>
-        actor ! Subscribe(Set(BlockHeaders.code, BlockBodies.code, Receipts.code, NodeData.code))
-        actor ! SendMessage(GetBlockHeaders(block = Left(startBlock), maxHeaders = maxBlocks, skip = 0, reverse = false))
+      peers.headOption.foreach { peer =>
+        peerMessageBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code, BlockBodies.code, Receipts.code, NodeData.code), PeerSelector.WithId(peer.id)))
+        peer.ref ! SendMessage(GetBlockHeaders(block = Left(startBlock), maxHeaders = maxBlocks, skip = 0, reverse = false))
       }
 
-    case MessageReceived(m: BlockHeaders) =>
+    case MessageFromPeer(m: BlockHeaders, _) =>
       val mptRoots: Seq[ByteString] = m.headers.map(_.stateRoot)
 
       blockHeadersHashes = m.headers.map(e => (e.number, e.hash))
@@ -64,7 +66,7 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
         stateNodesHashes = stateNodesHashes ++ mptRoots.toSet
       }
 
-    case MessageReceived(m: BlockBodies) =>
+    case MessageFromPeer(m: BlockBodies, _) =>
       m.bodies.zip(blockHeadersHashes).foreach { case (b, (_, h)) =>
         blockBodyStorage = blockBodyStorage + (h -> b)
       }
@@ -72,7 +74,7 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
       blockBodyStorage.foreach{case (h,v) =>  bodiesFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(encode(v))}\n")}
       bodiesFile.close()
 
-    case MessageReceived(m: Receipts) =>
+    case MessageFromPeer(m: Receipts, _) =>
       m.receiptsForBlocks.zip(blockHeadersHashes.filter { case (n, _) => n > 0 }).foreach { case (r, (_, h)) =>
         blockReceiptsStorage = blockReceiptsStorage + (h -> r)
       }
@@ -80,7 +82,7 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
       blockReceiptsStorage.foreach { case (h, v: Seq[Receipt]) => receiptsFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(encode(toRlpList(v)))}\n") }
       receiptsFile.close()
 
-    case MessageReceived(m: NodeData) =>
+    case MessageFromPeer(m: NodeData, _) =>
 
       val stateNodes = m.values.filter(node => stateNodesHashes.contains(kec256(node)))
       val contractNodes = m.values.filter(node => contractNodesHashes.contains(kec256(node)))
@@ -166,8 +168,8 @@ class DumpChainActor(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigIn
 }
 
 object DumpChainActor {
-  def props(peerManager: ActorRef, startBlock: BigInt, maxBlocks: BigInt): Props =
-    Props(new DumpChainActor(peerManager, startBlock: BigInt, maxBlocks: BigInt))
+  def props(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock: BigInt, maxBlocks: BigInt): Props =
+    Props(new DumpChainActor(peerManager, peerMessageBus: ActorRef, startBlock: BigInt, maxBlocks: BigInt))
   val emptyStorage = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
   val emptyEvm = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 }

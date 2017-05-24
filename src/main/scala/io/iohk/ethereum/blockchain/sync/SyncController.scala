@@ -10,7 +10,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.network.PeerActor.{Status => PeerStatus}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.{PeerActor, PeerManagerActor}
+import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.validators.Validators
 
@@ -22,6 +22,7 @@ class SyncController(
     val fastSyncStateStorage: FastSyncStateStorage,
     val ledger: Ledger,
     val validators: Validators,
+    val peerMessageBus: ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor
     with ActorLogging
@@ -38,7 +39,7 @@ class SyncController(
       case _ => Stop
     }
 
-  var handshakedPeers: Map[ActorRef, PeerStatus.Handshaked] = Map.empty
+  var handshakedPeers: Map[Peer, PeerStatus.Handshaked] = Map.empty
 
   scheduler.schedule(0.seconds, peersScanInterval, peerManager, PeerManagerActor.GetPeers)
 
@@ -71,17 +72,17 @@ class SyncController(
     case peers: PeerManagerActor.Peers =>
       peers.peers.foreach {
         case (peer, _: PeerActor.Status.Handshaked) =>
-          if (!handshakedPeers.contains(peer.ref)) context watch peer.ref
+          if (!handshakedPeers.contains(peer)) context watch peer.ref
 
-        case (peer, _) if handshakedPeers.contains(peer.ref) =>
+        case (peer, _) if handshakedPeers.contains(peer) =>
           removePeer(peer.ref)
 
         case _ => // nothing
       }
 
-      handshakedPeers = peers.handshaked.map { case (k, v) => (k.ref, v) }
+      handshakedPeers = peers.handshaked
 
-    case Terminated(ref) if handshakedPeers.contains(ref) =>
+    case Terminated(ref) if handshakedPeers.exists(_._1.ref == ref) =>
       removePeer(ref)
 
     case BlacklistPeer(ref, reason) =>
@@ -91,14 +92,14 @@ class SyncController(
       undoBlacklist(ref)
   }
 
-  def removePeer(peer: ActorRef): Unit = {
-    context.unwatch(peer)
-    undoBlacklist(peer)
-    handshakedPeers -= peer
+  def removePeer(peerRef: ActorRef): Unit = {
+    context.unwatch(peerRef)
+    handshakedPeers.find(_._1.ref == peerRef).foreach { case (peer, _) => undoBlacklist(peer.id) }
+    handshakedPeers = handshakedPeers.filterNot(_._1.ref == peerRef)
   }
 
-  def peersToDownloadFrom: Map[ActorRef, PeerStatus.Handshaked] =
-    handshakedPeers.filterNot { case (p, s) => isBlacklisted(p) }
+  def peersToDownloadFrom: Map[Peer, PeerStatus.Handshaked] =
+    handshakedPeers.filterNot { case (p, s) => isBlacklisted(p.id) }
 }
 
 object SyncController {
@@ -108,14 +109,16 @@ object SyncController {
             blockchainStorages: BlockchainStorages,
             syncStateStorage: FastSyncStateStorage,
             ledger: Ledger,
-            validators: Validators):
-  Props = Props(new SyncController(peerManager, appStateStorage, blockchain, blockchainStorages, syncStateStorage, ledger, validators))
+            validators: Validators,
+            peerMessageBus: ActorRef):
+  Props = Props(new SyncController(peerManager, appStateStorage, blockchain, blockchainStorages,
+    syncStateStorage, ledger, validators, peerMessageBus))
 
-  case class BlockHeadersToResolve(peer: ActorRef, headers: Seq[BlockHeader])
+  case class BlockHeadersToResolve(peer: Peer, headers: Seq[BlockHeader])
 
-  case class BlockHeadersReceived(peer: ActorRef, headers: Seq[BlockHeader])
+  case class BlockHeadersReceived(peer: Peer, headers: Seq[BlockHeader])
 
-  case class BlockBodiesReceived(peer: ActorRef, requestedHashes: Seq[ByteString], bodies: Seq[BlockBody])
+  case class BlockBodiesReceived(peer: Peer, requestedHashes: Seq[ByteString], bodies: Seq[BlockBody])
 
   case object StartSync
 

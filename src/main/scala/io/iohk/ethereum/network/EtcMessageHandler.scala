@@ -6,7 +6,7 @@ import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.MessageHandler.MessageAction.{IgnoreMessage, TransmitMessage}
 import io.iohk.ethereum.network.MessageHandler.{HandshakeResult, MessageAction, MessageHandlingResult, PeerInfo}
 import io.iohk.ethereum.network.PeerActor.DisconnectPeer
-import io.iohk.ethereum.network.PeerManagerActor.{Peer, PeerConfiguration}
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, NewBlockHashes}

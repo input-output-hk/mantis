@@ -15,7 +15,7 @@ import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.MessageHandler.MessageAction.{IgnoreMessage, TransmitMessage}
 import io.iohk.ethereum.network.MessageHandler.MessageHandlingResult
 import io.iohk.ethereum.network.PeerActor.DisconnectPeer
-import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, Peer, PeerConfiguration}
+import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -30,6 +30,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.language.postfixOps
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
+
 class EtcMessageHandlerSpec extends FlatSpec with Matchers {
 
   it should "return Receipts for block hashes" in new TestSetup {
@@ -408,6 +409,8 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
       key = crypto.generateKeyPair(),
       serverStatus = ServerStatus.NotListening)
     val nodeStatusHolder = Agent(nodeStatus)
+    val peerMessageBus = TestProbe()
+
     val peerActor = TestActorRef(Props(new PeerActor(
       new InetSocketAddress("127.0.0.1", 0),
       nodeStatusHolder,
@@ -415,6 +418,7 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
       peerConf,
       storagesInstance.storages.appStateStorage,
       blockchain,
+      peerMessageBus.ref,
       None,
       Some(forkResolver),
       messageHandlerBuilder = (peerInfo, peer) =>
