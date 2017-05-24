@@ -357,8 +357,6 @@ object PeerActor {
 
   case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
 
-  case class BroadcastBlocks(blocks: Seq[NewBlock])
-
   private case object ForkHeaderReceiveTimeout
 
   private case object ProtocolHandshakeTimeout
