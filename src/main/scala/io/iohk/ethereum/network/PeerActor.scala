@@ -21,6 +21,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock.NewBlockEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaders.BlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes.NewBlockHashesEnc
+import io.iohk.ethereum.network.PeerMessageBusActor.{MessageFromPeer, Publish}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 
@@ -37,6 +38,7 @@ class PeerActor(
     val peerConfiguration: PeerConfiguration,
     appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
+    peerMessageBus: ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None,
     forkResolverOpt: Option[ForkResolver])
   extends Actor with ActorLogging with BlockchainHost with Stash {
@@ -48,13 +50,11 @@ class PeerActor(
 
   val P2pVersion = 4
 
-  val peerId: String = self.path.name
-
-  private var messageSubscribers: Seq[Subscriber] = Nil
+  val peerId: PeerId = PeerId(self.path.name)
 
   override def receive: Receive = waitingForInitialCommand
 
-  def waitingForInitialCommand: Receive = handleSubscriptions orElse stashMessages orElse {
+  def waitingForInitialCommand: Receive = stashMessages orElse {
     case HandleConnection(connection, remoteAddress) =>
       val rlpxConnection = createRlpxConnection(remoteAddress, None)
       rlpxConnection.ref ! RLPxConnectionHandler.HandleConnection(connection)
@@ -75,7 +75,7 @@ class PeerActor(
   }
 
   def waitingForConnectionResult(rlpxConnection: RLPxConnection, numRetries: Int = 0): Receive =
-    handleSubscriptions orElse handleTerminated(rlpxConnection) orElse stashMessages orElse {
+    handleTerminated(rlpxConnection) orElse stashMessages orElse {
     case RLPxConnectionHandler.ConnectionEstablished =>
       log.info("RLPx connection established, sending Hello")
       rlpxConnection.sendMessage(createHelloMsg())
@@ -123,7 +123,7 @@ class PeerActor(
   }
 
   def waitingForHello(rlpxConnection: RLPxConnection, timeout: Cancellable, numRetries: Int): Receive =
-    handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
+    handleTerminated(rlpxConnection) orElse
     handleDisconnectMsg orElse stashMessages orElse {
     case RLPxConnectionHandler.MessageReceived(hello: Hello) =>
       log.info("Protocol handshake finished with peer ({})", hello)
@@ -160,7 +160,7 @@ class PeerActor(
   }
 
   def waitingForNodeStatus(rlpxConnection: RLPxConnection, timeout: Cancellable): Receive =
-    handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
+    handleTerminated(rlpxConnection) orElse
     handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse stashMessages orElse {
     case RLPxConnectionHandler.MessageReceived(status: msg.Status) =>
       timeout.cancel()
@@ -184,7 +184,7 @@ class PeerActor(
 
   def waitingForForkHeader(rlpxConnection: RLPxConnection, remoteStatus: msg.Status, timeout: Cancellable,
                            forkResolver: ForkResolver): Receive =
-    handleSubscriptions orElse handleTerminated(rlpxConnection) orElse
+    handleTerminated(rlpxConnection) orElse
     handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse
     handleBlockFastDownload(rlpxConnection) orElse stashMessages orElse {
 
@@ -230,7 +230,7 @@ class PeerActor(
     context become disconnected
   }
 
-  def disconnected: Receive = handleSubscriptions orElse {
+  def disconnected: Receive = {
     case GetStatus => sender() ! StatusResponse(Disconnected)
   }
 
@@ -261,16 +261,6 @@ class PeerActor(
       context stop self
   }
 
-  def handleSubscriptions: Receive = {
-    case Subscribe(messageCodes) =>
-      val (senderSubscriptions, remainingSubscriptions) = messageSubscribers.partition(_.ref == sender())
-      val allMessageCodes = senderSubscriptions.flatMap(_.messageCodes).toSet ++ messageCodes
-      messageSubscribers = remainingSubscriptions :+ Subscriber(sender(), allMessageCodes)
-
-    case Unsubscribe =>
-      messageSubscribers = messageSubscribers.filterNot(_.ref == sender())
-  }
-
   def stashMessages: Receive = {
     case _: SendMessage | _: DisconnectPeer => stash()
   }
@@ -286,7 +276,6 @@ class PeerActor(
       * main behavior of actor that handles peer communication and subscriptions for messages
       */
     def receive: Receive =
-      handleSubscriptions orElse
       handlePingMsg(rlpxConnection) orElse
       handleBlockFastDownload(rlpxConnection) orElse
       handleEvmMptFastDownload(rlpxConnection) orElse
@@ -295,7 +284,7 @@ class PeerActor(
       case RLPxConnectionHandler.MessageReceived(message) =>
         log.debug("Received message: {}", message)
         updateMaxBlock(message)
-        notifySubscribers(message)
+        peerMessageBus ! Publish(MessageFromPeer(message, peerId))
         processMessage(message)
 
       case DisconnectPeer(reason) =>
@@ -353,12 +342,6 @@ class PeerActor(
       }
     }
 
-    private def notifySubscribers(message: Message): Unit = {
-      val subscribers = messageSubscribers.filter(_.messageCodes.contains(message.code))
-      val toNotify = subscribers.map(_.ref).toSet
-      toNotify.foreach { _ ! MessageReceived(message) }
-    }
-
     private def processMessage(message: Message): Unit = message match {
       case d: Disconnect =>
         log.info("Received {}. Closing connection", d)
@@ -394,6 +377,7 @@ object PeerActor {
             peerConfiguration: PeerConfiguration,
             appStateStorage: AppStateStorage,
             blockchain: Blockchain,
+            peerMessageBus: ActorRef,
             forkResolverOpt: Option[ForkResolver]): Props =
     Props(new PeerActor(
       nodeStatusHolder,
@@ -401,6 +385,7 @@ object PeerActor {
       peerConfiguration,
       appStateStorage,
       blockchain,
+      peerMessageBus,
       forkResolverOpt = forkResolverOpt))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
@@ -447,11 +432,4 @@ object PeerActor {
     case class Handshaked(initialStatus: msg.Status, forkAccepted: Boolean, totalDifficulty: BigInt) extends Status
     case object Disconnected extends Status
   }
-
-  case class Subscribe(messageCodes: Set[Int])
-  case object Unsubscribe
-
-  private case class Subscriber(ref: ActorRef, messageCodes: Set[Int])
-
-  case class MessageReceived(message: Message)
 }
