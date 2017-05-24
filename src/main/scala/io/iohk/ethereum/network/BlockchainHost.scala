@@ -8,15 +8,7 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.PV63._
 
-trait BlockchainHost {
-  _: EtcMessageHandler =>
-
-  def handleBlockchainHostRequest(message: Message): MessageAction = {
-    val handleBlockchainRequest = handleEvmMptFastDownload orElse handleBlockFastDownload
-    handleBlockchainRequest.lift(message)
-      .map(_ => IgnoreMessage)
-      .getOrElse(TransmitMessage)
-  }
+trait BlockchainHost { _: EtcMessageHandler =>
 
   def handleEvmMptFastDownload: PartialFunction[Message, Unit] = {
     case request: GetNodeData =>

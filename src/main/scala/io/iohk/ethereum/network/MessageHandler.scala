@@ -38,6 +38,7 @@ object MessageHandler {
     case object IgnoreMessage extends MessageAction
   }
 
+  //FIXME: Defined in the handshaker on PR 185
   trait HandshakeResult
 
   trait PeerInfo

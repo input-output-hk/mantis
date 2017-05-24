@@ -184,7 +184,7 @@ object PeerManagerActor {
                   appStateStorage: AppStateStorage,
                   blockchain: Blockchain,
                   blockchainConfig: BlockchainConfig,
-                 peerMessageBus: ActorRef): (ActorContext, InetSocketAddress) => ActorRef = {
+                  peerMessageBus: ActorRef): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
       val forkResolverOpt =

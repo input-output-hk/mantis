@@ -48,9 +48,9 @@ trait RegularSync {
       waitingForActor = None
       handleBlockBodies(peer, blockBodies)
 
-    case BroadcastBlocks(blocks) if broadcasting =>
+    case BroadcastBlocks(newBlocks) if broadcasting =>
       //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
-      peersToDownloadFrom.keys.foreach(_.send(blocks))
+      peersToDownloadFrom.keys.foreach(_.send(newBlocks))
 
     case PrintStatus =>
       log.info(s"Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).")
@@ -210,7 +210,7 @@ trait RegularSync {
     else None
   }
 
-  private case class BroadcastBlocks(blocks: Seq[NewBlock])
   private case object ResumeRegularSync
   private case class ResolveBranch(peer: ActorRef)
+  private case class BroadcastBlocks(blocks: Seq[NewBlock])
 }

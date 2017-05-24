@@ -13,13 +13,14 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Logger
 
 case class EtcMessageHandler(peer: Peer, peerInfo: EtcPeerInfo, forkResolverOpt: Option[ForkResolver],
-                             appStateStorage: AppStateStorage, peerConfiguration: PeerConfiguration, blockchain: Blockchain)
+                             appStateStorage: AppStateStorage, peerConfiguration: PeerConfiguration,
+                             blockchain: Blockchain)
   extends MessageHandler[EtcPeerInfo, EtcPeerInfo] with BlockchainHost with Logger {
 
   override def sendingMessage(message: Message): MessageHandlingResult[EtcPeerInfo, EtcPeerInfo] = {
-    val handleSendMessage = updateMaxBlock(message) _
-    val newHandler = this.copy(peerInfo = handleSendMessage(peerInfo))
-    val messageAction = handleSendingNewBlock(message, newHandler.peerInfo)
+    val handleSentMessage = updateMaxBlock(message) _
+    val newHandler = this.copy(peerInfo = handleSentMessage(peerInfo))
+    val messageAction = handleSendingNewBlock(message, peerInfo) //New max block number should not be taken into account
     MessageHandlingResult(newHandler, messageAction)
   }
 
@@ -53,20 +54,21 @@ case class EtcMessageHandler(peer: Peer, peerInfo: EtcPeerInfo, forkResolverOpt:
     */
   private def updateForkAccepted(message: Message)(initialPeerInfo: EtcPeerInfo): EtcPeerInfo = message match {
     case BlockHeaders(blockHeaders) =>
-      val newPeerInfoOpt: Option[EtcPeerInfo] = for {
-        forkResolver <- forkResolverOpt
-        forkBlockHeader <- blockHeaders.find(_.number == forkResolver.forkBlockNumber)
-      } yield {
-        val newFork = forkResolver.recognizeFork(forkBlockHeader)
-        log.info("Received fork block header with fork: {}", newFork)
+      val newPeerInfoOpt: Option[EtcPeerInfo] =
+        for {
+          forkResolver <- forkResolverOpt
+          forkBlockHeader <- blockHeaders.find(_.number == forkResolver.forkBlockNumber)
+        } yield {
+          val newFork = forkResolver.recognizeFork(forkBlockHeader)
+          log.info("Received fork block header with fork: {}", newFork)
 
-        if (!forkResolver.isAccepted(newFork)) {
-          log.warn("Peer is not running the accepted fork, disconnecting")
-          peer.disconnectFromPeer(Disconnect.Reasons.UselessPeer)
-          initialPeerInfo
-        } else
-          initialPeerInfo.withForkAccepted(true)
-      }
+          if (!forkResolver.isAccepted(newFork)) {
+            log.warn("Peer is not running the accepted fork, disconnecting")
+            peer.disconnectFromPeer(Disconnect.Reasons.UselessPeer)
+            initialPeerInfo
+          } else
+            initialPeerInfo.withForkAccepted(true)
+        }
       newPeerInfoOpt.getOrElse(initialPeerInfo)
 
     case _ => initialPeerInfo
@@ -82,7 +84,7 @@ case class EtcMessageHandler(peer: Peer, peerInfo: EtcPeerInfo, forkResolverOpt:
   private def updateMaxBlock(message: Message)(initialPeerInfo: EtcPeerInfo): EtcPeerInfo = {
     def update(ns: Seq[BigInt]): EtcPeerInfo = {
       val maxBlockNumber = ns.fold(0: BigInt) { case (a, b) => if (a > b) a else b }
-      if (maxBlockNumber> appStateStorage.getEstimatedHighestBlock())
+      if (maxBlockNumber > appStateStorage.getEstimatedHighestBlock())
         appStateStorage.putEstimatedHighestBlock(maxBlockNumber)
 
       if (maxBlockNumber > initialPeerInfo.maxBlockNumber)
@@ -109,21 +111,37 @@ case class EtcMessageHandler(peer: Peer, peerInfo: EtcPeerInfo, forkResolverOpt:
     * @param initialPeerInfo from before the message was processed
     * @return new peer info with the fork block accepted value updated
     */
-  private def handleSendingNewBlock(message: Message, peerInfo: EtcPeerInfo): MessageAction = message match {
+  private def handleSendingNewBlock(message: Message, initialPeerInfo: EtcPeerInfo): MessageAction = message match {
     case b: NewBlock =>
-      if (b.block.header.number > peerInfo.maxBlockNumber)
+      if (b.block.header.number > initialPeerInfo.maxBlockNumber)
         TransmitMessage
       else
         IgnoreMessage
     case _ => TransmitMessage
   }
+
+  /**
+    * Processes the message and responds to the syncing requests
+    *
+    * @param message to be processed
+    * @return action to be done regarding the message, ignore it or receive it
+    */
+  private def handleBlockchainHostRequest(message: Message): MessageAction = {
+    val handleBlockchainRequest = handleEvmMptFastDownload orElse handleBlockFastDownload
+    handleBlockchainRequest.lift(message)
+      .map(_ => IgnoreMessage)
+      .getOrElse(TransmitMessage)
+  }
+
 }
 
 object EtcMessageHandler {
 
   case class EtcPeerInfo(remoteStatus: Status,
                          totalDifficulty: BigInt,
-                         forkAccepted: Boolean, maxBlockNumber: BigInt) extends PeerInfo with HandshakeResult {
+                         forkAccepted: Boolean,
+                         maxBlockNumber: BigInt) extends PeerInfo with HandshakeResult {
+
     def withTotalDifficulty(totalDifficulty: BigInt): EtcPeerInfo = copy(totalDifficulty = totalDifficulty)
 
     def withForkAccepted(forkAccepted: Boolean): EtcPeerInfo = copy(forkAccepted = forkAccepted)
