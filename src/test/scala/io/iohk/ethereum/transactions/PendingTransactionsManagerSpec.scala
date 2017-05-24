@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.{ByteString, Timeout}
-import io.iohk.ethereum.crypto
+import io.iohk.ethereum.{DefaultPatience, crypto}
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.network.{Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.PeerMessageBusActor.MessageFromPeer
@@ -22,7 +22,7 @@ import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
 
-class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFutures {
+class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience {
 
   implicit val timeout = Timeout(10.seconds)
 
