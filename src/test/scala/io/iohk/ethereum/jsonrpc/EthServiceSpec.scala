@@ -251,7 +251,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     implicit val system = ActorSystem("EthServiceSpec_System")
     val syncingController = TestProbe()
 
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, syncingController.ref)
+    val pendingTransactionsManager = TestProbe()
+    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, syncingController.ref, pendingTransactionsManager.ref)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash

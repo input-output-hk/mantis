@@ -6,6 +6,7 @@ import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController._
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -50,7 +51,7 @@ trait RegularSync {
 
     case block: BroadcastBlocks if broadcasting =>
       //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
-      peersToDownloadFrom.keys.foreach(_ ! block)
+      peersToDownloadFrom.keys.foreach(_.ref ! block)
 
     //todo improve mined block handling - add info that block was not included because of syncing
     case MinedBlock(block) if headersQueue.isEmpty && waitingForActor.isEmpty =>
@@ -85,7 +86,7 @@ trait RegularSync {
         val newTd = parentTd + block.header.difficulty
         blockchain.save(block.header.hash, newTd)
 
-        handshakedPeers.keys.foreach(actor => actor ! BroadcastBlocks(Seq(NewBlock(block, newTd))))
+        handshakedPeers.keys.foreach(peer => peer.ref ! BroadcastBlocks(Seq(NewBlock(block, newTd))))
 
         log.info(s"added new block $block")
       case Left(err) =>
@@ -98,14 +99,14 @@ trait RegularSync {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
         val request = GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
-        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false)))
+        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerMessageBus, request, resolveBranches = false)))
       case None =>
         log.warning("no peers to download from")
         scheduleResume()
     }
   }
 
-  private def handleBlockBranchResolution(peer: ActorRef, message: Seq[BlockHeader]) =
+  private def handleBlockBranchResolution(peer: Peer, message: Seq[BlockHeader]) =
     //todo limit max branch depth?
     if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
       headersQueue = message ++ headersQueue
@@ -115,7 +116,7 @@ trait RegularSync {
       resumeWithDifferentPeer(peer)
     }
 
-  private def handleDownload(peer: ActorRef, message: Seq[BlockHeader]) = if (message.nonEmpty) {
+  private def handleDownload(peer: Peer, message: Seq[BlockHeader]) = if (message.nonEmpty) {
     headersQueue = message
     processBlockHeaders(peer, message)
   } else {
@@ -124,7 +125,7 @@ trait RegularSync {
     scheduleResume()
   }
 
-  private def processBlockHeaders(peer: ActorRef, headers: Seq[BlockHeader]) = {
+  private def processBlockHeaders(peer: Peer, headers: Seq[BlockHeader]) = {
     val parentByNumber = blockchain.getBlockHeaderByNumber(headers.head.number - 1)
 
     parentByNumber match {
@@ -143,13 +144,13 @@ trait RegularSync {
 
           if (currentBranchTotalDifficulty < newBranchTotalDifficulty) {
             val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-            waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
+            waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, hashes)))
           } else {
             scheduleResume()
           }
         } else {
           val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
-          waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = true)))
+          waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerMessageBus, request, resolveBranches = true)))
         }
       case _ =>
         log.warning("got header that does not have parent")
@@ -157,7 +158,7 @@ trait RegularSync {
     }
   }
 
-  private def handleBlockBodies(peer: ActorRef, m: Seq[BlockBody]) = {
+  private def handleBlockBodies(peer: Peer, m: Seq[BlockBody]) = {
     if (m.nonEmpty && headersQueue.nonEmpty) {
       val blocks = headersQueue.zip(m).map{ case (header, body) => Block(header, body) }
 
@@ -167,7 +168,7 @@ trait RegularSync {
           val (newBlocks, errorOpt) = processBlocks(blocks, blockParentTd)
 
           if(newBlocks.nonEmpty){
-            handshakedPeers.keys.foreach(actor => actor ! BroadcastBlocks(newBlocks))
+            handshakedPeers.keys.foreach(peer => peer.ref ! BroadcastBlocks(newBlocks))
             log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
           }
@@ -180,7 +181,7 @@ trait RegularSync {
               headersQueue = headersQueue.drop(blocks.length)
               if (headersQueue.nonEmpty) {
                 val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
+                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, hashes)))
               } else {
                 context.self ! ResumeRegularSync
               }
@@ -236,8 +237,8 @@ trait RegularSync {
     scheduler.scheduleOnce(checkForNewBlockInterval, context.self, ResumeRegularSync)
   }
 
-  private def resumeWithDifferentPeer(currentPeer: ActorRef, reason: String = "error in response") = {
-    self ! BlacklistPeer(currentPeer, "because of " + reason)
+  private def resumeWithDifferentPeer(currentPeer: Peer, reason: String = "error in response") = {
+    self ! BlacklistPeer(currentPeer.id, "because of " + reason)
     headersQueue = Nil
     context.self ! ResumeRegularSync
   }
@@ -245,7 +246,7 @@ trait RegularSync {
   private def checkHeaders(headers: Seq[BlockHeader]): Boolean =
     headers.zip(headers.tail).forall { case (parent, child) => parent.hash == child.parentHash && parent.number + 1 == child.number }
 
-  private def bestPeer: Option[ActorRef] = {
+  private def bestPeer: Option[Peer] = {
     val peersToUse = peersToDownloadFrom
       .collect {
         case (ref, Handshaked(_, true, totalDifficulty)) => (ref, totalDifficulty)

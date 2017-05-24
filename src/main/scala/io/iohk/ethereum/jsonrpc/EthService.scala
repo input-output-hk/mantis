@@ -2,6 +2,8 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
 import io.iohk.ethereum.domain._
+import akka.actor.ActorRef
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain, SignedTransaction}
 import io.iohk.ethereum.db.storage.AppStateStorage
 
 import scala.concurrent.ExecutionContext
@@ -11,8 +13,11 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils.Logger
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.rlp
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 
 object EthService {
@@ -49,9 +54,12 @@ object EthService {
   case class SyncingRequest()
   case class SyncingResponse(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
 
+  case class SendRawTransactionRequest(data: ByteString)
+  case class SendRawTransactionResponse(transactionHash: ByteString)
 }
 
-class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStateStorage: AppStateStorage, syncingController: ActorRef) extends Logger {
+class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStateStorage: AppStateStorage,
+  syncingController: ActorRef, pendingTransactionsManager: ActorRef) extends Logger {
 
   import EthService._
 
@@ -194,6 +202,17 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
       startingBlock = appStateStorage.getSyncStartingBlock(),
       currentBlock = appStateStorage.getBestBlockNumber(),
       highestBlock = appStateStorage.getEstimatedHighestBlock())))
+  }
+
+  def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
+    import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+    Try(rlp.decode[SignedTransaction](req.data.toArray[Byte])) match {
+      case Success(signedTransaction) =>
+        pendingTransactionsManager ! PendingTransactionsManager.AddTransaction(signedTransaction)
+        Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
+      case Failure(ex) =>
+        Future.successful(Left(JsonRpcErrors.InvalidRequest))
+    }
   }
 
 }
