@@ -12,6 +12,7 @@ import io.iohk.ethereum.rlp
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 
 object EthService {
@@ -167,9 +168,13 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
 
   def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
-    val signedTransaction = rlp.decode[SignedTransaction](req.data.toArray[Byte])
-    pendingTransactionsManager ! PendingTransactionsManager.AddTransaction(signedTransaction)
-    Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
+    Try(rlp.decode[SignedTransaction](req.data.toArray[Byte])) match {
+      case Success(signedTransaction) =>
+        pendingTransactionsManager ! PendingTransactionsManager.AddTransaction(signedTransaction)
+        Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
+      case Failure(ex) =>
+        Future.successful(Left(JsonRpcErrors.InvalidRequest))
+    }
   }
 
 }
