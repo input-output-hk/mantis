@@ -113,8 +113,9 @@ case class EtcMessageHandler(peer: Peer, peerInfo: EtcPeerInfo, forkResolverOpt:
     * @return new peer info with the fork block accepted value updated
     */
   private def handleSendingNewBlock(message: Message, initialPeerInfo: EtcPeerInfo): MessageAction = message match {
-    case b: NewBlock =>
-      if (b.block.header.number > initialPeerInfo.maxBlockNumber)
+    case newBlock: NewBlock =>
+      if (newBlock.block.header.number > initialPeerInfo.maxBlockNumber ||
+        newBlock.totalDifficulty > initialPeerInfo.totalDifficulty)
         TransmitMessage
       else
         IgnoreMessage

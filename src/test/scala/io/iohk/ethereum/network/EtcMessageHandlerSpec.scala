@@ -328,6 +328,24 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
     action2 shouldBe IgnoreMessage //Block should already be known by the peer due to max block known
   }
 
+  it should "send a new block only when it is not known by the peer (known by comparing total difficulties)" in new TestSetup {
+    //given
+    val firstHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber - 2)
+    val firstBlock = NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), initialPeerInfo.totalDifficulty - 2)
+
+    val secondHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber - 3)
+    val secondBlock = NewBlock(Block(secondHeader, BlockBody(Nil, Nil)), initialPeerInfo.totalDifficulty + 2)
+
+    //when
+    val MessageHandlingResult(msgHandler1, action1) = initialMsgHandler.sendingMessage(firstBlock)
+    val MessageHandlingResult(msgHandler2, action2) = msgHandler1.sendingMessage(secondBlock)
+
+    //then
+    msgHandler2.peerInfo shouldBe initialPeerInfo
+    action1 shouldBe IgnoreMessage //Block is not sent as it's number and total difficulty is lower than known by peer
+    action2 shouldBe TransmitMessage //Block is sent as it's total difficulty is higher than known by peer
+  }
+
   it should "update max peer when sending block header" in new TestSetup {
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber + 4)
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber + 2)
