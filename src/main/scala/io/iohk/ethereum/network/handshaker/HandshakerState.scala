@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network.handshaker
 
-import io.iohk.ethereum.network.handshaker.Handshaker.{NextMessage, HandshakeResult}
+import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, MessageSerializable, NextMessage}
 import io.iohk.ethereum.network.p2p.Message
 
 sealed trait HandshakerState[T <: HandshakeResult]
@@ -22,6 +22,15 @@ trait InProgressState[T <: HandshakeResult] extends HandshakerState[T] {
     * @return new state after the message was processed or None if the current state wasn't able to process it
     */
   def applyMessage(receivedMessage: Message): Option[HandshakerState[T]] = applyResponseMessage.lift(receivedMessage)
+
+  /**
+    * Obtains the response to a message if there should be one.
+    * This function should be overridden in the handshake states where a response is given.
+    *
+    * @param receivedMessage, message received and to be optionally responded
+    * @return message to be sent as a response to the received one, if there should be any
+    */
+  def respondToRequest(receivedMessage: Message): Option[MessageSerializable[_]] = None
 
   /**
     * Processes a timeout to the sent message and obtains the new state of the handshake after processing it

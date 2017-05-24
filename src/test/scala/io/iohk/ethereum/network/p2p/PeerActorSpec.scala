@@ -13,7 +13,7 @@ import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum
-import io.iohk.ethereum.crypto
+import io.iohk.ethereum.{Fixtures, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
@@ -223,6 +223,37 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Hello) => () }
     time.advance(5.seconds)
     rlpxConnection.expectMsg(5.seconds, RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage)))
+  }
+
+  it should "respond to fork block request during the handshake" in new TestSetup {
+    //Save dao fork block
+    blockchain.save(Fixtures.Blocks.DaoForkBlock.header)
+
+    //Handshake till EtcForkBlockExchangeState
+    peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
+
+    rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
+
+    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Message.PV63.toByte)), 9000, ByteString("unused"))
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Hello) => () }
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
+
+    val remoteStatus = Status(
+      protocolVersion = Message.PV63,
+      networkId = 0,
+      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      bestHash = ByteString("blockhash"),
+      genesisHash = genesisHash)
+
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Status) => () }
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
+
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeaders) => () }
+
+    //Request dao fork block from the peer
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Left(daoForkBlockNumber), 1, 0, false)))
+    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(Fixtures.Blocks.DaoForkBlock.header))))
   }
 
   it should "return Receipts for block hashes" in new TestSetup {

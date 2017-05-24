@@ -20,7 +20,7 @@ import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.PeerMessageBusActor.{MessageFromPeer, Publish}
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
-import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
+import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, MessageSerializable, NextMessage}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 /**
@@ -96,8 +96,8 @@ class PeerActor(
 
   def processingHandshaking(handshaker: Handshaker[PeerInfo], rlpxConnection: RLPxConnection,
                             timeout: Cancellable, numRetries: Int): Receive =
-      handleTerminated(rlpxConnection) orElse handleDisconnectMsg orElse handlePingMsg(rlpxConnection) orElse
-      handleBlockFastDownload(rlpxConnection) orElse stashMessages orElse {
+      handleTerminated(rlpxConnection) orElse handleDisconnectMsg orElse
+      handlePingMsg(rlpxConnection) orElse stashMessages orElse {
 
       case RLPxConnectionHandler.MessageReceived(msg) =>
         // Processes the received message, cancels the timeout and processes a new message but only if the handshaker
@@ -105,6 +105,9 @@ class PeerActor(
         handshaker.applyMessage(msg).foreach{ newHandshaker =>
           timeout.cancel()
           processHandshakerNextMessage(newHandshaker, rlpxConnection, numRetries)
+        }
+        handshaker.respondToRequest(msg).foreach{
+          case msgEnc @ MessageSerializable(msgToSend) => rlpxConnection.sendMessage(msgToSend)(msgEnc.enc)
         }
 
       case ResponseTimeout =>

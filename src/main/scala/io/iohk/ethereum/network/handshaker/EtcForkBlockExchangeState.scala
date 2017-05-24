@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.handshaker
 
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerActor.PeerInfo
-import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
+import io.iohk.ethereum.network.handshaker.Handshaker.{MessageSerializable, NextMessage}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
@@ -45,6 +45,19 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
           log.info("Peer did not respond with fork block header")
           ConnectedState[PeerInfo](PeerInfo(remoteStatus, 0, false))
       }
+
+  }
+
+  override def respondToRequest(receivedMessage: Message): Option[MessageSerializable[_]] = receivedMessage match {
+
+    case GetBlockHeaders(Left(number), numHeaders, _, _) if number == forkResolver.forkBlockNumber && numHeaders == 1 =>
+      log.debug("Received request for fork block")
+      blockchain.getBlockHeaderByNumber(number) match {
+        case Some(header) => Some(MessageSerializable(BlockHeaders(Seq(header)))(BlockHeaders.headersRlpEncDec))
+        case None => Some(MessageSerializable(BlockHeaders(Nil))(BlockHeaders.headersRlpEncDec))
+      }
+
+    case _ => None
 
   }
 
