@@ -58,16 +58,17 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     }
 
     resolverPeerTestProbe.expectMsg(PeerActor.SendMessage(request))
-    peerEventBus.expectMsg(Subscribe(PeerDisconnection(peer.id)))
-    peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
-    peerEventBus.expectMsg(Subscribe(PeerDisconnection(resolverPeer.id)))
-    peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(resolverPeer.id))))
+    peerEventBus.expectMsgAllOf(
+      Subscribe(PeerDisconnection(peer.id)),
+      Subscribe(PeerDisconnection(resolverPeer.id)),
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(resolverPeer.id))))
 
     val responseHeaders = Seq(BlockHeader(testGenesisHash, ByteString(""), ByteString(""),
       ByteString(""), ByteString(""), ByteString(""),
       ByteString(""), 0, block, 0, 0, 0, ByteString(""), ByteString(""), ByteString("")))
 
-    peerEventBus.reply(MessageFromPeer(BlockHeaders(responseHeaders), resolverPeer.id))
+    resolver ! MessageFromPeer(BlockHeaders(responseHeaders), resolverPeer.id)
 
     parent.expectMsg(SyncController.BlockHeadersToResolve(resolverPeer, responseHeaders))
 

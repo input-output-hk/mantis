@@ -193,8 +193,8 @@ object PeerManagerActor {
       val messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo] =
         (initialPeerInfo, peer) =>
           EtcMessageHandler(peer, initialPeerInfo, forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
-      ctx.actorOf(PeerActor.props(addr, nodeStatusHolder,
-        peerConfiguration, appStateStorage, blockchain, peerMessageBus, forkResolverOpt, messageHandlerBuilder), id)
+      ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, appStateStorage, blockchain,
+        peerMessageBus, forkResolverOpt, messageHandlerBuilder), id)
   }
 
   trait PeerConfiguration {

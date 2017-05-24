@@ -68,7 +68,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
       }, peerConf, storagesInstance.storages.appStateStorage, blockchain, peerMessageBus, Some(time.scheduler),
-        Some(forkResolver),
+        Some(new ForkResolver.EtcForkResolver(blockchainConfig)),
         messageHandlerBuilder)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
@@ -309,8 +309,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
       override val networkId: Int = 1
     }
 
-    val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig)
-
     val messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo] =
       (initialPeerInfo, peer) => MockMessageHandler(initialPeerInfo)
 
@@ -365,7 +363,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       blockchain,
       peerEventBus,
       Some(time.scheduler),
-      forkResolverOpt = Some(forkResolver),
+      Some(new ForkResolver.EtcForkResolver(blockchainConfig)),
       messageHandlerBuilder = messageHandlerBuilder)))
   }
 
