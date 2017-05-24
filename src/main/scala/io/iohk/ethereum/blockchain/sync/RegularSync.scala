@@ -6,6 +6,7 @@ import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.ledger.BlockExecutionError
+import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -48,9 +49,15 @@ trait RegularSync {
       waitingForActor = None
       handleBlockBodies(peer, blockBodies)
 
-    case block: BroadcastBlocks if broadcasting =>
+    case BroadcastBlocks(newBlocks) if broadcasting =>
       //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
-      peersToDownloadFrom.keys.foreach(_ ! block)
+      val blocksToSendToEachPeer = for {
+        peer <- peersToDownloadFrom.keys
+        block <- newBlocks
+      } yield (peer, block)
+      blocksToSendToEachPeer.foreach{ case (peer, block) =>
+        peer ! PeerActor.SendMessage(block)
+      }
 
     case PrintStatus =>
       log.info(s"Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).")
@@ -212,4 +219,5 @@ trait RegularSync {
 
   private case object ResumeRegularSync
   private case class ResolveBranch(peer: ActorRef)
+  private case class BroadcastBlocks(blocks: Seq[NewBlock])
 }

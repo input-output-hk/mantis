@@ -19,8 +19,8 @@ case class EtcMessageHandler(peer: Peer, peerInfo: EtcPeerInfo, forkResolverOpt:
   extends MessageHandler[EtcPeerInfo, EtcPeerInfo] with BlockchainHost with Logger {
 
   override def sendingMessage(message: Message): MessageHandlingResult[EtcPeerInfo, EtcPeerInfo] = {
-    val handleSendMessage = updateMaxBlock(message) _
-    val newHandler = this.copy(peerInfo = handleSendMessage(peerInfo))
+    val handleSentMessage = updateMaxBlock(message) _
+    val newHandler = this.copy(peerInfo = handleSentMessage(peerInfo))
     val messageAction = handleSendingNewBlock(message, peerInfo) //New max block number should not be taken into account
     MessageHandlingResult(newHandler, messageAction)
   }
@@ -122,7 +122,7 @@ case class EtcMessageHandler(peer: Peer, peerInfo: EtcPeerInfo, forkResolverOpt:
   }
 
   /**
-    * Processes the message and responds to the sycing requests
+    * Processes the message and responds to the syncing requests
     *
     * @param message to be processed
     * @return action to be done regarding the message, ignore it or receive it

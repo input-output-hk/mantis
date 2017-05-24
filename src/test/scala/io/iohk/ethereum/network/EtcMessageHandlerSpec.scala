@@ -309,7 +309,7 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
     action shouldBe TransmitMessage
   }
 
-  it should "update max peer when sending new block" in new TestSetup {
+  it should "update max peer when sending new block and only send block not known by the peer" in new TestSetup {
     //given
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber + 4)
     val firstBlock = NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), 300)
