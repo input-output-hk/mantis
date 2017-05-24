@@ -164,9 +164,9 @@ object PeerManagerActor {
             appStateStorage: AppStateStorage,
             blockchain: Blockchain,
             blockchainConfig: BlockchainConfig,
-            peerMessageBus: ActorRef): Props =
-    Props(new PeerManagerActor(peerConfiguration, peerMessageBus,
-      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, blockchainConfig, peerMessageBus)))
+            peerEventBus: ActorRef): Props =
+    Props(new PeerManagerActor(peerConfiguration, peerEventBus,
+      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, blockchainConfig, peerEventBus)))
 
   def props(nodeStatusHolder: Agent[NodeStatus],
     peerConfiguration: PeerConfiguration,
@@ -174,17 +174,17 @@ object PeerManagerActor {
     blockchain: Blockchain,
     blockchainConfig: BlockchainConfig,
     bootstrapNodes: Set[String],
-    peerMessageBus: ActorRef): Props =
-    Props(new PeerManagerActor(peerConfiguration, peerMessageBus,
+    peerEventBus: ActorRef): Props =
+    Props(new PeerManagerActor(peerConfiguration, peerEventBus,
       peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain,
-        blockchainConfig, peerMessageBus), bootstrapNodes = bootstrapNodes))
+        blockchainConfig, peerEventBus), bootstrapNodes = bootstrapNodes))
 
   def peerFactory(nodeStatusHolder: Agent[NodeStatus],
                   peerConfiguration: PeerConfiguration,
                   appStateStorage: AppStateStorage,
                   blockchain: Blockchain,
                   blockchainConfig: BlockchainConfig,
-                  peerMessageBus: ActorRef): (ActorContext, InetSocketAddress) => ActorRef = {
+                  peerEventBus: ActorRef): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
       val forkResolverOpt =
@@ -194,7 +194,7 @@ object PeerManagerActor {
         (initialPeerInfo, peer) =>
           EtcMessageHandler(peer, initialPeerInfo, forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
       ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, appStateStorage, blockchain,
-        peerMessageBus, forkResolverOpt, messageHandlerBuilder), id)
+        peerEventBus, forkResolverOpt, messageHandlerBuilder), id)
   }
 
   trait PeerConfiguration {

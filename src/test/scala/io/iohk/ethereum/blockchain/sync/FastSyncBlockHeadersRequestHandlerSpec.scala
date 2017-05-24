@@ -10,7 +10,7 @@ import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnection}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.{PeerActor, PeerImpl}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockHeaders}
@@ -25,7 +25,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
   "FastSyncBlockHeadersRequestHandler" should "handle successful response (and enqueue remaining receipts)" in new TestSetup {
     peerTestProbe.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(block), maxHeaders, 0, reverse = false)))
-    peerEventBus.expectMsg(Subscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
 
     val responseHeaders = Seq(BlockHeader(testGenesisHash, ByteString(""), ByteString(""),
@@ -41,7 +41,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     parent.expectMsg(SyncRequestHandler.Done)
 
-    peerEventBus.expectMsg(Unsubscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
   }
 
@@ -59,8 +59,8 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     resolverPeerTestProbe.expectMsg(PeerActor.SendMessage(request))
     peerEventBus.expectMsgAllOf(
-      Subscribe(PeerDisconnection(peer.id)),
-      Subscribe(PeerDisconnection(resolverPeer.id)),
+      Subscribe(PeerDisconnectedClassifier(peer.id)),
+      Subscribe(PeerDisconnectedClassifier(resolverPeer.id)),
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(resolverPeer.id))))
 
@@ -74,13 +74,13 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     parent.expectMsg(SyncRequestHandler.Done)
 
-    peerEventBus.expectMsg(Unsubscribe(PeerDisconnection(resolverPeer.id)))
+    peerEventBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(resolverPeer.id)))
     peerEventBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(resolverPeer.id))))
   }
 
   it should "handle timeout" in new TestSetup {
     peerTestProbe.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(block), maxHeaders, 0, reverse = false)))
-    peerEventBus.expectMsg(Subscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
 
     time.advance(10.seconds)
@@ -88,7 +88,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.id, "got time out waiting for block headers response for requested: Left(1)"))
     parent.expectMsg(SyncRequestHandler.Done)
 
-    peerEventBus.expectMsg(Unsubscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
   }
 

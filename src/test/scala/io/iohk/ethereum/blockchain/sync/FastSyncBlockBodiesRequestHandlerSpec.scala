@@ -12,7 +12,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockBody, GetBl
 import org.scalatest.{FlatSpec, Matchers}
 import io.iohk.ethereum.blockchain.sync.SyncController.BlockBodiesReceived
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnection}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor._
 
 class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
@@ -20,7 +20,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
   "FastSyncBlockBodiesRequestHandler" should "handle successful response (and enqueue remaining hashes)" in new TestSetup {
     peerTestProbe.expectMsg(PeerActor.SendMessage(GetBlockBodies(requestedHashes)))
 
-    peerEventBus.expectMsg(Subscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))))
 
     val responseBodies = Seq(BlockBody(Nil, Nil))
@@ -29,13 +29,13 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     parent.expectMsg(BlockBodiesReceived(peer, requestedHashes, responseBodies))
     parent.expectMsg(SyncRequestHandler.Done)
 
-    peerEventBus.expectMsg(Unsubscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))))
   }
 
   it should "blacklist if the response is empty" in new TestSetup {
     peerTestProbe.expectMsg(PeerActor.SendMessage(GetBlockBodies(requestedHashes)))
-    peerEventBus.expectMsg(Subscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))))
 
     val responseBodies = Nil
@@ -44,13 +44,13 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.id, "got empty block bodies response for known hashes: List(31, 32)"))
     parent.expectMsg(SyncRequestHandler.Done)
 
-    peerEventBus.expectMsg(Unsubscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))))
   }
 
   it should "handle timeout" in new TestSetup {
     peerTestProbe.expectMsg(PeerActor.SendMessage(GetBlockBodies(requestedHashes)))
-    peerEventBus.expectMsg(Subscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))))
 
     time.advance(10.seconds)
@@ -59,7 +59,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     parent.expectMsg(FastSync.EnqueueBlockBodies(requestedHashes))
     parent.expectMsg(SyncRequestHandler.Done)
 
-    peerEventBus.expectMsg(Unsubscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))))
   }
 

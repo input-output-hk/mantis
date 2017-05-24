@@ -4,8 +4,8 @@ import java.net.InetSocketAddress
 
 import akka.actor.ActorRef
 import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, SubscriptionClassifier, Unsubscribe}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPEncoder
 
@@ -38,7 +38,20 @@ trait Peer {
     */
   def disconnectFromPeer(reason: Int): Unit
 
+  /**
+    * Subscribes the actor sender to the event of the peer sending any message from a given set.
+    * The subscriber will receive a [[io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer]] when any of
+    * those messages are sent from the peer.
+    *
+    * @param subscriber, the sender of the subscription
+    */
   def subscribeToSetOfMsgs(msgs: Set[Int])(implicit subscriber: ActorRef): Unit
+
+  /**
+    * Unsubscribes the actor sender to the event of the peer sending any message from a given set
+    *
+    * @param subscriber, the sender of the unsubscription
+    */
   def unsubscribeFromSetOfMsgs(msgs: Set[Int])(implicit subscriber: ActorRef): Unit
 
   /**
@@ -64,22 +77,21 @@ case class PeerId(value: String) extends AnyVal
 case class PeerImpl(remoteAddress: InetSocketAddress, ref: ActorRef, peerEventBusActor: ActorRef) extends Peer {
   val id: PeerId = PeerId(ref.path.name)
 
-  override def send[M <: Message](message: M)(implicit enc: RLPEncoder[M]): Unit = {
+  override def send[M <: Message](message: M)(implicit enc: RLPEncoder[M]): Unit =
     ref ! SendMessage(message)
-  }
 
   override def disconnectFromPeer(reason: Int): Unit =
     ref ! DisconnectPeer(reason)
 
   override def subscribeToSetOfMsgs(msgsCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
-    peerEventBusActor.tell(Subscribe(MessageClassifier(msgsCodes, PeerSelector.WithId(id))), subscriber)
+    peerEventBusActor.!(Subscribe(MessageClassifier(msgsCodes, PeerSelector.WithId(id))))(subscriber)
 
   override def unsubscribeFromSetOfMsgs(msgsCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
-    peerEventBusActor.tell(Unsubscribe(MessageClassifier(msgsCodes, PeerSelector.WithId(id))), subscriber)
+    peerEventBusActor.!(Unsubscribe(MessageClassifier(msgsCodes, PeerSelector.WithId(id))))(subscriber)
 
   override def subscribeToDisconnect()(implicit subscriber: ActorRef): Unit =
-    peerEventBusActor.tell(Subscribe(SubscriptionClassifier.PeerDisconnection(id)), subscriber)
+    peerEventBusActor.!(Subscribe(PeerDisconnectedClassifier(id)))(subscriber)
 
   def unsubscribeFromDisconnect()(implicit subscriber: ActorRef): Unit =
-    peerEventBusActor.tell(Unsubscribe(SubscriptionClassifier.PeerDisconnection(id)), subscriber)
+    peerEventBusActor.tell(Unsubscribe(PeerDisconnectedClassifier(id)), subscriber)
 }

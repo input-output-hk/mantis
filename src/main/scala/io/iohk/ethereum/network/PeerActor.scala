@@ -40,7 +40,7 @@ class PeerActor(
     val peerConfiguration: PeerConfiguration,
     appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
-    peerMessageBus: ActorRef,
+    peerEventBus: ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None,
     forkResolverOpt: Option[ForkResolver],
     messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo])
@@ -55,7 +55,7 @@ class PeerActor(
 
   val peerId: PeerId = PeerId(self.path.name)
 
-  val peer: Peer = PeerImpl(peerAddress, self, peerMessageBus)
+  val peer: Peer = PeerImpl(peerAddress, self, peerEventBus)
 
   override def receive: Receive = waitingForInitialCommand
 
@@ -299,7 +299,7 @@ class PeerActor(
           log.debug("Received message: {}", message)
           val MessageHandlingResult(newHandler, messageAction) = messageHandler.receivingMessage(message)
           if(messageAction == TransmitMessage)
-            peerMessageBus ! Publish(MessageFromPeer(message, peerId))
+            peerEventBus ! Publish(MessageFromPeer(message, peerId))
           context become new HandshakedPeer(rlpxConnection, newHandler).receive
 
         case DisconnectPeer(reason) =>
@@ -328,7 +328,7 @@ object PeerActor {
             peerConfiguration: PeerConfiguration,
             appStateStorage: AppStateStorage,
             blockchain: Blockchain,
-            peerMessageBus: ActorRef,
+            peerEventBus: ActorRef,
             forkResolverOpt: Option[ForkResolver],
             messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo]): Props =
     Props(new PeerActor(
@@ -338,7 +338,7 @@ object PeerActor {
       peerConfiguration,
       appStateStorage,
       blockchain,
-      peerMessageBus,
+      peerEventBus,
       forkResolverOpt = forkResolverOpt,
       messageHandlerBuilder = messageHandlerBuilder))
 

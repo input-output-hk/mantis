@@ -2,8 +2,8 @@ package io.iohk.ethereum.network
 
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Ping, Pong}
 import org.scalatest.{FlatSpec, Matchers}
@@ -53,6 +53,30 @@ class PeerMessageBusActorSpec extends FlatSpec with Matchers {
     val msgFromPeer2 = MessageFromPeer(Pong(), PeerId("1"))
     peerMessageBusActor ! PeerEventBusActor.Publish(msgFromPeer2)
     probe1.expectNoMsg()
+  }
+
+  it should "relay peers disconnecting to its subscribers" in {
+    implicit val system = ActorSystem("test-system")
+
+    val peerMessageBusActor = system.actorOf(PeerEventBusActor.props)
+
+    val probe1 = TestProbe()
+    val probe2 = TestProbe()
+    peerMessageBusActor.tell(PeerEventBusActor.Subscribe(PeerDisconnectedClassifier(PeerId("1"))), probe1.ref)
+    peerMessageBusActor.tell(PeerEventBusActor.Subscribe(PeerDisconnectedClassifier(PeerId("2"))), probe1.ref)
+    peerMessageBusActor.tell(PeerEventBusActor.Subscribe(PeerDisconnectedClassifier(PeerId("2"))), probe2.ref)
+
+    val msgPeerDisconnected = PeerDisconnected(PeerId("2"))
+    peerMessageBusActor ! PeerEventBusActor.Publish(msgPeerDisconnected)
+
+    probe1.expectMsg(msgPeerDisconnected)
+    probe2.expectMsg(msgPeerDisconnected)
+
+    peerMessageBusActor.tell(PeerEventBusActor.Unsubscribe(PeerDisconnectedClassifier(PeerId("2"))), probe1.ref)
+
+    peerMessageBusActor ! PeerEventBusActor.Publish(msgPeerDisconnected)
+    probe1.expectNoMsg()
+    probe2.expectMsg(msgPeerDisconnected)
   }
 
 }

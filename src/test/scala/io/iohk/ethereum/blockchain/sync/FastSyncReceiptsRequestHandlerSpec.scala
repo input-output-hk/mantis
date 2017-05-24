@@ -9,7 +9,7 @@ import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnection}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.{PeerActor, PeerImpl}
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts}
@@ -19,7 +19,7 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
 
   "FastSyncReceiptsRequestHandler" should "handle successful response (and enqueue remaining receipts)" in new TestSetup {
     peerTestProbe.expectMsg(PeerActor.SendMessage(GetReceipts(requestedHashes)))
-    peerEventBus.expectMsg(Subscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer.id))))
 
     val responseReceipts = Seq(Seq(Receipt(ByteString(""), 0, ByteString(""), Nil)))
@@ -31,13 +31,13 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     blockchain.getReceiptsByHash(requestedHashes.head) shouldBe Some(responseReceipts.head)
     blockchain.getReceiptsByHash(requestedHashes(1)) shouldBe None
 
-    peerEventBus.expectMsg(Unsubscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Unsubscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer.id))))
   }
 
   it should "handle timeout" in new TestSetup {
     peerTestProbe.expectMsg(PeerActor.SendMessage(GetReceipts(requestedHashes)))
-    peerEventBus.expectMsg(Subscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer.id))))
 
     time.advance(10.seconds)
@@ -46,13 +46,13 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes))
     parent.expectMsg(SyncRequestHandler.Done)
 
-    peerEventBus.expectMsg(Unsubscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Unsubscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer.id))))
   }
 
   it should "handle peer termination" in new TestSetup {
     peerTestProbe.expectMsg(PeerActor.SendMessage(GetReceipts(requestedHashes)))
-    peerEventBus.expectMsg(Subscribe(PeerDisconnection(peer.id)))
+    peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(peer.id)))
     peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer.id))))
 
     peer.ref ! PoisonPill

@@ -3,7 +3,7 @@ package io.iohk.ethereum.network
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.ActorEventBus
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.p2p.Message
 
 object PeerEventBusActor {
@@ -29,7 +29,7 @@ object PeerEventBusActor {
 
   object SubscriptionClassifier {
     case class MessageClassifier(messageCodes: Set[Int], peerSelector: PeerSelector) extends SubscriptionClassifier
-    case class PeerDisconnection(peerId: PeerId) extends SubscriptionClassifier
+    case class PeerDisconnectedClassifier(peerId: PeerId) extends SubscriptionClassifier
   }
 
   sealed trait PeerEvent
@@ -81,7 +81,7 @@ object PeerEventBusActor {
         }.foreach(_ ! event)
       case PeerEvent.PeerDisconnected(peerId) =>
         subscriptions.collect {
-          case Subscription(subscriber, classifier: SubscriptionClassifier.PeerDisconnection)
+          case Subscription(subscriber, classifier: PeerDisconnectedClassifier)
             if classifier.peerId == peerId => subscriber
         }.foreach(_ ! event)
     }
@@ -101,13 +101,13 @@ class PeerEventBusActor extends Actor {
 
   import PeerEventBusActor._
 
-  val peerMessageBus: PeerEventBus = new PeerEventBus
+  val peerEventBus: PeerEventBus = new PeerEventBus
 
   override def receive: Receive = {
-    case Subscribe(to) => peerMessageBus.subscribe(sender(), to)
-    case Unsubscribe(Some(from)) => peerMessageBus.unsubscribe(sender(), from)
-    case Unsubscribe(None) => peerMessageBus.unsubscribe(sender())
-    case Publish(ev: MessageFromPeer) => peerMessageBus.publish(ev)
+    case Subscribe(to) => peerEventBus.subscribe(sender(), to)
+    case Unsubscribe(Some(from)) => peerEventBus.unsubscribe(sender(), from)
+    case Unsubscribe(None) => peerEventBus.unsubscribe(sender())
+    case Publish(ev: PeerEvent) => peerEventBus.publish(ev)
   }
 
 }

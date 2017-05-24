@@ -13,7 +13,7 @@ import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader, BlockchainStorages}
 import io.iohk.ethereum.ledger.{BlockExecutionError, BloomFilter, Ledger}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnection}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.{PeerActor, PeerEventBusActor, PeerImpl}
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
 import io.iohk.ethereum.network.PeerEventBusActor._
@@ -55,6 +55,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     fastSyncController ! SyncController.StartSync
 
+    //Ask for best block to peers
     peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
     peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
 
@@ -71,9 +72,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peer1TestProbe.expectNoMsg()
 
+    //Ask for the target block to the selected peer (peer2)
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
     peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
-    val blockHeadersRequestHandler = peer2TestProbe.sender()
     peer2TestProbe.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedTargetBlock), 1, 0, reverse = false)))
     fastSyncController ! MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer2.id)
 
@@ -83,16 +84,17 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     parent.expectTerminated(peer1.ref)
     peerEventBus.send(fastSyncController, PeerDisconnected(peer1.id))
-    peerEventBus.send(blockHeadersRequestHandler, PeerDisconnected(peer1.id))
 
     peerEventBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
 
     peer1TestProbe.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(1), 10, 0, false)))
     peerEventBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
+    val blockHeadersRequestHandler = peerEventBus.sender()
+    peerEventBus.send(blockHeadersRequestHandler, PeerDisconnected(peer1.id))
 
     peer2TestProbe.expectMsg(PeerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot))))
     peerEventBus.expectMsgAllOf(
-//      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
       Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
   }
 
@@ -595,8 +597,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peerEventBus = TestProbe()(system)
     peerEventBus.ignoreMsg{
-      case Subscribe(PeerDisconnection(_)) => true
-      case Unsubscribe(Some(PeerDisconnection(_))) => true
+      case Subscribe(PeerDisconnectedClassifier(_)) => true
+      case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
     }
 
     val fastSyncController = TestActorRef(Props(new SyncController(peerManager.ref,
