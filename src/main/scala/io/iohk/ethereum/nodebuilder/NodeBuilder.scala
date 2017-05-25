@@ -109,10 +109,22 @@ trait BlockGeneratorBuilder {
 
 trait EthServiceBuilder {
   self: StorageBuilder with
-    BlockChainBuilder with
-    BlockGeneratorBuilder =>
+    StorageBuilder with
+    BlockGeneratorBuilder with
+    ValidatorsBuilder with
+    LedgerBuilder with
+    ValidatorsBuilder with
+    BlockchainConfigBuilder with
+    KeyStoreBuilder =>
 
-  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage)
+  lazy val ethService = new EthService(
+    storagesInstance.storages,
+    blockGenerator,
+    storagesInstance.storages.appStateStorage,
+    ledger,
+    validators,
+    blockchainConfig,
+    keyStore)
 }
 
 trait PersonalServiceBuilder {

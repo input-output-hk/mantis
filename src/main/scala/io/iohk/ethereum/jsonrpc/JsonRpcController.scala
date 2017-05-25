@@ -99,6 +99,8 @@ class JsonRpcController(
       handle[UncleByBlockHashAndIndexRequest, UncleByBlockHashAndIndexResponse](ethService.getUncleByBlockHashAndIndex, req)
     case req @ JsonRpcRequest(_, "eth_accounts", _, _) =>
       handle[ListAccountsRequest, ListAccountsResponse](personalService.listAccounts, req)
+    case req @ JsonRpcRequest(_, "eth_call", _, _) =>
+      handle[CallRequest, CallResponse](ethService.call, req)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {

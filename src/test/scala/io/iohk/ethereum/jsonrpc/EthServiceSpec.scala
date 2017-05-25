@@ -15,7 +15,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
 import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
+import io.iohk.ethereum.keystore.KeyStore
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.validators.Validators
 import org.scalamock.scalatest.MockFactory
 import org.spongycastle.util.encoders.Hex
 
@@ -223,8 +227,12 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val blockchain = BlockchainImpl(storagesInstance.storages)
     val blockGenerator = mock[BlockGenerator]
     val appStateStorage = mock[AppStateStorage]
+    val keyStore = mock[KeyStore]
+    val ledger = mock[Ledger]
+    val validators = mock[Validators]
+    val blockchainConfig = mock[BlockchainConfig]
 
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage)
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, ledger, validators, blockchainConfig, keyStore)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash

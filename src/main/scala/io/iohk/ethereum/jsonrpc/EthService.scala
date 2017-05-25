@@ -1,16 +1,18 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.domain.Blockchain
-
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.db.storage.AppStateStorage
+
 import scala.concurrent.ExecutionContext
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.keystore.KeyStore
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.validators.Validators
 
 import scala.concurrent.Future
-
 
 object EthService {
 
@@ -46,11 +48,29 @@ object EthService {
   case class SyncingRequest()
   case class SyncingResponse(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
 
+  case class CallTx(
+    from: Option[ByteString],
+    to: Option[ByteString],
+    gas: BigInt,
+    gasPrice: BigInt,
+    value: BigInt,
+    data: ByteString)
+  case class CallRequest(tx: CallTx, block: Either[BigInt, String])
+  case class CallResponse(returnData: ByteString)
 }
 
-class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStateStorage: AppStateStorage) {
+class EthService(
+    blockchainStorages: BlockchainStorages,
+    blockGenerator: BlockGenerator,
+    appStateStorage: AppStateStorage,
+    ledger: Ledger,
+    validators: Validators,
+    blockchainConfig: BlockchainConfig,
+    keyStore: KeyStore) {
 
   import EthService._
+
+  val blockchain = BlockchainImpl(blockchainStorages)
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
     Future.successful(Right(ProtocolVersionResponse(f"0x$CurrentProtocolVersion%x")))
@@ -159,6 +179,42 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
       startingBlock = appStateStorage.getSyncStartingBlock(),
       currentBlock = appStateStorage.getBestBlockNumber(),
       highestBlock = appStateStorage.getEstimatedHighestBlock())))
+  }
+
+  def call(req: CallRequest): ServiceResponse[CallResponse] = {
+    val fromAddress = req.tx.from
+      .map(Address.apply) // `from` param, if specified
+      .getOrElse(
+        keyStore
+          .listAccounts().getOrElse(Nil).headOption // first account, if exists and `from` param not specified
+          .getOrElse(Address(0))) // 0x0 default
+
+    val toAddress = req.tx.to.map(Address.apply)
+    val tx = Transaction(0, req.tx.gasPrice, req.tx.gas, toAddress, req.tx.value, req.tx.data)
+    val stx = SignedTransaction(tx, ECDSASignature(0, 0, 0.toByte), fromAddress)
+
+    Future.successful {
+      resolveBlock(req.block).map { block =>
+        val txResult = ledger.simulateTransaction(stx, block, blockchainStorages, validators)
+        CallResponse(txResult.vmReturnData)
+      }
+    }
+  }
+
+  private def resolveBlock(blockParam: Either[BigInt, String]): Either[JsonRpcError, Block] = {
+    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
+      blockchain.getBlockByNumber(number)
+        .map(Right.apply)
+        .getOrElse(Left(JsonRpcErrors.InvalidParams(s"Block $number not found")))
+    }
+
+    blockParam match {
+      case Left(blockNumber) => getBlock(blockNumber)
+      case Right("earliest") => getBlock(0)
+      case Right("latest") => getBlock(appStateStorage.getBestBlockNumber())
+      case Right("pending") => getBlock(appStateStorage.getBestBlockNumber())
+      case _ => Left(JsonRpcErrors.InvalidParams("Invalid default block param"))
+    }
   }
 
 }
