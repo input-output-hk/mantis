@@ -80,8 +80,9 @@ class RLPSpeedSuite extends FunSuite
       payload = ByteString.empty),
     pointSign = 28,
     signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),
-    signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0"))
-  )
+    signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0")),
+    chainId = 0x3d.toByte
+  ).get
 
   lazy val blockGen: Gen[TestBlock] = for {
     header <- blockHeaderGen

@@ -21,8 +21,7 @@ package object network {
   }
 
   def publicKeyFromNodeId(nodeId: String): ECPoint = {
-    val bytes = Array(4.toByte) ++ // uncompressed
-      Hex.decode(nodeId)
+    val bytes = ECDSASignature.uncompressedIndicator +: Hex.decode(nodeId)
     curve.getCurve.decodePoint(bytes)
   }
 
@@ -43,8 +42,13 @@ package object network {
 
       keysValuePair
     } else {
-      val List(pub, priv) = Source.fromFile(filePath).getLines().toList
-      AsymmetricCipherKeyPairSerializable.fromHexStrings(pub, priv)
+      val reader = Source.fromFile(filePath)
+      try {
+        val List(pub, priv) = reader.getLines().toList
+        AsymmetricCipherKeyPairSerializable.fromHexStrings(pub, priv)
+      } finally {
+        reader.close()
+      }
     }
   }
 

@@ -5,14 +5,17 @@ import org.scalatest.FunSuiteLike
 
 trait OpCodeTesting extends FunSuiteLike {
 
-  val unaryOps = OpCode.opcodes.collect { case op: UnaryOp => op }
-  val binaryOps = OpCode.opcodes.collect { case op: BinaryOp => op }
-  val ternaryOps = OpCode.opcodes.collect { case op: TernaryOp => op }
-  val pushOps = OpCode.opcodes.collect { case op: PushOp => op }
-  val dupOps = OpCode.opcodes.collect { case op: DupOp => op }
-  val swapOps = OpCode.opcodes.collect { case op: SwapOp => op }
-  val logOps = OpCode.opcodes.collect { case op: LogOp => op }
-  val constGasOps = OpCode.opcodes.collect { case op: ConstGas => op }
+  val config: EvmConfig
+
+  lazy val unaryOps = config.opCodes.collect { case op: UnaryOp => op }
+  lazy val binaryOps = config.opCodes.collect { case op: BinaryOp => op }
+  lazy val ternaryOps = config.opCodes.collect { case op: TernaryOp => op }
+  lazy val constOps = config.opCodes.collect { case op: ConstOp => op }
+  lazy val pushOps = config.opCodes.collect { case op: PushOp => op }
+  lazy val dupOps = config.opCodes.collect { case op: DupOp => op }
+  lazy val swapOps = config.opCodes.collect { case op: SwapOp => op }
+  lazy val logOps = config.opCodes.collect { case op: LogOp => op }
+  lazy val constGasOps = config.opCodes.collect { case op: ConstGas if op != INVALID => op }
 
   def test[T <: OpCode](ops: T*)(f: T => Any): Unit =
     ops.foreach(op => test(op.toString)(f(op)))
@@ -24,9 +27,9 @@ trait OpCodeTesting extends FunSuiteLike {
     * Run this as the last test in the suite
     * Ignoring an OpCode test will NOT cause this test to fail
     */
-  def verifyAllOpCodesRegistered(): Unit = {
+  def verifyAllOpCodesRegistered(except: OpCode*): Unit = {
     test("all opcodes have been registered") {
-      val untested = OpCode.opcodes.filterNot(op => testNames(op.toString))
+      val untested = config.opCodes.filterNot(op => testNames(op.toString)).diff(except)
       if (untested.isEmpty)
         succeed
       else

@@ -1,11 +1,15 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, Transaction}
+import io.iohk.ethereum.domain.{Address, TxLogEntry}
 
 object ProgramState {
-  def apply(context: ProgramContext): ProgramState =
-    ProgramState(context = context, gas = context.startGas, storage = context.storage)
+  def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramState[W, S] =
+    ProgramState(
+      context = context,
+      gas = context.startGas,
+      world = context.world,
+      addressesToDelete = context.initialAddressesToDelete)
 }
 
 /**
@@ -15,70 +19,86 @@ object ProgramState {
   * @param gas current gas for the execution
   * @param stack current stack
   * @param memory current memory
-  * @param storage current storage
   * @param pc program counter - an index of the opcode in the program to be executed
   * @param returnData data to be returned from the program execution
   * @param gasRefund the amount of gas to be refunded after execution (not sure if a separate field is required)
-  * @param internalTransactions list of transactions created during run of the program
   * @param addressesToDelete list of addresses of accounts scheduled to be deleted
   * @param halted a flag to indicate program termination
   * @param error indicates whether the program terminated abnormally
   */
-case class ProgramState(
-  context: ProgramContext,
+case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
+  context: ProgramContext[W, S],
   gas: BigInt,
-  storage: Storage = Storage.Empty,
+  world: W,
   stack: Stack = Stack.empty(),
   memory: Memory = Memory.empty,
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
-  //TODO: investigate whether we need this or should refunds be simply added to current gas
   gasRefund: BigInt = 0,
-  internalTransactions: Seq[Transaction] = Seq(),
-  addressesToDelete: Seq[Address] = Seq(),
+  addressesToDelete: Set[Address] = Set.empty,
+  logs: Vector[TxLogEntry] = Vector.empty,
   halted: Boolean = false,
   error: Option[ProgramError] = None
 ) {
 
+  def config: EvmConfig = context.config
+
   def env: ExecEnv = context.env
+
+  def ownAddress: Address = env.ownerAddr
+
+  def ownBalance: UInt256 = world.getBalance(ownAddress)
+
+  def storage: S = world.getStorage(ownAddress)
+
+  def gasUsed: BigInt = context.startGas - gas
+
+  def withWorld(updated: W): ProgramState[W, S] =
+    copy(world = updated)
+
+  def withStorage(updated: S): ProgramState[W, S] =
+    withWorld(world.saveStorage(ownAddress, updated))
 
   def program: Program = env.program
 
   def inputData: ByteString = env.inputData
 
-  def spendGas(amount: BigInt): ProgramState =
+  def spendGas(amount: BigInt): ProgramState[W, S] =
     copy(gas = gas - amount)
 
-  def refundGas(amount: BigInt): ProgramState =
+  def refundGas(amount: BigInt): ProgramState[W, S] =
     copy(gasRefund = gasRefund + amount)
 
-  def step(i: Int = 1): ProgramState =
+  def step(i: Int = 1): ProgramState[W, S] =
     copy(pc = pc + i)
 
-  def goto(i: Int): ProgramState =
+  def goto(i: Int): ProgramState[W, S] =
     copy(pc = i)
 
-  def withStack(stack: Stack): ProgramState =
+  def withStack(stack: Stack): ProgramState[W, S] =
     copy(stack = stack)
 
-  def withMemory(memory: Memory): ProgramState =
+  def withMemory(memory: Memory): ProgramState[W, S] =
     copy(memory = memory)
 
-  def withStorage(storage: Storage): ProgramState =
-    copy(storage = storage)
-
-  def withError(error: ProgramError): ProgramState =
+  def withError(error: ProgramError): ProgramState[W, S] =
     copy(error = Some(error), halted = true)
 
-  def withReturnData(data: ByteString): ProgramState =
+  def withReturnData(data: ByteString): ProgramState[W, S] =
     copy(returnData = data)
 
-  def withTx(tx: Transaction): ProgramState =
-    copy(internalTransactions = internalTransactions :+ tx)
+  def withAddressToDelete(addr: Address): ProgramState[W, S] =
+    copy(addressesToDelete = addressesToDelete + addr)
 
-  def withAddressToDelete(addr: Address): ProgramState =
-    copy(addressesToDelete = addressesToDelete :+ addr)
+  def withAddressesToDelete(addresses: Set[Address]): ProgramState[W, S] =
+    copy(addressesToDelete = addressesToDelete ++ addresses)
 
-  def halt: ProgramState =
+  def withLog(log: TxLogEntry): ProgramState[W, S] =
+    copy(logs = logs :+ log)
+
+  def withLogs(log: Seq[TxLogEntry]): ProgramState[W, S] =
+    copy(logs = logs ++ log)
+
+  def halt: ProgramState[W, S] =
     copy(halted = true)
 }

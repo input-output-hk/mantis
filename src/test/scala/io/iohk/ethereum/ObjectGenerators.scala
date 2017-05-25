@@ -5,22 +5,26 @@ import java.math.BigInteger
 import akka.util.ByteString
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import io.iohk.ethereum.network.p2p.messages.PV63._
-import io.iohk.ethereum.vm.DataWord
+import io.iohk.ethereum.vm.UInt256
 import org.scalacheck.{Arbitrary, Gen}
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
 
 trait ObjectGenerators {
 
+  def byteGen: Gen[Byte] = Gen.choose(Byte.MinValue, Byte.MaxValue)
+
+  def shortGen: Gen[Short] = Gen.choose(Short.MinValue, Short.MaxValue)
+
+  def intGen(min: Int, max: Int): Gen[Int] = Gen.choose(min, max)
+
   def intGen: Gen[Int] = Gen.choose(Int.MinValue, Int.MaxValue)
 
   def longGen: Gen[Long] = Gen.choose(Long.MinValue, Long.MaxValue)
 
   def bigIntGen: Gen[BigInt] = byteArrayOfNItemsGen(32).map(b => new BigInteger(1, b))
-
-  def dataWordGen: Gen[DataWord] = bigIntGen.map(DataWord(_))
 
   def randomSizeByteArrayGen(minSize: Int, maxSize: Int): Gen[Array[Byte]] = Gen.choose(minSize, maxSize).flatMap(byteArrayOfNItemsGen(_))
 
@@ -54,6 +58,22 @@ trait ObjectGenerators {
     cumulativeGasUsed = cumulativeGasUsed,
     logsBloomFilter = ByteString(logsBloomFilter),
     logs = Seq()
+  )
+
+  def transactionGen(): Gen[Transaction] = for {
+    nonce <- bigIntGen
+    gasPrice <- bigIntGen
+    gasLimit <- bigIntGen
+    receivingAddress <- byteArrayOfNItemsGen(20).map(Address(_))
+    value <- bigIntGen
+    payload <- byteStringOfLengthNGen(256)
+  } yield Transaction(
+    nonce,
+    gasPrice,
+    gasLimit,
+    receivingAddress,
+    value,
+    payload
   )
 
   def receiptsGen(n: Int): Gen[Seq[Seq[Receipt]]] = Gen.listOfN(n, Gen.listOf(receiptGen()))

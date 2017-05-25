@@ -4,7 +4,8 @@ import akka.actor._
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -12,12 +13,13 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
 
+import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 
 trait RegularSync {
   selfSyncController: SyncController =>
 
-  private var headersQueue: Seq[BlockHeader] = Seq.empty
+  private var headersQueue: Seq[BlockHeader] = Nil
   private var broadcasting = false
   private var waitingForActor: Option[ActorRef] = None
 
@@ -99,7 +101,7 @@ trait RegularSync {
         //we have same chain
         if (parent.hash == headers.head.parentHash) {
           val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage)))
+          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
         } else {
           val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
           waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = true)))
@@ -111,59 +113,86 @@ trait RegularSync {
   }
 
   private def handleBlockBodies(peer: ActorRef, m: Seq[BlockBody]) = {
-    if (m.nonEmpty) {
-      val result = headersQueue.zip(m).map { case (h, b) => blockValidator(h, b) }
+    if (m.nonEmpty && headersQueue.nonEmpty) {
+      val blocks = headersQueue.zip(m).map{ case (header, body) => Block(header, body) }
 
-      if (!result.exists(_.isLeft) && result.nonEmpty) {
-        val blocks = result.collect { case Right(b) => b }
+      blockchain.getBlockHeaderByHash(blocks.head.header.parentHash)
+        .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
+        case Some(blockParentTd) =>
+          val (newBlocks, errorOpt) = processBlocks(blocks, blockParentTd)
 
-        blockchain.getBlockHeaderByHash(blocks.head.header.parentHash)
-          .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
-          case Some(td) =>
-            var currentTd = td
-            val newBlocks = blocks.map { b =>
-              val blockHashToDelete = blockchain.getBlockHeaderByNumber(b.header.number).map(_.hash).filter(_ != b.header.hash)
-              blockchain.save(b)
-              appStateStorage.putBestBlockNumber(b.header.number)
-              currentTd += b.header.difficulty
-              blockchain.save(b.header.hash, currentTd)
-              blockHashToDelete.foreach(blockchain.removeBlock)
-
-              NewBlock(b, currentTd)
-            }
-
+          if(newBlocks.nonEmpty){
             context.self ! BroadcastBlocks(newBlocks)
             log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
-          case None =>
-            log.error("no total difficulty for latest block")
-        }
+          }
 
-        headersQueue = headersQueue.drop(result.length)
-        if (headersQueue.nonEmpty) {
-          val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes, appStateStorage)))
-        } else {
-          context.self ! ResumeRegularSync
-        }
-      } else {
-        //blacklist for errors in blocks
-        resumeWithDifferentPeer(peer)
+          errorOpt match {
+            case Some(error) =>
+              val numberBlockFailed = blocks.head.header.number + newBlocks.length
+              resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.toString}, in block $numberBlockFailed")
+            case None =>
+              headersQueue = headersQueue.drop(blocks.length)
+              if (headersQueue.nonEmpty) {
+                val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
+                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
+              } else {
+                context.self ! ResumeRegularSync
+              }
+          }
+        case None =>
+          //TODO: Investigate if we can recover from this error (EC-165)
+          val parentHash = Hex.toHexString(blocks.head.header.parentHash.toArray)
+          throw new IllegalStateException(s"No total difficulty for the latest block with number ${blocks.head.header.number - 1} (and hash $parentHash)")
       }
+
     } else {
       //we got empty response for bodies from peer but we got block headers earlier
       resumeWithDifferentPeer(peer)
     }
   }
 
+  /**
+    * Inserts and executes all the blocks, up to the point to which one of them fails (or we run out of blocks).
+    * If the execution of any block were to fail, newBlocks only contains the NewBlock msgs for all the blocks executed before it,
+    * and only the blocks successfully executed are inserted into the blockchain.
+    *
+    * @param blocks to execute
+    * @param blockParentTd, td of the parent of the blocks.head block
+    * @param newBlocks which, after adding the corresponding NewBlock msg for blocks, will be broadcasted
+    * @return list of NewBlocks to broadcast (one per block successfully executed) and an error if one happened during execution
+    */
+  @tailrec
+  private def processBlocks(blocks: Seq[Block], blockParentTd: BigInt,
+                           newBlocks: Seq[NewBlock] = Nil): (Seq[NewBlock], Option[BlockExecutionError]) = blocks match {
+    case Nil =>
+      newBlocks -> None
+
+    case Seq(block, otherBlocks@_*) =>
+      val blockHashToDelete = blockchain.getBlockHeaderByNumber(block.header.number).map(_.hash).filter(_ != block.header.hash)
+      val blockExecResult = ledger.executeBlock(block, blockchainStorages, validators)
+      blockExecResult match {
+        case Right(_) =>
+          blockchain.save(block)
+          appStateStorage.putBestBlockNumber(block.header.number)
+          val newTd = blockParentTd + block.header.difficulty
+          blockchain.save(block.header.hash, newTd)
+          blockHashToDelete.foreach(blockchain.removeBlock)
+          processBlocks(otherBlocks, newTd, newBlocks :+ NewBlock(block, newTd))
+
+        case Left(error) =>
+          newBlocks -> Some(error)
+      }
+  }
+
   private def scheduleResume() = {
-    headersQueue = Seq.empty
+    headersQueue = Nil
     scheduler.scheduleOnce(checkForNewBlockInterval, context.self, ResumeRegularSync)
   }
 
-  private def resumeWithDifferentPeer(currentPeer: ActorRef) = {
-    self ! BlacklistPeer(currentPeer, "because of error in response")
-    headersQueue = Seq.empty
+  private def resumeWithDifferentPeer(currentPeer: ActorRef, reason: String = "error in response") = {
+    self ! BlacklistPeer(currentPeer, "because of " + reason)
+    headersQueue = Nil
     context.self ! ResumeRegularSync
   }
 

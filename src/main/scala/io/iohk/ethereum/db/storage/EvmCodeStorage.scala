@@ -9,9 +9,7 @@ import io.iohk.ethereum.db.storage.EvmCodeStorage._
   *   Key: hash of the code
   *   Value: the code
   */
-class EvmCodeStorage(val dataSource: DataSource) extends KeyValueStorage[CodeHash, Code] {
-  type T = EvmCodeStorage
-
+class EvmCodeStorage(val dataSource: DataSource) extends KeyValueStorage[CodeHash, Code, EvmCodeStorage] {
   val namespace: IndexedSeq[Byte] = Namespaces.CodeNamespace
   def keySerializer: CodeHash => IndexedSeq[Byte] = identity
   def valueSerializer: Code => IndexedSeq[Byte] = identity
