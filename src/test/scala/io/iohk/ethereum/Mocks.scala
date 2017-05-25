@@ -28,10 +28,9 @@ object Mocks {
       ???
     }
 
-    override def simulateTransaction(stx: SignedTransaction, block: Block, storages: BlockchainStorages, validators: Validators): Ledger.TxResult = {
+    override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages, validators: Validators): Ledger.TxResult = {
       ???
     }
-
   }
 
   private val defaultProgramResult: Ledger.PC => Ledger.PR = context => ProgramResult(

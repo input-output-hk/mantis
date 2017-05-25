@@ -16,7 +16,8 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.Await
 import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.Ledger
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
+import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.Validators
@@ -220,6 +221,22 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val response = ethService.getWork(GetWorkRequest())
 
     response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
+  }
+
+  it should "execute call and return a value" in new TestSetup {
+    blockchain.save(blockToRequest)
+    (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
+
+    val txResult = TxResult(InMemoryWorldStateProxy(storagesInstance.storages), 123, Nil, ByteString("return_value"))
+    (ledger.simulateTransaction _).expects(*, *, *, *).returning(txResult)
+
+    val tx = CallTx(
+      Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),
+      Some(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477"))),
+      1, 2, 3, ByteString(""))
+    val response = ethService.call(CallRequest(tx, Right("latest")))
+
+    response.futureValue shouldEqual Right(CallResponse(ByteString("return_value")))
   }
 
   trait TestSetup extends MockFactory {

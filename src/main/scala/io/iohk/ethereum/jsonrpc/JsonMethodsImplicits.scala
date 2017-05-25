@@ -25,23 +25,29 @@ trait JsonMethodsImplicits {
   protected def encodeAsHex(input: BigInt): JString =
     JString(s"0x${input.toString(16)}")
 
-  protected def tryExtractUnformattedData(input: JString): Either[JsonRpcError, ByteString] = {
-    if (input.s.startsWith("0x")) {
-      Try(ByteString(Hex.decode(input.s.drop(2)))) match {
+  protected def tryExtractUnformattedData(input: JString): Either[JsonRpcError, ByteString] =
+    tryExtractUnformattedData(input.values)
+
+  protected def tryExtractUnformattedData(input: String): Either[JsonRpcError, ByteString] = {
+    if (input.startsWith("0x")) {
+      Try(ByteString(Hex.decode(input.drop(2)))) match {
         case Success(bs) => Right(bs)
-        case Failure(_) => Left(InvalidParams(s"Unable to parse data from '${input.s}'"))
+        case Failure(_) => Left(InvalidParams(s"Unable to parse data from '$input'"))
       }
-    } else Left(InvalidParams(s"Data '${input.s}' should have 0x prefix"))
+    } else Left(InvalidParams(s"Data '$input' should have 0x prefix"))
   }
 
-  protected def tryExtractQuantity(input: JString): Either[JsonRpcError, BigInt] = {
-    if (input.s.startsWith("0x")) {
-      val noPrefix = input.s.replace("0x", "")
+  protected def tryExtractQuantity(input: JString): Either[JsonRpcError, BigInt] =
+    tryExtractQuantity(input.values)
+
+  protected def tryExtractQuantity(input: String): Either[JsonRpcError, BigInt] = {
+    if (input.startsWith("0x")) {
+      val noPrefix = input.replace("0x", "")
       Try(BigInt(noPrefix, 16)) match {
         case Success(bi) => Right(bi)
-        case Failure(_) => Left(InvalidParams(s"Unable to parse quantity from '${input.s}'"))
+        case Failure(_) => Left(InvalidParams(s"Unable to parse quantity from '$input'"))
       }
-    } else Left(InvalidParams(s"Quantity '${input.s}' should have 0x prefix"))
+    } else Left(InvalidParams(s"Quantity '$input' should have 0x prefix"))
   }
 }
 

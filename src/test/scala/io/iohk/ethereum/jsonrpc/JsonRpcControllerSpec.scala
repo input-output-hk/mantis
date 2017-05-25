@@ -1,12 +1,13 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.util.ByteString
 import io.iohk.ethereum.{DefaultPatience, Fixtures}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl}
+import io.iohk.ethereum.jsonrpc.EthService.CallResponse
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
-import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
@@ -299,6 +300,32 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JArray(addresses.map(JString)))
+  }
+
+  it should "eth_call" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.call _).expects(*).returning(Future.successful(Right(CallResponse(ByteString("asd")))))
+
+    val json = JArray(List(
+      JObject(
+        "from" -> "0xabbb6bebfa05aa13e908eaa492bd7a8343760477",
+        "to" -> "0xda714fe079751fa7a1ad80b76571ea6ec52a446c",
+        "gas" -> "0x12",
+        "gasPrice" -> "0x123",
+        "value" -> "0x99",
+        "data" -> "0xFF44"
+      ),
+      JString("latest")
+    ))
+    val rpcRequest = JsonRpcRequest("2.0", "eth_call", Some(json), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x617364"))
   }
 
   trait TestSetup extends MockFactory {

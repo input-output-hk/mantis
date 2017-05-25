@@ -7,8 +7,6 @@ import org.json4s.{Extraction, JsonAST}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue, _}
 import org.json4s.JsonDSL._
 
-import scala.util.Try
-
 object EthJsonMethodsImplicits extends JsonMethodsImplicits {
 
   implicit val eth_protocolVersion = new JsonDecoder[ProtocolVersionRequest] with JsonEncoder[ProtocolVersionResponse] {
@@ -135,8 +133,8 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       params match {
         case Some(JArray((txObj: JObject) :: (blockStr: JString) :: Nil)) =>
           val block: Either[BigInt, String] = tryExtractQuantity(blockStr) match {
-            case Left(_) => Right(blockStr.values)
             case Right(n) => Left(n)
+            case Left(_) => Right(blockStr.values)
           }
           for {
             tx <- extractTx(txObj)
@@ -144,19 +142,19 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
         case _ => Left(InvalidParams())
       }
 
-    def encodeJson(t: CallResponse): JValue = Extraction.decompose(t)
+    def encodeJson(t: CallResponse): JValue = encodeAsHex(t.returnData)
 
     def extractTx(obj: JObject): Either[JsonRpcError, CallTx] = {
       def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] =
         opt.map(_.right.map(Some.apply)).getOrElse(Right(None))
 
       for {
-        from <- toEitherOpt((obj \ "from").extractOpt[JString].map(tryExtractUnformattedData))
-        to <- toEitherOpt((obj \ "to").extractOpt[JString].map(tryExtractUnformattedData))
-        gas <- tryExtractQuantity((obj \ "gas").extract[JString])
-        gasPrice <- tryExtractQuantity((obj \ "gasPrice").extract[JString])
-        value <- tryExtractQuantity((obj \ "value").extract[JString])
-        data <- tryExtractUnformattedData((obj \ "data").extract[JString])
+        from <- toEitherOpt((obj \ "from").extractOpt[String].map(tryExtractUnformattedData))
+        to <- toEitherOpt((obj \ "to").extractOpt[String].map(tryExtractUnformattedData))
+        gas <- tryExtractQuantity((obj \ "gas").extract[String])
+        gasPrice <- tryExtractQuantity((obj \ "gasPrice").extract[String])
+        value <- tryExtractQuantity((obj \ "value").extract[String])
+        data <- tryExtractUnformattedData((obj \ "data").extract[String])
       } yield CallTx(from, to, gas, gasPrice, value, data)
     }
 

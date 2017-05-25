@@ -13,6 +13,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.Validators
 
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 object EthService {
 
@@ -70,7 +71,7 @@ class EthService(
 
   import EthService._
 
-  val blockchain = BlockchainImpl(blockchainStorages)
+  lazy val blockchain = BlockchainImpl(blockchainStorages)
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
     Future.successful(Right(ProtocolVersionResponse(f"0x$CurrentProtocolVersion%x")))
@@ -195,7 +196,7 @@ class EthService(
 
     Future.successful {
       resolveBlock(req.block).map { block =>
-        val txResult = ledger.simulateTransaction(stx, block, blockchainStorages, validators)
+        val txResult = ledger.simulateTransaction(stx, block.header, blockchainStorages, validators)
         CallResponse(txResult.vmReturnData)
       }
     }
@@ -213,6 +214,10 @@ class EthService(
       case Right("earliest") => getBlock(0)
       case Right("latest") => getBlock(appStateStorage.getBestBlockNumber())
       case Right("pending") => getBlock(appStateStorage.getBestBlockNumber())
+      case Right(str) => Try(BigInt(str)) match {
+        case Success(blockNum) => getBlock(blockNum)
+        case Failure(ex) => Left(JsonRpcErrors.InvalidParams("Invalid default block param"))
+      }
       case _ => Left(JsonRpcErrors.InvalidParams("Invalid default block param"))
     }
   }
