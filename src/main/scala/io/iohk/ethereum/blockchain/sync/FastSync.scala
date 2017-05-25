@@ -5,8 +5,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.network.{Peer, PeerActor}
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
+import io.iohk.ethereum.network.PeerMessageBusActor._
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.utils.Config.FastSync._
 
@@ -38,8 +39,8 @@ trait FastSync {
 
     if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
       peersUsedToChooseTarget.foreach { case (peer, Handshaked(status, _, _)) =>
-        peer ! PeerActor.Subscribe(Set(BlockHeaders.code))
-        peer ! PeerActor.SendMessage(GetBlockHeaders(Right(status.bestHash), 1, 0, reverse = false))
+        peerMessageBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
+        peer.ref ! PeerActor.SendMessage(GetBlockHeaders(Right(status.bestHash), 1, 0, reverse = false))
       }
       log.info("Asking {} peers for block headers", peersUsedToChooseTarget.size)
       val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, BlockHeadersTimeout)
@@ -51,34 +52,39 @@ trait FastSync {
     }
   }
 
-  private def waitingForBlockHeaders(waitingFor: Set[ActorRef],
-                             received: Map[ActorRef, BlockHeader],
+  private def waitingForBlockHeaders(waitingFor: Set[Peer],
+                             received: Map[Peer, BlockHeader],
                              timeout: Cancellable): Receive = handlePeerUpdates orElse {
-    case PeerActor.MessageReceived(BlockHeaders(Seq(blockHeader))) =>
-      sender() ! PeerActor.Unsubscribe
+    case MessageFromPeer(BlockHeaders(Seq(blockHeader)), peerId) =>
+      peerMessageBus ! Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peerId)))
 
-      val newWaitingFor = waitingFor - sender()
-      val newReceived = received + (sender() -> blockHeader)
+      val newWaitingFor = waitingFor.filterNot(_.id == peerId)
 
-      if (newWaitingFor.isEmpty) {
-        timeout.cancel()
-        tryStartFastSync(newReceived)
-      } else context become waitingForBlockHeaders(newWaitingFor, newReceived, timeout)
+      waitingFor.find(_.id == peerId).foreach { peer =>
+        val newReceived = received + (peer -> blockHeader)
 
-    case PeerActor.MessageReceived(BlockHeaders(blockHeaders)) =>
-      sender() ! PeerActor.Unsubscribe
-      blacklist(sender(), blacklistDuration,s"did not respond with 1 header but with ${blockHeaders.size}, blacklisting for $blacklistDuration")
-      context become waitingForBlockHeaders(waitingFor - sender(), received, timeout)
+        if (newWaitingFor.isEmpty) {
+          timeout.cancel()
+          tryStartFastSync(newReceived)
+        } else context become waitingForBlockHeaders(newWaitingFor, newReceived, timeout)
+      }
+
+    case MessageFromPeer(BlockHeaders(blockHeaders), peerId) =>
+      peerMessageBus ! Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peerId)))
+      blacklist(peerId, blacklistDuration,s"did not respond with 1 header but with ${blockHeaders.size}, blacklisting for $blacklistDuration")
+      waitingFor.find(_.id == peerId).foreach { peer =>
+        context become waitingForBlockHeaders(waitingFor - peer, received, timeout)
+      }
 
     case BlockHeadersTimeout =>
       waitingFor.foreach { peer =>
-        peer ! PeerActor.Unsubscribe
-        blacklist(peer, blacklistDuration, s"did not respond within required time with block header, blacklisting for $blacklistDuration")
+        peerMessageBus ! Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
+        blacklist(peer.id, blacklistDuration, s"did not respond within required time with block header, blacklisting for $blacklistDuration")
       }
       tryStartFastSync(received)
   }
 
-  private def tryStartFastSync(receivedHeaders: Map[ActorRef, BlockHeader]): Unit = {
+  private def tryStartFastSync(receivedHeaders: Map[Peer, BlockHeader]): Unit = {
     log.info("Trying to start fast sync. Received {} block headers", receivedHeaders.size)
     if (receivedHeaders.size >= minPeersToChooseTargetBlock) {
       val (mostUpToDatePeer, mostUpToDateBlockHeader) = receivedHeaders.maxBy(_._2.number)
@@ -90,9 +96,10 @@ trait FastSync {
         context become idle
         self ! FastSyncDone
       } else {
-        log.info("Starting fast sync. Asking peer {} for target block header ({})", mostUpToDatePeer.path.name, targetBlock)
-        mostUpToDatePeer ! PeerActor.Subscribe(Set(BlockHeaders.code))
-        mostUpToDatePeer ! PeerActor.SendMessage(GetBlockHeaders(Left(targetBlock), 1, 0, reverse = false))
+        log.info("Starting fast sync. Asking peer {} for target block header ({})", mostUpToDatePeer.id, targetBlock)
+
+        peerMessageBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(mostUpToDatePeer.id)))
+        mostUpToDatePeer.ref ! PeerActor.SendMessage(GetBlockHeaders(Left(targetBlock), 1, 0, reverse = false))
         val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
         context become waitingForTargetBlock(mostUpToDatePeer, targetBlock, timeout)
       }
@@ -104,12 +111,12 @@ trait FastSync {
     }
   }
 
-  def waitingForTargetBlock(peer: ActorRef,
+  def waitingForTargetBlock(peer: Peer,
                             targetBlockNumber: BigInt,
                             timeout: Cancellable): Receive = handlePeerUpdates orElse {
-    case PeerActor.MessageReceived(blockHeaders: BlockHeaders) =>
+    case MessageFromPeer(blockHeaders: BlockHeaders, peerId) =>
       timeout.cancel()
-      peer ! PeerActor.Unsubscribe
+      peerMessageBus ! Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
 
       val targetBlockHeaderOpt = blockHeaders.headers.find(header => header.number == targetBlockNumber)
       targetBlockHeaderOpt match {
@@ -120,14 +127,14 @@ trait FastSync {
           startFastSync(initialSyncState)
 
         case None =>
-          blacklist(sender(), blacklistDuration,s"did not respond with target block header, blacklisting and scheduling retry in $startRetryInterval")
+          blacklist(peer.id, blacklistDuration,s"did not respond with target block header, blacklisting and scheduling retry in $startRetryInterval")
           scheduleStartRetry(startRetryInterval)
           context become startingFastSync
       }
 
     case TargetBlockTimeout =>
-      blacklist(sender(), blacklistDuration, s"did not respond with target block header (timeout), blacklisting and scheduling retry in $startRetryInterval")
-      peer ! PeerActor.Unsubscribe
+      blacklist(peer.id, blacklistDuration, s"did not respond with target block header (timeout), blacklisting and scheduling retry in $startRetryInterval")
+      peerMessageBus ! Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
       scheduleStartRetry(startRetryInterval)
       context become startingFastSync
   }
@@ -147,7 +154,7 @@ trait FastSync {
     private var downloadedNodesCount: Int = initialSyncState.downloadedNodesCount
     private var bestBlockHeaderNumber: BigInt = initialSyncState.bestBlockHeaderNumber
 
-    private var assignedHandlers: Map[ActorRef, ActorRef] = Map.empty
+    private var assignedHandlers: Map[ActorRef, Peer] = Map.empty
 
     private val syncStateStorageActor = context.actorOf(Props[FastSyncStateActor], "state-storage")
 
@@ -298,7 +305,7 @@ trait FastSync {
       }
     }
 
-    def assignWork(peer: ActorRef): Unit = {
+    def assignWork(peer: Peer): Unit = {
       if (receiptsQueue.nonEmpty) {
         requestReceipts(peer)
       } else if (blockBodiesQueue.nonEmpty) {
@@ -311,42 +318,42 @@ trait FastSync {
       }
     }
 
-    def requestReceipts(peer: ActorRef): Unit = {
+    def requestReceipts(peer: Peer): Unit = {
       val (receiptsToGet, remainingReceipts) = receiptsQueue.splitAt(receiptsPerRequest)
       val handler = context.actorOf(FastSyncReceiptsRequestHandler.props(
-        peer, receiptsToGet, appStateStorage, blockchain))
+        peer, peerMessageBus, receiptsToGet, appStateStorage, blockchain))
       context watch handler
       assignedHandlers += (handler -> peer)
       receiptsQueue = remainingReceipts
       requestedReceipts += handler -> receiptsToGet
     }
 
-    def requestBlockBodies(peer: ActorRef): Unit = {
+    def requestBlockBodies(peer: Peer): Unit = {
       val (blockBodiesToGet, remainingBlockBodies) = blockBodiesQueue.splitAt(blockBodiesPerRequest)
-      val handler = context.actorOf(SyncBlockBodiesRequestHandler.props(peer, blockBodiesToGet))
+      val handler = context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, blockBodiesToGet))
       context watch handler
       assignedHandlers += (handler -> peer)
       blockBodiesQueue = remainingBlockBodies
       requestedBlockBodies += handler -> blockBodiesToGet
     }
 
-    def requestBlockHeaders(peer: ActorRef): Unit = {
+    def requestBlockHeaders(peer: Peer): Unit = {
       val limit: BigInt = if (blockHeadersPerRequest < (initialSyncState.targetBlock.number - bestBlockHeaderNumber))
         blockHeadersPerRequest
       else
         initialSyncState.targetBlock.number - bestBlockHeaderNumber
 
       val request = GetBlockHeaders(Left(bestBlockHeaderNumber + 1), limit, skip = 0, reverse = false)
-      val handler = context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false), blockHeadersHandlerName)
+      val handler = context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerMessageBus, request, resolveBranches = false), blockHeadersHandlerName)
       context watch handler
       assignedHandlers += (handler -> peer)
     }
 
-    def requestNodes(peer: ActorRef): Unit = {
+    def requestNodes(peer: Peer): Unit = {
       val (nonMptNodesToGet, remainingNonMptNodes) = nonMptNodesQueue.splitAt(nodesPerRequest)
       val (mptNodesToGet, remainingMptNodes) = mptNodesQueue.splitAt(nodesPerRequest - nonMptNodesToGet.size)
       val nodesToGet = nonMptNodesToGet ++ mptNodesToGet
-      val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, nodesToGet, blockchain, blockchainStorages.mptNodeStorage))
+      val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, peerMessageBus, nodesToGet, blockchain, blockchainStorages.mptNodeStorage))
       context watch handler
       assignedHandlers += (handler -> peer)
       nonMptNodesQueue = remainingNonMptNodes
@@ -355,7 +362,7 @@ trait FastSync {
       requestedNonMptNodes += handler -> nonMptNodesToGet
     }
 
-    def unassignedPeers: Set[ActorRef] = peersToDownloadFrom.keySet diff assignedHandlers.values.toSet
+    def unassignedPeers: Set[Peer] = peersToDownloadFrom.keySet diff assignedHandlers.values.toSet
 
     def anythingToDownload: Boolean =
       anythingQueued || bestBlockHeaderNumber < initialSyncState.targetBlock.number

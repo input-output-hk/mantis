@@ -128,6 +128,19 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     def encodeJson(t: SyncingResponse): JValue = Extraction.decompose(t)
   }
 
+  implicit val eth_sendRawTransaction = new JsonDecoder[SendRawTransactionRequest] with JsonEncoder[SendRawTransactionResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, SendRawTransactionRequest] =
+      params match {
+        case Some(JArray((dataStr: JString) :: Nil)) =>
+          for {
+            data <- tryExtractUnformattedData(dataStr)
+          } yield SendRawTransactionRequest(data)
+        case _ => Left(InvalidParams())
+      }
+
+    def encodeJson(t: SendRawTransactionResponse): JValue = encodeAsHex(t.transactionHash)
+  }
+
   implicit val eth_call = new JsonDecoder[CallRequest] with JsonEncoder[CallResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, CallRequest] =
       params match {

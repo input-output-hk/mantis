@@ -1,5 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorRef
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.db.storage.AppStateStorage
 
@@ -9,6 +10,8 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.rlp
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.Validators
 
@@ -49,6 +52,9 @@ object EthService {
   case class SyncingRequest()
   case class SyncingResponse(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
 
+  case class SendRawTransactionRequest(data: ByteString)
+  case class SendRawTransactionResponse(transactionHash: ByteString)
+
   case class CallTx(
     from: Option[ByteString],
     to: Option[ByteString],
@@ -67,7 +73,8 @@ class EthService(
     ledger: Ledger,
     validators: Validators,
     blockchainConfig: BlockchainConfig,
-    keyStore: KeyStore) {
+    keyStore: KeyStore,
+    pendingTransactionsManager: ActorRef) {
 
   import EthService._
 
@@ -180,6 +187,17 @@ class EthService(
       startingBlock = appStateStorage.getSyncStartingBlock(),
       currentBlock = appStateStorage.getBestBlockNumber(),
       highestBlock = appStateStorage.getEstimatedHighestBlock())))
+  }
+
+  def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
+    import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+    Try(rlp.decode[SignedTransaction](req.data.toArray[Byte])) match {
+      case Success(signedTransaction) =>
+        pendingTransactionsManager ! PendingTransactionsManager.AddTransaction(signedTransaction)
+        Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
+      case Failure(ex) =>
+        Future.successful(Left(JsonRpcErrors.InvalidRequest))
+    }
   }
 
   def call(req: CallRequest): ServiceResponse[CallResponse] = {

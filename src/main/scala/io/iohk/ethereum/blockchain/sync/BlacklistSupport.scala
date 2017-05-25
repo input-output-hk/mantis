@@ -2,7 +2,8 @@ package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.ExecutionContext.Implicits.global
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Scheduler}
+import akka.actor.{Actor, ActorLogging, Cancellable, Scheduler}
+import io.iohk.ethereum.network.PeerId
 
 trait BlacklistSupport {
   selfActor: Actor with ActorLogging =>
@@ -11,25 +12,25 @@ trait BlacklistSupport {
 
   def scheduler: Scheduler
 
-  var blacklistedPeers: Seq[(ActorRef, Cancellable)] = Nil
+  var blacklistedPeers: Seq[(PeerId, Cancellable)] = Nil
 
-  def blacklist(peer: ActorRef, duration: FiniteDuration, reason: String): Unit = {
-    undoBlacklist(peer)
-    log.info(s"Blacklisting peer (${peer.path.name}), $reason")
-    val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(peer))
-    blacklistedPeers :+= (peer, unblacklistCancellable)
+  def blacklist(peerId: PeerId, duration: FiniteDuration, reason: String): Unit = {
+    undoBlacklist(peerId)
+    log.info(s"Blacklisting peer ($peerId), $reason")
+    val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(peerId))
+    blacklistedPeers :+= (peerId, unblacklistCancellable)
   }
 
-  def undoBlacklist(peer: ActorRef): Unit = {
-    blacklistedPeers.find(_._1 == peer).foreach(_._2.cancel())
-    blacklistedPeers = blacklistedPeers.filterNot(_._1 == peer)
+  def undoBlacklist(peerId: PeerId): Unit = {
+    blacklistedPeers.find(_._1 == peerId).foreach(_._2.cancel())
+    blacklistedPeers = blacklistedPeers.filterNot(_._1 == peerId)
   }
 
-  def isBlacklisted(peer: ActorRef): Boolean =
-    blacklistedPeers.exists(_._1 == peer)
+  def isBlacklisted(peerId: PeerId): Boolean =
+    blacklistedPeers.exists(_._1 == peerId)
 }
 
 object BlacklistSupport {
-  case class BlacklistPeer(peer: ActorRef, reason: String)
-  case class UnblacklistPeer(peer: ActorRef)
+  case class BlacklistPeer(peerId: PeerId, reason: String)
+  case class UnblacklistPeer(peerId: PeerId)
 }

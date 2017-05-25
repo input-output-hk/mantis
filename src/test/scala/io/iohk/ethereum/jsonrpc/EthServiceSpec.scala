@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorSystem
+import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.{DefaultPatience, Fixtures, crypto}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
@@ -249,7 +251,10 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val validators = mock[Validators]
     val blockchainConfig = mock[BlockchainConfig]
 
-    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, ledger, validators, blockchainConfig, keyStore)
+    implicit val system = ActorSystem("test-system")
+    val pendingTransactionsManager = TestProbe()
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, ledger, validators, blockchainConfig,
+      keyStore, pendingTransactionsManager.ref)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash
