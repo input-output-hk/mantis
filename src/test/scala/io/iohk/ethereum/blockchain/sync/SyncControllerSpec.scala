@@ -8,6 +8,7 @@ import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
+import io.iohk.ethereum.blockchain.sync.SyncController.DependencyActors
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader}
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
@@ -586,16 +587,19 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val ledger: Ledger = new Mocks.MockLedger((block, _, _) => !blocksForWhichLedgerFails.contains(block.header.number))
 
-    val peerMessageBus = TestProbe()(system)
+    val peerMessageBus = TestProbe()
+    val pendingTransactionsManager = TestProbe()
 
-    val syncController = TestActorRef(Props(new SyncController(peerManager.ref,
+    val actors = DependencyActors(peerManager.ref, peerMessageBus.ref, pendingTransactionsManager.ref)
+
+    val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       new Mocks.MockValidatorsAlwaysSucceed,
-      peerMessageBus.ref,
+      actors,
       externalSchedulerOpt = Some(time.scheduler))))
 
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash

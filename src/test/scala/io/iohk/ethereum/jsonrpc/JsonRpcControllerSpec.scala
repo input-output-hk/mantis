@@ -17,18 +17,19 @@ import org.json4s.{DefaultFormats, Extraction, Formats}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import org.json4s
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience {
+class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience with Eventually {
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer
@@ -319,7 +320,12 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       Some(JInt(1))
     )
 
-    val response = jsonRpcController.handleRequest(request).futureValue
+    val result: Future[JsonRpcResponse] = jsonRpcController.handleRequest(request)
+
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(Nil))
+
+    val response = result.futureValue
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None

@@ -15,7 +15,7 @@ object PendingTransactionsManager {
   def props(peerManager: ActorRef, peerMessageBus: ActorRef): Props =
     Props(new PendingTransactionsManager(peerManager, peerMessageBus))
 
-  case class AddTransaction(signedTransaction: SignedTransaction)
+  case class AddTransaction(signedTransactions: SignedTransaction*)
   private case class NotifyPeer(signedTransactions: Seq[SignedTransaction], peer: Peer)
 
   case object GetPendingTransactions

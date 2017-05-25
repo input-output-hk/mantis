@@ -11,6 +11,7 @@ import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config
 import org.spongycastle.util.encoders.Hex
 
@@ -54,6 +55,7 @@ trait RegularSync {
       peersToDownloadFrom.keys.foreach(_.ref ! block)
 
     //todo improve mined block handling - add info that block was not included because of syncing
+    //we allow inclusion of mined block only if we are not syncing / reorganising chain
     case MinedBlock(block) if headersQueue.isEmpty && waitingForActor.isEmpty =>
       //we are at the top of chain we can insert new block
       blockchain.getBlockHeaderByHash(block.header.parentHash)
@@ -99,7 +101,7 @@ trait RegularSync {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
         val request = GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
-        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerMessageBus, request, resolveBranches = false)))
+        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, actors.peerMessageBus, request, resolveBranches = false)))
       case None =>
         log.warning("no peers to download from")
         scheduleResume()
@@ -133,24 +135,27 @@ trait RegularSync {
         //we have same chain prefix
         if (parent.hash == headers.head.parentHash) {
 
-          val currentBranchTotalDifficulty = headersQueue.map(_.number)
+          val oldBlocks: Seq[Option[(BlockBody, BigInt)]] = headersQueue.map(_.number)
             .map(blockNumber => blockchain.getBlockByNumber(blockNumber))
-            .collect{
-              case Some(b) => b.header.difficulty
-              case None => BigInt(0)
-            }.sum
+            .map{_.map{b => (b.body, b.header.difficulty)}}
+
+          val currentBranchTotalDifficulty: BigInt = oldBlocks.collect {
+            case Some((_, difficulty)) => difficulty
+          }.sum
 
           val newBranchTotalDifficulty = headersQueue.map(_.difficulty).sum
 
           if (currentBranchTotalDifficulty < newBranchTotalDifficulty) {
+            val transactionsToAdd = oldBlocks.collect{case Some((blockBody,_)) => blockBody.transactionList}.flatten
+            actors.pendingTransactionsManager ! PendingTransactionsManager.AddTransaction(transactionsToAdd: _*)
             val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-            waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, hashes)))
+            waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, actors.peerMessageBus, hashes)))
           } else {
             scheduleResume()
           }
         } else {
           val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
-          waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerMessageBus, request, resolveBranches = true)))
+          waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, actors.peerMessageBus, request, resolveBranches = true)))
         }
       case _ =>
         log.warning("got header that does not have parent")
@@ -181,7 +186,7 @@ trait RegularSync {
               headersQueue = headersQueue.drop(blocks.length)
               if (headersQueue.nonEmpty) {
                 val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, hashes)))
+                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, actors.peerMessageBus, hashes)))
               } else {
                 context.self ! ResumeRegularSync
               }
@@ -225,6 +230,7 @@ trait RegularSync {
           val newTd = blockParentTd + block.header.difficulty
           blockchain.save(block.header.hash, newTd)
           blockHashToDelete.foreach(blockchain.removeBlock)
+          actors.pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
           processBlocks(otherBlocks, newTd, newBlocks :+ NewBlock(block, newTd))
 
         case Left(error) =>

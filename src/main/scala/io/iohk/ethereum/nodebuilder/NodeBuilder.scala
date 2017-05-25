@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.SyncController
+import io.iohk.ethereum.blockchain.sync.SyncController.DependencyActors
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
@@ -186,18 +187,24 @@ trait SyncControllerBuilder {
     BlockchainConfigBuilder with
     ValidatorsBuilder with
     LedgerBuilder with
-    PeerMessageBusBuilder =>
+    PeerMessageBusBuilder with
+    PendingTransactionsManagerBuilder=>
+
+
 
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
-      peerManager,
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       validators,
-      peerMessageBus),
+      DependencyActors(
+        peerManager,
+        peerMessageBus,
+        pendingTransactionsManager
+      )),
     "sync-controller")
 
 }

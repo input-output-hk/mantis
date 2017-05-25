@@ -1,6 +1,9 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.actor.ActorRef
+import akka.pattern.ask
+import akka.util.Timeout
+
+import scala.concurrent.duration._
 import io.iohk.ethereum.domain._
 import akka.actor.ActorRef
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, SignedTransaction}
@@ -12,11 +15,12 @@ import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils.Logger
-import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactions
 
 import scala.concurrent.Future
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 
@@ -154,36 +158,30 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
     import io.iohk.ethereum.mining.pow.PowCache._
 
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
-    //todo delete stub, this transaction is only for demo this code will be deleted in next iteration
-    val fakeAddress = 42
-    val privateKey = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
-    val keyPair = keyPairFromPrvKey(privateKey)
-    val txGasLimit = 21000
-    val txTransfer = 9000
-    val transaction = Transaction(
-      nonce = blockNumber - 1,
-      gasPrice = 1,
-      gasLimit = txGasLimit,
-      receivingAddress = Address(fakeAddress),
-      value = txTransfer,
-      payload = ByteString.empty)
-    val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, None)
 
-    val txList = Seq(signedTransaction)
-    val ommersList = Nil
-    //todo --------------
-    val block = blockGenerator.generateBlockForMining(blockNumber, txList, ommersList, Address(fakeAddress))
+    import scala.concurrent.ExecutionContext.Implicits.global
+    implicit val timeout = Timeout(5 seconds)
+    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).map{
+      case PendingTransactions(txList) =>
+        val fakeAddress = 42
+        //todo ask for ommers
+        val ommersList = Nil
+        val block = blockGenerator.generateBlockForMining(blockNumber, txList, ommersList, Address(fakeAddress))
 
-    block match {
-      case Right(b) =>
-        Future.successful(Right(GetWorkResponse(
-          powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))),
-          dagSeed = seedForBlock(b.header.number),
-          target = ByteString((BigInt(2).pow(256) / b.header.difficulty).toByteArray)
-        )))
-      case Left(err) =>
-        log.error(s"unable to prepare block because of $err")
-        Future.successful(Left(JsonRpcErrors.InternalError))
+        block match {
+          case Right(b) =>
+            Right(GetWorkResponse(
+              powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))),
+              dagSeed = seedForBlock(b.header.number),
+              target = ByteString((BigInt(2).pow(256) / b.header.difficulty).toByteArray)
+            ))
+          case Left(err) =>
+            log.error(s"unable to prepare block because of $err")
+            Left(JsonRpcErrors.InternalError)
+        }
+      case a =>
+        log.error(s"unable to get pending transactions")
+        Left(JsonRpcErrors.InternalError)
     }
   }
 
@@ -191,6 +189,7 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
     blockGenerator.getPrepared(req.powHeaderHash) match {
       case Some(block) if appStateStorage.getBestBlockNumber() <= block.header.number =>
         syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
+        pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
         Future.successful(Right(SubmitWorkResponse(true)))
       case _ =>
         Future.successful(Right(SubmitWorkResponse(false)))

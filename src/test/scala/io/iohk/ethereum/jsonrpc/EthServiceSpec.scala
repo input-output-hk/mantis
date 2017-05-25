@@ -10,6 +10,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, _}
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
@@ -211,10 +212,12 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "return requested work" in new TestSetup {
-    (blockGenerator.generateBlockForMining _).expects(BigInt(1), *, *, *).returning(Right(block))
+    (blockGenerator.generateBlockForMining _).expects(BigInt(1), Nil, *, *).returning(Right(block))
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
 
-    val response = ethService.getWork(GetWorkRequest())
+    val response: ServiceResponse[GetWorkResponse] = ethService.getWork(GetWorkRequest())
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(Nil))
 
     response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
   }
