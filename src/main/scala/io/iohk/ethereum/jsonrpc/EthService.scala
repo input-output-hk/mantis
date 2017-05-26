@@ -1,13 +1,18 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
+import io.iohk.ethereum.domain._
+import akka.actor.ActorRef
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, SignedTransaction}
 import io.iohk.ethereum.db.storage.AppStateStorage
 
 import scala.concurrent.ExecutionContext
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.utils.Logger
+import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 
@@ -44,7 +49,7 @@ object EthService {
   case class GetWorkResponse(powHeaderHash: ByteString, dagSeed: ByteString, target: ByteString)
 
   case class SubmitWorkRequest(nonce: ByteString, powHeaderHash: ByteString, mixHash: ByteString)
-  case class SubmitWorkResponse(success:Boolean)
+  case class SubmitWorkResponse(success: Boolean)
 
   case class SyncingRequest()
   case class SyncingResponse(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
@@ -53,7 +58,8 @@ object EthService {
   case class SendRawTransactionResponse(transactionHash: ByteString)
 }
 
-class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStateStorage: AppStateStorage, pendingTransactionsManager: ActorRef) {
+class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStateStorage: AppStateStorage,
+  syncingController: ActorRef, pendingTransactionsManager: ActorRef) extends Logger {
 
   import EthService._
 
@@ -146,17 +152,49 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
 
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] = {
     import io.iohk.ethereum.mining.pow.PowCache._
-    val block = blockGenerator.generateBlockForMining()
-    Future.successful(Right(GetWorkResponse(
-      powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(block.header))),
-      dagSeed = seedForBlock(block.header.number),
-      target = ByteString((BigInt(2).pow(256) / block.header.difficulty).toByteArray)
-    )))
+
+    val blockNumber = appStateStorage.getBestBlockNumber() + 1
+    //todo delete stub, this transaction is only for demo this code will be deleted in next iteration
+    val fakeAddress = 42
+    val privateKey = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
+    val keyPair = keyPairFromPrvKey(privateKey)
+    val txGasLimit = 21000
+    val txTransfer = 9000
+    val transaction = Transaction(
+      nonce = blockNumber - 1,
+      gasPrice = 1,
+      gasLimit = txGasLimit,
+      receivingAddress = Address(fakeAddress),
+      value = txTransfer,
+      payload = ByteString.empty)
+    val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, None)
+
+    val txList = Seq(signedTransaction)
+    val ommersList = Nil
+    //todo --------------
+    val block = blockGenerator.generateBlockForMining(blockNumber, txList, ommersList, Address(fakeAddress))
+
+    block match {
+      case Right(b) =>
+        Future.successful(Right(GetWorkResponse(
+          powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))),
+          dagSeed = seedForBlock(b.header.number),
+          target = ByteString((BigInt(2).pow(256) / b.header.difficulty).toByteArray)
+        )))
+      case Left(err) =>
+        log.error(s"unable to prepare block because of $err")
+        Future.successful(Left(JsonRpcErrors.InternalError))
+    }
   }
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
-    //todo add logic for including mined block into blockchain
-    Future.successful(Right(SubmitWorkResponse(true)))
+    blockGenerator.getPrepared(req.powHeaderHash) match {
+      case Some(block) if appStateStorage.getBestBlockNumber() <= block.header.number =>
+        syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
+        Future.successful(Right(SubmitWorkResponse(true)))
+      case _ =>
+        Future.successful(Right(SubmitWorkResponse(false)))
+    }
   }
 
  def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = {

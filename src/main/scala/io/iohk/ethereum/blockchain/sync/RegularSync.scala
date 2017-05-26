@@ -3,8 +3,8 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor._
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
-import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.blockchain.sync.SyncController._
+import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
@@ -53,6 +53,18 @@ trait RegularSync {
       //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
       peersToDownloadFrom.keys.foreach(_.ref ! block)
 
+    //todo improve mined block handling - add info that block was not included because of syncing
+    case MinedBlock(block) if headersQueue.isEmpty && waitingForActor.isEmpty =>
+      //we are at the top of chain we can insert new block
+      blockchain.getBlockHeaderByHash(block.header.parentHash)
+        .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
+        case Some(parentTd) if appStateStorage.getBestBlockNumber() < block.header.number =>
+          //just insert block and let resolve it with regular download
+          insertMinedBlock(block, parentTd)
+        case _ =>
+          log.error("fail to add mined block")
+      }
+
     case PrintStatus =>
       log.info(s"Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).")
 
@@ -61,6 +73,25 @@ trait RegularSync {
         //actor is done and we did not get response
         scheduleResume()
       }
+  }
+
+  private def insertMinedBlock(block: Block, parentTd: BigInt) = {
+    val result: Either[BlockExecutionError, Seq[Receipt]] = ledger.executeBlock(block, blockchainStorages, validators)
+
+    result match {
+      case Right(receipts) =>
+        blockchain.save(block)
+        blockchain.save(block.header.hash, receipts)
+        appStateStorage.putBestBlockNumber(block.header.number)
+        val newTd = parentTd + block.header.difficulty
+        blockchain.save(block.header.hash, newTd)
+
+        handshakedPeers.keys.foreach(peer => peer.ref ! BroadcastBlocks(Seq(NewBlock(block, newTd))))
+
+        log.info(s"added new block $block")
+      case Left(err) =>
+        log.info(s"fail to execute mined block because of $err")
+    }
   }
 
   private def askForHeaders() = {
@@ -99,10 +130,24 @@ trait RegularSync {
 
     parentByNumber match {
       case Some(parent) if checkHeaders(headers) =>
-        //we have same chain
+        //we have same chain prefix
         if (parent.hash == headers.head.parentHash) {
-          val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, hashes)))
+
+          val currentBranchTotalDifficulty = headersQueue.map(_.number)
+            .map(blockNumber => blockchain.getBlockByNumber(blockNumber))
+            .collect{
+              case Some(b) => b.header.difficulty
+              case None => BigInt(0)
+            }.sum
+
+          val newBranchTotalDifficulty = headersQueue.map(_.difficulty).sum
+
+          if (currentBranchTotalDifficulty < newBranchTotalDifficulty) {
+            val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
+            waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, hashes)))
+          } else {
+            scheduleResume()
+          }
         } else {
           val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
           waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerMessageBus, request, resolveBranches = true)))
@@ -123,7 +168,7 @@ trait RegularSync {
           val (newBlocks, errorOpt) = processBlocks(blocks, blockParentTd)
 
           if(newBlocks.nonEmpty){
-            context.self ! BroadcastBlocks(newBlocks)
+            handshakedPeers.keys.foreach(peer => peer.ref ! BroadcastBlocks(newBlocks))
             log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
           }
