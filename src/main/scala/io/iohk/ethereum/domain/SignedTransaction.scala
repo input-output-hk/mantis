@@ -75,27 +75,41 @@ object SignedTransaction {
     } yield SignedTransaction(tx, signature, sender)
   }
 
-  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Byte): SignedTransaction = {
+  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte]): SignedTransaction = {
     val bytes = bytesToSign(tx, chainId)
-    val sig = ECDSASignature.sign(bytes, keyPair, Some(chainId))
+    val sig = ECDSASignature.sign(bytes, keyPair, chainId)
     //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
     val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
     val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
     SignedTransaction(tx, sig, address)
   }
 
-  def bytesToSign(tx: Transaction, chainId: Byte): Array[Byte] = {
-    crypto.kec256(
-      rlpEncode(RLPList(
-        tx.nonce,
-        tx.gasPrice,
-        tx.gasLimit,
-        tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray): Array[Byte],
-        tx.value,
-        tx.payload,
-        chainId,
-        valueForEmptyR,
-        valueForEmptyS)))
+  def bytesToSign(tx: Transaction, chainId: Option[Byte]): Array[Byte] = {
+    val address = tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray): Array[Byte]
+    chainId match {
+      case Some(id) =>
+        crypto.kec256(
+          rlpEncode(RLPList(
+            tx.nonce,
+            tx.gasPrice,
+            tx.gasLimit,
+            address,
+            tx.value,
+            tx.payload,
+            id,
+            valueForEmptyR,
+            valueForEmptyS)))
+      case None =>
+        crypto.kec256(
+          rlpEncode(RLPList(
+            tx.nonce,
+            tx.gasPrice,
+            tx.gasLimit,
+            address,
+            tx.value,
+            tx.payload)))
+    }
+
   }
 }
 
