@@ -301,6 +301,7 @@ class PeerActor(
 
       case BroadcastBlocks(blocks) =>
         blocks.foreach { b =>
+          //todo check for total difficulty as well ?
           if (b.block.header.number > currentMaxBlockNumber) {
             self ! SendMessage(b)
           }
