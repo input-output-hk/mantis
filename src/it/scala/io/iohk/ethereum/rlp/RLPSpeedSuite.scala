@@ -18,10 +18,10 @@ import org.spongycastle.util.encoders.Hex
   *   - https://github.com/ethereum/pyrlp/blob/develop/tests/speed.py
   */
 class RLPSpeedSuite extends FunSuite
-  with PropertyChecks
-  with GeneratorDrivenPropertyChecks
-  with ObjectGenerators
-  with Logger {
+    with PropertyChecks
+    with GeneratorDrivenPropertyChecks
+    with ObjectGenerators
+    with Logger {
 
   val rounds = 10000
 

@@ -147,7 +147,7 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
           case (h, v) => fw.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toArray)}\n")
         }
 
-        blockHeadersStorage.foreach(h => dumpToFile(headersFile, h._1 -> h._2.toBytes))
+        blockHeadersStorage.foreach{ case (headerHash, header) => dumpToFile(headersFile, headerHash -> header.toBytes) }
         stateStorage.foreach(s => dumpToFile(stateTreeFile, s._1 -> s._2.toBytes))
         contractStorage.foreach(c => dumpToFile(contractTreesFile, c._1 -> c._2.toBytes))
         evmCodeStorage.foreach { case (h, v) => evmCodeFile.write(s"${Hex.toHexString(h.toArray[Byte])} ${Hex.toHexString(v.toArray[Byte])}\n") }
