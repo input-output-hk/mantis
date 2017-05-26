@@ -34,7 +34,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fulBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
 
-  "BlockGenerator" should "generate correct block with transactions" in new Envirnoment {
+  it should "generate correct block with transactions" in new Envirnoment {
     val result: Either[BlockPreparationError, Block] = blockGenerator.generateBlockForMining(1, Seq(signedTransaction), Nil, Address(testAddress))
     result shouldBe a[Right[_, Block]]
 
@@ -66,7 +66,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       receivingAddress = Address(testAddress),
       value = txTransfer,
       payload = ByteString.empty)
-    val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, 0x3d.toByte)
+    val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
 
     val blockchainStorages = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchainConfig = new BlockchainConfig {

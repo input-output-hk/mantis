@@ -121,6 +121,8 @@ object SyncController {
 
   case class BlockBodiesReceived(peer: Peer, requestedHashes: Seq[ByteString], bodies: Seq[BlockBody])
 
+  case class MinedBlock(block: Block)
+
   case object StartSync
 
   case object PrintStatus

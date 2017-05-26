@@ -13,7 +13,10 @@ class PowCacheSpec extends FlatSpec with Matchers with PropertyChecks with Logge
 
   def seedForBlockReference(blockNumber: BigInt): ByteString = {
     if (blockNumber < JEpoch) {
-      ByteString(kec256(Hex.decode("00" * 32)))
+      //wrong version from YP:
+      //ByteString(kec256(Hex.decode("00" * 32)))
+      //working version:
+      ByteString(Hex.decode("00" * 32))
     } else {
       kec256(seedForBlockReference(blockNumber - JEpoch))
     }
