@@ -230,8 +230,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
     )
 
-    peerTestProbe.expectMsg(10.seconds,
-      PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false))
+    peerTestProbe.expectMsgAllOf(10.seconds,
+      PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
+      PeerActor.SendMessage(NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty))
     )
     peerTestProbe.expectNoMsg()
 
