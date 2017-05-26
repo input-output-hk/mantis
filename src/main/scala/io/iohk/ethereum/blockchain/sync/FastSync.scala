@@ -5,6 +5,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -38,7 +39,7 @@ trait FastSync {
     val peersUsedToChooseTarget = peersToDownloadFrom.filter(_._2.forkAccepted)
 
     if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
-      peersUsedToChooseTarget.foreach { case (peer, Handshaked(status, _, _)) =>
+      peersUsedToChooseTarget.foreach { case (peer, EtcPeerInfo(status, _, _, _)) =>
         peer.subscribeToSetOfMsgs(Set(BlockHeaders.code))
         peer.send(GetBlockHeaders(Right(status.bestHash), 1, 0, reverse = false))
       }

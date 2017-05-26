@@ -21,7 +21,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.MessageHandler.MessageAction.TransmitMessage
 import io.iohk.ethereum.network.MessageHandler.MessageHandlingResult
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerHandshakeSuccessful, PeerStatusUpdated}
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
@@ -287,6 +287,8 @@ class PeerActor(
   class HandshakedPeer(rlpxConnection: RLPxConnection,
                        messageHandler: MessageHandler[EtcPeerInfo, EtcPeerInfo]) {
 
+    peerEventBus ! Publish(PeerHandshakeSuccessful(peer, messageHandler.peerInfo))
+
     /**
       * main behavior of actor that handles peer communication and subscriptions for messages
       */
@@ -300,6 +302,8 @@ class PeerActor(
           val MessageHandlingResult(newHandler, messageAction) = messageHandler.receivingMessage(message)
           if(messageAction == TransmitMessage)
             peerEventBus ! Publish(MessageFromPeer(message, peerId))
+          if(newHandler.peerInfo != messageHandler.peerInfo)
+            peerEventBus ! Publish(PeerStatusUpdated(peerId, newHandler.peerInfo))
           context become new HandshakedPeer(rlpxConnection, newHandler).receive
 
         case DisconnectPeer(reason) =>
@@ -309,6 +313,8 @@ class PeerActor(
           val MessageHandlingResult(newHandler, messageAction) = messageHandler.sendingMessage(message)
           if(messageAction == TransmitMessage)
             rlpxConnection.sendMessage(message)(s.enc)
+          if(newHandler.peerInfo != messageHandler.peerInfo)
+            peerEventBus ! Publish(PeerStatusUpdated(peerId, newHandler.peerInfo))
           context become new HandshakedPeer(rlpxConnection, newHandler).receive
 
         case GetStatus =>

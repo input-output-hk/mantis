@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorRef
 import akka.agent.Agent
 import akka.util.Timeout
-import io.iohk.ethereum.network.PeerManagerActor
+import io.iohk.ethereum.network.{Network, PeerManagerActor}
 import io.iohk.ethereum.utils.ServerStatus.{Listening, NotListening}
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
@@ -22,7 +22,7 @@ object NetService {
   case class PeerCountResponse(value: Int)
 }
 
-class NetService(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) {
+class NetService(nodeStatusHolder: Agent[NodeStatus], network: Network) {
   import NetService._
 
   def version(req: VersionRequest): ServiceResponse[VersionResponse] = {
@@ -41,11 +41,9 @@ class NetService(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) {
   }
 
   def peerCount(req: PeerCountRequest): ServiceResponse[PeerCountResponse] = {
-    import akka.pattern.ask
     implicit val timeout = Timeout(2.seconds)
 
-    (peerManager ? PeerManagerActor.GetPeers)
-      .mapTo[PeerManagerActor.Peers]
+    network.peersWithStatus()
       .map { peers => Right(PeerCountResponse(peers.handshaked.size)) }
   }
 

@@ -159,22 +159,14 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
+
   def props(nodeStatusHolder: Agent[NodeStatus],
             peerConfiguration: PeerConfiguration,
             appStateStorage: AppStateStorage,
             blockchain: Blockchain,
             blockchainConfig: BlockchainConfig,
+            bootstrapNodes: Set[String],
             peerEventBus: ActorRef): Props =
-    Props(new PeerManagerActor(peerConfiguration, peerEventBus,
-      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, blockchainConfig, peerEventBus)))
-
-  def props(nodeStatusHolder: Agent[NodeStatus],
-    peerConfiguration: PeerConfiguration,
-    appStateStorage: AppStateStorage,
-    blockchain: Blockchain,
-    blockchainConfig: BlockchainConfig,
-    bootstrapNodes: Set[String],
-    peerEventBus: ActorRef): Props =
     Props(new PeerManagerActor(peerConfiguration, peerEventBus,
       peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain,
         blockchainConfig, peerEventBus), bootstrapNodes = bootstrapNodes))

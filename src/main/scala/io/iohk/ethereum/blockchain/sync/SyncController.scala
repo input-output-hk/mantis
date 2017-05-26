@@ -8,15 +8,15 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.network.PeerActor.{Status => PeerStatus}
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{PeerDisconnected, PeerHandshakeSuccessful, PeerStatusUpdated}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.{Peer, PeerActor, PeerId, PeerManagerActor}
+import io.iohk.ethereum.network.{Network, Peer, PeerId}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.validators.Validators
 
 class SyncController(
-    val peerManager: ActorRef,
+    val network: Network,
     val appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
     val blockchainStorages: BlockchainStorages,
@@ -39,9 +39,9 @@ class SyncController(
       case _ => Stop
     }
 
-  var handshakedPeers: Map[Peer, PeerStatus.Handshaked] = Map.empty
+  var handshakedPeers: Map[PeerId, PeerWithInfo] = Map.empty
 
-  scheduler.schedule(0.seconds, peersScanInterval, peerManager, PeerManagerActor.GetPeers)
+  network.subscribeToAnyPeerHandshaked()
 
   override implicit def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
@@ -69,20 +69,18 @@ class SyncController(
   }
 
   def handlePeerUpdates: Receive = {
-    case peers: PeerManagerActor.Peers =>
-      peers.peers.foreach {
-        case (peer, _: PeerActor.Status.Handshaked) =>
-          if (!handshakedPeers.contains(peer)) peer.subscribeToDisconnect()
-
-        case (peer, _) if handshakedPeers.contains(peer) =>
-          removePeer(peer.id)
-
-        case _ => // nothing
+    case PeerHandshakeSuccessful(peer, initialInfo) =>
+      if (!handshakedPeers.contains(peer.id)){
+        peer.subscribeToDisconnect()
+        peer.subscribeToStatusUpdate()
       }
+      handshakedPeers = handshakedPeers + (peer.id -> PeerWithInfo(peer, initialInfo))
 
-      handshakedPeers = peers.handshaked
+    case PeerStatusUpdated(peerId, newPeerInfo: EtcPeerInfo) if handshakedPeers.contains(peerId) =>
+      val PeerWithInfo(peer, peerInfo) = handshakedPeers(peerId)
+      handshakedPeers = handshakedPeers + (peerId -> PeerWithInfo(peer, newPeerInfo))
 
-    case PeerDisconnected(peerId) if handshakedPeers.exists(_._1.id == peerId) =>
+    case PeerDisconnected(peerId) if handshakedPeers.contains(peerId) =>
       removePeer(peerId)
 
     case BlacklistPeer(ref, reason) =>
@@ -93,26 +91,29 @@ class SyncController(
   }
 
   def removePeer(peerId: PeerId): Unit = {
-    handshakedPeers.find(_._1.id == peerId).foreach { case (handshakedPeer, _) =>
+    handshakedPeers.find(_ == peerId).foreach { case (_, PeerWithInfo(handshakedPeer, _)) =>
       handshakedPeer.unsubscribeFromDisconnect()
+      handshakedPeer.unsubscribeFromPeerStatusUpdate()
       undoBlacklist(handshakedPeer.id)
     }
-    handshakedPeers = handshakedPeers.filterNot(_._1.id == peerId)
+    handshakedPeers = handshakedPeers.filterNot(_ == peerId)
   }
 
-  def peersToDownloadFrom: Map[Peer, PeerStatus.Handshaked] =
-    handshakedPeers.filterNot { case (p, s) => isBlacklisted(p.id) }
+  def peersToDownloadFrom: Map[Peer, EtcPeerInfo] =
+    handshakedPeers.collect { case (peerId, PeerWithInfo(peer, etcPeerInfo)) if !isBlacklisted(peerId) =>
+      peer -> etcPeerInfo
+    }
 }
 
 object SyncController {
-  def props(peerManager: ActorRef,
+  def props(network: Network,
             appStateStorage: AppStateStorage,
             blockchain: Blockchain,
             blockchainStorages: BlockchainStorages,
             syncStateStorage: FastSyncStateStorage,
             ledger: Ledger,
             validators: Validators):
-  Props = Props(new SyncController(peerManager, appStateStorage, blockchain, blockchainStorages,
+  Props = Props(new SyncController(network, appStateStorage, blockchain, blockchainStorages,
     syncStateStorage, ledger, validators))
 
   case class BlockHeadersToResolve(peer: Peer, headers: Seq[BlockHeader])
@@ -128,4 +129,6 @@ object SyncController {
   case object PrintStatus
 
   case object FastSyncDone
+
+  case class PeerWithInfo(peer: Peer, etcPeerInfo: EtcPeerInfo)
 }

@@ -2,8 +2,10 @@ package io.iohk.ethereum.network
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.ActorEventBus
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
+import io.iohk.ethereum.network.MessageHandler.PeerInfo
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful, PeerStatusUpdated}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier, PeerHandshaked, PeerStatusUpdate}
 import io.iohk.ethereum.network.p2p.Message
 
 object PeerEventBusActor {
@@ -30,6 +32,8 @@ object PeerEventBusActor {
   object SubscriptionClassifier {
     case class MessageClassifier(messageCodes: Set[Int], peerSelector: PeerSelector) extends SubscriptionClassifier
     case class PeerDisconnectedClassifier(peerId: PeerId) extends SubscriptionClassifier
+    case object PeerHandshaked extends SubscriptionClassifier
+    case class PeerStatusUpdate(peerId: PeerId) extends SubscriptionClassifier
   }
 
   sealed trait PeerEvent
@@ -37,6 +41,8 @@ object PeerEventBusActor {
   object PeerEvent{
     case class MessageFromPeer(message: Message, peerId: PeerId) extends PeerEvent
     case class PeerDisconnected(peerId: PeerId) extends PeerEvent
+    case class PeerHandshakeSuccessful(peer: Peer, initialInfo: EtcPeerInfo) extends PeerEvent
+    case class PeerStatusUpdated[I <: PeerInfo](peerId: PeerId, peerInfo: I) extends PeerEvent
   }
 
   case class Subscription(subscriber: ActorRef, classifier: SubscriptionClassifier)
@@ -72,18 +78,30 @@ object PeerEventBusActor {
       subscriptions = subscriptions.filterNot(_.subscriber == subscriber)
     }
 
-    override def publish(event: PeerEvent): Unit = event match {
-      case MessageFromPeer(message, peerId) =>
-        subscriptions.collect {
+    override def publish(event: PeerEvent): Unit = {
+      val interestedSubscribers = event match {
+        case MessageFromPeer(message, peerId) =>
+          subscriptions.collect {
             case Subscription(subscriber, classifier: MessageClassifier)
               if classifier.peerSelector.contains(peerId) &&
                 classifier.messageCodes.contains(message.code) => subscriber
-        }.foreach(_ ! event)
-      case PeerEvent.PeerDisconnected(peerId) =>
-        subscriptions.collect {
-          case Subscription(subscriber, classifier: PeerDisconnectedClassifier)
-            if classifier.peerId == peerId => subscriber
-        }.foreach(_ ! event)
+          }
+        case PeerDisconnected(peerId) =>
+          subscriptions.collect {
+            case Subscription(subscriber, classifier: PeerDisconnectedClassifier)
+              if classifier.peerId == peerId => subscriber
+          }
+        case _: PeerHandshakeSuccessful =>
+          subscriptions.collect {
+            case Subscription(subscriber, PeerHandshaked) => subscriber
+          }
+        case PeerStatusUpdated(peerId, _) =>
+          subscriptions.collect {
+            case Subscription(subscriber, classifier: PeerStatusUpdate)
+              if classifier.peerId == peerId => subscriber
+          }
+      }
+      interestedSubscribers.foreach(_ ! event)
     }
 
   }

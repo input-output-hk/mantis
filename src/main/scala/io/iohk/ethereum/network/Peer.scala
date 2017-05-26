@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.actor.ActorRef
 import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier, PeerStatusUpdate}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.rlp.RLPEncoder
@@ -70,6 +70,22 @@ trait Peer {
     */
   def unsubscribeFromDisconnect()(implicit subscriber: ActorRef): Unit
 
+  /**
+    * Subscribes the actor sender to the event of the peer updating it's status.
+    * The subscriber will receive a [[io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerStatusUpdated]] when the
+    * peer updates it's status.
+    *
+    * @param subscriber, the sender of the subscription
+    */
+  def subscribeToStatusUpdate()(implicit subscriber: ActorRef): Unit
+
+  /**
+    * Unsubscribes the actor sender to the event of the peer updating it's status.
+    *
+    * @param subscriber, the sender of the unsubscription
+    */
+  def unsubscribeFromPeerStatusUpdate()(implicit subscriber: ActorRef): Unit
+
 }
 
 case class PeerId(value: String) extends AnyVal
@@ -93,5 +109,11 @@ case class PeerImpl(remoteAddress: InetSocketAddress, ref: ActorRef, peerEventBu
     peerEventBusActor.!(Subscribe(PeerDisconnectedClassifier(id)))(subscriber)
 
   def unsubscribeFromDisconnect()(implicit subscriber: ActorRef): Unit =
-    peerEventBusActor.tell(Unsubscribe(PeerDisconnectedClassifier(id)), subscriber)
+    peerEventBusActor.!(Unsubscribe(PeerDisconnectedClassifier(id)))(subscriber)
+
+  def subscribeToStatusUpdate()(implicit subscriber: ActorRef): Unit =
+    peerEventBusActor.!(Subscribe(PeerStatusUpdate(id)))(subscriber)
+
+  def unsubscribeFromPeerStatusUpdate()(implicit subscriber: ActorRef): Unit =
+    peerEventBusActor.!(Unsubscribe(PeerStatusUpdate(id)))(subscriber)
 }

@@ -1,21 +1,18 @@
 package io.iohk.ethereum.transactions
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, Props}
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerManagerActor.Peers
-import io.iohk.ethereum.network.{Peer, PeerId, PeerManagerActor}
+import io.iohk.ethereum.network.{Network, Peer, PeerId}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object PendingTransactionsManager {
-  def props(peerManager: ActorRef, peerMessageBus: ActorRef): Props =
-    Props(new PendingTransactionsManager(peerManager, peerMessageBus))
+  def props(network: Network): Props =
+    Props(new PendingTransactionsManager(network))
 
   case class AddTransaction(signedTransaction: SignedTransaction)
   private case class NotifyPeer(signedTransactions: Seq[SignedTransaction], peer: Peer)
@@ -26,7 +23,7 @@ object PendingTransactionsManager {
   case class RemoveTransactions(signedTransactions: Seq[SignedTransaction])
 }
 
-class PendingTransactionsManager(peerManager: ActorRef, peerMessageBus: ActorRef) extends Actor {
+class PendingTransactionsManager(network: Network) extends Actor {
 
   import PendingTransactionsManager._
   import akka.pattern.ask
@@ -43,13 +40,13 @@ class PendingTransactionsManager(peerManager: ActorRef, peerMessageBus: ActorRef
 
   implicit val timeout = Timeout(3.seconds)
 
-  peerMessageBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
+  network.subscribeToSetOfMsgs(Set(SignedTransactions.code))
 
   override def receive: Receive = {
     case AddTransaction(signedTransaction) =>
       if (!pendingTransactions.contains(signedTransaction)) {
         pendingTransactions :+= signedTransaction
-        (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
+        network.peersWithStatus().foreach { peers =>
           peers.handshaked.foreach { case (peer, _) => self ! NotifyPeer(Seq(signedTransaction), peer) }
         }
       }
@@ -74,7 +71,7 @@ class PendingTransactionsManager(peerManager: ActorRef, peerMessageBus: ActorRef
     case MessageFromPeer(SignedTransactions(signedTransactions), peerId) =>
       pendingTransactions ++= signedTransactions
       signedTransactions.foreach(setTxKnown(_, peerId))
-      (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
+      network.peersWithStatus().foreach { peers =>
         peers.handshaked.foreach { case (peer, _) => self ! NotifyPeer(signedTransactions, peer) }
       }
   }

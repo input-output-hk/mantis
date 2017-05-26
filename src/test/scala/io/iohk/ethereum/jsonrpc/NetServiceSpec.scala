@@ -7,7 +7,7 @@ import akka.agent.Agent
 import akka.testkit.TestProbe
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.jsonrpc.NetService._
-import io.iohk.ethereum.network.{PeerImpl, PeerActor, PeerManagerActor}
+import io.iohk.ethereum.network.{NetworkImpl, PeerActor, PeerImpl, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import org.scalamock.scalatest.MockFactory
@@ -49,7 +49,7 @@ class NetServiceSpec extends FlatSpec with Matchers with MockFactory {
     val peerEventBus = TestProbe()
 
     val nodeStatus = NodeStatus(crypto.generateKeyPair(), ServerStatus.Listening(new InetSocketAddress(9000)))
-    val netService = new NetService(Agent(nodeStatus), peerManager.ref)
+    val netService = new NetService(Agent(nodeStatus), NetworkImpl(peerManager.ref, peerEventBus.ref))
   }
 
 }

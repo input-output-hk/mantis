@@ -6,8 +6,8 @@ import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController._
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.utils.Config
@@ -80,7 +80,7 @@ trait RegularSync {
         val newTd = parentTd + block.header.difficulty
         blockchain.save(block.header.hash, newTd)
 
-        handshakedPeers.keys.foreach(peer => peer.send(NewBlock(block, newTd)))
+        handshakedPeers.values.foreach(_.peer.send(NewBlock(block, newTd)))
 
         log.info(s"added new block $block")
       case Left(err) =>
@@ -162,7 +162,7 @@ trait RegularSync {
 
           if(newBlocks.nonEmpty){
             //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
-            handshakedPeers.keys.foreach(_.send(newBlocks))
+            handshakedPeers.values.foreach(_.peer.send(newBlocks))
             log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
           }
@@ -243,7 +243,7 @@ trait RegularSync {
   private def bestPeer: Option[Peer] = {
     val peersToUse = peersToDownloadFrom
       .collect {
-        case (ref, Handshaked(_, true, totalDifficulty)) => (ref, totalDifficulty)
+        case (ref, EtcPeerInfo(_, totalDifficulty, true, _)) => (ref, totalDifficulty)
       }
 
     if (peersToUse.nonEmpty) Some(peersToUse.maxBy { case (_, td) => td }._1)

@@ -7,8 +7,7 @@ import akka.testkit.TestProbe
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.{DefaultPatience, crypto}
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
-import io.iohk.ethereum.network.PeerImpl
-import io.iohk.ethereum.network.{Peer, PeerId, PeerManagerActor}
+import io.iohk.ethereum.network.{NetworkImpl, Peer, PeerId, PeerImpl, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import org.scalatest.{FlatSpec, Matchers}
@@ -108,7 +107,9 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
     val peerManager = TestProbe()
     val peerMessageBus = TestProbe()
-    val pendingTransactionsManager = system.actorOf(PendingTransactionsManager.props(peerManager.ref, peerMessageBus.ref))
+    val pendingTransactionsManager = system.actorOf(
+      PendingTransactionsManager.props(NetworkImpl(peerManager.ref, peerMessageBus.ref))
+    )
 
     val peer1TestProbe = TestProbe()
     val peer1 = PeerImpl(new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref, peerMessageBus.ref)

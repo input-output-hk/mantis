@@ -62,6 +62,14 @@ trait PeerEventBusBuilder {
   lazy val peerEventBus = actorSystem.actorOf(PeerEventBusActor.props)
 }
 
+trait NetworkBuilder {
+  self : PeerManagerActorBuilder
+    with PeerEventBusBuilder =>
+
+  lazy val network: Network = NetworkImpl(peerManager, peerEventBus)
+
+}
+
 trait PeerManagerActorBuilder {
 
   self: ActorSystemBuilder
@@ -79,10 +87,12 @@ trait PeerManagerActorBuilder {
     storagesInstance.storages.appStateStorage,
     blockchain,
     blockchainConfig,
+    Config.Network.Discovery.bootstrapNodes,
     peerEventBus), "peer-manager")
 
 }
 
+//FIXME: Is this inside the network or outside?
 trait ServerActorBuilder {
 
   self: ActorSystemBuilder
@@ -101,17 +111,16 @@ trait Web3ServiceBuilder {
 }
 
 trait NetServiceBuilder {
-  this: PeerManagerActorBuilder with NodeStatusBuilder =>
+  this: NetworkBuilder with NodeStatusBuilder =>
 
-  lazy val netService = new NetService(nodeStatusHolder, peerManager)
+  lazy val netService = new NetService(nodeStatusHolder, network)
 }
 
 trait PendingTransactionsManagerBuilder {
   self: ActorSystemBuilder
-    with PeerManagerActorBuilder
-    with PeerEventBusBuilder =>
+    with NetworkBuilder =>
 
-  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(peerManager, peerEventBus))
+  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(network))
 }
 
 trait BlockGeneratorBuilder {
@@ -181,7 +190,7 @@ trait SyncControllerBuilder {
     ServerActorBuilder with
     BlockChainBuilder with
     NodeStatusBuilder with
-    PeerManagerActorBuilder with
+    NetworkBuilder with
     StorageBuilder with
     BlockchainConfigBuilder with
     ValidatorsBuilder with
@@ -189,7 +198,7 @@ trait SyncControllerBuilder {
 
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
-      peerManager,
+      network,
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages,
@@ -244,3 +253,4 @@ trait Node extends NodeKeyBuilder
   with BlockchainConfigBuilder
   with PeerEventBusBuilder
   with PendingTransactionsManagerBuilder
+  with NetworkBuilder
