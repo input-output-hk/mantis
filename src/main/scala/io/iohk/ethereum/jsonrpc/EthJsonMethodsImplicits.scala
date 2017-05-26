@@ -1,5 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
@@ -161,11 +162,17 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       for {
         from <- toEitherOpt((obj \ "from").extractOpt[String].map(tryExtractUnformattedData))
         to <- toEitherOpt((obj \ "to").extractOpt[String].map(tryExtractUnformattedData))
-        gas <- tryExtractQuantity((obj \ "gas").extract[String])
-        gasPrice <- tryExtractQuantity((obj \ "gasPrice").extract[String])
-        value <- tryExtractQuantity((obj \ "value").extract[String])
-        data <- tryExtractUnformattedData((obj \ "data").extract[String])
-      } yield CallTx(from, to, gas, gasPrice, value, data)
+        gas <- toEitherOpt((obj \ "gas").extractOpt[String].map(tryExtractQuantity))
+        gasPrice <- toEitherOpt((obj \ "gasPrice").extractOpt[String].map(tryExtractQuantity))
+        value <- toEitherOpt((obj \ "value").extractOpt[String].map(tryExtractQuantity))
+        data <- toEitherOpt((obj \ "data").extractOpt[String].map(tryExtractUnformattedData))
+      } yield CallTx(
+        from = from,
+        to = to,
+        gas = gas.getOrElse(0),
+        gasPrice = gasPrice.getOrElse(0),
+        value = value.getOrElse(0),
+        data = data.getOrElse(ByteString("")))
     }
 
   }
