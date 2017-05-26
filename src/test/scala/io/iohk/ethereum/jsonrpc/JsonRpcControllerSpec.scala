@@ -1,12 +1,13 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.util.ByteString
+import io.iohk.ethereum.crypto.kec256
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
-import akka.util.ByteString
 import io.iohk.ethereum.{DefaultPatience, Fixtures}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl}
+import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.EthService.CallResponse
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
@@ -16,9 +17,10 @@ import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.Ledger
+import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.validators.Validators
+import org.json4s
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalamock.scalatest.MockFactory
@@ -184,7 +186,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val request = JsonRpcRequest(
       "2.0",
       "eth_getBlockByHash",
-      Some(JArray(List(JString(s"0x${blockToRequest.header.hashAsHexString}"), JBool(false)))),
+      Some(JArray(List(json4s.JString(s"0x${blockToRequest.header.hashAsHexString}"), JBool(false)))),
       Some(JInt(1))
     )
     val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
@@ -304,6 +306,79 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(JArray(addresses.map(JString)))
   }
 
+  it should "eth_getWork" in new TestSetup {
+    val seed = s"""0x${"00" * 32}"""
+    val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
+    val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
+
+    (appStateStorage.getBestBlockNumber _).expects().returns(1)
+    (blockGenerator.generateBlockForMining _).expects(*, *, *, *)
+      .returns(Right(Block(blockHeader, BlockBody(Nil, Nil))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getWork",
+      None,
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JArray(List(
+      JString(headerPowHash),
+      JString(seed),
+      JString(target)
+    )))
+  }
+
+  it should "eth_submitWork" in new TestSetup {
+    val nonce = s"0x0000000000000001"
+    val mixHash =s"""0x${"01" * 32}"""
+    val headerPowHash = "02" * 32
+
+    (blockGenerator.getPrepared _)
+      .expects(ByteString(Hex.decode(headerPowHash)))
+      .returns(Some(Block(blockHeader, BlockBody(Nil, Nil))))
+    (appStateStorage.getBestBlockNumber _).expects().returns(1)
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_submitWork",
+      Some(JArray(List(
+        JString(nonce),
+        JString(s"0x$headerPowHash"),
+        JString(mixHash)
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JBool(true))
+  }
+
+  it should "eth_submitHashrate" in new TestSetup {
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_submitHashrate",
+      Some(JArray(List(
+        JString(s"0x500"),
+        JString(s"0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JBool(true))
+  }
+
   it should "eth_call" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
@@ -336,19 +411,38 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
     val blockGenerator: BlockGenerator = mock[BlockGenerator]
-
-    implicit val system = ActorSystem("test-system")
-    val pendingTransactionsManager = TestProbe()
-    val appStateStorage = mock[AppStateStorage]
-    val web3Service = new Web3Service
+    implicit val system = ActorSystem("JsonRpcControllerSpec_System")
+    val syncingController = TestProbe()
     val ledger = mock[Ledger]
     val validators = mock[Validators]
     val blockchainConfig = mock[BlockchainConfig]
     val keyStore = mock[KeyStore]
-    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, ledger, validators, blockchainConfig, keyStore, pendingTransactionsManager.ref)
+
+    val pendingTransactionsManager = TestProbe()
+    val appStateStorage = mock[AppStateStorage]
+    val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, ledger,
+      validators, blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
+
+    val blockHeader = BlockHeader(
+      parentHash = ByteString("unused"),
+      ommersHash = ByteString("unused"),
+      beneficiary = ByteString("unused"),
+      stateRoot = ByteString("unused"),
+      transactionsRoot = ByteString("unused"),
+      receiptsRoot = ByteString("unused"),
+      logsBloom = BloomFilter.EmptyBloomFilter,
+      difficulty = 10,
+      number = 2,
+      gasLimit = 0,
+      gasUsed = 0,
+      unixTimestamp = 0,
+      extraData = ByteString("unused"),
+      mixHash = ByteString("unused"),
+      nonce = ByteString("unused"))
   }
 
 }

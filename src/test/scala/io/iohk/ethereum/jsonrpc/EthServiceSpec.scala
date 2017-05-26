@@ -18,8 +18,8 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.Await
 import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.ledger.Ledger.TxResult
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.Validators
@@ -218,11 +218,36 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "return requested work" in new TestSetup {
-    (blockGenerator.generateBlockForMining _).expects().returning(block)
+    (blockGenerator.generateBlockForMining _).expects(BigInt(1), *, *, *).returning(Right(block))
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
 
     val response = ethService.getWork(GetWorkRequest())
 
     response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
+  }
+
+  it should "accept submitted correct PoW" in new TestSetup {
+    val headerHash = ByteString(Hex.decode("01" * 32))
+
+    (blockGenerator.getPrepared _).expects(headerHash).returning(Some(block))
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+
+    val req = SubmitWorkRequest(ByteString("nonce"), headerHash, ByteString(Hex.decode("01" * 32)))
+
+    val response = ethService.submitWork(req)
+    response.futureValue shouldEqual Right(SubmitWorkResponse(true))
+  }
+
+  it should "reject submitted correct PoW when header is no longer in cache" in new TestSetup {
+    val headerHash = ByteString(Hex.decode("01" * 32))
+
+    (blockGenerator.getPrepared _).expects(headerHash).returning(None)
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+
+    val req = SubmitWorkRequest(ByteString("nonce"), headerHash, ByteString(Hex.decode("01" * 32)))
+
+    val response = ethService.submitWork(req)
+    response.futureValue shouldEqual Right(SubmitWorkResponse(false))
   }
 
   it should "execute call and return a value" in new TestSetup {
@@ -251,10 +276,11 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val validators = mock[Validators]
     val blockchainConfig = mock[BlockchainConfig]
 
-    implicit val system = ActorSystem("test-system")
+    implicit val system = ActorSystem("EthServiceSpec_System")
+    val syncingController = TestProbe()
     val pendingTransactionsManager = TestProbe()
-    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, ledger, validators, blockchainConfig,
-      keyStore, pendingTransactionsManager.ref)
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, ledger,
+      validators, blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash
@@ -286,7 +312,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     )
     val mixHash = ByteString(Hex.decode("40d9bd2064406d7f22390766d6fe5eccd2a67aa89bf218e99df35b2dbb425fb1"))
     val nonce = ByteString(Hex.decode("ce1b500070aeec4f"))
-    val seedHash = ByteString(crypto.kec256(Hex.decode("00" * 32)))
+    val seedHash = ByteString(Hex.decode("00" * 32))
     val powHash = ByteString(Hex.decode("f5877d30b85d6cd0f80d2c4711e3cfb7d386e331f801f903d9ca52fc5e8f7cc2"))
     val target = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
   }
