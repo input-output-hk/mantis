@@ -147,7 +147,7 @@ trait RegularSync {
 
           if (currentBranchTotalDifficulty < newBranchTotalDifficulty) {
             val transactionsToAdd = oldBlocks.collect{case Some((blockBody,_)) => blockBody.transactionList}.flatten
-            actors.pendingTransactionsManager ! PendingTransactionsManager.AddTransaction(transactionsToAdd: _*)
+            actors.pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toList)
             val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
             waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, actors.peerMessageBus, hashes)))
           } else {

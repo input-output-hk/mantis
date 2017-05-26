@@ -15,7 +15,12 @@ object PendingTransactionsManager {
   def props(peerManager: ActorRef, peerMessageBus: ActorRef): Props =
     Props(new PendingTransactionsManager(peerManager, peerMessageBus))
 
-  case class AddTransaction(signedTransactions: SignedTransaction*)
+  case class AddTransactions(signedTransactions: List[SignedTransaction])
+
+  object AddTransactions{
+    def apply(txs: SignedTransaction*): AddTransactions = AddTransactions(txs.toList)
+  }
+
   private case class NotifyPeer(signedTransactions: Seq[SignedTransaction], peer: Peer)
 
   case object GetPendingTransactions
@@ -44,11 +49,12 @@ class PendingTransactionsManager(peerManager: ActorRef, peerMessageBus: ActorRef
   peerMessageBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
   override def receive: Receive = {
-    case AddTransaction(signedTransaction) =>
-      if (!pendingTransactions.contains(signedTransaction)) {
-        pendingTransactions :+= signedTransaction
+    case AddTransactions(signedTransactions) =>
+      val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.contains(t))
+      if (transactionsToAdd.nonEmpty) {
+        pendingTransactions = pendingTransactions ++ transactionsToAdd
         (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
-          peers.handshaked.foreach { case (peer, _) => self ! NotifyPeer(Seq(signedTransaction), peer) }
+          peers.handshaked.foreach { case (peer, _) => self ! NotifyPeer(transactionsToAdd, peer) }
         }
       }
 

@@ -161,14 +161,15 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
 
     import scala.concurrent.ExecutionContext.Implicits.global
     implicit val timeout = Timeout(5 seconds)
-    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).map{
-      case PendingTransactions(txList) =>
+
+    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
+      .mapTo[PendingTransactions]
+      .map { pendingTxs =>
+        //todo get address from conf
         val fakeAddress = 42
         //todo ask for ommers
         val ommersList = Nil
-        val block = blockGenerator.generateBlockForMining(blockNumber, txList, ommersList, Address(fakeAddress))
-
-        block match {
+        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommersList, Address(fakeAddress)) match {
           case Right(b) =>
             Right(GetWorkResponse(
               powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))),
@@ -179,10 +180,7 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
             log.error(s"unable to prepare block because of $err")
             Left(JsonRpcErrors.InternalError)
         }
-      case a =>
-        log.error(s"unable to get pending transactions")
-        Left(JsonRpcErrors.InternalError)
-    }
+      }
   }
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
@@ -207,7 +205,7 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
     Try(rlp.decode[SignedTransaction](req.data.toArray[Byte])) match {
       case Success(signedTransaction) =>
-        pendingTransactionsManager ! PendingTransactionsManager.AddTransaction(signedTransaction)
+        pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(signedTransaction)
         Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
       case Failure(ex) =>
         Future.successful(Left(JsonRpcErrors.InvalidRequest))
