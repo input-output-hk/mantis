@@ -261,7 +261,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),
       Some(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477"))),
       1, 2, 3, ByteString(""))
-    val response = ethService.call(CallRequest(tx, Right("latest")))
+    val response = ethService.call(CallRequest(tx, BlockParam.Latest))
 
     response.futureValue shouldEqual Right(CallResponse(ByteString("return_value")))
   }

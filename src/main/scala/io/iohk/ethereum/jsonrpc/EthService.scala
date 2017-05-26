@@ -9,6 +9,7 @@ import scala.concurrent.ExecutionContext
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.jsonrpc.EthService.BlockParam.WithNumber
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.BlockGenerator
@@ -59,6 +60,15 @@ object EthService {
   case class SendRawTransactionRequest(data: ByteString)
   case class SendRawTransactionResponse(transactionHash: ByteString)
 
+  sealed trait BlockParam
+
+  object BlockParam {
+    case class WithNumber(n: BigInt) extends BlockParam
+    case object Latest extends BlockParam
+    case object Pending extends BlockParam
+    case object Earliest extends BlockParam
+  }
+
   case class CallTx(
     from: Option[ByteString],
     to: Option[ByteString],
@@ -66,7 +76,7 @@ object EthService {
     gasPrice: BigInt,
     value: BigInt,
     data: ByteString)
-  case class CallRequest(tx: CallTx, block: Either[BigInt, String])
+  case class CallRequest(tx: CallTx, block: BlockParam)
   case class CallResponse(returnData: ByteString)
 }
 
@@ -257,7 +267,7 @@ class EthService(
     }
   }
 
-  private def resolveBlock(blockParam: Either[BigInt, String]): Either[JsonRpcError, Block] = {
+  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, Block] = {
     def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
       blockchain.getBlockByNumber(number)
         .map(Right.apply)
@@ -265,15 +275,10 @@ class EthService(
     }
 
     blockParam match {
-      case Left(blockNumber) => getBlock(blockNumber)
-      case Right("earliest") => getBlock(0)
-      case Right("latest") => getBlock(appStateStorage.getBestBlockNumber())
-      case Right("pending") => getBlock(appStateStorage.getBestBlockNumber())
-      case Right(str) => Try(BigInt(str)) match {
-        case Success(blockNum) => getBlock(blockNum)
-        case Failure(ex) => Left(JsonRpcErrors.InvalidParams("Invalid default block param"))
-      }
-      case _ => Left(JsonRpcErrors.InvalidParams("Invalid default block param"))
+      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber)
+      case BlockParam.Earliest => getBlock(0)
+      case BlockParam.Latest => getBlock(appStateStorage.getBestBlockNumber())
+      case BlockParam.Pending => getBlock(appStateStorage.getBestBlockNumber())
     }
   }
 

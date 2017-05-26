@@ -145,13 +145,10 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, CallRequest] =
       params match {
         case Some(JArray((txObj: JObject) :: (blockStr: JString) :: Nil)) =>
-          val block: Either[BigInt, String] = tryExtractQuantity(blockStr) match {
-            case Right(n) => Left(n)
-            case Left(_) => Right(blockStr.values)
-          }
           for {
+            blockParam <- tryExtractBlockParam(blockStr)
             tx <- extractTx(txObj)
-          } yield CallRequest(tx, block)
+          } yield CallRequest(tx, blockParam)
         case _ => Left(InvalidParams())
       }
 

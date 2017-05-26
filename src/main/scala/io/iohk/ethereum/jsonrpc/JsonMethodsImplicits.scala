@@ -1,6 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
+import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
@@ -49,6 +50,21 @@ trait JsonMethodsImplicits {
       }
     } else Left(InvalidParams(s"Quantity '$input' should have 0x prefix"))
   }
+
+  protected def tryExtractBlockParam(input: JString): Either[JsonRpcError, BlockParam] = {
+    input.values match {
+      case "earliest" => Right(BlockParam.Earliest)
+      case "latest" => Right(BlockParam.Latest)
+      case "pending" => Right(BlockParam.Pending)
+      case other =>
+        tryExtractQuantity(other) match {
+          case Right(n) => Right(BlockParam.WithNumber(n))
+          case Left(_) => Try(BlockParam.WithNumber(BigInt(other)))
+            .toEither.left.map(_ => JsonRpcErrors.InvalidParams(s"Invalid default block param: $other"))
+        }
+    }
+  }
+
 }
 
 object JsonMethodsImplicits extends JsonMethodsImplicits {

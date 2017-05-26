@@ -56,5 +56,4 @@ class ContractTest extends FlatSpec with Matchers {
     //block contains contract paying 2 accounts
     new LedgerImpl(VM, blockchainConfig).executeBlock(fixtures.blockByNumber(3), storage, validators) shouldBe noErrors
   }
-
 }
