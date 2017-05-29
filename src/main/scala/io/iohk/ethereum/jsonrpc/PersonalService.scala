@@ -101,7 +101,7 @@ class PersonalService(
         Right(SendTransactionResponse(sendTransaction(request.tx, wallet)))
 
       case None =>
-        Left(LogicError("account is locked or unknown"))
+        Left(AccountLocked)
     }
   }
 

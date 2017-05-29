@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
+import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTransactionResponse}
 import org.json4s.{Extraction, JsonAST}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue, _}
 import org.json4s.JsonDSL._
@@ -141,6 +142,19 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       }
 
     def encodeJson(t: SendRawTransactionResponse): JValue = encodeAsHex(t.transactionHash)
+  }
+
+  implicit val eth_sendTransaction = new Codec[SendTransactionRequest, SendTransactionResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, SendTransactionRequest] =
+      params match {
+        case Some(JArray(JObject(tx) :: _)) =>
+          extractTx(tx.toMap).map(SendTransactionRequest)
+        case _ =>
+          Left(InvalidParams())
+      }
+
+    def encodeJson(t: SendTransactionResponse): JValue =
+      encodeAsHex(t.txHash)
   }
 
   implicit val eth_call = new JsonDecoder[CallRequest] with JsonEncoder[CallResponse] {

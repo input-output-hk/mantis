@@ -13,6 +13,8 @@ import org.spongycastle.crypto.digests.RIPEMD160Digest
 import org.spongycastle.crypto.generators.ECKeyPairGenerator
 import org.spongycastle.crypto.params.{ECDomainParameters, ECKeyGenerationParameters, ECPrivateKeyParameters, ECPublicKeyParameters}
 
+import scala.util.Try
+
 package object crypto {
 
   val curveParams: X9ECParameters = SECNamedCurves.getByName("secp256k1")
@@ -98,6 +100,6 @@ package object crypto {
   def decrypt(encrypted: Array[Byte], secret: Array[Byte]): Option[Array[Byte]] = {
     val cipher = Cipher.getInstance("AES")
     cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(kec256(secret).take(16), "AES"))
-    Option(cipher.doFinal(encrypted))
+    Try(cipher.doFinal(encrypted)).toOption
   }
 }

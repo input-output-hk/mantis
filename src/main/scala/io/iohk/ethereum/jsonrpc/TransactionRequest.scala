@@ -5,12 +5,12 @@ import io.iohk.ethereum.domain.{Address, Transaction}
 
 case class TransactionRequest(
   from: Address,
-  to: Option[Address],
-  value: Option[BigInt],
-  gasLimit: Option[BigInt],
-  gasPrice: Option[BigInt],
-  nonce: Option[BigInt],
-  data: Option[ByteString]) {
+  to: Option[Address] = None,
+  value: Option[BigInt] = None,
+  gasLimit: Option[BigInt] = None,
+  gasPrice: Option[BigInt] = None,
+  nonce: Option[BigInt] = None,
+  data: Option[ByteString] = None) {
 
   def toTransaction(defaultNonce: BigInt): Transaction =
     Transaction(

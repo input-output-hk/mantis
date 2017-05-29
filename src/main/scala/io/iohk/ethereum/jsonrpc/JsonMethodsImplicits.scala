@@ -184,20 +184,7 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
       }
 
     def encodeJson(t: SendTransactionWithPassphraseResponse): JValue =
-      JString(Hex.toHexString(t.txHash.toArray))
-  }
-
-  implicit val eth_sendTransaction = new Codec[SendTransactionRequest, SendTransactionResponse] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, SendTransactionRequest] =
-      params match {
-        case Some(JArray(JObject(tx) :: _)) =>
-          extractTx(tx.toMap).map(SendTransactionRequest)
-        case _ =>
-          Left(InvalidParams())
-      }
-
-    def encodeJson(t: SendTransactionResponse): JValue =
-      JString(Hex.toHexString(t.txHash.toArray))
+      encodeAsHex(t.txHash)
   }
 
   implicit val personal_unlockAccount = new Codec[UnlockAccountRequest, UnlockAccountResponse] {

@@ -8,7 +8,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.Logger
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.Try
@@ -65,7 +64,7 @@ class KeyStoreImpl(keyStoreDir: String) extends KeyStore with Logger {
   }
 
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet] =
-    load(address, passphrase).map(keyPair => Wallet(address, keyPair))
+    load(address, passphrase).map(key => Wallet(address, key))
 
   private def init(): Unit = {
     val dir = new File(keyStoreDir)
@@ -85,7 +84,7 @@ class KeyStoreImpl(keyStoreDir: String) extends KeyStore with Logger {
     }.toEither.left.map(ioError)
   }
 
-  private def load(address: Address, passphrase: String): Either[KeyStoreError, AsymmetricCipherKeyPair] = {
+  private def load(address: Address, passphrase: String): Either[KeyStoreError, ByteString] = {
     val addrString = Hex.toHexString(address.toArray)
     val path = Paths.get(keyStoreDir, addrString)
 
@@ -95,7 +94,7 @@ class KeyStoreImpl(keyStoreDir: String) extends KeyStore with Logger {
       Try {
         val encrypted = Hex.decode(Files.readAllBytes(path))
         val prv = decrypt(encrypted, passphrase.getBytes(StandardCharsets.UTF_8))
-        prv.map(keyPairFromPrvKey).map(Right(_)).getOrElse(Left(WrongPassphrase))
+        prv.map(bytes => Right(ByteString(bytes))).getOrElse(Left(WrongPassphrase))
       }.toEither.left.map(ioError).flatMap(identity)
   }
 

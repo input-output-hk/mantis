@@ -3,7 +3,6 @@ package io.iohk.ethereum.keystore
 import java.io.File
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.KeyStore.{IOError, KeyNotFound, WrongPassphrase}
 import io.iohk.ethereum.utils.Config
@@ -57,13 +56,10 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val passphrase = "aaa"
     keyStore.importPrivateKey(key1, passphrase)
     val wallet = keyStore.unlockAccount(addr1, passphrase).right.get
-    wallet shouldEqual Wallet(addr1, keyPairFromPrvKey(key1.toArray))
+    wallet shouldEqual Wallet(addr1, key1)
   }
 
   it should "return an error when unlocking an account with a wrong passphrase" in new TestSetup {
-    //TODO: enable this test when keys are encrypted
-    pending
-
     keyStore.importPrivateKey(key1, "aaa")
     val res = keyStore.unlockAccount(addr1, "bbb")
     res shouldEqual Left(WrongPassphrase)
