@@ -237,8 +237,9 @@ class EthService(
   }
 
   def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
-    import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
-    Try(rlp.decode[SignedTransaction](req.data.toArray[Byte])) match {
+    import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionDec
+
+    Try(req.data.toArray.toSignedTransaction) match {
       case Success(signedTransaction) =>
         pendingTransactionsManager ! PendingTransactionsManager.AddTransaction(signedTransaction)
         Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))

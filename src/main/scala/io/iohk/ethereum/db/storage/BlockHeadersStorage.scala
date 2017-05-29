@@ -14,15 +14,14 @@ import io.iohk.ethereum.utils.Config
   *   Value: the block header
   */
 class BlockHeadersStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHeaderHash, BlockHeader, BlockHeadersStorage] {
+
   override val namespace: IndexedSeq[Byte] = Namespaces.HeaderNamespace
 
   override def keySerializer: (BlockHeaderHash) => IndexedSeq[Byte] = identity
 
-  override def valueSerializer: (BlockHeader) => IndexedSeq[Byte] =
-    (blockHeader: BlockHeader) => rlpEncode[BlockHeader](blockHeader).toIndexedSeq
+  override def valueSerializer: (BlockHeader) => IndexedSeq[Byte] = _.toBytes
 
-  override def valueDeserializer: (IndexedSeq[Byte]) => BlockHeader =
-    (encodedBlockHeader: IndexedSeq[Byte]) => rlpDecode[BlockHeader](encodedBlockHeader.toArray)
+  override def valueDeserializer: (IndexedSeq[Byte]) => BlockHeader = b => b.toArray.toBlockHeader
 
   override protected def apply(dataSource: DataSource): BlockHeadersStorage = new BlockHeadersStorage(dataSource)
 

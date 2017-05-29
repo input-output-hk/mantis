@@ -1,11 +1,20 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.messages.PV63.TxLogEntryImplicits
-import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPEncoder, RLPList}
+import io.iohk.ethereum.mpt.ByteArraySerializable
 import org.spongycastle.util.encoders.Hex
+
+object Receipt {
+
+  val byteArraySerializable = new ByteArraySerializable[Receipt] {
+    import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits._
+
+    override def fromBytes(bytes: Array[Byte]): Receipt = bytes.toReceipt
+
+    override def toBytes(input: Receipt): Array[Byte] = input.toBytes
+  }
+
+}
 
 case class Receipt(
                     postTransactionStateHash: ByteString,

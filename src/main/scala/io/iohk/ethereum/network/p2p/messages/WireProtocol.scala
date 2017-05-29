@@ -1,7 +1,7 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -11,12 +11,16 @@ import org.spongycastle.util.encoders.Hex
 object WireProtocol {
 
   object Capability {
-    implicit val rlpEncDec = new RLPEncoder[Capability] with RLPDecoder[Capability] {
-      override def encode(obj: Capability): RLPEncodeable = {
-        RLPList(obj.name, obj.version)
-      }
+    implicit class CapabilityEnc(val msg: Capability) extends RLPSerializable {
+      override def toRLPEncodable: RLPEncodeable = RLPList(msg.name, msg.version)
+    }
 
-      override def decode(rlp: RLPEncodeable): Capability = rlp match {
+    implicit class CapabilityDec(val bytes: Array[Byte]) extends AnyVal {
+      def toCapability: Capability = CapabilityRLPEncodableDec(rawDecode(bytes)).toCapability
+    }
+
+    implicit class CapabilityRLPEncodableDec(val rLPEncodeable: RLPEncodeable) extends AnyVal {
+      def toCapability: Capability = rLPEncodeable match {
         case RLPList(name, version) => Capability(name, version)
         case _ => throw new RuntimeException("Cannot decode Capability")
       }
@@ -27,21 +31,28 @@ object WireProtocol {
 
   object Hello {
 
-    implicit val rlpEncDec = new RLPEncoder[Hello] with RLPDecoder[Hello] {
-      override def encode(obj: Hello): RLPEncodeable = {
-        import obj._
-        RLPList(p2pVersion, clientId, capabilities, listenPort, nodeId)
-      }
+    val code = 0x00
 
-      override def decode(rlp: RLPEncodeable): Hello = rlp match {
-        case RLPList(p2pVersion, clientId, (capabilities: RLPList), listenPort, nodeId, _*) =>
-          Hello(p2pVersion, clientId, fromRlpList[Capability](capabilities), listenPort, nodeId)
-        case _ => throw new RuntimeException("Cannot decode Hello")
+    implicit class HelloEnc(m: Hello) extends MessageSerializableImplicit[Hello](m) with RLPSerializable {
+      import io.iohk.ethereum.rlp._
+
+      override def code: Int = Hello.code
+
+      override def toRLPEncodable: RLPEncodeable = {
+        import msg._
+        RLPList(p2pVersion, clientId, RLPList(capabilities.map(_.toRLPEncodable): _*), listenPort, nodeId)
       }
     }
 
-    val code = 0x00
+    implicit class HelloDec(val bytes: Array[Byte]) extends AnyVal {
+      import Capability._
 
+      def toHello: Hello = rawDecode(bytes) match {
+        case RLPList(p2pVersion, clientId, (capabilities: RLPList), listenPort, nodeId, _*) =>
+          Hello(p2pVersion, clientId, capabilities.items.map(_.toCapability), listenPort, nodeId)
+        case _ => throw new RuntimeException("Cannot decode Hello")
+      }
+    }
   }
 
   case class Hello(
@@ -66,17 +77,6 @@ object WireProtocol {
   }
 
   object Disconnect {
-    implicit val rlpEncDec = new RLPEncoder[Disconnect] with RLPDecoder[Disconnect] {
-      override def encode(obj: Disconnect): RLPEncodeable = {
-        RLPList(obj.reason)
-      }
-
-      override def decode(rlp: RLPEncodeable): Disconnect = rlp match {
-        case RLPList(reason, _*) => Disconnect(reason = reason)
-        case _ => throw new RuntimeException("Cannot decode Disconnect")
-      }
-    }
-
     object Reasons {
       val DisconnectRequested = 0x00
       val TcpSubsystemError = 0x01
@@ -93,6 +93,19 @@ object WireProtocol {
     }
 
     val code = 0x01
+
+    implicit class DisconnectEnc(m: Disconnect) extends MessageSerializableImplicit[Disconnect](m) with RLPSerializable  {
+      override def code: Int = Disconnect.code
+
+      override def toRLPEncodable: RLPEncodeable = RLPList(msg.reason)
+    }
+
+    implicit class DisconnectDec(val bytes: Array[Byte]) extends AnyVal {
+      def toDisconnect: Disconnect = rawDecode(bytes) match {
+        case RLPList(reason, _*) => Disconnect(reason = reason)
+        case _ => throw new RuntimeException("Cannot decode Disconnect")
+      }
+    }
   }
 
   case class Disconnect(reason: Long) extends Message {
@@ -122,13 +135,17 @@ object WireProtocol {
 
   object Ping {
 
-    implicit val rlpEncDec = new RLPEncoder[Ping] with RLPDecoder[Ping] {
-      override def encode(obj: Ping): RLPEncodeable = RLPList()
+    val code = 0x02
 
-      override def decode(rlp: RLPEncodeable): Ping = Ping()
+    implicit class PingEnc(m: Ping) extends MessageSerializableImplicit[Ping](m) with RLPSerializable {
+      override def code: Int = Ping.code
+
+      override def toRLPEncodable: RLPEncodeable = RLPList()
     }
 
-    val code = 0x02
+    implicit class PingDec(val bytes: Array[Byte]) extends AnyVal {
+      def toPing: Ping = Ping()
+    }
   }
 
   case class Ping() extends Message {
@@ -137,13 +154,17 @@ object WireProtocol {
 
   object Pong {
 
-    implicit val rlpEncDec = new RLPEncoder[Pong] with RLPDecoder[Pong] {
-      override def encode(obj: Pong): RLPEncodeable = RLPList()
+    val code = 0x03
 
-      override def decode(rlp: RLPEncodeable): Pong = Pong()
+    implicit class PongEnc(m: Pong) extends MessageSerializableImplicit[Pong](m) with RLPSerializable  {
+      override def code: Int = Pong.code
+
+      override def toRLPEncodable: RLPEncodeable = RLPList()
     }
 
-    val code = 0x03
+    implicit class PongDec(val bytes: Array[Byte]) extends AnyVal {
+      def toPong: Pong = Pong()
+    }
   }
 
   case class Pong() extends Message {

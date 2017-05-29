@@ -5,6 +5,10 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
 import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockPreparationError, Ledger}
+import io.iohk.ethereum.network.MessageHandler
+import io.iohk.ethereum.network.MessageHandler.MessageAction.TransmitMessage
+import io.iohk.ethereum.network.MessageHandler.{HandshakeResult, MessageHandlingResult, PeerInfo}
+import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.validators.BlockValidator.BlockTransactionsHashError
@@ -87,5 +91,13 @@ object Mocks {
       def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
       def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
     }
+  }
+
+  case class MockMessageHandler[I <: PeerInfo with HandshakeResult](peerInfo: I) extends MessageHandler[I, I] {
+
+    def sendingMessage(message: Message): MessageHandlingResult[I, I] = MessageHandlingResult(this, TransmitMessage)
+
+    def receivingMessage(message: Message): MessageHandlingResult[I, I] = MessageHandlingResult(this, TransmitMessage)
+
   }
 }
