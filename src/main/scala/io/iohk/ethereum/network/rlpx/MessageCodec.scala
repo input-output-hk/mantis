@@ -3,13 +3,11 @@ package io.iohk.ethereum.network.rlpx
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.RLPEncoder
+import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
 
 import scala.util.Try
 
-class MessageCodec(frameCodec: FrameCodec, protocolVersion: Int) {
+class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, protocolVersion: Message.Version) {
 
   val MaxFramePayloadSize: Int = Int.MaxValue // no framing
 
@@ -17,11 +15,11 @@ class MessageCodec(frameCodec: FrameCodec, protocolVersion: Int) {
 
   def readMessages(data: ByteString): Seq[Try[Message]] = {
     val frames = frameCodec.readFrames(data)
-    frames map { frame => Try(Message.decode(frame.`type`, frame.payload.toArray, protocolVersion)) }
+    frames map { frame => Try(messageDecoder.fromBytes(frame.`type`, frame.payload.toArray, protocolVersion)) }
   }
 
-  def encodeMessage[M <: Message : RLPEncoder](message: M): ByteString = {
-    val encoded = rlp.encode(message)
+  def encodeMessage(serializable: MessageSerializable): ByteString = {
+    val encoded: Array[Byte] = serializable.toBytes
     val numFrames = Math.ceil(encoded.length / MaxFramePayloadSize.toDouble).toInt
     val contextId = contextIdCounter.incrementAndGet()
 
@@ -31,7 +29,7 @@ class MessageCodec(frameCodec: FrameCodec, protocolVersion: Int) {
       val header =
         if (numFrames > 1) Header(payload.length, 0, Some(contextId), totalPacketSize)
         else Header(payload.length, 0, None, None)
-      Frame(header, message.code, ByteString(payload))
+      Frame(header, serializable.code, ByteString(payload))
     }
 
     frameCodec.writeFrames(frames)

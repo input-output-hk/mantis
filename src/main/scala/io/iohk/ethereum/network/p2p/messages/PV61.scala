@@ -1,7 +1,7 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
@@ -9,19 +9,21 @@ import io.iohk.ethereum.rlp._
 object PV61 {
 
   object NewBlockHashes {
-    implicit val rlpEncDec = new RLPEncoder[NewBlockHashes] with RLPDecoder[NewBlockHashes] {
-      override def encode(obj: NewBlockHashes): RLPEncodeable = {
-        import obj._
-        toRlpList(hashes)
-      }
+    val code: Int = Versions.SubProtocolOffset + 0x01
 
-      override def decode(rlp: RLPEncodeable): NewBlockHashes = rlp match {
-        case rlpList: RLPList => NewBlockHashes(fromRlpList[ByteString](rlpList))
-        case _ => throw new RuntimeException("Cannot decode NewBlockHashes")
-      }
+    implicit class NewBlockHashesEnc(m: NewBlockHashes) extends MessageSerializableImplicit[NewBlockHashes](m) with RLPSerializable {
+      override def code: Int = NewBlockHashes.code
+
+      override def toRLPEncodable: RLPEncodeable = RLPList(msg.hashes.map(e => RLPValue(e.toArray[Byte])): _*)
     }
 
-    val code: Int = Message.SubProtocolOffset + 0x01
+    implicit class NewBlockHashesDec(val bytes: Array[Byte]) extends AnyVal {
+      def toNewBlockHashes: NewBlockHashes = rawDecode(bytes) match {
+        case rlpList: RLPList => NewBlockHashes(rlpList.items.map(e => ByteString(e: Array[Byte])))
+        case _ => throw new RuntimeException("Cannot decode NewBlockHashes")
+      }
+
+    }
   }
 
   case class NewBlockHashes(hashes: Seq[ByteString]) extends Message {
@@ -30,19 +32,20 @@ object PV61 {
 
   object BlockHashesFromNumber {
 
-    implicit val rlpEncDec = new RLPEncoder[BlockHashesFromNumber] with RLPDecoder[BlockHashesFromNumber] {
-      override def encode(obj: BlockHashesFromNumber): RLPEncodeable = {
-        import obj._
-        RLPList(number, maxBlocks)
-      }
+    val code: Int = Versions.SubProtocolOffset + 0x08
 
-      override def decode(rlp: RLPEncodeable): BlockHashesFromNumber = rlp match {
+    implicit class BlockHashesFromNumberEnc(m: BlockHashesFromNumber) extends MessageSerializableImplicit[BlockHashesFromNumber](m) with RLPSerializable {
+      override def code: Int = BlockHashesFromNumber.code
+
+      override def toRLPEncodable: RLPEncodeable = RLPList(msg.number, msg.maxBlocks)
+    }
+
+    implicit class BlockHashesFromNumberDec(val bytes: Array[Byte]) extends AnyVal {
+      def toBlockHashesFromNumber: BlockHashesFromNumber = rawDecode(bytes) match {
         case RLPList(number, maxBlocks) => BlockHashesFromNumber(number, maxBlocks)
         case _ => throw new RuntimeException("Cannot decode BlockHashesFromNumber")
       }
     }
-
-    val code: Int = Message.SubProtocolOffset + 0x08
   }
 
   case class BlockHashesFromNumber(number: BigInt, maxBlocks: BigInt) extends Message {

@@ -8,6 +8,7 @@ import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.utils.Config
@@ -162,7 +163,7 @@ trait RegularSync {
 
           if(newBlocks.nonEmpty){
             //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
-            handshakedPeers.values.foreach(_.peer.send(newBlocks))
+            handshakedPeers.values.foreach(_.peer.send(newBlocks.map(b => b: MessageSerializable)))
             log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
           }

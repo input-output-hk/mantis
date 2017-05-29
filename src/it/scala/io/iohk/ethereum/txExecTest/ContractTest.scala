@@ -22,7 +22,7 @@ class ContractTest extends FlatSpec with Matchers {
   }
 
   "Ledger" should "transfer ether" in {
-    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract/")
+    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract")
 
     val storage = FixtureProvider.prepareStorages(0, fixtures)
 
@@ -31,7 +31,7 @@ class ContractTest extends FlatSpec with Matchers {
   }
 
   it should "deploy contract" in {
-    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract/")
+    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract")
 
     val storage = FixtureProvider.prepareStorages(1, fixtures)
 
@@ -40,7 +40,7 @@ class ContractTest extends FlatSpec with Matchers {
   }
 
   it should "execute contract call" in {
-    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract/")
+    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract")
 
     val storage = FixtureProvider.prepareStorages(2, fixtures)
 
@@ -49,7 +49,7 @@ class ContractTest extends FlatSpec with Matchers {
   }
 
   it should "execute contract that pays 2 accounts" in {
-    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract/")
+    val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract")
 
     val storage = FixtureProvider.prepareStorages(2, fixtures)
 

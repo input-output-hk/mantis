@@ -12,6 +12,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Ping, Pong}
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -158,7 +159,7 @@ class PeerMessageBusActorSpec extends FlatSpec with Matchers {
     }
 
     val peerStatus = Status(
-      protocolVersion = Message.PV63,
+      protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
       totalDifficulty = BigInt(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,

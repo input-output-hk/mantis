@@ -8,7 +8,7 @@ import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
 import akka.pattern.ask
 import akka.util.Timeout
-import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.rlp.RLPEncoder
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -54,7 +54,7 @@ trait Network {
   def unsubscribeFromAnyPeerHandshaked()(implicit subscriber: ActorRef): Unit
 
   //FIXME: Needed?
-  def broadcast[M <: Message : RLPEncoder](message: M)(implicit executionContext: ExecutionContext): Unit
+  def broadcast(message: MessageSerializable)(implicit executionContext: ExecutionContext): Unit
 
   //FIXME: Needed?
   def connectTo(uri: URI): Unit
@@ -84,7 +84,7 @@ case class NetworkImpl(peerManagerActor: ActorRef, peerEventBusActor: ActorRef) 
   def unsubscribeFromAnyPeerHandshaked()(implicit subscriber: ActorRef): Unit =
     peerEventBusActor.!(Unsubscribe(PeerHandshaked))(subscriber)
 
-  def broadcast[M <: Message : RLPEncoder](message: M)(implicit executionContext: ExecutionContext): Unit =
+  def broadcast(message: MessageSerializable)(implicit executionContext: ExecutionContext): Unit =
     peersWithStatus().foreach{ _.peers.keys.foreach( _.send(message)) }
 
   def connectTo(uri: URI): Unit = peerManagerActor ! PeerManagerActor.ConnectToPeer(uri)

@@ -2,8 +2,7 @@ package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
-import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNode._
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
@@ -15,11 +14,11 @@ class NodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
       val initialNodeStorage = new NodeStorage(EphemDataSource())
       val nodeStorage = mptNodes.foldLeft(initialNodeStorage){
         case (recNodeStorage, node) =>
-          recNodeStorage.put(node.hash, rlpEncode(node))
+          recNodeStorage.put(node.hash, node.toBytes)
       }
 
       mptNodes.foreach{ node =>
-        val obtainedNode = nodeStorage.get(node.hash).map(rlpDecode[MptNode])
+        val obtainedNode = nodeStorage.get(node.hash).map(_.toMptNode)
         assert(obtainedNode.contains(node))
       }
     }
@@ -33,7 +32,7 @@ class NodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
       val initialNodeStorage = new NodeStorage(EphemDataSource())
       val nodeStorage = mptNodes.foldLeft(initialNodeStorage){
         case (recNodeStorage, node) =>
-          recNodeStorage.put(node.hash, rlpEncode(node))
+          recNodeStorage.put(node.hash, node.toBytes)
       }
 
       //Nodes are deleted
@@ -44,7 +43,7 @@ class NodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenerator
       }
 
       toLeave.foreach{ node =>
-        val obtainedNode = nodeStorageAfterDelete.get(node.hash).map(rlpDecode[MptNode])
+        val obtainedNode = nodeStorageAfterDelete.get(node.hash).map(_.toMptNode)
         assert(obtainedNode.contains(node)) }
       toDelete.foreach{ node => assert(nodeStorageAfterDelete.get(node.hash).isEmpty) }
     }

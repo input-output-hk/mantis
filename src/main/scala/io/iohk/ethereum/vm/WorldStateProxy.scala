@@ -5,8 +5,8 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 
 /**
   * This is a single entry point to all VM interactions with the persisted state. Implementations are meant to be
@@ -62,7 +62,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     */
   def createAddress(creatorAddr: Address): Address = {
     val creatorAccount = getGuaranteedAccount(creatorAddr)
-    val hash = kec256(rlp.encode(RLPList(creatorAddr.bytes, creatorAccount.nonce - 1)))
+    val hash = kec256(rlp.encode(RLPList(creatorAddr.bytes, (creatorAccount.nonce - 1).toRLPEncodable)))
     Address(hash)
   }
 

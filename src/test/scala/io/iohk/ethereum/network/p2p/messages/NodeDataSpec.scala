@@ -4,13 +4,14 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.mpt.HexPrefix.{bytesToNibbles, encode => hpEncode}
-import io.iohk.ethereum.network.p2p.Message.{PV63 => constantPV63, decode => msgDecode}
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode, _}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
+import MptNode._
+import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 
 class NodeDataSpec extends FlatSpec with Matchers {
 
@@ -30,7 +31,7 @@ class NodeDataSpec extends FlatSpec with Matchers {
   val account = Account(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
   val encodedAccount = RLPList(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
 
-  val leafNode = MptLeaf(exampleNibbles, ByteString(encode(account)))
+  val leafNode = MptLeaf(exampleNibbles, account.toBytes)
   val encodedLeafNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = true), encode(encodedAccount))
 
   val branchNode = MptBranch(
@@ -47,9 +48,9 @@ class NodeDataSpec extends FlatSpec with Matchers {
   val encodedExtensionNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), RLPValue(exampleHash.toArray[Byte]))
 
   val nodeData = NodeData(Seq(
-    ByteString(encode[MptNode](leafNode)),
-    ByteString(encode[MptNode](branchNode)),
-    ByteString(encode[MptNode](extensionNode)),
+    leafNode.toBytes,
+    branchNode.toBytes,
+    extensionNode.toBytes,
     emptyEvmHash,
     emptyStorageRoot))
 
@@ -61,11 +62,11 @@ class NodeDataSpec extends FlatSpec with Matchers {
     emptyStorageRoot)
 
   "NodeData" should "be encoded properly" in {
-    encode(nodeData) shouldBe encode(encodedNodeData)
+    (nodeData.toBytes: Array[Byte]) shouldBe encode(encodedNodeData)
   }
 
   it should "be decoded properly" in {
-    val result = msgDecode(NodeData.code, encode(encodedNodeData), constantPV63)
+    val result = EthereumMessageDecoder.fromBytes(NodeData.code, encode(encodedNodeData), Versions.PV63)
 
     result match {
       case m: NodeData =>
@@ -79,7 +80,7 @@ class NodeDataSpec extends FlatSpec with Matchers {
   }
 
   it should "be decoded previously encoded value" in {
-    msgDecode(NodeData.code, encode(nodeData), constantPV63) shouldBe nodeData
+    EthereumMessageDecoder.fromBytes(NodeData.code, nodeData.toBytes, Versions.PV63) shouldBe nodeData
   }
 
   it should "decode branch node with values in leafs that looks like RLP list" in {
@@ -112,7 +113,7 @@ class NodeDataSpec extends FlatSpec with Matchers {
       ), ByteString.empty)
 
     //when
-    val result: MptNode = decode[MptNode](encodedMptBranch)
+    val result: MptNode = encodedMptBranch.toMptNode
 
     //then
     result shouldBe decodedMptBranch
@@ -124,9 +125,9 @@ class NodeDataSpec extends FlatSpec with Matchers {
       Hex.decode("f84d8080808080de9c32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b8901808080808080de9c3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a91620180808080")
 
     //when
-    val result: MptNode = decode[MptNode](encodedMptBranch)
+    val result: MptNode = encodedMptBranch.toMptNode
 
     //then
-    encode(result) shouldBe encodedMptBranch //This fails
+    (result.toBytes: Array[Byte]) shouldBe encodedMptBranch //This fails
   }
 }
