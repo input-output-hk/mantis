@@ -2,32 +2,34 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
-import io.iohk.ethereum.utils.{Config, BlockchainConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.spongycastle.util.encoders.Hex
 
 
 object CommonMessages {
   object Status {
-    implicit val rlpEncDec = new RLPEncoder[Status] with RLPDecoder[Status] {
-      override def encode(obj: Status): RLPEncodeable = {
-        import obj._
+    val code: Int = Versions.SubProtocolOffset + 0x00
+
+    implicit class StatusEnc(m: Status) extends MessageSerializableImplicit[Status](m) with RLPSerializable {
+      override def code: Int = Status.code
+
+      override def toRLPEncodable: RLPEncodeable = {
+        import msg._
         RLPList(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash)
       }
+    }
 
-      override def decode(rlp: RLPEncodeable): Status = rlp match {
+    implicit class StatusDec(val bytes: Array[Byte]) extends AnyVal {
+      def toStatus: Status = rawDecode(bytes) match {
         case RLPList(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash) =>
           Status(protocolVersion, networkId, totalDifficulty, bestHash, genesisHash)
         case _ => throw new RuntimeException("Cannot decode Status")
       }
     }
-
-    val code: Int = Message.SubProtocolOffset + 0x00
   }
 
   case class Status(protocolVersion: Int, networkId: Int, totalDifficulty: BigInt, bestHash: ByteString, genesisHash: ByteString) extends Message {
@@ -46,47 +48,49 @@ object CommonMessages {
 
   object SignedTransactions {
 
-    implicit val txRlpEncDec = new RLPEncoder[SignedTransaction] with RLPDecoder[SignedTransaction] {
+    val chainId: Byte = BlockchainConfig(Config.config).chainId
 
-      val chainId = BlockchainConfig(Config.config).chainId
+    val code: Int = Versions.SubProtocolOffset + 0x02
 
-      override def encode(signedTx: SignedTransaction): RLPEncodeable = {
+    implicit class SignedTransactionEnc(val signedTx: SignedTransaction) extends RLPSerializable {
+      override def toRLPEncodable: RLPEncodeable = {
         import signedTx._
         import signedTx.tx._
         RLPList(nonce, gasPrice, gasLimit, receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray): Array[Byte], value,
           payload, signature.v, signature.r, signature.s)
       }
+    }
 
-      override def decode(rlp: RLPEncodeable): SignedTransaction = rlp match {
+    implicit class SignedTransactionsEnc(m: SignedTransactions) extends MessageSerializableImplicit[SignedTransactions](m) with RLPSerializable {
+      override def code: Int = SignedTransactions.code
+      override def toRLPEncodable: RLPEncodeable = RLPList(msg.txs.map(_.toRLPEncodable): _*)
+    }
+
+    implicit class SignedTransactionsDec(val bytes: Array[Byte]) extends AnyVal {
+      def toSignedTransactions: SignedTransactions = rawDecode(bytes) match {
+        case rlpList: RLPList => SignedTransactions(rlpList.items.map(_.toSignedTransaction))
+        case _ => throw new RuntimeException("Cannot decode SignedTransactions")
+      }
+    }
+
+    implicit class SignedTransactionRlpEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
+      def toSignedTransaction: SignedTransaction = rlpEncodeable match {
         case RLPList(nonce, gasPrice, gasLimit, (receivingAddress: RLPValue), value,
         payload, pointSign, signatureRandom, signature) =>
           val receivingAddressOpt = if(receivingAddress.bytes.isEmpty) None else Some(Address(receivingAddress.bytes))
           SignedTransaction(
             Transaction(nonce, gasPrice, gasLimit, receivingAddressOpt, value, payload),
             (pointSign: Int).toByte,
-            signatureRandom.bytes,
-            signature.bytes,
+            signatureRandom,
+            signature,
             chainId
           ).getOrElse(throw new Exception("Tx with invalid signature"))
       }
-
     }
 
-    implicit val txsRlpEncDec = new RLPEncoder[SignedTransactions] with RLPDecoder[SignedTransactions] {
-
-      override def encode(obj: SignedTransactions): RLPEncodeable = {
-        import obj._
-        toRlpList(txs)
-      }
-
-      override def decode(rlp: RLPEncodeable): SignedTransactions = rlp match {
-        case rlpList: RLPList => SignedTransactions(fromRlpList[SignedTransaction](rlpList))
-        case _ => throw new RuntimeException("Cannot decode SignedTransactions")
-      }
-
+    implicit class SignedTransactionDec(val bytes: Array[Byte]) extends AnyVal {
+      def toSignedTransaction: SignedTransaction = rawDecode(bytes).toSignedTransaction
     }
-
-    val code: Int = Message.SubProtocolOffset + 0x02
   }
 
   case class SignedTransactions(txs: Seq[SignedTransaction]) extends Message {
@@ -95,39 +99,46 @@ object CommonMessages {
 
   object NewBlock {
 
-    import SignedTransactions.txRlpEncDec
-    import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits.headerRlpEncDec
+    val code: Int = Versions.SubProtocolOffset + 0x07
 
-    implicit val rlpEncDec = new RLPEncoder[NewBlock] with RLPDecoder[NewBlock] {
+    implicit class NewBlockEnc(m: NewBlock) extends MessageSerializableImplicit[NewBlock](m) with RLPSerializable {
+      import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+      import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 
-      override def encode(obj: NewBlock): RLPEncodeable = {
-        import obj._
+      override def code: Int = NewBlock.code
+
+      override def toRLPEncodable: RLPEncodeable = {
+        import msg._
         RLPList(
           RLPList(
-            block.header,
-            toRlpList(block.body.transactionList),
-            toRlpList(block.body.uncleNodesList)
+            block.header.toRLPEncodable,
+            RLPList(block.body.transactionList.map(_.toRLPEncodable): _*),
+            RLPList(block.body.uncleNodesList.map(_.toRLPEncodable): _*)
           ),
           totalDifficulty
         )
       }
+    }
 
-      override def decode(rlp: RLPEncodeable): NewBlock = rlp match {
+    implicit class NewBlockDec(val bytes: Array[Byte]) extends AnyVal {
+      import io.iohk.ethereum.network.p2p.messages.PV62._
+      import BlockHeaderImplicits._
+      import SignedTransactions._
+
+      def toNewBlock: NewBlock = rawDecode(bytes) match {
         case RLPList(RLPList(blockHeader, (transactionList: RLPList), (uncleNodesList: RLPList)), totalDifficulty) =>
           NewBlock(
             Block(
-              headerRlpEncDec.decode(blockHeader),
+              blockHeader.toBlockHeader,
               BlockBody(
-                fromRlpList[SignedTransaction](transactionList),
-                fromRlpList[BlockHeader](uncleNodesList))),
+                transactionList.items.map(_.toSignedTransaction),
+                uncleNodesList.items.map(_.toBlockHeader))
+            ),
             totalDifficulty
           )
         case _ => throw new RuntimeException("Cannot decode NewBlock")
       }
-
     }
-
-    val code: Int = Message.SubProtocolOffset + 0x07
   }
 
   case class NewBlock(block: Block, totalDifficulty: BigInt) extends Message {

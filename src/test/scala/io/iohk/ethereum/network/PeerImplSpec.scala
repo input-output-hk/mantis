@@ -6,6 +6,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
+import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Ping, Pong}
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -19,7 +20,7 @@ class PeerImplSpec extends FlatSpec with Matchers {
   it should "appropriately send various messages to the peer actor" in new TestSetup {
     import Disconnect.Reasons._
 
-    peer.send(Seq(Disconnect(Other), Disconnect(UselessPeer), Disconnect(DisconnectRequested)))
+    peer.send(Seq(Disconnect(Other), Disconnect(UselessPeer), Disconnect(DisconnectRequested)).map(b => b: MessageSerializable))
     peerActorProbe.expectMsg(PeerActor.SendMessage(Disconnect(Other)))
     peerActorProbe.expectMsg(PeerActor.SendMessage(Disconnect(UselessPeer)))
     peerActorProbe.expectMsg(PeerActor.SendMessage(Disconnect(DisconnectRequested)))

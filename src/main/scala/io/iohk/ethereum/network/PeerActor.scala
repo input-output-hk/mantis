@@ -13,9 +13,8 @@ import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, _}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import io.iohk.ethereum.network.p2p.messages.{CommonMessages => msg}
+import io.iohk.ethereum.network.p2p.messages.{Versions, CommonMessages => msg}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
-import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
@@ -24,6 +23,7 @@ import io.iohk.ethereum.network.MessageHandler.MessageHandlingResult
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+
 
 /**
   * Peer actor is responsible for initiating and handling high-level connection with peer.
@@ -113,7 +113,7 @@ class PeerActor(
     Hello(
       p2pVersion = P2pVersion,
       clientId = Config.clientId,
-      capabilities = Seq(Capability("eth", Message.PV63.toByte)),
+      capabilities = Seq(Capability("eth", Versions.PV63.toByte)),
       listenPort = listenPort,
       nodeId = ByteString(nodeStatus.nodeId))
   }
@@ -133,12 +133,12 @@ class PeerActor(
     case RLPxConnectionHandler.MessageReceived(hello: Hello) =>
       log.info("Protocol handshake finished with peer ({})", hello)
       timeout.cancel()
-      if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte))) {
+      if (hello.capabilities.contains(Capability("eth", Versions.PV63.toByte))) {
         rlpxConnection.sendMessage(createStatusMsg())
         val statusTimeout = scheduler.scheduleOnce(peerConfiguration.waitForStatusTimeout, self, StatusReceiveTimeout)
         context become waitingForNodeStatus(rlpxConnection, statusTimeout)
       } else {
-        log.warning("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
+        log.warning("Connected peer does not support eth {} protocol. Disconnecting.", Versions.PV63.toByte)
         disconnectFromPeer(rlpxConnection, Disconnect.Reasons.IncompatibleP2pProtocolVersion)
       }
 
@@ -157,7 +157,7 @@ class PeerActor(
   private def createStatusMsg(): msg.Status = {
     val bestBlockHeader = getBestBlockHeader()
     msg.Status(
-      protocolVersion = Message.PV63,
+      protocolVersion = Versions.PV63,
       networkId = peerConfiguration.networkId,
       totalDifficulty = bestBlockHeader.difficulty,
       bestHash = bestBlockHeader.hash,
@@ -281,7 +281,7 @@ class PeerActor(
   }
 
   def stashMessages: Receive = {
-    case _: SendMessage[_] | _: DisconnectPeer => stash()
+    case _: SendMessage | _: DisconnectPeer => stash()
   }
 
   class HandshakedPeer(rlpxConnection: RLPxConnection,
@@ -305,10 +305,10 @@ class PeerActor(
         case DisconnectPeer(reason) =>
           disconnectFromPeer(rlpxConnection, reason)
 
-        case s@SendMessage(message) =>
+        case SendMessage(message) =>
           val MessageHandlingResult(newHandler, messageAction) = messageHandler.sendingMessage(message)
           if(messageAction == TransmitMessage)
-            rlpxConnection.sendMessage(message)(s.enc)
+            rlpxConnection.sendMessage(message)
           context become new HandshakedPeer(rlpxConnection, newHandler).receive
 
         case GetStatus =>
@@ -343,11 +343,12 @@ object PeerActor {
       messageHandlerBuilder = messageHandlerBuilder))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
-    ctx.actorOf(RLPxConnectionHandler.props(nodeKey), "rlpx-connection")
+    // FIXME This message decoder should be configurable
+    ctx.actorOf(RLPxConnectionHandler.props(nodeKey, EthereumMessageDecoder, Versions.PV63), "rlpx-connection")
   }
 
   case class RLPxConnection(ref: ActorRef, remoteAddress: InetSocketAddress, uriOpt: Option[URI]) {
-    def sendMessage[M <: Message : RLPEncoder](message: M): Unit = {
+    def sendMessage(message: MessageSerializable): Unit = {
       ref ! RLPxConnectionHandler.SendMessage(message)
     }
   }
@@ -356,7 +357,7 @@ object PeerActor {
 
   case class ConnectTo(uri: URI)
 
-  case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
+  case class SendMessage(message: MessageSerializable)
 
   private case object ForkHeaderReceiveTimeout
 

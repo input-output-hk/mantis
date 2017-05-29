@@ -4,15 +4,13 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.reflect.ClassTag
 import akka.actor._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor._
-import io.iohk.ethereum.network.{Peer, PeerId}
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.rlp.RLPEncoder
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.Config.FastSync._
 
-abstract class SyncRequestHandler[RequestMsg <: Message : RLPEncoder,
-                                  ResponseMsg <: Message : ClassTag](peer: Peer)(implicit scheduler: Scheduler)
+abstract class SyncRequestHandler[RequestMsg <: Message,
+                                  ResponseMsg <: Message : ClassTag](peer: Peer)
+                                  (implicit scheduler: Scheduler, toSerializable: RequestMsg => MessageSerializable)
   extends Actor with ActorLogging {
 
   import SyncRequestHandler._
@@ -34,7 +32,7 @@ abstract class SyncRequestHandler[RequestMsg <: Message : RLPEncoder,
 
   override def preStart(): Unit = {
     peer.subscribeToDisconnect()
-    peer.send(requestMsg)
+    peer.send(toSerializable(requestMsg))
     peer.subscribeToSetOfMsgs(Set(responseMsgCode))
   }
 

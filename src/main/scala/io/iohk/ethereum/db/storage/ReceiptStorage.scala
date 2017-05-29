@@ -4,9 +4,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.ReceiptStorage._
 import io.iohk.ethereum.domain.Receipt
-import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
-import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits.receiptRlpEncDec
 
 /**
   * This class is used to store the Receipts, by using:
@@ -14,12 +11,13 @@ import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits.receiptRlpEnc
   *   Value: the list of receipts
   */
 class ReceiptStorage(val dataSource: DataSource) extends KeyValueStorage[BlockHash, Seq[Receipt], ReceiptStorage] {
+  import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits._
+
   val namespace: IndexedSeq[Byte] = Namespaces.ReceiptsNamespace
   def keySerializer: BlockHash => IndexedSeq[Byte] = identity
-  def valueSerializer: Seq[Receipt] => IndexedSeq[Byte] =
-    (receipts: Seq[Receipt]) => rlpEncode(receipts)(seqEncDec[Receipt]).toIndexedSeq
+  def valueSerializer: Seq[Receipt] => IndexedSeq[Byte] = (receipts: Seq[Receipt]) => receipts.toBytes
   def valueDeserializer: IndexedSeq[Byte] => Seq[Receipt] =
-    (encodedReceipts: IndexedSeq[Byte]) => rlpDecode[Seq[Receipt]](encodedReceipts.toArray)(seqEncDec[Receipt])
+    (encodedReceipts: IndexedSeq[Byte]) => encodedReceipts.toArray[Byte].toReceipts
 
   protected def apply(dataSource: DataSource): ReceiptStorage = new ReceiptStorage(dataSource)
 }

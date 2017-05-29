@@ -6,8 +6,7 @@ import akka.actor.ActorRef
 import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.rlp.RLPEncoder
+import io.iohk.ethereum.network.p2p.MessageSerializable
 
 trait Peer {
 
@@ -21,15 +20,15 @@ trait Peer {
     *
     * @param message to send to the peer
     */
-  def send[M <: Message](message: M)(implicit enc: RLPEncoder[M]): Unit
+  def send(message: MessageSerializable): Unit
 
   /**
-    * Sends various messages of the same type to the peer
+    * Sends various messages to the peer
     *
     * @param messages to send to the peer
     */
-  def send[M <: Message](messages: Seq[M])(implicit enc: RLPEncoder[M]): Unit =
-    messages.foreach(msg => send(msg)(enc))
+  def send(messages: Seq[MessageSerializable]): Unit =
+    messages.foreach(msg => send(msg))
 
   /**
     * Ends the connection with the peer
@@ -77,7 +76,7 @@ case class PeerId(value: String) extends AnyVal
 case class PeerImpl(remoteAddress: InetSocketAddress, ref: ActorRef, peerEventBusActor: ActorRef) extends Peer {
   val id: PeerId = PeerId(ref.path.name)
 
-  override def send[M <: Message](message: M)(implicit enc: RLPEncoder[M]): Unit =
+  override def send(message: MessageSerializable): Unit =
     ref ! SendMessage(message)
 
   override def disconnectFromPeer(reason: Int): Unit =

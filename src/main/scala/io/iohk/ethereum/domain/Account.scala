@@ -2,6 +2,8 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.mpt.ByteArraySerializable
+import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.vm.UInt256
@@ -12,6 +14,15 @@ object Account {
   val EmptyCodeHash: ByteString = kec256(ByteString())
 
   val Empty = Account(0, 0, EmptyStorageRootHash, EmptyCodeHash)
+
+  implicit val accountSerializer = new ByteArraySerializable[Account] {
+
+    import AccountImplicits._
+
+    override def fromBytes(bytes: Array[Byte]): Account = bytes.toAccount
+
+    override def toBytes(input: Account): Array[Byte] = input.toBytes
+  }
 }
 
 case class Account(
