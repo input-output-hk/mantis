@@ -32,7 +32,7 @@ object Mocks {
       ???
     }
 
-    override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages, validators: Validators): Ledger.TxResult = {
+    override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): Ledger.TxResult = {
       ???
     }
   }

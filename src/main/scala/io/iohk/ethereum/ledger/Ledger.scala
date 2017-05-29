@@ -19,7 +19,7 @@ trait Ledger {
 
   def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockPreparationError, BlockPreparationResult]
 
-  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages, validators: Validators): TxResult
+  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): TxResult
 }
 
 class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with Logger {
@@ -138,14 +138,13 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
         }
   }
 
-  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages, validators: Validators): TxResult = {
-    val blockchain = BlockchainImpl(storages)
-    val stateRoot = blockchain.getBlockHeaderByHash(blockHeader.hash).map(_.stateRoot)
+  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): TxResult = {
+    val stateRoot = blockHeader.stateRoot
 
     val gasLimit = stx.tx.gasLimit
     val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
-    val world1 = InMemoryWorldStateProxy(storages, stateRoot)
+    val world1 = InMemoryWorldStateProxy(storages, Some(stateRoot))
     val world2 =
       if (world1.getAccount(stx.senderAddress).isEmpty)
         world1.saveAccount(stx.senderAddress, Account.Empty)

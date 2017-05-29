@@ -255,7 +255,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
 
     val txResult = TxResult(InMemoryWorldStateProxy(storagesInstance.storages), 123, Nil, ByteString("return_value"))
-    (ledger.simulateTransaction _).expects(*, *, *, *).returning(txResult)
+    (ledger.simulateTransaction _).expects(*, *, *).returning(txResult)
 
     val tx = CallTx(
       Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),
@@ -280,7 +280,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val syncingController = TestProbe()
     val pendingTransactionsManager = TestProbe()
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, ledger,
-      validators, blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref)
+      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash

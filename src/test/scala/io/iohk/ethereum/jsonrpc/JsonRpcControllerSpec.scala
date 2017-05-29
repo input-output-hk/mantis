@@ -424,7 +424,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, ledger,
-      validators, blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref)
+      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 
     val blockHeader = BlockHeader(

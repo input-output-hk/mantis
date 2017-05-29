@@ -135,7 +135,7 @@ trait EthServiceBuilder {
     SyncControllerBuilder =>
 
   lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage,
-    ledger, validators, blockchainConfig, keyStore, pendingTransactionsManager, syncController)
+    ledger, blockchainConfig, keyStore, pendingTransactionsManager, syncController)
 }
 
 trait PersonalServiceBuilder {

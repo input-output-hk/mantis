@@ -9,15 +9,12 @@ import scala.concurrent.ExecutionContext
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.jsonrpc.EthService.BlockParam.WithNumber
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.rlp
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.validators.Validators
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -85,7 +82,6 @@ class EthService(
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
     ledger: Ledger,
-    validators: Validators,
     blockchainConfig: BlockchainConfig,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
@@ -262,7 +258,7 @@ class EthService(
 
     Future.successful {
       resolveBlock(req.block).map { block =>
-        val txResult = ledger.simulateTransaction(stx, block.header, blockchainStorages, validators)
+        val txResult = ledger.simulateTransaction(stx, block.header, blockchainStorages)
         CallResponse(txResult.vmReturnData)
       }
     }
