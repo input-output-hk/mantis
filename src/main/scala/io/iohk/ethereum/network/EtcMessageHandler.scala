@@ -5,18 +5,18 @@ import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.MessageHandler.MessageAction.{IgnoreMessage, TransmitMessage}
 import io.iohk.ethereum.network.MessageHandler.{MessageAction, MessageHandlingResult, PeerInfo}
-import io.iohk.ethereum.network.PeerActor.DisconnectPeer
+import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, NewBlockHashes}
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, NewBlockHashes}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Logger
 
-case class EtcMessageHandler(peer: Peer, peerInfo: EtcPeerInfo, forkResolverOpt: Option[ForkResolver],
-                             appStateStorage: AppStateStorage, peerConfiguration: PeerConfiguration,
-                             blockchain: Blockchain)
+case class EtcMessageHandler (peer: Peer, peerInfo: EtcPeerInfo, forkResolverOpt: Option[ForkResolver],
+                              appStateStorage: AppStateStorage, peerConfiguration: PeerConfiguration,
+                              blockchain: Blockchain)
   extends MessageHandler[EtcPeerInfo, EtcPeerInfo] with BlockchainHost with Logger {
 
   override def sendingMessage(message: Message): MessageHandlingResult[EtcPeerInfo, EtcPeerInfo] = {
@@ -139,6 +139,16 @@ case class EtcMessageHandler(peer: Peer, peerInfo: EtcPeerInfo, forkResolverOpt:
 }
 
 object EtcMessageHandler {
+
+  def etcMessageHandlerBuilder(forkResolverOpt: Option[ForkResolver], appStateStorage: AppStateStorage,
+                               peerConfiguration: PeerConfiguration, blockchain: Blockchain)
+  : (EtcPeerInfo, Peer) => EtcMessageHandler = { (peerInfo, peer) =>
+
+    //Ask for the highest block from the peer
+    peer.ref ! SendMessage(GetBlockHeaders(Right(peerInfo.remoteStatus.bestHash), 1, 0, false))
+
+    EtcMessageHandler(peer, peerInfo, forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
+  }
 
   case class EtcPeerInfo(remoteStatus: Status,
                          totalDifficulty: BigInt,

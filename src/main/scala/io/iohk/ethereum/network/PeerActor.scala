@@ -136,7 +136,7 @@ class PeerActor(
         context become processingHandshaking(handshaker, rlpxConnection, newTimeout, numRetries)
 
       case Left(HandshakeSuccess(EtcPeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber))) =>
-        startMessageHandler(rlpxConnection, initialStatus, currentMaxBlockNumber, forkAccepted)
+        startMessageHandler(rlpxConnection, initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber)
 
       case Left(HandshakeFailure(reason)) =>
         disconnectFromPeer(rlpxConnection, reason)
@@ -153,12 +153,10 @@ class PeerActor(
   }
 
   private def startMessageHandler(rlpxConnection: RLPxConnection, remoteStatus: msg.Status,
-                                  currentMaxBlockNumber: BigInt, forkAccepted: Boolean): Unit = {
-    val peerInfo = EtcPeerInfo(remoteStatus, remoteStatus.totalDifficulty, forkAccepted, currentMaxBlockNumber)
+                                  totalDifficulty: BigInt, forkAccepted: Boolean, currentMaxBlockNumber: BigInt): Unit = {
+    val peerInfo = EtcPeerInfo(remoteStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber)
     val messageHandler = messageHandlerBuilder(peerInfo, peer)
     context become new HandshakedPeer(rlpxConnection, messageHandler).receive
-    //FIXME: Move this to handshaker or messageHandler?
-    rlpxConnection.sendMessage(GetBlockHeaders(Right(remoteStatus.bestHash), 1, 0, false))
     unstashAll()
   }
 
@@ -191,7 +189,7 @@ class PeerActor(
   }
 
   def handlePingMsg(rlpxConnection: RLPxConnection): Receive = {
-    case RLPxConnectionHandler.MessageReceived(ping: Ping) => rlpxConnection.sendMessage(Pong())
+    case RLPxConnectionHandler.MessageReceived(_: Ping) => rlpxConnection.sendMessage(Pong())
   }
 
   def handleDisconnectMsg: Receive = {

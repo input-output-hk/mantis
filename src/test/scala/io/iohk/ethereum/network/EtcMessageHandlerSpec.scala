@@ -14,20 +14,16 @@ import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.MessageHandler.MessageAction.{IgnoreMessage, TransmitMessage}
 import io.iohk.ethereum.network.MessageHandler.MessageHandlingResult
-import io.iohk.ethereum.network.PeerActor.DisconnectPeer
+import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.p2p.messages.Versions
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
-import io.iohk.ethereum.rlp.encode
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -39,6 +35,7 @@ import scala.concurrent.duration._
 class EtcMessageHandlerSpec extends FlatSpec with Matchers {
 
   it should "return Receipts for block hashes" in new TestSetup {
+
     //given
     val receiptsHashes = Seq(
       ByteString(Hex.decode("a218e2c611f21232d857e3c8cecdcdf1f65f25a4477f98f6f47e4063807f2308")),
@@ -448,8 +445,8 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
       peerMessageBus.ref,
       None,
       Mocks.MockHandshakerAlwaysSucceeds(remoteStatus, 0, false),
-      messageHandlerBuilder = (peerInfo, peer) =>
-        EtcMessageHandler(peer, peerInfo, Some(forkResolver), storagesInstance.storages.appStateStorage, peerConf, blockchain)
+      messageHandlerBuilder =
+        EtcMessageHandler.etcMessageHandlerBuilder(Some(forkResolver), storagesInstance.storages.appStateStorage, peerConf, blockchain)
     )))
 
     peerActor ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))

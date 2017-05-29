@@ -188,9 +188,9 @@ object PeerManagerActor {
                   handshaker: Handshaker[EtcPeerInfo]): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
+      //FIXME: Message handler builder should be configurable
       val messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo] =
-        (initialPeerInfo, peer) =>
-          EtcMessageHandler(peer, initialPeerInfo, forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
+        EtcMessageHandler.etcMessageHandlerBuilder(forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
       ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, peerMessageBus,
         handshaker, messageHandlerBuilder), id)
   }
