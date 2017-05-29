@@ -101,6 +101,8 @@ class JsonRpcController(
       handle[ListAccountsRequest, ListAccountsResponse](personalService.listAccounts, req)
     case req @ JsonRpcRequest(_, "eth_sendRawTransaction", _, _) =>
       handle[SendRawTransactionRequest, SendRawTransactionResponse](ethService.sendRawTransaction, req)
+    case req @ JsonRpcRequest(_, "eth_call", _, _) =>
+      handle[CallRequest, CallResponse](ethService.call, req)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
