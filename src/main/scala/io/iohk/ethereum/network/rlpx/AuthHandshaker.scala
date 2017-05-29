@@ -10,9 +10,9 @@ import io.iohk.ethereum.rlp
 import io.iohk.ethereum.utils.ByteUtils._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.agreement.ECDHBasicAgreement
-import org.spongycastle.crypto.digests.{KeccakDigest, SHA256Digest}
+import org.spongycastle.crypto.digests.KeccakDigest
 import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
-import org.spongycastle.crypto.signers.{ECDSASigner, HMacDSAKCalculator}
+import AuthInitiateMessageV4._
 import org.spongycastle.math.ec.ECPoint
 
 import scala.util.Random
@@ -58,7 +58,7 @@ case class AuthHandshaker(
   def initiate(uri: URI): (ByteString, AuthHandshaker) = {
     val remotePubKey = publicKeyFromNodeId(uri.getUserInfo)
     val message = createAuthInitiateMessageV4(remotePubKey)
-    val encoded = rlp.encode(message)
+    val encoded: Array[Byte] = message.toBytes
     val padded = encoded ++ randomBytes(Random.nextInt(MaxPadding - MinPadding) + MinPadding)
     val encryptedSize = padded.length + ECIESCoder.OverheadSize
     val sizePrefix = ByteBuffer.allocate(2).putShort(encryptedSize.toShort).array
@@ -117,7 +117,7 @@ case class AuthHandshaker(
       cipher = encryptedPayload.toArray,
       macData = Some(sizeBytes.toArray))
 
-    val message = rlp.decode[AuthInitiateMessageV4](plaintext)
+    val message = plaintext.toAuthInitiateMessageV4
 
     val response = AuthResponseMessageV4(
       ephemeralPublicKey = ephemeralKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ,

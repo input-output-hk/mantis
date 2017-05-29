@@ -11,9 +11,12 @@ import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
-import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
+import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnect, Hello}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
 import io.iohk.ethereum.vm.UInt256
@@ -26,10 +29,10 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
   it should "correctly connect during an apropiate handshake if no fork resolver is used" in new TestSetup
     with LocalPeerSetup with RemotePeerSetup {
 
-    initHandshakerWithoutResolver.nextMessage.map(_.messageToSend) shouldBe Right(localHello)
+    initHandshakerWithoutResolver.nextMessage.map(_.messageToSend) shouldBe Right(localHello: HelloEnc)
     val handshakerAfterHelloOpt = initHandshakerWithoutResolver.applyMessage(remoteHello)
     assert(handshakerAfterHelloOpt.isDefined)
-    handshakerAfterHelloOpt.get.nextMessage.map(_.messageToSend) shouldBe Right(localStatus)
+    handshakerAfterHelloOpt.get.nextMessage.map(_.messageToSend) shouldBe Right(localStatus: StatusEnc)
     val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(remoteStatus)
     assert(handshakerAfterStatusOpt.isDefined)
 
@@ -48,7 +51,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     val handshakerAfterHelloOpt = initHandshakerWithResolver.applyMessage(remoteHello)
     val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(remoteStatus)
     assert(handshakerAfterStatusOpt.isDefined)
-    handshakerAfterStatusOpt.get.nextMessage.map(_.messageToSend) shouldBe Right(localGetBlockHeadersRequest)
+    handshakerAfterStatusOpt.get.nextMessage.map(_.messageToSend) shouldBe Right(localGetBlockHeadersRequest: GetBlockHeadersEnc)
     val handshakerAfterForkOpt = handshakerAfterStatusOpt.get.applyMessage(BlockHeaders(Seq(forkBlockHeader)))
     assert(handshakerAfterForkOpt.isDefined)
 
@@ -67,7 +70,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     val handshakerAfterHelloOpt = initHandshakerWithResolver.applyMessage(remoteHello)
     val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(remoteStatus)
     assert(handshakerAfterStatusOpt.isDefined)
-    handshakerAfterStatusOpt.get.nextMessage.map(_.messageToSend) shouldBe Right(localGetBlockHeadersRequest)
+    handshakerAfterStatusOpt.get.nextMessage.map(_.messageToSend) shouldBe Right(localGetBlockHeadersRequest: GetBlockHeadersEnc)
     val handshakerAfterFork = handshakerAfterStatusOpt.get.applyMessage(BlockHeaders(Nil))
     assert(handshakerAfterStatusOpt.isDefined)
 
@@ -99,7 +102,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
   }
 
   it should "fail if the remote peer doesn't support PV63" in new TestSetup with LocalPeerSetup with RemotePeerSetup {
-    val pv62Capability = Capability("eth", Message.PV62.toByte)
+    val pv62Capability = Capability("eth", Versions.PV62.toByte)
     val handshakerAfterHelloOpt = initHandshakerWithResolver.applyMessage(remoteHello.copy(capabilities = Seq(pv62Capability)))
     assert(handshakerAfterHelloOpt.isDefined)
     handshakerAfterHelloOpt.get.nextMessage.leftSide shouldBe Left(HandshakeFailure(Disconnect.Reasons.IncompatibleP2pProtocolVersion))
@@ -167,13 +170,13 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     val localHello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = Config.clientId,
-      capabilities = Seq(Capability("eth", Message.PV63.toByte)),
+      capabilities = Seq(Capability("eth", Versions.PV63.toByte)),
       listenPort = 0, //Local node not listening
       nodeId = ByteString(nodeStatus.nodeId)
     )
 
     val localStatus = Status(
-      protocolVersion = Message.PV63,
+      protocolVersion = Versions.PV63,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = genesisBlock.header.difficulty,
       bestHash = genesisBlock.header.hash,
@@ -190,14 +193,14 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     val remoteHello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = "remote-peer",
-      capabilities = Seq(Capability("eth", Message.PV63.toByte)),
+      capabilities = Seq(Capability("eth", Versions.PV63.toByte)),
       listenPort = remotePort,
       nodeId = ByteString(remoteNodeStatus.nodeId)
     )
 
     val remoteStatus =
       Status(
-        protocolVersion = Message.PV63,
+        protocolVersion = Versions.PV63,
         networkId = 1,
         totalDifficulty = 0,
         bestHash = ByteString.empty,

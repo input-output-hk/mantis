@@ -2,8 +2,8 @@ package io.iohk.ethereum.network.handshaker
 
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerActor.PeerInfo
-import io.iohk.ethereum.network.handshaker.Handshaker.{MessageSerializable, NextMessage}
-import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
@@ -14,7 +14,7 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
 
   import handshakerConfiguration._
 
-  def nextMessage: NextMessage[GetBlockHeaders] =
+  def nextMessage: NextMessage =
     NextMessage(
       messageToSend = GetBlockHeaders(Left(forkResolver.forkBlockNumber), maxHeaders = 1, skip = 0, reverse = false),
       timeout = peerConfiguration.waitForChainCheckTimeout
@@ -48,13 +48,13 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
 
   }
 
-  override def respondToRequest(receivedMessage: Message): Option[MessageSerializable[_]] = receivedMessage match {
+  override def respondToRequest(receivedMessage: Message): Option[MessageSerializable] = receivedMessage match {
 
     case GetBlockHeaders(Left(number), numHeaders, _, _) if number == forkResolver.forkBlockNumber && numHeaders == 1 =>
       log.debug("Received request for fork block")
       blockchain.getBlockHeaderByNumber(number) match {
-        case Some(header) => Some(MessageSerializable(BlockHeaders(Seq(header)))(BlockHeaders.headersRlpEncDec))
-        case None => Some(MessageSerializable(BlockHeaders(Nil))(BlockHeaders.headersRlpEncDec))
+        case Some(header) => Some(BlockHeaders(Seq(header)))
+        case None => Some(BlockHeaders(Nil))
       }
 
     case _ => None

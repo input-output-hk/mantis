@@ -6,10 +6,12 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainStorages, Receipt}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaderImplicits}
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody._
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.network.p2p.messages.PV63._
-import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import io.iohk.ethereum.rlp._
+import MptNode._
+import ReceiptImplicits._
 import org.spongycastle.util.encoders.Hex
 
 import scala.io.Source
@@ -53,12 +55,12 @@ object FixtureProvider {
       def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
         case Some(m: MptBranch) =>
           storages.mptNodeStorage.put(m)
-          storages.nodeStorage.put(m.hash, encode(m: MptNode)(MptNode.rlpEncDec))
+          storages.nodeStorage.put(m.hash, m.toBytes)
           m.children.collect { case Left(MptHash(hash)) if hash.nonEmpty => hash }.foreach(traverse)
 
         case Some(m: MptExtension) =>
           storages.mptNodeStorage.put(m)
-          storages.nodeStorage.put(m.hash, encode(m: MptNode)(MptNode.rlpEncDec))
+          storages.nodeStorage.put(m.hash, m.toBytes)
           m.child match {
             case Left(MptHash(hash)) if hash.nonEmpty => traverse(hash)
             case _ =>
@@ -66,7 +68,7 @@ object FixtureProvider {
 
         case Some(m: MptLeaf) =>
           storages.mptNodeStorage.put(m)
-          storages.nodeStorage.put(m.hash, encode(m: MptNode)(MptNode.rlpEncDec))
+          storages.nodeStorage.put(m.hash, m.toBytes)
           Try(m.getAccount).toOption.foreach { account =>
             if (account.codeHash != DumpChainActor.emptyEvm) {
               storages.evmCodeStorage.put(account.codeHash, fixtures.evmCode(account.codeHash))
@@ -90,7 +92,7 @@ object FixtureProvider {
       .map(s => s.split(" ").toSeq).collect {
       case Seq(h, v) =>
         val key = ByteString(Hex.decode(h))
-        val value: BlockBody = decode(Hex.decode(v))(BlockBody.rlpEncDec)
+        val value: BlockBody = Hex.decode(v).toBlockBody
         key -> value
     }.toMap)
 
@@ -98,7 +100,7 @@ object FixtureProvider {
       .map(s => s.split(" ").toSeq).collect {
       case Seq(h, v) =>
         val key = ByteString(Hex.decode(h))
-        val value: BlockHeader = decode(Hex.decode(v))(BlockHeaderImplicits.headerRlpEncDec)
+        val value: BlockHeader = Hex.decode(v).toBlockHeader
         key -> value
     }.toMap)
 
@@ -106,7 +108,7 @@ object FixtureProvider {
       .map(s => s.split(" ").toSeq).collect {
       case Seq(h, v) =>
         val key = ByteString(Hex.decode(h))
-        val value: Seq[Receipt] = fromRlpList(rawDecode(Hex.decode(v)).asInstanceOf[RLPList])(ReceiptImplicits.receiptRlpEncDec)
+        val value: Seq[Receipt] = Hex.decode(v).toReceipts
         key -> value
     }.toMap)
 
@@ -114,7 +116,7 @@ object FixtureProvider {
       .map(s => s.split(" ").toSeq).collect {
       case Seq(h, v) =>
         val key = ByteString(Hex.decode(h))
-        val value: MptNode = decode(Hex.decode(v))(MptNode.rlpEncDec)
+        val value: MptNode = Hex.decode(v).toMptNode
         key -> value
     }.toMap)
 
@@ -122,7 +124,7 @@ object FixtureProvider {
       .map(s => s.split(" ").toSeq).collect {
       case Seq(h, v) =>
         val key = ByteString(Hex.decode(h))
-        val value: MptNode = decode(Hex.decode(v))(MptNode.rlpEncDec)
+        val value: MptNode = Hex.decode(v).toMptNode
         key -> value
     }.toMap)
 

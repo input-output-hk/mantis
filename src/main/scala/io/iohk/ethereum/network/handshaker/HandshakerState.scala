@@ -1,7 +1,7 @@
 package io.iohk.ethereum.network.handshaker
 
-import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, MessageSerializable, NextMessage}
-import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 
 sealed trait HandshakerState[T <: HandshakeResult]
 
@@ -12,7 +12,7 @@ trait InProgressState[T <: HandshakeResult] extends HandshakerState[T] {
     *
     * @return message to be sent with the timeout for awaiting its response
     */
-  def nextMessage: NextMessage[_ <: Message]
+  def nextMessage: NextMessage
 
   /**
     * Processes a message and obtains the new state of the handshake after processing it,
@@ -30,7 +30,7 @@ trait InProgressState[T <: HandshakeResult] extends HandshakerState[T] {
     * @param receivedMessage, message received and to be optionally responded
     * @return message to be sent as a response to the received one, if there should be any
     */
-  def respondToRequest(receivedMessage: Message): Option[MessageSerializable[_]] = None
+  def respondToRequest(receivedMessage: Message): Option[MessageSerializable] = None
 
   /**
     * Processes a timeout to the sent message and obtains the new state of the handshake after processing it

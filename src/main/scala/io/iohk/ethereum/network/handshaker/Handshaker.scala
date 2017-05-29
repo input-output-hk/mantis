@@ -1,8 +1,8 @@
 package io.iohk.ethereum.network.handshaker
 
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
-import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeComplete, HandshakeResult, MessageSerializable, NextMessage}
-import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeComplete, HandshakeResult, NextMessage}
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.rlp.RLPEncoder
 
 import scala.concurrent.duration.FiniteDuration
@@ -16,7 +16,7 @@ trait Handshaker[T <: HandshakeResult] {
     *
     * @return next message to be sent or the result of the handshake
     */
-  def nextMessage: Either[HandshakeComplete[T], NextMessage[_]] = handshakerState match {
+  def nextMessage: Either[HandshakeComplete[T], NextMessage] = handshakerState match {
     case inProgressState: InProgressState[T] =>
       Right(inProgressState.nextMessage)
     case ConnectedState(peerInfo) =>
@@ -45,7 +45,7 @@ trait Handshaker[T <: HandshakeResult] {
     * @param receivedMessage, message received and to be optionally responded
     * @return message to be sent as a response to the received one, if there should be any
     */
-  def respondToRequest(receivedMessage: Message): Option[MessageSerializable[_]] = handshakerState match {
+  def respondToRequest(receivedMessage: Message): Option[MessageSerializable] = handshakerState match {
     case inProgressState: InProgressState[T] =>
       inProgressState.respondToRequest(receivedMessage)
     case _ => None
@@ -84,8 +84,6 @@ object Handshaker {
     case class HandshakeSuccess[T <: HandshakeResult](result: T) extends HandshakeComplete[T]
   }
 
-  case class NextMessage[M <: Message](messageToSend: M, timeout: FiniteDuration)(implicit val enc: RLPEncoder[M])
+  case class NextMessage(messageToSend: MessageSerializable, timeout: FiniteDuration)
 
-  //FIXME: Temporary solution, should be replaced with the MessageSerializable in PR 186
-  case class MessageSerializable[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
 }

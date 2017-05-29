@@ -16,6 +16,7 @@ import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.handshaker._
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello, Pong}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.utils.Config
@@ -163,7 +164,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
 
   object DefaultValues {
     val defaultStatus = Status(
-      protocolVersion = Message.PV63,
+      protocolVersion = Versions.PV63,
       networkId = 1,
       totalDifficulty = Fixtures.Blocks.Genesis.header.difficulty,
       bestHash = Fixtures.Blocks.Genesis.header.hash,
@@ -200,7 +201,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
 
     import DefaultValues._
 
-    def nextMessage: NextMessage[Hello] = NextMessage(defaultHello, defaultTimeout)
+    def nextMessage: NextMessage = NextMessage(defaultHello, defaultTimeout)
 
     def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = {
       case helloMsg: Hello => ConnectedState(defaultEtcPeerInfo)

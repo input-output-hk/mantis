@@ -4,14 +4,16 @@ import akka.util.ByteString
 import io.iohk.ethereum.network.PeerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnect, Hello}
 import io.iohk.ethereum.utils.{Config, Logger, ServerStatus}
+
 
 case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] with Logger {
 
   import handshakerConfiguration._
 
-  override def nextMessage: NextMessage[Hello] = {
+  override def nextMessage: NextMessage = {
     log.info("RLPx connection established, sending Hello")
     NextMessage(
       messageToSend = createHelloMsg(),
@@ -23,10 +25,10 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
 
     case hello: Hello =>
       log.info("Protocol handshake finished with peer ({})", hello)
-      if (hello.capabilities.contains(Capability("eth", Message.PV63.toByte)))
+      if (hello.capabilities.contains(Capability("eth", Versions.PV63.toByte)))
         EtcNodeStatusExchangeState(handshakerConfiguration)
       else {
-        log.warn("Connected peer does not support eth {} protocol. Disconnecting.", Message.PV63.toByte)
+        log.warn("Connected peer does not support eth {} protocol. Disconnecting.", Versions.PV63.toByte)
         DisconnectedState[PeerInfo](Disconnect.Reasons.IncompatibleP2pProtocolVersion)
       }
 
@@ -46,7 +48,7 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
     Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = Config.clientId,
-      capabilities = Seq(Capability("eth", Message.PV63.toByte)),
+      capabilities = Seq(Capability("eth", Versions.PV63.toByte)),
       listenPort = listenPort,
       nodeId = ByteString(nodeStatus.nodeId)
     )

@@ -1,5 +1,6 @@
 package io.iohk.ethereum
 
+import akka.util.ByteString
 import org.spongycastle.util.encoders.Hex
 
 package object rlp {
@@ -43,4 +44,11 @@ package object rlp {
     * @throws RLPException if there is any error
     */
   def nextElementIndex(data: Array[Byte], pos: Int): Int = RLP.getItemBounds(data, pos).end + 1
+
+  trait RLPSerializable {
+    def toRLPEncodable: RLPEncodeable
+    def toBytes(implicit di: DummyImplicit): ByteString = ByteString(toBytes: Array[Byte])
+    def toBytes: Array[Byte] = encode(this.toRLPEncodable)
+  }
+
 }

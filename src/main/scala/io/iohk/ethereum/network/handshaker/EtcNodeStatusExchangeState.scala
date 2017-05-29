@@ -4,6 +4,7 @@ import io.iohk.ethereum.network.PeerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Logger
 
@@ -11,7 +12,7 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
 
   import handshakerConfiguration._
 
-  def nextMessage: NextMessage[Status] =
+  def nextMessage: NextMessage =
     NextMessage(
       messageToSend = createStatusMsg(),
       timeout = peerConfiguration.waitForStatusTimeout
@@ -44,7 +45,7 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
   private def createStatusMsg(): Status = {
     val bestBlockHeader = getBestBlockHeader()
     Status(
-      protocolVersion = Message.PV63,
+      protocolVersion = Versions.PV63,
       networkId = peerConfiguration.networkId,
       totalDifficulty = bestBlockHeader.difficulty,
       bestHash = bestBlockHeader.hash,
