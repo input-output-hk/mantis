@@ -141,15 +141,19 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
   override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages, validators: Validators): TxResult = {
     val blockchain = BlockchainImpl(storages)
     val stateRoot = blockchain.getBlockHeaderByHash(blockHeader.hash).map(_.stateRoot)
-    val world = InMemoryWorldStateProxy(storages, stateRoot)
 
     val gasLimit = stx.tx.gasLimit
     val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
-    val context: PC = stx.tx.receivingAddress match {
-      case None => ProgramContext(stx, world.createAddress(creatorAddr = stx.senderAddress), Program(stx.tx.payload), blockHeader, world, config)
-      case Some(txReceivingAddress) => ProgramContext(stx, txReceivingAddress, Program(world.getCode(txReceivingAddress)), blockHeader, world, config)
-    }
+    val world1 = InMemoryWorldStateProxy(storages, stateRoot)
+    val world2 =
+      if (world1.getAccount(stx.senderAddress).isEmpty)
+        world1.saveAccount(stx.senderAddress, Account.Empty)
+      else
+        world1
+
+    val worldForTx = updateSenderAccountBeforeExecution(stx, world2)
+    val context: PC = prepareProgramContext(stx, blockHeader, worldForTx, config)
 
     val result = runVM(stx, context, config)
 
