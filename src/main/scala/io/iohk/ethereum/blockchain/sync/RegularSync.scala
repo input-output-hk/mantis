@@ -16,7 +16,6 @@ import org.spongycastle.util.encoders.Hex
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 
-// scalastyle:off cyclomatic.complexity
 trait RegularSync {
   selfSyncController: SyncController =>
 
