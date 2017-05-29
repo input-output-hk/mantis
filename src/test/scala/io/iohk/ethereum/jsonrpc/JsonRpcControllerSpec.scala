@@ -12,11 +12,13 @@ import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.{Config, MiningConfig}
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import org.json4s
 import org.json4s.JsonAST._
@@ -325,6 +327,9 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(Nil))
 
+    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    ommersPool.reply(Ommers(Nil))
+
     val response = result.futureValue
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -389,12 +394,22 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val blockchain = BlockchainImpl(storagesInstance.storages)
     val blockGenerator: BlockGenerator = mock[BlockGenerator]
     implicit val system = ActorSystem("JsonRpcControllerSpec_System")
-    val syncingController = TestProbe()
 
+    val syncingController = TestProbe()
     val pendingTransactionsManager = TestProbe()
+    val ommersPool = TestProbe()
+
+    val miningConfig = new MiningConfig {
+      override val coinBase: Address = Address(42)
+      override val blockCasheSize: Int = 30
+      override val ommersPoolSize: Int = 30
+      override val txPoolSize: Int = 30
+    }
+
+
     val appStateStorage = mock[AppStateStorage]
     val web3Service = new Web3Service
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, syncingController.ref, pendingTransactionsManager.ref)
+    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, miningConfig, syncingController.ref, pendingTransactionsManager.ref, ommersPool.ref)
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)

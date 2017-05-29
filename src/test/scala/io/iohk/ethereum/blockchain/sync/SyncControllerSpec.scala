@@ -588,9 +588,11 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val ledger: Ledger = new Mocks.MockLedger((block, _, _) => !blocksForWhichLedgerFails.contains(block.header.number))
 
     val peerMessageBus = TestProbe()
+    //todo add assertions to check ommers/transactions added/removed when syncing
     val pendingTransactionsManager = TestProbe()
+    val ommersPool = TestProbe()
 
-    val actors = DependencyActors(peerManager.ref, peerMessageBus.ref, pendingTransactionsManager.ref)
+    val actors = DependencyActors(peerManager.ref, peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref)
 
     val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,

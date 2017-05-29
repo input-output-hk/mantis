@@ -14,17 +14,21 @@ import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
 import io.iohk.ethereum.mining.BlockGenerator
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
+import io.iohk.ethereum.ommers.OmmersPool
 
 trait BlockchainConfigBuilder {
   lazy val blockchainConfig = BlockchainConfig(Config.config)
+}
+
+trait MiningConfigBuilder {
+  lazy val miningConfig = MiningConfig(Config.config)
 }
 
 trait NodeKeyBuilder {
@@ -119,9 +123,10 @@ trait BlockGeneratorBuilder {
   self: StorageBuilder with
     BlockchainConfigBuilder with
     ValidatorsBuilder with
-    LedgerBuilder =>
+    LedgerBuilder with
+    MiningConfigBuilder =>
 
-  lazy val blockGenerator = new BlockGenerator(storagesInstance.storages, blockchainConfig, ledger, validators)
+  lazy val blockGenerator = new BlockGenerator(storagesInstance.storages, blockchainConfig, miningConfig, ledger, validators)
 }
 
 trait EthServiceBuilder {
@@ -129,9 +134,12 @@ trait EthServiceBuilder {
     BlockChainBuilder with
     BlockGeneratorBuilder with
     SyncControllerBuilder with
-    PendingTransactionsManagerBuilder =>
+    PendingTransactionsManagerBuilder with
+    OmmersPoolBuilder with
+    MiningConfigBuilder =>
 
-  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage, syncController, pendingTransactionsManager)
+  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage, miningConfig,
+    syncController, pendingTransactionsManager, ommersPool)
 }
 
 trait PersonalServiceBuilder {
@@ -157,6 +165,14 @@ trait JSONRpcHttpServerBuilder {
   lazy val jsonRpcHttpServerConfig: JsonRpcHttpServerConfig = Config.Network.Rpc
 
   lazy val jsonRpcHttpServer = new JsonRpcHttpServer(jsonRpcController, jsonRpcHttpServerConfig)
+}
+
+trait OmmersPoolBuilder {
+  self: ActorSystemBuilder with
+    BlockChainBuilder with
+    MiningConfigBuilder =>
+
+  lazy val ommersPool: ActorRef = actorSystem.actorOf(OmmersPool.props(blockchain, miningConfig))
 }
 
 trait ValidatorsBuilder {
@@ -188,7 +204,8 @@ trait SyncControllerBuilder {
     ValidatorsBuilder with
     LedgerBuilder with
     PeerMessageBusBuilder with
-    PendingTransactionsManagerBuilder=>
+    PendingTransactionsManagerBuilder with
+    OmmersPoolBuilder =>
 
 
 
@@ -203,7 +220,8 @@ trait SyncControllerBuilder {
       DependencyActors(
         peerManager,
         peerMessageBus,
-        pendingTransactionsManager
+        pendingTransactionsManager,
+        ommersPool
       )),
     "sync-controller")
 
@@ -253,3 +271,5 @@ trait Node extends NodeKeyBuilder
   with BlockchainConfigBuilder
   with PeerMessageBusBuilder
   with PendingTransactionsManagerBuilder
+  with OmmersPoolBuilder
+  with MiningConfigBuilder

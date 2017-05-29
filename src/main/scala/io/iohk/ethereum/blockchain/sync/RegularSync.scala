@@ -13,6 +13,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
@@ -56,15 +57,19 @@ trait RegularSync {
 
     //todo improve mined block handling - add info that block was not included because of syncing
     //we allow inclusion of mined block only if we are not syncing / reorganising chain
-    case MinedBlock(block) if headersQueue.isEmpty && waitingForActor.isEmpty =>
-      //we are at the top of chain we can insert new block
-      blockchain.getBlockHeaderByHash(block.header.parentHash)
-        .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
-        case Some(parentTd) if appStateStorage.getBestBlockNumber() < block.header.number =>
-          //just insert block and let resolve it with regular download
-          insertMinedBlock(block, parentTd)
-        case _ =>
-          log.error("fail to add mined block")
+    case MinedBlock(block) =>
+      if (headersQueue.isEmpty && waitingForActor.isEmpty) {
+        //we are at the top of chain we can insert new block
+        blockchain.getBlockHeaderByHash(block.header.parentHash)
+          .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
+          case Some(parentTd) if appStateStorage.getBestBlockNumber() < block.header.number =>
+            //just insert block and let resolve it with regular download
+            insertMinedBlock(block, parentTd)
+          case _ =>
+            log.error("fail to add mined block")
+        }
+      } else {
+        actors.ommersPool ! AddOmmers(block.header)
       }
 
     case PrintStatus =>
@@ -89,6 +94,7 @@ trait RegularSync {
         blockchain.save(block.header.hash, newTd)
 
         handshakedPeers.keys.foreach(peer => peer.ref ! BroadcastBlocks(Seq(NewBlock(block, newTd))))
+        actors.ommersPool ! new RemoveOmmers((block.header +: block.body.uncleNodesList).toList)
 
         log.info(s"added new block $block")
       case Left(err) =>
@@ -150,6 +156,8 @@ trait RegularSync {
             actors.pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toList)
             val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
             waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, actors.peerMessageBus, hashes)))
+            //add first block from branch as ommer
+            headersQueue.headOption.foreach { h => actors.ommersPool ! AddOmmers(h) }
           } else {
             scheduleResume()
           }
@@ -231,8 +239,8 @@ trait RegularSync {
           blockchain.save(block.header.hash, newTd)
           blockHashToDelete.foreach(blockchain.removeBlock)
           actors.pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
+          actors.ommersPool ! new RemoveOmmers((block.header +: block.body.uncleNodesList).toList)
           processBlocks(otherBlocks, newTd, newBlocks :+ NewBlock(block, newTd))
-
         case Left(error) =>
           newBlocks -> Some(error)
       }
