@@ -2,7 +2,6 @@ package io.iohk.ethereum.rlp
 
 import akka.util.ByteString
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.vm.UInt256
 
 import scala.language.implicitConversions
 
@@ -27,8 +26,6 @@ object RLPImplicitConversions {
   implicit def intFromEncodeable: (RLPEncodeable) => Int = fromEncodeable[Int]
 
   implicit def bigIntFromEncodeable: (RLPEncodeable) => BigInt = fromEncodeable[BigInt]
-
-  implicit def uInt256FromEncodeable: (RLPEncodeable) => UInt256 = fromEncodeable[UInt256]
 
   implicit def byteStringFromEncodeable: (RLPEncodeable) => ByteString = fromEncodeable[ByteString]
 

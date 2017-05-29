@@ -15,7 +15,6 @@ import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.rlp
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactions
 
@@ -202,8 +201,9 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
   }
 
   def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
-    import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
-    Try(rlp.decode[SignedTransaction](req.data.toArray[Byte])) match {
+    import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionDec
+
+    Try(req.data.toArray.toSignedTransaction) match {
       case Success(signedTransaction) =>
         pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(signedTransaction)
         Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
