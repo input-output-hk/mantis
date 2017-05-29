@@ -9,6 +9,9 @@ import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.domain.{Account, Block, BlockHeader, BlockchainStorages}
+import io.iohk.ethereum.ledger.{BlockExecutionError, BloomFilter, Ledger}
+import io.iohk.ethereum.network.{Peer, PeerActor}
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader}
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
@@ -229,7 +232,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerTestProbe.expectMsgAllOf(10.seconds,
       PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
-      PeerActor.BroadcastBlocks(Seq(NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty))))
+      PeerActor.SendMessage(NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty))
+    )
+    peerTestProbe.expectNoMsg()
 
     blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(newBlockHeader, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(newBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + newBlockHeader.difficulty)
@@ -310,10 +315,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerTestProbe.expectMsgAllOf(
       PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
-      PeerActor.BroadcastBlocks(Seq(
-        NewBlock(Block(newBlockHeaderParent, BlockBody(Nil, Nil)), commonRootTotalDifficulty + newBlockDifficulty),
-        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), commonRootTotalDifficulty + 2 * newBlockDifficulty)
-      )))
+      PeerActor.SendMessage(NewBlock(Block(newBlockHeaderParent, BlockBody(Nil, Nil)), commonRootTotalDifficulty + newBlockDifficulty)),
+      PeerActor.SendMessage(NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), commonRootTotalDifficulty + 2 * newBlockDifficulty))
+    )
     peerTestProbe.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(nextNewBlockHeader.hash))))
 
     //wait for actor to insert data
@@ -445,10 +449,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     //TODO: investigate why such a long timeout is required
     peer1TestProbe.expectMsgAllOf(20.seconds,
       PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 3), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
-      PeerActor.BroadcastBlocks(Seq(
-        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty),
-        NewBlock(Block(nextNewBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + 2 * newBlockDifficulty)
-      ))
+      PeerActor.SendMessage(NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty)),
+      PeerActor.SendMessage(NewBlock(Block(nextNewBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + 2 * newBlockDifficulty))
     )
   }
 
@@ -516,7 +518,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     //TODO: investigate why such a long timeout is required
     peer2TestProbe.expectMsgAllOf(20.seconds,
       PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
-      PeerActor.BroadcastBlocks(Seq(NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty)))
+      PeerActor.SendMessage(NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty))
     )
   }
 

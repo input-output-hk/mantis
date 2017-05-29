@@ -14,7 +14,7 @@ import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
 import io.iohk.ethereum.mining.BlockGenerator
-import io.iohk.ethereum.network.PeerActor.PeerInfo
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
@@ -85,7 +85,7 @@ trait HandshakerBuilder {
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
     }
 
-  lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
+  lazy val handshaker: Handshaker[EtcPeerInfo] = EtcHandshaker(handshakerConfiguration)
 }
 
 trait PeerMessageBusBuilder {

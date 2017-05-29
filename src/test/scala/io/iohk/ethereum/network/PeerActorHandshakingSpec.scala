@@ -1,17 +1,18 @@
 package io.iohk.ethereum.network
 
-import java.net.URI
+import java.net.{InetSocketAddress, URI}
 
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.{Fixtures, Mocks}
 import io.iohk.ethereum.Mocks.{MockHandshakerAlwaysFails, MockHandshakerAlwaysSucceeds}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerActor.{ConnectTo, GetStatus, PeerInfo, StatusResponse}
+import io.iohk.ethereum.network.PeerActor.{ConnectTo, GetStatus, StatusResponse}
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.handshaker._
 import io.iohk.ethereum.network.p2p.Message
@@ -150,15 +151,14 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     val rlpxConnectionProbe = TestProbe()
     val peerMessageBus = TestProbe()
 
-    def peerActor(handshaker: Handshaker[PeerInfo]): TestActorRef[PeerActor] = TestActorRef(Props(new PeerActor(
+    def peerActor(handshaker: Handshaker[EtcPeerInfo]): TestActorRef[PeerActor] = TestActorRef(Props(new PeerActor(
+      new InetSocketAddress("127.0.0.1", 0),
       rlpxConnectionFactory = _ => rlpxConnectionProbe.ref,
       peerConfiguration = Config.Network.peer,
-      appStateStorage = storagesInstance.storages.appStateStorage,
-      blockchain = blockchain,
       peerMessageBus = peerMessageBus.ref,
       externalSchedulerOpt = Some(time.scheduler),
-      forkResolverOpt = None,
-      initHandshaker = handshaker
+      initHandshaker = handshaker,
+      (peerInfo, _) => Mocks.MockMessageHandler(peerInfo)
     )))
   }
 
@@ -173,7 +173,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     val defaultBlockNumber = 1000
     val defaultForkAccepted = true
 
-    val defaultEtcPeerInfo = PeerInfo(defaultStatus, defaultBlockNumber, defaultForkAccepted)
+    val defaultEtcPeerInfo = EtcPeerInfo(defaultStatus, defaultStatus.totalDifficulty, defaultForkAccepted, defaultBlockNumber)
 
     val defaultReasonDisconnect = Disconnect.Reasons.Other
 
@@ -187,8 +187,8 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     val defaultTimeout = 3.seconds
   }
 
-  case class MockHandshakerRequiresHello private (handshakerState: HandshakerState[PeerInfo]) extends Handshaker[PeerInfo] {
-    override def copy(newState: HandshakerState[PeerInfo]): Handshaker[PeerInfo] = new MockHandshakerRequiresHello(newState)
+  case class MockHandshakerRequiresHello private (handshakerState: HandshakerState[EtcPeerInfo]) extends Handshaker[EtcPeerInfo] {
+    override def copy(newState: HandshakerState[EtcPeerInfo]): Handshaker[EtcPeerInfo] = new MockHandshakerRequiresHello(newState)
   }
 
   object MockHandshakerRequiresHello {
@@ -197,18 +197,18 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     }
   }
 
-  case object MockHelloExchangeState extends InProgressState[PeerInfo] {
+  case object MockHelloExchangeState extends InProgressState[EtcPeerInfo] {
 
     import DefaultValues._
 
     def nextMessage: NextMessage = NextMessage(defaultHello, defaultTimeout)
 
-    def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = {
+    def applyResponseMessage: PartialFunction[Message, HandshakerState[EtcPeerInfo]] = {
       case helloMsg: Hello => ConnectedState(defaultEtcPeerInfo)
       case status: Status => DisconnectedState(defaultReasonDisconnect)
     }
 
-    def processTimeout: HandshakerState[PeerInfo] = DisconnectedState[PeerInfo](defaultReasonDisconnect)
+    def processTimeout: HandshakerState[EtcPeerInfo] = DisconnectedState(defaultReasonDisconnect)
   }
 
 }

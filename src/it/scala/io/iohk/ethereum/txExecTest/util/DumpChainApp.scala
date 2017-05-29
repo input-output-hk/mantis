@@ -7,7 +7,7 @@ import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Blockchain, _}
-import io.iohk.ethereum.network.PeerActor.PeerInfo
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.messages.{PV62, PV63}
@@ -67,7 +67,7 @@ object DumpChainApp extends App{
         override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
       }
 
-    lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
+    lazy val handshaker: Handshaker[EtcPeerInfo] = EtcHandshaker(handshakerConfiguration)
 
     val peerMessageBus = actorSystem.actorOf(PeerMessageBusActor.props)
 

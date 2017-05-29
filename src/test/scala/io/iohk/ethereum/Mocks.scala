@@ -5,9 +5,14 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
 import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.PeerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockPreparationError, Ledger}
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
+import io.iohk.ethereum.network.MessageHandler
+import io.iohk.ethereum.network.MessageHandler.MessageAction.TransmitMessage
+import io.iohk.ethereum.network.MessageHandler.{MessageHandlingResult, PeerInfo}
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
+import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.validators.BlockValidator.BlockTransactionsHashError
@@ -89,14 +94,23 @@ object Mocks {
   }
 
   case class MockHandshakerAlwaysSucceeds(initialStatus: Status, currentMaxBlockNumber: BigInt,
-                                          forkAccepted: Boolean) extends Handshaker[PeerInfo] {
-    override val handshakerState: HandshakerState[PeerInfo] =
-      ConnectedState(PeerInfo(initialStatus, currentMaxBlockNumber, forkAccepted))
-    override def copy(handshakerState: HandshakerState[PeerInfo]): Handshaker[PeerInfo] = this
+                                          forkAccepted: Boolean) extends Handshaker[EtcPeerInfo] {
+    override val handshakerState: HandshakerState[EtcPeerInfo] =
+      ConnectedState(EtcPeerInfo(initialStatus, initialStatus.totalDifficulty, forkAccepted, currentMaxBlockNumber))
+    override def copy(handshakerState: HandshakerState[EtcPeerInfo]): Handshaker[EtcPeerInfo] = this
   }
 
-  case class MockHandshakerAlwaysFails(reason: Int) extends Handshaker[PeerInfo] {
-    override val handshakerState: HandshakerState[PeerInfo] = DisconnectedState(reason)
-    override def copy(handshakerState: HandshakerState[PeerInfo]): Handshaker[PeerInfo] = this
+  case class MockHandshakerAlwaysFails(reason: Int) extends Handshaker[EtcPeerInfo] {
+    override val handshakerState: HandshakerState[EtcPeerInfo] = DisconnectedState(reason)
+
+    override def copy(handshakerState: HandshakerState[EtcPeerInfo]): Handshaker[EtcPeerInfo] = this
+  }
+
+  case class MockMessageHandler[I <: PeerInfo with HandshakeResult](peerInfo: I) extends MessageHandler[I, I] {
+
+    def sendingMessage(message: Message): MessageHandlingResult[I, I] = MessageHandlingResult(this, TransmitMessage)
+
+    def receivingMessage(message: Message): MessageHandlingResult[I, I] = MessageHandlingResult(this, TransmitMessage)
+
   }
 }

@@ -7,8 +7,8 @@ import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.ForkResolver
-import io.iohk.ethereum.network.PeerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
@@ -37,8 +37,9 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     assert(handshakerAfterStatusOpt.isDefined)
 
     handshakerAfterStatusOpt.get.nextMessage match {
-      case Left(HandshakeSuccess(PeerInfo(initialStatus, currentMaxBlockNumber, forkAccepted))) =>
+      case Left(HandshakeSuccess(EtcPeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber))) =>
         initialStatus shouldBe remoteStatus
+        totalDifficulty shouldBe remoteStatus.totalDifficulty
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe true
       case _ => fail
@@ -56,8 +57,9 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     assert(handshakerAfterForkOpt.isDefined)
 
     handshakerAfterForkOpt.get.nextMessage match {
-      case Left(HandshakeSuccess(PeerInfo(initialStatus, currentMaxBlockNumber, forkAccepted))) =>
+      case Left(HandshakeSuccess(EtcPeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber))) =>
         initialStatus shouldBe remoteStatus
+        totalDifficulty shouldBe remoteStatus.totalDifficulty
         currentMaxBlockNumber shouldBe forkBlockHeader.number
         forkAccepted shouldBe true
       case _ => fail
@@ -75,8 +77,9 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     assert(handshakerAfterStatusOpt.isDefined)
 
     handshakerAfterFork.get.nextMessage match {
-      case Left(HandshakeSuccess(PeerInfo(initialStatus, currentMaxBlockNumber, forkAccepted))) =>
+      case Left(HandshakeSuccess(EtcPeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber))) =>
         initialStatus shouldBe remoteStatus
+        totalDifficulty shouldBe remoteStatus.totalDifficulty
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe false
       case _ => fail

@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network.handshaker
 
-import io.iohk.ethereum.network.PeerActor.PeerInfo
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
@@ -8,7 +8,7 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Logger
 
-case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] with Logger {
+case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[EtcPeerInfo] with Logger {
 
   import handshakerConfiguration._
 
@@ -18,7 +18,7 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
       timeout = peerConfiguration.waitForStatusTimeout
     )
 
-  def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = {
+  def applyResponseMessage: PartialFunction[Message, HandshakerState[EtcPeerInfo]] = {
 
     case remoteStatus: Status =>
       log.info("Peer returned status ({})", remoteStatus)
@@ -27,14 +27,14 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
         case Some(forkResolver) =>
           EtcForkBlockExchangeState(handshakerConfiguration, forkResolver, remoteStatus)
         case None =>
-          ConnectedState[PeerInfo](PeerInfo(remoteStatus, 0, true))
+          ConnectedState(EtcPeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, 0))
       }
 
   }
 
-  def processTimeout: HandshakerState[PeerInfo] = {
+  def processTimeout: HandshakerState[EtcPeerInfo] = {
     log.warn("Timeout while waiting status")
-    DisconnectedState[PeerInfo](Disconnect.Reasons.TimeoutOnReceivingAMessage)
+    DisconnectedState(Disconnect.Reasons.TimeoutOnReceivingAMessage)
   }
 
   private def getBestBlockHeader() = {
