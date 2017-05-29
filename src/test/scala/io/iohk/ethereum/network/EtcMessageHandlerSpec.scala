@@ -17,9 +17,14 @@ import io.iohk.ethereum.network.MessageHandler.MessageHandlingResult
 import io.iohk.ethereum.network.PeerActor.DisconnectPeer
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
+import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.rlp.encode
@@ -257,7 +262,7 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
     //then
     msgHandler.peerInfo shouldBe initialMsgHandler.peerInfo
     action shouldBe IgnoreMessage
-    peerProbe.expectMsg(PeerActor.SendMessage(NodeData(Seq(ByteString(encode(extensionNode))))))
+    peerProbe.expectMsg(PeerActor.SendMessage(NodeData(Seq(extensionNode.toBytes))))
   }
 
   it should "update max peer when receiving new block" in new TestSetup {
@@ -448,28 +453,28 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
 
-    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Message.PV63.toByte)), 9000, ByteString("unused"))
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Hello) => () }
+    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val remoteStatus = Status(
-      protocolVersion = Message.PV63,
+      protocolVersion = Versions.PV63,
       networkId = 0,
       totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty - 2000000, // remote is before the fork
       bestHash = ByteString("blockhash"),
       genesisHash = Fixtures.Blocks.Genesis.header.hash)
 
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Status) => () }
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
     rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(remoteStatus))
 
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeaders) => () }
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
     rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)))
     // ask for highest block
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeaders) => () }
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
     rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)))
 
     rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(Ping()))
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: Pong) => () }
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: PongEnc) => () }
 
     val nonDaoHeader = Fixtures.Blocks.Genesis.header.copy(number = Fixtures.Blocks.DaoForkBlock.header.number)
     rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(nonDaoHeader))))
@@ -503,7 +508,7 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
     val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig)
 
     val peerStatus = Status(
-      protocolVersion = Message.PV63,
+      protocolVersion = Versions.PV63,
       networkId = peerConf.networkId,
       totalDifficulty = BigInt(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,

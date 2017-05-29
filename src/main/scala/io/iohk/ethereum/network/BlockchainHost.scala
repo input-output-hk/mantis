@@ -11,10 +11,9 @@ trait BlockchainHost { _: EtcMessageHandler =>
 
   def handleEvmMptFastDownload: PartialFunction[Message, Unit] = {
     case request: GetNodeData =>
-      import io.iohk.ethereum.rlp.encode
 
       val result: Seq[ByteString] = request.mptElementsHashes.take(peerConfiguration.fastSyncHostConfiguration.maxMptComponentsPerMessage).flatMap { hash =>
-        blockchain.getMptNodeByHash(hash).map((node: MptNode) => ByteString(encode[MptNode](node)))
+        blockchain.getMptNodeByHash(hash).map(_.toBytes: ByteString)
           .orElse(blockchain.getEvmCodeByHash(hash).map((evm: ByteString) => evm))
       }
 

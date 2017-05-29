@@ -12,7 +12,7 @@ import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader, Blockchain}
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie, RLPByteArraySerializable}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.vm.UInt256
@@ -28,13 +28,11 @@ class GenesisDataLoader(
     blockchainConfig: BlockchainConfig)
   extends Logger{
 
-  import AccountImplicits._
-
   private val bloomLength = 512
   private val hashLength = 64
   private val addressLength = 40
 
-  private implicit val accountSerializer = new RLPByteArraySerializable[Account]
+  import Account._
 
   private val emptyTrieRootHash = ByteString(crypto.kec256(rlp.encode(Array.emptyByteArray)))
   private val emptyEvmHash: ByteString = crypto.kec256(ByteString.empty)

@@ -11,13 +11,9 @@ import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction, 
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
 import io.iohk.ethereum.ledger.{BlockPreparationError, BloomFilter, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator.{InvalidOmmers, NoParent}
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie, RLPByteArraySerializable}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits.headerRlpEncDec
-import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits.receiptRlpEncDec
-import io.iohk.ethereum.rlp.RLPImplicitConversions.toRlpList
-import io.iohk.ethereum.rlp.encode
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils.or
 import io.iohk.ethereum.validators.MptListValidator.intByteArraySerializable
@@ -42,10 +38,10 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
         val blockTimestamp = Instant.now.getEpochSecond
         val header = BlockHeader(
           parentHash = parent.header.hash,
-          ommersHash = ByteString(kec256(encode(toRlpList(ommers)))),
+          ommersHash = ByteString(kec256(ommers.toBytes: Array[Byte])),
           beneficiary = beneficiary.bytes,
           stateRoot = ByteString.empty,
-          transactionsRoot = buildMpt(transactions, new RLPByteArraySerializable[SignedTransaction]),
+          transactionsRoot = buildMpt(transactions, SignedTransaction.byteArraySerializable),
           receiptsRoot = ByteString.empty,
           logsBloom = ByteString.empty,
           difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
@@ -67,7 +63,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
 
           block.copy(header = block.header.copy(
             stateRoot = stateRoot,
-            receiptsRoot = buildMpt(receipts, new RLPByteArraySerializable[Receipt]),
+            receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable),
             logsBloom = bloomFilter,
             gasUsed = gasUsed))
         }
@@ -99,7 +95,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
     parentGas + gasLimitDifference - 1
   }
 
-  private def buildMpt[K](entities: Seq[K], vSerializable: RLPByteArraySerializable[K]): ByteString = {
+  private def buildMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString = {
     val mpt = MerklePatriciaTrie[Int, K](
       source = new NodeStorage(EphemDataSource()),
       hashFn = (input: Array[Byte]) => kec256(input)
