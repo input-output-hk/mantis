@@ -13,10 +13,12 @@ import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
   */
 class MptNodeStorage(val dataSource: DataSource) extends KeyValueStorage[MptNodeHash, MptNode, MptNodeStorage] {
 
+  import MptNode._
+
   val namespace: IndexedSeq[Byte] = Namespaces.NodeNamespace
   def keySerializer: MptNodeHash => IndexedSeq[Byte] = identity
-  def valueSerializer: MptNode => IndexedSeq[Byte] = (node: MptNode) => rlpEncode(node).toIndexedSeq
-  def valueDeserializer: IndexedSeq[Byte] => MptNode = (encodedNode: IndexedSeq[Byte]) => rlpDecode[MptNode](encodedNode.toArray)
+  def valueSerializer: MptNode => IndexedSeq[Byte] = (node: MptNode) => node.toBytes
+  def valueDeserializer: IndexedSeq[Byte] => MptNode = (encodedNode: IndexedSeq[Byte]) => encodedNode.toArray[Byte].toMptNode
 
   protected def apply(dataSource: DataSource): MptNodeStorage = new MptNodeStorage(dataSource)
 
