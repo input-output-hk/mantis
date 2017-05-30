@@ -134,9 +134,10 @@ trait RegularSync {
         //we have same chain prefix
         if (parent.hash == headers.head.parentHash) {
 
-          val oldBlocks: Seq[Option[(BlockBody, BigInt)]] = headersQueue.map(_.number)
+          val oldBranch = headersQueue.map(_.number)
             .map(blockNumber => blockchain.getBlockByNumber(blockNumber))
-            .map{_.map{b => (b.body, b.header.difficulty)}}
+
+          val oldBlocks: Seq[Option[(BlockBody, BigInt)]] = oldBranch.map{_.map{b => (b.body, b.header.difficulty)}}
 
           val currentBranchTotalDifficulty: BigInt = oldBlocks.collect {
             case Some((_, difficulty)) => difficulty
@@ -147,11 +148,14 @@ trait RegularSync {
           if (currentBranchTotalDifficulty < newBranchTotalDifficulty) {
             val transactionsToAdd = oldBlocks.collect{case Some((blockBody,_)) => blockBody.transactionList}.flatten
             actors.pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toList)
+
             val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
             waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, actors.peerMessageBus, hashes)))
             //add first block from branch as ommer
-            headersQueue.headOption.foreach { h => actors.ommersPool ! AddOmmers(h) }
+            oldBranch.headOption.flatten.foreach { h => actors.ommersPool ! AddOmmers(h.header) }
           } else {
+            //add first block from branch as ommer
+            headersQueue.headOption.foreach { h => actors.ommersPool ! AddOmmers(h) }
             scheduleResume()
           }
         } else {
@@ -238,8 +242,10 @@ trait RegularSync {
           val newTd = blockParentTd + block.header.difficulty
           blockchain.save(block.header.hash, newTd)
           blockHashToDelete.foreach(blockchain.removeBlock)
+
           actors.pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
           actors.ommersPool ! new RemoveOmmers((block.header +: block.body.uncleNodesList).toList)
+
           processBlocks(otherBlocks, newTd, newBlocks :+ NewBlock(block, newTd))
         case Left(error) =>
           newBlocks -> Some(error)

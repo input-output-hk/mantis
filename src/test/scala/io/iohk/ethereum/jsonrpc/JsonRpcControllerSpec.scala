@@ -345,6 +345,42 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     )))
   }
 
+  it should "eth_getWork when fail to get ommers and transactions" in new TestSetup {
+    val seed = s"""0x${"00" * 32}"""
+    val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
+    val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
+
+    (appStateStorage.getBestBlockNumber _).expects().returns(1)
+    (blockGenerator.generateBlockForMining _).expects(*, *, *, *)
+      .returns(Right(Block(blockHeader, BlockBody(Nil, Nil))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getWork",
+      None,
+      Some(JInt(1))
+    )
+
+    val result: Future[JsonRpcResponse] = jsonRpcController.handleRequest(request)
+
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    //on time out it should respond with empty list
+
+    //wait for actor timeouts
+    Thread.sleep(4.seconds.toMillis)
+
+    val response = result.futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JArray(List(
+      JString(headerPowHash),
+      JString(seed),
+      JString(target)
+    )))
+  }
+
   it should "eth_submitWork" in new TestSetup {
     val nonce = s"0x0000000000000001"
     val mixHash =s"""0x${"01" * 32}"""

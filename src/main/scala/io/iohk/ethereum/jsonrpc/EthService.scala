@@ -194,7 +194,7 @@ class EthService(
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
 
     import scala.concurrent.ExecutionContext.Implicits.global
-    implicit val timeout = Timeout(5 seconds)
+    implicit val timeout = Timeout(3 seconds)
 
     Future.sequence(Seq(
       (ommersPool ? OmmersPool.GetOmmers).mapTo[OmmersPool.Ommers]
