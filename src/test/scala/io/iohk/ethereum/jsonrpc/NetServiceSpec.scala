@@ -49,7 +49,7 @@ class NetServiceSpec extends FlatSpec with Matchers with MockFactory {
     val peerEventBus = TestProbe()
 
     val nodeStatus = NodeStatus(crypto.generateKeyPair(), ServerStatus.Listening(new InetSocketAddress(9000)))
-    val netService = new NetService(Agent(nodeStatus), NetworkImpl(peerManager.ref, peerEventBus.ref))
+    val netService = new NetService(Agent(nodeStatus), new NetworkImpl(peerManager.ref, peerEventBus.ref))
   }
 
 }

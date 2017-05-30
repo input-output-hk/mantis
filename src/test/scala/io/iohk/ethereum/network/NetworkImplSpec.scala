@@ -79,7 +79,7 @@ class NetworkImplSpec extends FlatSpec with Matchers {
     val peerManager = TestProbe()
     val peerEventBus = TestProbe()
 
-    val network: Network = NetworkImpl(peerManager.ref, peerEventBus.ref)
+    val network: Network = new NetworkImpl(peerManager.ref, peerEventBus.ref)
 
     val peer1 = TestProbe()
     val peer2 = TestProbe()

@@ -1,14 +1,20 @@
 package io.iohk.ethereum.network
 
-import akka.actor.ActorRef
+import java.net.InetSocketAddress
+
+import akka.actor.{ActorRef, ActorSystem}
+import akka.agent.Agent
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerHandshaked}
 import io.iohk.ethereum.network.PeerEventBusActor._
-import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
+import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, PeerConfiguration, Peers}
 import akka.pattern.ask
 import akka.util.Timeout
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.p2p.MessageSerializable
-import scala.concurrent.ExecutionContext.Implicits.global
+import io.iohk.ethereum.utils.{BlockchainConfig, NodeStatus}
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
@@ -18,6 +24,14 @@ trait Network {
     * Returns all the current peers with their respective status
     */
   def peersWithStatus(): Future[Peers]
+
+  /**
+    * Handles an incoming connection, which results in adding a new peer
+    *
+    * @param connection
+    * @param remoteAddress, address of the new peer
+    */
+  def handlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress): Unit
 
   /**
     * Subscribes the actor sender to the event of any peer sending any message from a given set.
@@ -60,12 +74,14 @@ trait Network {
 
 }
 
-//FIXME: NetworkImpl should create a the peerManagerActor and peerEventBusActor's
-case class NetworkImpl(peerManagerActor: ActorRef, peerEventBusActor: ActorRef) extends Network {
+class NetworkImpl(peerManagerActor: ActorRef, peerEventBusActor: ActorRef) extends Network {
 
   implicit val timeout = Timeout(3.seconds)
 
   def peersWithStatus(): Future[Peers] = (peerManagerActor ? GetPeers).mapTo[Peers]
+
+  def handlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress): Unit =
+    peerManagerActor ! PeerManagerActor.HandlePeerConnection(connection, remoteAddress)
 
   def subscribeToSetOfMsgs(messageCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
     peerEventBusActor.!(Subscribe(MessageClassifier(messageCodes, PeerSelector.AllPeers)))( subscriber)
@@ -81,5 +97,29 @@ case class NetworkImpl(peerManagerActor: ActorRef, peerEventBusActor: ActorRef) 
 
   def broadcast(message: MessageSerializable): Unit =
     peersWithStatus().foreach{ _.peers.keys.foreach( _.send(message)) }
+
+}
+
+object NetworkImpl {
+
+  //FIXME: Some of this parameters will be later removed (dependent on open PRs)
+  def apply(nodeStatusHolder: Agent[NodeStatus], peerConfiguration: PeerConfiguration,
+            appStateStorage: AppStateStorage, blockchain: Blockchain, blockchainConfig: BlockchainConfig,
+            bootstrapNodes: Set[String])(implicit actorSystem: ActorSystem): NetworkImpl = {
+
+    val peerEventBusActor: ActorRef = actorSystem.actorOf(PeerEventBusActor.props, "peer-event-bus")
+
+    val peerManagerActor: ActorRef = actorSystem.actorOf(PeerManagerActor.props(
+      nodeStatusHolder,
+      peerConfiguration,
+      appStateStorage,
+      blockchain,
+      blockchainConfig,
+      bootstrapNodes,
+      peerEventBusActor), "peer-manager")
+
+    new NetworkImpl(peerManagerActor, peerEventBusActor)
+
+  }
 
 }

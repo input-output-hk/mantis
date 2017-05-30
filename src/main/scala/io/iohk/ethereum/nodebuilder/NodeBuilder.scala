@@ -7,7 +7,7 @@ import io.iohk.ethereum.blockchain.sync.SyncController
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
-import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
+import io.iohk.ethereum.network.ServerActor
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
@@ -56,53 +56,32 @@ trait BlockChainBuilder {
   lazy val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
 }
 
-trait PeerEventBusBuilder {
-  self: ActorSystemBuilder =>
-
-  lazy val peerEventBus = actorSystem.actorOf(PeerEventBusActor.props)
-}
-
 trait NetworkBuilder {
-  self : PeerManagerActorBuilder
-    with PeerEventBusBuilder =>
-
-  lazy val network: Network = NetworkImpl(peerManager, peerEventBus)
-
-}
-
-trait PeerManagerActorBuilder {
-
   self: ActorSystemBuilder
     with NodeStatusBuilder
     with StorageBuilder
     with BlockChainBuilder
-    with BlockchainConfigBuilder
-    with PeerEventBusBuilder =>
+    with BlockchainConfigBuilder =>
 
-  lazy val peerConfiguration = Config.Network.peer
-
-  lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props(
-    nodeStatusHolder,
-    Config.Network.peer,
-    storagesInstance.storages.appStateStorage,
-    blockchain,
-    blockchainConfig,
-    Config.Network.Discovery.bootstrapNodes,
-    peerEventBus), "peer-manager")
+  lazy val network: Network = NetworkImpl(
+    blockchainConfig = blockchainConfig,
+    bootstrapNodes = Config.Network.Discovery.bootstrapNodes,
+    nodeStatusHolder = nodeStatusHolder,
+    peerConfiguration = Config.Network.peer,
+    blockchain = blockchain,
+    appStateStorage = storagesInstance.storages.appStateStorage)(actorSystem)
 
 }
 
-//FIXME: Is this inside the network or outside?
 trait ServerActorBuilder {
 
   self: ActorSystemBuilder
     with NodeStatusBuilder
-    with BlockChainBuilder
-    with PeerManagerActorBuilder =>
+    with NetworkBuilder =>
 
   lazy val networkConfig = Config.Network
 
-  lazy val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
+  lazy val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, network), "server")
 
 }
 
@@ -240,7 +219,6 @@ trait Node extends NodeKeyBuilder
   with StorageBuilder
   with BlockChainBuilder
   with NodeStatusBuilder
-  with PeerManagerActorBuilder
   with ServerActorBuilder
   with SyncControllerBuilder
   with Web3ServiceBuilder
@@ -256,6 +234,5 @@ trait Node extends NodeKeyBuilder
   with ShutdownHookBuilder
   with GenesisDataLoaderBuilder
   with BlockchainConfigBuilder
-  with PeerEventBusBuilder
   with PendingTransactionsManagerBuilder
   with NetworkBuilder

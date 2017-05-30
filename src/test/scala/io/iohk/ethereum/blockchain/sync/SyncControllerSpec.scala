@@ -673,7 +673,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
     }
 
-    val syncController = TestActorRef(Props(new SyncController(NetworkImpl(peerManager.ref, peerEventBus.ref),
+    val syncController = TestActorRef(Props(new SyncController(new NetworkImpl(peerManager.ref, peerEventBus.ref),
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages,

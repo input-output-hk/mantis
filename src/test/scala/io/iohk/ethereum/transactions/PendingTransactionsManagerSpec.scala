@@ -108,7 +108,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val peerManager = TestProbe()
     val peerMessageBus = TestProbe()
     val pendingTransactionsManager = system.actorOf(
-      PendingTransactionsManager.props(NetworkImpl(peerManager.ref, peerMessageBus.ref))
+      PendingTransactionsManager.props(new NetworkImpl(peerManager.ref, peerMessageBus.ref))
     )
 
     val peer1TestProbe = TestProbe()

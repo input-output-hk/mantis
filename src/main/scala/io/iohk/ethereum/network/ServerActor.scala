@@ -9,7 +9,7 @@ import akka.io.{IO, Tcp}
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 
-class ServerActor(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) extends Actor with ActorLogging {
+class ServerActor(nodeStatusHolder: Agent[NodeStatus], network: Network) extends Actor with ActorLogging {
 
   import ServerActor._
   import context.system
@@ -37,15 +37,15 @@ class ServerActor(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) ex
   }
 
   def listening: Receive = {
-    case Connected(remoteAddress, localAddress) =>
+    case Connected(remoteAddress, _) =>
       val connection = sender()
-      peerManager ! PeerManagerActor.HandlePeerConnection(connection, remoteAddress)
+      network.handlePeerConnection(connection, remoteAddress)
   }
 }
 
 object ServerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef): Props =
-    Props(new ServerActor(nodeStatusHolder, peerManager))
+  def props(nodeStatusHolder: Agent[NodeStatus], network: Network): Props =
+    Props(new ServerActor(nodeStatusHolder, network))
 
   case class StartServer(address: InetSocketAddress)
 }
