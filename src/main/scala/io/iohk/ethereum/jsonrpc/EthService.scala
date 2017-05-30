@@ -6,15 +6,19 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import io.iohk.ethereum.domain._
 import akka.actor.ActorRef
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain, SignedTransaction}
+import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
 import io.iohk.ethereum.db.storage.AppStateStorage
 
 import scala.concurrent.ExecutionContext
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.keystore.KeyStore
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactions
 
@@ -59,12 +63,40 @@ object EthService {
 
   case class SendRawTransactionRequest(data: ByteString)
   case class SendRawTransactionResponse(transactionHash: ByteString)
+
+  sealed trait BlockParam
+
+  object BlockParam {
+    case class WithNumber(n: BigInt) extends BlockParam
+    case object Latest extends BlockParam
+    case object Pending extends BlockParam
+    case object Earliest extends BlockParam
+  }
+
+  case class CallTx(
+    from: Option[ByteString],
+    to: Option[ByteString],
+    gas: BigInt,
+    gasPrice: BigInt,
+    value: BigInt,
+    data: ByteString)
+  case class CallRequest(tx: CallTx, block: BlockParam)
+  case class CallResponse(returnData: ByteString)
 }
 
-class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStateStorage: AppStateStorage,
-  syncingController: ActorRef, pendingTransactionsManager: ActorRef) extends Logger {
+class EthService(
+    blockchainStorages: BlockchainStorages,
+    blockGenerator: BlockGenerator,
+    appStateStorage: AppStateStorage,
+    ledger: Ledger,
+    blockchainConfig: BlockchainConfig,
+    keyStore: KeyStore,
+    pendingTransactionsManager: ActorRef,
+    syncingController: ActorRef) extends Logger {
 
   import EthService._
+
+  lazy val blockchain = BlockchainImpl(blockchainStorages)
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
     Future.successful(Right(ProtocolVersionResponse(f"0x$CurrentProtocolVersion%x")))
@@ -209,6 +241,41 @@ class EthService(blockchain: Blockchain, blockGenerator: BlockGenerator, appStat
         Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
       case Failure(ex) =>
         Future.successful(Left(JsonRpcErrors.InvalidRequest))
+    }
+  }
+
+  def call(req: CallRequest): ServiceResponse[CallResponse] = {
+    val fromAddress = req.tx.from
+      .map(Address.apply) // `from` param, if specified
+      .getOrElse(
+        keyStore
+          .listAccounts().getOrElse(Nil).headOption // first account, if exists and `from` param not specified
+          .getOrElse(Address(0))) // 0x0 default
+
+    val toAddress = req.tx.to.map(Address.apply)
+    val tx = Transaction(0, req.tx.gasPrice, req.tx.gas, toAddress, req.tx.value, req.tx.data)
+    val stx = SignedTransaction(tx, ECDSASignature(0, 0, 0.toByte), fromAddress)
+
+    Future.successful {
+      resolveBlock(req.block).map { block =>
+        val txResult = ledger.simulateTransaction(stx, block.header, blockchainStorages)
+        CallResponse(txResult.vmReturnData)
+      }
+    }
+  }
+
+  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, Block] = {
+    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
+      blockchain.getBlockByNumber(number)
+        .map(Right.apply)
+        .getOrElse(Left(JsonRpcErrors.InvalidParams(s"Block $number not found")))
+    }
+
+    blockParam match {
+      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber)
+      case BlockParam.Earliest => getBlock(0)
+      case BlockParam.Latest => getBlock(appStateStorage.getBestBlockNumber())
+      case BlockParam.Pending => getBlock(appStateStorage.getBestBlockNumber())
     }
   }
 

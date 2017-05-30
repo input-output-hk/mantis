@@ -128,10 +128,15 @@ trait EthServiceBuilder {
   self: StorageBuilder with
     BlockChainBuilder with
     BlockGeneratorBuilder with
-    SyncControllerBuilder with
-    PendingTransactionsManagerBuilder =>
+    PendingTransactionsManagerBuilder with
+    LedgerBuilder with
+    ValidatorsBuilder with
+    BlockchainConfigBuilder with
+    KeyStoreBuilder with
+    SyncControllerBuilder =>
 
-  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage, syncController, pendingTransactionsManager)
+  lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage,
+    ledger, blockchainConfig, keyStore, pendingTransactionsManager, syncController)
 }
 
 trait PersonalServiceBuilder {
