@@ -299,7 +299,7 @@ class EthService(
         case Some(blockBody) =>
           Right(GetUncleCountByBlockHashResponse(blockBody.uncleNodesList.size))
         case None =>
-          Left(JsonRpcErrors.InvalidParams(s"Block with hash ${req.blockHash} not found"))
+          Left(JsonRpcErrors.InvalidParams(s"Block with hash ${Hex.toHexString(req.blockHash.toArray[Byte])} not found"))
       }
     }
   }

@@ -17,6 +17,9 @@ import scala.util.{Failure, Success, Try}
 
 trait JsonMethodsImplicits {
 
+  private val AddressLength = 20
+  private val BlockHashLength = 32
+
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer
 
@@ -28,6 +31,19 @@ trait JsonMethodsImplicits {
 
   protected def tryExtractUnformattedData(input: JString): Either[JsonRpcError, ByteString] =
     tryExtractUnformattedData(input.values)
+
+  protected def tryExtractAddress(input: JString): Either[JsonRpcError, ByteString] =
+    tryExtractUnformattedData(input, AddressLength, s"Invalid length for address ${input.values}, expected 40 bytes")
+
+  protected def tryExtractBlockHash(input: JString): Either[JsonRpcError, ByteString] =
+    tryExtractUnformattedData(input, BlockHashLength, s"Invalid length for block hash ${input.values}, expected 32 bytes")
+
+  protected def tryExtractUnformattedData(input: JString, requiredLength: Int, errorMsg: String): Either[JsonRpcError, ByteString] =
+    tryExtractUnformattedData(input.values) match {
+      case Right(bytes) if bytes.length == requiredLength => Right(bytes)
+      case Right(_) => Left(JsonRpcErrors.InvalidParams(errorMsg))
+      case Left(err) => Left(err)
+    }
 
   protected def tryExtractUnformattedData(input: String): Either[JsonRpcError, ByteString] = {
     if (input.startsWith("0x")) {

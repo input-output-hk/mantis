@@ -415,7 +415,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       "2.0",
       "eth_getCode",
       Some(JArray(List(
-        JString(s"0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c"),
+        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D"),
         JString(s"latest")
       ))),
       Some(JInt(1))
@@ -462,7 +462,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       "2.0",
       "eth_getUncleCountByBlockHash",
       Some(JArray(List(
-        JString(s"0xda714fe079751fa7a1ad80b76571ea6ec52a446c")
+        JString(s"0x7dc64cb9d8a95763e288d71088fe3116e10dbff317c09f7a9bd5dd6974d27d20")
       ))),
       Some(JInt(1))
     )

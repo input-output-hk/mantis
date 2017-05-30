@@ -94,7 +94,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetTransactionByBlockHashAndIndexRequest] = params match {
         case Some(JArray((blockHash: JString) :: (transactionIndex: JString) :: Nil)) =>
           for {
-            parsedBlockHash <- tryExtractUnformattedData(blockHash)
+            parsedBlockHash <- tryExtractBlockHash(blockHash)
             parsedTransactionIndex <- tryExtractQuantity(transactionIndex)
           } yield GetTransactionByBlockHashAndIndexRequest(parsedBlockHash, parsedTransactionIndex)
         case _ => Left(InvalidParams())
@@ -182,7 +182,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       params match {
         case Some(JArray((address: JString) :: (blockStr: JString) :: Nil)) =>
           for {
-            addr <- tryExtractUnformattedData(address)
+            addr <- tryExtractAddress(address)
             block <- tryExtractBlockParam(blockStr)
           } yield GetCodeRequest(addr, block)
         case _ => Left(InvalidParams())
@@ -209,7 +209,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       params match {
         case Some(JArray((blockHashStr: JString) :: Nil)) =>
           for {
-            blockHash <- tryExtractUnformattedData(blockHashStr)
+            blockHash <- tryExtractBlockHash(blockHashStr)
           } yield GetUncleCountByBlockHashRequest(blockHash)
         case _ => Left(InvalidParams())
       }
