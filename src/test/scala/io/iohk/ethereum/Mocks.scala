@@ -31,6 +31,10 @@ object Mocks {
     Either[BlockPreparationError, BlockPreparationResult] = {
       ???
     }
+
+    override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): Ledger.TxResult = {
+      ???
+    }
   }
 
   private val defaultProgramResult: Ledger.PC => Ledger.PR = context => ProgramResult(
