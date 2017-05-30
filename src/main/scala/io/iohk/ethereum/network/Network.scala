@@ -60,6 +60,7 @@ trait Network {
 
 }
 
+//FIXME: NetworkImpl should create a the peerManagerActor and peerEventBusActor's
 case class NetworkImpl(peerManagerActor: ActorRef, peerEventBusActor: ActorRef) extends Network {
 
   implicit val timeout = Timeout(3.seconds)
