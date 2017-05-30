@@ -15,7 +15,7 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
 
   def readMessages(data: ByteString): Seq[Try[Message]] = {
     val frames = frameCodec.readFrames(data)
-    frames map { frame => Try(messageDecoder.fromBytes(frame.`type`, frame.payload.toArray, protocolVersion)) }
+    frames map { frame => messageDecoder.fromBytes(frame.`type`, frame.payload.toArray, protocolVersion) }
   }
 
   def encodeMessage(serializable: MessageSerializable): ByteString = {

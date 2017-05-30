@@ -41,7 +41,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     //Test that the handshake succeeded
     val sender = TestProbe()(system)
     sender.send(peerActorHandshakeSucceeds, GetStatus)
-    sender.expectMsg(StatusResponse(Handshaked(defaultStatus, defaultForkAccepted, defaultStatus.totalDifficulty)))
+    sender.expectMsg(StatusResponse(Handshaked(defaultEtcPeerInfo)))
   }
 
   it should "fail in establishing connection if the handshake always fails" in new TestSetup {
@@ -77,7 +77,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     //Test that the handshake succeeded
     val sender = TestProbe()(system)
     sender.send(peerActorHandshakeRequiresHello, GetStatus)
-    sender.expectMsg(StatusResponse(Handshaked(defaultStatus, defaultForkAccepted, defaultStatus.totalDifficulty)))
+    sender.expectMsg(StatusResponse(Handshaked(defaultEtcPeerInfo)))
   }
 
   it should "fail in establishing connection in simple Hello exchange if timeout happened" in new TestSetup {
@@ -136,7 +136,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     //Test that the handshake succeeded
     val sender = TestProbe()(system)
     sender.send(peerActorHandshakeRequiresHello, GetStatus)
-    sender.expectMsg(StatusResponse(Handshaked(defaultStatus, defaultForkAccepted, defaultStatus.totalDifficulty)))
+    sender.expectMsg(StatusResponse(Handshaked(defaultEtcPeerInfo)))
   }
 
   trait TestSetup {
@@ -151,14 +151,14 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     val rlpxConnectionProbe = TestProbe()
     val peerMessageBus = TestProbe()
 
-    def peerActor(handshaker: Handshaker[EtcPeerInfo]): TestActorRef[PeerActor] = TestActorRef(Props(new PeerActor(
+    def peerActor(handshaker: Handshaker[EtcPeerInfo]): TestActorRef[PeerActor[EtcPeerInfo, EtcPeerInfo]] = TestActorRef(Props(new PeerActor(
       new InetSocketAddress("127.0.0.1", 0),
       rlpxConnectionFactory = _ => rlpxConnectionProbe.ref,
       peerConfiguration = Config.Network.peer,
-      peerMessageBus = peerMessageBus.ref,
+      peerEventBus = peerMessageBus.ref,
       externalSchedulerOpt = Some(time.scheduler),
       initHandshaker = handshaker,
-      (peerInfo, _) => Mocks.MockMessageHandler(peerInfo)
+      (peerInfo: EtcPeerInfo, _) => Mocks.MockMessageHandler(peerInfo)
     )))
   }
 

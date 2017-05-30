@@ -11,7 +11,9 @@ import io.iohk.ethereum.rlp.{encode, _}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import MptNode._
-import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.p2p.EtcMessageDecoders.EtcMessageDecoder
+
+import scala.util.Success
 
 class NodeDataSpec extends FlatSpec with Matchers {
 
@@ -66,21 +68,21 @@ class NodeDataSpec extends FlatSpec with Matchers {
   }
 
   it should "be decoded properly" in {
-    val result = EthereumMessageDecoder.fromBytes(NodeData.code, encode(encodedNodeData), Versions.PV63)
+    val result = EtcMessageDecoder.fromBytes(NodeData.code, encode(encodedNodeData), Versions.PV63)
 
     result match {
-      case m: NodeData =>
+      case Success(m: NodeData) =>
         m.getMptNode(0) shouldBe leafNode
         m.getMptNode(1) shouldBe branchNode
         m.getMptNode(2) shouldBe extensionNode
       case _ => fail("wrong type")
     }
 
-    result shouldBe nodeData
+    result shouldBe Success(nodeData)
   }
 
   it should "be decoded previously encoded value" in {
-    EthereumMessageDecoder.fromBytes(NodeData.code, nodeData.toBytes, Versions.PV63) shouldBe nodeData
+    EtcMessageDecoder.fromBytes(NodeData.code, nodeData.toBytes, Versions.PV63) shouldBe Success(nodeData)
   }
 
   it should "decode branch node with values in leafs that looks like RLP list" in {

@@ -7,6 +7,7 @@ import akka.agent.Agent
 import akka.testkit.TestProbe
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.jsonrpc.NetService._
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
@@ -24,8 +25,8 @@ class NetServiceSpec extends FlatSpec with Matchers with MockFactory {
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(PeerManagerActor.Peers(Map(
-      Peer(new InetSocketAddress(1), testRef) -> PeerActor.Status.Handshaked(mock[Status], true, 0),
-      Peer(new InetSocketAddress(2), testRef) -> PeerActor.Status.Handshaked(mock[Status], true, 0),
+      Peer(new InetSocketAddress(1), testRef) -> PeerActor.Status.Handshaked(EtcPeerInfo(mock[Status], 0, true, 0)),
+      Peer(new InetSocketAddress(2), testRef) -> PeerActor.Status.Handshaked(EtcPeerInfo(mock[Status], 0, true, 0)),
       Peer(new InetSocketAddress(3), testRef) -> PeerActor.Status.Connecting)))
 
     Await.result(resF, 3.seconds) shouldBe Right(PeerCountResponse(2))

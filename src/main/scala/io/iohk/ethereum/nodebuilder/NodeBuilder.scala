@@ -22,6 +22,7 @@ import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
+import io.iohk.ethereum.network.p2p.EtcMessageDecoders
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
@@ -91,7 +92,7 @@ trait HandshakerBuilder {
 trait PeerMessageBusBuilder {
   self: ActorSystemBuilder =>
 
-  lazy val peerMessageBus = actorSystem.actorOf(PeerMessageBusActor.props)
+  lazy val peerEventBus = actorSystem.actorOf(PeerMessageBusActor.props)
 }
 
 trait PeerManagerActorBuilder {
@@ -106,14 +107,24 @@ trait PeerManagerActorBuilder {
 
   lazy val peerConfiguration = Config.Network.peer
 
-  lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props(
-    nodeStatusHolder,
-    Config.Network.peer,
-    storagesInstance.storages.appStateStorage,
-    blockchain,
-    peerMessageBus,
-    forkResolverOpt,
-    handshaker), "peer-manager")
+  val messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo] =
+    EtcMessageHandler.etcMessageHandlerBuilder(
+      forkResolverOpt,
+      storagesInstance.storages.appStateStorage,
+      peerConfiguration,
+      blockchain
+    )
+
+  val messageDecoder = EtcMessageDecoders.EtcMessageDecoder
+
+  lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props[EtcPeerInfo, EtcPeerInfo](
+    nodeStatusHolder = nodeStatusHolder,
+    peerConfiguration = Config.Network.peer,
+    bootstrapNodes = Config.Network.Discovery.bootstrapNodes,
+    peerEventBus = peerEventBus,
+    messageDecoder = messageDecoder,
+    handshaker = handshaker,
+    messageHandlerBuilder = messageHandlerBuilder), "peer-manager")
 
 }
 
@@ -145,7 +156,7 @@ trait PendingTransactionsManagerBuilder {
     with PeerManagerActorBuilder
     with PeerMessageBusBuilder =>
 
-  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(peerManager, peerMessageBus))
+  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(peerManager, peerEventBus))
 }
 
 trait BlockGeneratorBuilder {
@@ -236,7 +247,7 @@ trait SyncControllerBuilder {
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       validators,
-      peerMessageBus),
+      peerEventBus),
     "sync-controller")
 
 }

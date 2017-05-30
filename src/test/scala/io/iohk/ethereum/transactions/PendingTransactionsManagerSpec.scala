@@ -14,6 +14,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import akka.pattern.ask
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerManagerActor.Peers
@@ -103,7 +104,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
       SignedTransaction.sign(tx, keyPair1, Some(0x3d))
     }
 
-    val handshakedStatus = Handshaked(CommonMessages.Status(0, 0, 0, ByteString(""), ByteString("")), true, 0)
+    val handshakedStatus = Handshaked(EtcPeerInfo(CommonMessages.Status(0, 0, 0, ByteString(""), ByteString("")), 0, true, 0))
 
     val peer1TestProbe = TestProbe()
     val peer1 = Peer(new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref)
