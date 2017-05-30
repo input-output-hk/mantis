@@ -27,7 +27,7 @@ class PeerManagerActor(
     peerEventBus: ActorRef,
     peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None,
-    bootstrapNodes: Set[String] = Config.Network.Discovery.bootstrapNodes)
+    bootstrapNodes: Set[String])
   extends Actor with ActorLogging with Stash {
 
   import akka.pattern.{ask, pipe}

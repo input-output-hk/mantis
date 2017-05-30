@@ -1,17 +1,15 @@
 package io.iohk.ethereum.network
 
-import java.net.URI
-
 import akka.actor.ActorRef
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerHandshaked}
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
 import akka.pattern.ask
 import akka.util.Timeout
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
-import io.iohk.ethereum.rlp.RLPEncoder
+import io.iohk.ethereum.network.p2p.MessageSerializable
+import scala.concurrent.ExecutionContext.Implicits.global
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 trait Network {
@@ -53,19 +51,15 @@ trait Network {
     */
   def unsubscribeFromAnyPeerHandshaked()(implicit subscriber: ActorRef): Unit
 
-  //FIXME: Needed?
-  def broadcast(message: MessageSerializable)(implicit executionContext: ExecutionContext): Unit
-
-  //FIXME: Needed?
-  def connectTo(uri: URI): Unit
-
-  //FIXME: Needed?
-  def disconnectFrom(peer: Peer, reason: Int): Unit
+  /**
+    * Sends a given message to all peers in the network
+    *
+    * @param message to be sent to all peers
+    */
+  def broadcast(message: MessageSerializable): Unit
 
 }
 
-//FIXME: The MessageDecoder, Handshaker and MessageHandler should be configured here
-//FIXME: PeerManagerActor y PeerMessageBusActor should be created here, maybe have a network builder?
 case class NetworkImpl(peerManagerActor: ActorRef, peerEventBusActor: ActorRef) extends Network {
 
   implicit val timeout = Timeout(3.seconds)
@@ -73,10 +67,10 @@ case class NetworkImpl(peerManagerActor: ActorRef, peerEventBusActor: ActorRef) 
   def peersWithStatus(): Future[Peers] = (peerManagerActor ? GetPeers).mapTo[Peers]
 
   def subscribeToSetOfMsgs(messageCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
-    peerEventBusActor.tell(Subscribe(MessageClassifier(messageCodes, PeerSelector.AllPeers)), subscriber)
+    peerEventBusActor.!(Subscribe(MessageClassifier(messageCodes, PeerSelector.AllPeers)))( subscriber)
 
   def unsubscribeFromSetOfMsgs(messageCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
-    peerEventBusActor.tell(Unsubscribe(MessageClassifier(messageCodes, PeerSelector.AllPeers)), subscriber)
+    peerEventBusActor.!(Unsubscribe(MessageClassifier(messageCodes, PeerSelector.AllPeers)))(subscriber)
 
   def subscribeToAnyPeerHandshaked()(implicit subscriber: ActorRef): Unit =
     peerEventBusActor.!(Subscribe(PeerHandshaked))(subscriber)
@@ -84,11 +78,7 @@ case class NetworkImpl(peerManagerActor: ActorRef, peerEventBusActor: ActorRef) 
   def unsubscribeFromAnyPeerHandshaked()(implicit subscriber: ActorRef): Unit =
     peerEventBusActor.!(Unsubscribe(PeerHandshaked))(subscriber)
 
-  def broadcast(message: MessageSerializable)(implicit executionContext: ExecutionContext): Unit =
+  def broadcast(message: MessageSerializable): Unit =
     peersWithStatus().foreach{ _.peers.keys.foreach( _.send(message)) }
-
-  def connectTo(uri: URI): Unit = peerManagerActor ! PeerManagerActor.ConnectToPeer(uri)
-
-  def disconnectFrom(peer: Peer, reason: Int): Unit = peer.disconnectFromPeer(reason)
 
 }

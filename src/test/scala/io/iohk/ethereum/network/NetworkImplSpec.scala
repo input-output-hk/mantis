@@ -32,7 +32,7 @@ class NetworkImplSpec extends FlatSpec with Matchers {
     subscriber shouldBe sender.ref
   }
 
-  it should "appropriately unsubscribe from a set of messages sent by a peer" in new TestSetup {
+  it should "appropriately unsubscribe from a set of messages sent by any peer" in new TestSetup {
     val sender = TestProbe()
 
     network.unsubscribeFromSetOfMsgs(defaultSetOfMsgs)(sender.ref)
@@ -42,7 +42,7 @@ class NetworkImplSpec extends FlatSpec with Matchers {
     subscriber shouldBe sender.ref
   }
 
-  it should "appropriately subscribe to the disconnection of a peer" in new TestSetup {
+  it should "appropriately subscribe to the handshaking of any peer" in new TestSetup {
     val sender = TestProbe()
 
     network.subscribeToAnyPeerHandshaked()(sender.ref)
@@ -52,7 +52,7 @@ class NetworkImplSpec extends FlatSpec with Matchers {
     subscribe shouldBe sender.ref
   }
 
-  it should "appropriately unsubscribe to the disconnection of a peer" in new TestSetup {
+  it should "appropriately unsubscribe to the handshaking of any peer" in new TestSetup {
     val sender = TestProbe()
 
     network.unsubscribeFromAnyPeerHandshaked()(sender.ref)
@@ -60,6 +60,17 @@ class NetworkImplSpec extends FlatSpec with Matchers {
     val unsubscriber = peerEventBus.sender()
 
     unsubscriber shouldBe sender.ref
+  }
+
+  it should "appropriately broadcast messages sent to all peers" in new TestSetup {
+    val sender = TestProbe()
+
+    network.broadcast(Ping())
+    peerManager.expectMsg(GetPeers)
+    peerManager.reply(defaultPeers)
+
+    peer1.expectMsg(PeerActor.SendMessage(Ping()))
+    peer2.expectMsg(PeerActor.SendMessage(Ping()))
   }
 
   trait TestSetup {
@@ -70,9 +81,12 @@ class NetworkImplSpec extends FlatSpec with Matchers {
 
     val network: Network = NetworkImpl(peerManager.ref, peerEventBus.ref)
 
+    val peer1 = TestProbe()
+    val peer2 = TestProbe()
+
     val defaultPeers = Peers(Map(
-      PeerImpl(new InetSocketAddress("127.0.0.1", 0), peerManager.ref, peerEventBus.ref) -> PeerActor.Status.Handshaking(0),
-      PeerImpl(new InetSocketAddress("127.0.0.1", 1), peerManager.ref, peerEventBus.ref) -> PeerActor.Status.Connecting
+      PeerImpl(new InetSocketAddress("127.0.0.1", 0), peer1.ref, peerEventBus.ref) -> PeerActor.Status.Handshaking(0),
+      PeerImpl(new InetSocketAddress("127.0.0.1", 1), peer2.ref, peerEventBus.ref) -> PeerActor.Status.Connecting
     ))
 
     val defaultSetOfMsgs = Set(Ping.code, Pong.code)

@@ -77,7 +77,7 @@ class SyncController(
       handshakedPeers = handshakedPeers + (peer.id -> PeerWithInfo(peer, initialInfo))
 
     case PeerStatusUpdated(peerId, newPeerInfo: EtcPeerInfo) if handshakedPeers.contains(peerId) =>
-      val PeerWithInfo(peer, peerInfo) = handshakedPeers(peerId)
+      val PeerWithInfo(peer, _) = handshakedPeers(peerId)
       handshakedPeers = handshakedPeers + (peerId -> PeerWithInfo(peer, newPeerInfo))
 
     case PeerDisconnected(peerId) if handshakedPeers.contains(peerId) =>

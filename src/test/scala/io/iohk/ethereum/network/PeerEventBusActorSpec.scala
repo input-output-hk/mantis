@@ -142,25 +142,9 @@ class PeerMessageBusActorSpec extends FlatSpec with Matchers {
 
   trait TestSetup {
 
-    val peerConf = new PeerConfiguration {
-      override val fastSyncHostConfiguration: FastSyncHostConfiguration = new FastSyncHostConfiguration {
-        val maxBlocksHeadersPerMessage: Int = 200
-        val maxBlocksBodiesPerMessage: Int = 200
-        val maxReceiptsPerMessage: Int = 200
-        val maxMptComponentsPerMessage: Int = 200
-      }
-      override val waitForStatusTimeout: FiniteDuration = 30 seconds
-      override val waitForChainCheckTimeout: FiniteDuration = 15 seconds
-      override val connectMaxRetries: Int = 3
-      override val connectRetryDelay: FiniteDuration = 1 second
-      override val disconnectPoisonPillTimeout: FiniteDuration = 5 seconds
-      override val maxPeers = 10
-      override val networkId: Int = 1
-    }
-
     val peerStatus = Status(
       protocolVersion = Versions.PV63,
-      networkId = peerConf.networkId,
+      networkId = 1,
       totalDifficulty = BigInt(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
