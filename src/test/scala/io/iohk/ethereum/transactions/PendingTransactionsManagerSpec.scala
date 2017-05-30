@@ -36,7 +36,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
   it should "broadcast received pending transactions to other peers" in new TestSetup {
     val stx = newStx()
-    pendingTransactionsManager ! AddTransaction(stx)
+    pendingTransactionsManager ! AddTransactions(stx)
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
