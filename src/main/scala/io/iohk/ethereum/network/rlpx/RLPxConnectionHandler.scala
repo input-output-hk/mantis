@@ -6,8 +6,7 @@ import akka.actor._
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.rlp.RLPEncoder
+import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
@@ -26,14 +25,12 @@ import scala.util.{Failure, Success, Try}
   *    (depending on who initiated the connection)
   * 4. once handshake is done (and secure connection established) actor can send/receive messages (`handshaked` state)
   */
-class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
+class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair, messageDecoder: MessageDecoder, protocolVersion: Message.Version)
   extends Actor with ActorLogging {
 
   import AuthHandshaker.{InitiatePacketLength, ResponsePacketLength}
   import RLPxConnectionHandler._
   import context.{dispatcher, system}
-
-  val ProtocolVersion = Message.PV63
 
   val peerId: String = context.parent.path.name
 
@@ -120,7 +117,7 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
         case AuthHandshakeSuccess(secrets) =>
           log.debug(s"Auth handshake succeeded for peer $peerId")
           context.parent ! ConnectionEstablished
-          val messageCodec = new MessageCodec(new FrameCodec(secrets), ProtocolVersion)
+          val messageCodec = new MessageCodec(new FrameCodec(secrets), messageDecoder, protocolVersion)
           val messagesSoFar = messageCodec.readMessages(remainingData)
           messagesSoFar foreach processMessage
           context become handshaked(messageCodec)
@@ -141,10 +138,10 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
 
     def handshaked(messageCodec: MessageCodec): Receive =
       handleWriteFailed orElse handleConnectionClosed orElse {
-        case sm: SendMessage[_] =>
-          val out = messageCodec.encodeMessage(sm.message)(sm.enc)
+        case sm: SendMessage =>
+          val out = messageCodec.encodeMessage(sm.serializable)
           connection ! Write(out)
-          log.debug("Sent message: {}", sm.message)
+          log.debug("Sent message: {}", sm.serializable)
 
         case Received(data) =>
           val messages = messageCodec.readMessages(data)
@@ -172,8 +169,8 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair)
 }
 
 object RLPxConnectionHandler {
-  def props(nodeKey: AsymmetricCipherKeyPair): Props =
-    Props(new RLPxConnectionHandler(nodeKey))
+  def props(nodeKey: AsymmetricCipherKeyPair, messageDecoder: MessageDecoder, protocolVersion: Int): Props =
+    Props(new RLPxConnectionHandler(nodeKey, messageDecoder, protocolVersion))
 
   case class ConnectTo(uri: URI)
   case class HandleConnection(connection: ActorRef)
@@ -182,7 +179,7 @@ object RLPxConnectionHandler {
   case object ConnectionFailed
 
   case class MessageReceived(message: Message)
-  case class SendMessage[M <: Message](message: M)(implicit val enc: RLPEncoder[M])
+  case class SendMessage(serializable: MessageSerializable)
 
   private case object AuthHandshakeTimeout
 }

@@ -3,7 +3,7 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, Receipt, TxLogEntry}
-import io.iohk.ethereum.network.p2p.Message.{PV63 => constantPV63, decode => msgDecode}
+import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.PV63.Receipts
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -43,14 +43,14 @@ class ReceiptsSpec extends FlatSpec with Matchers {
       )))
 
   "Receipts" should "encode receipts" in {
-    encode(receipts) shouldBe encode(encodedReceipts)
+    (receipts.toBytes: Array[Byte]) shouldBe encode(encodedReceipts)
   }
 
   it should "decode receipts" in {
-    msgDecode(Receipts.code, encode(encodedReceipts), constantPV63) shouldBe receipts
+    EthereumMessageDecoder.fromBytes(Receipts.code, encode(encodedReceipts), Versions.PV63) shouldBe receipts
   }
 
   it should "decode encoded receipts" in {
-    msgDecode(Receipts.code, encode(receipts), constantPV63) shouldBe receipts
+    EthereumMessageDecoder.fromBytes(Receipts.code, receipts.toBytes, Versions.PV63) shouldBe receipts
   }
 }

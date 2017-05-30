@@ -133,13 +133,17 @@ trait EthServiceBuilder {
   self: StorageBuilder with
     BlockChainBuilder with
     BlockGeneratorBuilder with
-    SyncControllerBuilder with
     PendingTransactionsManagerBuilder with
+    LedgerBuilder with
+    ValidatorsBuilder with
+    BlockchainConfigBuilder with
+    KeyStoreBuilder with
+    SyncControllerBuilder with
     OmmersPoolBuilder with
     MiningConfigBuilder =>
 
-  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage, miningConfig,
-    syncController, pendingTransactionsManager, ommersPool)
+  lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage, miningConfig,
+    ledger, blockchainConfig, keyStore, pendingTransactionsManager, syncController, ommersPool)
 }
 
 trait PersonalServiceBuilder {

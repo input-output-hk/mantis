@@ -3,12 +3,12 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.{DefaultPatience, Fixtures}
+import io.iohk.ethereum.{DefaultPatience, Fixtures, crypto}
+import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, _}
-import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
+import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -16,11 +16,19 @@ import io.iohk.ethereum.utils.MiningConfig
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
+import scala.concurrent.Await
+import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
+import io.iohk.ethereum.keystore.KeyStore
+import io.iohk.ethereum.ledger.Ledger.TxResult
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
+import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.validators.Validators
+import org.scalamock.scalatest.MockFactory
+import org.spongycastle.util.encoders.Hex
 
 class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockFactory with DefaultPatience {
 
@@ -251,11 +259,32 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(SubmitWorkResponse(false))
   }
 
+  it should "execute call and return a value" in new TestSetup {
+    blockchain.save(blockToRequest)
+    (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
+
+    val txResult = TxResult(InMemoryWorldStateProxy(storagesInstance.storages), 123, Nil, ByteString("return_value"))
+    (ledger.simulateTransaction _).expects(*, *, *).returning(txResult)
+
+    val tx = CallTx(
+      Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),
+      Some(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477"))),
+      1, 2, 3, ByteString(""))
+    val response = ethService.call(CallRequest(tx, BlockParam.Latest))
+
+    response.futureValue shouldEqual Right(CallResponse(ByteString("return_value")))
+  }
+
   trait TestSetup extends MockFactory {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
     val blockGenerator = mock[BlockGenerator]
     val appStateStorage = mock[AppStateStorage]
+    val keyStore = mock[KeyStore]
+    val ledger = mock[Ledger]
+    val validators = mock[Validators]
+    val blockchainConfig = mock[BlockchainConfig]
+
     implicit val system = ActorSystem("EthServiceSpec_System")
 
     val syncingController = TestProbe()
@@ -269,7 +298,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val txPoolSize: Int = 30
     }
 
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, miningConfig, syncingController.ref, pendingTransactionsManager.ref, ommersPool.ref)
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
+      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash

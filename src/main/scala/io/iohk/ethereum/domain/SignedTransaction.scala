@@ -5,6 +5,7 @@ import java.math.BigInteger
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
+import io.iohk.ethereum.mpt.ByteArraySerializable
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
@@ -111,6 +112,13 @@ object SignedTransaction {
     }
 
   }
+
+  val byteArraySerializable = new ByteArraySerializable[SignedTransaction] {
+
+    override def fromBytes(bytes: Array[Byte]): SignedTransaction = bytes.toSignedTransaction
+
+    override def toBytes(input: SignedTransaction): Array[Byte] = input.toBytes
+  }
 }
 
 case class SignedTransaction (
@@ -126,6 +134,6 @@ case class SignedTransaction (
          |}""".stripMargin
   }
 
-  lazy val hash: ByteString = ByteString(kec256(rlpEncode[SignedTransaction](this)))
+  lazy val hash: ByteString = ByteString(kec256(this.toBytes : Array[Byte]))
   lazy val hashAsHexString: String = Hex.toHexString(hash.toArray[Byte])
 }

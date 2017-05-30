@@ -3,15 +3,15 @@ package io.iohk.ethereum.blockchain.sync
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.reflect.ClassTag
 import akka.actor._
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerMessageBusActor._
-import io.iohk.ethereum.network.{Peer, PeerActor}
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.rlp.RLPEncoder
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.Config.FastSync._
 
-abstract class SyncRequestHandler[RequestMsg <: Message : RLPEncoder,
+abstract class SyncRequestHandler[RequestMsg <: Message,
                                   ResponseMsg <: Message : ClassTag](peer: Peer, peerMessageBus: ActorRef)
-                                                                    (implicit scheduler: Scheduler)
+                                  (implicit scheduler: Scheduler, toSerializable: RequestMsg => MessageSerializable)
   extends Actor with ActorLogging {
 
   import SyncRequestHandler._
@@ -35,7 +35,7 @@ abstract class SyncRequestHandler[RequestMsg <: Message : RLPEncoder,
 
   override def preStart(): Unit = {
     context watch peer.ref
-    peer.ref ! PeerActor.SendMessage(requestMsg)
+    peer.ref ! PeerActor.SendMessage(toSerializable(requestMsg))
     peerMessageBus ! Subscribe(subscribeMessageClassifier)
   }
 

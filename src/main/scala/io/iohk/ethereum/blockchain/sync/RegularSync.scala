@@ -6,9 +6,8 @@ import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController._
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError
-import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.{Peer, PeerActor}
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -23,7 +22,6 @@ trait RegularSync {
   selfSyncController: SyncController =>
 
   private var headersQueue: Seq[BlockHeader] = Nil
-  private var broadcasting = false
   private var waitingForActor: Option[ActorRef] = None
 
   import Config.FastSync._
@@ -50,10 +48,6 @@ trait RegularSync {
     case BlockBodiesReceived(peer, _, blockBodies) =>
       waitingForActor = None
       handleBlockBodies(peer, blockBodies)
-
-    case block: BroadcastBlocks if broadcasting =>
-      //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
-      peersToDownloadFrom.keys.foreach(_.ref ! block)
 
     //todo improve mined block handling - add info that block was not included because of syncing
     //we allow inclusion of mined block only if we are not syncing / reorganising chain
@@ -93,7 +87,7 @@ trait RegularSync {
         val newTd = parentTd + block.header.difficulty
         blockchain.save(block.header.hash, newTd)
 
-        handshakedPeers.keys.foreach(peer => peer.ref ! BroadcastBlocks(Seq(NewBlock(block, newTd))))
+        handshakedPeers.keys.foreach(peer => peer.ref ! PeerActor.SendMessage(NewBlock(block, newTd)))
         actors.ommersPool ! new RemoveOmmers((block.header +: block.body.uncleNodesList).toList)
 
         log.info(s"added new block $block")
@@ -129,7 +123,6 @@ trait RegularSync {
     processBlockHeaders(peer, message)
   } else {
     //no new headers to process, schedule to ask again in future, we are at the top of chain
-    broadcasting = true
     scheduleResume()
   }
 
@@ -181,7 +174,14 @@ trait RegularSync {
           val (newBlocks, errorOpt) = processBlocks(blocks, blockParentTd)
 
           if(newBlocks.nonEmpty){
-            handshakedPeers.keys.foreach(peer => peer.ref ! BroadcastBlocks(newBlocks))
+            //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
+            val blocksToSendToEachPeer = for {
+              handshakedPeer <- handshakedPeers.keys
+              block <- newBlocks
+            } yield (handshakedPeer, block)
+            blocksToSendToEachPeer.foreach{ case (handshakedPeer, block) =>
+              handshakedPeer.ref ! PeerActor.SendMessage(block)
+            }
             log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
           }

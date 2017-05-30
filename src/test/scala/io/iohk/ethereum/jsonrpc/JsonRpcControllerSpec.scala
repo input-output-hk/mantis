@@ -8,18 +8,22 @@ import io.iohk.ethereum.{DefaultPatience, Fixtures}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
+import io.iohk.ethereum.jsonrpc.EthService.CallResponse
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.{Config, MiningConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
-import io.iohk.ethereum.ledger.BloomFilter
+import io.iohk.ethereum.keystore.KeyStore
+import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.validators.Validators
 import org.json4s
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
@@ -387,6 +391,32 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(JBool(true))
   }
 
+  it should "eth_call" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.call _).expects(*).returning(Future.successful(Right(CallResponse(ByteString("asd")))))
+
+    val json = JArray(List(
+      JObject(
+        "from" -> "0xabbb6bebfa05aa13e908eaa492bd7a8343760477",
+        "to" -> "0xda714fe079751fa7a1ad80b76571ea6ec52a446c",
+        "gas" -> "0x12",
+        "gasPrice" -> "0x123",
+        "value" -> "0x99",
+        "data" -> "0xFF44"
+      ),
+      JString("latest")
+    ))
+    val rpcRequest = JsonRpcRequest("2.0", "eth_call", Some(json), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x617364"))
+  }
+
   trait TestSetup extends MockFactory {
     def config: JsonRpcConfig = Config.Network.Rpc
 
@@ -396,6 +426,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     implicit val system = ActorSystem("JsonRpcControllerSpec_System")
 
     val syncingController = TestProbe()
+    val ledger = mock[Ledger]
+    val validators = mock[Validators]
+    val blockchainConfig = mock[BlockchainConfig]
+    val keyStore = mock[KeyStore]
+
     val pendingTransactionsManager = TestProbe()
     val ommersPool = TestProbe()
 
@@ -409,9 +444,10 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
 
     val appStateStorage = mock[AppStateStorage]
     val web3Service = new Web3Service
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, miningConfig, syncingController.ref, pendingTransactionsManager.ref, ommersPool.ref)
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
+      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 
     val blockHeader = BlockHeader(

@@ -18,6 +18,8 @@ trait Ledger {
   def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockExecutionError, Seq[Receipt]]
 
   def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockPreparationError, BlockPreparationResult]
+
+  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): TxResult
 }
 
 class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with Logger {
@@ -120,7 +122,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
         validatedStx match {
           case Right(_) =>
-            val TxResult(newWorld, gasUsed, logs) = executeTransaction(stx, blockHeader, worldForTx)
+            val TxResult(newWorld, gasUsed, logs, _) = executeTransaction(stx, blockHeader, worldForTx)
 
             val receipt = Receipt(
               postTransactionStateHash = newWorld.stateRootHash,
@@ -134,6 +136,29 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
             executeTransactions(otherStxs, newWorld, blockHeader, signedTransactionValidator, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
           case Left(error) => Left(TxsExecutionError(error.toString))
         }
+  }
+
+  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): TxResult = {
+    val stateRoot = blockHeader.stateRoot
+
+    val gasLimit = stx.tx.gasLimit
+    val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
+
+    val world1 = InMemoryWorldStateProxy(storages, Some(stateRoot))
+    val world2 =
+      if (world1.getAccount(stx.senderAddress).isEmpty)
+        world1.saveAccount(stx.senderAddress, Account.Empty)
+      else
+        world1
+
+    val worldForTx = updateSenderAccountBeforeExecution(stx, world2)
+    val context: PC = prepareProgramContext(stx, blockHeader, worldForTx, config)
+
+    val result = runVM(stx, context, config)
+
+    val totalGasToRefund = calcTotalGasToRefund(stx, result)
+
+    TxResult(result.world, gasLimit - totalGasToRefund, result.logs, result.returnData)
   }
 
   private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
@@ -169,7 +194,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
          | - Total Gas to Refund: $totalGasToRefund
          | - Execution gas paid to miner: $executionGasToPayToMiner""".stripMargin)
 
-    TxResult(world2, gasLimit - totalGasToRefund, resultWithErrorHandling.logs)
+    TxResult(world2, gasLimit - totalGasToRefund, resultWithErrorHandling.logs, result.returnData)
   }
 
   private def validateBlockBeforeExecution(block: Block, blockchain: Blockchain, validators: Validators): Either[BlockExecutionError, Unit] = {
@@ -347,7 +372,7 @@ object Ledger {
 
   case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
   case class BlockPreparationResult(blockResult: BlockResult, stateRootHash: ByteString)
-  case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry])
+  case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry], vmReturnData: ByteString)
 }
 
 sealed trait BlockExecutionError{
