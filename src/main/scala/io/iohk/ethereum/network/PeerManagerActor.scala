@@ -7,7 +7,6 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.network.PeerActor.Status.Handshaking
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-import io.iohk.ethereum.utils.BlockchainConfig
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -17,6 +16,7 @@ import akka.actor._
 import akka.agent.Agent
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
+import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 import scala.util.{Failure, Success}
@@ -158,44 +158,48 @@ object PeerManagerActor {
             peerConfiguration: PeerConfiguration,
             appStateStorage: AppStateStorage,
             blockchain: Blockchain,
-            blockchainConfig: BlockchainConfig,
-            peerMessageBus: ActorRef): Props =
+            peerMessageBus: ActorRef,
+            forkResolverOpt: Option[ForkResolver],
+            handshaker: Handshaker[EtcPeerInfo]): Props =
     Props(new PeerManagerActor(peerConfiguration,
-      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, blockchainConfig, peerMessageBus)))
+      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, peerMessageBus,
+        forkResolverOpt, handshaker)))
 
   def props(nodeStatusHolder: Agent[NodeStatus],
-    peerConfiguration: PeerConfiguration,
-    appStateStorage: AppStateStorage,
-    blockchain: Blockchain,
-    blockchainConfig: BlockchainConfig,
-    bootstrapNodes: Set[String],
-    peerMessageBus: ActorRef): Props =
+            peerConfiguration: PeerConfiguration,
+            appStateStorage: AppStateStorage,
+            blockchain: Blockchain,
+            bootstrapNodes: Set[String],
+            peerMessageBus: ActorRef,
+            forkResolverOpt: Option[ForkResolver],
+            handshaker: Handshaker[EtcPeerInfo]): Props =
     Props(new PeerManagerActor(peerConfiguration,
       peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain,
-        blockchainConfig, peerMessageBus), bootstrapNodes = bootstrapNodes))
+        peerMessageBus, forkResolverOpt, handshaker),
+      bootstrapNodes = bootstrapNodes)
+    )
 
   def peerFactory(nodeStatusHolder: Agent[NodeStatus],
                   peerConfiguration: PeerConfiguration,
                   appStateStorage: AppStateStorage,
                   blockchain: Blockchain,
-                  blockchainConfig: BlockchainConfig,
-                 peerMessageBus: ActorRef): (ActorContext, InetSocketAddress) => ActorRef = {
+                  peerMessageBus: ActorRef,
+                  forkResolverOpt: Option[ForkResolver],
+                  handshaker: Handshaker[EtcPeerInfo]): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
-      val forkResolverOpt =
-        if (blockchainConfig.customGenesisFileOpt.isDefined) None
-        else Some(new ForkResolver.EtcForkResolver(blockchainConfig))
+      //FIXME: Message handler builder should be configurable
       val messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo] =
-        (initialPeerInfo, peer) =>
-          EtcMessageHandler(peer, initialPeerInfo, forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
-      ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, appStateStorage, blockchain,
-        peerMessageBus, forkResolverOpt, messageHandlerBuilder), id)
+        EtcMessageHandler.etcMessageHandlerBuilder(forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
+      ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, peerMessageBus,
+        handshaker, messageHandlerBuilder), id)
   }
 
   trait PeerConfiguration {
     val connectRetryDelay: FiniteDuration
     val connectMaxRetries: Int
     val disconnectPoisonPillTimeout: FiniteDuration
+    val waitForHelloTimeout: FiniteDuration
     val waitForStatusTimeout: FiniteDuration
     val waitForChainCheckTimeout: FiniteDuration
     val fastSyncHostConfiguration: FastSyncHostConfiguration
