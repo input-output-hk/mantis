@@ -8,7 +8,7 @@ import io.iohk.ethereum.{DefaultPatience, Fixtures}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
-import io.iohk.ethereum.jsonrpc.EthService.CallResponse
+import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
@@ -403,6 +403,98 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JString("0x617364"))
+  }
+
+  it should "eth_getCode" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.getCode _).expects(*).returning(Future.successful(Right(GetCodeResponse(ByteString(Hex.decode("FFAA22"))))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getCode",
+      Some(JArray(List(
+        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D"),
+        JString(s"latest")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0xffaa22"))
+  }
+
+  it should "eth_getUncleCountByBlockNumber" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.getUncleCountByBlockNumber _).expects(*)
+      .returning(Future.successful(Right(GetUncleCountByBlockNumberResponse(2))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getUncleCountByBlockNumber",
+      Some(JArray(List(
+        JString(s"0x12")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x2"))
+  }
+
+  it should "eth_getUncleCountByBlockHash " in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.getUncleCountByBlockHash _).expects(*)
+      .returning(Future.successful(Right(GetUncleCountByBlockHashResponse(3))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getUncleCountByBlockHash",
+      Some(JArray(List(
+        JString(s"0x7dc64cb9d8a95763e288d71088fe3116e10dbff317c09f7a9bd5dd6974d27d20")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x3"))
+  }
+
+  it should "eth_getBlockTransactionCountByNumber " in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.getBlockTransactionCountByNumber _).expects(*)
+      .returning(Future.successful(Right(GetBlockTransactionCountByNumberResponse(17))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getBlockTransactionCountByNumber",
+      Some(JArray(List(
+        JString(s"0x123")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x11"))
   }
 
   trait TestSetup extends MockFactory {
