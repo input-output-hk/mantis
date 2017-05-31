@@ -5,6 +5,7 @@ import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.SyncController
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.network.ServerActor
@@ -13,11 +14,14 @@ import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
+import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
@@ -56,20 +60,57 @@ trait BlockChainBuilder {
   lazy val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
 }
 
+trait ForkResolverBuilder {
+  self: BlockchainConfigBuilder =>
+
+  lazy val forkResolverOpt =
+    if (blockchainConfig.customGenesisFileOpt.isDefined) None
+    else Some(new ForkResolver.EtcForkResolver(blockchainConfig))
+}
+
+trait HandshakerBuilder {
+  self: BlockChainBuilder
+    with NodeStatusBuilder
+    with StorageBuilder
+    with BlockchainConfigBuilder
+    with ForkResolverBuilder =>
+
+  private val handshakerConfiguration: EtcHandshakerConfiguration =
+    new EtcHandshakerConfiguration {
+      override val forkResolverOpt: Option[ForkResolver] = self.forkResolverOpt
+      override val nodeStatusHolder: Agent[NodeStatus] = self.nodeStatusHolder
+      override val peerConfiguration: PeerConfiguration = Config.Network.peer
+      override val blockchain: Blockchain = self.blockchain
+      override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
+    }
+
+  lazy val handshaker: Handshaker[EtcPeerInfo] = EtcHandshaker(handshakerConfiguration)
+}
+
+trait PeerEventBusBuilder {
+  self: ActorSystemBuilder =>
+
+  lazy val peerEventBus = actorSystem.actorOf(PeerEventBusActor.props)
+}
+
 trait NetworkBuilder {
+
   self: ActorSystemBuilder
     with NodeStatusBuilder
     with StorageBuilder
     with BlockChainBuilder
-    with BlockchainConfigBuilder =>
+    with BlockchainConfigBuilder
+    with ForkResolverBuilder
+    with HandshakerBuilder =>
 
   lazy val network: Network = NetworkImpl(
-    blockchainConfig = blockchainConfig,
     bootstrapNodes = Config.Network.Discovery.bootstrapNodes,
     nodeStatusHolder = nodeStatusHolder,
     peerConfiguration = Config.Network.peer,
     blockchain = blockchain,
-    appStateStorage = storagesInstance.storages.appStateStorage)(actorSystem)
+    appStateStorage = storagesInstance.storages.appStateStorage,
+    forkResolverOpt = forkResolverOpt,
+    handshaker = handshaker)(actorSystem)
 
 }
 
@@ -219,6 +260,8 @@ trait Node extends NodeKeyBuilder
   with StorageBuilder
   with BlockChainBuilder
   with NodeStatusBuilder
+  with ForkResolverBuilder
+  with HandshakerBuilder
   with ServerActorBuilder
   with SyncControllerBuilder
   with Web3ServiceBuilder

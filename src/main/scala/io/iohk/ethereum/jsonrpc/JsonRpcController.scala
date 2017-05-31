@@ -76,6 +76,7 @@ class JsonRpcController(
       handle[PeerCountRequest, PeerCountResponse](netService.peerCount, req)
   }
 
+  // scalastyle:off cyclomatic.complexity
   private def handleEthRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) =>
       handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
@@ -103,6 +104,14 @@ class JsonRpcController(
       handle[SendRawTransactionRequest, SendRawTransactionResponse](ethService.sendRawTransaction, req)
     case req @ JsonRpcRequest(_, "eth_call", _, _) =>
       handle[CallRequest, CallResponse](ethService.call, req)
+    case req @ JsonRpcRequest(_, "eth_getCode", _, _) =>
+      handle[GetCodeRequest, GetCodeResponse](ethService.getCode, req)
+    case req @ JsonRpcRequest(_, "eth_getUncleCountByBlockNumber", _, _) =>
+      handle[GetUncleCountByBlockNumberRequest, GetUncleCountByBlockNumberResponse](ethService.getUncleCountByBlockNumber, req)
+    case req @ JsonRpcRequest(_, "eth_getUncleCountByBlockHash", _, _) =>
+      handle[GetUncleCountByBlockHashRequest, GetUncleCountByBlockHashResponse](ethService.getUncleCountByBlockHash, req)
+    case req @ JsonRpcRequest(_, "eth_getBlockTransactionCountByNumber", _, _) =>
+      handle[GetBlockTransactionCountByNumberRequest, GetBlockTransactionCountByNumberResponse](ethService.getBlockTransactionCountByNumber, req)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
