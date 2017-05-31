@@ -7,9 +7,10 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{BlockHeader, Receipt}
 import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.PeerActor.SendMessage
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
-import io.iohk.ethereum.network.PeerMessageBusActor.{MessageClassifier, MessageFromPeer, PeerSelector, Subscribe}
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import org.spongycastle.util.encoders.Hex
@@ -46,7 +47,7 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
       peers = p.keys.toSeq
       peers.headOption.foreach { peer =>
         peerMessageBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code, BlockBodies.code, Receipts.code, NodeData.code), PeerSelector.WithId(peer.id)))
-        peer.ref ! SendMessage(GetBlockHeaders(block = Left(startBlock), maxHeaders = maxBlocks, skip = 0, reverse = false))
+        peer.send(GetBlockHeaders(block = Left(startBlock), maxHeaders = maxBlocks, skip = 0, reverse = false))
       }
 
     case MessageFromPeer(m: BlockHeaders, _) =>
@@ -57,10 +58,10 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
         blockHeadersStorage = blockHeadersStorage + (h.hash -> h)
       }
 
-      peers.headOption.foreach { case Peer(_, actor) =>
-        actor ! SendMessage(GetBlockBodies(m.headers.map(_.hash)))
-        actor ! SendMessage(GetReceipts(blockHeadersHashes.filter { case (n, _) => n > 0 }.map { case (_, h) => h }))
-        actor ! SendMessage(GetNodeData(mptRoots))
+      peers.headOption.foreach { peer =>
+        peer.send(GetBlockBodies(m.headers.map(_.hash)))
+        peer.send(GetReceipts(blockHeadersHashes.filter { case (n, _) => n > 0 }.map { case (_, h) => h }))
+        peer.send(GetNodeData(mptRoots))
         stateNodesHashes = stateNodesHashes ++ mptRoots.toSet
       }
 
@@ -101,13 +102,13 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
       nodes.foreach {
         case n: MptLeaf =>
           if (n.getAccount.codeHash != DumpChainActor.emptyEvm) {
-            peers.headOption.foreach { case Peer(_, actor) =>
+            peers.headOption.foreach { _ =>
               evmTorequest = evmTorequest :+ n.getAccount.codeHash
               evmCodeHashes = evmCodeHashes + n.getAccount.codeHash
             }
           }
           if (n.getAccount.storageRoot != DumpChainActor.emptyStorage) {
-            peers.headOption.foreach { case Peer(_, actor) =>
+            peers.headOption.foreach { _ =>
               contractChildren = contractChildren :+ n.getAccount.storageRoot
               contractNodesHashes = contractNodesHashes + n.getAccount.storageRoot
             }
@@ -158,8 +159,8 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
         evmCodeFile.close()
         println("chain dumped to file")
       } else {
-        peers.headOption.foreach { case Peer(_, actor) =>
-          actor ! SendMessage(GetNodeData(children ++ contractChildren ++ evmTorequest))
+        peers.headOption.foreach { peer =>
+          peer.send(GetNodeData(children ++ contractChildren ++ evmTorequest))
         }
       }
   }

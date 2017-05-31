@@ -5,7 +5,6 @@ import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.MessageHandler.MessageAction.{IgnoreMessage, TransmitMessage}
 import io.iohk.ethereum.network.MessageHandler.{MessageAction, MessageHandlingResult, PeerInfo}
-import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.Message
@@ -66,7 +65,7 @@ case class EtcMessageHandler (peer: Peer, peerInfo: EtcPeerInfo, forkResolverOpt
 
           if (!forkResolver.isAccepted(newFork)) {
             log.warn("Peer is not running the accepted fork, disconnecting")
-            peer.ref ! DisconnectPeer(Disconnect.Reasons.UselessPeer)
+            peer.disconnectFromPeer(Disconnect.Reasons.UselessPeer)
             initialPeerInfo
           } else
             initialPeerInfo.withForkAccepted(true)
@@ -145,7 +144,7 @@ object EtcMessageHandler {
   : (EtcPeerInfo, Peer) => EtcMessageHandler = { (peerInfo, peer) =>
 
     //Ask for the highest block from the peer
-    peer.ref ! SendMessage(GetBlockHeaders(Right(peerInfo.remoteStatus.bestHash), 1, 0, false))
+    peer.send(GetBlockHeaders(Right(peerInfo.remoteStatus.bestHash), 1, 0, false))
 
     EtcMessageHandler(peer, peerInfo, forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
   }

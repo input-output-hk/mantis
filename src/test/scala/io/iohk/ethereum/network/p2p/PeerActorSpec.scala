@@ -18,7 +18,7 @@ import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
-import io.iohk.ethereum.network.{ForkResolver, MessageHandler, Peer, PeerActor, PeerMessageBusActor}
+import io.iohk.ethereum.network.{ForkResolver, MessageHandler, Peer, PeerActor, PeerEventBusActor}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
@@ -68,7 +68,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val time = new VirtualTime
 
-    val peerMessageBus = system.actorOf(PeerMessageBusActor.props)
+    val peerMessageBus = system.actorOf(PeerEventBusActor.props)
     var rlpxConnection = TestProbe() // var as we actually need new instances
     val peer = TestActorRef(Props(new PeerActor(new InetSocketAddress("127.0.0.1", 0), _ => {
         rlpxConnection = TestProbe()
@@ -397,13 +397,13 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val time = new VirtualTime
 
-    val peerMessageBus = system.actorOf(PeerMessageBusActor.props)
+    val peerEventBus = system.actorOf(PeerEventBusActor.props)
 
     val peer = TestActorRef(Props(new PeerActor(
       new InetSocketAddress("127.0.0.1", 0),
       _ => rlpxConnection.ref,
       peerConf,
-      peerMessageBus,
+      peerEventBus,
       Some(time.scheduler),
       handshaker,
       messageHandlerBuilder = messageHandlerBuilder)))

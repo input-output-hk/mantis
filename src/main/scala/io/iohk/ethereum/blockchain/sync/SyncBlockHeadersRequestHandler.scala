@@ -7,10 +7,9 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders
 
 class SyncBlockHeadersRequestHandler(
     peer: Peer,
-    peerMessageBus: ActorRef,
     val requestMsg: GetBlockHeaders,
     resolveBranches: Boolean)(implicit scheduler: Scheduler)
-  extends SyncRequestHandler[GetBlockHeaders, BlockHeaders](peer, peerMessageBus) {
+  extends SyncRequestHandler[GetBlockHeaders, BlockHeaders](peer) {
 
   override val responseMsgCode: Int = BlockHeaders.code
 
@@ -59,7 +58,7 @@ class SyncBlockHeadersRequestHandler(
 }
 
 object SyncBlockHeadersRequestHandler {
-  def props(peer: Peer, peerMessageBus: ActorRef, requestMsg: GetBlockHeaders, resolveBranches: Boolean)
+  def props(peer: Peer, requestMsg: GetBlockHeaders, resolveBranches: Boolean)
            (implicit scheduler: Scheduler): Props =
-    Props(new SyncBlockHeadersRequestHandler(peer, peerMessageBus, requestMsg, resolveBranches))
+    Props(new SyncBlockHeadersRequestHandler(peer, requestMsg, resolveBranches))
 }

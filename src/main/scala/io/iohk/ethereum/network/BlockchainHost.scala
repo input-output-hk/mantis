@@ -2,7 +2,8 @@ package io.iohk.ethereum.network
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.PeerActor.SendMessage
+import io.iohk.ethereum.network.MessageHandler.MessageAction
+import io.iohk.ethereum.network.MessageHandler.MessageAction.{IgnoreMessage, TransmitMessage}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.PV63._
@@ -17,7 +18,7 @@ trait BlockchainHost { _: EtcMessageHandler =>
           .orElse(blockchain.getEvmCodeByHash(hash).map((evm: ByteString) => evm))
       }
 
-      peer.ref ! SendMessage(NodeData(result))
+      peer.send(NodeData(result))
   }
 
   def handleBlockFastDownload: PartialFunction[Message, Unit] = {
@@ -25,13 +26,13 @@ trait BlockchainHost { _: EtcMessageHandler =>
       val receipts = request.blockHashes.take(peerConfiguration.fastSyncHostConfiguration.maxReceiptsPerMessage)
         .flatMap(hash => blockchain.getReceiptsByHash(hash))
 
-      peer.ref ! SendMessage(Receipts(receipts))
+      peer.send(Receipts(receipts))
 
     case request: GetBlockBodies =>
       val blockBodies = request.hashes.take(peerConfiguration.fastSyncHostConfiguration.maxBlocksBodiesPerMessage)
         .flatMap(hash => blockchain.getBlockBodyByHash(hash))
 
-      peer.ref ! SendMessage(BlockBodies(blockBodies))
+      peer.send(BlockBodies(blockBodies))
 
     case request: GetBlockHeaders =>
       val blockNumber = request.block.fold(a => Some(a), b => blockchain.getBlockHeaderByHash(b).map(_.number))
@@ -53,7 +54,7 @@ trait BlockchainHost { _: EtcMessageHandler =>
 
           val blockHeaders: Seq[BlockHeader] = range.flatMap { a: BigInt => blockchain.getBlockHeaderByNumber(a) }
 
-          peer.ref ! SendMessage(BlockHeaders(blockHeaders))
+          peer.send(BlockHeaders(blockHeaders))
 
         case _ => log.warn("got request for block headers with invalid block hash/number: {}", request)
       }

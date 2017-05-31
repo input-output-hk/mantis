@@ -442,7 +442,7 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
       new InetSocketAddress("127.0.0.1", 0),
       _ => rlpxConnection.ref,
       peerConf,
-      peerMessageBus.ref,
+      peerEventBus.ref,
       None,
       Mocks.MockHandshakerAlwaysSucceeds(remoteStatus, 0, false),
       messageHandlerBuilder =
@@ -506,8 +506,9 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
       forkAccepted = false,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number
     )
+    val peerEventBus = TestProbe()
     val peerProbe = TestProbe()
-    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerProbe.ref)
+    val peer = PeerImpl(new InetSocketAddress("127.0.0.1", 0), peerProbe.ref, peerEventBus.ref)
 
     val initialMsgHandler = EtcMessageHandler(peer, initialPeerInfo, Some(forkResolver),
       storagesInstance.storages.appStateStorage, peerConf, blockchain)

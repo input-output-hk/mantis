@@ -8,7 +8,7 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
-import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
+import io.iohk.ethereum.network.ServerActor
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
@@ -72,7 +72,6 @@ trait HandshakerBuilder {
   self: BlockChainBuilder
     with NodeStatusBuilder
     with StorageBuilder
-    with PeerManagerActorBuilder
     with BlockchainConfigBuilder
     with ForkResolverBuilder =>
 
@@ -80,7 +79,7 @@ trait HandshakerBuilder {
     new EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = self.forkResolverOpt
       override val nodeStatusHolder: Agent[NodeStatus] = self.nodeStatusHolder
-      override val peerConfiguration: PeerConfiguration = self.peerConfiguration
+      override val peerConfiguration: PeerConfiguration = Config.Network.peer
       override val blockchain: Blockchain = self.blockchain
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
     }
@@ -88,32 +87,30 @@ trait HandshakerBuilder {
   lazy val handshaker: Handshaker[EtcPeerInfo] = EtcHandshaker(handshakerConfiguration)
 }
 
-trait PeerMessageBusBuilder {
+trait PeerEventBusBuilder {
   self: ActorSystemBuilder =>
 
-  lazy val peerMessageBus = actorSystem.actorOf(PeerMessageBusActor.props)
+  lazy val peerEventBus = actorSystem.actorOf(PeerEventBusActor.props)
 }
 
-trait PeerManagerActorBuilder {
+trait NetworkBuilder {
 
   self: ActorSystemBuilder
     with NodeStatusBuilder
     with StorageBuilder
     with BlockChainBuilder
-    with HandshakerBuilder
+    with BlockchainConfigBuilder
     with ForkResolverBuilder
-    with PeerMessageBusBuilder =>
+    with HandshakerBuilder =>
 
-  lazy val peerConfiguration = Config.Network.peer
-
-  lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props(
-    nodeStatusHolder,
-    Config.Network.peer,
-    storagesInstance.storages.appStateStorage,
-    blockchain,
-    peerMessageBus,
-    forkResolverOpt,
-    handshaker), "peer-manager")
+  lazy val network: Network = NetworkImpl(
+    bootstrapNodes = Config.Network.Discovery.bootstrapNodes,
+    nodeStatusHolder = nodeStatusHolder,
+    peerConfiguration = Config.Network.peer,
+    blockchain = blockchain,
+    appStateStorage = storagesInstance.storages.appStateStorage,
+    forkResolverOpt = forkResolverOpt,
+    handshaker = handshaker)(actorSystem)
 
 }
 
@@ -121,12 +118,11 @@ trait ServerActorBuilder {
 
   self: ActorSystemBuilder
     with NodeStatusBuilder
-    with BlockChainBuilder
-    with PeerManagerActorBuilder =>
+    with NetworkBuilder =>
 
   lazy val networkConfig = Config.Network
 
-  lazy val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
+  lazy val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, network), "server")
 
 }
 
@@ -135,17 +131,16 @@ trait Web3ServiceBuilder {
 }
 
 trait NetServiceBuilder {
-  this: PeerManagerActorBuilder with NodeStatusBuilder =>
+  this: NetworkBuilder with NodeStatusBuilder =>
 
-  lazy val netService = new NetService(nodeStatusHolder, peerManager)
+  lazy val netService = new NetService(nodeStatusHolder, network)
 }
 
 trait PendingTransactionsManagerBuilder {
   self: ActorSystemBuilder
-    with PeerManagerActorBuilder
-    with PeerMessageBusBuilder =>
+    with NetworkBuilder =>
 
-  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(peerManager, peerMessageBus))
+  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(network))
 }
 
 trait BlockGeneratorBuilder {
@@ -220,23 +215,21 @@ trait SyncControllerBuilder {
     ServerActorBuilder with
     BlockChainBuilder with
     NodeStatusBuilder with
-    PeerManagerActorBuilder with
+    NetworkBuilder with
     StorageBuilder with
     BlockchainConfigBuilder with
     ValidatorsBuilder with
-    LedgerBuilder with
-    PeerMessageBusBuilder =>
+    LedgerBuilder =>
 
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
-      peerManager,
+      network,
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
-      validators,
-      peerMessageBus),
+      validators),
     "sync-controller")
 
 }
@@ -269,7 +262,6 @@ trait Node extends NodeKeyBuilder
   with NodeStatusBuilder
   with ForkResolverBuilder
   with HandshakerBuilder
-  with PeerManagerActorBuilder
   with ServerActorBuilder
   with SyncControllerBuilder
   with Web3ServiceBuilder
@@ -285,5 +277,5 @@ trait Node extends NodeKeyBuilder
   with ShutdownHookBuilder
   with GenesisDataLoaderBuilder
   with BlockchainConfigBuilder
-  with PeerMessageBusBuilder
   with PendingTransactionsManagerBuilder
+  with NetworkBuilder

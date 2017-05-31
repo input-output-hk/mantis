@@ -11,7 +11,7 @@ import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.messages.{PV62, PV63}
-import io.iohk.ethereum.network.{ForkResolver, PeerManagerActor, PeerMessageBusActor, loadAsymmetricCipherKeyPair}
+import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor, loadAsymmetricCipherKeyPair}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 
@@ -69,7 +69,7 @@ object DumpChainApp extends App{
 
     lazy val handshaker: Handshaker[EtcPeerInfo] = EtcHandshaker(handshakerConfiguration)
 
-    val peerMessageBus = actorSystem.actorOf(PeerMessageBusActor.props)
+    val peerEventBus = actorSystem.actorOf(PeerEventBusActor.props)
 
     val peerManager = actorSystem.actorOf(PeerManagerActor.props(
       nodeStatusHolder = nodeStatusHolder,
@@ -77,10 +77,10 @@ object DumpChainApp extends App{
       appStateStorage = storagesInstance.storages.appStateStorage,
       blockchain = blockchain,
       bootstrapNodes = Set(node),
-      peerMessageBus,
+      peerEventBus,
       forkResolverOpt = forkResolverOpt,
       handshaker = handshaker), "peer-manager")
-    actorSystem.actorOf(DumpChainActor.props(peerManager,peerMessageBus,startBlock,maxBlocks), "dumper")
+    actorSystem.actorOf(DumpChainActor.props(peerManager,peerEventBus,startBlock,maxBlocks), "dumper")
   }
 
   class BlockchainMock(genesisHash: ByteString) extends Blockchain {
