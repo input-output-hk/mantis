@@ -9,8 +9,8 @@ import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful, PeerStatusUpdated}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier, PeerHandshaked, PeerStatusUpdate}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful, PeerInfoUpdated}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier, PeerHandshaked, PeerInfoUpdate}
 import io.iohk.ethereum.network.{NetworkImpl, PeerActor, PeerImpl}
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader}
@@ -627,18 +627,18 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     //Receive subscriptions to status updates and peer disconnect
     peerEventBus.expectMsgAllOf(10.seconds,
       Subscribe(PeerDisconnectedClassifier(peer1.id)),
-      Subscribe(PeerStatusUpdate(peer1.id)),
+      Subscribe(PeerInfoUpdate(peer1.id)),
       Subscribe(PeerDisconnectedClassifier(peer2.id)),
-      Subscribe(PeerStatusUpdate(peer2.id)),
+      Subscribe(PeerInfoUpdate(peer2.id)),
       Subscribe(PeerDisconnectedClassifier(peer3.id)),
-      Subscribe(PeerStatusUpdate(peer3.id)),
+      Subscribe(PeerInfoUpdate(peer3.id)),
       Subscribe(PeerDisconnectedClassifier(peer4.id)),
-      Subscribe(PeerStatusUpdate(peer4.id))
+      Subscribe(PeerInfoUpdate(peer4.id))
     )
 
     //Update peer1 status
     peerEventBus.send(syncController,
-      PeerStatusUpdated(
+      PeerInfoUpdated(
         peer1.id,
         peer1PeerInfo.copy(remoteStatus = peer1PeerInfo.remoteStatus.copy(bestHash = ByteString("peer1_newBestHash")))
       )
@@ -667,8 +667,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peerEventBus = TestProbe()(system)
     peerEventBus.ignoreMsg{
-      case Subscribe(PeerStatusUpdate(_)) => true
-      case Unsubscribe(Some(PeerStatusUpdate(_))) => true
+      case Subscribe(PeerInfoUpdate(_)) => true
+      case Unsubscribe(Some(PeerInfoUpdate(_))) => true
       case Subscribe(PeerDisconnectedClassifier(_)) => true
       case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
     }

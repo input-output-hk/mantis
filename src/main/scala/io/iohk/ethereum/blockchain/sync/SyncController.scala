@@ -9,7 +9,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{PeerDisconnected, PeerHandshakeSuccessful, PeerStatusUpdated}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{PeerDisconnected, PeerHandshakeSuccessful, PeerInfoUpdated}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.{Network, Peer, PeerId}
 import io.iohk.ethereum.utils.Config
@@ -76,7 +76,7 @@ class SyncController(
       }
       handshakedPeers = handshakedPeers + (peer.id -> PeerWithInfo(peer, initialInfo))
 
-    case PeerStatusUpdated(peerId, newPeerInfo: EtcPeerInfo) if handshakedPeers.contains(peerId) =>
+    case PeerInfoUpdated(peerId, newPeerInfo: EtcPeerInfo) if handshakedPeers.contains(peerId) =>
       val PeerWithInfo(peer, _) = handshakedPeers(peerId)
       handshakedPeers = handshakedPeers + (peerId -> PeerWithInfo(peer, newPeerInfo))
 

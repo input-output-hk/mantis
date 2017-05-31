@@ -6,8 +6,8 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful, PeerStatusUpdated}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier, PeerHandshaked, PeerStatusUpdate}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful, PeerInfoUpdated}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier, PeerHandshaked, PeerInfoUpdate}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.Message
@@ -122,18 +122,18 @@ class PeerMessageBusActorSpec extends FlatSpec with Matchers {
 
     val probe1 = TestProbe()
     val probe2 = TestProbe()
-    peerMessageBusActor.tell(PeerEventBusActor.Subscribe(PeerStatusUpdate(PeerId("1"))), probe1.ref)
-    peerMessageBusActor.tell(PeerEventBusActor.Subscribe(PeerStatusUpdate(PeerId("2"))), probe1.ref)
-    peerMessageBusActor.tell(PeerEventBusActor.Subscribe(PeerStatusUpdate(PeerId("2"))), probe2.ref)
+    peerMessageBusActor.tell(PeerEventBusActor.Subscribe(PeerInfoUpdate(PeerId("1"))), probe1.ref)
+    peerMessageBusActor.tell(PeerEventBusActor.Subscribe(PeerInfoUpdate(PeerId("2"))), probe1.ref)
+    peerMessageBusActor.tell(PeerEventBusActor.Subscribe(PeerInfoUpdate(PeerId("2"))), probe2.ref)
 
     val peerHandshaked = PeerImpl(new InetSocketAddress("127.0.0.1", 0), TestProbe().ref, peerMessageBusActor)
-    val msgPeerStatusUpdate = PeerStatusUpdated(PeerId("2"), initialPeerInfo)
+    val msgPeerStatusUpdate = PeerInfoUpdated(PeerId("2"), initialPeerInfo)
     peerMessageBusActor ! PeerEventBusActor.Publish(msgPeerStatusUpdate)
 
     probe1.expectMsg(msgPeerStatusUpdate)
     probe2.expectMsg(msgPeerStatusUpdate)
 
-    peerMessageBusActor.tell(PeerEventBusActor.Unsubscribe(PeerStatusUpdate(PeerId("2"))), probe1.ref)
+    peerMessageBusActor.tell(PeerEventBusActor.Unsubscribe(PeerInfoUpdate(PeerId("2"))), probe1.ref)
 
     peerMessageBusActor ! PeerEventBusActor.Publish(msgPeerStatusUpdate)
     probe1.expectNoMsg()

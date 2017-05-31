@@ -14,7 +14,7 @@ import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.MessageHandler.MessageAction.TransmitMessage
 import io.iohk.ethereum.network.MessageHandler.MessageHandlingResult
 import io.iohk.ethereum.network.PeerActor.Status._
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerHandshakeSuccessful, PeerStatusUpdated}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerHandshakeSuccessful, PeerInfoUpdated}
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
@@ -222,7 +222,7 @@ class PeerActor(
           if(messageAction == TransmitMessage)
             peerEventBus ! Publish(MessageFromPeer(message, peerId))
           if(newHandler.peerInfo != messageHandler.peerInfo)
-            peerEventBus ! Publish(PeerStatusUpdated(peerId, newHandler.peerInfo))
+            peerEventBus ! Publish(PeerInfoUpdated(peerId, newHandler.peerInfo))
           context become new HandshakedPeer(rlpxConnection, newHandler).receive
 
         case DisconnectPeer(reason) =>
@@ -233,7 +233,7 @@ class PeerActor(
           if(messageAction == TransmitMessage)
             rlpxConnection.sendMessage(message)
           if(newHandler.peerInfo != messageHandler.peerInfo)
-            peerEventBus ! Publish(PeerStatusUpdated(peerId, newHandler.peerInfo))
+            peerEventBus ! Publish(PeerInfoUpdated(peerId, newHandler.peerInfo))
           context become new HandshakedPeer(rlpxConnection, newHandler).receive
 
         case GetStatus =>

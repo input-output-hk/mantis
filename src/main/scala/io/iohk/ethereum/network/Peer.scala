@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.actor.ActorRef
 import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier, PeerStatusUpdate}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier, PeerInfoUpdate}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.MessageSerializable
 
@@ -71,7 +71,7 @@ trait Peer {
 
   /**
     * Subscribes the actor sender to the event of the peer updating it's status.
-    * The subscriber will receive a [[io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerStatusUpdated]] when the
+    * The subscriber will receive a [[io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerInfoUpdated]] when the
     * peer updates it's status.
     *
     * @param subscriber, the sender of the subscription
@@ -111,8 +111,8 @@ case class PeerImpl(remoteAddress: InetSocketAddress, ref: ActorRef, peerEventBu
     peerEventBusActor.!(Unsubscribe(PeerDisconnectedClassifier(id)))(subscriber)
 
   def subscribeToStatusUpdate()(implicit subscriber: ActorRef): Unit =
-    peerEventBusActor.!(Subscribe(PeerStatusUpdate(id)))(subscriber)
+    peerEventBusActor.!(Subscribe(PeerInfoUpdate(id)))(subscriber)
 
   def unsubscribeFromPeerStatusUpdate()(implicit subscriber: ActorRef): Unit =
-    peerEventBusActor.!(Unsubscribe(PeerStatusUpdate(id)))(subscriber)
+    peerEventBusActor.!(Unsubscribe(PeerInfoUpdate(id)))(subscriber)
 }

@@ -4,8 +4,8 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.event.ActorEventBus
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.MessageHandler.PeerInfo
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful, PeerStatusUpdated}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier, PeerHandshaked, PeerStatusUpdate}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful, PeerInfoUpdated}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier, PeerHandshaked, PeerInfoUpdate}
 import io.iohk.ethereum.network.p2p.Message
 
 object PeerEventBusActor {
@@ -33,7 +33,7 @@ object PeerEventBusActor {
     case class MessageClassifier(messageCodes: Set[Int], peerSelector: PeerSelector) extends SubscriptionClassifier
     case class PeerDisconnectedClassifier(peerId: PeerId) extends SubscriptionClassifier
     case object PeerHandshaked extends SubscriptionClassifier
-    case class PeerStatusUpdate(peerId: PeerId) extends SubscriptionClassifier
+    case class PeerInfoUpdate(peerId: PeerId) extends SubscriptionClassifier
   }
 
   sealed trait PeerEvent
@@ -42,7 +42,7 @@ object PeerEventBusActor {
     case class MessageFromPeer(message: Message, peerId: PeerId) extends PeerEvent
     case class PeerDisconnected(peerId: PeerId) extends PeerEvent
     case class PeerHandshakeSuccessful(peer: Peer, initialInfo: EtcPeerInfo) extends PeerEvent
-    case class PeerStatusUpdated[I <: PeerInfo](peerId: PeerId, peerInfo: I) extends PeerEvent
+    case class PeerInfoUpdated[I <: PeerInfo](peerId: PeerId, peerInfo: I) extends PeerEvent
   }
 
   case class Subscription(subscriber: ActorRef, classifier: SubscriptionClassifier)
@@ -95,9 +95,9 @@ object PeerEventBusActor {
           subscriptions.collect {
             case Subscription(subscriber, PeerHandshaked) => subscriber
           }
-        case PeerStatusUpdated(peerId, _) =>
+        case PeerInfoUpdated(peerId, _) =>
           subscriptions.collect {
-            case Subscription(subscriber, classifier: PeerStatusUpdate)
+            case Subscription(subscriber, classifier: PeerInfoUpdate)
               if classifier.peerId == peerId => subscriber
           }
       }
