@@ -7,27 +7,23 @@ import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum
-import io.iohk.ethereum.{Fixtures, crypto}
+import io.iohk.ethereum.{Fixtures, Mocks, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.MessageHandler.MessageAction.{IgnoreMessage, TransmitMessage}
 import io.iohk.ethereum.network.MessageHandler.MessageHandlingResult
-import io.iohk.ethereum.network.PeerActor.DisconnectPeer
+import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.p2p.messages.Versions
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
-import io.iohk.ethereum.rlp.encode
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -39,6 +35,7 @@ import scala.concurrent.duration._
 class EtcMessageHandlerSpec extends FlatSpec with Matchers {
 
   it should "return Receipts for block hashes" in new TestSetup {
+
     //given
     val receiptsHashes = Seq(
       ByteString(Hex.decode("a218e2c611f21232d857e3c8cecdcdf1f65f25a4477f98f6f47e4063807f2308")),
@@ -434,29 +431,6 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
     val nodeStatusHolder = Agent(nodeStatus)
     val peerMessageBus = TestProbe()
 
-    val peerActor = TestActorRef(Props(new PeerActor(
-      new InetSocketAddress("127.0.0.1", 0),
-      nodeStatusHolder,
-      _ => rlpxConnection.ref,
-      peerConf,
-      storagesInstance.storages.appStateStorage,
-      blockchain,
-      peerMessageBus.ref,
-      None,
-      Some(forkResolver),
-      messageHandlerBuilder = (peerInfo, peer) =>
-        EtcMessageHandler(peer, peerInfo, Some(forkResolver), storagesInstance.storages.appStateStorage, peerConf, blockchain)
-    )))
-
-    peerActor ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
-
-    rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
-
-    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
-    rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(remoteHello))
-
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 0,
@@ -464,17 +438,28 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
       bestHash = ByteString("blockhash"),
       genesisHash = Fixtures.Blocks.Genesis.header.hash)
 
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
-    rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(remoteStatus))
+    val peerActor = TestActorRef(Props(new PeerActor(
+      new InetSocketAddress("127.0.0.1", 0),
+      _ => rlpxConnection.ref,
+      peerConf,
+      peerMessageBus.ref,
+      None,
+      Mocks.MockHandshakerAlwaysSucceeds(remoteStatus, 0, false),
+      messageHandlerBuilder =
+        EtcMessageHandler.etcMessageHandlerBuilder(Some(forkResolver), storagesInstance.storages.appStateStorage, peerConf, blockchain)
+    )))
 
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
-    rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)))
+    peerActor ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
+
+    rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
+
     // ask for highest block
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
     rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)))
 
     rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(Ping()))
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: PongEnc) => () }
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: PongEnc) => ()}
 
     val nonDaoHeader = Fixtures.Blocks.Genesis.header.copy(number = Fixtures.Blocks.DaoForkBlock.header.number)
     rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(nonDaoHeader))))
@@ -496,6 +481,7 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
         val maxReceiptsPerMessage: Int = 200
         val maxMptComponentsPerMessage: Int = 200
       }
+      override val waitForHelloTimeout: FiniteDuration = 30 seconds
       override val waitForStatusTimeout: FiniteDuration = 30 seconds
       override val waitForChainCheckTimeout: FiniteDuration = 15 seconds
       override val connectMaxRetries: Int = 3
