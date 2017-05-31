@@ -7,13 +7,14 @@ import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.{Peer, PeerActor, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.PeerMessageBusActor.{MessageClassifier, MessageFromPeer, PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
+import io.iohk.ethereum.utils.MiningConfig
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object PendingTransactionsManager {
-  def props(peerManager: ActorRef, peerMessageBus: ActorRef): Props =
-    Props(new PendingTransactionsManager(peerManager, peerMessageBus))
+  def props(miningConfig: MiningConfig, peerManager: ActorRef, peerMessageBus: ActorRef): Props =
+    Props(new PendingTransactionsManager(miningConfig, peerManager, peerMessageBus))
 
   case class AddTransactions(signedTransactions: List[SignedTransaction])
 
@@ -29,7 +30,7 @@ object PendingTransactionsManager {
   case class RemoveTransactions(signedTransactions: Seq[SignedTransaction])
 }
 
-class PendingTransactionsManager(peerManager: ActorRef, peerMessageBus: ActorRef) extends Actor {
+class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorRef, peerMessageBus: ActorRef) extends Actor {
 
   import PendingTransactionsManager._
   import akka.pattern.ask
@@ -52,7 +53,7 @@ class PendingTransactionsManager(peerManager: ActorRef, peerMessageBus: ActorRef
     case AddTransactions(signedTransactions) =>
       val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.contains(t))
       if (transactionsToAdd.nonEmpty) {
-        pendingTransactions = pendingTransactions ++ transactionsToAdd
+        pendingTransactions = (pendingTransactions ++ transactionsToAdd).takeRight(miningConfig.txPoolSize)
         (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
           peers.handshaked.foreach { case (peer, _) => self ! NotifyPeer(transactionsToAdd, peer) }
         }
@@ -76,7 +77,7 @@ class PendingTransactionsManager(peerManager: ActorRef, peerMessageBus: ActorRef
       knownTransactions = knownTransactions.filterNot(signedTransactions.map(_.hash).contains)
 
     case MessageFromPeer(SignedTransactions(signedTransactions), peerId) =>
-      pendingTransactions ++= signedTransactions
+      pendingTransactions = (pendingTransactions ++ signedTransactions).takeRight(miningConfig.txPoolSize)
       signedTransactions.foreach(setTxKnown(_, peerId))
       (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
         peers.handshaked.foreach { case (peer, _) => self ! NotifyPeer(signedTransactions, peer) }

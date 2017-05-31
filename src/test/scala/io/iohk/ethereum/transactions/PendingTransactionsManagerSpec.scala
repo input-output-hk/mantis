@@ -18,6 +18,7 @@ import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages
+import io.iohk.ethereum.utils.MiningConfig
 import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
@@ -112,9 +113,18 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val peer3TestProbe = TestProbe()
     val peer3 = Peer(new InetSocketAddress("127.0.0.3", 9000), peer3TestProbe.ref)
 
+    val miningConfig = new MiningConfig {
+      override val txPoolSize: Int = 300
+      //unused
+      override val coinBase: Address = Address(2)
+      override val blockCasheSize: Int = 30
+      override val ommersPoolSize: Int = 30
+      override val poolingServicesTimeout: FiniteDuration = 30.seconds
+    }
+
     val peerManager = TestProbe()
     val peerMessageBus = TestProbe()
-    val pendingTransactionsManager = system.actorOf(PendingTransactionsManager.props(peerManager.ref, peerMessageBus.ref))
+    val pendingTransactionsManager = system.actorOf(PendingTransactionsManager.props(miningConfig, peerManager.ref, peerMessageBus.ref))
   }
 
 }

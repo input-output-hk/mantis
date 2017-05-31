@@ -130,7 +130,6 @@ object Config {
 }
 
 trait MiningConfig {
-  //todo add limit to tx pool?
   val txPoolSize: Int
   val ommersPoolSize: Int
   val blockCasheSize: Int

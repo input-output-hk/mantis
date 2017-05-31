@@ -114,9 +114,10 @@ trait NetServiceBuilder {
 trait PendingTransactionsManagerBuilder {
   self: ActorSystemBuilder
     with PeerManagerActorBuilder
-    with PeerMessageBusBuilder =>
+    with PeerMessageBusBuilder
+    with MiningConfigBuilder =>
 
-  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(peerManager, peerMessageBus))
+  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(miningConfig, peerManager, peerMessageBus))
 }
 
 trait BlockGeneratorBuilder {
