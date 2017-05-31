@@ -6,7 +6,7 @@ import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, LedgerImpl}
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger, MiningConfig}
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.{UInt256, VM}
 import org.scalatest.prop.PropertyChecks
@@ -99,6 +99,13 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val genesisDataLoader = new GenesisDataLoader(blockchainStorages.ephemDataSource, blockchain, blockchainConfig)
     genesisDataLoader.loadGenesisData()
 
-    val blockGenerator = new BlockGenerator(blockchainStorages.storages, blockchainConfig, ledger, validators)
+    val miningConfig = new MiningConfig {
+      override val coinBase: Address = Address(42)
+      override val blockCasheSize: Int = 30
+      override val ommersPoolSize: Int = 30
+      override val txPoolSize: Int = 30
+    }
+
+    val blockGenerator = new BlockGenerator(blockchainStorages.storages, blockchainConfig, miningConfig, ledger, validators)
   }
 }

@@ -16,9 +16,11 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.utils.{Logger, MiningConfig}
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactions
+import io.iohk.ethereum.ommers.OmmersPool
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -85,11 +87,13 @@ class EthService(
     blockchainStorages: BlockchainStorages,
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
+    miningConfig: MiningConfig,
     ledger: Ledger,
     blockchainConfig: BlockchainConfig,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
-    syncingController: ActorRef) extends Logger {
+    syncingController: ActorRef,
+    ommersPool: ActorRef) extends Logger {
 
   import EthService._
 
@@ -188,16 +192,22 @@ class EthService(
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
 
     import scala.concurrent.ExecutionContext.Implicits.global
-    implicit val timeout = Timeout(5.seconds)
+    implicit val timeout = Timeout(3.seconds)
 
-    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
-      .mapTo[PendingTransactions]
-      .map { pendingTxs =>
-        //todo get address from conf
-        val fakeAddress = 42
-        //todo ask for ommers
-        val ommersList = Nil
-        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommersList, Address(fakeAddress)) match {
+    Future.sequence(Seq(
+      (ommersPool ? OmmersPool.GetOmmers).mapTo[OmmersPool.Ommers]
+        .recover { case ex =>
+          log.error("failed to get ommer, mining block with empty ommers list", ex)
+          OmmersPool.Ommers(Nil)
+        },
+      (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactions]
+        .recover { case ex =>
+          log.error("failed to get transactions, mining block with empty transactions list", ex)
+          PendingTransactions(Nil)
+        }
+    )).map {
+      case (ommers: OmmersPool.Ommers) :: (pendingTxs: PendingTransactions) :: Nil =>
+        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommers.headers, miningConfig.coinBase) match {
           case Right(b) =>
             Right(GetWorkResponse(
               powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))),

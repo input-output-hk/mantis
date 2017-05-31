@@ -8,11 +8,8 @@ import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
-import io.iohk.ethereum.blockchain.sync.SyncController.DependencyActors
+import io.iohk.ethereum.blockchain.sync.SyncController.{DependencyActors, MinedBlock}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.domain.{Account, Block, BlockHeader, BlockchainStorages}
-import io.iohk.ethereum.ledger.{BlockExecutionError, BloomFilter, Ledger}
-import io.iohk.ethereum.network.{Peer, PeerActor}
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader}
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
@@ -21,6 +18,8 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.{Peer, PeerActor}
+import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -29,7 +28,7 @@ import scala.concurrent.duration._
 
 class SyncControllerSpec extends FlatSpec with Matchers {
 
-  "FastSyncController" should "download target block and request state nodes" in new TestSetup() {
+  "SyncController" should "download target block and request state nodes" in new TestSetup() {
 
     val peer1TestProbe: TestProbe = TestProbe("peer1")(system)
     val peer2TestProbe: TestProbe = TestProbe("peer2")(system)
@@ -44,8 +43,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer1 -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty),
-      peer2 -> PeerActor.Status.Handshaked(peer2Status, true, peer1Status.totalDifficulty))))
+      peer1 -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty),
+      peer2 -> PeerActor.Status.Handshaked(peer2Status, forkAccepted = true, peer1Status.totalDifficulty))))
 
     syncController ! SyncController.StartSync
 
@@ -76,7 +75,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
 
-    peer1TestProbe.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(1), 10, 0, false)))
+    peer1TestProbe.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(1), 10, 0, reverse = false)))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
 
     peer2TestProbe.expectMsg(PeerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot))))
@@ -104,7 +103,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer2 -> PeerActor.Status.Handshaked(peer2Status, true, peer2Status.totalDifficulty))))
+      peer2 -> PeerActor.Status.Handshaked(peer2Status, forkAccepted = true, peer2Status.totalDifficulty))))
 
     syncController ! SyncController.StartSync
 
@@ -154,7 +153,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer2 -> PeerActor.Status.Handshaked(peer2Status, true, peer2Status.totalDifficulty))))
+      peer2 -> PeerActor.Status.Handshaked(peer2Status, forkAccepted = true, peer2Status.totalDifficulty))))
 
     val expectedTargetBlock = 399500
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
@@ -196,7 +195,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty))))
+      peer -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty))))
 
     val expectedMaxBlock = 399500
     val newBlockDifficulty = 23
@@ -239,6 +238,12 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(newBlockHeader, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(newBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + newBlockHeader.difficulty)
+
+    ommersPool.expectMsg(RemoveOmmers(newBlockHeader))
+    pendingTransactionsManager.expectMsg(AddTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectNoMsg()
   }
 
   it should "resolve branch conflict" in new TestSetup() {
@@ -251,7 +256,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty))))
+      peer -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty))))
 
     val expectedMaxBlock = 399500
     val newBlockDifficulty = 23
@@ -338,6 +343,21 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     blockchain.getBlockHeaderByHash(maxBlockHeader.hash) shouldBe None
     blockchain.getBlockBodyByHash(maxBlockHeader.hash) shouldBe None
     blockchain.getTotalDifficultyByHash(maxBlockHeader.hash) shouldBe None
+
+    ommersPool.expectMsg(AddOmmers(maxBlockHeader))
+    ommersPool.expectMsg(RemoveOmmers(newBlockHeaderParent))
+    ommersPool.expectMsg(RemoveOmmers(newBlockHeader))
+    ommersPool.expectMsg(RemoveOmmers(nextNewBlockHeader))
+
+    pendingTransactionsManager.expectMsg(AddTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+
+    pendingTransactionsManager.expectMsg(AddTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectNoMsg()
   }
 
   it should "only use ETC peer to choose target block" in new TestSetup() {
@@ -360,10 +380,10 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer1 -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty),
-      peer2 -> PeerActor.Status.Handshaked(peer2Status, false, peer1Status.totalDifficulty),
-      peer3 -> PeerActor.Status.Handshaked(peer3Status, false, peer1Status.totalDifficulty),
-      peer4 -> PeerActor.Status.Handshaked(peer4Status, true, peer1Status.totalDifficulty))))
+      peer1 -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty),
+      peer2 -> PeerActor.Status.Handshaked(peer2Status, forkAccepted = false, peer1Status.totalDifficulty),
+      peer3 -> PeerActor.Status.Handshaked(peer3Status, forkAccepted = false, peer1Status.totalDifficulty),
+      peer4 -> PeerActor.Status.Handshaked(peer4Status, forkAccepted = true, peer1Status.totalDifficulty))))
 
     val expectedTargetBlock = 399500
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
@@ -400,7 +420,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer1 -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty)
+      peer1 -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty)
     )))
 
     val expectedMaxBlock = 399500
@@ -453,6 +473,16 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       PeerActor.SendMessage(NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty)),
       PeerActor.SendMessage(NewBlock(Block(nextNewBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + 2 * newBlockDifficulty))
     )
+
+    ommersPool.expectMsg(RemoveOmmers(newBlockHeader))
+    ommersPool.expectMsg(RemoveOmmers(nextNewBlockHeader))
+
+    pendingTransactionsManager.expectMsg(AddTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectNoMsg()
   }
 
   val invalidBlockNumber = 399502
@@ -472,8 +502,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer1 -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty),
-      peer2 -> PeerActor.Status.Handshaked(peer2Status, true, peer2Status.totalDifficulty)
+      peer1 -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty),
+      peer2 -> PeerActor.Status.Handshaked(peer2Status, forkAccepted = true, peer2Status.totalDifficulty)
     )))
 
     val expectedMaxBlock = 399500
@@ -521,6 +551,14 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
       PeerActor.SendMessage(NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty))
     )
+
+    ommersPool.expectMsg(RemoveOmmers(newBlockHeader))
+    pendingTransactionsManager.expectMsg(AddTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectNoMsg()
+
   }
 
   val invalidBlock = 399501
@@ -538,8 +576,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer1 -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty),
-      peer2 -> PeerActor.Status.Handshaked(peer2Status, true, peer2Status.totalDifficulty)
+      peer1 -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty),
+      peer2 -> PeerActor.Status.Handshaked(peer2Status, forkAccepted = true, peer2Status.totalDifficulty)
     )))
 
     val expectedMaxBlock = 399500
@@ -577,6 +615,103 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     //No other message should be received as no response was sent to peer2
     peerMessageBus.expectNoMsg()
     peer2TestProbe.expectNoMsg()
+
+    pendingTransactionsManager.expectMsg(AddTransactions(Nil))
+
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectNoMsg()
+  }
+
+  it should "accept mined blocks" in new TestSetup() {
+    val peerTestProbe: TestProbe = TestProbe()(system)
+
+    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref)
+
+    time.advance(1.seconds)
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+
+    peerManager.expectMsg(GetPeers)
+    peerManager.reply(Peers(Map(
+      peer -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty))))
+
+    val expectedMaxBlock = 399500
+    val newBlockDifficulty = 23
+    val maxBlocTotalDifficulty = 12340
+    val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock)
+    val minedBlockHeader: BlockHeader = baseBlockHeader
+      .copy(number = expectedMaxBlock + 1, parentHash = maxBlockHeader.hash, difficulty = newBlockDifficulty,
+        stateRoot = ByteString(Hex.decode("d0aedc3838a3d7f9a526bdd642b55fb1b6292596985cfab2eedb751da19b8bb4")))
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
+    storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
+    storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
+    storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, maxBlocTotalDifficulty)
+
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    syncController ! SyncController.StartSync
+
+    peerTestProbe.ignoreMsg { case u => u == Unsubscribe }
+
+    peerTestProbe.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+    syncController.children.last ! MessageFromPeer(BlockHeaders(Seq()), peer.id)
+
+    //wait for empty headers processing
+    Thread.sleep(1.seconds.toMillis)
+    syncController ! MinedBlock(Block(minedBlockHeader,BlockBody(Nil,Nil)))
+
+    //wait for actor to insert data
+    Thread.sleep(3.seconds.toMillis)
+    blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(minedBlockHeader, BlockBody(Nil, Nil)))
+    blockchain.getTotalDifficultyByHash(minedBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + minedBlockHeader.difficulty)
+
+    ommersPool.expectMsg(RemoveOmmers(minedBlockHeader))
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectNoMsg()
+  }
+
+  it should "accept add mined blocks as ommers when doing sync" in new TestSetup() {
+    val peerTestProbe: TestProbe = TestProbe()(system)
+
+    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref)
+
+    time.advance(1.seconds)
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+
+    peerManager.expectMsg(GetPeers)
+    peerManager.reply(Peers(Map(
+      peer -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty))))
+
+    val expectedMaxBlock = 399500
+    val newBlockDifficulty = 23
+    val maxBlocTotalDifficulty = 12340
+    val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock)
+    val minedBlockHeader: BlockHeader = baseBlockHeader
+      .copy(number = expectedMaxBlock + 1, parentHash = maxBlockHeader.hash, difficulty = newBlockDifficulty,
+        stateRoot = ByteString(Hex.decode("d0aedc3838a3d7f9a526bdd642b55fb1b6292596985cfab2eedb751da19b8bb4")))
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
+    storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
+    storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
+    storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, maxBlocTotalDifficulty)
+
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    syncController ! SyncController.StartSync
+
+    peerTestProbe.ignoreMsg { case u => u == Unsubscribe }
+
+    peerTestProbe.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
+
+    syncController ! MinedBlock(Block(minedBlockHeader,BlockBody(Nil,Nil)))
+    blockchain.getBlockByHash(minedBlockHeader.hash) shouldBe None
+    blockchain.getTotalDifficultyByHash(minedBlockHeader.hash) shouldBe None
+
+    ommersPool.expectMsg(AddOmmers(minedBlockHeader))
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectNoMsg()
   }
 
   class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil) extends EphemBlockchainTestSetup {
@@ -591,8 +726,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peerMessageBus = TestProbe()
     val pendingTransactionsManager = TestProbe()
+    val ommersPool = TestProbe()
 
-    val actors = DependencyActors(peerManager.ref, peerMessageBus.ref, pendingTransactionsManager.ref)
+    val actors = DependencyActors(peerManager.ref, peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref)
 
     val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,

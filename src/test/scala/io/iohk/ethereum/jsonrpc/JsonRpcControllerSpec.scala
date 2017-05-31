@@ -13,12 +13,15 @@ import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.utils.{Config, MiningConfig}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators.Validators
 import org.json4s
@@ -328,6 +331,45 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(Nil))
 
+    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    ommersPool.reply(Ommers(Nil))
+
+    val response = result.futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JArray(List(
+      JString(headerPowHash),
+      JString(seed),
+      JString(target)
+    )))
+  }
+
+  it should "eth_getWork when fail to get ommers and transactions" in new TestSetup {
+    val seed = s"""0x${"00" * 32}"""
+    val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
+    val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
+
+    (appStateStorage.getBestBlockNumber _).expects().returns(1)
+    (blockGenerator.generateBlockForMining _).expects(*, *, *, *)
+      .returns(Right(Block(blockHeader, BlockBody(Nil, Nil))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getWork",
+      None,
+      Some(JInt(1))
+    )
+
+    val result: Future[JsonRpcResponse] = jsonRpcController.handleRequest(request)
+
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    //on time out it should respond with empty list
+
+    //wait for actor timeouts
+    Thread.sleep(4.seconds.toMillis)
+
     val response = result.futureValue
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -418,6 +460,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val blockchain = BlockchainImpl(storagesInstance.storages)
     val blockGenerator: BlockGenerator = mock[BlockGenerator]
     implicit val system = ActorSystem("JsonRpcControllerSpec_System")
+
     val syncingController = TestProbe()
     val ledger = mock[Ledger]
     val validators = mock[Validators]
@@ -425,12 +468,22 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val keyStore = mock[KeyStore]
 
     val pendingTransactionsManager = TestProbe()
+    val ommersPool = TestProbe()
+
+    val miningConfig = new MiningConfig {
+      override val coinBase: Address = Address(42)
+      override val blockCasheSize: Int = 30
+      override val ommersPoolSize: Int = 30
+      override val txPoolSize: Int = 30
+    }
+
+
     val appStateStorage = mock[AppStateStorage]
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
-    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, ledger,
-      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref)
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
+      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 
     val blockHeader = BlockHeader(

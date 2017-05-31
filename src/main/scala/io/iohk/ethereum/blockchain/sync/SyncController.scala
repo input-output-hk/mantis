@@ -113,7 +113,11 @@ object SyncController {
   Props = Props(new SyncController(appStateStorage, blockchain, blockchainStorages,
     syncStateStorage, ledger, validators, actors))
 
-  case class DependencyActors(peerManager: ActorRef, peerMessageBus: ActorRef, pendingTransactionsManager: ActorRef)
+  case class DependencyActors(
+    peerManager: ActorRef,
+    peerMessageBus: ActorRef,
+    pendingTransactionsManager: ActorRef,
+    ommersPool: ActorRef)
 
   case class BlockHeadersToResolve(peer: Peer, headers: Seq[BlockHeader])
 

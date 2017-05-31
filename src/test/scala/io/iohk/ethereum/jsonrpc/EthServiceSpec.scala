@@ -7,10 +7,12 @@ import io.iohk.ethereum.{DefaultPatience, Fixtures, crypto}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl}
+import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.utils.MiningConfig
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
@@ -227,6 +229,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(Nil))
 
+    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    ommersPool.reply(OmmersPool.Ommers(Nil))
+
     response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
   }
 
@@ -281,10 +286,20 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val blockchainConfig = mock[BlockchainConfig]
 
     implicit val system = ActorSystem("EthServiceSpec_System")
+
     val syncingController = TestProbe()
     val pendingTransactionsManager = TestProbe()
-    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, ledger,
-      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref)
+    val ommersPool = TestProbe()
+
+    val miningConfig = new MiningConfig {
+      override val coinBase: Address = Address(42)
+      override val blockCasheSize: Int = 30
+      override val ommersPoolSize: Int = 30
+      override val txPoolSize: Int = 30
+    }
+
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
+      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash
