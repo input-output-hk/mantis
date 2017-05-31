@@ -6,7 +6,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.{DefaultPatience, Fixtures, crypto}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage.{AppStateStorage, NodeStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -24,6 +25,7 @@ import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.Validators
+import io.iohk.ethereum.vm.UInt256
 import org.scalamock.scalatest.MockFactory
 import org.spongycastle.util.encoders.Hex
 
@@ -299,6 +301,26 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val response = ethService.getBlockTransactionCountByNumber(GetBlockTransactionCountByNumberRequest(BlockParam.Latest))
 
     response.futureValue shouldEqual Right(GetBlockTransactionCountByNumberResponse(blockToRequest.body.transactionList.size))
+  }
+
+  it should "handle getCode request" in new TestSetup {
+    val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
+    storagesInstance.storages.evmCodeStorage.put(ByteString("code hash"), ByteString("code code code"))
+
+    import MerklePatriciaTrie.defaultByteArraySerializable
+
+    val mpt =
+      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.nodeStorage, (input: Array[Byte]) => crypto.kec256(input))
+        .put(crypto.kec256(address.bytes.toArray[Byte]), Account(0, UInt256(0), ByteString(""), ByteString("code hash")))
+
+    val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
+    val newblock = blockToRequest.copy(header = newBlockHeader)
+    blockchain.save(newblock)
+    (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
+
+    val response = ethService.getCode(GetCodeRequest(address.bytes, BlockParam.Latest))
+
+    response.futureValue shouldEqual Right(GetCodeResponse(ByteString("code code code")))
   }
 
   trait TestSetup extends MockFactory {
