@@ -132,8 +132,8 @@ object Config {
 trait MiningConfig {
   val txPoolSize: Int
   val ommersPoolSize: Int
-  val blockCasheSize: Int
-  val coinBase: Address
+  val blockCacheSize: Int
+  val coinbase: Address
   val poolingServicesTimeout: FiniteDuration
 }
 
@@ -142,8 +142,8 @@ object MiningConfig {
     val miningConfig = etcClientConfig.getConfig("mining")
 
     new MiningConfig {
-      val coinBase: Address = Address(Hex.decode(miningConfig.getString("coin-base")))
-      val blockCasheSize: Int = miningConfig.getInt("block-cashe-size")
+      val coinbase: Address = Address(Hex.decode(miningConfig.getString("coinbase")))
+      val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
       val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
       val txPoolSize: Int = miningConfig.getInt("tx-pool-size")
       val poolingServicesTimeout: FiniteDuration = miningConfig.getDuration("pooling-services-timeout").toMillis.millis

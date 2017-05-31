@@ -135,11 +135,17 @@ trait RegularSync {
         //we have same chain prefix
         if (parent.hash == headers.head.parentHash) {
 
-          val oldBranch = headersQueue.map(_.number)
-            .map(blockNumber => blockchain.getBlockByNumber(blockNumber))
+          var oldBranch: Seq[Option[Block]] = Nil
+
+          headersQueue.map(_.number)
+            .takeWhile { blockNumber =>
+              val block = blockchain.getBlockByNumber(blockNumber)
+              oldBranch = oldBranch :+ block
+              block.isDefined
+            }
 
           val oldBlocks: Seq[(BlockBody, BigInt)] = oldBranch
-            .collect { case Some(b) => b }
+            .flatten
             .map{b => (b.body, b.header.difficulty)}
 
           val currentBranchTotalDifficulty: BigInt = oldBlocks.map {

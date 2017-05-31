@@ -71,7 +71,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
 
     result.right.foreach(b => cache.updateAndGet(new UnaryOperator[List[Block]] {
       override def apply(t: List[Block]): List[Block] =
-        (b :: t).take(miningConfig.blockCasheSize)
+        (b :: t).take(miningConfig.blockCacheSize)
     }))
 
     result

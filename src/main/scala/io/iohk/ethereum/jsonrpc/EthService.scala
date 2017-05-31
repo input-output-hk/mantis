@@ -203,22 +203,10 @@ class EthService(
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
 
     import scala.concurrent.ExecutionContext.Implicits.global
-    implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
 
-    Future.sequence(Seq(
-      (ommersPool ? OmmersPool.GetOmmers).mapTo[OmmersPool.Ommers]
-        .recover { case ex =>
-          log.error("failed to get ommer, mining block with empty ommers list", ex)
-          OmmersPool.Ommers(Nil)
-        },
-      (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactions]
-        .recover { case ex =>
-          log.error("failed to get transactions, mining block with empty transactions list", ex)
-          PendingTransactions(Nil)
-        }
-    )).map {
-      case (ommers: OmmersPool.Ommers) :: (pendingTxs: PendingTransactions) :: Nil =>
-        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommers.headers, miningConfig.coinBase) match {
+    getOmmersFromPool.zip(getTransactionsFromPool).map {
+      case (ommers, pendingTxs) =>
+        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommers.headers, miningConfig.coinbase) match {
           case Right(b) =>
             Right(GetWorkResponse(
               powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))),
@@ -229,6 +217,28 @@ class EthService(
             log.error(s"unable to prepare block because of $err")
             Left(JsonRpcErrors.InternalError)
         }
+      }
+  }
+
+  private def getOmmersFromPool = {
+    import scala.concurrent.ExecutionContext.Implicits.global
+    implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
+
+    (ommersPool ? OmmersPool.GetOmmers).mapTo[OmmersPool.Ommers]
+      .recover { case ex =>
+        log.error("failed to get ommer, mining block with empty ommers list", ex)
+        OmmersPool.Ommers(Nil)
+      }
+  }
+
+  private def getTransactionsFromPool = {
+    import scala.concurrent.ExecutionContext.Implicits.global
+    implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
+
+    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactions]
+      .recover { case ex =>
+        log.error("failed to get transactions, mining block with empty transactions list", ex)
+        PendingTransactions(Nil)
       }
   }
 
