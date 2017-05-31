@@ -8,6 +8,7 @@ import org.json4s.{Extraction, JsonAST}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue, _}
 import org.json4s.JsonDSL._
 
+// scalastyle:off number.of.methods
 object EthJsonMethodsImplicits extends JsonMethodsImplicits {
 
   implicit val eth_protocolVersion = new JsonDecoder[ProtocolVersionRequest] with JsonEncoder[ProtocolVersionResponse] {
@@ -93,7 +94,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetTransactionByBlockHashAndIndexRequest] = params match {
         case Some(JArray((blockHash: JString) :: (transactionIndex: JString) :: Nil)) =>
           for {
-            parsedBlockHash <- tryExtractUnformattedData(blockHash)
+            parsedBlockHash <- tryExtractBlockHash(blockHash)
             parsedTransactionIndex <- tryExtractQuantity(transactionIndex)
           } yield GetTransactionByBlockHashAndIndexRequest(parsedBlockHash, parsedTransactionIndex)
         case _ => Left(InvalidParams())
@@ -174,6 +175,60 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
         value = value.getOrElse(0),
         data = data.getOrElse(ByteString("")))
     }
-
   }
+
+  implicit val eth_getCode = new JsonDecoder[GetCodeRequest] with JsonEncoder[GetCodeResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetCodeRequest] =
+      params match {
+        case Some(JArray((address: JString) :: (blockStr: JString) :: Nil)) =>
+          for {
+            addr <- tryExtractAddress(address)
+            block <- tryExtractBlockParam(blockStr)
+          } yield GetCodeRequest(addr, block)
+        case _ => Left(InvalidParams())
+      }
+
+    def encodeJson(t: GetCodeResponse): JValue = encodeAsHex(t.result)
+  }
+
+  implicit val eth_getUncleCountByBlockNumber = new JsonDecoder[GetUncleCountByBlockNumberRequest] with JsonEncoder[GetUncleCountByBlockNumberResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetUncleCountByBlockNumberRequest] =
+      params match {
+        case Some(JArray((blockStr: JString) :: Nil)) =>
+          for {
+            block <- tryExtractBlockParam(blockStr)
+          } yield GetUncleCountByBlockNumberRequest(block)
+        case _ => Left(InvalidParams())
+      }
+
+    def encodeJson(t: GetUncleCountByBlockNumberResponse): JValue = encodeAsHex(t.result)
+  }
+
+  implicit val eth_getUncleCountByBlockHash = new JsonDecoder[GetUncleCountByBlockHashRequest] with JsonEncoder[GetUncleCountByBlockHashResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetUncleCountByBlockHashRequest] =
+      params match {
+        case Some(JArray((blockHashStr: JString) :: Nil)) =>
+          for {
+            blockHash <- tryExtractBlockHash(blockHashStr)
+          } yield GetUncleCountByBlockHashRequest(blockHash)
+        case _ => Left(InvalidParams())
+      }
+
+    def encodeJson(t: GetUncleCountByBlockHashResponse): JValue = encodeAsHex(t.result)
+  }
+
+  implicit val eth_getBlockTransactionCountByNumber = new JsonDecoder[GetBlockTransactionCountByNumberRequest] with
+    JsonEncoder[GetBlockTransactionCountByNumberResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetBlockTransactionCountByNumberRequest] =
+      params match {
+        case Some(JArray((blockStr: JString) :: Nil)) =>
+          for {
+            block <- tryExtractBlockParam(blockStr)
+          } yield GetBlockTransactionCountByNumberRequest(block)
+        case _ => Left(InvalidParams())
+      }
+
+    def encodeJson(t: GetBlockTransactionCountByNumberResponse): JValue = encodeAsHex(t.result)
+  }
+
 }

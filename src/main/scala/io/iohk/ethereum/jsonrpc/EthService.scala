@@ -2,7 +2,6 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.pattern.ask
 import akka.util.Timeout
-
 import io.iohk.ethereum.domain._
 import akka.actor.ActorRef
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
@@ -13,18 +12,19 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.Ledger
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils.MiningConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactions
 import io.iohk.ethereum.ommers.OmmersPool
+import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-
+// scalastyle:off number.of.methods number.of.types
 object EthService {
 
   val CurrentProtocolVersion = 63
@@ -80,6 +80,18 @@ object EthService {
     data: ByteString)
   case class CallRequest(tx: CallTx, block: BlockParam)
   case class CallResponse(returnData: ByteString)
+
+  case class GetCodeRequest(address: ByteString, block: BlockParam)
+  case class GetCodeResponse(result: ByteString)
+
+  case class GetUncleCountByBlockNumberRequest(block: BlockParam)
+  case class GetUncleCountByBlockNumberResponse(result: BigInt)
+
+  case class GetUncleCountByBlockHashRequest(blockHash: ByteString)
+  case class GetUncleCountByBlockHashResponse(result: BigInt)
+
+  case class GetBlockTransactionCountByNumberRequest(block: BlockParam)
+  case class GetBlockTransactionCountByNumberResponse(result: BigInt)
 }
 
 class EthService(
@@ -266,6 +278,42 @@ class EthService(
       resolveBlock(req.block).map { block =>
         val txResult = ledger.simulateTransaction(stx, block.header, blockchainStorages)
         CallResponse(txResult.vmReturnData)
+      }
+    }
+  }
+
+  def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
+    Future.successful {
+      resolveBlock(req.block).map { block =>
+        val world = InMemoryWorldStateProxy(blockchainStorages, Some(block.header.stateRoot))
+        GetCodeResponse(world.getCode(Address(req.address)))
+      }
+    }
+  }
+
+  def getUncleCountByBlockNumber(req: GetUncleCountByBlockNumberRequest): ServiceResponse[GetUncleCountByBlockNumberResponse] = {
+    Future.successful {
+      resolveBlock(req.block).map { block =>
+        GetUncleCountByBlockNumberResponse(block.body.uncleNodesList.size)
+      }
+    }
+  }
+
+  def getUncleCountByBlockHash(req: GetUncleCountByBlockHashRequest): ServiceResponse[GetUncleCountByBlockHashResponse] = {
+    Future.successful {
+      blockchain.getBlockBodyByHash(req.blockHash) match {
+        case Some(blockBody) =>
+          Right(GetUncleCountByBlockHashResponse(blockBody.uncleNodesList.size))
+        case None =>
+          Left(JsonRpcErrors.InvalidParams(s"Block with hash ${Hex.toHexString(req.blockHash.toArray[Byte])} not found"))
+      }
+    }
+  }
+
+  def getBlockTransactionCountByNumber(req: GetBlockTransactionCountByNumberRequest): ServiceResponse[GetBlockTransactionCountByNumberResponse] = {
+    Future.successful {
+      resolveBlock(req.block).map { block =>
+        GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
       }
     }
   }
