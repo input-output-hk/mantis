@@ -15,6 +15,7 @@ import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.vm.UInt256
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -87,6 +88,15 @@ object EthService {
 
   case class GetBlockTransactionCountByNumberRequest(block: BlockParam)
   case class GetBlockTransactionCountByNumberResponse(result: BigInt)
+
+  case class GetBalanceRequest(address: ByteString, block: BlockParam)
+  case class GetBalanceResponse(value: BigInt)
+
+  case class GetStorageAtRequest(address: ByteString, position: BigInt, block: BlockParam)
+  case class GetStorageAtResponse(value: ByteString)
+
+  case class GetTransactionCountRequest(address: ByteString, block: BlockParam)
+  case class GetTransactionCountResponse(value: BigInt)
 }
 
 class EthService(
@@ -278,8 +288,7 @@ class EthService(
 
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Future.successful {
-      resolveBlock(req.block).map { block =>
-        val world = InMemoryWorldStateProxy(blockchainStorages, Some(block.header.stateRoot))
+      withWorld(req.block) { world =>
         GetCodeResponse(world.getCode(Address(req.address)))
       }
     }
@@ -309,6 +318,37 @@ class EthService(
       resolveBlock(req.block).map { block =>
         GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
       }
+    }
+  }
+
+  def getBalance(req: GetBalanceRequest): ServiceResponse[GetBalanceResponse] = {
+    Future.successful {
+      withWorld(req.block) { world =>
+        GetBalanceResponse(world.getBalance(Address(req.address)))
+      }
+    }
+  }
+
+  def getStorageAt(req: GetStorageAtRequest): ServiceResponse[GetStorageAtResponse] = {
+    Future.successful {
+      withWorld(req.block) { world =>
+        GetStorageAtResponse(world.getStorage(Address(req.address)).load(UInt256(req.position)).bytes)
+      }
+    }
+  }
+
+  def getTransactionCount(req: GetTransactionCountRequest): ServiceResponse[GetTransactionCountResponse] = {
+    Future.successful {
+      resolveBlock(req.block).map { block =>
+        GetTransactionCountResponse(block.body.transactionList.size)
+      }
+    }
+  }
+
+  private def withWorld[T](blockParam: BlockParam)(f: InMemoryWorldStateProxy => T): Either[JsonRpcError, T] = {
+    resolveBlock(blockParam).map { block =>
+      val world = InMemoryWorldStateProxy(blockchainStorages, Some(block.header.stateRoot))
+      f(world)
     }
   }
 
