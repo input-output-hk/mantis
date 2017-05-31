@@ -128,18 +128,19 @@ trait RegularSync {
         //we have same chain prefix
         if (parent.hash == headers.head.parentHash) {
 
-          val oldBlocks: Seq[Option[(BlockBody, BigInt)]] = headersQueue.map(_.number)
+          val oldBlocks: Seq[(BlockBody, BigInt)] = headersQueue.map(_.number)
             .map(blockNumber => blockchain.getBlockByNumber(blockNumber))
-            .map{_.map{b => (b.body, b.header.difficulty)}}
+            .collect { case Some(b) => b }
+            .map{b => (b.body, b.header.difficulty)}
 
-          val currentBranchTotalDifficulty: BigInt = oldBlocks.collect {
-            case Some((_, difficulty)) => difficulty
+          val currentBranchTotalDifficulty: BigInt = oldBlocks.map {
+            case (_, difficulty) => difficulty
           }.sum
 
           val newBranchTotalDifficulty = headersQueue.map(_.difficulty).sum
 
           if (currentBranchTotalDifficulty < newBranchTotalDifficulty) {
-            val transactionsToAdd = oldBlocks.collect{case Some((blockBody,_)) => blockBody.transactionList}.flatten
+            val transactionsToAdd = oldBlocks.collect { case (blockBody, _) => blockBody.transactionList }.flatten
             actors.pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toList)
             val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
             waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, actors.peerMessageBus, hashes)))

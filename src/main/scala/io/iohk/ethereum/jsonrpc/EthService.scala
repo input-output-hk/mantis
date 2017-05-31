@@ -16,14 +16,11 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.BlockGenerator
-import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactions
 
 import scala.concurrent.Future
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 
@@ -191,7 +188,7 @@ class EthService(
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
 
     import scala.concurrent.ExecutionContext.Implicits.global
-    implicit val timeout = Timeout(5 seconds)
+    implicit val timeout = Timeout(5.seconds)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
       .mapTo[PendingTransactions]
