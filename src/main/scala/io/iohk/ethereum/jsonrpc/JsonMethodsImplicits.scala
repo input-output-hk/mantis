@@ -33,10 +33,10 @@ trait JsonMethodsImplicits {
     tryExtractUnformattedData(input.values)
 
   protected def tryExtractAddress(input: JString): Either[JsonRpcError, ByteString] =
-    tryExtractUnformattedData(input, AddressLength, s"Invalid length for address ${input.values}, expected 40 bytes")
+    tryExtractUnformattedData(input, AddressLength, s"Invalid length for address ${input.values}, expected $AddressLength bytes")
 
   protected def tryExtractBlockHash(input: JString): Either[JsonRpcError, ByteString] =
-    tryExtractUnformattedData(input, BlockHashLength, s"Invalid length for block hash ${input.values}, expected 32 bytes")
+    tryExtractUnformattedData(input, BlockHashLength, s"Invalid length for block hash ${input.values}, expected $BlockHashLength bytes")
 
   protected def tryExtractUnformattedData(input: JString, requiredLength: Int, errorMsg: String): Either[JsonRpcError, ByteString] =
     tryExtractUnformattedData(input.values) match {
