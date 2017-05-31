@@ -18,7 +18,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.Await
 import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
 import io.iohk.ethereum.keystore.KeyStore
@@ -29,6 +29,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.Validators
 import org.scalamock.scalatest.MockFactory
 import org.spongycastle.util.encoders.Hex
+import scala.concurrent.duration._
 
 class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockFactory with DefaultPatience {
 
@@ -296,6 +297,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val blockCasheSize: Int = 30
       override val ommersPoolSize: Int = 30
       override val txPoolSize: Int = 30
+      override val poolingServicesTimeout: FiniteDuration = 3.seconds
     }
 
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,

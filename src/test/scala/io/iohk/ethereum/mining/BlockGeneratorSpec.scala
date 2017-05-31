@@ -15,7 +15,10 @@ import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
+import org.spongycastle.crypto.params.ECPublicKeyParameters
+
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with Logger {
 
@@ -104,6 +107,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val blockCasheSize: Int = 30
       override val ommersPoolSize: Int = 30
       override val txPoolSize: Int = 30
+      override val poolingServicesTimeout: FiniteDuration = 3.seconds
     }
 
     val blockGenerator = new BlockGenerator(blockchainStorages.storages, blockchainConfig, miningConfig, ledger, validators)

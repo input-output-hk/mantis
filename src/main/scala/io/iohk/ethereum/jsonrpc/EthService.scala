@@ -3,7 +3,6 @@ package io.iohk.ethereum.jsonrpc
 import akka.pattern.ask
 import akka.util.Timeout
 
-import scala.concurrent.duration._
 import io.iohk.ethereum.domain._
 import akka.actor.ActorRef
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
@@ -16,7 +15,7 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.BlockGenerator
-import io.iohk.ethereum.utils.{Logger, MiningConfig}
+import io.iohk.ethereum.utils.MiningConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactions
@@ -192,7 +191,7 @@ class EthService(
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
 
     import scala.concurrent.ExecutionContext.Implicits.global
-    implicit val timeout = Timeout(3.seconds)
+    implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
 
     Future.sequence(Seq(
       (ommersPool ? OmmersPool.GetOmmers).mapTo[OmmersPool.Ommers]

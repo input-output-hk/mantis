@@ -34,6 +34,7 @@ import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 
 class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience with Eventually {
 
@@ -475,6 +476,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       override val blockCasheSize: Int = 30
       override val ommersPoolSize: Int = 30
       override val txPoolSize: Int = 30
+      override val poolingServicesTimeout: FiniteDuration = 3.seconds
     }
 
 
