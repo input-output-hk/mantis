@@ -7,7 +7,7 @@ import io.iohk.ethereum.{DefaultPatience, Fixtures, crypto}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import org.scalatest.concurrent.ScalaFutures
@@ -15,12 +15,13 @@ import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.Validators
 import org.scalamock.scalatest.MockFactory
@@ -264,6 +265,40 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val response = ethService.call(CallRequest(tx, BlockParam.Latest))
 
     response.futureValue shouldEqual Right(CallResponse(ByteString("return_value")))
+  }
+
+  it should "get uncle count by block number" in new TestSetup {
+    blockchain.save(blockToRequest)
+    (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
+
+    val response = ethService.getUncleCountByBlockNumber(GetUncleCountByBlockNumberRequest(BlockParam.Latest))
+
+    response.futureValue shouldEqual Right(GetUncleCountByBlockNumberResponse(blockToRequest.body.uncleNodesList.size))
+  }
+
+  it should "get uncle count by block hash" in new TestSetup {
+    blockchain.save(blockToRequest)
+
+    val response = ethService.getUncleCountByBlockHash(GetUncleCountByBlockHashRequest(blockToRequest.header.hash))
+
+    response.futureValue shouldEqual Right(GetUncleCountByBlockHashResponse(blockToRequest.body.uncleNodesList.size))
+  }
+
+  it should "get transaction count by block number" in new TestSetup {
+    blockchain.save(blockToRequest)
+
+    val response = ethService.getBlockTransactionCountByNumber(GetBlockTransactionCountByNumberRequest(BlockParam.WithNumber(blockToRequest.header.number)))
+
+    response.futureValue shouldEqual Right(GetBlockTransactionCountByNumberResponse(blockToRequest.body.transactionList.size))
+  }
+
+  it should "get transaction count by latest block number" in new TestSetup {
+    blockchain.save(blockToRequest)
+    (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
+
+    val response = ethService.getBlockTransactionCountByNumber(GetBlockTransactionCountByNumberRequest(BlockParam.Latest))
+
+    response.futureValue shouldEqual Right(GetBlockTransactionCountByNumberResponse(blockToRequest.body.transactionList.size))
   }
 
   trait TestSetup extends MockFactory {
