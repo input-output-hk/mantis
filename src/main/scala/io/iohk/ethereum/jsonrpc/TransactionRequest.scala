@@ -12,11 +12,14 @@ case class TransactionRequest(
   nonce: Option[BigInt] = None,
   data: Option[ByteString] = None) {
 
+  private val defaultGasPrice: BigInt = 2 * BigInt(10).pow(10)
+  private val defaultGasLimit: BigInt = 90000
+
   def toTransaction(defaultNonce: BigInt): Transaction =
     Transaction(
       nonce = nonce.getOrElse(defaultNonce),
-      gasPrice = gasPrice.getOrElse(2 * BigInt(10).pow(10)),
-      gasLimit = gasLimit.getOrElse(BigInt(90000)),
+      gasPrice = gasPrice.getOrElse(defaultGasPrice),
+      gasLimit = gasLimit.getOrElse(defaultGasLimit),
       receivingAddress = to,
       value = value.getOrElse(BigInt(0)),
       payload = data.getOrElse(ByteString.empty)
