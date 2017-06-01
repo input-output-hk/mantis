@@ -256,12 +256,11 @@ trait SyncControllerBuilder {
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       validators,
-      DependencyActors(
-        peerManager,
-        peerMessageBus,
-        pendingTransactionsManager,
-        ommersPool
-      )),
+      peerManager,
+      peerMessageBus,
+      pendingTransactionsManager,
+      ommersPool
+      ),
     "sync-controller")
 
 }

@@ -16,7 +16,6 @@ trait FastSync {
 
   import FastSync._
   import SyncController._
-  import actors._
 
   def startFastSync(): Unit = {
     log.info("Starting fast sync")

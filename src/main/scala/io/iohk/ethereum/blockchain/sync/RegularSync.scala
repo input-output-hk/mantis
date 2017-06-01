@@ -25,7 +25,6 @@ trait RegularSync {
   private var waitingForActor: Option[ActorRef] = None
 
   import Config.FastSync._
-  import actors._
 
   def startRegularSync(): Unit = {
     log.info("Starting regular sync")
@@ -135,17 +134,9 @@ trait RegularSync {
         //we have same chain prefix
         if (parent.hash == headers.head.parentHash) {
 
-          var oldBranch: Seq[Option[Block]] = Nil
-
-          headersQueue.map(_.number)
-            .takeWhile { blockNumber =>
-              val block = blockchain.getBlockByNumber(blockNumber)
-              oldBranch = oldBranch :+ block
-              block.isDefined
-            }
+          val oldBranch: Seq[Block] = getOldBlocks(headersQueue)
 
           val oldBlocks: Seq[(BlockBody, BigInt)] = oldBranch
-            .flatten
             .map{b => (b.body, b.header.difficulty)}
 
           val currentBranchTotalDifficulty: BigInt = oldBlocks.map {
@@ -160,7 +151,7 @@ trait RegularSync {
             val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
             waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, hashes)))
             //add first block from branch as ommer
-            oldBranch.headOption.flatten.foreach { h => ommersPool ! AddOmmers(h.header) }
+            oldBranch.headOption.foreach { h => ommersPool ! AddOmmers(h.header) }
           } else {
             //add first block from branch as ommer
             headersQueue.headOption.foreach { h => ommersPool ! AddOmmers(h) }
@@ -174,6 +165,13 @@ trait RegularSync {
         log.warning("got header that does not have parent")
         resumeWithDifferentPeer(peer)
     }
+  }
+
+  def getOldBlocks(headers: Seq[BlockHeader]): List[Block] = headers match {
+    case h :: tail =>
+      blockchain.getBlockByNumber(h.number).map(_ :: getOldBlocks(tail)).getOrElse(Nil)
+    case Nil =>
+      Nil
   }
 
   private def handleBlockBodies(peer: Peer, m: Seq[BlockBody]) = {
