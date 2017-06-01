@@ -276,6 +276,34 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(CallResponse(ByteString("return_value")))
   }
 
+  it should "accept and report hashrate" in new TestSetup {
+    val rate: BigInt = 42
+    val id = ByteString("id")
+
+    ethService.submitHashRate(SubmitHashRateRequest(12, id)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
+    ethService.submitHashRate(SubmitHashRateRequest(rate, id)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
+
+    val response = ethService.getHashRate(GetHashRateRequest())
+    response.futureValue shouldEqual Right(GetHashRateResponse(rate))
+  }
+
+  it should "combine hashrates from many miners and remove timed out rates" in new TestSetup {
+    val rate: BigInt = 42
+    val id1 = ByteString("id1")
+    val id2 = ByteString("id2")
+
+    ethService.submitHashRate(SubmitHashRateRequest(rate, id1)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
+    Thread.sleep(2.seconds.toMillis)
+    ethService.submitHashRate(SubmitHashRateRequest(rate, id2)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
+
+    val response1 = ethService.getHashRate(GetHashRateRequest())
+    response1.futureValue shouldEqual Right(GetHashRateResponse(rate * 2))
+
+    Thread.sleep(4.seconds.toMillis)
+    val response2 = ethService.getHashRate(GetHashRateRequest())
+    response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
+  }
+
   trait TestSetup extends MockFactory {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
