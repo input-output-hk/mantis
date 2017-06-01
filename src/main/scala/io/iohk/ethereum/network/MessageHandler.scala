@@ -1,8 +1,8 @@
 package io.iohk.ethereum.network
 
-import io.iohk.ethereum.network.MessageHandler.HandshakeResult
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.MessageHandler._
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 
 trait MessageHandler[R <: HandshakeResult, I <: PeerInfo] {
 
@@ -37,9 +37,6 @@ object MessageHandler {
     case object TransmitMessage extends MessageAction
     case object IgnoreMessage extends MessageAction
   }
-
-  //FIXME: Defined in the handshaker on PR 185
-  trait HandshakeResult
 
   trait PeerInfo
 

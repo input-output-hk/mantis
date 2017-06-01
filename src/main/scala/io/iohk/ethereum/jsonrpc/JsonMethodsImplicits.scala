@@ -47,6 +47,9 @@ trait JsonMethodsImplicits {
   protected def extractBytes(input: JString): Either[JsonRpcError, ByteString] =
     extractBytes(input.s)
 
+  protected def extractHash(input: String): Either[JsonRpcError, ByteString] =
+    extractBytes(input).filterOrElse(_.length == 32, InvalidParams(s"Invalid value [$input], expected 32 bytes"))
+
   protected def extractQuantity(input: JValue): Either[JsonRpcError, BigInt] =
     input match {
       case JInt(n) =>
