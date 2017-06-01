@@ -8,10 +8,12 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import scala.concurrent.ExecutionContext
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -288,8 +290,8 @@ class EthService(
 
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Future.successful {
-      withWorld(req.block) { world =>
-        GetCodeResponse(world.getCode(Address(req.address)))
+      withAccount(Address(req.address), req.block) { account =>
+        GetCodeResponse(blockchainStorages.evmCodeStorage.get(account.codeHash).getOrElse(ByteString()))
       }
     }
   }
@@ -323,32 +325,55 @@ class EthService(
 
   def getBalance(req: GetBalanceRequest): ServiceResponse[GetBalanceResponse] = {
     Future.successful {
-      withWorld(req.block) { world =>
-        GetBalanceResponse(world.getBalance(Address(req.address)))
+      withAccount(Address(req.address), req.block) { account =>
+        GetBalanceResponse(account.balance)
       }
     }
   }
 
   def getStorageAt(req: GetStorageAtRequest): ServiceResponse[GetStorageAtResponse] = {
+    import io.iohk.ethereum.rlp.UInt256RLPImplicits._
+
+    val byteArrayUInt256Serializer = new ByteArrayEncoder[UInt256] {
+      override def toBytes(input: UInt256): Array[Byte] = input.bytes.toArray[Byte]
+    }
+
+    val rlpUInt256Serializer = new ByteArraySerializable[UInt256] {
+      override def fromBytes(bytes: Array[Byte]): UInt256 = ByteString(bytes).toUInt256
+      override def toBytes(input: UInt256): Array[Byte] = input.toBytes
+    }
+
     Future.successful {
-      withWorld(req.block) { world =>
-        GetStorageAtResponse(world.getStorage(Address(req.address)).load(UInt256(req.position)).bytes)
+      withAccount(Address(req.address), req.block) { account =>
+        val storageMpt =
+          MerklePatriciaTrie[UInt256, UInt256](account.storageRoot.toArray[Byte],
+            blockchainStorages.nodeStorage, crypto.kec256(_: Array[Byte]))(HashByteArraySerializable(byteArrayUInt256Serializer), rlpUInt256Serializer)
+        GetStorageAtResponse(storageMpt.get(UInt256(req.position)).getOrElse(UInt256(0)).bytes)
       }
     }
   }
 
   def getTransactionCount(req: GetTransactionCountRequest): ServiceResponse[GetTransactionCountResponse] = {
     Future.successful {
-      resolveBlock(req.block).map { block =>
-        GetTransactionCountResponse(block.body.transactionList.size)
+      withAccount(Address(req.address), req.block) { account =>
+        GetTransactionCountResponse(account.nonce)
       }
     }
   }
 
-  private def withWorld[T](blockParam: BlockParam)(f: InMemoryWorldStateProxy => T): Either[JsonRpcError, T] = {
+  private def withAccount[T](address: Address, blockParam: BlockParam)(f: Account => T): Either[JsonRpcError, T] = {
+    withStateMpt(blockParam) { stateMpt =>
+      val account = stateMpt.get(kec256(address.toArray)).getOrElse(Account.Empty)
+      f(account)
+    }
+  }
+
+  private def withStateMpt[T](blockParam: BlockParam)(f: MerklePatriciaTrie[Array[Byte], Account] => T): Either[JsonRpcError, T] = {
+    import MerklePatriciaTrie.defaultByteArraySerializable
     resolveBlock(blockParam).map { block =>
-      val world = InMemoryWorldStateProxy(blockchainStorages, Some(block.header.stateRoot))
-      f(world)
+      val stateMpt = MerklePatriciaTrie[Array[Byte], Account](block.header.stateRoot.toArray[Byte],
+        blockchainStorages.nodeStorage, (input: Array[Byte]) => crypto.kec256(input))
+      f(stateMpt)
     }
   }
 
