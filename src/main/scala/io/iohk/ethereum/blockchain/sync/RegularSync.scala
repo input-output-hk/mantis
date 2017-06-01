@@ -135,18 +135,12 @@ trait RegularSync {
         if (parent.hash == headers.head.parentHash) {
 
           val oldBranch: Seq[Block] = getOldBlocks(headersQueue)
-
-          val oldBlocks: Seq[(BlockBody, BigInt)] = oldBranch
-            .map{b => (b.body, b.header.difficulty)}
-
-          val currentBranchTotalDifficulty: BigInt = oldBlocks.map {
-            case (_, difficulty) => difficulty
-          }.sum
+          val currentBranchTotalDifficulty: BigInt = oldBranch.map(_.header.difficulty).sum
 
           val newBranchTotalDifficulty = headersQueue.map(_.difficulty).sum
 
           if (currentBranchTotalDifficulty < newBranchTotalDifficulty) {
-            val transactionsToAdd = oldBlocks.collect { case (blockBody, _) => blockBody.transactionList }.flatten
+            val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
             pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toList)
             val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
             waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, hashes)))
