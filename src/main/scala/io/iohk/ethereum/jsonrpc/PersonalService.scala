@@ -116,9 +116,7 @@ class PersonalService(
   }
 
   private def getCurrentAccount(address: Address): Option[Account] =
-    blockchain.getBlockHeaderByNumber(appStateStorage.getBestBlockNumber()).flatMap { bestBlockHeader =>
-      InMemoryWorldStateProxy(blockchainStorages, Some(bestBlockHeader.hash)).getAccount(address)
-    }
+    blockchain.getAccount(address, appStateStorage.getBestBlockNumber())
 
 
   private val handleError: PartialFunction[KeyStore.KeyStoreError, JsonRpcError] = {

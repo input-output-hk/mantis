@@ -78,11 +78,12 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     res shouldEqual Right(UnlockAccountResponse(true))
   }
 
-  it should "send a transaction (given sender address and a passphrase)" ignore new TestSetup {
+  it should "send a transaction (given sender address and a passphrase)" in new TestSetup {
     (keyStore.unlockAccount _ ).expects(address, passphrase)
       .returning(Right(wallet))
 
-    //(blockchain.getAccount _).expects(address).returning(Some(Account(nonce, 2 * txValue)))
+    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).futureValue
@@ -102,13 +103,14 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     txPool.expectNoMsg()
   }
 
-  it should "send a transaction (given sender address and using an unlocked account)" ignore new TestSetup {
+  it should "send a transaction (given sender address and using an unlocked account)" in new TestSetup {
     (keyStore.unlockAccount _ ).expects(address, passphrase)
       .returning(Right(wallet))
 
     personal.unlockAccount(UnlockAccountRequest(address, passphrase)).futureValue
 
-    //(blockchain.getAccount _).expects(address).returning(Some(Account(nonce, 2 * txValue)))
+    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
 
     val req = SendTransactionRequest(tx)
     val res = personal.sendTransaction(req).futureValue

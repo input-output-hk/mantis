@@ -1,6 +1,7 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+import io.iohk.ethereum.mpt.ByteArraySerializable
 import io.iohk.ethereum.vm.UInt256
 import io.iohk.ethereum.utils.ByteUtils.padLeft
 import org.spongycastle.util.encoders.Hex
@@ -8,6 +9,13 @@ import org.spongycastle.util.encoders.Hex
 object Address {
 
   val Length = 20
+
+  implicit val addressSerializer = new ByteArraySerializable[Address] {
+
+    override def fromBytes(bytes: Array[Byte]): Address = Address(bytes)
+
+    override def toBytes(addr: Address): Array[Byte] = addr.toArray
+  }
 
   def apply(bytes: ByteString): Address = {
     val truncated = bytes.takeRight(Length)
