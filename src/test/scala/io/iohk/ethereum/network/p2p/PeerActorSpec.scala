@@ -13,12 +13,14 @@ import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.Mocks.MockMessageHandler
-import io.iohk.ethereum.crypto
+import io.iohk.ethereum.{Fixtures, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.{ForkResolver, MessageHandler, Peer, PeerActor, PeerMessageBusActor}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
@@ -61,19 +63,18 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgClass(classOf[Terminated])
   }
 
-  it should "try to reconnect on broken rlpx connection" in new NodeStatusSetup {
+  it should "try to reconnect on broken rlpx connection" in new NodeStatusSetup with HandshakerSetup {
     implicit val system = ActorSystem("PeerActorSpec_System")
 
     val time = new VirtualTime
 
     val peerMessageBus = system.actorOf(PeerMessageBusActor.props)
     var rlpxConnection = TestProbe() // var as we actually need new instances
-    val peer = TestActorRef(Props(new PeerActor(new InetSocketAddress("127.0.0.1", 0), nodeStatusHolder, _ => {
+    val peer = TestActorRef(Props(new PeerActor(new InetSocketAddress("127.0.0.1", 0), _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }, peerConf, storagesInstance.storages.appStateStorage, blockchain, peerMessageBus, Some(time.scheduler),
-        Some(new ForkResolver.EtcForkResolver(blockchainConfig)),
-        messageHandlerBuilder)))
+      }, peerConf, peerMessageBus, Some(time.scheduler),
+      handshaker, messageHandlerBuilder)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -96,6 +97,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
 
+    //Hello exchange
     val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
@@ -107,16 +109,15 @@ class PeerActorSpec extends FlatSpec with Matchers {
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
 
+    //Node status exchange
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
 
+    //Fork block exchange
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(etcForkBlockHeader))))
 
-    // ask for highest block
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
-    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)))
-
+    //Check that peer is connected
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(Ping()))
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Pong()))
   }
@@ -193,6 +194,37 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsg(5.seconds, RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage)))
   }
 
+  it should "respond to fork block request during the handshake" in new TestSetup {
+    //Save dao fork block
+    blockchain.save(Fixtures.Blocks.DaoForkBlock.header)
+
+    //Handshake till EtcForkBlockExchangeState
+    peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
+
+    rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
+
+    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
+
+    val remoteStatus = Status(
+      protocolVersion = Versions.PV63,
+      networkId = 0,
+      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      bestHash = ByteString("blockhash"),
+      genesisHash = genesisHash)
+
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
+
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
+
+    //Request dao fork block from the peer
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(GetBlockHeaders(Left(daoForkBlockNumber), 1, 0, false)))
+    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(BlockHeaders(Seq(Fixtures.Blocks.DaoForkBlock.header))))
+  }
+
   it should "stash disconnect message until handshaked" in new TestSetup {
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
     peer ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
@@ -216,10 +248,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(etcForkBlockHeader))))
-
-    // ask for highest block
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
-    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Nil)))
 
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TooManyPeers)))
   }
@@ -304,6 +332,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
         val maxReceiptsPerMessage: Int = 200
         val maxMptComponentsPerMessage: Int = 200
       }
+      override val waitForHelloTimeout: FiniteDuration = 3 seconds
       override val waitForStatusTimeout: FiniteDuration = 30 seconds
       override val waitForChainCheckTimeout: FiniteDuration = 15 seconds
       override val connectMaxRetries: Int = 3
@@ -318,7 +347,19 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
   }
 
-  trait TestSetup extends NodeStatusSetup with BlockUtils {
+  trait HandshakerSetup extends NodeStatusSetup {
+    val handshakerConfiguration = new EtcHandshakerConfiguration {
+      override val forkResolverOpt: Option[ForkResolver] = Some(new ForkResolver.EtcForkResolver(blockchainConfig))
+      override val nodeStatusHolder: Agent[NodeStatus] = HandshakerSetup.this.nodeStatusHolder
+      override val peerConfiguration: PeerConfiguration = HandshakerSetup.this.peerConf
+      override val blockchain: Blockchain = HandshakerSetup.this.blockchain
+      override val appStateStorage: AppStateStorage = HandshakerSetup.this.storagesInstance.storages.appStateStorage
+    }
+
+    val handshaker = EtcHandshaker(handshakerConfiguration)
+  }
+
+  trait TestSetup extends NodeStatusSetup with BlockUtils with HandshakerSetup {
 
     val genesisHash = ByteString(Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"))
 
@@ -360,14 +401,11 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val peer = TestActorRef(Props(new PeerActor(
       new InetSocketAddress("127.0.0.1", 0),
-      nodeStatusHolder,
       _ => rlpxConnection.ref,
       peerConf,
-      storagesInstance.storages.appStateStorage,
-      blockchain,
       peerMessageBus,
       Some(time.scheduler),
-      Some(new ForkResolver.EtcForkResolver(blockchainConfig)),
+      handshaker,
       messageHandlerBuilder = messageHandlerBuilder)))
   }
 
