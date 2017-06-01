@@ -107,13 +107,13 @@ trait PeerManagerActorBuilder {
   lazy val peerConfiguration = Config.Network.peer
 
   lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props(
-    nodeStatusHolder,
-    Config.Network.peer,
-    storagesInstance.storages.appStateStorage,
-    blockchain,
-    peerEventBus,
-    forkResolverOpt,
-    handshaker), "peer-manager")
+    nodeStatusHolder = nodeStatusHolder,
+    peerConfiguration = Config.Network.peer,
+    appStateStorage = storagesInstance.storages.appStateStorage,
+    blockchain = blockchain,
+    peerEventBus = peerEventBus,
+    forkResolverOpt = forkResolverOpt,
+    handshaker = handshaker), "peer-manager")
 
 }
 

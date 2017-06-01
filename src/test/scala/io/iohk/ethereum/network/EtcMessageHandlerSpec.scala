@@ -508,7 +508,7 @@ class EtcMessageHandlerSpec extends FlatSpec with Matchers {
     )
     val peerEventBus = TestProbe()
     val peerProbe = TestProbe()
-    val peer = PeerImpl(new InetSocketAddress("127.0.0.1", 0), peerProbe.ref, peerEventBus.ref)
+    val peer = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peerProbe.ref, peerEventBus.ref)
 
     val initialMsgHandler = EtcMessageHandler(peer, initialPeerInfo, Some(forkResolver),
       storagesInstance.storages.appStateStorage, peerConf, blockchain)

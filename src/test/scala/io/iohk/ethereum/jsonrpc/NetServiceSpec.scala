@@ -24,9 +24,9 @@ class NetServiceSpec extends FlatSpec with Matchers with MockFactory {
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(PeerManagerActor.Peers(Map(
-      PeerImpl(new InetSocketAddress(1), testRef, peerEventBus.ref) -> PeerActor.Status.Handshaked(mock[Status], true, 0),
-      PeerImpl(new InetSocketAddress(2), testRef, peerEventBus.ref) -> PeerActor.Status.Handshaked(mock[Status], true, 0),
-      PeerImpl(new InetSocketAddress(3), testRef, peerEventBus.ref) -> PeerActor.Status.Connecting)))
+      new PeerImpl(new InetSocketAddress(1), testRef, peerEventBus.ref) -> PeerActor.Status.Handshaked(mock[Status], true, 0),
+      new PeerImpl(new InetSocketAddress(2), testRef, peerEventBus.ref) -> PeerActor.Status.Handshaked(mock[Status], true, 0),
+      new PeerImpl(new InetSocketAddress(3), testRef, peerEventBus.ref) -> PeerActor.Status.Connecting)))
 
     Await.result(resF, 3.seconds) shouldBe Right(PeerCountResponse(2))
   }

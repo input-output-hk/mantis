@@ -16,7 +16,8 @@ import akka.actor._
 import akka.agent.Agent
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish}
+import io.iohk.ethereum.network.PeerActor.ConnectionRequest
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
@@ -25,7 +26,7 @@ import scala.util.{Failure, Success}
 class PeerManagerActor(
     peerConfiguration: PeerConfiguration,
     peerEventBus: ActorRef,
-    peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
+    peerFactory: (ActorContext, InetSocketAddress, ConnectionRequest) => Peer,
     externalSchedulerOpt: Option[Scheduler] = None,
     bootstrapNodes: Set[String] = Config.Network.Discovery.bootstrapNodes)
   extends Actor with ActorLogging with Stash {
@@ -34,7 +35,7 @@ class PeerManagerActor(
   import PeerManagerActor._
   import Config.Network.Discovery._
 
-  var peers: Map[PeerId, PeerImpl] = Map.empty
+  var peers: Map[PeerId, Peer] = Map.empty
 
   private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
@@ -76,10 +77,8 @@ class PeerManagerActor(
     case GetPeers =>
       getPeers().pipeTo(sender())
 
-    case Terminated(ref) =>
-      val peerId = PeerId(ref.path.name)
+    case PeerDisconnected(peerId) =>
       peers -= peerId
-      peerEventBus ! Publish(PeerEvent.PeerDisconnected(peerId))
 
   }
 
@@ -89,22 +88,19 @@ class PeerManagerActor(
 
     case (HandlePeerConnection(connection, remoteAddress), Success(_)) =>
       context.unbecome()
-      val peer = createPeer(remoteAddress)
-      peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
+      createPeer(remoteAddress, PeerActor.HandleConnection(connection))
       unstashAll()
 
     case (HandlePeerConnection(connection, remoteAddress), Failure(_)) =>
       log.info("Maximum number of connected peers reached. Peer {} will be disconnected.", remoteAddress)
       context.unbecome()
-      val peer = createPeer(remoteAddress)
-      peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
-      peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
+      val peer = createPeer(remoteAddress, PeerActor.HandleConnection(connection))
+      peer.disconnectFromPeer(Disconnect.Reasons.TooManyPeers)
       unstashAll()
 
     case (ConnectToPeer(uri), Success(_)) =>
       context.unbecome()
-      val peer = createPeer(new InetSocketAddress(uri.getHost, uri.getPort))
-      peer.ref ! PeerActor.ConnectTo(uri)
+      val peer = createPeer(new InetSocketAddress(uri.getHost, uri.getPort), PeerActor.ConnectTo(uri))
       unstashAll()
 
     case (ConnectToPeer(uri), Failure(_)) =>
@@ -113,10 +109,9 @@ class PeerManagerActor(
       unstashAll()
   }
 
-  def createPeer(addr: InetSocketAddress): PeerImpl = {
-    val ref = peerFactory(context, addr)
-    context watch ref
-    val peer = PeerImpl(addr, ref, peerEventBus)
+  def createPeer(addr: InetSocketAddress, req: ConnectionRequest): Peer = {
+    val peer = peerFactory(context, addr, req)
+    peer.subscribeToDisconnect()
     peers += peer.id -> peer
     peer
   }
@@ -125,9 +120,8 @@ class PeerManagerActor(
     implicit val timeout = Timeout(2.seconds)
 
     Future.traverse(peers.values) { peer =>
-      (peer.ref ? PeerActor.GetStatus)
-        .mapTo[PeerActor.StatusResponse]
-        .map(sr => (peer, sr.status))
+      peer.status()
+        .map(sr => (peer, sr))
     }.map(r => Peers.apply(r.toMap))
   }
 
@@ -159,42 +153,22 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus],
-            peerConfiguration: PeerConfiguration,
-            appStateStorage: AppStateStorage,
-            blockchain: Blockchain,
-            peerEventBus: ActorRef,
-            forkResolverOpt: Option[ForkResolver],
-            handshaker: Handshaker[EtcPeerInfo]): Props =
-    Props(new PeerManagerActor(peerConfiguration, peerEventBus,
-      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, peerEventBus, forkResolverOpt, handshaker)))
 
   def props(nodeStatusHolder: Agent[NodeStatus],
-    peerConfiguration: PeerConfiguration,
-    appStateStorage: AppStateStorage,
-    blockchain: Blockchain,
-    bootstrapNodes: Set[String],
-    peerEventBus: ActorRef,
-    forkResolverOpt: Option[ForkResolver],
-    handshaker: Handshaker[EtcPeerInfo]): Props =
+      peerConfiguration: PeerConfiguration,
+      appStateStorage: AppStateStorage,
+      blockchain: Blockchain,
+      bootstrapNodes: Set[String] = Config.Network.Discovery.bootstrapNodes,
+      peerEventBus: ActorRef,
+      forkResolverOpt: Option[ForkResolver],
+      handshaker: Handshaker[EtcPeerInfo]): Props = {
+    //FIXME: Message handler builder should be configurable
+    val messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo] =
+      EtcMessageHandler.etcMessageHandlerBuilder(forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
     Props(new PeerManagerActor(peerConfiguration, peerEventBus,
-      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain,
-        peerEventBus, forkResolverOpt, handshaker), bootstrapNodes = bootstrapNodes))
-
-  def peerFactory(nodeStatusHolder: Agent[NodeStatus],
-                  peerConfiguration: PeerConfiguration,
-                  appStateStorage: AppStateStorage,
-                  blockchain: Blockchain,
-                  peerEventBus: ActorRef,
-                  forkResolverOpt: Option[ForkResolver],
-                  handshaker: Handshaker[EtcPeerInfo]): (ActorContext, InetSocketAddress) => ActorRef = {
-    (ctx, addr) =>
-      val id = addr.toString.filterNot(_ == '/')
-      //FIXME: Message handler builder should be configurable
-      val messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo] =
-        EtcMessageHandler.etcMessageHandlerBuilder(forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
-      ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, peerEventBus,
-        handshaker, messageHandlerBuilder), id)
+      peerFactory = PeerImpl.peerFactory(nodeStatusHolder, peerConfiguration, peerEventBus, handshaker, messageHandlerBuilder),
+      bootstrapNodes = bootstrapNodes)
+    )
   }
 
   trait PeerConfiguration {
