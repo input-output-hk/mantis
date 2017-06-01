@@ -34,7 +34,7 @@ class PeerImplSpec extends FlatSpec with Matchers {
   it should "appropriately subscribe to a set of messages sent by a peer" in new TestSetup {
     val sender = TestProbe()
 
-    peer.subscribeToSetOfMsgs(defaultSetOfMsgs)(sender.ref)
+    peer.subscribe(defaultSetOfMsgs)(sender.ref)
     peerEventBusProbe.expectMsg(PeerEventBusActor.Subscribe(MessageClassifier(defaultSetOfMsgs, PeerSelector.WithId(peer.id))))
     val subscribeSender = peerEventBusProbe.sender()
 
@@ -44,7 +44,7 @@ class PeerImplSpec extends FlatSpec with Matchers {
   it should "appropriately unsubscribe from a set of messages sent by a peer" in new TestSetup {
     val sender = TestProbe()
 
-    peer.unsubscribeFromSetOfMsgs(defaultSetOfMsgs)(sender.ref)
+    peer.unsubscribe(defaultSetOfMsgs)(sender.ref)
     peerEventBusProbe.expectMsg(PeerEventBusActor.Unsubscribe(MessageClassifier(defaultSetOfMsgs, PeerSelector.WithId(peer.id))))
     val unsubscribeSender = peerEventBusProbe.sender()
 

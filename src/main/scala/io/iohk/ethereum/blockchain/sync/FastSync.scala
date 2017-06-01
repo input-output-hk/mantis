@@ -39,7 +39,7 @@ trait FastSync {
 
     if (peersUsedToChooseTarget.size >= minPeersToChooseTargetBlock) {
       peersUsedToChooseTarget.foreach { case (peer, Handshaked(status, _, _)) =>
-        peer.subscribeToSetOfMsgs(Set(BlockHeaders.code))
+        peer.subscribe(Set(BlockHeaders.code))
         peer.send(GetBlockHeaders(Right(status.bestHash), 1, 0, reverse = false))
       }
       log.info("Asking {} peers for block headers", peersUsedToChooseTarget.size)
@@ -59,7 +59,7 @@ trait FastSync {
       val newWaitingFor = waitingFor.filterNot(_.id == peerId)
 
       waitingFor.find(_.id == peerId).foreach { peer =>
-        peer.unsubscribeFromSetOfMsgs(Set(BlockHeaders.code))
+        peer.unsubscribe(Set(BlockHeaders.code))
         val newReceived = received + (peer -> blockHeader)
 
         if (newWaitingFor.isEmpty) {
@@ -71,13 +71,13 @@ trait FastSync {
     case MessageFromPeer(BlockHeaders(blockHeaders), peerId) =>
       blacklist(peerId, blacklistDuration,s"did not respond with 1 header but with ${blockHeaders.size}, blacklisting for $blacklistDuration")
       waitingFor.find(_.id == peerId).foreach { peer =>
-        peer.unsubscribeFromSetOfMsgs(Set(BlockHeaders.code))
+        peer.unsubscribe(Set(BlockHeaders.code))
         context become waitingForBlockHeaders(waitingFor - peer, received, timeout)
       }
 
     case BlockHeadersTimeout =>
       waitingFor.foreach { peer =>
-        peer.unsubscribeFromSetOfMsgs(Set(BlockHeaders.code))
+        peer.unsubscribe(Set(BlockHeaders.code))
         blacklist(peer.id, blacklistDuration, s"did not respond within required time with block header, blacklisting for $blacklistDuration")
       }
       tryStartFastSync(received)
@@ -97,7 +97,7 @@ trait FastSync {
       } else {
         log.info("Starting fast sync. Asking peer {} for target block header ({})", mostUpToDatePeer.id, targetBlock)
 
-        mostUpToDatePeer.subscribeToSetOfMsgs(Set(BlockHeaders.code))
+        mostUpToDatePeer.subscribe(Set(BlockHeaders.code))
         mostUpToDatePeer.send(GetBlockHeaders(Left(targetBlock), 1, 0, reverse = false))
         val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, TargetBlockTimeout)
         context become waitingForTargetBlock(mostUpToDatePeer, targetBlock, timeout)
@@ -115,7 +115,7 @@ trait FastSync {
                             timeout: Cancellable): Receive = handlePeerUpdates orElse {
     case MessageFromPeer(blockHeaders: BlockHeaders, peerId) if peer.id == peerId =>
       timeout.cancel()
-      peer.unsubscribeFromSetOfMsgs(Set(BlockHeaders.code))
+      peer.unsubscribe(Set(BlockHeaders.code))
 
       val targetBlockHeaderOpt = blockHeaders.headers.find(header => header.number == targetBlockNumber)
       targetBlockHeaderOpt match {
@@ -133,7 +133,7 @@ trait FastSync {
 
     case TargetBlockTimeout =>
       blacklist(peer.id, blacklistDuration, s"did not respond with target block header (timeout), blacklisting and scheduling retry in $startRetryInterval")
-      peer.unsubscribeFromSetOfMsgs(Set(BlockHeaders.code))
+      peer.unsubscribe(Set(BlockHeaders.code))
       scheduleStartRetry(startRetryInterval)
       context become startingFastSync
   }

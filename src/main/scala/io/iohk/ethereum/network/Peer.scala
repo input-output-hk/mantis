@@ -27,8 +27,7 @@ trait Peer {
     *
     * @param messages to send to the peer
     */
-  def send(messages: Seq[MessageSerializable]): Unit =
-    messages.foreach(msg => send(msg))
+  def send(messages: Seq[MessageSerializable]): Unit = messages.foreach(send)
 
   /**
     * Ends the connection with the peer
@@ -44,14 +43,14 @@ trait Peer {
     *
     * @param subscriber, the sender of the subscription
     */
-  def subscribeToSetOfMsgs(msgs: Set[Int])(implicit subscriber: ActorRef): Unit
+  def subscribe(msgs: Set[Int])(implicit subscriber: ActorRef): Unit
 
   /**
     * Unsubscribes the actor sender to the event of the peer sending any message from a given set
     *
     * @param subscriber, the sender of the unsubscription
     */
-  def unsubscribeFromSetOfMsgs(msgs: Set[Int])(implicit subscriber: ActorRef): Unit
+  def unsubscribe(msgs: Set[Int])(implicit subscriber: ActorRef): Unit
 
   /**
     * Subscribes the actor sender to the event of the peer disconnecting.
@@ -82,15 +81,15 @@ case class PeerImpl(remoteAddress: InetSocketAddress, ref: ActorRef, peerEventBu
   override def disconnectFromPeer(reason: Int): Unit =
     ref ! DisconnectPeer(reason)
 
-  override def subscribeToSetOfMsgs(msgsCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
+  override def subscribe(msgsCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
     peerEventBusActor.!(Subscribe(MessageClassifier(msgsCodes, PeerSelector.WithId(id))))(subscriber)
 
-  override def unsubscribeFromSetOfMsgs(msgsCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
+  override def unsubscribe(msgsCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
     peerEventBusActor.!(Unsubscribe(MessageClassifier(msgsCodes, PeerSelector.WithId(id))))(subscriber)
 
   override def subscribeToDisconnect()(implicit subscriber: ActorRef): Unit =
     peerEventBusActor.!(Subscribe(PeerDisconnectedClassifier(id)))(subscriber)
 
   def unsubscribeFromDisconnect()(implicit subscriber: ActorRef): Unit =
-    peerEventBusActor.tell(Unsubscribe(PeerDisconnectedClassifier(id)), subscriber)
+    peerEventBusActor.!(Unsubscribe(PeerDisconnectedClassifier(id)))(subscriber)
 }

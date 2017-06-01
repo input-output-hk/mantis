@@ -33,7 +33,7 @@ abstract class SyncRequestHandler[RequestMsg <: Message,
   override def preStart(): Unit = {
     peer.subscribeToDisconnect()
     peer.send(toSerializable(requestMsg))
-    peer.subscribeToSetOfMsgs(Set(responseMsgCode))
+    peer.subscribe(Set(responseMsgCode))
   }
 
   override def receive: Receive = {
@@ -50,7 +50,7 @@ abstract class SyncRequestHandler[RequestMsg <: Message,
   def cleanupAndStop(): Unit = {
     timeout.cancel()
     peer.unsubscribeFromDisconnect()
-    peer.unsubscribeFromSetOfMsgs(Set(responseMsgCode))
+    peer.unsubscribe(Set(responseMsgCode))
     syncController ! Done
     context stop self
   }
