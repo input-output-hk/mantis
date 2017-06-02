@@ -27,57 +27,64 @@ object PeerMessageBusActor {
 
   case class MessageFromPeer(message: Message, peerId: PeerId)
 
-  case class Subscription(subscriber: ActorRef, classifier: MessageClassifier)
-
   class PeerMessageBus extends ActorEventBus {
 
     override type Event = MessageFromPeer
     override type Classifier = MessageClassifier
 
-    private var subscriptions: Seq[Subscription] = Nil
+    //FIXME Remove this var
+    private var subscriptions: Map[(Subscriber, PeerSelector), Set[Int]] = Map.empty
 
     override def subscribe(subscriber: ActorRef, to: Classifier): Boolean = {
-      val subscription = Subscription(subscriber, to)
-      if (subscriptions.contains(subscription)) {
-        false
-      } else {
-        subscriptions = subscriptions :+ subscription
+      val newSubscriptions = subscriptions.get((subscriber, to.peerSelector)) match {
+        case Some(messageCodes) =>
+          if (messageCodes == to.messageCodes) subscriptions
+          else subscriptions + ((subscriber, to.peerSelector) -> (messageCodes ++ to.messageCodes))
+        case None =>  subscriptions + ((subscriber, to.peerSelector) -> to.messageCodes)
+      }
+      if(newSubscriptions == subscriptions) false
+      else {
+        subscriptions = newSubscriptions
         true
       }
     }
 
     override def unsubscribe(subscriber: ActorRef, from: Classifier): Boolean = {
-      val subscription = Subscription(subscriber, from)
-      if (subscriptions.contains(subscription)) {
-        subscriptions = subscriptions.filterNot(_ == subscription)
-        true
-      } else {
-        false
+      subscriptions.get((subscriber, from.peerSelector)).exists { messageCodes =>
+        val newMessageCodes = messageCodes -- from.messageCodes
+        if (messageCodes == newMessageCodes) false
+        else {
+          if(newMessageCodes.isEmpty) subscriptions = subscriptions - (subscriber -> from.peerSelector)
+          else subscriptions = subscriptions + ((subscriber, from.peerSelector) -> newMessageCodes)
+          true
+        }
       }
     }
 
-    override def unsubscribe(subscriber: ActorRef): Unit = {
-      subscriptions = subscriptions.filterNot(_.subscriber == subscriber)
-    }
+    override def unsubscribe(subscriber: ActorRef): Unit = subscriptions = subscriptions.filterKeys(_._1 != subscriber)
 
     override def publish(event: MessageFromPeer): Unit = {
-      subscriptions
-        .filter { sub =>
-          sub.classifier.peerSelector.contains(event.peerId) &&
-          sub.classifier.messageCodes.contains(event.message.code)
-        }
-        .foreach(_.subscriber ! event)
+      subscriptions.flatMap { sub =>
+        val ((subscriber, peerSelector), messageCodes) = sub
+        if (peerSelector.contains(event.peerId) && messageCodes.contains(event.message.code)) Some(subscriber)
+        else None
+      }.toSeq.distinct.foreach( _ ! event )
     }
 
   }
 
   case class Subscribe(to: MessageClassifier)
+
   object Unsubscribe {
     def apply(): Unsubscribe = Unsubscribe(None)
+
     def apply(from: MessageClassifier): Unsubscribe = Unsubscribe(Some(from))
   }
+
   case class Unsubscribe(from: Option[MessageClassifier] = None)
+
   case class Publish(ev: MessageFromPeer)
+
 }
 
 class PeerMessageBusActor extends Actor {
