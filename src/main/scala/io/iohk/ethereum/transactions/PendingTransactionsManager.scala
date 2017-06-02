@@ -40,13 +40,13 @@ class PendingTransactionsManager(network: Network) extends Actor {
 
   implicit val timeout = Timeout(3.seconds)
 
-  network.subscribeToSetOfMsgs(Set(SignedTransactions.code))
+  network.subscribe(Set(SignedTransactions.code))
 
   override def receive: Receive = {
     case AddTransaction(signedTransaction) =>
       if (!pendingTransactions.contains(signedTransaction)) {
         pendingTransactions :+= signedTransaction
-        network.peersWithStatus().foreach { peers =>
+        network.peers().foreach { peers =>
           peers.handshaked.foreach { case (peer, _) => self ! NotifyPeer(Seq(signedTransaction), peer) }
         }
       }
@@ -71,7 +71,7 @@ class PendingTransactionsManager(network: Network) extends Actor {
     case MessageFromPeer(SignedTransactions(signedTransactions), peerId) =>
       pendingTransactions ++= signedTransactions
       signedTransactions.foreach(setTxKnown(_, peerId))
-      network.peersWithStatus().foreach { peers =>
+      network.peers().foreach { peers =>
         peers.handshaked.foreach { case (peer, _) => self ! NotifyPeer(signedTransactions, peer) }
       }
   }

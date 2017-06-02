@@ -26,7 +26,7 @@ object App {
 
       genesisDataLoader.loadGenesisData()
 
-      server ! ServerActor.StartServer(networkConfig.Server.listenAddress)
+      network.listen(networkConfig.Server.listenAddress)
       syncController ! SyncController.StartSync
 
       if (jsonRpcHttpServerConfig.enabled) jsonRpcHttpServer.run()

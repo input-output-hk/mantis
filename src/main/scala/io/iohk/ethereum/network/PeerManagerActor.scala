@@ -18,7 +18,7 @@ import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish}
 import io.iohk.ethereum.network.handshaker.Handshaker
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus}
+import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 import scala.util.{Failure, Success}
 

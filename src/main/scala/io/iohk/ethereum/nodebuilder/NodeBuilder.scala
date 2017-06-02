@@ -8,7 +8,6 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
-import io.iohk.ethereum.network.ServerActor
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
@@ -103,26 +102,16 @@ trait NetworkBuilder {
     with ForkResolverBuilder
     with HandshakerBuilder =>
 
+  lazy val networkConfig = Config.Network
+
   lazy val network: Network = NetworkImpl(
-    bootstrapNodes = Config.Network.Discovery.bootstrapNodes,
+    bootstrapNodes = networkConfig.Discovery.bootstrapNodes,
     nodeStatusHolder = nodeStatusHolder,
-    peerConfiguration = Config.Network.peer,
+    peerConfiguration = networkConfig.peer,
     blockchain = blockchain,
     appStateStorage = storagesInstance.storages.appStateStorage,
     forkResolverOpt = forkResolverOpt,
     handshaker = handshaker)(actorSystem)
-
-}
-
-trait ServerActorBuilder {
-
-  self: ActorSystemBuilder
-    with NodeStatusBuilder
-    with NetworkBuilder =>
-
-  lazy val networkConfig = Config.Network
-
-  lazy val server = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, network), "server")
 
 }
 
@@ -212,7 +201,6 @@ trait LedgerBuilder {
 trait SyncControllerBuilder {
 
   self: ActorSystemBuilder with
-    ServerActorBuilder with
     BlockChainBuilder with
     NodeStatusBuilder with
     NetworkBuilder with
@@ -262,7 +250,6 @@ trait Node extends NodeKeyBuilder
   with NodeStatusBuilder
   with ForkResolverBuilder
   with HandshakerBuilder
-  with ServerActorBuilder
   with SyncControllerBuilder
   with Web3ServiceBuilder
   with EthServiceBuilder

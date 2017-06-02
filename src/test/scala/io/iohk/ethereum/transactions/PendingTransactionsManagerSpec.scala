@@ -2,12 +2,12 @@ package io.iohk.ethereum.transactions
 
 import java.net.InetSocketAddress
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.{DefaultPatience, crypto}
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
-import io.iohk.ethereum.network.{NetworkImpl, Peer, PeerId, PeerImpl, PeerManagerActor}
+import io.iohk.ethereum.network.{Network, PeerId, PeerImpl}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import org.scalatest.{FlatSpec, Matchers}
@@ -18,8 +18,10 @@ import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience {
@@ -28,6 +30,10 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
   "PendingTransactionsManager" should "store pending transactions received from peers" in new TestSetup {
     val msg = SignedTransactions(Seq.fill(10)(newStx()))
+
+    (network.peers _).expects().returning(
+      Future.successful(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
+    )
     pendingTransactionsManager ! MessageFromPeer(msg, PeerId("1"))
 
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactions].futureValue
@@ -36,10 +42,11 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
   it should "broadcast received pending transactions to other peers" in new TestSetup {
     val stx = newStx()
-    pendingTransactionsManager ! AddTransaction(stx)
 
-    peerManager.expectMsg(PeerManagerActor.GetPeers)
-    peerManager.reply(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
+    (network.peers _).expects().returning(
+      Future.successful(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
+    )
+    pendingTransactionsManager ! AddTransaction(stx)
 
     Seq(peer1TestProbe, peer2TestProbe, peer3TestProbe).foreach { p =>
       p.expectMsg(SendMessage(SignedTransactions(Seq(stx))))
@@ -51,18 +58,24 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
   it should "notify other peers about received transactions and handle removal" in new TestSetup {
     val msg1 = SignedTransactions(Seq.fill(10)(newStx()))
+
+    (network.peers _).expects().returning(
+      Future.successful(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
+    )
     pendingTransactionsManager ! MessageFromPeer(msg1, peer1.id)
-    peerManager.expectMsg(PeerManagerActor.GetPeers)
-    peerManager.reply(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
+
     Seq(peer2TestProbe, peer3TestProbe).foreach { p =>
       p.expectMsg(SendMessage(SignedTransactions(msg1.txs)))
     }
     peer1TestProbe.expectNoMsg()
 
     val msg2 = SignedTransactions(Seq.fill(5)(newStx()))
+
+    (network.peers _).expects().returning(
+      Future.successful(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
+    )
     pendingTransactionsManager ! MessageFromPeer(msg2, peer2.id)
-    peerManager.expectMsg(PeerManagerActor.GetPeers)
-    peerManager.reply(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
+
     Seq(peer1TestProbe, peer3TestProbe).foreach { p =>
       p.expectMsg(SendMessage(SignedTransactions(msg2.txs)))
     }
@@ -78,12 +91,13 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
   it should "not add pending transaction again when it was removed while waiting for peers" in new TestSetup {
     val msg1 = SignedTransactions(Seq.fill(1)(newStx()))
+
+    (network.peers _).expects().returning(
+      Future.successful(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
+    )
     pendingTransactionsManager ! MessageFromPeer(msg1, peer1.id)
 
     pendingTransactionsManager ! RemoveTransactions(msg1.txs)
-
-    peerManager.expectMsg(PeerManagerActor.GetPeers)
-    peerManager.reply(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
 
     Seq(peer1TestProbe, peer2TestProbe, peer3TestProbe).foreach { peer =>
       peer.expectNoMsg()
@@ -93,7 +107,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTxs.signedTransactions.size shouldBe 0
   }
 
-  trait TestSetup {
+  trait TestSetup extends MockFactory {
     implicit val system = ActorSystem("test-system")
 
     def newStx(): SignedTransaction = {
@@ -105,12 +119,13 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
     val handshakedStatus = Handshaked(CommonMessages.Status(0, 0, 0, ByteString(""), ByteString("")), true, 0)
 
-    val peerManager = TestProbe()
-    val peerMessageBus = TestProbe()
+    val network = mock[Network]
+    (network.subscribe(_: Set[Int])(_: ActorRef)).expects(Set(SignedTransactions.code), *).returns(())
     val pendingTransactionsManager = system.actorOf(
-      PendingTransactionsManager.props(new NetworkImpl(peerManager.ref, peerMessageBus.ref))
+      PendingTransactionsManager.props(network)
     )
 
+    val peerMessageBus = TestProbe()
     val peer1TestProbe = TestProbe()
     val peer1 = PeerImpl(new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref, peerMessageBus.ref)
     val peer2TestProbe = TestProbe()

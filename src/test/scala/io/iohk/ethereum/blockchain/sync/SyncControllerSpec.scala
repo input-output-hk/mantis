@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorSystem, PoisonPill, Props}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
@@ -10,8 +10,8 @@ import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful, PeerInfoUpdated}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier, PeerHandshaked, PeerInfoUpdate}
-import io.iohk.ethereum.network.{NetworkImpl, PeerActor, PeerImpl}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier, PeerInfoUpdate}
+import io.iohk.ethereum.network.{Network, PeerActor, PeerImpl}
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader}
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
@@ -20,6 +20,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.utils.Config
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -44,7 +45,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
 
-    peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
       peer1, EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, true, 0)))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
@@ -112,7 +112,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer2Status = Status(1, 1, 20, ByteString("peer2_bestHash"), ByteString("unused"))
 
-    peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
       peer2, EtcPeerInfo(peer2Status, peer2Status.totalDifficulty, true, 0)))
 
@@ -162,7 +161,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
 
-    peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
       peer2, EtcPeerInfo(peer2Status, peer2Status.totalDifficulty, true, 0)))
 
@@ -204,7 +202,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
-    peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
       peer, EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, true, 0)))
 
@@ -259,7 +256,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
-    peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
       peer, EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, true, 0)))
 
@@ -368,7 +364,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val peer3Status= Status(1, 1, 1, ByteString("peer3_bestHash"), ByteString("unused"))
     val peer4Status= Status(1, 1, 1, ByteString("peer4_bestHash"), ByteString("unused"))
 
-    peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
       peer1, EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, true, 0)))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
@@ -411,7 +406,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
-    peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
       peer1, EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, true, 0)))
 
@@ -482,7 +476,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     val peer2Status= Status(1, 1, totalDifficulty = 0, ByteString("peer2_bestHash"), ByteString("unused"))
 
-    peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
       peer1, EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, true, 0)))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
@@ -548,7 +541,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     val peer2Status= Status(1, 1, totalDifficulty = 0, ByteString("peer2_bestHash"), ByteString("unused"))
 
-    peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
       peer1, EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, true, 0)))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
@@ -614,7 +606,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val peer1PeerInfo = EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, true, 0)
 
     //Send new peer handshaked to SyncController
-    peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
       peer1, EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, true, 0)))
     peerEventBus.send(syncController, PeerHandshakeSuccessful(
@@ -655,11 +646,10 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       PeerActor.SendMessage(GetBlockHeaders(Right(peer4Status.bestHash), 1, 0, reverse = false)))
   }
 
-  class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil) extends EphemBlockchainTestSetup {
+  class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil) extends EphemBlockchainTestSetup with MockFactory {
     implicit val system = ActorSystem("FastSyncControllerSpec_System")
 
     val time = new VirtualTime
-    val peerManager = TestProbe()
 
     val dataSource = EphemDataSource()
 
@@ -673,7 +663,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
     }
 
-    val syncController = TestActorRef(Props(new SyncController(new NetworkImpl(peerManager.ref, peerEventBus.ref),
+    val network = mock[Network]
+    (network.subscribeToAnyPeerHandshaked()(_: ActorRef)).expects(*).returning(())
+    val syncController = TestActorRef(Props(new SyncController(network,
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages,

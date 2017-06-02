@@ -43,7 +43,7 @@ class NetService(nodeStatusHolder: Agent[NodeStatus], network: Network) {
   def peerCount(req: PeerCountRequest): ServiceResponse[PeerCountResponse] = {
     implicit val timeout = Timeout(2.seconds)
 
-    network.peersWithStatus()
+    network.peers()
       .map { peers => Right(PeerCountResponse(peers.handshaked.size)) }
   }
 

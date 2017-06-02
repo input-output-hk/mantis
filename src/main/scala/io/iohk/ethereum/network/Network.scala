@@ -1,20 +1,21 @@
 package io.iohk.ethereum.network
 
-import java.net.InetSocketAddress
+import java.net.{InetSocketAddress, URI}
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerHandshaked}
 import io.iohk.ethereum.network.PeerEventBusActor._
-import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, PeerConfiguration, Peers}
+import io.iohk.ethereum.network.PeerManagerActor.{ConnectToPeer, GetPeers, PeerConfiguration, Peers}
 import akka.pattern.ask
 import akka.util.Timeout
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
+import io.iohk.ethereum.network.ServerActor.StartServer
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.p2p.MessageSerializable
-import io.iohk.ethereum.utils.{BlockchainConfig, NodeStatus}
+import io.iohk.ethereum.utils.NodeStatus
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -25,15 +26,21 @@ trait Network {
   /**
     * Returns all the current peers with their respective status
     */
-  def peersWithStatus(): Future[Peers]
+  def peers(): Future[Peers]
 
   /**
-    * Handles an incoming connection, which results in adding a new peer
+    * Connects to a new peer
     *
-    * @param connection
-    * @param remoteAddress, address of the new peer
+    * @param uri of the new peer
     */
-  def handlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress): Unit
+  def connect(uri: URI): Unit
+
+  /**
+    * Starts listening to new connections if it didn't before
+    *
+    * @param listenAddress, to which the network will listen to new connections
+    */
+  def listen(listenAddress: InetSocketAddress): Unit
 
   /**
     * Subscribes the actor sender to the event of any peer sending any message from a given set.
@@ -42,14 +49,14 @@ trait Network {
     *
     * @param subscriber, the sender of the subscription
     */
-  def subscribeToSetOfMsgs(messageCodes: Set[Int])(implicit subscriber: ActorRef): Unit
+  def subscribe(messageCodes: Set[Int])(implicit subscriber: ActorRef): Unit
 
   /**
     * Unsubscribes the actor sender to the event of any peer sending any message from a given set
     *
     * @param subscriber, the sender of the unsubscription
     */
-  def unsubscribeFromSetOfMsgs(messageCodes: Set[Int])(implicit subscriber: ActorRef): Unit
+  def unsubscribe(messageCodes: Set[Int])(implicit subscriber: ActorRef): Unit
 
   /**
     * Subscribes the actor sender to the event of any peer successfully finishing the handshake.
@@ -76,19 +83,21 @@ trait Network {
 
 }
 
-class NetworkImpl(peerManagerActor: ActorRef, peerEventBusActor: ActorRef) extends Network {
+class NetworkImpl private[network] (peerManagerActor: ActorRef, peerEventBusActor: ActorRef,
+                                    serverActor: ActorRef) extends Network {
 
   implicit val timeout = Timeout(3.seconds)
 
-  def peersWithStatus(): Future[Peers] = (peerManagerActor ? GetPeers).mapTo[Peers]
+  def peers(): Future[Peers] = (peerManagerActor ? GetPeers).mapTo[Peers]
 
-  def handlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress): Unit =
-    peerManagerActor ! PeerManagerActor.HandlePeerConnection(connection, remoteAddress)
+  def connect(uri: URI): Unit = peerManagerActor ! ConnectToPeer(uri)
 
-  def subscribeToSetOfMsgs(messageCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
+  def listen(listenAddress: InetSocketAddress): Unit = serverActor ! StartServer(listenAddress)
+
+  def subscribe(messageCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
     peerEventBusActor.!(Subscribe(MessageClassifier(messageCodes, PeerSelector.AllPeers)))( subscriber)
 
-  def unsubscribeFromSetOfMsgs(messageCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
+  def unsubscribe(messageCodes: Set[Int])(implicit subscriber: ActorRef): Unit =
     peerEventBusActor.!(Unsubscribe(MessageClassifier(messageCodes, PeerSelector.AllPeers)))(subscriber)
 
   def subscribeToAnyPeerHandshaked()(implicit subscriber: ActorRef): Unit =
@@ -98,7 +107,7 @@ class NetworkImpl(peerManagerActor: ActorRef, peerEventBusActor: ActorRef) exten
     peerEventBusActor.!(Unsubscribe(PeerHandshaked))(subscriber)
 
   def broadcast(message: MessageSerializable): Unit =
-    peersWithStatus().foreach{ _.peers.keys.foreach( _.send(message)) }
+    peers().foreach{ _.peers.keys.foreach( _.send(message)) }
 
 }
 
@@ -122,7 +131,9 @@ object NetworkImpl {
       forkResolverOpt,
       handshaker), "peer-manager")
 
-    new NetworkImpl(peerManagerActor, peerEventBusActor)
+    val serverActor = actorSystem.actorOf(ServerActor.props(nodeStatusHolder, peerManagerActor), "server")
+
+    new NetworkImpl(peerManagerActor, peerEventBusActor, serverActor)
 
   }
 
