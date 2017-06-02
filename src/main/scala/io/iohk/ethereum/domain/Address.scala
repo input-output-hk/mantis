@@ -1,20 +1,18 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.mpt.ByteArraySerializable
-import io.iohk.ethereum.vm.UInt256
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.mpt.ByteArrayEncoder
 import io.iohk.ethereum.utils.ByteUtils.padLeft
+import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 object Address {
 
   val Length = 20
 
-  implicit val addressSerializer = new ByteArraySerializable[Address] {
-
-    override def fromBytes(bytes: Array[Byte]): Address = Address(bytes)
-
-    override def toBytes(addr: Address): Array[Byte] = addr.toArray
+  implicit val hashedAddressEncoder = new ByteArrayEncoder[Address] {
+    override def toBytes(addr: Address): Array[Byte] = crypto.kec256(addr.toArray)
   }
 
   def apply(bytes: ByteString): Address = {

@@ -162,8 +162,8 @@ class BlockchainImpl(
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
     getBlockHeaderByNumber(blockNumber).flatMap { bh =>
-      val mpt = new MerklePatriciaTrie[Address, Account](
-        Some(bh.stateRoot.toArray),
+      val mpt = MerklePatriciaTrie[Address, Account](
+        bh.stateRoot.toArray,
         nodeStorage,
         crypto.kec256(_: Array[Byte])
       )
