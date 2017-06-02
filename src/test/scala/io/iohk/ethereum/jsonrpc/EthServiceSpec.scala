@@ -376,8 +376,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val ommersPool = TestProbe()
 
     val miningConfig = new MiningConfig {
-      override val coinBase: Address = Address(42)
-      override val blockCasheSize: Int = 30
+      override val coinbase: Address = Address(42)
+      override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
       override val txPoolSize: Int = 30
       override val poolingServicesTimeout: FiniteDuration = 3.seconds

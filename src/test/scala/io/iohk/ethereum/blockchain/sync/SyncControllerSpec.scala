@@ -728,8 +728,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val pendingTransactionsManager = TestProbe()
     val ommersPool = TestProbe()
 
-    val actors = DependencyActors(peerManager.ref, peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref)
-
     val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,
       blockchain,
@@ -737,7 +735,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       new Mocks.MockValidatorsAlwaysSucceed,
-      actors,
+      peerManager.ref, peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref,
       externalSchedulerOpt = Some(time.scheduler))))
 
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash

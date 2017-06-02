@@ -116,8 +116,8 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val miningConfig = new MiningConfig {
       override val txPoolSize: Int = 300
       //unused
-      override val coinBase: Address = Address(2)
-      override val blockCasheSize: Int = 30
+      override val coinbase: Address = Address(2)
+      override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
       override val poolingServicesTimeout: FiniteDuration = 30.seconds
     }

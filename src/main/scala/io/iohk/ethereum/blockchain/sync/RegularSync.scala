@@ -25,7 +25,6 @@ trait RegularSync {
   private var waitingForActor: Option[ActorRef] = None
 
   import Config.FastSync._
-  import actors._
 
   def startRegularSync(): Unit = {
     log.info("Starting regular sync")
@@ -135,26 +134,18 @@ trait RegularSync {
         //we have same chain prefix
         if (parent.hash == headers.head.parentHash) {
 
-          val oldBranch = headersQueue.map(_.number)
-            .map(blockNumber => blockchain.getBlockByNumber(blockNumber))
-
-          val oldBlocks: Seq[(BlockBody, BigInt)] = oldBranch
-            .collect { case Some(b) => b }
-            .map{b => (b.body, b.header.difficulty)}
-
-          val currentBranchTotalDifficulty: BigInt = oldBlocks.map {
-            case (_, difficulty) => difficulty
-          }.sum
+          val oldBranch: Seq[Block] = getOldBlocks(headersQueue)
+          val currentBranchTotalDifficulty: BigInt = oldBranch.map(_.header.difficulty).sum
 
           val newBranchTotalDifficulty = headersQueue.map(_.difficulty).sum
 
           if (currentBranchTotalDifficulty < newBranchTotalDifficulty) {
-            val transactionsToAdd = oldBlocks.collect { case (blockBody, _) => blockBody.transactionList }.flatten
+            val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
             pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toList)
             val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
             waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, hashes)))
             //add first block from branch as ommer
-            oldBranch.headOption.flatten.foreach { h => ommersPool ! AddOmmers(h.header) }
+            oldBranch.headOption.foreach { h => ommersPool ! AddOmmers(h.header) }
           } else {
             //add first block from branch as ommer
             headersQueue.headOption.foreach { h => ommersPool ! AddOmmers(h) }
@@ -168,6 +159,13 @@ trait RegularSync {
         log.warning("got header that does not have parent")
         resumeWithDifferentPeer(peer)
     }
+  }
+
+  def getOldBlocks(headers: Seq[BlockHeader]): List[Block] = headers match {
+    case h :: tail =>
+      blockchain.getBlockByNumber(h.number).map(_ :: getOldBlocks(tail)).getOrElse(Nil)
+    case Nil =>
+      Nil
   }
 
   private def handleBlockBodies(peer: Peer, m: Seq[BlockBody]) = {

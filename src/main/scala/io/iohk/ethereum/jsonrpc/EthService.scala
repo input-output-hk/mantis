@@ -12,7 +12,6 @@ import akka.actor.ActorRef
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
 import io.iohk.ethereum.db.storage.AppStateStorage
 
-import scala.concurrent.ExecutionContext
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
@@ -27,6 +26,7 @@ import io.iohk.ethereum.ommers.OmmersPool
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 // scalastyle:off number.of.methods number.of.types
@@ -128,7 +128,7 @@ class EthService(
     *
     * @return Current block number the client is on.
     */
-  def bestBlockNumber(req: BestBlockNumberRequest)(implicit executionContext: ExecutionContext): ServiceResponse[BestBlockNumberResponse] = Future {
+  def bestBlockNumber(req: BestBlockNumberRequest): ServiceResponse[BestBlockNumberResponse] = Future {
     Right(BestBlockNumberResponse(appStateStorage.getBestBlockNumber()))
   }
 
@@ -138,8 +138,7 @@ class EthService(
     * @param request with the hash of the block requested
     * @return the number of txs that the block has or None if the client doesn't have the block requested
     */
-  def getBlockTransactionCountByHash(request: TxCountByBlockHashRequest)
-                                    (implicit executor: ExecutionContext): ServiceResponse[TxCountByBlockHashResponse] = Future {
+  def getBlockTransactionCountByHash(request: TxCountByBlockHashRequest): ServiceResponse[TxCountByBlockHashResponse] = Future {
     val txsCount = blockchain.getBlockBodyByHash(request.blockHash).map(_.transactionList.size)
     Right(TxCountByBlockHashResponse(txsCount))
   }
@@ -150,8 +149,7 @@ class EthService(
     * @param request with the hash of the block requested
     * @return the block requested or None if the client doesn't have the block
     */
-  def getByBlockHash(request: BlockByBlockHashRequest)
-                    (implicit executor: ExecutionContext): ServiceResponse[BlockByBlockHashResponse] = Future {
+  def getByBlockHash(request: BlockByBlockHashRequest): ServiceResponse[BlockByBlockHashResponse] = Future {
     val BlockByBlockHashRequest(blockHash, fullTxs) = request
     val blockOpt = blockchain.getBlockByHash(blockHash)
     val totalDifficulty = blockchain.getTotalDifficultyByHash(blockHash)
@@ -166,7 +164,7 @@ class EthService(
     *
     * @return the tx requested or None if the client doesn't have the block or if there's no tx in the that index
     */
-  def getTransactionByBlockHashAndIndexRequest(req: GetTransactionByBlockHashAndIndexRequest)(implicit executionContext: ExecutionContext)
+  def getTransactionByBlockHashAndIndexRequest(req: GetTransactionByBlockHashAndIndexRequest)
   : ServiceResponse[GetTransactionByBlockHashAndIndexResponse] = Future {
     import req._
     val maybeTransactionResponse = blockchain.getBlockByHash(blockHash).flatMap{
@@ -185,8 +183,7 @@ class EthService(
     * @param request with the hash of the block and the index of the uncle requested
     * @return the uncle that the block has at the given index or None if the client doesn't have the block or if there's no uncle in that index
     */
-  def getUncleByBlockHashAndIndex(request: UncleByBlockHashAndIndexRequest)
-                                 (implicit executor: ExecutionContext): ServiceResponse[UncleByBlockHashAndIndexResponse] = Future {
+  def getUncleByBlockHashAndIndex(request: UncleByBlockHashAndIndexRequest): ServiceResponse[UncleByBlockHashAndIndexResponse] = Future {
     val UncleByBlockHashAndIndexRequest(blockHash, uncleIndex) = request
     val uncleHeaderOpt = blockchain.getBlockBodyByHash(blockHash)
       .flatMap { body =>
@@ -236,23 +233,9 @@ class EthService(
 
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
 
-    import scala.concurrent.ExecutionContext.Implicits.global
-    implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
-
-    Future.sequence(Seq(
-      (ommersPool ? OmmersPool.GetOmmers).mapTo[OmmersPool.Ommers]
-        .recover { case ex =>
-          log.error("failed to get ommer, mining block with empty ommers list", ex)
-          OmmersPool.Ommers(Nil)
-        },
-      (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactions]
-        .recover { case ex =>
-          log.error("failed to get transactions, mining block with empty transactions list", ex)
-          PendingTransactions(Nil)
-        }
-    )).map {
-      case (ommers: OmmersPool.Ommers) :: (pendingTxs: PendingTransactions) :: Nil =>
-        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommers.headers, miningConfig.coinBase) match {
+    getOmmersFromPool.zip(getTransactionsFromPool).map {
+      case (ommers, pendingTxs) =>
+        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommers.headers, miningConfig.coinbase) match {
           case Right(b) =>
             Right(GetWorkResponse(
               powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))),
@@ -263,6 +246,26 @@ class EthService(
             log.error(s"unable to prepare block because of $err")
             Left(JsonRpcErrors.InternalError)
         }
+      }
+  }
+
+  private def getOmmersFromPool = {
+    implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
+
+    (ommersPool ? OmmersPool.GetOmmers).mapTo[OmmersPool.Ommers]
+      .recover { case ex =>
+        log.error("failed to get ommer, mining block with empty ommers list", ex)
+        OmmersPool.Ommers(Nil)
+      }
+  }
+
+  private def getTransactionsFromPool = {
+    implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
+
+    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactions]
+      .recover { case ex =>
+        log.error("failed to get transactions, mining block with empty transactions list", ex)
+        PendingTransactions(Nil)
       }
   }
 

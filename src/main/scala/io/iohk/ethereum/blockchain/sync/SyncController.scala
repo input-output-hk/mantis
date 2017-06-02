@@ -5,7 +5,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.SyncController.DependencyActors
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger
@@ -22,8 +21,11 @@ class SyncController(
     val fastSyncStateStorage: FastSyncStateStorage,
     val ledger: Ledger,
     val validators: Validators,
-    val actors: DependencyActors,
-    externalSchedulerOpt: Option[Scheduler] = None)
+    val peerManager: ActorRef,
+    val peerMessageBus: ActorRef,
+    val pendingTransactionsManager: ActorRef,
+    val ommersPool: ActorRef,
+    val externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor
     with ActorLogging
     with BlacklistSupport
@@ -41,7 +43,7 @@ class SyncController(
 
   var handshakedPeers: Map[Peer, PeerStatus.Handshaked] = Map.empty
 
-  scheduler.schedule(0.seconds, peersScanInterval, actors.peerManager, PeerManagerActor.GetPeers)
+  scheduler.schedule(0.seconds, peersScanInterval, peerManager, PeerManagerActor.GetPeers)
 
   override implicit def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
@@ -103,21 +105,23 @@ class SyncController(
 }
 
 object SyncController {
+  //todo refactor to provide ActorRefs differently
+  // scalastyle:off parameter.number
   def props(appStateStorage: AppStateStorage,
             blockchain: Blockchain,
             blockchainStorages: BlockchainStorages,
             syncStateStorage: FastSyncStateStorage,
             ledger: Ledger,
             validators: Validators,
-            actors: DependencyActors):
-  Props = Props(new SyncController(appStateStorage, blockchain, blockchainStorages,
-    syncStateStorage, ledger, validators, actors))
+            peerManager: ActorRef,
+            peerMessageBus: ActorRef,
+            pendingTransactionsManager: ActorRef,
+            ommersPool: ActorRef):
+  Props = Props(new SyncController(appStateStorage, blockchain, blockchainStorages, syncStateStorage, ledger, validators,
+    peerManager, peerMessageBus, pendingTransactionsManager, ommersPool))
 
   case class DependencyActors(
-    peerManager: ActorRef,
-    peerMessageBus: ActorRef,
-    pendingTransactionsManager: ActorRef,
-    ommersPool: ActorRef)
+    )
 
   case class BlockHeadersToResolve(peer: Peer, headers: Seq[BlockHeader])
 
