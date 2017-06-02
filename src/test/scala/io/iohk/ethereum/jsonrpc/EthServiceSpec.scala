@@ -331,6 +331,11 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetCodeResponse(ByteString("code code code")))
   }
 
+  it should "return correct coinbase" in new TestSetup {
+    val response = ethService.getCoinbase(GetCoinbaseRequest())
+    response.futureValue shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
+  }
+
   trait TestSetup extends MockFactory {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
