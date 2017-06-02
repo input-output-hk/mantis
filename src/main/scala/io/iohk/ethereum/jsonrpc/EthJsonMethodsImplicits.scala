@@ -70,7 +70,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, TxCountByBlockHashRequest] =
       params match {
         case Some(JArray(JString(input) :: Nil)) =>
-          extractBytes(input).map(TxCountByBlockHashRequest)
+          extractHash(input).map(TxCountByBlockHashRequest)
         case _ => Left(InvalidParams())
       }
 
@@ -82,7 +82,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BlockByBlockHashRequest] = {
       params match {
         case Some(JArray(JString(blockHash) :: JBool(txHashed) :: Nil)) =>
-          extractBytes(blockHash).map(BlockByBlockHashRequest(_, txHashed))
+          extractHash(blockHash).map(BlockByBlockHashRequest(_, txHashed))
         case _ => Left(InvalidParams())
       }
     }
@@ -96,7 +96,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetTransactionByBlockHashAndIndexRequest] = params match {
         case Some(JArray(JString(blockHash) :: transactionIndex :: Nil)) =>
           for {
-            parsedBlockHash <- extractBytes(blockHash)
+            parsedBlockHash <- extractHash(blockHash)
             parsedTransactionIndex <- extractQuantity(transactionIndex)
           } yield GetTransactionByBlockHashAndIndexRequest(parsedBlockHash, parsedTransactionIndex)
         case _ => Left(InvalidParams())
@@ -111,7 +111,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       params match {
         case Some(JArray(JString(blockHash) :: uncleIndex :: Nil)) =>
           for {
-            hash <- extractBytes(blockHash)
+            hash <- extractHash(blockHash)
             uncleBlockIndex <- extractQuantity(uncleIndex)
           } yield UncleByBlockHashAndIndexRequest(hash, uncleBlockIndex)
         case _ => Left(InvalidParams())
