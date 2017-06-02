@@ -344,7 +344,8 @@ trait FastSync {
         initialSyncState.targetBlock.number - bestBlockHeaderNumber
 
       val request = GetBlockHeaders(Left(bestBlockHeaderNumber + 1), limit, skip = 0, reverse = false)
-      val handler = context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerMessageBus, request, resolveBranches = false), blockHeadersHandlerName)
+      val handler = context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerMessageBus, request, resolveBranches = false),
+        blockHeadersHandlerName)
       context watch handler
       assignedHandlers += (handler -> peer)
     }

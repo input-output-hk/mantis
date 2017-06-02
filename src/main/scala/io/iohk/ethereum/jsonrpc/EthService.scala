@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.pattern.ask
+import akka.util.Timeout
 import io.iohk.ethereum.domain._
 import akka.actor.ActorRef
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
@@ -12,9 +14,12 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.utils.MiningConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactions
+import io.iohk.ethereum.ommers.OmmersPool
+import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -93,11 +98,13 @@ class EthService(
     blockchainStorages: BlockchainStorages,
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
+    miningConfig: MiningConfig,
     ledger: Ledger,
     blockchainConfig: BlockchainConfig,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
-    syncingController: ActorRef) extends Logger {
+    syncingController: ActorRef,
+    ommersPool: ActorRef) extends Logger {
 
   import EthService._
 
@@ -194,43 +201,52 @@ class EthService(
     import io.iohk.ethereum.mining.pow.PowCache._
 
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
-    //todo delete stub, this transaction is only for demo this code will be deleted in next iteration
-    val fakeAddress = 42
-    val privateKey = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
-    val keyPair = keyPairFromPrvKey(privateKey)
-    val txGasLimit = 21000
-    val txTransfer = 9000
-    val transaction = Transaction(
-      nonce = blockNumber - 1,
-      gasPrice = 1,
-      gasLimit = txGasLimit,
-      receivingAddress = Address(fakeAddress),
-      value = txTransfer,
-      payload = ByteString.empty)
-    val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, None)
 
-    val txList = Seq(signedTransaction)
-    val ommersList = Nil
-    //todo --------------
-    val block = blockGenerator.generateBlockForMining(blockNumber, txList, ommersList, Address(fakeAddress))
+    import scala.concurrent.ExecutionContext.Implicits.global
 
-    block match {
-      case Right(b) =>
-        Future.successful(Right(GetWorkResponse(
-          powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))),
-          dagSeed = seedForBlock(b.header.number),
-          target = ByteString((BigInt(2).pow(256) / b.header.difficulty).toByteArray)
-        )))
-      case Left(err) =>
-        log.error(s"unable to prepare block because of $err")
-        Future.successful(Left(JsonRpcErrors.InternalError))
-    }
+    getOmmersFromPool.zip(getTransactionsFromPool).map {
+      case (ommers, pendingTxs) =>
+        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommers.headers, miningConfig.coinbase) match {
+          case Right(b) =>
+            Right(GetWorkResponse(
+              powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))),
+              dagSeed = seedForBlock(b.header.number),
+              target = ByteString((BigInt(2).pow(256) / b.header.difficulty).toByteArray)
+            ))
+          case Left(err) =>
+            log.error(s"unable to prepare block because of $err")
+            Left(JsonRpcErrors.InternalError)
+        }
+      }
+  }
+
+  private def getOmmersFromPool = {
+    import scala.concurrent.ExecutionContext.Implicits.global
+    implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
+
+    (ommersPool ? OmmersPool.GetOmmers).mapTo[OmmersPool.Ommers]
+      .recover { case ex =>
+        log.error("failed to get ommer, mining block with empty ommers list", ex)
+        OmmersPool.Ommers(Nil)
+      }
+  }
+
+  private def getTransactionsFromPool = {
+    import scala.concurrent.ExecutionContext.Implicits.global
+    implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
+
+    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactions]
+      .recover { case ex =>
+        log.error("failed to get transactions, mining block with empty transactions list", ex)
+        PendingTransactions(Nil)
+      }
   }
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
     blockGenerator.getPrepared(req.powHeaderHash) match {
       case Some(block) if appStateStorage.getBestBlockNumber() <= block.header.number =>
         syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
+        pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
         Future.successful(Right(SubmitWorkResponse(true)))
       case _ =>
         Future.successful(Right(SubmitWorkResponse(false)))
@@ -249,7 +265,7 @@ class EthService(
 
     Try(req.data.toArray.toSignedTransaction) match {
       case Success(signedTransaction) =>
-        pendingTransactionsManager ! PendingTransactionsManager.AddTransaction(signedTransaction)
+        pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(signedTransaction)
         Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
       case Failure(ex) =>
         Future.successful(Left(JsonRpcErrors.InvalidRequest))

@@ -15,15 +15,17 @@ import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.validators.Validators
 
 class SyncController(
-    val peerManager: ActorRef,
     val appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
     val blockchainStorages: BlockchainStorages,
     val fastSyncStateStorage: FastSyncStateStorage,
     val ledger: Ledger,
     val validators: Validators,
+    val peerManager: ActorRef,
     val peerMessageBus: ActorRef,
-    externalSchedulerOpt: Option[Scheduler] = None)
+    val pendingTransactionsManager: ActorRef,
+    val ommersPool: ActorRef,
+    val externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor
     with ActorLogging
     with BlacklistSupport
@@ -103,16 +105,23 @@ class SyncController(
 }
 
 object SyncController {
-  def props(peerManager: ActorRef,
-            appStateStorage: AppStateStorage,
+  //todo refactor to provide ActorRefs differently
+  // scalastyle:off parameter.number
+  def props(appStateStorage: AppStateStorage,
             blockchain: Blockchain,
             blockchainStorages: BlockchainStorages,
             syncStateStorage: FastSyncStateStorage,
             ledger: Ledger,
             validators: Validators,
-            peerMessageBus: ActorRef):
-  Props = Props(new SyncController(peerManager, appStateStorage, blockchain, blockchainStorages,
-    syncStateStorage, ledger, validators, peerMessageBus))
+            peerManager: ActorRef,
+            peerMessageBus: ActorRef,
+            pendingTransactionsManager: ActorRef,
+            ommersPool: ActorRef):
+  Props = Props(new SyncController(appStateStorage, blockchain, blockchainStorages, syncStateStorage, ledger, validators,
+    peerManager, peerMessageBus, pendingTransactionsManager, ommersPool))
+
+  case class DependencyActors(
+    )
 
   case class BlockHeadersToResolve(peer: Peer, headers: Seq[BlockHeader])
 
