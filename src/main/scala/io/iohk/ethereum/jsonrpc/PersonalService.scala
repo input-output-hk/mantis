@@ -8,7 +8,7 @@ import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
-import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransaction
+import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransactions
 
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -110,7 +110,7 @@ class PersonalService(
     val tx = request.toTransaction(defaultNonce)
     val stx = wallet.signTx(tx)
 
-    txPool ! AddTransaction(stx)
+    txPool ! AddTransactions(stx)
 
     stx.hash
   }

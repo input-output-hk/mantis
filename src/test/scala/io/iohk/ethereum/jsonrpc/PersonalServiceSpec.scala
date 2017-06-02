@@ -10,7 +10,7 @@ import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.keystore.KeyStore.IOError
-import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransaction
+import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransactions
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
@@ -89,7 +89,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val res = personal.sendTransaction(req).futureValue
 
     res shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
-    txPool.expectMsg(AddTransaction(stx))
+    txPool.expectMsg(AddTransactions(stx))
   }
 
   it should "fail to send a transaction given a wrong passphrase" in new TestSetup {
@@ -116,7 +116,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val res = personal.sendTransaction(req).futureValue
 
     res shouldEqual Right(SendTransactionResponse(stx.hash))
-    txPool.expectMsg(AddTransaction(stx))
+    txPool.expectMsg(AddTransactions(stx))
   }
 
   it should "fail to send a transaction when account is locked" in new TestSetup {
