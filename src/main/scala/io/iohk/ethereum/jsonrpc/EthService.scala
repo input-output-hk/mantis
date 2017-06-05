@@ -82,12 +82,13 @@ object EthService {
   case class CallTx(
     from: Option[ByteString],
     to: Option[ByteString],
-    gas: BigInt,
+    gas: Option[BigInt],
     gasPrice: BigInt,
     value: BigInt,
     data: ByteString)
   case class CallRequest(tx: CallTx, block: BlockParam)
   case class CallResponse(returnData: ByteString)
+  case class EstimateGasResponse(gas: BigInt)
 
   case class GetCodeRequest(address: Address, block: BlockParam)
   case class GetCodeResponse(result: ByteString)
@@ -306,22 +307,14 @@ class EthService(
   }
 
   def call(req: CallRequest): ServiceResponse[CallResponse] = {
-    val fromAddress = req.tx.from
-      .map(Address.apply) // `from` param, if specified
-      .getOrElse(
-        keyStore
-          .listAccounts().getOrElse(Nil).headOption // first account, if exists and `from` param not specified
-          .getOrElse(Address(0))) // 0x0 default
-
-    val toAddress = req.tx.to.map(Address.apply)
-    val tx = Transaction(0, req.tx.gasPrice, req.tx.gas, toAddress, req.tx.value, req.tx.data)
-    val stx = SignedTransaction(tx, ECDSASignature(0, 0, 0.toByte), fromAddress)
-
     Future.successful {
-      resolveBlock(req.block).map { block =>
-        val txResult = ledger.simulateTransaction(stx, block.header, blockchainStorages)
-        CallResponse(txResult.vmReturnData)
-      }
+      doCall(req).map(r => CallResponse(r.vmReturnData))
+    }
+  }
+
+  def estimateGas(req: CallRequest): ServiceResponse[EstimateGasResponse] = {
+    Future.successful {
+      doCall(req).map(r => EstimateGasResponse(r.gasUsed))
     }
   }
 
@@ -376,4 +369,27 @@ class EthService(
     }
   }
 
+  private def doCall(req: CallRequest): Either[JsonRpcError, Ledger.TxResult] = {
+    val fromAddress = req.tx.from
+      .map(Address.apply) // `from` param, if specified
+      .getOrElse(
+      keyStore
+        .listAccounts().getOrElse(Nil).headOption // first account, if exists and `from` param not specified
+        .getOrElse(Address(0))) // 0x0 default
+
+    val toAddress = req.tx.to.map(Address.apply)
+
+    val gasLimit = req.tx.gas.getOrElse {
+      resolveBlock(BlockParam.Latest) match {
+        case Right(b) => b.header.gasLimit
+        case Left(err) => BigInt(0)
+      }
+    }
+    val tx = Transaction(0, req.tx.gasPrice, gasLimit, toAddress, req.tx.value, req.tx.data)
+    val stx = SignedTransaction(tx, ECDSASignature(0, 0, 0.toByte), fromAddress)
+
+    resolveBlock(req.block).map { block =>
+      ledger.simulateTransaction(stx, block.header, blockchainStorages)
+    }
+  }
 }

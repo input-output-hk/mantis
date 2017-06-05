@@ -549,6 +549,32 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(JString("0x617364"))
   }
 
+  it should "eth_estimateGas" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.estimateGas _).expects(*).returning(Future.successful(Right(EstimateGasResponse(2310))))
+
+    val json = JArray(List(
+      JObject(
+        "from" -> "0xabbb6bebfa05aa13e908eaa492bd7a8343760477",
+        "to" -> "0xda714fe079751fa7a1ad80b76571ea6ec52a446c",
+        "gas" -> "0x12",
+        "gasPrice" -> "0x123",
+        "value" -> "0x99",
+        "data" -> "0xFF44"
+      ),
+      JString("latest")
+    ))
+    val rpcRequest = JsonRpcRequest("2.0", "eth_estimateGas", Some(json), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x906"))
+  }
+
   it should "eth_getCode" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)

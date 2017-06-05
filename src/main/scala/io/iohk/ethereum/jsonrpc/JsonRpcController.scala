@@ -110,6 +110,8 @@ class JsonRpcController(
       handle[SendTransactionRequest, SendTransactionResponse](personalService.sendTransaction, req)
     case req @ JsonRpcRequest(_, "eth_call", _, _) =>
       handle[CallRequest, CallResponse](ethService.call, req)
+    case req @ JsonRpcRequest(_, "eth_estimateGas", _, _) =>
+      handle[CallRequest, EstimateGasResponse](ethService.estimateGas, req)
     case req @ JsonRpcRequest(_, "eth_getCode", _, _) =>
       handle[GetCodeRequest, GetCodeResponse](ethService.getCode, req)
     case req @ JsonRpcRequest(_, "eth_getUncleCountByBlockNumber", _, _) =>
