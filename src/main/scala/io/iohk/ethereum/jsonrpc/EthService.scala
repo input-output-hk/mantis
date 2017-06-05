@@ -206,7 +206,7 @@ class EthService(
     hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
       override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
         val now = new Date
-        clearTimeouts(now, t + (req.id -> (req.hashRate, now)))
+        removeObsoleteHashrates(now, t + (req.id -> (req.hashRate, now)))
       }
     })
 
@@ -216,7 +216,7 @@ class EthService(
   def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] = {
     val hashRates: Map[ByteString, (BigInt, Date)] = hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
       override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
-        clearTimeouts(new Date, t)
+        removeObsoleteHashrates(new Date, t)
       }
     })
 
@@ -224,10 +224,10 @@ class EthService(
     Future.successful(Right(GetHashRateResponse(hashRates.mapValues { case (hr, _) => hr }.values.sum)))
   }
 
-  private def clearTimeouts(now: Date, rates: Map[ByteString, (BigInt, Date)]):Map[ByteString, (BigInt, Date)]={
-    val rateTimeOut = 5.seconds.toMillis
+  private def removeObsoleteHashrates(now: Date, rates: Map[ByteString, (BigInt, Date)]):Map[ByteString, (BigInt, Date)]={
+    val rateUsefulnessTime = 5.seconds.toMillis
     rates.filter { case (_, (_, reported)) =>
-      Duration.between(reported.toInstant, now.toInstant).toMillis < rateTimeOut
+      Duration.between(reported.toInstant, now.toInstant).toMillis < rateUsefulnessTime
     }
   }
 
