@@ -37,6 +37,17 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: SubmitHashRateResponse): JValue = JBool(t.success)
   }
 
+  implicit val eth_coinbase = new JsonDecoder[GetCoinbaseRequest] with JsonEncoder[GetCoinbaseResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetCoinbaseRequest] = params match {
+      case None | Some(JArray(Nil)) => Right(GetCoinbaseRequest())
+      case Some(_) => Left(InvalidParams())
+    }
+
+    override def encodeJson(t: GetCoinbaseResponse): JsonAST.JValue ={
+      encodeAsHex(t.address.bytes)
+    }
+  }
+
   implicit val eth_getWork = new JsonDecoder[GetWorkRequest] with JsonEncoder[GetWorkResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetWorkRequest] = params match {
       case None | Some(JArray(Nil)) => Right(GetWorkRequest())

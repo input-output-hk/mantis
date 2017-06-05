@@ -626,6 +626,21 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(JString("0x11"))
   }
 
+  it should "eth_coinbase " in new TestSetup {
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_coinbase",
+      None,
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x" + "42" * 20))
+  }
+
   trait TestSetup extends MockFactory {
     def config: JsonRpcConfig = Config.Network.Rpc
 
@@ -644,7 +659,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val ommersPool = TestProbe()
 
     val miningConfig = new MiningConfig {
-      override val coinbase: Address = Address(42)
+      override val coinbase: Address = Address(Hex.decode("42" * 20))
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
       override val txPoolSize: Int = 30
