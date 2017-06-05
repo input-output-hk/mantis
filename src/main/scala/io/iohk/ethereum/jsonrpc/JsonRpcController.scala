@@ -76,6 +76,7 @@ class JsonRpcController(
       handle[PeerCountRequest, PeerCountResponse](netService.peerCount, req)
   }
 
+  // scalastyle:off cyclomatic.complexity
   private def handleEthRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) =>
       handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
@@ -89,6 +90,8 @@ class JsonRpcController(
       handle[SubmitWorkRequest, SubmitWorkResponse](ethService.submitWork, req)
     case req @ JsonRpcRequest(_, "eth_blockNumber", _, _) =>
       handle[BestBlockNumberRequest, BestBlockNumberResponse](ethService.bestBlockNumber, req)
+    case req @ JsonRpcRequest(_, "eth_coinbase", _, _) =>
+      handle[GetCoinbaseRequest, GetCoinbaseResponse](ethService.getCoinbase, req)
     case req @ JsonRpcRequest(_, "eth_getBlockTransactionCountByHash", _, _) =>
       handle[TxCountByBlockHashRequest, TxCountByBlockHashResponse](ethService.getBlockTransactionCountByHash, req)
     case req @ JsonRpcRequest(_, "eth_getBlockByHash", _, _) =>
@@ -101,8 +104,18 @@ class JsonRpcController(
       handle[ListAccountsRequest, ListAccountsResponse](personalService.listAccounts, req)
     case req @ JsonRpcRequest(_, "eth_sendRawTransaction", _, _) =>
       handle[SendRawTransactionRequest, SendRawTransactionResponse](ethService.sendRawTransaction, req)
+    case req @ JsonRpcRequest(_, "eth_sendTransaction", _, _) =>
+      handle[SendTransactionRequest, SendTransactionResponse](personalService.sendTransaction, req)
     case req @ JsonRpcRequest(_, "eth_call", _, _) =>
       handle[CallRequest, CallResponse](ethService.call, req)
+    case req @ JsonRpcRequest(_, "eth_getCode", _, _) =>
+      handle[GetCodeRequest, GetCodeResponse](ethService.getCode, req)
+    case req @ JsonRpcRequest(_, "eth_getUncleCountByBlockNumber", _, _) =>
+      handle[GetUncleCountByBlockNumberRequest, GetUncleCountByBlockNumberResponse](ethService.getUncleCountByBlockNumber, req)
+    case req @ JsonRpcRequest(_, "eth_getUncleCountByBlockHash", _, _) =>
+      handle[GetUncleCountByBlockHashRequest, GetUncleCountByBlockHashResponse](ethService.getUncleCountByBlockHash, req)
+    case req @ JsonRpcRequest(_, "eth_getBlockTransactionCountByNumber", _, _) =>
+      handle[GetBlockTransactionCountByNumberRequest, GetBlockTransactionCountByNumberResponse](ethService.getBlockTransactionCountByNumber, req)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
@@ -114,6 +127,15 @@ class JsonRpcController(
 
     case req @ JsonRpcRequest(_, "personal_listAccounts", _, _) =>
       handle[ListAccountsRequest, ListAccountsResponse](personalService.listAccounts, req)
+
+    case req @ JsonRpcRequest(_, "personal_sendTransaction" | "personal_signAndSendTransaction", _, _) =>
+      handle[SendTransactionWithPassphraseRequest, SendTransactionWithPassphraseResponse](personalService.sendTransaction, req)
+
+    case req @ JsonRpcRequest(_, "personal_unlockAccount", _, _) =>
+      handle[UnlockAccountRequest, UnlockAccountResponse](personalService.unlockAccount, req)
+
+    case req @ JsonRpcRequest(_, "personal_lockAccount", _, _) =>
+      handle[LockAccountRequest, LockAccountResponse](personalService.lockAccount, req)
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {

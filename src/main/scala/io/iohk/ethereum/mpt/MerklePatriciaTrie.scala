@@ -96,7 +96,7 @@ object MerklePatriciaTrie {
   }
 }
 
-class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
+class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]],
   val nodeStorage: NodeStorage,
   private val hashFn: HashFn)
   (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
