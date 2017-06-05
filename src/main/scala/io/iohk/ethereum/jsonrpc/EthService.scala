@@ -41,11 +41,17 @@ object EthService {
   case class BlockByBlockHashRequest(blockHash: ByteString, fullTxs: Boolean)
   case class BlockByBlockHashResponse(blockResponse: Option[BlockResponse])
 
+  case class BlockByNumberRequest(block: BlockParam, fullTxs: Boolean)
+  case class BlockByNumberResponse(blockResponse: Option[BlockResponse])
+
   case class GetTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
   case class GetTransactionByBlockHashAndIndexResponse(transactionResponse: Option[TransactionResponse])
 
   case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
   case class UncleByBlockHashAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
+
+  case class UncleByBlockNumberAndIndexRequest(block: BlockParam, uncleIndex: BigInt)
+  case class UncleByBlockNumberAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
 
   case class SubmitHashRateRequest(hashRate: BigInt, id: ByteString)
   case class SubmitHashRateResponse(success: Boolean)
@@ -152,6 +158,21 @@ class EthService(
   }
 
   /**
+    * Implements the eth_getBlockByNumber method that fetches a requested block.
+    *
+    * @param request with the block requested (by it's number or by tag)
+    * @return the block requested or None if the client doesn't have the block
+    */
+  def getBlockByNumber(request: BlockByNumberRequest): ServiceResponse[BlockByNumberResponse] = Future {
+    val BlockByNumberRequest(blockParam, fullTxs) = request
+    val blockResponseOpt = resolveBlock(blockParam).toOption.map { block =>
+      val totalDifficulty = blockchain.getTotalDifficultyByHash(block.header.hash)
+      BlockResponse(block, fullTxs, totalDifficulty)
+    }
+    Right(BlockByNumberResponse(blockResponseOpt))
+  }
+
+  /**
     * eth_getTransactionByBlockHashAndIndex that returns information about a transaction by block hash and
     * transaction index position.
     *
@@ -190,6 +211,29 @@ class EthService(
     //The block in the response will not have any txs or uncles
     val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader => BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty) }
     Right(UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt))
+  }
+
+  /**
+    * Implements the eth_getUncleByBlockNumberAndIndex method that fetches an uncle from a certain index in a requested block.
+    *
+    * @param request with the number/tag of the block and the index of the uncle requested
+    * @return the uncle that the block has at the given index or None if the client doesn't have the block or if there's no uncle in that index
+    */
+  def getUncleByBlockNumberAndIndex(request: UncleByBlockNumberAndIndexRequest): ServiceResponse[UncleByBlockNumberAndIndexResponse] = Future {
+    val UncleByBlockNumberAndIndexRequest(blockParam, uncleIndex) = request
+    val uncleHeaderOpt = resolveBlock(blockParam).toOption
+      .flatMap { uncleBlock =>
+        val uncleBody = uncleBlock.body
+        if (uncleIndex >= 0 && uncleIndex < uncleBody.uncleNodesList.size)
+          Some(uncleBody.uncleNodesList.apply(uncleIndex.toInt))
+        else
+          None
+      }
+    val totalDifficulty = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getTotalDifficultyByHash(uncleHeader.hash))
+
+    //The block in the response will not have any txs or uncles
+    val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader => BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty) }
+    Right(UncleByBlockNumberAndIndexResponse(uncleBlockResponseOpt))
   }
 
   def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] = {

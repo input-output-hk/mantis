@@ -92,13 +92,26 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_getBlockByHash = new JsonDecoder[BlockByBlockHashRequest] with JsonEncoder[BlockByBlockHashResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BlockByBlockHashRequest] = {
       params match {
-        case Some(JArray(JString(blockHash) :: JBool(txHashed) :: Nil)) =>
-          extractHash(blockHash).map(BlockByBlockHashRequest(_, txHashed))
+        case Some(JArray(JString(blockHash) :: JBool(fullTxs) :: Nil)) =>
+          extractHash(blockHash).map(BlockByBlockHashRequest(_, fullTxs))
         case _ => Left(InvalidParams())
       }
     }
 
     override def encodeJson(t: BlockByBlockHashResponse): JValue =
+      Extraction.decompose(t.blockResponse)
+  }
+
+  implicit val eth_getBlockByNumber = new JsonDecoder[BlockByNumberRequest] with JsonEncoder[BlockByNumberResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BlockByNumberRequest] = {
+      params match {
+        case Some(JArray(blockStr :: JBool(fullTxs) :: Nil)) =>
+          extractBlockParam(blockStr).map(BlockByNumberRequest(_, fullTxs))
+        case _ => Left(InvalidParams())
+      }
+    }
+
+    override def encodeJson(t: BlockByNumberResponse): JValue =
       Extraction.decompose(t.blockResponse)
   }
 
@@ -129,6 +142,26 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       }
 
     override def encodeJson(t: UncleByBlockHashAndIndexResponse): JValue = {
+      val uncleBlockResponse = Extraction.decompose(t.uncleBlockResponse)
+      uncleBlockResponse.removeField{
+        case JField("transactions", _) => true
+        case _ => false
+      }
+    }
+  }
+
+  implicit val eth_getUncleByBlockNumberAndIndex = new JsonDecoder[UncleByBlockNumberAndIndexRequest] with JsonEncoder[UncleByBlockNumberAndIndexResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, UncleByBlockNumberAndIndexRequest] =
+      params match {
+        case Some(JArray(blockStr :: uncleIndex :: Nil)) =>
+          for {
+            block <- extractBlockParam(blockStr)
+            uncleBlockIndex <- extractQuantity(uncleIndex)
+          } yield UncleByBlockNumberAndIndexRequest(block, uncleBlockIndex)
+        case _ => Left(InvalidParams())
+      }
+
+    override def encodeJson(t: UncleByBlockNumberAndIndexResponse): JValue = {
       val uncleBlockResponse = Extraction.decompose(t.uncleBlockResponse)
       uncleBlockResponse.removeField{
         case JField("transactions", _) => true
