@@ -163,7 +163,7 @@ class EthService(
     val blockOpt = blockchain.getBlockByHash(blockHash)
     val totalDifficulty = blockchain.getTotalDifficultyByHash(blockHash)
 
-    val blockResponseOpt = blockOpt.map(block => BlockResponse(block, fullTxs, totalDifficulty))
+    val blockResponseOpt = blockOpt.map(block => BlockResponse(block, totalDifficulty, fullTxs = fullTxs))
     Right(BlockByBlockHashResponse(blockResponseOpt))
   }
 
@@ -177,7 +177,7 @@ class EthService(
     val BlockByNumberRequest(blockParam, fullTxs) = request
     val blockResponseOpt = resolveBlock(blockParam).toOption.map { block =>
       val totalDifficulty = blockchain.getTotalDifficultyByHash(block.header.hash)
-      BlockResponse(block, fullTxs, totalDifficulty)
+      BlockResponse(block, totalDifficulty, fullTxs = fullTxs, pendingBlock = blockParam == BlockParam.Pending)
     }
     Right(BlockByNumberResponse(blockResponseOpt))
   }
@@ -219,7 +219,8 @@ class EthService(
     val totalDifficulty = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getTotalDifficultyByHash(uncleHeader.hash))
 
     //The block in the response will not have any txs or uncles
-    val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader => BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty) }
+    val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader =>
+      BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = false) }
     Right(UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt))
   }
 
@@ -242,7 +243,8 @@ class EthService(
     val totalDifficulty = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getTotalDifficultyByHash(uncleHeader.hash))
 
     //The block in the response will not have any txs or uncles
-    val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader => BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty) }
+    val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader =>
+      BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = blockParam == BlockParam.Pending) }
     Right(UncleByBlockNumberAndIndexResponse(uncleBlockResponseOpt))
   }
 

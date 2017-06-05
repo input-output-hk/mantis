@@ -245,7 +245,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     )
     val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
 
-    val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None))
+    val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None, pendingBlock = false))
       .removeField {
         case ("transactions", _) => true
         case _ => false
@@ -274,7 +274,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     )
     val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
 
-    val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None))
+    val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None, pendingBlock = false))
       .removeField {
         case ("transactions", _) => true
         case _ => false

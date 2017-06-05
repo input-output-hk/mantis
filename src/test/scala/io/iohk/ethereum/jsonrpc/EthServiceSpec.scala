@@ -105,6 +105,21 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.transactionResponse shouldBe Some(expectedTxResponse)
   }
 
+  //FIXME: This test should be changed once the pending block doesn't equal to the latest one
+  it should "answer eth_getBlockByNumber with the correct parameters in None when the pending block is requested" in new TestSetup {
+    val bestBlockNumber = 10
+
+    blockchain.save(blockToRequest.copy(header = blockToRequest.header.copy(number = bestBlockNumber)))
+    blockchain.save(blockToRequestHash, blockTd)
+    (appStateStorage.getBestBlockNumber _).expects().returning(bestBlockNumber)
+
+    val request = BlockByNumberRequest(BlockParam.Pending, fullTxs = true)
+    val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
+    response.blockResponse.get.hash shouldBe None
+    response.blockResponse.get.nonce shouldBe None
+    response.blockResponse.get.miner shouldBe None
+  }
+
   it should "answer eth_getBlockByNumber with None when the requested block isn't in the blockchain" in new TestSetup {
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
     val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
@@ -239,7 +254,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
     val response = Await.result(ethService.getUncleByBlockHashAndIndex(request), Duration.Inf).right.get
 
-    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None))
+    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None, pendingBlock = false))
     response.uncleBlockResponse.get.totalDifficulty shouldBe None
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
@@ -253,7 +268,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
     val response = Await.result(ethService.getUncleByBlockHashAndIndex(request), Duration.Inf).right.get
 
-    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleTd)))
+    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleTd), pendingBlock = false))
     response.uncleBlockResponse.get.totalDifficulty shouldBe Some(uncleTd)
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
@@ -295,7 +310,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
     val response = Await.result(ethService.getUncleByBlockNumberAndIndex(request), Duration.Inf).right.get
 
-    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None))
+    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None, pendingBlock = false))
     response.uncleBlockResponse.get.totalDifficulty shouldBe None
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
@@ -309,7 +324,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
     val response = Await.result(ethService.getUncleByBlockNumberAndIndex(request), Duration.Inf).right.get
 
-    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleTd)))
+    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleTd), pendingBlock = false))
     response.uncleBlockResponse.get.totalDifficulty shouldBe Some(uncleTd)
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
