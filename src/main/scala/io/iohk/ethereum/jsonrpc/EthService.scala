@@ -1,5 +1,10 @@
 package io.iohk.ethereum.jsonrpc
 
+import java.time.Duration
+import java.util.Date
+import java.util.concurrent.atomic.AtomicReference
+import java.util.function.UnaryOperator
+
 import akka.pattern.ask
 import akka.util.Timeout
 import io.iohk.ethereum.domain._
@@ -23,7 +28,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
-
+import scala.concurrent.duration._
 // scalastyle:off number.of.methods number.of.types
 object EthService {
 
@@ -49,6 +54,9 @@ object EthService {
 
   case class SubmitHashRateRequest(hashRate: BigInt, id: ByteString)
   case class SubmitHashRateResponse(success: Boolean)
+
+  case class GetHashRateRequest()
+  case class GetHashRateResponse(hashRate: BigInt)
 
   case class GetWorkRequest()
   case class GetWorkResponse(powHeaderHash: ByteString, dagSeed: ByteString, target: ByteString)
@@ -112,6 +120,8 @@ class EthService(
   import EthService._
 
   lazy val blockchain = BlockchainImpl(blockchainStorages)
+
+  val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] = new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
     Future.successful(Right(ProtocolVersionResponse(f"0x$CurrentProtocolVersion%x")))
@@ -193,8 +203,32 @@ class EthService(
   }
 
   def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] = {
-    //todo do we care about hash rate for now?
+    hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
+      override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
+        val now = new Date
+        removeObsoleteHashrates(now, t + (req.id -> (req.hashRate, now)))
+      }
+    })
+
     Future.successful(Right(SubmitHashRateResponse(true)))
+  }
+
+  def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] = {
+    val hashRates: Map[ByteString, (BigInt, Date)] = hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
+      override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
+        removeObsoleteHashrates(new Date, t)
+      }
+    })
+
+    //sum all reported hashRates
+    Future.successful(Right(GetHashRateResponse(hashRates.mapValues { case (hr, _) => hr }.values.sum)))
+  }
+
+  private def removeObsoleteHashrates(now: Date, rates: Map[ByteString, (BigInt, Date)]):Map[ByteString, (BigInt, Date)]={
+    val rateUsefulnessTime = 5.seconds.toMillis
+    rates.filter { case (_, (_, reported)) =>
+      Duration.between(reported.toInstant, now.toInstant).toMillis < rateUsefulnessTime
+    }
   }
 
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] = {
