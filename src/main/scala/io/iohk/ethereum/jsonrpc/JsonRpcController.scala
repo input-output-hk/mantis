@@ -86,6 +86,8 @@ class JsonRpcController(
       handle[SubmitHashRateRequest, SubmitHashRateResponse](ethService.submitHashRate, req)
     case req @ JsonRpcRequest(_, "eth_hashrate", _, _) =>
       handle[GetHashRateRequest, GetHashRateResponse](ethService.getHashRate, req)
+    case req @ JsonRpcRequest(_, "eth_mining", _, _) =>
+      handle[GetMiningRequest, GetMiningResponse](ethService.getMining, req)
     case req @ JsonRpcRequest(_, "eth_getWork", _, _) =>
       handle[GetWorkRequest, GetWorkResponse](ethService.getWork, req)
     case req @ JsonRpcRequest(_, "eth_submitWork", _, _) =>
