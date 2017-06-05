@@ -548,7 +548,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       "2.0",
       "eth_submitHashrate",
       Some(JArray(List(
-        JString(s"0x500"),
+        JString(s"0x${"0" * 61}500"),
         JString(s"0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")
       ))),
       Some(JInt(1))
@@ -559,6 +559,21 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JBool(true))
+  }
+
+  it should "eth_hashrate" in new TestSetup {
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_hashrate",
+      None,
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x0"))
   }
 
   it should "eth_call" in new TestSetup {

@@ -24,6 +24,7 @@ import io.iohk.ethereum.utils.Config
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
+import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 
 class SyncControllerSpec extends FlatSpec with Matchers {
@@ -291,31 +292,31 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerTestProbe.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
-    peerMessageBus.reply(MessageFromPeer(BlockHeaders(Seq(newBlockHeader)), peer.id))
+    peerMessageBus.reply(MessageFromPeer(BlockHeaders(Queue(newBlockHeader)), peer.id))
 
     peerMessageBus.expectMsgAllOf(
       Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
-    syncController.children.last ! MessageFromPeer(BlockHeaders(Seq(newBlockHeaderParent)), peer.id)
+    syncController.children.last ! MessageFromPeer(BlockHeaders(Queue(newBlockHeaderParent)), peer.id)
 
     peerMessageBus.expectMsgAllOf(
       Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
       Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))))
 
-    syncController.children.last ! MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer.id)
+    syncController.children.last ! MessageFromPeer(BlockBodies(Queue(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer.id)
 
     peerTestProbe.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(newBlockHeader.parentHash), Config.FastSync.blockResolveDepth, 0, reverse = true)))
-    peerTestProbe.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeaderParent.hash, newBlockHeader.hash))))
+    peerTestProbe.expectMsg(PeerActor.SendMessage(GetBlockBodies(Queue(newBlockHeaderParent.hash, newBlockHeader.hash))))
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
       Unsubscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))))
-    syncController.children.last ! MessageFromPeer(BlockHeaders(Seq(nextNewBlockHeader)), peer.id)
+    syncController.children.last ! MessageFromPeer(BlockHeaders(Queue(nextNewBlockHeader)), peer.id)
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))),
       Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
-    syncController.children.last ! MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil))), peer.id)
+    syncController.children.last ! MessageFromPeer(BlockBodies(Queue(BlockBody(Nil, Nil))), peer.id)
 
     //start next download cycle
 
