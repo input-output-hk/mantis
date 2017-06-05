@@ -104,6 +104,8 @@ class JsonRpcController(
       handle[ListAccountsRequest, ListAccountsResponse](personalService.listAccounts, req)
     case req @ JsonRpcRequest(_, "eth_sendRawTransaction", _, _) =>
       handle[SendRawTransactionRequest, SendRawTransactionResponse](ethService.sendRawTransaction, req)
+    case req @ JsonRpcRequest(_, "eth_sendTransaction", _, _) =>
+      handle[SendTransactionRequest, SendTransactionResponse](personalService.sendTransaction, req)
     case req @ JsonRpcRequest(_, "eth_call", _, _) =>
       handle[CallRequest, CallResponse](ethService.call, req)
     case req @ JsonRpcRequest(_, "eth_getCode", _, _) =>
@@ -125,6 +127,15 @@ class JsonRpcController(
 
     case req @ JsonRpcRequest(_, "personal_listAccounts", _, _) =>
       handle[ListAccountsRequest, ListAccountsResponse](personalService.listAccounts, req)
+
+    case req @ JsonRpcRequest(_, "personal_sendTransaction" | "personal_signAndSendTransaction", _, _) =>
+      handle[SendTransactionWithPassphraseRequest, SendTransactionWithPassphraseResponse](personalService.sendTransaction, req)
+
+    case req @ JsonRpcRequest(_, "personal_unlockAccount", _, _) =>
+      handle[UnlockAccountRequest, UnlockAccountResponse](personalService.unlockAccount, req)
+
+    case req @ JsonRpcRequest(_, "personal_lockAccount", _, _) =>
+      handle[LockAccountRequest, LockAccountResponse](personalService.lockAccount, req)
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {

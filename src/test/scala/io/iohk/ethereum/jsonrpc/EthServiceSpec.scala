@@ -326,7 +326,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.save(newblock)
     (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
 
-    val response = ethService.getCode(GetCodeRequest(address.bytes, BlockParam.Latest))
+    val response = ethService.getCode(GetCodeRequest(address, BlockParam.Latest))
 
     response.futureValue shouldEqual Right(GetCodeResponse(ByteString("code code code")))
   }

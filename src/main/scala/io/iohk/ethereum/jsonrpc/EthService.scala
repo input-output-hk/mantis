@@ -81,7 +81,7 @@ object EthService {
   case class CallRequest(tx: CallTx, block: BlockParam)
   case class CallResponse(returnData: ByteString)
 
-  case class GetCodeRequest(address: ByteString, block: BlockParam)
+  case class GetCodeRequest(address: Address, block: BlockParam)
   case class GetCodeResponse(result: ByteString)
 
   case class GetUncleCountByBlockNumberRequest(block: BlockParam)
@@ -295,7 +295,7 @@ class EthService(
     Future.successful {
       resolveBlock(req.block).map { block =>
         val world = InMemoryWorldStateProxy(blockchainStorages, Some(block.header.stateRoot))
-        GetCodeResponse(world.getCode(Address(req.address)))
+        GetCodeResponse(world.getCode(req.address))
       }
     }
   }
