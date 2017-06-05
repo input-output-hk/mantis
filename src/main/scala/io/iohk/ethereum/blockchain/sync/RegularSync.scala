@@ -162,9 +162,9 @@ trait RegularSync {
   }
 
   def getOldBlocks(headers: Seq[BlockHeader]): List[Block] = headers match {
-    case h :: tail =>
+    case Seq(h, tail @ _*) =>
       blockchain.getBlockByNumber(h.number).map(_ :: getOldBlocks(tail)).getOrElse(Nil)
-    case Nil =>
+    case Seq() =>
       Nil
   }
 
