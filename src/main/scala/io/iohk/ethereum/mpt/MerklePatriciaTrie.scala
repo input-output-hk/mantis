@@ -94,6 +94,10 @@ object MerklePatriciaTrie {
 
     override def fromBytes(bytes: Array[Byte]): Array[Byte] = bytes
   }
+
+  def stateMpt(root: ByteString, storage: NodeStorages) = {
+
+  }
 }
 
 class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
