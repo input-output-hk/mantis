@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
+import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTransactionResponse}
 import org.json4s.{Extraction, JsonAST}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue, _}
 import org.json4s.JsonDSL._
@@ -25,15 +26,26 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
 
   implicit val eth_submitHashrate = new JsonDecoder[SubmitHashRateRequest] with JsonEncoder[SubmitHashRateResponse] {
     override def decodeJson(params: Option[JsonAST.JArray]): Either[JsonRpcError, SubmitHashRateRequest] = params match {
-      case Some(JArray((hashRate: JString) :: (id: JString) :: Nil)) =>
-        tryExtractQuantity(hashRate)
-          .flatMap(h => tryExtractUnformattedData(id).map(i => (h, i)))
+      case Some(JArray(hashRate :: JString(id) :: Nil)) =>
+        extractQuantity(hashRate)
+          .flatMap(h => extractBytes(id).map(i => (h, i)))
           .map { case (h, i) => SubmitHashRateRequest(h, i) }
       case _ =>
         Left(InvalidParams())
     }
 
     override def encodeJson(t: SubmitHashRateResponse): JValue = JBool(t.success)
+  }
+
+  implicit val eth_coinbase = new JsonDecoder[GetCoinbaseRequest] with JsonEncoder[GetCoinbaseResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetCoinbaseRequest] = params match {
+      case None | Some(JArray(Nil)) => Right(GetCoinbaseRequest())
+      case Some(_) => Left(InvalidParams())
+    }
+
+    override def encodeJson(t: GetCoinbaseResponse): JsonAST.JValue ={
+      encodeAsHex(t.address.bytes)
+    }
   }
 
   implicit val eth_getWork = new JsonDecoder[GetWorkRequest] with JsonEncoder[GetWorkResponse] {
@@ -52,11 +64,12 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
 
   implicit val eth_submitWork = new JsonDecoder[SubmitWorkRequest] with JsonEncoder[SubmitWorkResponse] {
     override def decodeJson(params: Option[JsonAST.JArray]): Either[JsonRpcError, SubmitWorkRequest] = params match {
-      case Some(JArray((nonce: JString) :: (powHeaderHash: JString) :: (mixHash: JString) :: Nil)) =>
-        tryExtractUnformattedData(nonce)
-          .flatMap(n => tryExtractUnformattedData(powHeaderHash).map(p => (n, p)))
-          .flatMap { case (n, p) => tryExtractUnformattedData(mixHash).map(m => (n, p, m)) }
-          .map { case (n, p, m) => SubmitWorkRequest(n, p, m) }
+      case Some(JArray(JString(nonce) :: JString(powHeaderHash) :: JString(mixHash) :: Nil)) =>
+        for {
+          n <- extractBytes(nonce)
+          p <- extractBytes(powHeaderHash)
+          m <- extractBytes(mixHash)
+        } yield SubmitWorkRequest(n, p, m)
       case _ =>
         Left(InvalidParams())
     }
@@ -67,8 +80,8 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_getBlockTransactionCountByHash = new JsonDecoder[TxCountByBlockHashRequest] with JsonEncoder[TxCountByBlockHashResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, TxCountByBlockHashRequest] =
       params match {
-        case Some(JArray((input: JString) :: Nil)) =>
-          tryExtractUnformattedData(input).map(TxCountByBlockHashRequest)
+        case Some(JArray(JString(input) :: Nil)) =>
+          extractHash(input).map(TxCountByBlockHashRequest)
         case _ => Left(InvalidParams())
       }
 
@@ -79,8 +92,8 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_getBlockByHash = new JsonDecoder[BlockByBlockHashRequest] with JsonEncoder[BlockByBlockHashResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BlockByBlockHashRequest] = {
       params match {
-        case Some(JArray((blockHash: JString) :: JBool(txHashed) :: Nil)) =>
-          tryExtractUnformattedData(blockHash).map(BlockByBlockHashRequest(_, txHashed))
+        case Some(JArray(JString(blockHash) :: JBool(txHashed) :: Nil)) =>
+          extractHash(blockHash).map(BlockByBlockHashRequest(_, txHashed))
         case _ => Left(InvalidParams())
       }
     }
@@ -92,10 +105,10 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_getTransactionByBlockHashAndIndex =
     new JsonDecoder[GetTransactionByBlockHashAndIndexRequest] with JsonEncoder[GetTransactionByBlockHashAndIndexResponse] {
       override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetTransactionByBlockHashAndIndexRequest] = params match {
-        case Some(JArray((blockHash: JString) :: (transactionIndex: JString) :: Nil)) =>
+        case Some(JArray(JString(blockHash) :: transactionIndex :: Nil)) =>
           for {
-            parsedBlockHash <- tryExtractBlockHash(blockHash)
-            parsedTransactionIndex <- tryExtractQuantity(transactionIndex)
+            parsedBlockHash <- extractHash(blockHash)
+            parsedTransactionIndex <- extractQuantity(transactionIndex)
           } yield GetTransactionByBlockHashAndIndexRequest(parsedBlockHash, parsedTransactionIndex)
         case _ => Left(InvalidParams())
       }
@@ -107,10 +120,10 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_getUncleByBlockHashAndIndex = new JsonDecoder[UncleByBlockHashAndIndexRequest] with JsonEncoder[UncleByBlockHashAndIndexResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, UncleByBlockHashAndIndexRequest] =
       params match {
-        case Some(JArray((blockHash: JString) :: (uncleIndex: JString) :: Nil)) =>
+        case Some(JArray(JString(blockHash) :: uncleIndex :: Nil)) =>
           for {
-            hash <- tryExtractUnformattedData(blockHash)
-            uncleBlockIndex <- tryExtractQuantity(uncleIndex)
+            hash <- extractHash(blockHash)
+            uncleBlockIndex <- extractQuantity(uncleIndex)
           } yield UncleByBlockHashAndIndexRequest(hash, uncleBlockIndex)
         case _ => Left(InvalidParams())
       }
@@ -133,9 +146,9 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_sendRawTransaction = new JsonDecoder[SendRawTransactionRequest] with JsonEncoder[SendRawTransactionResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, SendRawTransactionRequest] =
       params match {
-        case Some(JArray((dataStr: JString) :: Nil)) =>
+        case Some(JArray(JString(dataStr) :: Nil)) =>
           for {
-            data <- tryExtractUnformattedData(dataStr)
+            data <- extractBytes(dataStr)
           } yield SendRawTransactionRequest(data)
         case _ => Left(InvalidParams())
       }
@@ -143,30 +156,49 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     def encodeJson(t: SendRawTransactionResponse): JValue = encodeAsHex(t.transactionHash)
   }
 
+  implicit val eth_sendTransaction = new Codec[SendTransactionRequest, SendTransactionResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, SendTransactionRequest] =
+      params match {
+        case Some(JArray(JObject(tx) :: _)) =>
+          extractTx(tx.toMap).map(SendTransactionRequest)
+        case _ =>
+          Left(InvalidParams())
+      }
+
+    def encodeJson(t: SendTransactionResponse): JValue =
+      encodeAsHex(t.txHash)
+  }
+
   implicit val eth_call = new JsonDecoder[CallRequest] with JsonEncoder[CallResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, CallRequest] =
       params match {
         case Some(JArray((txObj: JObject) :: (blockStr: JString) :: Nil)) =>
           for {
-            blockParam <- tryExtractBlockParam(blockStr)
-            tx <- extractTx(txObj)
+            blockParam <- extractBlockParam(blockStr)
+            tx <- extractCall(txObj)
           } yield CallRequest(tx, blockParam)
         case _ => Left(InvalidParams())
       }
 
     def encodeJson(t: CallResponse): JValue = encodeAsHex(t.returnData)
 
-    def extractTx(obj: JObject): Either[JsonRpcError, CallTx] = {
+    def extractCall(obj: JObject): Either[JsonRpcError, CallTx] = {
       def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] =
         opt.map(_.right.map(Some.apply)).getOrElse(Right(None))
 
+      def optionalQuantity(input: JValue): Either[JsonRpcError, Option[BigInt]] =
+        input match {
+          case JNothing => Right(None)
+          case o => extractQuantity(o).map(Some(_))
+        }
+
       for {
-        from <- toEitherOpt((obj \ "from").extractOpt[String].map(tryExtractUnformattedData))
-        to <- toEitherOpt((obj \ "to").extractOpt[String].map(tryExtractUnformattedData))
-        gas <- toEitherOpt((obj \ "gas").extractOpt[String].map(tryExtractQuantity))
-        gasPrice <- toEitherOpt((obj \ "gasPrice").extractOpt[String].map(tryExtractQuantity))
-        value <- toEitherOpt((obj \ "value").extractOpt[String].map(tryExtractQuantity))
-        data <- toEitherOpt((obj \ "data").extractOpt[String].map(tryExtractUnformattedData))
+        from <- toEitherOpt((obj \ "from").extractOpt[String].map(extractBytes))
+        to <- toEitherOpt((obj \ "to").extractOpt[String].map(extractBytes))
+        gas <- optionalQuantity(obj \ "gas")
+        gasPrice <- optionalQuantity(obj \ "gasPrice")
+        value <- optionalQuantity(obj \ "value")
+        data <- toEitherOpt((obj \ "data").extractOpt[String].map(extractBytes))
       } yield CallTx(
         from = from,
         to = to,
@@ -182,8 +214,8 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       params match {
         case Some(JArray((address: JString) :: (blockStr: JString) :: Nil)) =>
           for {
-            addr <- tryExtractAddress(address)
-            block <- tryExtractBlockParam(blockStr)
+            addr <- extractAddress(address)
+            block <- extractBlockParam(blockStr)
           } yield GetCodeRequest(addr, block)
         case _ => Left(InvalidParams())
       }
@@ -196,7 +228,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       params match {
         case Some(JArray((blockStr: JString) :: Nil)) =>
           for {
-            block <- tryExtractBlockParam(blockStr)
+            block <- extractBlockParam(blockStr)
           } yield GetUncleCountByBlockNumberRequest(block)
         case _ => Left(InvalidParams())
       }
@@ -207,9 +239,9 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_getUncleCountByBlockHash = new JsonDecoder[GetUncleCountByBlockHashRequest] with JsonEncoder[GetUncleCountByBlockHashResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetUncleCountByBlockHashRequest] =
       params match {
-        case Some(JArray((blockHashStr: JString) :: Nil)) =>
+        case Some(JArray(JString(hash) :: Nil)) =>
           for {
-            blockHash <- tryExtractBlockHash(blockHashStr)
+            blockHash <- extractHash(hash)
           } yield GetUncleCountByBlockHashRequest(blockHash)
         case _ => Left(InvalidParams())
       }
@@ -223,7 +255,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       params match {
         case Some(JArray((blockStr: JString) :: Nil)) =>
           for {
-            block <- tryExtractBlockParam(blockStr)
+            block <- extractBlockParam(blockStr)
           } yield GetBlockTransactionCountByNumberRequest(block)
         case _ => Left(InvalidParams())
       }
@@ -236,8 +268,8 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       params match {
         case Some(JArray((addressStr: JString) :: (blockStr: JString) :: Nil)) =>
           for {
-            address <- tryExtractAddress(addressStr)
-            block <- tryExtractBlockParam(blockStr)
+            address <- extractAddress(addressStr)
+            block <- extractBlockParam(blockStr)
           } yield GetBalanceRequest(address, block)
         case _ => Left(InvalidParams())
       }
@@ -250,9 +282,9 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       params match {
         case Some(JArray((addressStr: JString) :: (positionStr: JString) :: (blockStr: JString) :: Nil)) =>
           for {
-            address <- tryExtractAddress(addressStr)
-            position <- tryExtractQuantity(positionStr)
-            block <- tryExtractBlockParam(blockStr)
+            address <- extractAddress(addressStr)
+            position <- extractQuantity(positionStr)
+            block <- extractBlockParam(blockStr)
           } yield GetStorageAtRequest(address, position, block)
         case _ => Left(InvalidParams())
       }
@@ -265,8 +297,8 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       params match {
         case Some(JArray((addressStr: JString) :: (blockStr: JString) :: Nil)) =>
           for {
-            address <- tryExtractAddress(addressStr)
-            block <- tryExtractBlockParam(blockStr)
+            address <- extractAddress(addressStr)
+            block <- extractBlockParam(blockStr)
           } yield GetTransactionCountRequest(address, block)
         case _ => Left(InvalidParams())
       }

@@ -94,13 +94,9 @@ object MerklePatriciaTrie {
 
     override def fromBytes(bytes: Array[Byte]): Array[Byte] = bytes
   }
-
-  def stateMpt(root: ByteString, storage: NodeStorages) = {
-
-  }
 }
 
-class MerklePatriciaTrie[K, V](private val rootHash: Option[Array[Byte]],
+class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]],
   val nodeStorage: NodeStorage,
   private val hashFn: HashFn)
   (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])

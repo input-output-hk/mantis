@@ -94,6 +94,7 @@ object InMemoryWorldStateProxy {
   private def createProxiedAccountsStateTrie(accountsStorage: NodeStorage, stateRootHash: ByteString)
   : InMemorySimpleMapProxy[ByteString, Account, MerklePatriciaTrie[ByteString, Account]] = {
     InMemorySimpleMapProxy.wrap[ByteString, Account, MerklePatriciaTrie[ByteString, Account]](
+      //TODO: change to MerklePatriciaTree[Address, Account] and use an Address seraializer that is defined in one place
       MerklePatriciaTrie[ByteString, Account](
         stateRootHash.toArray[Byte],
         accountsStorage,

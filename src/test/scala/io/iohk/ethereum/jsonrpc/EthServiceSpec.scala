@@ -4,19 +4,21 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.{DefaultPatience, Fixtures, crypto}
-import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{AppStateStorage, NodeStorage}
+import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.utils.MiningConfig
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.Await
 import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
@@ -28,6 +30,8 @@ import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.vm.UInt256
 import org.scalamock.scalatest.MockFactory
 import org.spongycastle.util.encoders.Hex
+
+import scala.concurrent.duration._
 
 class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockFactory with DefaultPatience {
 
@@ -221,10 +225,15 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "return requested work" in new TestSetup {
-    (blockGenerator.generateBlockForMining _).expects(BigInt(1), *, *, *).returning(Right(block))
+    (blockGenerator.generateBlockForMining _).expects(BigInt(1), Nil, *, *).returning(Right(block))
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
 
-    val response = ethService.getWork(GetWorkRequest())
+    val response: ServiceResponse[GetWorkResponse] = ethService.getWork(GetWorkRequest())
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(Nil))
+
+    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    ommersPool.reply(OmmersPool.Ommers(Nil))
 
     response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
   }
@@ -318,9 +327,14 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.save(newblock)
     (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
 
-    val response = ethService.getCode(GetCodeRequest(address.bytes, BlockParam.Latest))
+    val response = ethService.getCode(GetCodeRequest(address, BlockParam.Latest))
 
     response.futureValue shouldEqual Right(GetCodeResponse(ByteString("code code code")))
+  }
+
+  it should "return correct coinbase" in new TestSetup {
+    val response = ethService.getCoinbase(GetCoinbaseRequest())
+    response.futureValue shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
   }
 
   it should "handle getBalance request" in new TestSetup {
@@ -337,7 +351,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.save(newblock)
     (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
 
-    val response = ethService.getBalance(GetBalanceRequest(address.bytes, BlockParam.Latest))
+    val response = ethService.getBalance(GetBalanceRequest(address, BlockParam.Latest))
 
     response.futureValue shouldEqual Right(GetBalanceResponse(123))
   }
@@ -372,7 +386,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.save(newblock)
     (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
 
-    val response = ethService.getStorageAt(GetStorageAtRequest(address.bytes, 333, BlockParam.Latest))
+    val response = ethService.getStorageAt(GetStorageAtRequest(address, 333, BlockParam.Latest))
 
     response.futureValue shouldEqual Right(GetStorageAtResponse(UInt256(123).bytes))
   }
@@ -391,7 +405,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.save(newblock)
     (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
 
-    val response = ethService.getTransactionCount(GetTransactionCountRequest(address.bytes, BlockParam.Latest))
+    val response = ethService.getTransactionCount(GetTransactionCountRequest(address, BlockParam.Latest))
 
     response.futureValue shouldEqual Right(GetTransactionCountResponse(BigInt(999)))
   }
@@ -407,10 +421,21 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val blockchainConfig = mock[BlockchainConfig]
 
     implicit val system = ActorSystem("EthServiceSpec_System")
+
     val syncingController = TestProbe()
     val pendingTransactionsManager = TestProbe()
-    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, ledger,
-      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref)
+    val ommersPool = TestProbe()
+
+    val miningConfig = new MiningConfig {
+      override val coinbase: Address = Address(42)
+      override val blockCacheSize: Int = 30
+      override val ommersPoolSize: Int = 30
+      override val txPoolSize: Int = 30
+      override val poolingServicesTimeout: FiniteDuration = 3.seconds
+    }
+
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
+      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash

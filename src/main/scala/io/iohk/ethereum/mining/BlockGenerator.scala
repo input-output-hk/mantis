@@ -14,19 +14,18 @@ import io.iohk.ethereum.mining.BlockGenerator.{InvalidOmmers, NoParent}
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, MiningConfig}
 import io.iohk.ethereum.utils.ByteUtils.or
 import io.iohk.ethereum.validators.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.crypto._
 
-class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: BlockchainConfig, ledger: Ledger, validators: Validators) {
+class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: BlockchainConfig, miningConfig: MiningConfig,
+  ledger: Ledger, validators: Validators) {
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
-  //todo add logic
-  private val cacheLimit = 30
   private val cache: AtomicReference[List[Block]] = new AtomicReference(Nil)
 
   def generateBlockForMining(blockNumber: BigInt, transactions: Seq[SignedTransaction], ommers: Seq[BlockHeader], beneficiary: Address):
@@ -72,7 +71,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
 
     result.right.foreach(b => cache.updateAndGet(new UnaryOperator[List[Block]] {
       override def apply(t: List[Block]): List[Block] =
-        (b :: t).take(cacheLimit)
+        (b :: t).take(miningConfig.blockCacheSize)
     }))
 
     result
