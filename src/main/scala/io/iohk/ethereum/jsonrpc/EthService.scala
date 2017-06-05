@@ -89,7 +89,7 @@ object EthService {
   case class CallRequest(tx: CallTx, block: BlockParam)
   case class CallResponse(returnData: ByteString)
 
-  case class GetCodeRequest(address: ByteString, block: BlockParam)
+  case class GetCodeRequest(address: Address, block: BlockParam)
   case class GetCodeResponse(result: ByteString)
 
   case class GetUncleCountByBlockNumberRequest(block: BlockParam)
@@ -97,6 +97,9 @@ object EthService {
 
   case class GetUncleCountByBlockHashRequest(blockHash: ByteString)
   case class GetUncleCountByBlockHashResponse(result: BigInt)
+
+  case class GetCoinbaseRequest()
+  case class GetCoinbaseResponse(address: Address)
 
   case class GetBlockTransactionCountByNumberRequest(block: BlockParam)
   case class GetBlockTransactionCountByNumberResponse(result: BigInt)
@@ -269,6 +272,9 @@ class EthService(
       }
   }
 
+  def getCoinbase(req: GetCoinbaseRequest): ServiceResponse[GetCoinbaseResponse] =
+    Future.successful(Right(GetCoinbaseResponse(miningConfig.coinbase)))
+
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
     blockGenerator.getPrepared(req.powHeaderHash) match {
       case Some(block) if appStateStorage.getBestBlockNumber() <= block.header.number =>
@@ -323,7 +329,7 @@ class EthService(
     Future.successful {
       resolveBlock(req.block).map { block =>
         val world = InMemoryWorldStateProxy(blockchainStorages, Some(block.header.stateRoot))
-        GetCodeResponse(world.getCode(Address(req.address)))
+        GetCodeResponse(world.getCode(req.address))
       }
     }
   }

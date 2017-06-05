@@ -1,6 +1,7 @@
 package io.iohk.ethereum.keystore
 
 import java.io.File
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 
 import akka.util.ByteString
@@ -24,7 +25,7 @@ import io.iohk.ethereum.keystore.KeyStore._
 trait KeyStore {
   def newAccount(passphrase: String): Either[KeyStoreError, Address]
 
-  def importPrivateKey(key: Array[Byte], passphrase: String): Either[KeyStoreError, Address]
+  def importPrivateKey(key: ByteString, passphrase: String): Either[KeyStoreError, Address]
 
   def listAccounts(): Either[KeyStoreError, List[Address]]
 
@@ -42,10 +43,10 @@ class KeyStoreImpl(keyStoreDir: String) extends KeyStore with Logger {
     save(address, prvKey, passphrase).map(_ => address)
   }
 
-  def importPrivateKey(prvKey: Array[Byte], passphrase: String): Either[KeyStoreError, Address] = {
-    val pubKey = pubKeyFromPrvKey(prvKey)
+  def importPrivateKey(prvKey: ByteString, passphrase: String): Either[KeyStoreError, Address] = {
+    val pubKey = pubKeyFromPrvKey(prvKey.toArray)
     val address = Address(kec256(pubKey))
-    save(address, prvKey, passphrase).map(_ => address)
+    save(address, prvKey.toArray, passphrase).map(_ => address)
   }
 
   def listAccounts(): Either[KeyStoreError, List[Address]] = {
@@ -63,7 +64,7 @@ class KeyStoreImpl(keyStoreDir: String) extends KeyStore with Logger {
   }
 
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet] =
-    load(address, passphrase).map(bytes => Wallet(address, ByteString(bytes)))
+    load(address, passphrase).map(key => Wallet(address, key))
 
   private def init(): Unit = {
     val dir = new File(keyStoreDir)
@@ -71,9 +72,11 @@ class KeyStoreImpl(keyStoreDir: String) extends KeyStore with Logger {
     res.failed.foreach(ex => log.error(s"Could not initialise keystore directory ($dir): $ex"))
   }
 
+  // TODO: store keys in compliance with this spec: https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
   private def save(address: Address, key: Array[Byte], passphrase: String): Either[KeyStoreError, Unit] = {
     val addrString = Hex.toHexString(address.toArray)
-    val prvKeyString = Hex.encode(key)
+    val encryptedKey = encrypt(key, passphrase.getBytes(StandardCharsets.UTF_8))
+    val prvKeyString = Hex.encode(encryptedKey)
     val path = Paths.get(keyStoreDir, addrString)
     Try {
       Files.write(path, prvKeyString)
@@ -81,7 +84,7 @@ class KeyStoreImpl(keyStoreDir: String) extends KeyStore with Logger {
     }.toEither.left.map(ioError)
   }
 
-  private def load(address: Address, passphrase: String): Either[KeyStoreError, Array[Byte]] = {
+  private def load(address: Address, passphrase: String): Either[KeyStoreError, ByteString] = {
     val addrString = Hex.toHexString(address.toArray)
     val path = Paths.get(keyStoreDir, addrString)
 
@@ -89,8 +92,10 @@ class KeyStoreImpl(keyStoreDir: String) extends KeyStore with Logger {
       Left(KeyNotFound)
     else
       Try {
-        Hex.decode(Files.readAllBytes(path))
-      }.toEither.left.map(ioError)
+        val encrypted = Hex.decode(Files.readAllBytes(path))
+        val prv = decrypt(encrypted, passphrase.getBytes(StandardCharsets.UTF_8))
+        prv.map(bytes => Right(ByteString(bytes))).getOrElse(Left(WrongPassphrase))
+      }.toEither.left.map(ioError).flatMap(identity)
   }
 
   private def ioError(ex: Throwable): IOError =

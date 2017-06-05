@@ -51,6 +51,8 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
 
   override def receive: Receive = {
     case AddTransactions(signedTransactions) =>
+      // TODO: we should check whether a transaction with the same header and nonce exists, and if so replace it with the
+      // new version
       val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.contains(t))
       if (transactionsToAdd.nonEmpty) {
         pendingTransactions = (pendingTransactions ++ transactionsToAdd).takeRight(miningConfig.txPoolSize)

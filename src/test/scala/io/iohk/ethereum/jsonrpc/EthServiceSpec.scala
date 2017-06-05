@@ -326,7 +326,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.save(newblock)
     (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
 
-    val response = ethService.getCode(GetCodeRequest(address.bytes, BlockParam.Latest))
+    val response = ethService.getCode(GetCodeRequest(address, BlockParam.Latest))
 
     response.futureValue shouldEqual Right(GetCodeResponse(ByteString("code code code")))
   }
@@ -357,6 +357,11 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     Thread.sleep(4.seconds.toMillis)
     val response2 = ethService.getHashRate(GetHashRateRequest())
     response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
+  }
+
+  it should "return correct coinbase" in new TestSetup {
+    val response = ethService.getCoinbase(GetCoinbaseRequest())
+    response.futureValue shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
   }
 
   trait TestSetup extends MockFactory {
