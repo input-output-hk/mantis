@@ -24,11 +24,16 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   }
 
   implicit val eth_submitHashrate = new JsonDecoder[SubmitHashRateRequest] with JsonEncoder[SubmitHashRateResponse] {
+    val lengthWithPrefix = 66
+
     override def decodeJson(params: Option[JsonAST.JArray]): Either[JsonRpcError, SubmitHashRateRequest] = params match {
-      case Some(JArray((hashRate: JString) :: (id: JString) :: Nil)) =>
-        tryExtractQuantity(hashRate)
-          .flatMap(h => tryExtractUnformattedData(id).map(i => (h, i)))
-          .map { case (h, i) => SubmitHashRateRequest(h, i) }
+      case Some(JArray((hashRate: JString) :: (id: JString) :: Nil))
+        if hashRate.s.length == lengthWithPrefix && id.s.length == lengthWithPrefix =>
+        val result: Either[JsonRpcError, SubmitHashRateRequest] = for {
+          rate <- tryExtractQuantity(hashRate)
+          miner <- tryExtractUnformattedData(id)
+        } yield SubmitHashRateRequest(rate, miner)
+        result
       case _ =>
         Left(InvalidParams())
     }
