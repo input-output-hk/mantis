@@ -236,7 +236,7 @@ class EthService(
 
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
 
-    getOmmersFromPool.zip(getTransactionsFromPool).map {
+    getOmmersFromPool(blockNumber).zip(getTransactionsFromPool).map {
       case (ommers, pendingTxs) =>
         blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommers.headers, miningConfig.coinbase) match {
           case Right(b) =>
@@ -252,10 +252,10 @@ class EthService(
       }
   }
 
-  private def getOmmersFromPool = {
+  private def getOmmersFromPool(blockNumber: BigInt) = {
     implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
 
-    (ommersPool ? OmmersPool.GetOmmers).mapTo[OmmersPool.Ommers]
+    (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
       .recover { case ex =>
         log.error("failed to get ommer, mining block with empty ommers list", ex)
         OmmersPool.Ommers(Nil)

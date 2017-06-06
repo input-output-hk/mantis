@@ -412,7 +412,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(Nil))
 
-    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    ommersPool.expectMsg(OmmersPool.GetOmmers(2))
     ommersPool.reply(Ommers(Nil))
 
     val response = result.futureValue
@@ -445,7 +445,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val result: Future[JsonRpcResponse] = jsonRpcController.handleRequest(request)
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    ommersPool.expectMsg(OmmersPool.GetOmmers(2))
     //on time out it should respond with empty list
 
     //wait for actor timeouts
