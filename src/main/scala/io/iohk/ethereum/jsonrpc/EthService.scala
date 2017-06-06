@@ -233,10 +233,9 @@ class EthService(
   def getUncleByBlockNumberAndIndex(request: UncleByBlockNumberAndIndexRequest): ServiceResponse[UncleByBlockNumberAndIndexResponse] = Future {
     val UncleByBlockNumberAndIndexRequest(blockParam, uncleIndex) = request
     val uncleHeaderOpt = resolveBlock(blockParam).toOption
-      .flatMap { uncleBlock =>
-        val uncleBody = uncleBlock.body
-        if (uncleIndex >= 0 && uncleIndex < uncleBody.uncleNodesList.size)
-          Some(uncleBody.uncleNodesList.apply(uncleIndex.toInt))
+      .flatMap { block =>
+        if (uncleIndex >= 0 && uncleIndex < block.body.uncleNodesList.size)
+          Some(block.body.uncleNodesList.apply(uncleIndex.toInt))
         else
           None
       }
