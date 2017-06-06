@@ -109,6 +109,8 @@ object EthService {
 
   case class GetBlockTransactionCountByNumberRequest(block: BlockParam)
   case class GetBlockTransactionCountByNumberResponse(result: BigInt)
+
+  case class ResolvedBlock(block: Block, pending: Boolean)
 }
 
 class EthService(
@@ -175,9 +177,9 @@ class EthService(
     */
   def getBlockByNumber(request: BlockByNumberRequest): ServiceResponse[BlockByNumberResponse] = Future {
     val BlockByNumberRequest(blockParam, fullTxs) = request
-    val blockResponseOpt = resolveBlock(blockParam).toOption.map { block =>
+    val blockResponseOpt = resolveBlock(blockParam).toOption.map { case ResolvedBlock(block, pending) =>
       val totalDifficulty = blockchain.getTotalDifficultyByHash(block.header.hash)
-      BlockResponse(block, totalDifficulty, fullTxs = fullTxs, pendingBlock = blockParam == BlockParam.Pending)
+      BlockResponse(block, totalDifficulty, fullTxs = fullTxs, pendingBlock = pending)
     }
     Right(BlockByNumberResponse(blockResponseOpt))
   }
@@ -233,7 +235,7 @@ class EthService(
   def getUncleByBlockNumberAndIndex(request: UncleByBlockNumberAndIndexRequest): ServiceResponse[UncleByBlockNumberAndIndexResponse] = Future {
     val UncleByBlockNumberAndIndexRequest(blockParam, uncleIndex) = request
     val uncleHeaderOpt = resolveBlock(blockParam).toOption
-      .flatMap { block =>
+      .flatMap { case ResolvedBlock(block, _) =>
         if (uncleIndex >= 0 && uncleIndex < block.body.uncleNodesList.size)
           Some(block.body.uncleNodesList.apply(uncleIndex.toInt))
         else
@@ -363,7 +365,7 @@ class EthService(
     val stx = SignedTransaction(tx, ECDSASignature(0, 0, 0.toByte), fromAddress)
 
     Future.successful {
-      resolveBlock(req.block).map { block =>
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         val txResult = ledger.simulateTransaction(stx, block.header, blockchainStorages)
         CallResponse(txResult.vmReturnData)
       }
@@ -372,7 +374,7 @@ class EthService(
 
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Future.successful {
-      resolveBlock(req.block).map { block =>
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         val world = InMemoryWorldStateProxy(blockchainStorages, Some(block.header.stateRoot))
         GetCodeResponse(world.getCode(req.address))
       }
@@ -381,7 +383,7 @@ class EthService(
 
   def getUncleCountByBlockNumber(req: GetUncleCountByBlockNumberRequest): ServiceResponse[GetUncleCountByBlockNumberResponse] = {
     Future.successful {
-      resolveBlock(req.block).map { block =>
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         GetUncleCountByBlockNumberResponse(block.body.uncleNodesList.size)
       }
     }
@@ -400,13 +402,13 @@ class EthService(
 
   def getBlockTransactionCountByNumber(req: GetBlockTransactionCountByNumberRequest): ServiceResponse[GetBlockTransactionCountByNumberResponse] = {
     Future.successful {
-      resolveBlock(req.block).map { block =>
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
       }
     }
   }
 
-  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, Block] = {
+  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
     def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
       blockchain.getBlockByNumber(number)
         .map(Right.apply)
@@ -414,10 +416,10 @@ class EthService(
     }
 
     blockParam match {
-      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber)
-      case BlockParam.Earliest => getBlock(0)
-      case BlockParam.Latest => getBlock(appStateStorage.getBestBlockNumber())
-      case BlockParam.Pending => getBlock(appStateStorage.getBestBlockNumber())
+      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pending = false))
+      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pending = false))
+      case BlockParam.Latest => getBlock(appStateStorage.getBestBlockNumber()).map(ResolvedBlock(_, pending = false))
+      case BlockParam.Pending => getBlock(appStateStorage.getBestBlockNumber()).map(ResolvedBlock(_, pending = true))
     }
   }
 
