@@ -3,20 +3,22 @@ package io.iohk.ethereum.keystore
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
+import java.time.format.DateTimeFormatter
+import java.time.{ZoneOffset, ZonedDateTime}
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.Logger
-import org.spongycastle.util.encoders.Hex
 
 import scala.util.Try
 
 
 object KeyStore {
   sealed trait KeyStoreError
-  case object WrongPassphrase extends KeyStoreError
   case object KeyNotFound extends KeyStoreError
+  case object DecryptionFailed extends KeyStoreError
+  case object InvalidKeyFormat extends KeyStoreError
   case class IOError(msg: String) extends KeyStoreError
 }
 
@@ -38,15 +40,14 @@ class KeyStoreImpl(keyStoreDir: String) extends KeyStore with Logger {
 
   def newAccount(passphrase: String): Either[KeyStoreError, Address] = {
     val keyPair = generateKeyPair()
-    val (prvKey, pubKey) = keyPairToByteArrays(keyPair)
-    val address = Address(kec256(pubKey))
-    save(address, prvKey, passphrase).map(_ => address)
+    val (prvKey, _) = keyPairToByteStrings(keyPair)
+    val encKey = EncryptedKey(prvKey, passphrase)
+    save(encKey).map(_ => encKey.address)
   }
 
   def importPrivateKey(prvKey: ByteString, passphrase: String): Either[KeyStoreError, Address] = {
-    val pubKey = pubKeyFromPrvKey(prvKey.toArray)
-    val address = Address(kec256(pubKey))
-    save(address, prvKey.toArray, passphrase).map(_ => address)
+    val encKey = EncryptedKey(prvKey, passphrase)
+    save(encKey).map(_ => encKey.address)
   }
 
   def listAccounts(): Either[KeyStoreError, List[Address]] = {
@@ -55,16 +56,12 @@ class KeyStoreImpl(keyStoreDir: String) extends KeyStore with Logger {
       if (!dir.exists() || !dir.isDirectory())
         Left(IOError(s"Could not read $keyStoreDir"))
       else
-        Right(
-          dir.listFiles().toList.flatMap(f =>
-            Try(Address(Hex.decode(f.getName))).toOption
-          )
-        )
+        listFiles().map(_.flatMap(load(_).toOption).map(_.address))
     }.toEither.left.map(ioError).flatMap(identity)
   }
 
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet] =
-    load(address, passphrase).map(key => Wallet(address, key))
+    load(address).flatMap(_.decrypt(passphrase).left.map(_ => DecryptionFailed)).map(key => Wallet(address, key))
 
   private def init(): Unit = {
     val dir = new File(keyStoreDir)
@@ -72,32 +69,53 @@ class KeyStoreImpl(keyStoreDir: String) extends KeyStore with Logger {
     res.failed.foreach(ex => log.error(s"Could not initialise keystore directory ($dir): $ex"))
   }
 
-  // TODO: store keys in compliance with this spec: https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
-  private def save(address: Address, key: Array[Byte], passphrase: String): Either[KeyStoreError, Unit] = {
-    val addrString = Hex.toHexString(address.toArray)
-    val encryptedKey = encrypt(key, passphrase.getBytes(StandardCharsets.UTF_8))
-    val prvKeyString = Hex.encode(encryptedKey)
-    val path = Paths.get(keyStoreDir, addrString)
+  private def save(encKey: EncryptedKey): Either[KeyStoreError, Unit] = {
+    val json = EncryptedKeyJsonCodec.toJson(encKey)
+    val name = fileName(encKey)
+    val path = Paths.get(keyStoreDir, name)
     Try {
-      Files.write(path, prvKeyString)
+      Files.write(path, json.getBytes(StandardCharsets.UTF_8))
       ()
     }.toEither.left.map(ioError)
   }
 
-  private def load(address: Address, passphrase: String): Either[KeyStoreError, ByteString] = {
-    val addrString = Hex.toHexString(address.toArray)
-    val path = Paths.get(keyStoreDir, addrString)
+  private def load(address: Address): Either[KeyStoreError, EncryptedKey] = {
+    for {
+      files <- listFiles()
 
-    if (!path.toFile.isFile)
-      Left(KeyNotFound)
-    else
-      Try {
-        val encrypted = Hex.decode(Files.readAllBytes(path))
-        val prv = decrypt(encrypted, passphrase.getBytes(StandardCharsets.UTF_8))
-        prv.map(bytes => Right(ByteString(bytes))).getOrElse(Left(WrongPassphrase))
-      }.toEither.left.map(ioError).flatMap(identity)
+      matching <- files.find(_.endsWith(address.toUnprefixedString))
+        .map(Right(_)).getOrElse(Left(KeyNotFound))
+
+      key <- load(matching)
+    } yield key
+  }
+
+  private def load(path: String): Either[KeyStoreError, EncryptedKey] =
+    for {
+      json <- Try(new String(Files.readAllBytes(Paths.get(keyStoreDir, path)), StandardCharsets.UTF_8))
+        .toEither.left.map(ioError)
+
+      key <- EncryptedKeyJsonCodec.fromJson(json)
+        .left.map(_ => InvalidKeyFormat)
+        .filterOrElse(k => path.endsWith(k.address.toUnprefixedString), InvalidKeyFormat)
+    } yield key
+
+  private def listFiles(): Either[KeyStoreError, List[String]] = {
+    val dir = new File(keyStoreDir)
+    Try {
+      if (!dir.exists() || !dir.isDirectory())
+        Left(IOError(s"Could not read $keyStoreDir"))
+      else
+        Right(dir.listFiles().toList.map(_.getName))
+    }.toEither.left.map(ioError).flatMap(identity)
   }
 
   private def ioError(ex: Throwable): IOError =
     IOError(ex.toString)
+
+  private def fileName(encKey: EncryptedKey) = {
+    val dateStr = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_DATE_TIME)
+    val addrStr = encKey.address.toUnprefixedString
+    s"UTC--$dateStr--$addrStr"
+  }
 }

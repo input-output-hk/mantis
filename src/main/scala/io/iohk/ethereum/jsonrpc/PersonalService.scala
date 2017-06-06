@@ -7,7 +7,6 @@ import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainStorages
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransactions
 
 import scala.collection.mutable
@@ -120,7 +119,7 @@ class PersonalService(
 
 
   private val handleError: PartialFunction[KeyStore.KeyStoreError, JsonRpcError] = {
-    case KeyStore.WrongPassphrase => InvalidPassphrase
+    case KeyStore.DecryptionFailed => InvalidPassphrase
     case KeyStore.KeyNotFound => KeyNotFound
     case KeyStore.IOError(msg) => LogicError(msg)
   }

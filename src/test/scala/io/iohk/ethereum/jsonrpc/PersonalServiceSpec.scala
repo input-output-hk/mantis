@@ -57,7 +57,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     res2 shouldEqual Left(KeyNotFound)
 
 
-    (keyStore.unlockAccount _).expects(*, *).returning(Left(KeyStore.WrongPassphrase))
+    (keyStore.unlockAccount _).expects(*, *).returning(Left(KeyStore.DecryptionFailed))
     val res3 = personal.unlockAccount(UnlockAccountRequest(Address(42), "passphrase")).futureValue
     res3 shouldEqual Left(InvalidPassphrase)
   }
@@ -94,7 +94,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
   it should "fail to send a transaction given a wrong passphrase" in new TestSetup {
     (keyStore.unlockAccount _ ).expects(address, passphrase)
-      .returning(Left(KeyStore.WrongPassphrase))
+      .returning(Left(KeyStore.DecryptionFailed))
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).futureValue
