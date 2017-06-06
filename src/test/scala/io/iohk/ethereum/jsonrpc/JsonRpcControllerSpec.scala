@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
+import akka.util.ByteString
 import io.iohk.ethereum.{DefaultPatience, Fixtures}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -13,25 +14,29 @@ import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.utils.{Config, MiningConfig}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.ommers.OmmersPool.Ommers
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators.Validators
-import org.json4s
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 
-class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience {
+class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience with Eventually {
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer
@@ -54,7 +59,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
-    response.error shouldBe Some(JsonRpcErrors.InvalidParams("Data 'asdasd' should have 0x prefix"))
+    response.error shouldBe Some(JsonRpcErrors.InvalidParams("Invalid method parameters"))
   }
 
   it should "handle clientVersion request" in new TestSetup {
@@ -186,7 +191,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val request = JsonRpcRequest(
       "2.0",
       "eth_getBlockByHash",
-      Some(JArray(List(json4s.JString(s"0x${blockToRequest.header.hashAsHexString}"), JBool(false)))),
+      Some(JArray(List(JString(s"0x${blockToRequest.header.hashAsHexString}"), JBool(false)))),
       Some(JInt(1))
     )
     val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
@@ -257,10 +262,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
 
   it should "personal_importRawKey" in new TestSetup {
     val key = "7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"
-    val addr = "0x00000000000000000000000000000000000000ff"
+    val keyBytes = ByteString(Hex.decode(key))
+    val addr = Address("0x00000000000000000000000000000000000000ff")
     val pass = "aaa"
 
-    (personalService.importRawKey _).expects(ImportRawKeyRequest(key, pass))
+    (personalService.importRawKey _).expects(ImportRawKeyRequest(keyBytes, pass))
       .returning(Future.successful(Right(ImportRawKeyResponse(addr))))
 
     val params = JArray(JString(key) :: JString(pass) :: Nil)
@@ -270,11 +276,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(JString(addr))
+    response.result shouldBe Some(JString(addr.toString))
   }
 
   it should "personal_newAccount" in new TestSetup {
-    val addr = "0x00000000000000000000000000000000000000ff"
+    val addr = Address("0x00000000000000000000000000000000000000ff")
     val pass = "aaa"
 
     (personalService.newAccount _).expects(NewAccountRequest(pass))
@@ -287,11 +293,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(JString(addr))
+    response.result shouldBe Some(JString(addr.toString))
   }
 
   it should "personal_listAccounts" in new TestSetup {
-    val addresses = List(34, 12391, 123).map(i => Address(i).toString)
+    val addresses = List(34, 12391, 123).map(Address(_))
     val pass = "aaa"
 
     (personalService.listAccounts _).expects(ListAccountsRequest())
@@ -303,7 +309,86 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(JArray(addresses.map(JString)))
+    response.result shouldBe Some(JArray(addresses.map(a => JString(a.toString))))
+  }
+
+  it should "personal_unlockAccount" in new TestSetup {
+    val address = Address(42)
+    val pass = "aaa"
+    val params = JArray(JString(address.toString) :: JString(pass) :: Nil)
+
+    (personalService.unlockAccount _).expects(UnlockAccountRequest(address, pass))
+      .returning(Future.successful(Right(UnlockAccountResponse(true))))
+
+    val rpcRequest = JsonRpcRequest("2.0", "personal_unlockAccount", Some(params), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JBool(true))
+  }
+
+  it should "personal_lockAccount" in new TestSetup {
+    val address = Address(42)
+    val params = JArray(JString(address.toString) :: Nil)
+
+    (personalService.lockAccount _).expects(LockAccountRequest(address))
+      .returning(Future.successful(Right(LockAccountResponse(true))))
+
+    val rpcRequest = JsonRpcRequest("2.0", "personal_lockAccount", Some(params), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JBool(true))
+  }
+
+  it should "personal_sendTransaction" in new TestSetup {
+    val params = JArray(
+      JObject(
+        "from" -> Address(42).toString,
+        "to" -> Address(123).toString,
+        "value" -> 1000
+      ) :: JString("passphrase") :: Nil
+    )
+
+    val txHash = ByteString(1, 2, 3, 4)
+
+    (personalService.sendTransaction(_: SendTransactionWithPassphraseRequest)).expects(*)
+      .returning(Future.successful(Right(SendTransactionWithPassphraseResponse(txHash))))
+
+    val rpcRequest = JsonRpcRequest("2.0", "personal_sendTransaction", Some(params), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
+  }
+
+  it should "eth_sendTransaction" in new TestSetup {
+    val params = JArray(
+      JObject(
+        "from" -> Address(42).toString,
+        "to" -> Address(123).toString,
+        "value" -> 1000
+      ) :: Nil
+    )
+
+    val txHash = ByteString(1, 2, 3, 4)
+
+    (personalService.sendTransaction(_: SendTransactionRequest)).expects(*)
+      .returning(Future.successful(Right(SendTransactionResponse(txHash))))
+
+    val rpcRequest = JsonRpcRequest("2.0", "eth_sendTransaction", Some(params), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
   }
 
   it should "eth_getWork" in new TestSetup {
@@ -322,7 +407,51 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       Some(JInt(1))
     )
 
-    val response = jsonRpcController.handleRequest(request).futureValue
+    val result: Future[JsonRpcResponse] = jsonRpcController.handleRequest(request)
+
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(Nil))
+
+    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    ommersPool.reply(Ommers(Nil))
+
+    val response = result.futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JArray(List(
+      JString(headerPowHash),
+      JString(seed),
+      JString(target)
+    )))
+  }
+
+  it should "eth_getWork when fail to get ommers and transactions" in new TestSetup {
+    val seed = s"""0x${"00" * 32}"""
+    val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
+    val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
+
+    (appStateStorage.getBestBlockNumber _).expects().returns(1)
+    (blockGenerator.generateBlockForMining _).expects(*, *, *, *)
+      .returns(Right(Block(blockHeader, BlockBody(Nil, Nil))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getWork",
+      None,
+      Some(JInt(1))
+    )
+
+    val result: Future[JsonRpcResponse] = jsonRpcController.handleRequest(request)
+
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    //on time out it should respond with empty list
+
+    //wait for actor timeouts
+    Thread.sleep(4.seconds.toMillis)
+
+    val response = result.futureValue
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
@@ -366,7 +495,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       "2.0",
       "eth_submitHashrate",
       Some(JArray(List(
-        JString(s"0x500"),
+        JString(s"0x${"0" * 61}500"),
         JString(s"0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")
       ))),
       Some(JInt(1))
@@ -377,6 +506,21 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JBool(true))
+  }
+
+  it should "eth_hashrate" in new TestSetup {
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_hashrate",
+      None,
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x0"))
   }
 
   it should "eth_call" in new TestSetup {
@@ -497,6 +641,94 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(JString("0x11"))
   }
 
+  it should "eth_coinbase " in new TestSetup {
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_coinbase",
+      None,
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x" + "42" * 20))
+  }
+
+  it should "eth_getBalance" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.getBalance _).expects(*)
+      .returning(Future.successful(Right(GetBalanceResponse(17))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getBalance",
+      Some(JArray(List(
+        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D"),
+        JString(s"latest")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x11"))
+  }
+
+  it should "eth_getStorageAt" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.getStorageAt _).expects(*)
+      .returning(Future.successful(Right(GetStorageAtResponse(ByteString("response")))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getStorageAt",
+      Some(JArray(List(
+        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D"),
+        JString(s"0x01"),
+        JString(s"latest")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x" + Hex.toHexString(ByteString("response").toArray[Byte])))
+  }
+
+  it should "eth_getTransactionCount" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.getTransactionCount _).expects(*)
+      .returning(Future.successful(Right(GetTransactionCountResponse(123))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getTransactionCount",
+      Some(JArray(List(
+        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D"),
+        JString(s"latest")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x7b"))
+  }
+
   trait TestSetup extends MockFactory {
     def config: JsonRpcConfig = Config.Network.Rpc
 
@@ -504,6 +736,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val blockchain = BlockchainImpl(storagesInstance.storages)
     val blockGenerator: BlockGenerator = mock[BlockGenerator]
     implicit val system = ActorSystem("JsonRpcControllerSpec_System")
+
     val syncingController = TestProbe()
     val ledger = mock[Ledger]
     val validators = mock[Validators]
@@ -511,12 +744,23 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val keyStore = mock[KeyStore]
 
     val pendingTransactionsManager = TestProbe()
+    val ommersPool = TestProbe()
+
+    val miningConfig = new MiningConfig {
+      override val coinbase: Address = Address(Hex.decode("42" * 20))
+      override val blockCacheSize: Int = 30
+      override val ommersPoolSize: Int = 30
+      override val txPoolSize: Int = 30
+      override val poolingServicesTimeout: FiniteDuration = 3.seconds
+    }
+
+
     val appStateStorage = mock[AppStateStorage]
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
-    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, ledger,
-      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref)
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
+      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 
     val blockHeader = BlockHeader(

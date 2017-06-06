@@ -18,6 +18,7 @@ import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages
+import io.iohk.ethereum.utils.MiningConfig
 import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
@@ -36,7 +37,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
   it should "broadcast received pending transactions to other peers" in new TestSetup {
     val stx = newStx()
-    pendingTransactionsManager ! AddTransaction(stx)
+    pendingTransactionsManager ! AddTransactions(stx)
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
@@ -112,9 +113,18 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val peer3TestProbe = TestProbe()
     val peer3 = Peer(new InetSocketAddress("127.0.0.3", 9000), peer3TestProbe.ref)
 
+    val miningConfig = new MiningConfig {
+      override val txPoolSize: Int = 300
+      //unused
+      override val coinbase: Address = Address(2)
+      override val blockCacheSize: Int = 30
+      override val ommersPoolSize: Int = 30
+      override val poolingServicesTimeout: FiniteDuration = 30.seconds
+    }
+
     val peerManager = TestProbe()
     val peerMessageBus = TestProbe()
-    val pendingTransactionsManager = system.actorOf(PendingTransactionsManager.props(peerManager.ref, peerMessageBus.ref))
+    val pendingTransactionsManager = system.actorOf(PendingTransactionsManager.props(miningConfig, peerManager.ref, peerMessageBus.ref))
   }
 
 }

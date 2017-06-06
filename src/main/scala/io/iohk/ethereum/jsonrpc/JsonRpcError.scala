@@ -13,4 +13,5 @@ object JsonRpcErrors {
   def InvalidParams(msg: String = "Invalid method parameters") = JsonRpcError(-32602, msg, None)
   val InternalError = JsonRpcError(-32603, "Internal JSON-RPC error", None)
   def LogicError(msg: String) = JsonRpcError(-32000, msg, None)
+  val AccountLocked = LogicError("account is locked or unknown")
 }
