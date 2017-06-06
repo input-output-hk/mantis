@@ -58,6 +58,9 @@ object EthService {
   case class GetHashRateRequest()
   case class GetHashRateResponse(hashRate: BigInt)
 
+  case class GetGasPriceRequest()
+  case class GetGasPriceResponse(price: BigInt)
+
   case class GetWorkRequest()
   case class GetWorkResponse(powHeaderHash: ByteString, dagSeed: ByteString, target: ByteString)
 
@@ -211,6 +214,24 @@ class EthService(
     })
 
     Future.successful(Right(SubmitHashRateResponse(true)))
+  }
+
+  def getGetGasPrice(req: GetGasPriceRequest): ServiceResponse[GetGasPriceResponse] = {
+    val blockDifference = 30
+    val bestBlock = appStateStorage.getBestBlockNumber()
+
+    Future{
+      val gasPrice = ((bestBlock - blockDifference) to bestBlock)
+        .flatMap(blockchain.getBlockByNumber)
+        .flatMap(_.body.transactionList)
+        .map(_.tx.gasPrice)
+      if (gasPrice.nonEmpty) {
+        val avgGasPrice = gasPrice.sum / gasPrice.length
+        Right(GetGasPriceResponse(avgGasPrice))
+      } else {
+        Right(GetGasPriceResponse(0))
+      }
+    }
   }
 
   def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] = {

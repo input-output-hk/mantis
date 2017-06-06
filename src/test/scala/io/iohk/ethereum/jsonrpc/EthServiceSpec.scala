@@ -364,6 +364,21 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
   }
 
+  it should "return 0 gas price if there are no transactions" in new TestSetup {
+    (appStateStorage.getBestBlockNumber _).expects().returning(42)
+
+    val response = ethService.getGetGasPrice(GetGasPriceRequest())
+    response.futureValue shouldEqual Right(GetGasPriceResponse(0))
+  }
+
+  it should "return average gas price" in new TestSetup {
+    (appStateStorage.getBestBlockNumber _).expects().returning(42)
+    blockchain.save(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
+
+    val response = ethService.getGetGasPrice(GetGasPriceRequest())
+    response.futureValue shouldEqual Right(GetGasPriceResponse(BigInt("20000000000")))
+  }
+
   trait TestSetup extends MockFactory {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
