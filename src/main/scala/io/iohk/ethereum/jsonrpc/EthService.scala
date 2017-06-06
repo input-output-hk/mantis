@@ -234,18 +234,18 @@ class EthService(
     */
   def getUncleByBlockNumberAndIndex(request: UncleByBlockNumberAndIndexRequest): ServiceResponse[UncleByBlockNumberAndIndexResponse] = Future {
     val UncleByBlockNumberAndIndexRequest(blockParam, uncleIndex) = request
-    val uncleHeaderOpt = resolveBlock(blockParam).toOption
-      .flatMap { case ResolvedBlock(block, _) =>
-        if (uncleIndex >= 0 && uncleIndex < block.body.uncleNodesList.size)
-          Some(block.body.uncleNodesList.apply(uncleIndex.toInt))
-        else
+    val uncleBlockResponseOpt = resolveBlock(blockParam).toOption
+      .flatMap { case ResolvedBlock(block, pending) =>
+        if (uncleIndex >= 0 && uncleIndex < block.body.uncleNodesList.size) {
+          val uncleHeader = block.body.uncleNodesList.apply(uncleIndex.toInt)
+          val totalDifficulty = blockchain.getTotalDifficultyByHash(uncleHeader.hash)
+
+          //The block in the response will not have any txs or uncles
+          Some(BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = pending))
+        } else
           None
       }
-    val totalDifficulty = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getTotalDifficultyByHash(uncleHeader.hash))
 
-    //The block in the response will not have any txs or uncles
-    val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader =>
-      BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = blockParam == BlockParam.Pending) }
     Right(UncleByBlockNumberAndIndexResponse(uncleBlockResponseOpt))
   }
 
