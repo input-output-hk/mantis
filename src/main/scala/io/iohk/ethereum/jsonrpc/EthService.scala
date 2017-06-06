@@ -245,7 +245,7 @@ class EthService(
         removeObsoleteHashrates(new Date, t)
       }
     })
-    reportActive()
+
     //sum all reported hashRates
     Future.successful(Right(GetHashRateResponse(hashRates.mapValues { case (hr, _) => hr }.values.sum)))
   }
