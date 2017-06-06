@@ -127,11 +127,11 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
     val peerMessageBus = TestProbe()
     val peer1TestProbe = TestProbe()
-    val peer1 = PeerImpl(new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref, peerMessageBus.ref)
+    val peer1 = new PeerImpl(new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref, peerMessageBus.ref)
     val peer2TestProbe = TestProbe()
-    val peer2 = PeerImpl(new InetSocketAddress("127.0.0.2", 9000), peer2TestProbe.ref, peerMessageBus.ref)
+    val peer2 = new PeerImpl(new InetSocketAddress("127.0.0.2", 9000), peer2TestProbe.ref, peerMessageBus.ref)
     val peer3TestProbe = TestProbe()
-    val peer3 = PeerImpl(new InetSocketAddress("127.0.0.3", 9000), peer3TestProbe.ref, peerMessageBus.ref)
+    val peer3 = new PeerImpl(new InetSocketAddress("127.0.0.3", 9000), peer3TestProbe.ref, peerMessageBus.ref)
   }
 
 }

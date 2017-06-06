@@ -10,7 +10,19 @@ import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Ping, Pong}
 import org.scalatest.{FlatSpec, Matchers}
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 class PeerImplSpec extends FlatSpec with Matchers {
+
+  it should "appropriately send request of status to the peer actor" in new TestSetup {
+    val statusResponse = PeerActor.StatusResponse(PeerActor.Status.Idle)
+
+    val statusFuture = peer.status()
+    peerActorProbe.expectMsg(PeerActor.GetStatus)
+    peerActorProbe.reply(statusResponse)
+    Await.result(statusFuture, Duration.Inf) shouldBe statusResponse.status
+  }
 
   it should "appropriately send messages to the peer actor" in new TestSetup {
     peer.send(defaultMessage)
@@ -34,7 +46,7 @@ class PeerImplSpec extends FlatSpec with Matchers {
   it should "appropriately subscribe to a set of messages sent by a peer" in new TestSetup {
     val sender = TestProbe()
 
-    peer.subscribeToSetOfMsgs(defaultSetOfMsgs)(sender.ref)
+    peer.subscribe(defaultSetOfMsgs)(sender.ref)
     peerEventBusProbe.expectMsg(PeerEventBusActor.Subscribe(MessageClassifier(defaultSetOfMsgs, PeerSelector.WithId(peer.id))))
     val subscribeSender = peerEventBusProbe.sender()
 
@@ -44,7 +56,7 @@ class PeerImplSpec extends FlatSpec with Matchers {
   it should "appropriately unsubscribe from a set of messages sent by a peer" in new TestSetup {
     val sender = TestProbe()
 
-    peer.unsubscribeFromSetOfMsgs(defaultSetOfMsgs)(sender.ref)
+    peer.unsubscribe(defaultSetOfMsgs)(sender.ref)
     peerEventBusProbe.expectMsg(PeerEventBusActor.Unsubscribe(MessageClassifier(defaultSetOfMsgs, PeerSelector.WithId(peer.id))))
     val unsubscribeSender = peerEventBusProbe.sender()
 
@@ -78,7 +90,7 @@ class PeerImplSpec extends FlatSpec with Matchers {
     val peerActorProbe = TestProbe()
     val peerEventBusProbe = TestProbe()
 
-    val peer: Peer = PeerImpl(new InetSocketAddress("127.0.0.1", 0), peerActorProbe.ref, peerEventBusProbe.ref)
+    val peer: Peer = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peerActorProbe.ref, peerEventBusProbe.ref)
 
     val defaultMessage = Ping()
     val defaultReason = Disconnect.Reasons.Other

@@ -101,7 +101,7 @@ class PeerMessageBusActorSpec extends FlatSpec with Matchers {
     peerMessageBusActor.tell(PeerEventBusActor.Subscribe(PeerHandshaked), probe1.ref)
     peerMessageBusActor.tell(PeerEventBusActor.Subscribe(PeerHandshaked), probe2.ref)
 
-    val peerHandshaked = PeerImpl(new InetSocketAddress("127.0.0.1", 0), TestProbe().ref, peerMessageBusActor)
+    val peerHandshaked = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), TestProbe().ref, peerMessageBusActor)
     val msgPeerHandshaked = PeerHandshakeSuccessful(peerHandshaked, initialPeerInfo)
     peerMessageBusActor ! PeerEventBusActor.Publish(msgPeerHandshaked)
 
@@ -126,7 +126,7 @@ class PeerMessageBusActorSpec extends FlatSpec with Matchers {
     peerMessageBusActor.tell(PeerEventBusActor.Subscribe(PeerInfoUpdate(PeerId("2"))), probe1.ref)
     peerMessageBusActor.tell(PeerEventBusActor.Subscribe(PeerInfoUpdate(PeerId("2"))), probe2.ref)
 
-    val peerHandshaked = PeerImpl(new InetSocketAddress("127.0.0.1", 0), TestProbe().ref, peerMessageBusActor)
+    val peerHandshaked = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), TestProbe().ref, peerMessageBusActor)
     val msgPeerStatusUpdate = PeerInfoUpdated(PeerId("2"), initialPeerInfo)
     peerMessageBusActor ! PeerEventBusActor.Publish(msgPeerStatusUpdate)
 

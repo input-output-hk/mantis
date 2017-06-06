@@ -12,20 +12,21 @@ import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.Mocks.MockMessageHandler
+import io.iohk.ethereum.Mocks.{MockHandshakerAlwaysSucceeds, MockMessageHandler}
 import io.iohk.ethereum.{Fixtures, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
-import io.iohk.ethereum.network.{ForkResolver, MessageHandler, Peer, PeerActor, PeerEventBusActor}
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish}
+import io.iohk.ethereum.network.{ForkResolver, MessageHandler, Peer, PeerActor, PeerEventBusActor, PeerImpl, PeerManagerActor}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.network.p2p.messages.{CommonMessages, Versions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
@@ -185,7 +186,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "disconnect on Hello timeout" in new TestSetup {
     val connection = TestProbe()
 
-    peer ! PeerActor.HandleConnection(connection.ref, new InetSocketAddress("localhost", 9000))
+    peer ! PeerActor.HandleConnection(connection.ref)
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.HandleConnection])
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
@@ -250,6 +251,34 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(etcForkBlockHeader))))
 
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TooManyPeers)))
+  }
+
+  it should "notify that the peer was disconnected" in new TestSetup {
+
+    val peerEventBusProbe = TestProbe()
+
+    val otherPeerStatus = Status(
+      protocolVersion = 0,
+      networkId = 0,
+      bestHash = ByteString("unused"),
+      genesisHash = ByteString("unused"),
+      totalDifficulty = 0
+    )
+    val otherPeerAddress = new InetSocketAddress("127.0.0.1", 0)
+    val otherPeer = TestActorRef(Props(new PeerActor(
+      otherPeerAddress,
+      _ => rlpxConnection.ref,
+      peerConf,
+      peerEventBusProbe.ref,
+      Some(time.scheduler),
+      MockHandshakerAlwaysSucceeds(otherPeerStatus, 0, true),
+      messageHandlerBuilder = messageHandlerBuilder)))
+
+    otherPeer ! PoisonPill
+
+    val otherPeerImpl = new PeerImpl(otherPeerAddress, otherPeer, peerEventBusProbe.ref)
+
+    peerEventBusProbe.expectMsg(Publish(PeerEvent.PeerDisconnected(otherPeerImpl.id)))
   }
 
   trait BlockUtils {
