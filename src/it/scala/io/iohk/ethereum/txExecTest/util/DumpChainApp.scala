@@ -117,4 +117,6 @@ object DumpChainApp extends App{
     override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = ???
 
     override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = ???
-}
+
+    def getAccount(address: Address, blockNumber: BigInt): Option[Account] = ???
+  }

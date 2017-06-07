@@ -41,7 +41,7 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter {
   it should "return an error when the keystore dir cannot be read or written" in new TestSetup {
     val badKeyStore = new KeyStoreImpl("/root/keystore")
 
-    val key = Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f")
+    val key = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
     val res1 = badKeyStore.importPrivateKey(key, "aaa")
     res1 should matchPattern { case Left(IOError(_)) => }
 
@@ -56,13 +56,10 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val passphrase = "aaa"
     keyStore.importPrivateKey(key1, passphrase)
     val wallet = keyStore.unlockAccount(addr1, passphrase).right.get
-    wallet shouldEqual Wallet(addr1, ByteString(key1))
+    wallet shouldEqual Wallet(addr1, key1)
   }
 
   it should "return an error when unlocking an account with a wrong passphrase" in new TestSetup {
-    //TODO: enable this test when keys are encrypted
-    pending
-
     keyStore.importPrivateKey(key1, "aaa")
     val res = keyStore.unlockAccount(addr1, "bbb")
     res shouldEqual Left(WrongPassphrase)
@@ -76,9 +73,9 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter {
   trait TestSetup {
     val keyStore = new KeyStoreImpl(Config.keyStoreDir)
 
-    val key1 = Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f")
+    val key1 = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
     val addr1 = Address(Hex.decode("aa6826f00d01fe4085f0c3dd12778e206ce4e2ac"))
-    val key2 = Hex.decode("ee9fb343c34856f3e64f6f0b5e2abd1b298aaa76d0ffc667d00eac4582cb69ca")
+    val key2 = ByteString(Hex.decode("ee9fb343c34856f3e64f6f0b5e2abd1b298aaa76d0ffc667d00eac4582cb69ca"))
     val addr2 = Address(Hex.decode("f1c8084f32b8ef2cee7099446d9a6a185d732468"))
   }
 

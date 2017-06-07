@@ -19,6 +19,7 @@ import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages
+import io.iohk.ethereum.utils.MiningConfig
 import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
@@ -37,7 +38,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
   it should "broadcast received pending transactions to other peers" in new TestSetup {
     val stx = newStx()
-    pendingTransactionsManager ! AddTransaction(stx)
+    pendingTransactionsManager ! AddTransactions(stx)
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
@@ -108,7 +109,6 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
     val peerManager = TestProbe()
     val peerMessageBus = TestProbe()
-    val pendingTransactionsManager = system.actorOf(PendingTransactionsManager.props(peerManager.ref, peerMessageBus.ref))
 
     val peer1TestProbe = TestProbe()
     val peer1 = new PeerImpl(new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref, peerMessageBus.ref)
@@ -116,6 +116,17 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val peer2 = new PeerImpl(new InetSocketAddress("127.0.0.2", 9000), peer2TestProbe.ref, peerMessageBus.ref)
     val peer3TestProbe = TestProbe()
     val peer3 = new PeerImpl(new InetSocketAddress("127.0.0.3", 9000), peer3TestProbe.ref, peerMessageBus.ref)
+
+    val miningConfig = new MiningConfig {
+      override val txPoolSize: Int = 300
+      //unused
+      override val coinbase: Address = Address(2)
+      override val blockCacheSize: Int = 30
+      override val ommersPoolSize: Int = 30
+      override val poolingServicesTimeout: FiniteDuration = 30.seconds
+    }
+
+    val pendingTransactionsManager = system.actorOf(PendingTransactionsManager.props(miningConfig, peerManager.ref, peerMessageBus.ref))
   }
 
 }

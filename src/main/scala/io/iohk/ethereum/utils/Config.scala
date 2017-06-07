@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
+import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
@@ -127,6 +128,28 @@ object Config {
 
   }
 
+}
+
+trait MiningConfig {
+  val txPoolSize: Int
+  val ommersPoolSize: Int
+  val blockCacheSize: Int
+  val coinbase: Address
+  val poolingServicesTimeout: FiniteDuration
+}
+
+object MiningConfig {
+  def apply(etcClientConfig: com.typesafe.config.Config): MiningConfig = {
+    val miningConfig = etcClientConfig.getConfig("mining")
+
+    new MiningConfig {
+      val coinbase: Address = Address(Hex.decode(miningConfig.getString("coinbase")))
+      val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
+      val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
+      val txPoolSize: Int = miningConfig.getInt("tx-pool-size")
+      val poolingServicesTimeout: FiniteDuration = miningConfig.getDuration("pooling-services-timeout").toMillis.millis
+    }
+  }
 }
 
 trait BlockchainConfig {

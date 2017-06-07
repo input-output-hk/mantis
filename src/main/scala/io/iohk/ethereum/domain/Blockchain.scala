@@ -1,10 +1,11 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.network.p2p.messages.PV63.{MptLeaf, MptNode}
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
@@ -59,6 +60,14 @@ trait Blockchain {
     } yield block
 
   /**
+    * Get an account for an address and a block number
+    *
+    * @param address address of the account
+    * @param blockNumber the block that determines the state of the account
+    */
+  def getAccount(address: Address, blockNumber: BigInt): Option[Account]
+
+  /**
     * Returns the receipts based on a block hash
     * @param blockhash
     * @return Receipts if found
@@ -78,7 +87,6 @@ trait Blockchain {
     * @return MPT node
     */
   def getMptNodeByHash(hash: ByteString): Option[MptNode]
-
 
   /**
     * Returns the total difficulty based on a block hash
@@ -136,6 +144,7 @@ class BlockchainImpl(
                       protected val receiptStorage: ReceiptStorage,
                       protected val evmCodeStorage: EvmCodeStorage,
                       protected val mptNodeStorage: MptNodeStorage,
+                      protected val nodeStorage: NodeStorage,
                       protected val totalDifficultyStorage: TotalDifficultyStorage
                     ) extends Blockchain {
 
@@ -150,6 +159,16 @@ class BlockchainImpl(
   override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = evmCodeStorage.get(hash)
 
   override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = totalDifficultyStorage.get(blockhash)
+
+  override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
+    getBlockHeaderByNumber(blockNumber).flatMap { bh =>
+      val mpt = MerklePatriciaTrie[Address, Account](
+        bh.stateRoot.toArray,
+        nodeStorage,
+        crypto.kec256(_: Array[Byte])
+      )
+      mpt.get(address)
+    }
 
   override def save(blockHeader: BlockHeader): Unit = {
     val hash = blockHeader.hash
@@ -202,6 +221,7 @@ object BlockchainImpl {
       receiptStorage = storages.receiptStorage,
       evmCodeStorage = storages.evmCodeStorage,
       mptNodeStorage = storages.mptNodeStorage,
+      nodeStorage = storages.nodeStorage,
       totalDifficultyStorage = storages.totalDifficultyStorage
     )
 }
