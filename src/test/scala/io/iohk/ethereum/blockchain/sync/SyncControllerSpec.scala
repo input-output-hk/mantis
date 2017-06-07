@@ -669,6 +669,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     ommersPool.expectMsg(RemoveOmmers(minedBlockHeader))
     ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
     pendingTransactionsManager.expectNoMsg()
   }
 
