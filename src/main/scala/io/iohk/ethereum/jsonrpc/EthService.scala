@@ -60,6 +60,9 @@ object EthService {
   case class GetMiningRequest()
   case class GetMiningResponse(isMining: Boolean)
 
+  case class GetTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
+  case class GetTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[TransactionResponse])
+
   case class GetHashRateRequest()
   case class GetHashRateResponse(hashRate: BigInt)
 
@@ -262,7 +265,7 @@ class EthService(
 
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
 
-    getOmmersFromPool.zip(getTransactionsFromPool).map {
+    getOmmersFromPool(blockNumber).zip(getTransactionsFromPool).map {
       case (ommers, pendingTxs) =>
         blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommers.headers, miningConfig.coinbase) match {
           case Right(b) =>
@@ -278,10 +281,10 @@ class EthService(
       }
   }
 
-  private def getOmmersFromPool = {
+  private def getOmmersFromPool(blockNumber: BigInt) = {
     implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
 
-    (ommersPool ? OmmersPool.GetOmmers).mapTo[OmmersPool.Ommers]
+    (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
       .recover { case ex =>
         log.error("failed to get ommer, mining block with empty ommers list", ex)
         OmmersPool.Ommers(Nil)
@@ -385,6 +388,22 @@ class EthService(
         GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
       }
     }
+  }
+
+  def getTransactionByBlockNumberAndIndexRequest(req: GetTransactionByBlockNumberAndIndexRequest):
+  ServiceResponse[GetTransactionByBlockNumberAndIndexResponse] = Future {
+    import req._
+    resolveBlock(block).map{
+      blockWithTx =>
+        val blockTxs = blockWithTx.body.transactionList
+        if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
+          GetTransactionByBlockNumberAndIndexResponse(
+            Some(TransactionResponse(blockTxs(transactionIndex.toInt),
+              Some(blockWithTx.header),
+              Some(transactionIndex.toInt))))
+        else
+          GetTransactionByBlockNumberAndIndexResponse(None)
+    }.left.flatMap(_ => Right(GetTransactionByBlockNumberAndIndexResponse(None)))
   }
 
   private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, Block] = {
