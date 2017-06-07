@@ -306,7 +306,6 @@ class EthService(
     blockGenerator.getPrepared(req.powHeaderHash) match {
       case Some(block) if appStateStorage.getBestBlockNumber() <= block.header.number =>
         syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
-        pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
         Future.successful(Right(SubmitWorkResponse(true)))
       case _ =>
         Future.successful(Right(SubmitWorkResponse(false)))

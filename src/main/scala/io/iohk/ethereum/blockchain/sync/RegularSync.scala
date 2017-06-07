@@ -89,6 +89,7 @@ trait RegularSync {
 
         handshakedPeers.keys.foreach(peer => peer.ref ! PeerActor.SendMessage(NewBlock(block, newTd)))
         ommersPool ! new RemoveOmmers((block.header +: block.body.uncleNodesList).toList)
+        pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
 
         log.info(s"added new block $block")
       case Left(err) =>
