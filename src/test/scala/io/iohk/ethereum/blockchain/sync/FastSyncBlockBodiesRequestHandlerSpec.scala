@@ -71,7 +71,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     val peerEventBus = TestProbe()
 
     val peerTestProbe = TestProbe()
-    val peer = new PeerImpl(new InetSocketAddress("127.0.0.1", 8000), peerTestProbe.ref, peerEventBus.ref)
+    val peer = new PeerImpl(peerTestProbe.ref, peerEventBus.ref)
 
     val requestedHashes = Seq(ByteString("1"), ByteString("2"))
 

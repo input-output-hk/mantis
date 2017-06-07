@@ -90,7 +90,7 @@ class PeerImplSpec extends FlatSpec with Matchers {
     val peerActorProbe = TestProbe()
     val peerEventBusProbe = TestProbe()
 
-    val peer: Peer = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peerActorProbe.ref, peerEventBusProbe.ref)
+    val peer: Peer = new PeerImpl(peerActorProbe.ref, peerEventBusProbe.ref)
 
     val defaultMessage = Ping()
     val defaultReason = Disconnect.Reasons.Other

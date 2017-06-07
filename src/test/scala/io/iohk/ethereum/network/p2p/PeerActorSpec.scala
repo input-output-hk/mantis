@@ -71,7 +71,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val peerMessageBus = system.actorOf(PeerEventBusActor.props)
     var rlpxConnection = TestProbe() // var as we actually need new instances
-    val peer = TestActorRef(Props(new PeerActor(new InetSocketAddress("127.0.0.1", 0), _ => {
+    val peer = TestActorRef(Props(new PeerActor(_ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
       }, peerConf, peerMessageBus, Some(time.scheduler),
@@ -186,7 +186,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "disconnect on Hello timeout" in new TestSetup {
     val connection = TestProbe()
 
-    peer ! PeerActor.HandleConnection(connection.ref)
+    peer ! PeerActor.HandleConnection(connection.ref, new InetSocketAddress("127.0.0.1", 0))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.HandleConnection])
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
@@ -251,34 +251,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(etcForkBlockHeader))))
 
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TooManyPeers)))
-  }
-
-  it should "notify that the peer was disconnected" in new TestSetup {
-
-    val peerEventBusProbe = TestProbe()
-
-    val otherPeerStatus = Status(
-      protocolVersion = 0,
-      networkId = 0,
-      bestHash = ByteString("unused"),
-      genesisHash = ByteString("unused"),
-      totalDifficulty = 0
-    )
-    val otherPeerAddress = new InetSocketAddress("127.0.0.1", 0)
-    val otherPeer = TestActorRef(Props(new PeerActor(
-      otherPeerAddress,
-      _ => rlpxConnection.ref,
-      peerConf,
-      peerEventBusProbe.ref,
-      Some(time.scheduler),
-      MockHandshakerAlwaysSucceeds(otherPeerStatus, 0, true),
-      messageHandlerBuilder = messageHandlerBuilder)))
-
-    otherPeer ! PoisonPill
-
-    val otherPeerImpl = new PeerImpl(otherPeerAddress, otherPeer, peerEventBusProbe.ref)
-
-    peerEventBusProbe.expectMsg(Publish(PeerEvent.PeerDisconnected(otherPeerImpl.id)))
   }
 
   trait BlockUtils {
@@ -429,7 +401,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val peerEventBus = system.actorOf(PeerEventBusActor.props)
 
     val peer = TestActorRef(Props(new PeerActor(
-      new InetSocketAddress("127.0.0.1", 0),
       _ => rlpxConnection.ref,
       peerConf,
       peerEventBus,

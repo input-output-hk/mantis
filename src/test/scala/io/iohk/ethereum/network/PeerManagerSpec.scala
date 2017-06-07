@@ -1,3 +1,4 @@
+
 package io.iohk.ethereum.network
 
 import java.net.InetSocketAddress
@@ -11,8 +12,8 @@ import akka.testkit.{TestActorRef, TestProbe}
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.utils.Config
 import org.scalatest.{FlatSpec, Matchers}
-import PeerActor.{ConnectionRequest, Status}
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish}
+import PeerActor.Status
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent
 
 class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
 
@@ -30,6 +31,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
 
     peerManager ! "Thank you Akka for great testing framework! (yes, this message is actually needed to trigger unstashAll() in TestActorRef)"
 
+    createdPeers.head.expectMsgClass(classOf[PeerActor.ConnectTo])
     respondWithStatus(createdPeers.head, Handshaking(0))
 
     eventually {
@@ -47,12 +49,16 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
       peerManager.underlyingActor.peers.size shouldBe 1
     }
 
+    createdPeers.head.expectMsgClass(classOf[PeerActor.ConnectTo])
+
     peerManager ! "trigger stashed messages..."
     respondWithStatus(createdPeers.head, Handshaking(0))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 2
     }
+
+    createdPeers(1).expectMsgClass(classOf[PeerActor.ConnectTo])
 
     createdPeers.head.ref ! PoisonPill
     peerEventBus.send(peerManager, PeerEvent.PeerDisconnected(createdPeersIds.head))
@@ -82,11 +88,13 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
     }
 
     peerManager ! "trigger stashed messages..."
+    createdPeers.head.expectMsgClass(classOf[PeerActor.ConnectTo])
     respondWithStatus(createdPeers.head, Handshaking(0))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 2
     }
+    createdPeers(1).expectMsgClass(classOf[PeerActor.ConnectTo])
 
     peerManager ! PeerManagerActor.HandlePeerConnection(system.deadLetters, new InetSocketAddress(9000))
 
@@ -97,6 +105,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 3
     }
+    createdPeers(2).expectMsgClass(classOf[PeerActor.HandleConnection])
 
     peerManager ! PeerManagerActor.HandlePeerConnection(system.deadLetters, new InetSocketAddress(1000))
 
@@ -124,12 +133,12 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
 
     val peerEventBus = TestProbe()
 
-    val peerFactory: (ActorContext, InetSocketAddress, ConnectionRequest) => Peer = { (ctx, addr, req) =>
+    val peerFactory: (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
       val peer = TestProbe()
       createdPeers :+= peer
-      val createdPeer = new PeerImpl(addr, peer.ref, peerEventBus.ref)
+      val createdPeer = new PeerImpl(peer.ref, peerEventBus.ref)
       createdPeersIds :+= createdPeer.id
-      createdPeer
+      peer.ref
     }
 
     def respondWithStatus(peer: TestProbe, status: PeerActor.Status): Unit = {

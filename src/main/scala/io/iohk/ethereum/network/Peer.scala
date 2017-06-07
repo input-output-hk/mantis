@@ -1,30 +1,18 @@
 package io.iohk.ethereum.network
 
-import java.net.InetSocketAddress
-
-import akka.actor.{ActorContext, ActorRef}
-import akka.agent.Agent
+import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
-import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
-import io.iohk.ethereum.network.PeerActor.{ConnectionRequest, DisconnectPeer, GetStatus, SendMessage}
+import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, GetStatus, SendMessage}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
-import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.p2p.MessageSerializable
-import io.iohk.ethereum.utils.NodeStatus
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
 trait Peer {
-
-  /**
-    * Address of the peer
-    */
-  val remoteAddress: InetSocketAddress
 
   /**
     * Unique identifier of the peer
@@ -93,7 +81,7 @@ trait Peer {
 
 case class PeerId(value: String) extends AnyVal
 
-class PeerImpl(val remoteAddress: InetSocketAddress, val ref: ActorRef, peerEventBusActor: ActorRef) extends Peer {
+class PeerImpl(val ref: ActorRef, peerEventBusActor: ActorRef) extends Peer {
 
   implicit val timeout = Timeout(3.seconds)
 
@@ -119,22 +107,4 @@ class PeerImpl(val remoteAddress: InetSocketAddress, val ref: ActorRef, peerEven
 
   def unsubscribeFromDisconnect()(implicit subscriber: ActorRef): Unit =
     peerEventBusActor.!(Unsubscribe(PeerDisconnectedClassifier(id)))(subscriber)
-}
-
-object PeerImpl {
-
-  def peerFactory(nodeStatusHolder: Agent[NodeStatus],
-                  peerConfiguration: PeerConfiguration,
-                  peerEventBus: ActorRef,
-                  handshaker: Handshaker[EtcPeerInfo],
-                  messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo])
-  : (ActorContext, InetSocketAddress, ConnectionRequest) => Peer = {
-    (ctx, addr, req) =>
-      val id = addr.toString.filterNot(_ == '/')
-      val peerActor = ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, peerEventBus,
-        handshaker, messageHandlerBuilder), id)
-      peerActor ! req
-      new PeerImpl(addr, peerActor, peerEventBus)
-  }
-
 }

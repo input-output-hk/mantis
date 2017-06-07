@@ -152,7 +152,6 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     val peerEventBus = TestProbe()
 
     def peerActor(handshaker: Handshaker[EtcPeerInfo]): TestActorRef[PeerActor] = TestActorRef(Props(new PeerActor(
-      new InetSocketAddress("127.0.0.1", 0),
       rlpxConnectionFactory = _ => rlpxConnectionProbe.ref,
       peerConfiguration = Config.Network.peer,
       peerEventBus = peerEventBus.ref,

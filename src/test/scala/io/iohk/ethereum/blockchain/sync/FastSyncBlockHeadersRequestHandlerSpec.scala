@@ -48,7 +48,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
   it should "handle block header resolution request" in new TestSetup {
     val request = GetBlockHeaders(Left(block), maxHeaders, skip = 0, reverse = true)
     val resolverPeerTestProbe = TestProbe()
-    val resolverPeer = new PeerImpl(new InetSocketAddress("127.0.0.2", 9000), resolverPeerTestProbe.ref, peerEventBus.ref)
+    val resolverPeer = new PeerImpl(resolverPeerTestProbe.ref, peerEventBus.ref)
 
     val resolver: ActorRef = {
       parent.childActorOf(SyncBlockHeadersRequestHandler.props(
@@ -103,7 +103,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     val peerEventBus = TestProbe()
 
     val peerTestProbe = TestProbe()
-    val peer = new PeerImpl(new InetSocketAddress("127.0.0.1", 8000), peerTestProbe.ref, peerEventBus.ref)
+    val peer = new PeerImpl(peerTestProbe.ref, peerEventBus.ref)
 
     val requestedHashes = Seq(ByteString("1"), ByteString("2"))
 

@@ -41,8 +41,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     parent watch peer1TestProbe.ref
     parent watch peer2TestProbe.ref
 
-    val peer1 = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, peerEventBus.ref)
-    val peer2 = new PeerImpl(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref, peerEventBus.ref)
+    val peer1 = new PeerImpl(peer1TestProbe.ref, peerEventBus.ref)
+    val peer2 = new PeerImpl(peer2TestProbe.ref, peerEventBus.ref)
 
     time.advance(1.seconds)
 
@@ -101,7 +101,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
   it should "download target block, request state, blocks and finish when downloaded" in new TestSetup() {
     val peer2TestProbe: TestProbe = TestProbe()(system)
-    val peer2 = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peer2TestProbe.ref, peerEventBus.ref)
+    val peer2 = new PeerImpl(peer2TestProbe.ref, peerEventBus.ref)
 
     val expectedTargetBlock = 399500
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(
@@ -160,7 +160,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
   it should "not use (blacklist) a peer that fails to respond within time limit" in new TestSetup() {
     val peer2TestProbe: TestProbe = TestProbe()(system)
 
-    val peer2 = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peer2TestProbe.ref, peerEventBus.ref)
+    val peer2 = new PeerImpl(peer2TestProbe.ref, peerEventBus.ref)
 
     time.advance(1.seconds)
 
@@ -202,7 +202,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
   it should "start regular download " in new TestSetup() {
     val peerTestProbe: TestProbe = TestProbe()(system)
 
-    val peer = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref, peerEventBus.ref)
+    val peer = new PeerImpl(peerTestProbe.ref, peerEventBus.ref)
 
     time.advance(1.seconds)
 
@@ -263,7 +263,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
   it should "resolve branch conflict" in new TestSetup() {
     val peerTestProbe: TestProbe = TestProbe()(system)
-    val peer = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref, peerEventBus.ref)
+    val peer = new PeerImpl(peerTestProbe.ref, peerEventBus.ref)
 
     time.advance(1.seconds)
 
@@ -381,10 +381,10 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val peer3TestProbe: TestProbe = TestProbe()(system)
     val peer4TestProbe: TestProbe = TestProbe()(system)
 
-    val peer1 = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, peerEventBus.ref)
-    val peer2 = new PeerImpl(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref, peerEventBus.ref)
-    val peer3 = new PeerImpl(new InetSocketAddress("127.0.0.3", 0), peer3TestProbe.ref, peerEventBus.ref)
-    val peer4 = new PeerImpl(new InetSocketAddress("127.0.0.4", 0), peer4TestProbe.ref, peerEventBus.ref)
+    val peer1 = new PeerImpl(peer1TestProbe.ref, peerEventBus.ref)
+    val peer2 = new PeerImpl(peer2TestProbe.ref, peerEventBus.ref)
+    val peer3 = new PeerImpl(peer3TestProbe.ref, peerEventBus.ref)
+    val peer4 = new PeerImpl(peer4TestProbe.ref, peerEventBus.ref)
 
     time.advance(1.seconds)
 
@@ -427,7 +427,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
   it should "broadcast all blocks if they were all valid" in new TestSetup() {
     val peer1TestProbe: TestProbe = TestProbe()(system)
 
-    val peer1 = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, peerEventBus.ref)
+    val peer1 = new PeerImpl(peer1TestProbe.ref, peerEventBus.ref)
 
     time.advance(1.seconds)
 
@@ -507,8 +507,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val peer1TestProbe: TestProbe = TestProbe()(system)
     val peer2TestProbe: TestProbe = TestProbe()(system)
 
-    val peer1 = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, peerEventBus.ref)
-    val peer2 = new PeerImpl(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref, peerEventBus.ref)
+    val peer1 = new PeerImpl(peer1TestProbe.ref, peerEventBus.ref)
+    val peer2 = new PeerImpl(peer2TestProbe.ref, peerEventBus.ref)
 
     time.advance(1.seconds)
 
@@ -581,8 +581,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val peer1TestProbe: TestProbe = TestProbe()(system)
     val peer2TestProbe: TestProbe = TestProbe()(system)
 
-    val peer1 = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, peerEventBus.ref)
-    val peer2 = new PeerImpl(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref, peerEventBus.ref)
+    val peer1 = new PeerImpl(peer1TestProbe.ref, peerEventBus.ref)
+    val peer2 = new PeerImpl(peer2TestProbe.ref, peerEventBus.ref)
 
     time.advance(1.seconds)
 
@@ -640,7 +640,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
   it should "accept mined blocks" in new TestSetup() {
     val peerTestProbe: TestProbe = TestProbe()(system)
 
-    val peer = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref, peerEventBus.ref)
+    val peer = new PeerImpl(peerTestProbe.ref, peerEventBus.ref)
 
     time.advance(1.seconds)
 
@@ -690,7 +690,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
   it should "accept add mined blocks as ommers when doing sync" in new TestSetup() {
     val peerTestProbe: TestProbe = TestProbe()(system)
 
-    val peer = new PeerImpl(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref, peerEventBus.ref)
+    val peer = new PeerImpl(peerTestProbe.ref, peerEventBus.ref)
 
     time.advance(1.seconds)
 

@@ -15,7 +15,7 @@ import io.iohk.ethereum.network.MessageHandler.MessageAction.TransmitMessage
 import io.iohk.ethereum.network.MessageHandler.MessageHandlingResult
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish}
+import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
@@ -31,7 +31,6 @@ import org.spongycastle.crypto.AsymmetricCipherKeyPair
   */
 //FIXME: MessageHandler type should be configurable, this is dependant on PR 185
 class PeerActor(
-    remoteAddress: InetSocketAddress,
     rlpxConnectionFactory: ActorContext => ActorRef,
     val peerConfiguration: PeerConfiguration,
     peerEventBus: ActorRef,
@@ -49,16 +48,10 @@ class PeerActor(
 
   val peerId: PeerId = PeerId(self.path.name)
 
-  val peer: Peer = new PeerImpl(remoteAddress, self, peerEventBus)
-
-  override def postStop(): Unit = {
-    peerEventBus ! Publish(PeerEvent.PeerDisconnected(peerId))
-  }
-
   override def receive: Receive = waitingForInitialCommand
 
   def waitingForInitialCommand: Receive = stashMessages orElse {
-    case HandleConnection(connection) =>
+    case HandleConnection(connection, remoteAddress) =>
       val rlpxConnection = createRlpxConnection(remoteAddress, None)
       rlpxConnection.ref ! RLPxConnectionHandler.HandleConnection(connection)
       context become waitingForConnectionResult(rlpxConnection)
@@ -160,7 +153,8 @@ class PeerActor(
   private def startMessageHandler(rlpxConnection: RLPxConnection, remoteStatus: msg.Status,
                                   totalDifficulty: BigInt, forkAccepted: Boolean, currentMaxBlockNumber: BigInt): Unit = {
     val peerInfo = EtcPeerInfo(remoteStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber)
-    val messageHandler = messageHandlerBuilder(peerInfo, peer)
+    //FIXME: The PeerImpl interface should not be used in the PeerActor, it will be removed in a later PR
+    val messageHandler = messageHandlerBuilder(peerInfo, new PeerImpl(self, peerEventBus))
     context become new HandshakedPeer(rlpxConnection, messageHandler).receive
     unstashAll()
   }
@@ -245,14 +239,12 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(peerAddress: InetSocketAddress,
-            nodeStatusHolder: Agent[NodeStatus],
+  def props(nodeStatusHolder: Agent[NodeStatus],
             peerConfiguration: PeerConfiguration,
             peerEventBus: ActorRef,
             handshaker: Handshaker[EtcPeerInfo],
             messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo]): Props =
     Props(new PeerActor(
-      peerAddress,
       rlpxConnectionFactory(nodeStatusHolder().key),
       peerConfiguration,
       peerEventBus,
@@ -270,11 +262,9 @@ object PeerActor {
     }
   }
 
-  sealed trait ConnectionRequest
+  case class HandleConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
 
-  case class HandleConnection(connection: ActorRef) extends ConnectionRequest
-
-  case class ConnectTo(uri: URI) extends ConnectionRequest
+  case class ConnectTo(uri: URI)
 
   case class SendMessage(message: MessageSerializable)
 
