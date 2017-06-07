@@ -359,6 +359,58 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
   }
 
+  it should "return if node is mining base on getWork" in new TestSetup {
+    ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
+
+    (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(block))
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    ethService.getWork(GetWorkRequest())
+
+    Thread.sleep(1.seconds.toMillis)
+
+    val response = ethService.getMining(GetMiningRequest())
+
+    response.futureValue shouldEqual Right(GetMiningResponse(true))
+  }
+
+  it should "return if node is mining base on submitWork" in new TestSetup {
+    ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
+
+    (blockGenerator.getPrepared _).expects(*).returning(Some(block))
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    ethService.submitWork(SubmitWorkRequest(ByteString("nonce"), ByteString(Hex.decode("01" * 32)), ByteString(Hex.decode("01" * 32))))
+
+    Thread.sleep(1.seconds.toMillis)
+
+    val response = ethService.getMining(GetMiningRequest())
+
+    response.futureValue shouldEqual Right(GetMiningResponse(true))
+  }
+
+  it should "return if node is mining base on submitHashRate" in new TestSetup {
+    ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
+
+    ethService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
+
+    Thread.sleep(1.seconds.toMillis)
+
+    val response = ethService.getMining(GetMiningRequest())
+
+    response.futureValue shouldEqual Right(GetMiningResponse(true))
+  }
+
+  it should "return if node is mining after time out" in new TestSetup {
+    (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(block))
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    ethService.getWork(GetWorkRequest())
+
+    Thread.sleep(6.seconds.toMillis)
+
+    val response = ethService.getMining(GetMiningRequest())
+
+    response.futureValue shouldEqual Right(GetMiningResponse(false))
+  }
+
   it should "return correct coinbase" in new TestSetup {
     val response = ethService.getCoinbase(GetCoinbaseRequest())
     response.futureValue shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
