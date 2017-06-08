@@ -146,6 +146,9 @@ class JsonRpcController(
 
     case req @ JsonRpcRequest(_, "personal_lockAccount", _, _) =>
       handle[LockAccountRequest, LockAccountResponse](personalService.lockAccount, req)
+
+    case req @ JsonRpcRequest(_, "personal_ecRecover", _, _) =>
+      handle[EcRecoverRequest, EcRecoverResponse](personalService.ecRecover, req)
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {

@@ -2,12 +2,13 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
 import akka.util.ByteString
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainStorages}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransactions
 
 import scala.collection.mutable
@@ -36,6 +37,9 @@ object PersonalService {
 
   case class SendTransactionRequest(tx: TransactionRequest)
   case class SendTransactionResponse(txHash: ByteString)
+
+  case class EcRecoverRequest(message: ByteString, signature: ECDSASignature)
+  case class EcRecoverResponse(address: Address)
 
   val InvalidKey = InvalidParams("Invalid key provided, expected 32 bytes (64 hex digits)")
   val InvalidAddress = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
@@ -85,6 +89,14 @@ class PersonalService(
   def lockAccount(request: LockAccountRequest): ServiceResponse[LockAccountResponse] = Future.successful {
     unlockedWallets -= request.address
     Right(LockAccountResponse(true))
+  }
+
+  def ecRecover(req: EcRecoverRequest): ServiceResponse[EcRecoverResponse] = Future {
+    import req._
+
+    signature.publicKey(message).map { publicKey =>
+      Right(EcRecoverResponse(Address(crypto.kec256(publicKey))))
+    }.getOrElse(Left(JsonRpcErrors.InvalidParams("unable to recover address")))
   }
 
   def sendTransaction(request: SendTransactionWithPassphraseRequest): ServiceResponse[SendTransactionWithPassphraseResponse] = Future {

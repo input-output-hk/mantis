@@ -4,6 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.DefaultPatience
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainStorages}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
@@ -138,6 +139,20 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     lockRes shouldEqual Right(LockAccountResponse(true))
     txRes shouldEqual Left(AccountLocked)
+  }
+
+  it should "recover address form signed message" in new TestSetup {
+    val sigAddress = Address(ByteString(Hex.decode("9b2055d370f73ec7d8a03e965129118dc8f5bf83")))
+    val message = ByteString(Hex.decode("deadbeaf"))
+
+    val r: ByteString = ByteString(Hex.decode("a3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a1"))
+    val s: ByteString = ByteString(Hex.decode("2d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee"))
+    val v: ByteString = ByteString(Hex.decode("1b"))
+
+    val req = EcRecoverRequest(message, ECDSASignature(r, s, v))
+
+    val res = personal.ecRecover(req).futureValue
+    res shouldEqual Right(EcRecoverResponse(sigAddress))
   }
 
   trait TestSetup {

@@ -1,6 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
@@ -188,6 +189,39 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
 
     def encodeJson(t: SendTransactionWithPassphraseResponse): JValue =
       encodeAsHex(t.txHash)
+  }
+
+  implicit val personal_ecRecover = new Codec[EcRecoverRequest, EcRecoverResponse] {
+    val signatureLength = 65
+    val rLength = 32
+    val vLength = 32
+
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, EcRecoverRequest] =
+      params match {
+        case Some(JArray(JString(message) :: JString(signature) :: _)) if signature.length == (signatureLength * 2 + 2) =>
+
+          val decoded = for {
+            msg <- extractBytes(message)
+            sig <- extractBytes(signature)
+          } yield (msg, sig)
+
+          decoded.flatMap { case (msg, sig) =>
+            val r = sig.take(rLength)
+            val s = sig.drop(rLength).take(vLength)
+            val v = sig.takeRight(1)
+
+            if (v.contains(ECDSASignature.positivePointSign) || v.contains(ECDSASignature.negativePointSign)) {
+              Right(EcRecoverRequest(msg, ECDSASignature(r, s, v)))
+            } else {
+              Left(InvalidParams("invalid point sign v, allowed values are 27 and 28"))
+            }
+          }
+        case _ =>
+          Left(InvalidParams())
+      }
+
+    def encodeJson(t: EcRecoverResponse): JValue =
+      encodeAsHex(t.address.bytes)
   }
 
   implicit val personal_unlockAccount = new Codec[UnlockAccountRequest, UnlockAccountResponse] {
