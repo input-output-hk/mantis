@@ -21,12 +21,13 @@ class OmmersPool(blockchain: Blockchain, miningConfig: MiningConfig) extends Act
       ommersPool = ommersPool.filter(b => !toDelete.contains(b.hash))
 
     case GetOmmers(blockNumber) =>
-      ommersPool.filter { b =>
+      val ommers = ommersPool.filter { b =>
         val generationDifference = blockNumber - b.number
         generationDifference > 0 && generationDifference <= ommerGenerationLimit
       }.filter { b =>
         blockchain.getBlockHeaderByHash(b.parentHash).isDefined
       }.take(ommerSizeLimit)
+      sender() ! OmmersPool.Ommers(ommers)
   }
 }
 

@@ -24,12 +24,13 @@ import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.vm.UInt256
 import org.scalamock.scalatest.MockFactory
 import org.spongycastle.util.encoders.Hex
+
 import scala.concurrent.duration._
 
 class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockFactory with DefaultPatience {
@@ -231,7 +232,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(Nil))
 
-    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    ommersPool.expectMsg(OmmersPool.GetOmmers(1))
     ommersPool.reply(OmmersPool.Ommers(Nil))
 
     response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
@@ -375,9 +376,134 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
   }
 
+  it should "return if node is mining base on getWork" in new TestSetup {
+    ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
+
+    (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(block))
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    ethService.getWork(GetWorkRequest())
+
+    Thread.sleep(1.seconds.toMillis)
+
+    val response = ethService.getMining(GetMiningRequest())
+
+    response.futureValue shouldEqual Right(GetMiningResponse(true))
+  }
+
+  it should "return if node is mining base on submitWork" in new TestSetup {
+    ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
+
+    (blockGenerator.getPrepared _).expects(*).returning(Some(block))
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    ethService.submitWork(SubmitWorkRequest(ByteString("nonce"), ByteString(Hex.decode("01" * 32)), ByteString(Hex.decode("01" * 32))))
+
+    Thread.sleep(1.seconds.toMillis)
+
+    val response = ethService.getMining(GetMiningRequest())
+
+    response.futureValue shouldEqual Right(GetMiningResponse(true))
+  }
+
+  it should "return if node is mining base on submitHashRate" in new TestSetup {
+    ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
+
+    ethService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
+
+    Thread.sleep(1.seconds.toMillis)
+
+    val response = ethService.getMining(GetMiningRequest())
+
+    response.futureValue shouldEqual Right(GetMiningResponse(true))
+  }
+
+  it should "return if node is mining after time out" in new TestSetup {
+    (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(block))
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    ethService.getWork(GetWorkRequest())
+
+    Thread.sleep(6.seconds.toMillis)
+
+    val response = ethService.getMining(GetMiningRequest())
+
+    response.futureValue shouldEqual Right(GetMiningResponse(false))
+  }
+
   it should "return correct coinbase" in new TestSetup {
     val response = ethService.getCoinbase(GetCoinbaseRequest())
     response.futureValue shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
+  }
+
+  it should "handle getBalance request" in new TestSetup {
+    val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
+
+    import MerklePatriciaTrie.defaultByteArraySerializable
+
+    val mpt =
+      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.nodeStorage, (input: Array[Byte]) => crypto.kec256(input))
+        .put(crypto.kec256(address.bytes.toArray[Byte]), Account(0, UInt256(123), ByteString(""), ByteString("code hash")))
+
+    val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
+    val newblock = blockToRequest.copy(header = newBlockHeader)
+    blockchain.save(newblock)
+    (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
+
+    val response = ethService.getBalance(GetBalanceRequest(address, BlockParam.Latest))
+
+    response.futureValue shouldEqual Right(GetBalanceResponse(123))
+  }
+
+  it should "handle getStorageAt request" in new TestSetup {
+    import io.iohk.ethereum.rlp.UInt256RLPImplicits._
+
+    val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
+
+    import MerklePatriciaTrie.defaultByteArraySerializable
+
+    val byteArrayUInt256Serializer = new ByteArrayEncoder[UInt256] {
+      override def toBytes(input: UInt256): Array[Byte] = input.bytes.toArray[Byte]
+    }
+
+    val rlpUInt256Serializer = new ByteArraySerializable[UInt256] {
+      override def fromBytes(bytes: Array[Byte]): UInt256 = ByteString(bytes).toUInt256
+      override def toBytes(input: UInt256): Array[Byte] = input.toBytes
+    }
+
+    val storageMpt =
+      MerklePatriciaTrie[UInt256, UInt256](storagesInstance.storages.nodeStorage, crypto.kec256(_: Array[Byte]))(
+        HashByteArraySerializable(byteArrayUInt256Serializer), rlpUInt256Serializer)
+        .put(UInt256(333), UInt256(123))
+
+    val mpt =
+      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.nodeStorage, (input: Array[Byte]) => crypto.kec256(input))
+        .put(crypto.kec256(address.bytes.toArray[Byte]), Account(0, UInt256(0), ByteString(storageMpt.getRootHash), ByteString("")))
+
+    val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
+    val newblock = blockToRequest.copy(header = newBlockHeader)
+    blockchain.save(newblock)
+    (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
+
+    val response = ethService.getStorageAt(GetStorageAtRequest(address, 333, BlockParam.Latest))
+
+    response.futureValue shouldEqual Right(GetStorageAtResponse(UInt256(123).bytes))
+  }
+
+  it should "handle get transaction count request" in new TestSetup {
+    val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
+
+    import MerklePatriciaTrie.defaultByteArraySerializable
+
+    val mpt =
+      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.nodeStorage, (input: Array[Byte]) => crypto.kec256(input))
+        .put(crypto.kec256(address.bytes.toArray[Byte]), Account(999, UInt256(0), ByteString(""), ByteString("")))
+
+    val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
+    val newblock = blockToRequest.copy(header = newBlockHeader)
+    blockchain.save(newblock)
+    (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
+
+    val response = ethService.getTransactionCount(GetTransactionCountRequest(address, BlockParam.Latest))
+
+    response.futureValue shouldEqual Right(GetTransactionCountResponse(BigInt(999)))
   }
 
   trait TestSetup extends MockFactory {

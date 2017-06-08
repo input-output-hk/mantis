@@ -89,6 +89,7 @@ trait RegularSync {
 
         handshakedPeers.keys.foreach(peer => peer.ref ! PeerActor.SendMessage(NewBlock(block, newTd)))
         ommersPool ! new RemoveOmmers((block.header +: block.body.uncleNodesList).toList)
+        pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
 
         log.info(s"added new block $block")
       case Left(err) =>
@@ -162,9 +163,9 @@ trait RegularSync {
   }
 
   def getOldBlocks(headers: Seq[BlockHeader]): List[Block] = headers match {
-    case h :: tail =>
+    case Seq(h, tail @ _*) =>
       blockchain.getBlockByNumber(h.number).map(_ :: getOldBlocks(tail)).getOrElse(Nil)
-    case Nil =>
+    case Seq() =>
       Nil
   }
 

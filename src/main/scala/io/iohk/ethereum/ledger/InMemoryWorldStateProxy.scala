@@ -4,25 +4,14 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.EvmCodeStorage.Code
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, _}
-import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits._
-import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 import io.iohk.ethereum.vm.{Storage, UInt256, WorldStateProxy}
 
 object InMemoryWorldStateProxy {
 
   import Account._
-
-  val byteArrayUInt256Serializer = new ByteArrayEncoder[UInt256] {
-    override def toBytes(input: UInt256): Array[Byte] = input.bytes.toArray[Byte]
-  }
-
-  val rlpUInt256Serializer = new ByteArraySerializable[UInt256] {
-    override def fromBytes(bytes: Array[Byte]): UInt256 = ByteString(bytes).toUInt256
-
-    override def toBytes(input: UInt256): Array[Byte] = input.toBytes
-  }
 
   def apply(
     storages: BlockchainStorages,
@@ -114,14 +103,7 @@ object InMemoryWorldStateProxy {
     */
   private def createProxiedContractStorageTrie(contractStorage: NodeStorage, storageRoot: ByteString):
   InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]] =
-    InMemorySimpleMapProxy.wrap[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]](
-      MerklePatriciaTrie[UInt256, UInt256](
-        storageRoot.toArray[Byte],
-        contractStorage,
-        kec256(_: Array[Byte]))(
-        HashByteArraySerializable(byteArrayUInt256Serializer),
-        rlpUInt256Serializer)
-    )
+    InMemorySimpleMapProxy.wrap[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]](domain.storageMpt(storageRoot, contractStorage))
 }
 
 class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]])
