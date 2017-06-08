@@ -5,13 +5,15 @@ import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.UnaryOperator
 
+import java.util.Date
+import java.util.concurrent.atomic.AtomicReference
+
 import akka.pattern.ask
 import akka.util.Timeout
 import io.iohk.ethereum.domain._
 import akka.actor.ActorRef
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
 import io.iohk.ethereum.db.storage.AppStateStorage
-
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
@@ -54,6 +56,9 @@ object EthService {
 
   case class SubmitHashRateRequest(hashRate: BigInt, id: ByteString)
   case class SubmitHashRateResponse(success: Boolean)
+
+  case class GetMiningRequest()
+  case class GetMiningResponse(isMining: Boolean)
 
   case class GetHashRateRequest()
   case class GetHashRateResponse(hashRate: BigInt)
@@ -130,7 +135,9 @@ class EthService(
 
   lazy val blockchain = BlockchainImpl(blockchainStorages)
 
+  val minerTimeOut: Long = 5.seconds.toMillis
   val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] = new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
+  val lastActive = new AtomicReference[Option[Date]](None)
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
     Future.successful(Right(ProtocolVersionResponse(f"0x$CurrentProtocolVersion%x")))
@@ -212,6 +219,7 @@ class EthService(
   }
 
   def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] = {
+    reportActive()
     hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
       override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
         val now = new Date
@@ -220,6 +228,24 @@ class EthService(
     })
 
     Future.successful(Right(SubmitHashRateResponse(true)))
+  }
+
+  def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] = {
+    val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
+      override def apply(e: Option[Date]): Option[Date] = {
+        e.filter { time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < minerTimeOut }
+      }
+    }).isDefined
+    Future.successful(Right(GetMiningResponse(isMining)))
+  }
+
+  private def reportActive() = {
+    val now = new Date()
+    lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
+      override def apply(e: Option[Date]): Option[Date] = {
+        Some(now)
+      }
+    })
   }
 
   def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] = {
@@ -234,18 +260,18 @@ class EthService(
   }
 
   private def removeObsoleteHashrates(now: Date, rates: Map[ByteString, (BigInt, Date)]):Map[ByteString, (BigInt, Date)]={
-    val rateUsefulnessTime = 5.seconds.toMillis
     rates.filter { case (_, (_, reported)) =>
-      Duration.between(reported.toInstant, now.toInstant).toMillis < rateUsefulnessTime
+      Duration.between(reported.toInstant, now.toInstant).toMillis < minerTimeOut
     }
   }
 
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] = {
+    reportActive()
     import io.iohk.ethereum.mining.pow.PowCache._
 
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
 
-    getOmmersFromPool.zip(getTransactionsFromPool).map {
+    getOmmersFromPool(blockNumber).zip(getTransactionsFromPool).map {
       case (ommers, pendingTxs) =>
         blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommers.headers, miningConfig.coinbase) match {
           case Right(b) =>
@@ -261,10 +287,10 @@ class EthService(
       }
   }
 
-  private def getOmmersFromPool = {
+  private def getOmmersFromPool(blockNumber: BigInt) = {
     implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
 
-    (ommersPool ? OmmersPool.GetOmmers).mapTo[OmmersPool.Ommers]
+    (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
       .recover { case ex =>
         log.error("failed to get ommer, mining block with empty ommers list", ex)
         OmmersPool.Ommers(Nil)
@@ -285,10 +311,10 @@ class EthService(
     Future.successful(Right(GetCoinbaseResponse(miningConfig.coinbase)))
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
+    reportActive()
     blockGenerator.getPrepared(req.powHeaderHash) match {
       case Some(block) if appStateStorage.getBestBlockNumber() <= block.header.number =>
         syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
-        pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
         Future.successful(Right(SubmitWorkResponse(true)))
       case _ =>
         Future.successful(Right(SubmitWorkResponse(false)))
