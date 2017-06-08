@@ -5,7 +5,8 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV63.{MptLeaf, MptNode}
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
+import io.iohk.ethereum.vm.UInt256
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
@@ -66,6 +67,14 @@ trait Blockchain {
     * @param blockNumber the block that determines the state of the account
     */
   def getAccount(address: Address, blockNumber: BigInt): Option[Account]
+
+  /**
+    * Get account storage at given position
+    *
+    * @param rootHash storage root hash
+    * @param position storage position
+    */
+  def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString
 
   /**
     * Returns the receipts based on a block hash
@@ -169,6 +178,10 @@ class BlockchainImpl(
       )
       mpt.get(address)
     }
+
+  override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = {
+    storageMpt(rootHash, nodeStorage).get(UInt256(position)).getOrElse(UInt256(0)).bytes
+  }
 
   override def save(blockHeader: BlockHeader): Unit = {
     val hash = blockHeader.hash

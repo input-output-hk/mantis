@@ -298,4 +298,47 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     def encodeJson(t: GetBlockTransactionCountByNumberResponse): JValue = encodeAsHex(t.result)
   }
 
+  implicit val eth_getBalance = new JsonDecoder[GetBalanceRequest] with JsonEncoder[GetBalanceResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetBalanceRequest] =
+      params match {
+        case Some(JArray((addressStr: JString) :: (blockStr: JString) :: Nil)) =>
+          for {
+            address <- extractAddress(addressStr)
+            block <- extractBlockParam(blockStr)
+          } yield GetBalanceRequest(address, block)
+        case _ => Left(InvalidParams())
+      }
+
+    def encodeJson(t: GetBalanceResponse): JValue = encodeAsHex(t.value)
+  }
+
+  implicit val eth_getStorageAt = new JsonDecoder[GetStorageAtRequest] with JsonEncoder[GetStorageAtResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetStorageAtRequest] =
+      params match {
+        case Some(JArray((addressStr: JString) :: (positionStr: JString) :: (blockStr: JString) :: Nil)) =>
+          for {
+            address <- extractAddress(addressStr)
+            position <- extractQuantity(positionStr)
+            block <- extractBlockParam(blockStr)
+          } yield GetStorageAtRequest(address, position, block)
+        case _ => Left(InvalidParams())
+      }
+
+    def encodeJson(t: GetStorageAtResponse): JValue = encodeAsHex(t.value)
+  }
+
+  implicit val eth_getTransactionCount = new JsonDecoder[GetTransactionCountRequest] with JsonEncoder[GetTransactionCountResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetTransactionCountRequest] =
+      params match {
+        case Some(JArray((addressStr: JString) :: (blockStr: JString) :: Nil)) =>
+          for {
+            address <- extractAddress(addressStr)
+            block <- extractBlockParam(blockStr)
+          } yield GetTransactionCountRequest(address, block)
+        case _ => Left(InvalidParams())
+      }
+
+    def encodeJson(t: GetTransactionCountResponse): JValue = encodeAsHex(t.value)
+  }
+
 }
