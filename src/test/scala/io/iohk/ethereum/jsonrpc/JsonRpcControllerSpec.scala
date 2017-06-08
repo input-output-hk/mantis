@@ -1,6 +1,5 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
@@ -14,7 +13,7 @@ import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.{Config, MiningConfig}
+import io.iohk.ethereum.utils.MiningConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
@@ -32,10 +31,10 @@ import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
+// scalastyle:off file.size.limit
 class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience with Eventually {
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
