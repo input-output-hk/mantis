@@ -17,6 +17,8 @@ trait MessageSerializable extends Message {
 
   def toBytes: Array[Byte]
 
+  def underlyingMsg: Message
+
 }
 
 trait MessageDecoder {

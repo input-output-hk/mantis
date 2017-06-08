@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network.handshaker
 
-import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
+import io.iohk.ethereum.network.PeersInfoHolderActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
@@ -8,7 +8,7 @@ import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Logger
 
-case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[EtcPeerInfo] with Logger {
+case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] with Logger {
 
   import handshakerConfiguration._
 
@@ -18,7 +18,7 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
       timeout = peerConfiguration.waitForStatusTimeout
     )
 
-  def applyResponseMessage: PartialFunction[Message, HandshakerState[EtcPeerInfo]] = {
+  def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = {
 
     case remoteStatus: Status =>
       log.info("Peer returned status ({})", remoteStatus)
@@ -27,12 +27,12 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
         case Some(forkResolver) =>
           EtcForkBlockExchangeState(handshakerConfiguration, forkResolver, remoteStatus)
         case None =>
-          ConnectedState(EtcPeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, 0))
+          ConnectedState(PeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, 0))
       }
 
   }
 
-  def processTimeout: HandshakerState[EtcPeerInfo] = {
+  def processTimeout: HandshakerState[PeerInfo] = {
     log.warn("Timeout while waiting status")
     DisconnectedState(Disconnect.Reasons.TimeoutOnReceivingAMessage)
   }

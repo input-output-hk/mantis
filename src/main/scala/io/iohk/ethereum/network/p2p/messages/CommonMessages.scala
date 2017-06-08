@@ -14,7 +14,7 @@ object CommonMessages {
   object Status {
     val code: Int = Versions.SubProtocolOffset + 0x00
 
-    implicit class StatusEnc(m: Status) extends MessageSerializableImplicit[Status](m) with RLPSerializable {
+    implicit class StatusEnc(val underlyingMsg: Status) extends MessageSerializableImplicit[Status](underlyingMsg) with RLPSerializable {
       override def code: Int = Status.code
 
       override def toRLPEncodable: RLPEncodeable = {
@@ -61,7 +61,9 @@ object CommonMessages {
       }
     }
 
-    implicit class SignedTransactionsEnc(m: SignedTransactions) extends MessageSerializableImplicit[SignedTransactions](m) with RLPSerializable {
+    implicit class SignedTransactionsEnc(val underlyingMsg: SignedTransactions)
+      extends MessageSerializableImplicit[SignedTransactions](underlyingMsg) with RLPSerializable {
+
       override def code: Int = SignedTransactions.code
       override def toRLPEncodable: RLPEncodeable = RLPList(msg.txs.map(_.toRLPEncodable): _*)
     }
@@ -101,7 +103,7 @@ object CommonMessages {
 
     val code: Int = Versions.SubProtocolOffset + 0x07
 
-    implicit class NewBlockEnc(m: NewBlock) extends MessageSerializableImplicit[NewBlock](m) with RLPSerializable {
+    implicit class NewBlockEnc(val underlyingMsg: NewBlock) extends MessageSerializableImplicit[NewBlock](underlyingMsg) with RLPSerializable {
       import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
       import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 

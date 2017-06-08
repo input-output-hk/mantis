@@ -5,20 +5,17 @@ import java.net.{InetSocketAddress, URI}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import akka.actor._
 import akka.agent.Agent
-import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
-import io.iohk.ethereum.network.MessageHandler.MessageAction.TransmitMessage
-import io.iohk.ethereum.network.MessageHandler.MessageHandlingResult
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import io.iohk.ethereum.network.p2p.messages.{Versions, CommonMessages => msg}
+import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.PeerActor.Status._
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, MessageToPeer, PeerDisconnected, PeerHandshakeSuccessful}
+import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.utils.NodeStatus
-import io.iohk.ethereum.network.PeerMessageBusActor.{MessageFromPeer, Publish}
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
-import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
-import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders
+import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 
@@ -29,15 +26,13 @@ import org.spongycastle.crypto.AsymmetricCipherKeyPair
   * and `Status` exchange).
   * Once that's done it can send/receive messages with peer (HandshakedHandler.receive).
   */
-//FIXME: MessageHandler type should be configurable, this is dependant on PR 185
-class PeerActor(
+class PeerActor[R <: HandshakeResult](
     peerAddress: InetSocketAddress,
     rlpxConnectionFactory: ActorContext => ActorRef,
     val peerConfiguration: PeerConfiguration,
-    peerMessageBus: ActorRef,
+    peerEventBus: ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None,
-    initHandshaker: Handshaker[EtcPeerInfo],
-    messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo])
+    initHandshaker: Handshaker[R])
   extends Actor with ActorLogging with Stash {
 
   import PeerActor._
@@ -94,7 +89,7 @@ class PeerActor(
       case GetStatus => sender() ! StatusResponse(Connecting)
     }
 
-  def processingHandshaking(handshaker: Handshaker[EtcPeerInfo], rlpxConnection: RLPxConnection,
+  def processingHandshaking(handshaker: Handshaker[R], rlpxConnection: RLPxConnection,
                             timeout: Cancellable, numRetries: Int): Receive =
       handleTerminated(rlpxConnection) orElse handleDisconnectMsg orElse
       handlePingMsg(rlpxConnection) orElse stashMessages orElse {
@@ -127,7 +122,7 @@ class PeerActor(
     * @param rlpxConnection
     * @param numRetries, number of connection retries done during RLPxConnection establishment
     */
-  private def processHandshakerNextMessage(handshaker: Handshaker[EtcPeerInfo],
+  private def processHandshakerNextMessage(handshaker: Handshaker[R],
                                            rlpxConnection: RLPxConnection, numRetries: Int): Unit =
     handshaker.nextMessage match {
       case Right(NextMessage(msgToSend, timeoutTime)) =>
@@ -135,8 +130,9 @@ class PeerActor(
         val newTimeout = scheduler.scheduleOnce(timeoutTime, self, ResponseTimeout)
         context become processingHandshaking(handshaker, rlpxConnection, newTimeout, numRetries)
 
-      case Left(HandshakeSuccess(EtcPeerInfo(initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber))) =>
-        startMessageHandler(rlpxConnection, initialStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber)
+      case Left(HandshakeSuccess(handshakeResult)) =>
+        context become new HandshakedPeer(rlpxConnection, handshakeResult).receive
+        unstashAll()
 
       case Left(HandshakeFailure(reason)) =>
         disconnectFromPeer(rlpxConnection, reason)
@@ -150,14 +146,6 @@ class PeerActor(
       case RetryConnectionTimeout => reconnect(uri, numRetries + 1)
       case GetStatus => sender() ! StatusResponse(Connecting)
     }
-  }
-
-  private def startMessageHandler(rlpxConnection: RLPxConnection, remoteStatus: msg.Status,
-                                  totalDifficulty: BigInt, forkAccepted: Boolean, currentMaxBlockNumber: BigInt): Unit = {
-    val peerInfo = EtcPeerInfo(remoteStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber)
-    val messageHandler = messageHandlerBuilder(peerInfo, peer)
-    context become new HandshakedPeer(rlpxConnection, messageHandler).receive
-    unstashAll()
   }
 
   private def disconnectFromPeer(rlpxConnection: RLPxConnection, reason: Int): Unit = {
@@ -194,6 +182,7 @@ class PeerActor(
 
   def handleDisconnectMsg: Receive = {
     case RLPxConnectionHandler.MessageReceived(d: Disconnect) =>
+      peerEventBus ! Publish(PeerDisconnected(peerId))
       log.info("Received {}. Closing connection", d)
       context stop self
   }
@@ -202,8 +191,9 @@ class PeerActor(
     case _: SendMessage | _: DisconnectPeer => stash()
   }
 
-  class HandshakedPeer(rlpxConnection: RLPxConnection,
-                       messageHandler: MessageHandler[EtcPeerInfo, EtcPeerInfo]) {
+  class HandshakedPeer(rlpxConnection: RLPxConnection, handshakeResult: R) {
+
+    peerEventBus ! Publish(PeerHandshakeSuccessful(peer, handshakeResult))
 
     /**
       * main behavior of actor that handles peer communication and subscriptions for messages
@@ -215,24 +205,17 @@ class PeerActor(
 
         case RLPxConnectionHandler.MessageReceived(message) =>
           log.debug("Received message: {}", message)
-          val MessageHandlingResult(newHandler, messageAction) = messageHandler.receivingMessage(message)
-          if(messageAction == TransmitMessage)
-            peerMessageBus ! Publish(MessageFromPeer(message, peerId))
-          context become new HandshakedPeer(rlpxConnection, newHandler).receive
+          peerEventBus ! Publish(MessageFromPeer(message, peer.id))
 
         case DisconnectPeer(reason) =>
           disconnectFromPeer(rlpxConnection, reason)
 
         case SendMessage(message) =>
-          val MessageHandlingResult(newHandler, messageAction) = messageHandler.sendingMessage(message)
-          if(messageAction == TransmitMessage)
-            rlpxConnection.sendMessage(message)
-          context become new HandshakedPeer(rlpxConnection, newHandler).receive
+          rlpxConnection.sendMessage(message)
+          peerEventBus ! Publish(MessageToPeer(message.underlyingMsg, peerId))
 
         case GetStatus =>
-          sender() ! StatusResponse(
-            Handshaked(messageHandler.peerInfo.remoteStatus,
-              messageHandler.peerInfo.forkAccepted, messageHandler.peerInfo.totalDifficulty))
+          sender() ! StatusResponse(Handshaked)
 
     }
   }
@@ -240,19 +223,17 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(peerAddress: InetSocketAddress,
-            nodeStatusHolder: Agent[NodeStatus],
-            peerConfiguration: PeerConfiguration,
-            peerMessageBus: ActorRef,
-            handshaker: Handshaker[EtcPeerInfo],
-            messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo]): Props =
+  def props[R <: HandshakeResult](peerAddress: InetSocketAddress,
+                                  nodeStatusHolder: Agent[NodeStatus],
+                                  peerConfiguration: PeerConfiguration,
+                                  peerEventBus: ActorRef,
+                                  handshaker: Handshaker[R]): Props =
     Props(new PeerActor(
       peerAddress,
       rlpxConnectionFactory(nodeStatusHolder().key),
       peerConfiguration,
-      peerMessageBus,
-      initHandshaker = handshaker,
-      messageHandlerBuilder = messageHandlerBuilder))
+      peerEventBus,
+      initHandshaker = handshaker))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
     // FIXME This message decoder should be configurable
@@ -285,7 +266,7 @@ object PeerActor {
     case object Idle extends Status
     case object Connecting extends Status
     case class Handshaking(numRetries: Int) extends Status
-    case class Handshaked(initialStatus: msg.Status, forkAccepted: Boolean, totalDifficulty: BigInt) extends Status
+    case object Handshaked extends Status
     case object Disconnected extends Status
   }
 }

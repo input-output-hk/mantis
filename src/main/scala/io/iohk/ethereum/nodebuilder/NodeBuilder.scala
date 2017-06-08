@@ -15,8 +15,8 @@ import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
 import io.iohk.ethereum.mining.BlockGenerator
-import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.PeersInfoHolderActor.PeerInfo
 import io.iohk.ethereum.utils._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -90,35 +90,51 @@ trait HandshakerBuilder {
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
     }
 
-  lazy val handshaker: Handshaker[EtcPeerInfo] = EtcHandshaker(handshakerConfiguration)
+  lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
 }
 
-trait PeerMessageBusBuilder {
+trait PeerEventBusBuilder {
   self: ActorSystemBuilder =>
 
-  lazy val peerMessageBus = actorSystem.actorOf(PeerMessageBusActor.props)
+  lazy val peerEventBus = actorSystem.actorOf(PeerEventBusActor.props)
 }
 
 trait PeerManagerActorBuilder {
 
   self: ActorSystemBuilder
     with NodeStatusBuilder
-    with StorageBuilder
-    with BlockChainBuilder
     with HandshakerBuilder
-    with ForkResolverBuilder
-    with PeerMessageBusBuilder =>
+    with PeerEventBusBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
   lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props(
     nodeStatusHolder,
     Config.Network.peer,
-    storagesInstance.storages.appStateStorage,
-    blockchain,
-    peerMessageBus,
-    forkResolverOpt,
+    peerEventBus,
     handshaker), "peer-manager")
+
+}
+
+trait PeersInfoHolderBuilder {
+  self: ActorSystemBuilder
+    with PeerEventBusBuilder
+    with ForkResolverBuilder
+    with StorageBuilder =>
+
+  lazy val peersInfoHolder = actorSystem.actorOf(PeersInfoHolderActor.props(
+    peerEventBus, storagesInstance.storages.appStateStorage, forkResolverOpt))
+
+}
+
+trait BlockchainHostBuilder {
+  self: ActorSystemBuilder
+    with BlockChainBuilder
+    with PeerManagerActorBuilder
+    with PeerEventBusBuilder =>
+
+  lazy val blockchainHost = actorSystem.actorOf(BlockchainHostActor.props(
+    blockchain, peerConfiguration, peerEventBus, peerManager))
 
 }
 
@@ -148,10 +164,10 @@ trait NetServiceBuilder {
 trait PendingTransactionsManagerBuilder {
   self: ActorSystemBuilder
     with PeerManagerActorBuilder
-    with PeerMessageBusBuilder
+    with PeerEventBusBuilder
     with MiningConfigBuilder =>
 
-  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(miningConfig, peerManager, peerMessageBus))
+  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(miningConfig, peerManager, peerEventBus))
 }
 
 trait BlockGeneratorBuilder {
@@ -238,14 +254,14 @@ trait SyncControllerBuilder {
     ServerActorBuilder with
     BlockChainBuilder with
     NodeStatusBuilder with
-    PeerManagerActorBuilder with
     StorageBuilder with
     BlockchainConfigBuilder with
     ValidatorsBuilder with
     LedgerBuilder with
-    PeerMessageBusBuilder with
+    PeerEventBusBuilder with
     PendingTransactionsManagerBuilder with
-    OmmersPoolBuilder =>
+    OmmersPoolBuilder with
+    PeersInfoHolderBuilder =>
 
 
 
@@ -257,12 +273,10 @@ trait SyncControllerBuilder {
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       validators,
-      peerManager,
-      peerMessageBus,
+      peerEventBus,
       pendingTransactionsManager,
-      ommersPool
-      ),
-    "sync-controller")
+      ommersPool,
+      peersInfoHolder), "sync-controller")
 
 }
 
@@ -310,7 +324,9 @@ trait Node extends NodeKeyBuilder
   with ShutdownHookBuilder
   with GenesisDataLoaderBuilder
   with BlockchainConfigBuilder
-  with PeerMessageBusBuilder
+  with PeerEventBusBuilder
   with PendingTransactionsManagerBuilder
   with OmmersPoolBuilder
   with MiningConfigBuilder
+  with PeersInfoHolderBuilder
+  with BlockchainHostBuilder

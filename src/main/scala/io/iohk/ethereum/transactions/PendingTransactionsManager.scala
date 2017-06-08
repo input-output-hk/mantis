@@ -3,9 +3,11 @@ package io.iohk.ethereum.transactions
 import akka.actor.{Actor, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageReceivedClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.{Peer, PeerActor, PeerId, PeerManagerActor}
-import io.iohk.ethereum.network.PeerMessageBusActor.{MessageClassifier, MessageFromPeer, PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.utils.MiningConfig
 
@@ -47,7 +49,7 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
 
   implicit val timeout = Timeout(3.seconds)
 
-  peerMessageBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
+  peerMessageBus ! Subscribe(MessageReceivedClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
   override def receive: Receive = {
     case AddTransactions(signedTransactions) =>
@@ -57,7 +59,7 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
       if (transactionsToAdd.nonEmpty) {
         pendingTransactions = (pendingTransactions ++ transactionsToAdd).takeRight(miningConfig.txPoolSize)
         (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
-          peers.handshaked.foreach { case (peer, _) => self ! NotifyPeer(transactionsToAdd, peer) }
+          peers.handshaked.foreach { peer => self ! NotifyPeer(transactionsToAdd, peer) }
         }
       }
 
@@ -82,7 +84,7 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
       pendingTransactions = (pendingTransactions ++ signedTransactions).takeRight(miningConfig.txPoolSize)
       signedTransactions.foreach(setTxKnown(_, peerId))
       (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
-        peers.handshaked.foreach { case (peer, _) => self ! NotifyPeer(signedTransactions, peer) }
+        peers.handshaked.foreach { p => self ! NotifyPeer(signedTransactions, p) }
       }
   }
 

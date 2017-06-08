@@ -3,8 +3,7 @@ package io.iohk.ethereum.network
 import java.net.{InetSocketAddress, URI}
 
 import akka.util.Timeout
-import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.network.PeerActor.Status.Handshaking
+import io.iohk.ethereum.network.PeerActor.Status.{Handshaked, Handshaking}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 
@@ -14,9 +13,9 @@ import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
-import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.handshaker.Handshaker
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
+import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 import scala.util.{Failure, Success}
@@ -73,6 +72,10 @@ class PeerManagerActor(
   def handleCommonMessages: Receive = {
     case GetPeers =>
       getPeers().pipeTo(sender())
+
+    case SendMessage(message, peerId) if peers.contains(peerId) =>
+      val peer = peers(peerId)
+      peer.ref ! PeerActor.SendMessage(message)
 
     case Terminated(ref) =>
       peers -= PeerId(ref.path.name)
@@ -154,45 +157,31 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus],
-            peerConfiguration: PeerConfiguration,
-            appStateStorage: AppStateStorage,
-            blockchain: Blockchain,
-            peerMessageBus: ActorRef,
-            forkResolverOpt: Option[ForkResolver],
-            handshaker: Handshaker[EtcPeerInfo]): Props =
+  def props[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
+                                  peerConfiguration: PeerConfiguration,
+                                  peerMessageBus: ActorRef,
+                                  handshaker: Handshaker[R]): Props =
     Props(new PeerManagerActor(peerConfiguration,
-      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, peerMessageBus,
-        forkResolverOpt, handshaker)))
+      peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, handshaker)))
 
-  def props(nodeStatusHolder: Agent[NodeStatus],
-            peerConfiguration: PeerConfiguration,
-            appStateStorage: AppStateStorage,
-            blockchain: Blockchain,
-            bootstrapNodes: Set[String],
-            peerMessageBus: ActorRef,
-            forkResolverOpt: Option[ForkResolver],
-            handshaker: Handshaker[EtcPeerInfo]): Props =
+  def props[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
+                                  peerConfiguration: PeerConfiguration,
+                                  bootstrapNodes: Set[String],
+                                  peerMessageBus: ActorRef,
+                                  handshaker: Handshaker[R]): Props =
     Props(new PeerManagerActor(peerConfiguration,
-      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain,
-        peerMessageBus, forkResolverOpt, handshaker),
+      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, handshaker),
       bootstrapNodes = bootstrapNodes)
     )
 
-  def peerFactory(nodeStatusHolder: Agent[NodeStatus],
-                  peerConfiguration: PeerConfiguration,
-                  appStateStorage: AppStateStorage,
-                  blockchain: Blockchain,
-                  peerMessageBus: ActorRef,
-                  forkResolverOpt: Option[ForkResolver],
-                  handshaker: Handshaker[EtcPeerInfo]): (ActorContext, InetSocketAddress) => ActorRef = {
+  def peerFactory[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
+                                        peerConfiguration: PeerConfiguration,
+                                        peerEventBus: ActorRef,
+                                        handshaker: Handshaker[R]): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
-      //FIXME: Message handler builder should be configurable
-      val messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo] =
-        EtcMessageHandler.etcMessageHandlerBuilder(forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
-      ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, peerMessageBus,
-        handshaker, messageHandlerBuilder), id)
+      ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, peerEventBus,
+        handshaker), id)
   }
 
   trait PeerConfiguration {
@@ -220,9 +209,10 @@ object PeerManagerActor {
 
   case object GetPeers
   case class Peers(peers: Map[Peer, PeerActor.Status]) {
-    def handshaked: Map[Peer, PeerActor.Status.Handshaked] =
-      peers.collect { case (p, h: PeerActor.Status.Handshaked) => (p, h) }
+    def handshaked: Seq[Peer] = peers.collect{ case (peer, Handshaked) => peer }.toSeq
   }
 
   private case object ScanBootstrapNodes
+
+  case class SendMessage(message: MessageSerializable, peerId: PeerId)
 }

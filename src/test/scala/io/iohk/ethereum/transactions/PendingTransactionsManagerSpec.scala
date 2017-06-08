@@ -8,7 +8,6 @@ import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.{DefaultPatience, crypto}
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.network.{Peer, PeerId, PeerManagerActor}
-import io.iohk.ethereum.network.PeerMessageBusActor.MessageFromPeer
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import org.scalatest.{FlatSpec, Matchers}
@@ -16,8 +15,8 @@ import org.spongycastle.util.encoders.Hex
 import akka.pattern.ask
 import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerManagerActor.Peers
-import io.iohk.ethereum.network.p2p.messages.CommonMessages
 import io.iohk.ethereum.utils.MiningConfig
 import org.scalatest.concurrent.ScalaFutures
 
@@ -40,7 +39,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTransactionsManager ! AddTransactions(stx)
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
-    peerManager.reply(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
+    peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
 
     Seq(peer1TestProbe, peer2TestProbe, peer3TestProbe).foreach { p =>
       p.expectMsg(SendMessage(SignedTransactions(Seq(stx))))
@@ -54,7 +53,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val msg1 = SignedTransactions(Seq.fill(10)(newStx()))
     pendingTransactionsManager ! MessageFromPeer(msg1, peer1.id)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
-    peerManager.reply(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
+    peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
     Seq(peer2TestProbe, peer3TestProbe).foreach { p =>
       p.expectMsg(SendMessage(SignedTransactions(msg1.txs)))
     }
@@ -63,7 +62,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val msg2 = SignedTransactions(Seq.fill(5)(newStx()))
     pendingTransactionsManager ! MessageFromPeer(msg2, peer2.id)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
-    peerManager.reply(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
+    peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
     Seq(peer1TestProbe, peer3TestProbe).foreach { p =>
       p.expectMsg(SendMessage(SignedTransactions(msg2.txs)))
     }
@@ -84,7 +83,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTransactionsManager ! RemoveTransactions(msg1.txs)
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
-    peerManager.reply(Peers(Map(peer1 -> handshakedStatus, peer2 -> handshakedStatus, peer3 -> handshakedStatus)))
+    peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
 
     Seq(peer1TestProbe, peer2TestProbe, peer3TestProbe).foreach { peer =>
       peer.expectNoMsg()
@@ -103,8 +102,6 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
       val tx = Transaction(0, 1, 1, Some(addr1), 0, ByteString(""))
       SignedTransaction.sign(tx, keyPair1, Some(0x3d))
     }
-
-    val handshakedStatus = Handshaked(CommonMessages.Status(0, 0, 0, ByteString(""), ByteString("")), true, 0)
 
     val peer1TestProbe = TestProbe()
     val peer1 = Peer(new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref)

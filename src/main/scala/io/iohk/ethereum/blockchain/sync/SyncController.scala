@@ -8,9 +8,9 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.network.PeerActor.{Status => PeerStatus}
+import io.iohk.ethereum.network.PeersInfoHolderActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
+import io.iohk.ethereum.network.{Peer, PeersInfoHolderActor}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.validators.Validators
 
@@ -21,10 +21,10 @@ class SyncController(
     val fastSyncStateStorage: FastSyncStateStorage,
     val ledger: Ledger,
     val validators: Validators,
-    val peerManager: ActorRef,
-    val peerMessageBus: ActorRef,
+    val peerEventBus: ActorRef,
     val pendingTransactionsManager: ActorRef,
     val ommersPool: ActorRef,
+    val peersInfoHolder: ActorRef,
     val externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor
     with ActorLogging
@@ -41,9 +41,9 @@ class SyncController(
       case _ => Stop
     }
 
-  var handshakedPeers: Map[Peer, PeerStatus.Handshaked] = Map.empty
+  var handshakedPeers: Map[Peer, PeerInfo] = Map.empty
 
-  scheduler.schedule(0.seconds, peersScanInterval, peerManager, PeerManagerActor.GetPeers)
+  scheduler.schedule(0.seconds, peersScanInterval, peersInfoHolder, PeersInfoHolderActor.GetHandshakedPeers)
 
   override implicit def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
@@ -71,18 +71,15 @@ class SyncController(
   }
 
   def handlePeerUpdates: Receive = {
-    case peers: PeerManagerActor.Peers =>
-      peers.peers.foreach {
-        case (peer, _: PeerActor.Status.Handshaked) =>
-          if (!handshakedPeers.contains(peer)) context watch peer.ref
-
-        case (peer, _) if handshakedPeers.contains(peer) =>
-          removePeer(peer.ref)
+    case PeersInfoHolderActor.HandshakedPeers(peers) =>
+      peers.foreach {
+        case (peer, _) if !handshakedPeers.contains(peer) =>
+          context watch peer.ref
 
         case _ => // nothing
       }
 
-      handshakedPeers = peers.handshaked
+      handshakedPeers = peers
 
     case Terminated(ref) if handshakedPeers.exists(_._1.ref == ref) =>
       removePeer(ref)
@@ -100,7 +97,7 @@ class SyncController(
     handshakedPeers = handshakedPeers.filterNot(_._1.ref == peerRef)
   }
 
-  def peersToDownloadFrom: Map[Peer, PeerStatus.Handshaked] =
+  def peersToDownloadFrom: Map[Peer, PeerInfo] =
     handshakedPeers.filterNot { case (p, s) => isBlacklisted(p.id) }
 }
 
@@ -113,12 +110,12 @@ object SyncController {
             syncStateStorage: FastSyncStateStorage,
             ledger: Ledger,
             validators: Validators,
-            peerManager: ActorRef,
-            peerMessageBus: ActorRef,
+            peerEventBus: ActorRef,
             pendingTransactionsManager: ActorRef,
-            ommersPool: ActorRef):
+            ommersPool: ActorRef,
+            peersInfoHolder: ActorRef):
   Props = Props(new SyncController(appStateStorage, blockchain, blockchainStorages, syncStateStorage, ledger, validators,
-    peerManager, peerMessageBus, pendingTransactionsManager, ommersPool))
+    peerEventBus, pendingTransactionsManager, ommersPool, peersInfoHolder))
 
   case class DependencyActors(
     )

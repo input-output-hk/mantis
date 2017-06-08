@@ -7,7 +7,7 @@ import io.iohk.ethereum.blockchain.sync.SyncController._
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.network.{Peer, PeerActor}
-import io.iohk.ethereum.network.PeerActor.Status.Handshaked
+import io.iohk.ethereum.network.PeersInfoHolderActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -18,7 +18,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 
-trait RegularSync {
+trait RegularSync extends BlockBroadcast {
   selfSyncController: SyncController =>
 
   private var headersQueue: Seq[BlockHeader] = Nil
@@ -102,7 +102,7 @@ trait RegularSync {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
         val request = GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
-        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerMessageBus, request, resolveBranches = false)))
+        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerEventBus, request, resolveBranches = false)))
       case None =>
         log.warning("no peers to download from")
         scheduleResume()
@@ -144,7 +144,7 @@ trait RegularSync {
             val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
             pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toList)
             val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-            waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, hashes)))
+            waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerEventBus, hashes)))
             //add first block from branch as ommer
             oldBranch.headOption.foreach { h => ommersPool ! AddOmmers(h.header) }
           } else {
@@ -154,7 +154,7 @@ trait RegularSync {
           }
         } else {
           val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
-          waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerMessageBus, request, resolveBranches = true)))
+          waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerEventBus, request, resolveBranches = true)))
         }
       case _ =>
         log.warning("got header that does not have parent")
@@ -179,14 +179,7 @@ trait RegularSync {
           val (newBlocks, errorOpt) = processBlocks(blocks, blockParentTd)
 
           if(newBlocks.nonEmpty){
-            //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
-            val blocksToSendToEachPeer = for {
-              handshakedPeer <- handshakedPeers.keys
-              block <- newBlocks
-            } yield (handshakedPeer, block)
-            blocksToSendToEachPeer.foreach{ case (handshakedPeer, block) =>
-              handshakedPeer.ref ! PeerActor.SendMessage(block)
-            }
+            broadcastNewBlocks(newBlocks, handshakedPeers)
             log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
           }
@@ -199,7 +192,7 @@ trait RegularSync {
               headersQueue = headersQueue.drop(blocks.length)
               if (headersQueue.nonEmpty) {
                 val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerMessageBus, hashes)))
+                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerEventBus, hashes)))
               } else {
                 context.self ! ResumeRegularSync
               }
@@ -270,7 +263,7 @@ trait RegularSync {
   private def bestPeer: Option[Peer] = {
     val peersToUse = peersToDownloadFrom
       .collect {
-        case (ref, Handshaked(_, true, totalDifficulty)) => (ref, totalDifficulty)
+        case (ref, PeerInfo(_, totalDifficulty, true, _)) => (ref, totalDifficulty)
       }
 
     if (peersToUse.nonEmpty) Some(peersToUse.maxBy { case (_, td) => td }._1)
