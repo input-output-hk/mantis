@@ -386,7 +386,8 @@ class EthService(
       }
     }
     val tx = Transaction(0, req.tx.gasPrice, gasLimit, toAddress, req.tx.value, req.tx.data)
-    val stx = SignedTransaction(tx, ECDSASignature(0, 0, 0.toByte), fromAddress)
+    val fakeSignature = ECDSASignature(0, 0, 0.toByte)
+    val stx = SignedTransaction(tx, fakeSignature, fromAddress)
 
     resolveBlock(req.block).map { block =>
       ledger.simulateTransaction(stx, block.header, blockchainStorages)
