@@ -108,6 +108,15 @@ object EthService {
 
   case class GetBlockTransactionCountByNumberRequest(block: BlockParam)
   case class GetBlockTransactionCountByNumberResponse(result: BigInt)
+
+  case class GetBalanceRequest(address: Address, block: BlockParam)
+  case class GetBalanceResponse(value: BigInt)
+
+  case class GetStorageAtRequest(address: Address, position: BigInt, block: BlockParam)
+  case class GetStorageAtResponse(value: ByteString)
+
+  case class GetTransactionCountRequest(address: Address, block: BlockParam)
+  case class GetTransactionCountResponse(value: BigInt)
 }
 
 class EthService(
@@ -313,7 +322,7 @@ class EthService(
   }
 
  def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = {
-    Future.successful(Right(SyncingResponse(
+    Future(Right(SyncingResponse(
       startingBlock = appStateStorage.getSyncStartingBlock(),
       currentBlock = appStateStorage.getBestBlockNumber(),
       highestBlock = appStateStorage.getEstimatedHighestBlock())))
@@ -343,7 +352,7 @@ class EthService(
     val tx = Transaction(0, req.tx.gasPrice, req.tx.gas, toAddress, req.tx.value, req.tx.data)
     val stx = SignedTransaction(tx, ECDSASignature(0, 0, 0.toByte), fromAddress)
 
-    Future.successful {
+    Future {
       resolveBlock(req.block).map { block =>
         val txResult = ledger.simulateTransaction(stx, block.header, blockchainStorages)
         CallResponse(txResult.vmReturnData)
@@ -352,7 +361,7 @@ class EthService(
   }
 
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
-    Future.successful {
+    Future {
       resolveBlock(req.block).map { block =>
         val world = InMemoryWorldStateProxy(blockchainStorages, Some(block.header.stateRoot))
         GetCodeResponse(world.getCode(req.address))
@@ -361,7 +370,7 @@ class EthService(
   }
 
   def getUncleCountByBlockNumber(req: GetUncleCountByBlockNumberRequest): ServiceResponse[GetUncleCountByBlockNumberResponse] = {
-    Future.successful {
+    Future {
       resolveBlock(req.block).map { block =>
         GetUncleCountByBlockNumberResponse(block.body.uncleNodesList.size)
       }
@@ -369,7 +378,7 @@ class EthService(
   }
 
   def getUncleCountByBlockHash(req: GetUncleCountByBlockHashRequest): ServiceResponse[GetUncleCountByBlockHashResponse] = {
-    Future.successful {
+    Future {
       blockchain.getBlockBodyByHash(req.blockHash) match {
         case Some(blockBody) =>
           Right(GetUncleCountByBlockHashResponse(blockBody.uncleNodesList.size))
@@ -380,10 +389,40 @@ class EthService(
   }
 
   def getBlockTransactionCountByNumber(req: GetBlockTransactionCountByNumberRequest): ServiceResponse[GetBlockTransactionCountByNumberResponse] = {
-    Future.successful {
+    Future {
       resolveBlock(req.block).map { block =>
         GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
       }
+    }
+  }
+
+  def getBalance(req: GetBalanceRequest): ServiceResponse[GetBalanceResponse] = {
+    Future {
+      withAccount(req.address, req.block) { account =>
+        GetBalanceResponse(account.balance)
+      }
+    }
+  }
+
+  def getStorageAt(req: GetStorageAtRequest): ServiceResponse[GetStorageAtResponse] = {
+    Future {
+      withAccount(req.address, req.block) { account =>
+        GetStorageAtResponse(blockchain.getAccountStorageAt(account.storageRoot, req.position))
+      }
+    }
+  }
+
+  def getTransactionCount(req: GetTransactionCountRequest): ServiceResponse[GetTransactionCountResponse] = {
+    Future {
+      withAccount(req.address, req.block) { account =>
+        GetTransactionCountResponse(account.nonce)
+      }
+    }
+  }
+
+  private def withAccount[T](address: Address, blockParam: BlockParam)(f: Account => T): Either[JsonRpcError, T] = {
+    resolveBlock(blockParam).map { block =>
+      f(blockchain.getAccount(address, block.header.number).getOrElse(Account.Empty))
     }
   }
 
