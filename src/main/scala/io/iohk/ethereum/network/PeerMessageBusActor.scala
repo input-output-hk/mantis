@@ -54,7 +54,7 @@ object PeerMessageBusActor {
         val newMessageCodes = messageCodes -- from.messageCodes
         if (messageCodes == newMessageCodes) false
         else {
-          if(newMessageCodes.isEmpty) subscriptions = subscriptions - (subscriber -> from.peerSelector)
+          if(newMessageCodes.isEmpty) subscriptions = subscriptions - ((subscriber, from.peerSelector))
           else subscriptions = subscriptions + ((subscriber, from.peerSelector) -> newMessageCodes)
           true
         }
