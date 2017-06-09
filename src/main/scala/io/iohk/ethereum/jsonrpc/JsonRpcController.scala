@@ -77,6 +77,7 @@ class JsonRpcController(
   }
 
   // scalastyle:off cyclomatic.complexity
+  // scalastyle:off method.length
   private def handleEthRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) =>
       handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
@@ -86,6 +87,11 @@ class JsonRpcController(
       handle[SubmitHashRateRequest, SubmitHashRateResponse](ethService.submitHashRate, req)
     case req @ JsonRpcRequest(_, "eth_hashrate", _, _) =>
       handle[GetHashRateRequest, GetHashRateResponse](ethService.getHashRate, req)
+    case req @ JsonRpcRequest(_, "eth_gasPrice", _, _) =>
+      handle[GetGasPriceRequest, GetGasPriceResponse](ethService.getGetGasPrice, req)
+    case req@JsonRpcRequest(_, "eth_getTransactionByBlockNumberAndIndex", _, _) =>
+      handle[GetTransactionByBlockNumberAndIndexRequest,
+        GetTransactionByBlockNumberAndIndexResponse](ethService.getTransactionByBlockNumberAndIndexRequest, req)
     case req @ JsonRpcRequest(_, "eth_mining", _, _) =>
       handle[GetMiningRequest, GetMiningResponse](ethService.getMining, req)
     case req @ JsonRpcRequest(_, "eth_getWork", _, _) =>
@@ -100,10 +106,14 @@ class JsonRpcController(
       handle[TxCountByBlockHashRequest, TxCountByBlockHashResponse](ethService.getBlockTransactionCountByHash, req)
     case req @ JsonRpcRequest(_, "eth_getBlockByHash", _, _) =>
       handle[BlockByBlockHashRequest, BlockByBlockHashResponse](ethService.getByBlockHash, req)
+    case req @ JsonRpcRequest(_, "eth_getBlockByNumber", _, _) =>
+      handle[BlockByNumberRequest, BlockByNumberResponse](ethService.getBlockByNumber, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByBlockHashAndIndex", _, _) =>
       handle[GetTransactionByBlockHashAndIndexRequest, GetTransactionByBlockHashAndIndexResponse](ethService.getTransactionByBlockHashAndIndexRequest, req)
     case req @ JsonRpcRequest(_, "eth_getUncleByBlockHashAndIndex", _, _) =>
       handle[UncleByBlockHashAndIndexRequest, UncleByBlockHashAndIndexResponse](ethService.getUncleByBlockHashAndIndex, req)
+    case req @ JsonRpcRequest(_, "eth_getUncleByBlockNumberAndIndex", _, _) =>
+      handle[UncleByBlockNumberAndIndexRequest, UncleByBlockNumberAndIndexResponse](ethService.getUncleByBlockNumberAndIndex, req)
     case req @ JsonRpcRequest(_, "eth_accounts", _, _) =>
       handle[ListAccountsRequest, ListAccountsResponse](personalService.listAccounts, req)
     case req @ JsonRpcRequest(_, "eth_sendRawTransaction", _, _) =>
