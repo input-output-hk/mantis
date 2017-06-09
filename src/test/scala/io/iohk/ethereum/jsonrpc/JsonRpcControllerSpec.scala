@@ -34,6 +34,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
+// scalastyle:off file.size.limit
 class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience with Eventually {
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
