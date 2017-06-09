@@ -6,6 +6,14 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 
 trait BlockBroadcast {
 
+  /**
+    * Broadcasts various NewBlock's messages to handshaked peers, considering that a block should not be sent to a peer
+    * that is thought to know it. In the current implementation we send every block to every peer (that doesn't know
+    * this block)
+    *
+    * @param newBlocks, blocks to broadcast
+    * @param handshakedPeers
+    */
   //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
   def broadcastNewBlocks(newBlocks: Seq[NewBlock], handshakedPeers: Map[Peer, PeerInfo]): Unit = {
     val blocksForEachPeer: Seq[(Peer, NewBlock)] = for {

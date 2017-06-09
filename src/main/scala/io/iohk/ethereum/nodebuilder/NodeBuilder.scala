@@ -133,7 +133,7 @@ trait BlockchainHostBuilder {
     with PeerManagerActorBuilder
     with PeerEventBusBuilder =>
 
-  lazy val blockchainHost = actorSystem.actorOf(BlockchainHostActor.props(
+  val blockchainHost = actorSystem.actorOf(BlockchainHostActor.props(
     blockchain, peerConfiguration, peerEventBus, peerManager))
 
 }

@@ -25,16 +25,13 @@ class PeersInfoHolderActor(peerEventBusActor: ActorRef, appStateStorage: AppStat
   def handlePeersInfoEvents(peersWithInfo: Map[PeerId, PeerWithInfo]): Receive = {
 
     case MessageToPeer(message, peerId) if peersWithInfo.contains(peerId) =>
-      val handleSentMessage = updateMaxBlock(message) _
       val PeerWithInfo(peer, oldPeerInfo) = peersWithInfo(peerId)
-      val newPeerInfo = handleSentMessage(oldPeerInfo)
-      context become handlePeersInfoEvents(peersWithInfo + (peer.id -> PeerWithInfo(peer, newPeerInfo)))
+      val newPeerInfo = handleSentMessage(message, oldPeerInfo)
+      context become handlePeersInfoEvents(peersWithInfo + (peerId -> PeerWithInfo(peer, newPeerInfo)))
 
     case MessageFromPeer(message, peerId) if peersWithInfo.contains(peerId) =>
       val PeerWithInfo(peer, oldPeerInfo) = peersWithInfo(peerId)
-      val handleReceivedMessage =
-        updateTotalDifficulty(message) _ andThen updateForkAccepted(message, peer) andThen updateMaxBlock(message)
-      val newPeerInfo = handleReceivedMessage(oldPeerInfo)
+      val newPeerInfo = handleReceivedMessage(message, oldPeerInfo, peer)
       context become handlePeersInfoEvents(peersWithInfo + (peerId -> PeerWithInfo(peer, newPeerInfo)))
 
     case PeerHandshakeSuccessful(peer, peerInfo: PeerInfo) =>
@@ -60,6 +57,31 @@ class PeersInfoHolderActor(peerEventBusActor: ActorRef, appStateStorage: AppStat
       sender() ! PeerInfoResponse(peerInfoOpt)
 
   }
+
+  /**
+    * Processes the message and the old peer info and returns the peer info
+    *
+    * @param message to be processed
+    * @param initialPeerInfo from before the message was processed
+    * @return new updated peer info
+    */
+  private def handleSentMessage(message: Message, initialPeerInfo: PeerInfo): PeerInfo =
+    updateMaxBlock(message)(initialPeerInfo)
+
+  /**
+    * Processes the message and the old peer info and returns the peer info
+    *
+    * @param message to be processed
+    * @param initialPeerInfo from before the message was processed
+    * @param peer that sent the message to be processed
+    * @return new updated peer info
+    */
+  private def handleReceivedMessage(message: Message, initialPeerInfo: PeerInfo, peer: Peer): PeerInfo =
+    (updateTotalDifficulty(message) _
+      andThen updateForkAccepted(message, peer)
+      andThen updateMaxBlock(message)
+      )(initialPeerInfo)
+
 
   /**
     * Processes the message and updates the total difficulty of the peer
