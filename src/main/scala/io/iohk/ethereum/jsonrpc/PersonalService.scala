@@ -93,8 +93,13 @@ class PersonalService(
 
   def ecRecover(req: EcRecoverRequest): ServiceResponse[EcRecoverResponse] = Future {
     import req._
+    val prefixed: Array[Byte] =
+      Array[Byte](19.toByte) ++
+        s"Ethereum Signed Message:\n${message.length}".map(c => c.toByte).toArray[Byte] ++
+        message.toArray[Byte]
 
-    signature.publicKey(message).map { publicKey =>
+    val msg = crypto.kec256(prefixed)
+    signature.publicKey(msg).map { publicKey =>
       Right(EcRecoverResponse(Address(crypto.kec256(publicKey))))
     }.getOrElse(Left(JsonRpcErrors.InvalidParams("unable to recover address")))
   }

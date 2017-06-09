@@ -142,11 +142,15 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "recover address form signed message" in new TestSetup {
-    val sigAddress = Address(ByteString(Hex.decode("9b2055d370f73ec7d8a03e965129118dc8f5bf83")))
+//    > personal.sign("0xdeadbeaf", "0x12c2a3b877289050FBcfADC1D252842CA742BE81", "password")
+//    "0x117b8d5b518dc428d97e5e0c6f870ad90e561c97de8fe6cad6382a7e82134e61396d881ef1f8bc606ef94b74b83d76953b61f1bcf55c002ef12dd0348edff24b1b"
+
+    val sigAddress = Address(ByteString(Hex.decode("12c2a3b877289050FBcfADC1D252842CA742BE81")))
+
     val message = ByteString(Hex.decode("deadbeaf"))
 
-    val r: ByteString = ByteString(Hex.decode("a3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a1"))
-    val s: ByteString = ByteString(Hex.decode("2d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee"))
+    val r: ByteString = ByteString(Hex.decode("117b8d5b518dc428d97e5e0c6f870ad90e561c97de8fe6cad6382a7e82134e61"))
+    val s: ByteString = ByteString(Hex.decode("396d881ef1f8bc606ef94b74b83d76953b61f1bcf55c002ef12dd0348edff24b"))
     val v: ByteString = ByteString(Hex.decode("1b"))
 
     val req = EcRecoverRequest(message, ECDSASignature(r, s, v))
