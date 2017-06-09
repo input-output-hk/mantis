@@ -12,7 +12,7 @@ import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.{Fixtures, crypto}
+import io.iohk.ethereum.{Fixtures, Mocks, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
@@ -248,6 +248,33 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(etcForkBlockHeader))))
 
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TooManyPeers)))
+  }
+
+  it should "stay connected to pre fork peer" in new TestSetup {
+
+    val remoteStatus = Status(
+      protocolVersion = Versions.PV63,
+      networkId = 0,
+      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty - 2000000, // remote is before the fork
+      bestHash = ByteString("blockhash"),
+      genesisHash = Fixtures.Blocks.Genesis.header.hash)
+
+    val peerActor = TestActorRef(Props(new PeerActor(
+      new InetSocketAddress("127.0.0.1", 0),
+      _ => rlpxConnection.ref,
+      peerConf,
+      peerMessageBus,
+      None,
+      Mocks.MockHandshakerAlwaysSucceeds(remoteStatus, 0, false)
+    )))
+
+    peerActor ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
+
+    rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
+
+    rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(Ping()))
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: PongEnc) => ()}
   }
 
   trait BlockUtils {

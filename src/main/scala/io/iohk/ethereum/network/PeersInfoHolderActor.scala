@@ -2,21 +2,21 @@ package io.iohk.ethereum.network
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.network.PeerActor.DisconnectPeer
+import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
 import io.iohk.ethereum.network.PeersInfoHolderActor._
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent._
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageReceivedClassifier, PeerDisconnectedClassifier, PeerHandshaked}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, NewBlockHashes}
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, NewBlockHashes}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 
 class PeersInfoHolderActor(peerEventBusActor: ActorRef, appStateStorage: AppStateStorage,
                            forkResolverOpt: Option[ForkResolver]) extends Actor with ActorLogging {
 
-  val msgsCodesWithPeerInfo: Set[Int] = Set(BlockHeaders.code, NewBlock.code, NewBlockHashes.code)
+  val msgCodesWithInfo: Set[Int] = Set(BlockHeaders.code, NewBlock.code, NewBlockHashes.code)
 
   peerEventBusActor ! Subscribe(PeerHandshaked)
 
@@ -24,13 +24,13 @@ class PeersInfoHolderActor(peerEventBusActor: ActorRef, appStateStorage: AppStat
 
   def handlePeersInfoEvents(peersWithInfo: Map[PeerId, PeerWithInfo]): Receive = {
 
-    case MessageFromPeer(message, peerId) if peersWithInfo.contains(peerId) =>
+    case MessageToPeer(message, peerId) if peersWithInfo.contains(peerId) =>
       val handleSentMessage = updateMaxBlock(message) _
       val PeerWithInfo(peer, oldPeerInfo) = peersWithInfo(peerId)
       val newPeerInfo = handleSentMessage(oldPeerInfo)
       context become handlePeersInfoEvents(peersWithInfo + (peer.id -> PeerWithInfo(peer, newPeerInfo)))
 
-    case MessageToPeer(message, peerId) if peersWithInfo.contains(peerId) =>
+    case MessageFromPeer(message, peerId) if peersWithInfo.contains(peerId) =>
       val PeerWithInfo(peer, oldPeerInfo) = peersWithInfo(peerId)
       val handleReceivedMessage =
         updateTotalDifficulty(message) _ andThen updateForkAccepted(message, peer) andThen updateMaxBlock(message)
@@ -39,16 +39,25 @@ class PeersInfoHolderActor(peerEventBusActor: ActorRef, appStateStorage: AppStat
 
     case PeerHandshakeSuccessful(peer, peerInfo: PeerInfo) =>
       peerEventBusActor ! Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id)))
-      peerEventBusActor ! Subscribe(MessageReceivedClassifier(msgsCodesWithPeerInfo, PeerSelector.WithId(peer.id)))
+      peerEventBusActor ! Subscribe(MessageReceivedClassifier(msgCodesWithInfo, PeerSelector.WithId(peer.id)))
+      peerEventBusActor ! Subscribe(MessageSentClassifier(msgCodesWithInfo, PeerSelector.WithId(peer.id)))
+
+      //Ask for the highest block from the peer
+      peer.ref ! SendMessage(GetBlockHeaders(Right(peerInfo.remoteStatus.bestHash), 1, 0, false))
       context become handlePeersInfoEvents(peersWithInfo + (peer.id -> PeerWithInfo(peer, peerInfo)))
 
     case PeerDisconnected(peerId) if peersWithInfo.contains(peerId) =>
       peerEventBusActor ! Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peerId)))
-      peerEventBusActor ! Unsubscribe(MessageReceivedClassifier(msgsCodesWithPeerInfo, PeerSelector.WithId(peerId)))
+      peerEventBusActor ! Unsubscribe(MessageReceivedClassifier(msgCodesWithInfo, PeerSelector.WithId(peerId)))
+      peerEventBusActor ! Unsubscribe(MessageSentClassifier(msgCodesWithInfo, PeerSelector.WithId(peerId)))
       context become handlePeersInfoEvents(peersWithInfo - peerId)
 
     case GetHandshakedPeers =>
       sender() ! HandshakedPeers(peersWithInfo.map{ case (_, PeerWithInfo(peer, peerInfo)) => peer -> peerInfo })
+
+    case PeerInfoRequest(peerId) =>
+      val peerInfoOpt = peersWithInfo.get(peerId).map{case PeerWithInfo(_, peerInfo) => peerInfo}
+      sender() ! PeerInfoResponse(peerInfoOpt)
 
   }
 
@@ -146,6 +155,10 @@ object PeersInfoHolderActor {
   case object GetHandshakedPeers
 
   case class HandshakedPeers(peers: Map[Peer, PeerInfo])
+
+  case class PeerInfoRequest(peerId: PeerId)
+
+  case class PeerInfoResponse(peerInfo: Option[PeerInfo])
 
   def props(peerEventBusActor: ActorRef, appStateStorage: AppStateStorage,
             forkResolverOpt: Option[ForkResolver]): Props =
