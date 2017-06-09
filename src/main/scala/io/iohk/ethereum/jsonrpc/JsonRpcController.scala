@@ -77,6 +77,7 @@ class JsonRpcController(
   }
 
   // scalastyle:off cyclomatic.complexity
+  // scalastyle:off method.length
   private def handleEthRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) =>
       handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)

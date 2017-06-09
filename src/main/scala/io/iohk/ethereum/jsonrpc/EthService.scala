@@ -444,18 +444,21 @@ class EthService(
 
     val toAddress = req.tx.to.map(Address.apply)
 
-    val gasLimit = req.tx.gas.getOrElse {
-      resolveBlock(BlockParam.Latest) match {
-        case Right(b) => b.header.gasLimit
-        case Left(err) => BigInt(0)
+    // TODO improvement analysis is suggested in EC-199
+    val gasLimit: Either[JsonRpcError, BigInt] = {
+      if(req.tx.gas.isDefined) Right[JsonRpcError, BigInt](req.tx.gas.get)
+      else resolveBlock(BlockParam.Latest).map(b => b.header.gasLimit)
+    }
+
+    gasLimit.flatMap { gl =>
+      val tx = Transaction(0, req.tx.gasPrice, gl, toAddress, req.tx.value, req.tx.data)
+      val fakeSignature = ECDSASignature(0, 0, 0.toByte)
+      val stx = SignedTransaction(tx, fakeSignature, fromAddress)
+
+      resolveBlock(req.block).map { block =>
+        ledger.simulateTransaction(stx, block.header, blockchainStorages)
       }
     }
-    val tx = Transaction(0, req.tx.gasPrice, gasLimit, toAddress, req.tx.value, req.tx.data)
-    val fakeSignature = ECDSASignature(0, 0, 0.toByte)
-    val stx = SignedTransaction(tx, fakeSignature, fromAddress)
 
-    resolveBlock(req.block).map { block =>
-      ledger.simulateTransaction(stx, block.header, blockchainStorages)
-    }
   }
 }
