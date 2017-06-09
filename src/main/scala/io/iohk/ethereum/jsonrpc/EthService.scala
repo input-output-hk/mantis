@@ -66,6 +66,9 @@ object EthService {
   case class GetMiningRequest()
   case class GetMiningResponse(isMining: Boolean)
 
+  case class GetTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
+  case class GetTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[TransactionResponse])
+
   case class GetHashRateRequest()
   case class GetHashRateResponse(hashRate: BigInt)
 
@@ -441,6 +444,22 @@ class EthService(
         GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
       }
     }
+  }
+
+  def getTransactionByBlockNumberAndIndexRequest(req: GetTransactionByBlockNumberAndIndexRequest):
+  ServiceResponse[GetTransactionByBlockNumberAndIndexResponse] = Future {
+    import req._
+    resolveBlock(block).map{
+      blockWithTx =>
+        val blockTxs = blockWithTx.block.body.transactionList
+        if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
+          GetTransactionByBlockNumberAndIndexResponse(
+            Some(TransactionResponse(blockTxs(transactionIndex.toInt),
+              Some(blockWithTx.block.header),
+              Some(transactionIndex.toInt))))
+        else
+          GetTransactionByBlockNumberAndIndexResponse(None)
+    }.left.flatMap(_ => Right(GetTransactionByBlockNumberAndIndexResponse(None)))
   }
 
   def getBalance(req: GetBalanceRequest): ServiceResponse[GetBalanceResponse] = {

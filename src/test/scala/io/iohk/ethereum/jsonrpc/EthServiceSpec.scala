@@ -16,7 +16,6 @@ import io.iohk.ethereum.utils.MiningConfig
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.Await
 import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
@@ -535,6 +534,38 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   it should "return correct coinbase" in new TestSetup {
     val response = ethService.getCoinbase(GetCoinbaseRequest())
     response.futureValue shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
+  }
+
+  it should "getTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup {
+    blockchain.save(blockToRequest)
+    (appStateStorage.getBestBlockNumber _).expects().returns(blockToRequest.header.number)
+
+    val txIndex: Int = 1
+    val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
+    val response = Await.result(ethService.getTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+
+    val expectedTxResponse = TransactionResponse(blockToRequest.body.transactionList(txIndex), Some(blockToRequest.header), Some(txIndex))
+    response.transactionResponse shouldBe Some(expectedTxResponse)
+  }
+
+  it should "getTransactionByBlockNumberAndIndexRequest return empty response if transaction does not exists when getting by index" in new TestSetup {
+    blockchain.save(blockToRequest)
+
+    val txIndex: Int = blockToRequest.body.transactionList.length + 42
+    val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
+    val response = Await.result(ethService.getTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+
+    response.transactionResponse shouldBe None
+  }
+
+  it should "getTransactionByBlockNumberAndIndexRequest return empty response if block does not exists when getting by index" in new TestSetup {
+    blockchain.save(blockToRequest)
+
+    val txIndex: Int = 1
+    val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number - 42), txIndex)
+    val response = Await.result(ethService.getTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+
+    response.transactionResponse shouldBe None
   }
 
   it should "handle getBalance request" in new TestSetup {
