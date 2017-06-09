@@ -48,11 +48,17 @@ object EthService {
   case class BlockByBlockHashRequest(blockHash: ByteString, fullTxs: Boolean)
   case class BlockByBlockHashResponse(blockResponse: Option[BlockResponse])
 
+  case class BlockByNumberRequest(block: BlockParam, fullTxs: Boolean)
+  case class BlockByNumberResponse(blockResponse: Option[BlockResponse])
+
   case class GetTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
   case class GetTransactionByBlockHashAndIndexResponse(transactionResponse: Option[TransactionResponse])
 
   case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
   case class UncleByBlockHashAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
+
+  case class UncleByBlockNumberAndIndexRequest(block: BlockParam, uncleIndex: BigInt)
+  case class UncleByBlockNumberAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
 
   case class SubmitHashRateRequest(hashRate: BigInt, id: ByteString)
   case class SubmitHashRateResponse(success: Boolean)
@@ -120,6 +126,8 @@ object EthService {
 
   case class GetTransactionCountRequest(address: Address, block: BlockParam)
   case class GetTransactionCountResponse(value: BigInt)
+
+  case class ResolvedBlock(block: Block, pending: Boolean)
 }
 
 class EthService(
@@ -176,8 +184,23 @@ class EthService(
     val blockOpt = blockchain.getBlockByHash(blockHash)
     val totalDifficulty = blockchain.getTotalDifficultyByHash(blockHash)
 
-    val blockResponseOpt = blockOpt.map(block => BlockResponse(block, fullTxs, totalDifficulty))
+    val blockResponseOpt = blockOpt.map(block => BlockResponse(block, totalDifficulty, fullTxs = fullTxs))
     Right(BlockByBlockHashResponse(blockResponseOpt))
+  }
+
+  /**
+    * Implements the eth_getBlockByNumber method that fetches a requested block.
+    *
+    * @param request with the block requested (by it's number or by tag)
+    * @return the block requested or None if the client doesn't have the block
+    */
+  def getBlockByNumber(request: BlockByNumberRequest): ServiceResponse[BlockByNumberResponse] = Future {
+    val BlockByNumberRequest(blockParam, fullTxs) = request
+    val blockResponseOpt = resolveBlock(blockParam).toOption.map { case ResolvedBlock(block, pending) =>
+      val totalDifficulty = blockchain.getTotalDifficultyByHash(block.header.hash)
+      BlockResponse(block, totalDifficulty, fullTxs = fullTxs, pendingBlock = pending)
+    }
+    Right(BlockByNumberResponse(blockResponseOpt))
   }
 
   /**
@@ -217,8 +240,32 @@ class EthService(
     val totalDifficulty = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getTotalDifficultyByHash(uncleHeader.hash))
 
     //The block in the response will not have any txs or uncles
-    val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader => BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty) }
+    val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader =>
+      BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = false) }
     Right(UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt))
+  }
+
+  /**
+    * Implements the eth_getUncleByBlockNumberAndIndex method that fetches an uncle from a certain index in a requested block.
+    *
+    * @param request with the number/tag of the block and the index of the uncle requested
+    * @return the uncle that the block has at the given index or None if the client doesn't have the block or if there's no uncle in that index
+    */
+  def getUncleByBlockNumberAndIndex(request: UncleByBlockNumberAndIndexRequest): ServiceResponse[UncleByBlockNumberAndIndexResponse] = Future {
+    val UncleByBlockNumberAndIndexRequest(blockParam, uncleIndex) = request
+    val uncleBlockResponseOpt = resolveBlock(blockParam).toOption
+      .flatMap { case ResolvedBlock(block, pending) =>
+        if (uncleIndex >= 0 && uncleIndex < block.body.uncleNodesList.size) {
+          val uncleHeader = block.body.uncleNodesList.apply(uncleIndex.toInt)
+          val totalDifficulty = blockchain.getTotalDifficultyByHash(uncleHeader.hash)
+
+          //The block in the response will not have any txs or uncles
+          Some(BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = pending))
+        } else
+          None
+      }
+
+    Right(UncleByBlockNumberAndIndexResponse(uncleBlockResponseOpt))
   }
 
   def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] = {
@@ -356,7 +403,7 @@ class EthService(
     val stx = SignedTransaction(tx, ECDSASignature(0, 0, 0.toByte), fromAddress)
 
     Future {
-      resolveBlock(req.block).map { block =>
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         val txResult = ledger.simulateTransaction(stx, block.header, blockchainStorages)
         CallResponse(txResult.vmReturnData)
       }
@@ -365,7 +412,7 @@ class EthService(
 
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Future {
-      resolveBlock(req.block).map { block =>
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         val world = InMemoryWorldStateProxy(blockchainStorages, Some(block.header.stateRoot))
         GetCodeResponse(world.getCode(req.address))
       }
@@ -374,7 +421,7 @@ class EthService(
 
   def getUncleCountByBlockNumber(req: GetUncleCountByBlockNumberRequest): ServiceResponse[GetUncleCountByBlockNumberResponse] = {
     Future {
-      resolveBlock(req.block).map { block =>
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         GetUncleCountByBlockNumberResponse(block.body.uncleNodesList.size)
       }
     }
@@ -393,7 +440,7 @@ class EthService(
 
   def getBlockTransactionCountByNumber(req: GetBlockTransactionCountByNumberRequest): ServiceResponse[GetBlockTransactionCountByNumberResponse] = {
     Future {
-      resolveBlock(req.block).map { block =>
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
       }
     }
@@ -440,12 +487,12 @@ class EthService(
   }
 
   private def withAccount[T](address: Address, blockParam: BlockParam)(f: Account => T): Either[JsonRpcError, T] = {
-    resolveBlock(blockParam).map { block =>
+    resolveBlock(blockParam).map { case ResolvedBlock(block, _) =>
       f(blockchain.getAccount(address, block.header.number).getOrElse(Account.Empty))
     }
   }
 
-  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, Block] = {
+  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
     def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
       blockchain.getBlockByNumber(number)
         .map(Right.apply)
@@ -453,10 +500,10 @@ class EthService(
     }
 
     blockParam match {
-      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber)
-      case BlockParam.Earliest => getBlock(0)
-      case BlockParam.Latest => getBlock(appStateStorage.getBestBlockNumber())
-      case BlockParam.Pending => getBlock(appStateStorage.getBestBlockNumber())
+      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pending = false))
+      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pending = false))
+      case BlockParam.Latest => getBlock(appStateStorage.getBestBlockNumber()).map(ResolvedBlock(_, pending = false))
+      case BlockParam.Pending => getBlock(appStateStorage.getBestBlockNumber()).map(ResolvedBlock(_, pending = true))
     }
   }
 
