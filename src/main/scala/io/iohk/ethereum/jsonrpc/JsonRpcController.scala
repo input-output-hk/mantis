@@ -89,6 +89,9 @@ class JsonRpcController(
       handle[GetHashRateRequest, GetHashRateResponse](ethService.getHashRate, req)
     case req @ JsonRpcRequest(_, "eth_gasPrice", _, _) =>
       handle[GetGasPriceRequest, GetGasPriceResponse](ethService.getGetGasPrice, req)
+    case req@JsonRpcRequest(_, "eth_getTransactionByBlockNumberAndIndex", _, _) =>
+      handle[GetTransactionByBlockNumberAndIndexRequest,
+        GetTransactionByBlockNumberAndIndexResponse](ethService.getTransactionByBlockNumberAndIndexRequest, req)
     case req @ JsonRpcRequest(_, "eth_mining", _, _) =>
       handle[GetMiningRequest, GetMiningResponse](ethService.getMining, req)
     case req @ JsonRpcRequest(_, "eth_getWork", _, _) =>
