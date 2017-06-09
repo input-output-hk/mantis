@@ -77,6 +77,7 @@ class JsonRpcController(
   }
 
   // scalastyle:off cyclomatic.complexity
+  // scalastyle:off method.length
   private def handleEthRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) =>
       handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
@@ -86,6 +87,8 @@ class JsonRpcController(
       handle[SubmitHashRateRequest, SubmitHashRateResponse](ethService.submitHashRate, req)
     case req @ JsonRpcRequest(_, "eth_hashrate", _, _) =>
       handle[GetHashRateRequest, GetHashRateResponse](ethService.getHashRate, req)
+    case req @ JsonRpcRequest(_, "eth_mining", _, _) =>
+      handle[GetMiningRequest, GetMiningResponse](ethService.getMining, req)
     case req @ JsonRpcRequest(_, "eth_getWork", _, _) =>
       handle[GetWorkRequest, GetWorkResponse](ethService.getWork, req)
     case req @ JsonRpcRequest(_, "eth_submitWork", _, _) =>
@@ -122,6 +125,12 @@ class JsonRpcController(
       handle[GetUncleCountByBlockHashRequest, GetUncleCountByBlockHashResponse](ethService.getUncleCountByBlockHash, req)
     case req @ JsonRpcRequest(_, "eth_getBlockTransactionCountByNumber", _, _) =>
       handle[GetBlockTransactionCountByNumberRequest, GetBlockTransactionCountByNumberResponse](ethService.getBlockTransactionCountByNumber, req)
+    case req @ JsonRpcRequest(_, "eth_getBalance", _, _) =>
+      handle[GetBalanceRequest, GetBalanceResponse](ethService.getBalance, req)
+    case req @ JsonRpcRequest(_, "eth_getStorageAt", _, _) =>
+      handle[GetStorageAtRequest, GetStorageAtResponse](ethService.getStorageAt, req)
+    case req @ JsonRpcRequest(_, "eth_getTransactionCount", _, _) =>
+      handle[GetTransactionCountRequest, GetTransactionCountResponse](ethService.getTransactionCount, req)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
