@@ -451,11 +451,11 @@ class EthService(
     import req._
     resolveBlock(block).map{
       blockWithTx =>
-        val blockTxs = blockWithTx.body.transactionList
+        val blockTxs = blockWithTx.block.body.transactionList
         if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
           GetTransactionByBlockNumberAndIndexResponse(
             Some(TransactionResponse(blockTxs(transactionIndex.toInt),
-              Some(blockWithTx.header),
+              Some(blockWithTx.block.header),
               Some(transactionIndex.toInt))))
         else
           GetTransactionByBlockNumberAndIndexResponse(None)
