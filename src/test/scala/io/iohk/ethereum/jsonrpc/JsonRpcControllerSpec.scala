@@ -203,6 +203,30 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(expectedBlockResponse)
   }
 
+  it should "handle eth_getBlockByNumber request" in new TestSetup {
+
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val blockTd = blockToRequest.header.difficulty
+
+    blockchain.save(blockToRequest)
+    blockchain.save(blockToRequest.header.hash, blockTd)
+
+    val request = JsonRpcRequest(
+      "2.0",
+      "eth_getBlockByNumber",
+      Some(JArray(List(JString(s"0x${Hex.toHexString(blockToRequest.header.number.toByteArray)}"), JBool(false)))),
+      Some(JInt(1))
+    )
+    val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
+
+    val expectedBlockResponse = Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(expectedBlockResponse)
+  }
+
   it should "handle eth_getUncleByBlockHashAndIndex request" in new TestSetup {
     val uncle = Fixtures.Blocks.DaoForkBlock.header
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, BlockBody(Nil, Seq(uncle)))
@@ -220,7 +244,36 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     )
     val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
 
-    val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None))
+    val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None, pendingBlock = false))
+      .removeField {
+        case ("transactions", _) => true
+        case _ => false
+      }
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(expectedUncleBlockResponse)
+  }
+
+  it should "handle eth_getUncleByBlockNumberAndIndex request" in new TestSetup {
+    val uncle = Fixtures.Blocks.DaoForkBlock.header
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, BlockBody(Nil, Seq(uncle)))
+
+    blockchain.save(blockToRequest)
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getUncleByBlockNumberAndIndex",
+      Some(JArray(List(
+        JString(s"0x${Hex.toHexString(blockToRequest.header.number.toByteArray)}"),
+        JString(s"0x${Hex.toHexString(BigInt(0).toByteArray)}")
+      ))),
+      Some(JInt(1))
+    )
+    val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
+
+    val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None, pendingBlock = false))
       .removeField {
         case ("transactions", _) => true
         case _ => false
