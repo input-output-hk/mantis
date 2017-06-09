@@ -657,7 +657,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(JString("0x" + "42" * 20))
   }
 
-  it should "eth_getTransactionByBlockNumberAndIndex" in new TestSetup {
+  it should "eth_getTransactionByBlockNumberAndIndex by tag" in new TestSetup {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
@@ -669,6 +669,33 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       "eth_getTransactionByBlockNumberAndIndex",
       Some(JArray(List(
         JString(s"latest"),
+        JString(s"0x${Hex.toHexString(BigInt(txIndex).toByteArray)}")
+      ))),
+      Some(JInt(1))
+    )
+    val response = jsonRpcController.handleRequest(request).futureValue
+    val expectedStx = blockToRequest.body.transactionList(txIndex)
+    val expectedTxResponse = Extraction.decompose(
+      TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndex))
+    )
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(expectedTxResponse)
+  }
+
+  it should "eth_getTransactionByBlockNumberAndIndex by number" in new TestSetup {
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val txIndex = 1
+
+    blockchain.save(blockToRequest)
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getTransactionByBlockNumberAndIndex",
+      Some(JArray(List(
+        JString(s"0x${Hex.toHexString(Fixtures.Blocks.Block3125369.header.number.toByteArray)}"),
         JString(s"0x${Hex.toHexString(BigInt(txIndex).toByteArray)}")
       ))),
       Some(JInt(1))

@@ -137,12 +137,12 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
         t.transactionResponse.map(Extraction.decompose).getOrElse(JNull)
     }
 
-  implicit val eth_d  =
+  implicit val eth_getTransactionByBlockNumberAndIndex  =
     new JsonDecoder[GetTransactionByBlockNumberAndIndexRequest] with JsonEncoder[GetTransactionByBlockNumberAndIndexResponse] {
       override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetTransactionByBlockNumberAndIndexRequest] = params match {
-        case Some(JArray(JString(blockStr) :: transactionIndex :: Nil)) =>
+        case Some(JArray(blockParam :: transactionIndex :: Nil)) =>
           for {
-            blockParam <- extractBlockParam(blockStr)
+            blockParam <- extractBlockParam(blockParam)
             parsedTransactionIndex <- extractQuantity(transactionIndex)
           } yield GetTransactionByBlockNumberAndIndexRequest(blockParam, parsedTransactionIndex)
         case _ => Left(InvalidParams())
