@@ -16,23 +16,21 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 class PeersInfoHolderActor(peerEventBusActor: ActorRef, appStateStorage: AppStateStorage,
                            forkResolverOpt: Option[ForkResolver]) extends Actor with ActorLogging {
 
-  val msgCodesWithInfo: Set[Int] = Set(BlockHeaders.code, NewBlock.code, NewBlockHashes.code)
+  private type PeersWithInfo = Map[PeerId, PeerWithInfo]
 
   peerEventBusActor ! Subscribe(PeerHandshaked)
 
   override def receive: Receive = handlePeersInfoEvents(Map.empty)
 
-  def handlePeersInfoEvents(peersWithInfo: Map[PeerId, PeerWithInfo]): Receive = {
+  def handlePeersInfoEvents(peersWithInfo: PeersWithInfo): Receive = {
 
     case MessageToPeer(message, peerId) if peersWithInfo.contains(peerId) =>
-      val PeerWithInfo(peer, oldPeerInfo) = peersWithInfo(peerId)
-      val newPeerInfo = handleSentMessage(message, oldPeerInfo)
-      context become handlePeersInfoEvents(peersWithInfo + (peerId -> PeerWithInfo(peer, newPeerInfo)))
+      val newPeersWithInfo = updatePeersWithInfo(peersWithInfo, peerId, message, handleSentMessage)
+      context become handlePeersInfoEvents(newPeersWithInfo)
 
     case MessageFromPeer(message, peerId) if peersWithInfo.contains(peerId) =>
-      val PeerWithInfo(peer, oldPeerInfo) = peersWithInfo(peerId)
-      val newPeerInfo = handleReceivedMessage(message, oldPeerInfo, peer)
-      context become handlePeersInfoEvents(peersWithInfo + (peerId -> PeerWithInfo(peer, newPeerInfo)))
+      val newPeersWithInfo = updatePeersWithInfo(peersWithInfo, peerId, message, handleReceivedMessage)
+      context become handlePeersInfoEvents(newPeersWithInfo)
 
     case PeerHandshakeSuccessful(peer, peerInfo: PeerInfo) =>
       peerEventBusActor ! Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id)))
@@ -59,28 +57,43 @@ class PeersInfoHolderActor(peerEventBusActor: ActorRef, appStateStorage: AppStat
   }
 
   /**
-    * Processes the message and the old peer info and returns the peer info
+    * Processes the message, updating the information for each peer
     *
+    * @param peers with the information for each peer
+    * @param peerId from whom the message was received (or who sent the message)
     * @param message to be processed
-    * @param initialPeerInfo from before the message was processed
-    * @return new updated peer info
+    * @param messageHandler for processing the message and obtaining the new peerInfo
+    * @return new information for each peer
     */
-  private def handleSentMessage(message: Message, initialPeerInfo: PeerInfo): PeerInfo =
-    updateMaxBlock(message)(initialPeerInfo)
+  private def updatePeersWithInfo(peers: PeersWithInfo, peerId: PeerId, message: Message,
+                                  messageHandler: (Message, PeerWithInfo) => PeerInfo): PeersWithInfo = {
+    val peerWithInfo = peers(peerId)
+    val newPeerInfo = messageHandler(message, peerWithInfo)
+    peers + (peerId -> peerWithInfo.copy(peerInfo = newPeerInfo))
+  }
 
   /**
     * Processes the message and the old peer info and returns the peer info
     *
     * @param message to be processed
-    * @param initialPeerInfo from before the message was processed
-    * @param peer that sent the message to be processed
+    * @param initialPeerWithInfo from before the message was processed
     * @return new updated peer info
     */
-  private def handleReceivedMessage(message: Message, initialPeerInfo: PeerInfo, peer: Peer): PeerInfo =
+  private def handleSentMessage(message: Message, initialPeerWithInfo: PeerWithInfo): PeerInfo =
+    updateMaxBlock(message)(initialPeerWithInfo.peerInfo)
+
+  /**
+    * Processes the message and the old peer info and returns the peer info
+    *
+    * @param message to be processed
+    * @param initialPeerWithInfo from before the message was processed
+    * @return new updated peer info
+    */
+  private def handleReceivedMessage(message: Message, initialPeerWithInfo: PeerWithInfo): PeerInfo =
     (updateTotalDifficulty(message) _
-      andThen updateForkAccepted(message, peer)
+      andThen updateForkAccepted(message, initialPeerWithInfo.peer)
       andThen updateMaxBlock(message)
-      )(initialPeerInfo)
+      )(initialPeerWithInfo.peerInfo)
 
 
   /**
@@ -159,6 +172,8 @@ class PeersInfoHolderActor(peerEventBusActor: ActorRef, appStateStorage: AppStat
 
 object PeersInfoHolderActor {
 
+  val msgCodesWithInfo: Set[Int] = Set(BlockHeaders.code, NewBlock.code, NewBlockHashes.code)
+
   case class PeerInfo(remoteStatus: Status,
                       totalDifficulty: BigInt,
                       forkAccepted: Boolean,
@@ -172,7 +187,7 @@ object PeersInfoHolderActor {
 
   }
 
-  case class PeerWithInfo(peer: Peer, peerInfo: PeerInfo)
+  private case class PeerWithInfo(peer: Peer, peerInfo: PeerInfo)
 
   case object GetHandshakedPeers
 
