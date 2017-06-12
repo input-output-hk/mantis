@@ -7,8 +7,8 @@ import akka.testkit.TestProbe
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.{DefaultPatience, crypto}
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
+import io.iohk.ethereum.network.PeerImpl
 import io.iohk.ethereum.network.{Peer, PeerId, PeerManagerActor}
-import io.iohk.ethereum.network.PeerMessageBusActor.MessageFromPeer
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import org.scalatest.{FlatSpec, Matchers}
@@ -16,6 +16,7 @@ import org.spongycastle.util.encoders.Hex
 import akka.pattern.ask
 import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages
 import io.iohk.ethereum.utils.MiningConfig
@@ -106,12 +107,15 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
     val handshakedStatus = Handshaked(CommonMessages.Status(0, 0, 0, ByteString(""), ByteString("")), true, 0)
 
+    val peerManager = TestProbe()
+    val peerMessageBus = TestProbe()
+
     val peer1TestProbe = TestProbe()
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref)
+    val peer1 = new PeerImpl(peer1TestProbe.ref, peerMessageBus.ref)
     val peer2TestProbe = TestProbe()
-    val peer2 = Peer(new InetSocketAddress("127.0.0.2", 9000), peer2TestProbe.ref)
+    val peer2 = new PeerImpl(peer2TestProbe.ref, peerMessageBus.ref)
     val peer3TestProbe = TestProbe()
-    val peer3 = Peer(new InetSocketAddress("127.0.0.3", 9000), peer3TestProbe.ref)
+    val peer3 = new PeerImpl(peer3TestProbe.ref, peerMessageBus.ref)
 
     val miningConfig = new MiningConfig {
       override val txPoolSize: Int = 300
@@ -122,8 +126,6 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
       override val poolingServicesTimeout: FiniteDuration = 30.seconds
     }
 
-    val peerManager = TestProbe()
-    val peerMessageBus = TestProbe()
     val pendingTransactionsManager = system.actorOf(PendingTransactionsManager.props(miningConfig, peerManager.ref, peerMessageBus.ref))
   }
 

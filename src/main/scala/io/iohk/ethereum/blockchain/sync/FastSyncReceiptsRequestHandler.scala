@@ -10,11 +10,10 @@ import org.spongycastle.util.encoders.Hex
 
 class FastSyncReceiptsRequestHandler(
     peer: Peer,
-    peerMessageBus: ActorRef,
     requestedHashes: Seq[ByteString],
     appStateStorage: AppStateStorage,
     blockchain: Blockchain)(implicit scheduler: Scheduler)
-  extends SyncRequestHandler[GetReceipts, Receipts](peer, peerMessageBus) {
+  extends SyncRequestHandler[GetReceipts, Receipts](peer) {
 
   override val requestMsg = GetReceipts(requestedHashes)
   override val responseMsgCode: Int = Receipts.code
@@ -71,8 +70,7 @@ class FastSyncReceiptsRequestHandler(
 }
 
 object FastSyncReceiptsRequestHandler {
-  def props(peer: Peer, peerMessageBus: ActorRef,
-            requestedHashes: Seq[ByteString], appStateStorage: AppStateStorage, blockchain: Blockchain)
+  def props(peer: Peer, requestedHashes: Seq[ByteString], appStateStorage: AppStateStorage, blockchain: Blockchain)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncReceiptsRequestHandler(peer, peerMessageBus, requestedHashes, appStateStorage, blockchain))
+    Props(new FastSyncReceiptsRequestHandler(peer, requestedHashes, appStateStorage, blockchain))
 }

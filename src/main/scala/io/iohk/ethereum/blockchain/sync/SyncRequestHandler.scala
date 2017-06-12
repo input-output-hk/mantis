@@ -3,14 +3,13 @@ package io.iohk.ethereum.blockchain.sync
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.reflect.ClassTag
 import akka.actor._
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected}
 import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.PeerMessageBusActor._
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.Config.FastSync._
 
 abstract class SyncRequestHandler[RequestMsg <: Message,
-                                  ResponseMsg <: Message : ClassTag](peer: Peer, peerMessageBus: ActorRef)
+                                  ResponseMsg <: Message : ClassTag](peer: Peer)
                                   (implicit scheduler: Scheduler, toSerializable: RequestMsg => MessageSerializable)
   extends Actor with ActorLogging {
 
@@ -29,14 +28,12 @@ abstract class SyncRequestHandler[RequestMsg <: Message,
 
   val startTime: Long = System.currentTimeMillis()
 
-  private def subscribeMessageClassifier = MessageClassifier(Set(responseMsgCode), PeerSelector.WithId(peer.id))
-
   def timeTakenSoFar(): Long = System.currentTimeMillis() - startTime
 
   override def preStart(): Unit = {
-    context watch peer.ref
-    peer.ref ! PeerActor.SendMessage(toSerializable(requestMsg))
-    peerMessageBus ! Subscribe(subscribeMessageClassifier)
+    peer.subscribeToDisconnect()
+    peer.send(toSerializable(requestMsg))
+    peer.subscribe(Set(responseMsgCode))
   }
 
   override def receive: Receive = {
@@ -46,14 +43,14 @@ abstract class SyncRequestHandler[RequestMsg <: Message,
     case Timeout =>
       handleTimeout()
 
-    case Terminated(ref) if ref == peer.ref =>
+    case PeerDisconnected(peerId) if peerId == peer.id =>
       handleTerminated()
   }
 
   def cleanupAndStop(): Unit = {
     timeout.cancel()
-    context unwatch peer.ref
-    peerMessageBus ! Unsubscribe(subscribeMessageClassifier)
+    peer.unsubscribeFromDisconnect()
+    peer.unsubscribe(Set(responseMsgCode))
     syncController ! Done
     context stop self
   }

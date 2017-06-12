@@ -1,3 +1,4 @@
+
 package io.iohk.ethereum.network
 
 import java.net.InetSocketAddress
@@ -5,13 +6,14 @@ import java.net.InetSocketAddress
 import io.iohk.ethereum.network.PeerActor.Status.Handshaking
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import org.scalatest.concurrent.Eventually
-import org.scalatest.time.{Seconds, Milliseconds, Span}
+import org.scalatest.time.{Milliseconds, Seconds, Span}
 import akka.actor._
 import akka.testkit.{TestActorRef, TestProbe}
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.utils.Config
 import org.scalatest.{FlatSpec, Matchers}
 import PeerActor.Status
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent
 
 class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
 
@@ -19,7 +21,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
 
   "PeerManager" should "try to connect to bootstrap nodes on startup" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(
-      peerConfiguration, peerFactory, Some(time.scheduler))))(system)
+      peerConfiguration, peerEventBus.ref, peerFactory, Some(time.scheduler))))(system)
 
     time.advance(800) // wait for bootstrap nodes scan
 
@@ -39,7 +41,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
 
   it should "retry connections to remaining bootstrap nodes" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(
-      peerConfiguration, peerFactory, Some(time.scheduler))))(system)
+      peerConfiguration, peerEventBus.ref, peerFactory, Some(time.scheduler))))(system)
 
     time.advance(800)
 
@@ -59,6 +61,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
     createdPeers(1).expectMsgClass(classOf[PeerActor.ConnectTo])
 
     createdPeers.head.ref ! PoisonPill
+    peerEventBus.send(peerManager, PeerEvent.PeerDisconnected(createdPeersIds.head))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 1
@@ -76,7 +79,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
 
   it should "disconnect the worst handshaking peer when limit is reached" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(
-      peerConfiguration, peerFactory, Some(time.scheduler))))
+      peerConfiguration, peerEventBus.ref, peerFactory, Some(time.scheduler))))
 
     time.advance(800) // connect to 2 bootstrap peers
 
@@ -91,7 +94,6 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 2
     }
-
     createdPeers(1).expectMsgClass(classOf[PeerActor.ConnectTo])
 
     peerManager ! PeerManagerActor.HandlePeerConnection(system.deadLetters, new InetSocketAddress(9000))
@@ -103,7 +105,6 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 3
     }
-
     createdPeers(2).expectMsgClass(classOf[PeerActor.HandleConnection])
 
     peerManager ! PeerManagerActor.HandlePeerConnection(system.deadLetters, new InetSocketAddress(1000))
@@ -118,7 +119,6 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
     }
 
     createdPeers(2).expectMsg(PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers))
-    createdPeers(3).expectMsgClass(classOf[PeerActor.HandleConnection])
   }
 
   trait TestSetup {
@@ -127,12 +127,17 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
     val time = new VirtualTime
 
     var createdPeers: Seq[TestProbe] = Nil
+    var createdPeersIds: Seq[PeerId] = Nil
 
     val peerConfiguration = Config.Network.peer
+
+    val peerEventBus = TestProbe()
 
     val peerFactory: (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
       val peer = TestProbe()
       createdPeers :+= peer
+      val createdPeer = new PeerImpl(peer.ref, peerEventBus.ref)
+      createdPeersIds :+= createdPeer.id
       peer.ref
     }
 

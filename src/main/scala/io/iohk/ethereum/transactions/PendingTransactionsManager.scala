@@ -3,9 +3,11 @@ package io.iohk.ethereum.transactions
 import akka.actor.{Actor, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerManagerActor.Peers
-import io.iohk.ethereum.network.{Peer, PeerActor, PeerId, PeerManagerActor}
-import io.iohk.ethereum.network.PeerMessageBusActor.{MessageClassifier, MessageFromPeer, PeerSelector, Subscribe}
+import io.iohk.ethereum.network.{Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.utils.MiningConfig
 
@@ -67,7 +69,7 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
         .filterNot(isTxKnown(_, peer.id)) // and not known by peer
 
         if (txsToNotify.nonEmpty) {
-          peer.ref ! PeerActor.SendMessage(SignedTransactions(txsToNotify))
+          peer.send(SignedTransactions(txsToNotify))
           txsToNotify.foreach(setTxKnown(_, peer.id))
         }
 

@@ -12,20 +12,21 @@ import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.Mocks.MockMessageHandler
+import io.iohk.ethereum.Mocks.{MockHandshakerAlwaysSucceeds, MockMessageHandler}
 import io.iohk.ethereum.{Fixtures, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
-import io.iohk.ethereum.network.{ForkResolver, MessageHandler, Peer, PeerActor, PeerMessageBusActor}
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish}
+import io.iohk.ethereum.network.{ForkResolver, MessageHandler, Peer, PeerActor, PeerEventBusActor, PeerImpl, PeerManagerActor}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.network.p2p.messages.{CommonMessages, Versions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
@@ -68,9 +69,9 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val time = new VirtualTime
 
-    val peerMessageBus = system.actorOf(PeerMessageBusActor.props)
+    val peerMessageBus = system.actorOf(PeerEventBusActor.props)
     var rlpxConnection = TestProbe() // var as we actually need new instances
-    val peer = TestActorRef(Props(new PeerActor(new InetSocketAddress("127.0.0.1", 0), _ => {
+    val peer = TestActorRef(Props(new PeerActor(_ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
       }, peerConf, peerMessageBus, Some(time.scheduler),
@@ -185,7 +186,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
   it should "disconnect on Hello timeout" in new TestSetup {
     val connection = TestProbe()
 
-    peer ! PeerActor.HandleConnection(connection.ref, new InetSocketAddress("localhost", 9000))
+    peer ! PeerActor.HandleConnection(connection.ref, new InetSocketAddress("127.0.0.1", 0))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.HandleConnection])
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
@@ -397,13 +398,12 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val time = new VirtualTime
 
-    val peerMessageBus = system.actorOf(PeerMessageBusActor.props)
+    val peerEventBus = system.actorOf(PeerEventBusActor.props)
 
     val peer = TestActorRef(Props(new PeerActor(
-      new InetSocketAddress("127.0.0.1", 0),
       _ => rlpxConnection.ref,
       peerConf,
-      peerMessageBus,
+      peerEventBus,
       Some(time.scheduler),
       handshaker,
       messageHandlerBuilder = messageHandlerBuilder)))

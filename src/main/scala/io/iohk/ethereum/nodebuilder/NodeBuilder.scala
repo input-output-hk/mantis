@@ -93,10 +93,10 @@ trait HandshakerBuilder {
   lazy val handshaker: Handshaker[EtcPeerInfo] = EtcHandshaker(handshakerConfiguration)
 }
 
-trait PeerMessageBusBuilder {
+trait PeerEventBusBuilder {
   self: ActorSystemBuilder =>
 
-  lazy val peerMessageBus = actorSystem.actorOf(PeerMessageBusActor.props)
+  lazy val peerEventBus = actorSystem.actorOf(PeerEventBusActor.props)
 }
 
 trait PeerManagerActorBuilder {
@@ -107,18 +107,18 @@ trait PeerManagerActorBuilder {
     with BlockChainBuilder
     with HandshakerBuilder
     with ForkResolverBuilder
-    with PeerMessageBusBuilder =>
+    with PeerEventBusBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
   lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props(
-    nodeStatusHolder,
-    Config.Network.peer,
-    storagesInstance.storages.appStateStorage,
-    blockchain,
-    peerMessageBus,
-    forkResolverOpt,
-    handshaker), "peer-manager")
+    nodeStatusHolder = nodeStatusHolder,
+    peerConfiguration = Config.Network.peer,
+    appStateStorage = storagesInstance.storages.appStateStorage,
+    blockchain = blockchain,
+    peerEventBus = peerEventBus,
+    forkResolverOpt = forkResolverOpt,
+    handshaker = handshaker), "peer-manager")
 
 }
 
@@ -148,10 +148,10 @@ trait NetServiceBuilder {
 trait PendingTransactionsManagerBuilder {
   self: ActorSystemBuilder
     with PeerManagerActorBuilder
-    with PeerMessageBusBuilder
+    with PeerEventBusBuilder
     with MiningConfigBuilder =>
 
-  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(miningConfig, peerManager, peerMessageBus))
+  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(miningConfig, peerManager, peerEventBus))
 }
 
 trait BlockGeneratorBuilder {
@@ -243,11 +243,8 @@ trait SyncControllerBuilder {
     BlockchainConfigBuilder with
     ValidatorsBuilder with
     LedgerBuilder with
-    PeerMessageBusBuilder with
     PendingTransactionsManagerBuilder with
     OmmersPoolBuilder =>
-
-
 
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
@@ -258,7 +255,6 @@ trait SyncControllerBuilder {
       ledger,
       validators,
       peerManager,
-      peerMessageBus,
       pendingTransactionsManager,
       ommersPool
       ),
@@ -310,7 +306,7 @@ trait Node extends NodeKeyBuilder
   with ShutdownHookBuilder
   with GenesisDataLoaderBuilder
   with BlockchainConfigBuilder
-  with PeerMessageBusBuilder
+  with PeerEventBusBuilder
   with PendingTransactionsManagerBuilder
   with OmmersPoolBuilder
   with MiningConfigBuilder

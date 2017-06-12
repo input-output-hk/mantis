@@ -12,10 +12,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor._
+import akka.actor.{ActorRef, _}
 import akka.agent.Agent
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
+import io.iohk.ethereum.network.PeerActor.DisconnectPeer
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish}
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
@@ -23,6 +25,7 @@ import scala.util.{Failure, Success}
 
 class PeerManagerActor(
     peerConfiguration: PeerConfiguration,
+    peerEventBus: ActorRef,
     peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None,
     bootstrapNodes: Set[String] = Config.Network.Discovery.bootstrapNodes)
@@ -32,7 +35,7 @@ class PeerManagerActor(
   import PeerManagerActor._
   import Config.Network.Discovery._
 
-  var peers: Map[PeerId, Peer] = Map.empty
+  var peers: Map[PeerId, PeerActorWithAddress] = Map.empty
 
   private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
@@ -72,10 +75,18 @@ class PeerManagerActor(
 
   def handleCommonMessages: Receive = {
     case GetPeers =>
-      getPeers().pipeTo(sender())
+      val currentPeers: Future[Peers] = getPeers().map( peersWithStatus =>
+        //FIXME: The mapping from PeerActorWithAddress to PeerImpl should be done in the Network trait
+        Peers(peersWithStatus.map{ case (peer, status) => new PeerImpl(peer.ref, peerEventBus) -> status })
+      )
+      currentPeers.pipeTo(sender())
 
     case Terminated(ref) =>
-      peers -= PeerId(ref.path.name)
+      val peerIdOpt = peers.collect{ case (id, peer) if peer.ref == ref => id }
+      peerIdOpt.foreach{ peerId =>
+        peers -= peerId
+        peerEventBus ! Publish(PeerEvent.PeerDisconnected(peerId))
+      }
   }
 
   def tryingToConnect: Receive = handleCommonMessages orElse {
@@ -108,36 +119,36 @@ class PeerManagerActor(
       unstashAll()
   }
 
-  def createPeer(addr: InetSocketAddress): Peer = {
+  def createPeer(addr: InetSocketAddress): PeerActorWithAddress = {
     val ref = peerFactory(context, addr)
     context watch ref
-    val peer = Peer(addr, ref)
-    peers += peer.id -> peer
+    val peer = PeerActorWithAddress(addr, ref)
+    peers += PeerId(ref.path.name) -> peer
     peer
   }
 
-  def getPeers(): Future[Peers] = {
+  def getPeers(): Future[Map[PeerActorWithAddress, PeerActor.Status]] = {
     implicit val timeout = Timeout(2.seconds)
 
     Future.traverse(peers.values) { peer =>
       (peer.ref ? PeerActor.GetStatus)
         .mapTo[PeerActor.StatusResponse]
         .map(sr => (peer, sr.status))
-    }.map(r => Peers.apply(r.toMap))
+    }.map(_.toMap)
   }
 
   def tryDiscardPeersToFreeUpLimit(): Future[Unit] = {
     getPeers() flatMap { peers =>
-      val peersToPotentiallyDisconnect = peers.peers.filter {
+      val peersToPotentiallyDisconnect = peers.filter {
         case (_, Handshaking(numRetries)) if numRetries > 0 => true /* still handshaking and retried at least once */
         case (_, PeerActor.Status.Disconnected) => true /* already disconnected */
         case _ => false
       }
 
-      if (peers.peers.size - peersToPotentiallyDisconnect.size >= peerConfiguration.maxPeers) {
+      if (peers.size - peersToPotentiallyDisconnect.size >= peerConfiguration.maxPeers) {
         Future.failed(new RuntimeException("Too many peers"))
       } else {
-        val numPeersToDisconnect = (peers.peers.size + 1 - peerConfiguration.maxPeers) max 0
+        val numPeersToDisconnect = (peers.size + 1 - peerConfiguration.maxPeers) max 0
 
         val peersToDisconnect = peersToPotentiallyDisconnect.toSeq.sortBy {
           case (_, PeerActor.Status.Disconnected) => 0
@@ -145,7 +156,7 @@ class PeerManagerActor(
           case _ => 2
         }.take(numPeersToDisconnect)
 
-        peersToDisconnect.foreach { case (p, _) => p.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers) }
+        peersToDisconnect.foreach { case (p, _) => p.ref ! DisconnectPeer(Disconnect.Reasons.TooManyPeers) }
         Future.successful(())
       }
     }
@@ -154,36 +165,27 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
-  def props(nodeStatusHolder: Agent[NodeStatus],
-            peerConfiguration: PeerConfiguration,
-            appStateStorage: AppStateStorage,
-            blockchain: Blockchain,
-            peerMessageBus: ActorRef,
-            forkResolverOpt: Option[ForkResolver],
-            handshaker: Handshaker[EtcPeerInfo]): Props =
-    Props(new PeerManagerActor(peerConfiguration,
-      peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, peerMessageBus,
-        forkResolverOpt, handshaker)))
 
   def props(nodeStatusHolder: Agent[NodeStatus],
-            peerConfiguration: PeerConfiguration,
-            appStateStorage: AppStateStorage,
-            blockchain: Blockchain,
-            bootstrapNodes: Set[String],
-            peerMessageBus: ActorRef,
-            forkResolverOpt: Option[ForkResolver],
-            handshaker: Handshaker[EtcPeerInfo]): Props =
-    Props(new PeerManagerActor(peerConfiguration,
-      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain,
-        peerMessageBus, forkResolverOpt, handshaker),
+      peerConfiguration: PeerConfiguration,
+      appStateStorage: AppStateStorage,
+      blockchain: Blockchain,
+      bootstrapNodes: Set[String] = Config.Network.Discovery.bootstrapNodes,
+      peerEventBus: ActorRef,
+      forkResolverOpt: Option[ForkResolver],
+      handshaker: Handshaker[EtcPeerInfo]): Props = {
+    Props(new PeerManagerActor(peerConfiguration, peerEventBus,
+      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, appStateStorage, blockchain, peerEventBus,
+        forkResolverOpt, handshaker),
       bootstrapNodes = bootstrapNodes)
     )
+  }
 
   def peerFactory(nodeStatusHolder: Agent[NodeStatus],
                   peerConfiguration: PeerConfiguration,
                   appStateStorage: AppStateStorage,
                   blockchain: Blockchain,
-                  peerMessageBus: ActorRef,
+                  peerEventBus: ActorRef,
                   forkResolverOpt: Option[ForkResolver],
                   handshaker: Handshaker[EtcPeerInfo]): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
@@ -191,7 +193,7 @@ object PeerManagerActor {
       //FIXME: Message handler builder should be configurable
       val messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo] =
         EtcMessageHandler.etcMessageHandlerBuilder(forkResolverOpt, appStateStorage, peerConfiguration, blockchain)
-      ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, peerMessageBus,
+      ctx.actorOf(PeerActor.props(nodeStatusHolder, peerConfiguration, peerEventBus,
         handshaker, messageHandlerBuilder), id)
   }
 
@@ -225,4 +227,7 @@ object PeerManagerActor {
   }
 
   private case object ScanBootstrapNodes
+
+  case class PeerActorWithAddress(remoteAddress: InetSocketAddress, ref: ActorRef)
+
 }

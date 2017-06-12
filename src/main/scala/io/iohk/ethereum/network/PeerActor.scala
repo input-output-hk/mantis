@@ -5,20 +5,20 @@ import java.net.{InetSocketAddress, URI}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import akka.actor._
 import akka.agent.Agent
-import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
-import io.iohk.ethereum.network.MessageHandler.MessageAction.TransmitMessage
-import io.iohk.ethereum.network.MessageHandler.MessageHandlingResult
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.{Versions, CommonMessages => msg}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
-import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.utils.NodeStatus
-import io.iohk.ethereum.network.PeerMessageBusActor.{MessageFromPeer, Publish}
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
+import io.iohk.ethereum.network.MessageHandler.MessageAction.TransmitMessage
+import io.iohk.ethereum.network.MessageHandler.MessageHandlingResult
+import io.iohk.ethereum.network.PeerActor.Status._
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
-import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 
@@ -31,10 +31,9 @@ import org.spongycastle.crypto.AsymmetricCipherKeyPair
   */
 //FIXME: MessageHandler type should be configurable, this is dependant on PR 185
 class PeerActor(
-    peerAddress: InetSocketAddress,
     rlpxConnectionFactory: ActorContext => ActorRef,
     val peerConfiguration: PeerConfiguration,
-    peerMessageBus: ActorRef,
+    peerEventBus: ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None,
     initHandshaker: Handshaker[EtcPeerInfo],
     messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo])
@@ -48,7 +47,6 @@ class PeerActor(
   val P2pVersion = 4
 
   val peerId: PeerId = PeerId(self.path.name)
-  val peer: Peer = Peer(peerAddress, self)
 
   override def receive: Receive = waitingForInitialCommand
 
@@ -155,7 +153,8 @@ class PeerActor(
   private def startMessageHandler(rlpxConnection: RLPxConnection, remoteStatus: msg.Status,
                                   totalDifficulty: BigInt, forkAccepted: Boolean, currentMaxBlockNumber: BigInt): Unit = {
     val peerInfo = EtcPeerInfo(remoteStatus, totalDifficulty, forkAccepted, currentMaxBlockNumber)
-    val messageHandler = messageHandlerBuilder(peerInfo, peer)
+    //FIXME: The PeerImpl interface should not be used in the PeerActor, it will be removed in a later PR
+    val messageHandler = messageHandlerBuilder(peerInfo, new PeerImpl(self, peerEventBus))
     context become new HandshakedPeer(rlpxConnection, messageHandler).receive
     unstashAll()
   }
@@ -217,7 +216,7 @@ class PeerActor(
           log.debug("Received message: {}", message)
           val MessageHandlingResult(newHandler, messageAction) = messageHandler.receivingMessage(message)
           if(messageAction == TransmitMessage)
-            peerMessageBus ! Publish(MessageFromPeer(message, peerId))
+            peerEventBus ! Publish(MessageFromPeer(message, peerId))
           context become new HandshakedPeer(rlpxConnection, newHandler).receive
 
         case DisconnectPeer(reason) =>
@@ -240,17 +239,15 @@ class PeerActor(
 }
 
 object PeerActor {
-  def props(peerAddress: InetSocketAddress,
-            nodeStatusHolder: Agent[NodeStatus],
+  def props(nodeStatusHolder: Agent[NodeStatus],
             peerConfiguration: PeerConfiguration,
-            peerMessageBus: ActorRef,
+            peerEventBus: ActorRef,
             handshaker: Handshaker[EtcPeerInfo],
             messageHandlerBuilder: (EtcPeerInfo, Peer) => MessageHandler[EtcPeerInfo, EtcPeerInfo]): Props =
     Props(new PeerActor(
-      peerAddress,
       rlpxConnectionFactory(nodeStatusHolder().key),
       peerConfiguration,
-      peerMessageBus,
+      peerEventBus,
       initHandshaker = handshaker,
       messageHandlerBuilder = messageHandlerBuilder))
 
