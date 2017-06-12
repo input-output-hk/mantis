@@ -136,6 +136,8 @@ class JsonRpcController(
       handle[GetStorageAtRequest, GetStorageAtResponse](ethService.getStorageAt, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionCount", _, _) =>
       handle[GetTransactionCountRequest, GetTransactionCountResponse](ethService.getTransactionCount, req)
+    case req @ JsonRpcRequest(_, "eth_getTransactionByHash", _, _) =>
+      handle[GetTransactionByHashRequest, GetTransactionByHashResponse](ethService.getTransactionByHash, req)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
