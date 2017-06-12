@@ -575,6 +575,24 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(JString("0x0"))
   }
 
+  it should "eth_gasPrice" in new TestSetup {
+    (appStateStorage.getBestBlockNumber _).expects().returning(42)
+    blockchain.save(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_gasPrice",
+      None,
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x4a817c800"))
+  }
+
   it should "eth_call" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
