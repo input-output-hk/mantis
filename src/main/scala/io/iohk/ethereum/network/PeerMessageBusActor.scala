@@ -38,8 +38,7 @@ object PeerMessageBusActor {
     override def subscribe(subscriber: ActorRef, to: Classifier): Boolean = {
       val newSubscriptions = subscriptions.get((subscriber, to.peerSelector)) match {
         case Some(messageCodes) =>
-          if (messageCodes == to.messageCodes) subscriptions
-          else subscriptions + ((subscriber, to.peerSelector) -> (messageCodes ++ to.messageCodes))
+          subscriptions + ((subscriber, to.peerSelector) -> (messageCodes ++ to.messageCodes))
         case None =>  subscriptions + ((subscriber, to.peerSelector) -> to.messageCodes)
       }
       if(newSubscriptions == subscriptions) false
