@@ -8,7 +8,7 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Blockchain, _}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.PeersInfoHolderActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.messages.{PV62, PV63}
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor, loadAsymmetricCipherKeyPair}

@@ -2,12 +2,12 @@ package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.domain.{Block, BlockHeader}
-import io.iohk.ethereum.network.{Peer, PeerActor}
-import io.iohk.ethereum.network.PeersInfoHolderActor.PeerInfo
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor}
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.Versions
@@ -29,8 +29,8 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     blockBroadcast.broadcastNewBlocks(Seq(firstBlock, secondBlock), Map(peer -> initialPeerInfo))
 
     //then
-    peerProbe.expectMsg(PeerActor.SendMessage(secondBlock))
-    peerProbe.expectNoMsg()
+    etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(secondBlock, peer.id))
+    etcPeerManagerProbe.expectNoMsg()
   }
 
   it should "send a new block only when it is not known by the peer (known by comparing max block number)" in new TestSetup {
@@ -46,14 +46,18 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     blockBroadcast.broadcastNewBlocks(Seq(firstBlock, secondBlock), Map(peer -> initialPeerInfo))
 
     //then
-    peerProbe.expectMsg(PeerActor.SendMessage(firstBlock))
-    peerProbe.expectNoMsg()
+    etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlock, peer.id))
+    etcPeerManagerProbe.expectNoMsg()
   }
 
   trait TestSetup {
     implicit val system = ActorSystem("BlockBroadcastSpec_System")
 
-    val blockBroadcast = new BlockBroadcast {}
+    val etcPeerManagerProbe = TestProbe()
+
+    val blockBroadcast = new BlockBroadcast {
+      override val etcPeerManager: ActorRef = etcPeerManagerProbe.ref
+    }
 
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
 

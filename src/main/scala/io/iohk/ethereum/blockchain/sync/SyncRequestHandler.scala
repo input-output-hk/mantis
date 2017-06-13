@@ -3,16 +3,16 @@ package io.iohk.ethereum.blockchain.sync
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.reflect.ClassTag
 import akka.actor._
-import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageReceivedClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.Config.FastSync._
 
 abstract class SyncRequestHandler[RequestMsg <: Message,
-                                  ResponseMsg <: Message : ClassTag](peer: Peer, peerEventBus: ActorRef)
+                                  ResponseMsg <: Message : ClassTag](peer: Peer, etcPeerManagerActor: ActorRef,
+                                                                     peerEventBus: ActorRef)
                                   (implicit scheduler: Scheduler, toSerializable: RequestMsg => MessageSerializable)
   extends Actor with ActorLogging {
 
@@ -31,13 +31,13 @@ abstract class SyncRequestHandler[RequestMsg <: Message,
 
   val startTime: Long = System.currentTimeMillis()
 
-  private def subscribeMessageClassifier = MessageReceivedClassifier(Set(responseMsgCode), PeerSelector.WithId(peer.id))
+  private def subscribeMessageClassifier = MessageClassifier(Set(responseMsgCode), PeerSelector.WithId(peer.id))
 
   def timeTakenSoFar(): Long = System.currentTimeMillis() - startTime
 
   override def preStart(): Unit = {
     context watch peer.ref
-    peer.ref ! PeerActor.SendMessage(toSerializable(requestMsg))
+    etcPeerManagerActor ! EtcPeerManagerActor.SendMessage(toSerializable(requestMsg), peer.id)
     peerEventBus ! Subscribe(subscribeMessageClassifier)
   }
 

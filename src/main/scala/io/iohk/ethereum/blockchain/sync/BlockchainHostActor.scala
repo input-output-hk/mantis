@@ -4,29 +4,29 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageReceivedClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
-import io.iohk.ethereum.network.PeerManagerActor
+import io.iohk.ethereum.network.{EtcPeerManagerActor, PeerManagerActor}
 
 /**
   * BlockchainHost actor is in charge of replying to the peer's requests for blockchain data, which includes both
   * node and block data.
   */
 class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfiguration,
-                          peerEventBusActor: ActorRef, peerManagerActor: ActorRef) extends Actor with ActorLogging {
+                          peerEventBusActor: ActorRef, etcPeerManagerActor: ActorRef) extends Actor with ActorLogging {
 
   private val requestMsgsCodes = Set(GetNodeData.code, GetReceipts.code, GetBlockBodies.code, GetBlockHeaders.code)
-  peerEventBusActor ! Subscribe(MessageReceivedClassifier(requestMsgsCodes, PeerSelector.AllPeers))
+  peerEventBusActor ! Subscribe(MessageClassifier(requestMsgsCodes, PeerSelector.AllPeers))
 
   override def receive: Receive = {
     case MessageFromPeer(message, peerId) =>
       val responseOpt = handleBlockFastDownload(message) orElse handleEvmCodeMptFastDownload(message)
       responseOpt.foreach{ response =>
-        peerManagerActor ! PeerManagerActor.SendMessage(response, peerId)
+        etcPeerManagerActor ! EtcPeerManagerActor.SendMessage(response, peerId)
       }
   }
 
@@ -105,7 +105,7 @@ class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfigu
 object BlockchainHostActor {
 
   def props(blockchain: Blockchain, peerConfiguration: PeerConfiguration,
-            peerEventBusActor: ActorRef, peerManagerActor: ActorRef): Props =
-    Props(new BlockchainHostActor(blockchain, peerConfiguration, peerEventBusActor, peerManagerActor))
+            peerEventBusActor: ActorRef, etcPeerManagerActor: ActorRef): Props =
+    Props(new BlockchainHostActor(blockchain, peerConfiguration, peerEventBusActor, etcPeerManagerActor))
 
 }

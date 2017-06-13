@@ -2,7 +2,7 @@ package io.iohk.ethereum.network
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.ActorEventBus
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, MessageToPeer, PeerDisconnected, PeerHandshakeSuccessful}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.Message
@@ -29,8 +29,7 @@ object PeerEventBusActor {
   sealed trait SubscriptionClassifier
 
   object SubscriptionClassifier {
-    case class MessageReceivedClassifier(messageCodes: Set[Int], peerSelector: PeerSelector) extends SubscriptionClassifier
-    case class MessageSentClassifier(messageCodes: Set[Int], peerSelector: PeerSelector) extends SubscriptionClassifier
+    case class MessageClassifier(messageCodes: Set[Int], peerSelector: PeerSelector) extends SubscriptionClassifier
     case class PeerDisconnectedClassifier(peerSelector: PeerSelector) extends SubscriptionClassifier
     case object PeerHandshaked extends SubscriptionClassifier
   }
@@ -39,7 +38,6 @@ object PeerEventBusActor {
 
   object PeerEvent{
     case class MessageFromPeer(message: Message, peerId: PeerId) extends PeerEvent
-    case class MessageToPeer(message: Message, peerId: PeerId) extends PeerEvent
     case class PeerDisconnected(peerId: PeerId) extends PeerEvent
     case class PeerHandshakeSuccessful[R <: HandshakeResult](peer: Peer, handshakeResult: R) extends PeerEvent
   }
@@ -81,13 +79,7 @@ object PeerEventBusActor {
       val interestedSubscribers = event match {
         case MessageFromPeer(message, peerId) =>
           subscriptions.collect {
-            case Subscription(subscriber, classifier: MessageReceivedClassifier)
-              if classifier.peerSelector.contains(peerId) &&
-                classifier.messageCodes.contains(message.code) => subscriber
-          }
-        case MessageToPeer(message, peerId) =>
-          subscriptions.collect {
-            case Subscription(subscriber, classifier: MessageSentClassifier)
+            case Subscription(subscriber, classifier: MessageClassifier)
               if classifier.peerSelector.contains(peerId) &&
                 classifier.messageCodes.contains(message.code) => subscriber
           }

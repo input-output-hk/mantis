@@ -9,10 +9,10 @@ import io.iohk.ethereum.domain.{BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.mpt.HexPrefix
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageReceivedClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.{PeerId, PeerManagerActor}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, PeerId}
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -25,7 +25,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
 
   it should "return Receipts for block hashes" in new TestSetup {
 
-    peerEventBus.expectMsg(Subscribe(MessageReceivedClassifier(
+    peerEventBus.expectMsg(Subscribe(MessageClassifier(
       Set(GetNodeData.code, GetReceipts.code, GetBlockBodies.code, GetBlockHeaders.code), PeerSelector.AllPeers)))
 
     //given
@@ -42,7 +42,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     blockchainHost ! MessageFromPeer(GetReceipts(receiptsHashes), peerId)
 
     //then
-    peerManager.expectMsg(PeerManagerActor.SendMessage(Receipts(receipts), peerId))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(Receipts(receipts), peerId))
   }
 
   it should "return BlockBodies for block hashes" in new TestSetup {
@@ -60,7 +60,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     blockchainHost ! MessageFromPeer(GetBlockBodies(blockBodiesHashes), peerId)
 
     //then
-    peerManager.expectMsg(PeerManagerActor.SendMessage(BlockBodies(blockBodies), peerId))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(BlockBodies(blockBodies), peerId))
   }
 
   it should "return block headers by block number" in new TestSetup {
@@ -77,7 +77,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Left(3), 2, 0, reverse = false), peerId)
 
     //then
-    peerManager.expectMsg(PeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
   }
 
   it should "return block headers by block number when response is shorter then what was requested" in new TestSetup {
@@ -92,7 +92,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Left(3), 3, 0, reverse = false), peerId)
 
     //then
-    peerManager.expectMsg(PeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
   }
 
   it should "return block headers by block number in reverse order" in new TestSetup {
@@ -108,7 +108,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Left(3), 2, 0, reverse = true), peerId)
 
     //then
-    peerManager.expectMsg(PeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
   }
 
   it should "return block headers by block hash" in new TestSetup {
@@ -125,7 +125,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Right(firstHeader.hash), 2, 0, reverse = false), peerId)
 
     //then
-    peerManager.expectMsg(PeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
   }
 
   it should "return block headers by block hash when skipping headers" in new TestSetup {
@@ -144,7 +144,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
       GetBlockHeaders(Right(firstHeader.hash), maxHeaders = 2, skip = 1, reverse = false), peerId)
 
     //then
-    peerManager.expectMsg(PeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
   }
 
   it should "return block headers in reverse when there are skipped blocks" in new TestSetup {
@@ -159,7 +159,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Right(firstHeader.hash), 2, 1, reverse = true), peerId)
 
     //then
-    peerManager.expectMsg(PeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
   }
 
   it should "return block headers in reverse when there are skipped blocks and we are asking for blocks before genesis" in new TestSetup {
@@ -174,7 +174,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Right(firstHeader.hash), 3, 1, reverse = true), peerId)
 
     //then
-    peerManager.expectMsg(PeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader)), peerId))
   }
 
   it should "return block headers in reverse when there are skipped blocks ending at genesis" in new TestSetup {
@@ -189,8 +189,8 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     blockchainHost ! MessageFromPeer(GetBlockHeaders(Right(firstHeader.hash), 4, 1, reverse = true), peerId)
 
     //then
-    peerManager.expectMsg(
-      PeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader, blockchain.genesisHeader)), peerId))
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader, blockchain.genesisHeader)), peerId))
   }
 
   it should "return evm code for hash" in new TestSetup {
@@ -204,7 +204,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     blockchainHost ! MessageFromPeer(GetNodeData(Seq(evmCodeHash)), peerId)
 
     //then
-    peerManager.expectMsg(PeerManagerActor.SendMessage(NodeData(Seq(fakeEvmCode)), peerId))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(NodeData(Seq(fakeEvmCode)), peerId))
   }
 
   it should "return mptNode for hash" in new TestSetup {
@@ -219,7 +219,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     blockchainHost ! MessageFromPeer(GetNodeData(Seq(extensionNode.hash)), peerId)
 
     //then
-    peerManager.expectMsg(PeerManagerActor.SendMessage(NodeData(Seq(extensionNode.toBytes)), peerId))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(NodeData(Seq(extensionNode.toBytes)), peerId))
   }
 
   trait TestSetup {
@@ -252,10 +252,10 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     val peerId = PeerId("1")
 
     val peerEventBus = TestProbe()
-    val peerManager = TestProbe()
+    val etcPeerManager = TestProbe()
 
     val blockchainHost = TestActorRef(Props(new BlockchainHostActor(blockchain, peerConf,
-      peerEventBus.ref, peerManager.ref)))
+      peerEventBus.ref, etcPeerManager.ref)))
   }
 
 }

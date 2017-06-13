@@ -12,11 +12,12 @@ import org.spongycastle.util.encoders.Hex
 
 class FastSyncNodesRequestHandler(
     peer: Peer,
+    etcPeerManager: ActorRef,
     peerMessageBus: ActorRef,
     requestedHashes: Seq[HashType],
     blockchain: Blockchain,
     mptNodeStorage: MptNodeStorage)(implicit scheduler: Scheduler)
-  extends SyncRequestHandler[GetNodeData, NodeData](peer, peerMessageBus) {
+  extends SyncRequestHandler[GetNodeData, NodeData](peer, etcPeerManager, peerMessageBus) {
 
   override val requestMsg = GetNodeData(requestedHashes.map(_.v))
   override val responseMsgCode: Int = NodeData.code
@@ -121,8 +122,8 @@ class FastSyncNodesRequestHandler(
 }
 
 object FastSyncNodesRequestHandler {
-  def props(peer: Peer, peerMessageBus: ActorRef,
+  def props(peer: Peer, etcPeerManager: ActorRef, peerMessageBus: ActorRef,
             requestedHashes: Seq[HashType], blockchain: Blockchain, mptNodeStorage: MptNodeStorage)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncNodesRequestHandler(peer, peerMessageBus, requestedHashes, blockchain, mptNodeStorage))
+    Props(new FastSyncNodesRequestHandler(peer, etcPeerManager, peerMessageBus, requestedHashes, blockchain, mptNodeStorage))
 }

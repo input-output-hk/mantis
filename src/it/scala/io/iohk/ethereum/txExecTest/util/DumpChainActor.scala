@@ -16,7 +16,7 @@ import ReceiptImplicits._
 import BlockHeaderImplicits._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageReceivedClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 
 import scala.collection.immutable.HashMap
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -48,7 +48,7 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
       //TODO ask for block headers
       peers = p.keys.toSeq
       peers.headOption.foreach { peer =>
-        peerMessageBus ! Subscribe(MessageReceivedClassifier(Set(BlockHeaders.code, BlockBodies.code, Receipts.code, NodeData.code), PeerSelector.WithId(peer.id)))
+        peerMessageBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code, BlockBodies.code, Receipts.code, NodeData.code), PeerSelector.WithId(peer.id)))
         peer.ref ! SendMessage(GetBlockHeaders(block = Left(startBlock), maxHeaders = maxBlocks, skip = 0, reverse = false))
       }
 

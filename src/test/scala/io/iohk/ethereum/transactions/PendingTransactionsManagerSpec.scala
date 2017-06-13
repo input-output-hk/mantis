@@ -7,13 +7,12 @@ import akka.testkit.TestProbe
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.{DefaultPatience, crypto}
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
-import io.iohk.ethereum.network.{Peer, PeerId, PeerManagerActor}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import akka.pattern.ask
-import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerManagerActor.Peers
@@ -41,9 +40,11 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
 
-    Seq(peer1TestProbe, peer2TestProbe, peer3TestProbe).foreach { p =>
-      p.expectMsg(SendMessage(SignedTransactions(Seq(stx))))
-    }
+    etcPeerManager.expectMsgAllOf(
+      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx)), peer1.id),
+      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx)), peer2.id),
+      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx)), peer3.id)
+    )
 
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactions].futureValue
     pendingTxs.signedTransactions shouldBe Seq(stx)
@@ -54,19 +55,21 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTransactionsManager ! MessageFromPeer(msg1, peer1.id)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
-    Seq(peer2TestProbe, peer3TestProbe).foreach { p =>
-      p.expectMsg(SendMessage(SignedTransactions(msg1.txs)))
-    }
-    peer1TestProbe.expectNoMsg()
+    etcPeerManager.expectMsgAllOf(
+      EtcPeerManagerActor.SendMessage(SignedTransactions(msg1.txs), peer2.id),
+      EtcPeerManagerActor.SendMessage(SignedTransactions(msg1.txs), peer3.id)
+    )
+    etcPeerManager.expectNoMsg()
 
     val msg2 = SignedTransactions(Seq.fill(5)(newStx()))
     pendingTransactionsManager ! MessageFromPeer(msg2, peer2.id)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
-    Seq(peer1TestProbe, peer3TestProbe).foreach { p =>
-      p.expectMsg(SendMessage(SignedTransactions(msg2.txs)))
-    }
-    peer2TestProbe.expectNoMsg()
+    etcPeerManager.expectMsgAllOf(
+      EtcPeerManagerActor.SendMessage(SignedTransactions(msg2.txs), peer1.id),
+      EtcPeerManagerActor.SendMessage(SignedTransactions(msg2.txs), peer3.id)
+    )
+    etcPeerManager.expectNoMsg()
 
     pendingTransactionsManager ! RemoveTransactions(msg1.txs.dropRight(4))
     pendingTransactionsManager ! RemoveTransactions(msg2.txs.drop(2))
@@ -85,9 +88,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked, peer2 -> Handshaked, peer3 -> Handshaked)))
 
-    Seq(peer1TestProbe, peer2TestProbe, peer3TestProbe).foreach { peer =>
-      peer.expectNoMsg()
-    }
+    etcPeerManager.expectNoMsg()
 
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactions].futureValue
     pendingTxs.signedTransactions.size shouldBe 0
@@ -120,8 +121,10 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     }
 
     val peerManager = TestProbe()
+    val etcPeerManager = TestProbe()
     val peerMessageBus = TestProbe()
-    val pendingTransactionsManager = system.actorOf(PendingTransactionsManager.props(miningConfig, peerManager.ref, peerMessageBus.ref))
+    val pendingTransactionsManager = system.actorOf(
+      PendingTransactionsManager.props(miningConfig, peerManager.ref, etcPeerManager.ref, peerMessageBus.ref))
   }
 
 }

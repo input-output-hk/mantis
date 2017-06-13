@@ -10,10 +10,10 @@ import io.iohk.ethereum.Fixtures.Blocks.{DaoForkBlock, Genesis}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.network.PeerActor.DisconnectPeer
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, MessageToPeer, PeerDisconnected, PeerHandshakeSuccessful}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
-import io.iohk.ethereum.network.PeersInfoHolderActor._
+import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.Versions
@@ -22,7 +22,7 @@ import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-class PeersInfoHolderSpec extends FlatSpec with Matchers {
+class EtcPeerManagerSpec extends FlatSpec with Matchers {
 
   it should "start with the peers initial info as provided" in new TestSetup {
     peerEventBus.expectMsg(Subscribe(PeerHandshaked))
@@ -110,12 +110,16 @@ class PeersInfoHolderSpec extends FlatSpec with Matchers {
     val secondBlock = NewBlock(Block(secondHeader, BlockBody(Nil, Nil)), 300)
 
     //when
-    peersInfoHolder ! MessageToPeer(firstBlock, peer1.id)
-    peersInfoHolder ! MessageToPeer(secondBlock, peer1.id)
+    peersInfoHolder ! EtcPeerManagerActor.SendMessage(firstBlock, peer1.id)
+    peersInfoHolder ! EtcPeerManagerActor.SendMessage(secondBlock, peer1.id)
 
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
     requestSender.expectMsg(PeerInfoResponse(Some(peer1Info.withMaxBlockNumber(peer1Info.maxBlockNumber + 4))))
+    peerManager.expectMsgAllOf(
+      PeerManagerActor.SendMessage(firstBlock, peer1.id),
+      PeerManagerActor.SendMessage(secondBlock, peer1.id)
+    )
   }
 
   it should "update max peer when sending block header" in new TestSetup {
@@ -127,12 +131,16 @@ class PeersInfoHolderSpec extends FlatSpec with Matchers {
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = peer1Info.maxBlockNumber + 2)
 
     //when
-    peersInfoHolder ! MessageToPeer(BlockHeaders(Seq(firstHeader)), peer1.id)
-    peersInfoHolder ! MessageToPeer(BlockHeaders(Seq(secondHeader)), peer1.id)
+    peersInfoHolder ! EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader)), peer1.id)
+    peersInfoHolder ! EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(secondHeader)), peer1.id)
 
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
     requestSender.expectMsg(PeerInfoResponse(Some(peer1Info.withMaxBlockNumber(peer1Info.maxBlockNumber + 4))))
+    peerManager.expectMsgAllOf(
+      PeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader)), peer1.id),
+      PeerManagerActor.SendMessage(BlockHeaders(Seq(secondHeader)), peer1.id)
+    )
   }
 
   it should "update max peer when sending new block hashes" in new TestSetup {
@@ -144,12 +152,16 @@ class PeersInfoHolderSpec extends FlatSpec with Matchers {
     val secondBlockHash: BlockHash = BlockHash(ByteString(Hex.decode("00" * 32)), peer1Info.maxBlockNumber + 5)
 
     //when
-    peersInfoHolder ! MessageToPeer(NewBlockHashes(Seq(firstBlockHash)), peer1.id)
-    peersInfoHolder ! MessageToPeer(NewBlockHashes(Seq(secondBlockHash)), peer1.id)
+    peersInfoHolder ! EtcPeerManagerActor.SendMessage(NewBlockHashes(Seq(firstBlockHash)), peer1.id)
+    peersInfoHolder ! EtcPeerManagerActor.SendMessage(NewBlockHashes(Seq(secondBlockHash)), peer1.id)
 
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
     requestSender.expectMsg(PeerInfoResponse(Some(peer1Info.withMaxBlockNumber(peer1Info.maxBlockNumber + 5))))
+    peerManager.expectMsgAllOf(
+      PeerManagerActor.SendMessage(NewBlockHashes(Seq(firstBlockHash)), peer1.id),
+      PeerManagerActor.SendMessage(NewBlockHashes(Seq(secondBlockHash)), peer1.id)
+    )
   }
 
   it should "update the peer total difficulty when receiving a NewBlock" in new TestSetup {
@@ -266,10 +278,11 @@ class PeersInfoHolderSpec extends FlatSpec with Matchers {
     val peer3Probe = TestProbe()
     val peer3 = Peer(new InetSocketAddress("127.0.0.1", 3), peer3Probe.ref)
 
+    val peerManager = TestProbe()
     val peerEventBus = TestProbe()
 
-    val peersInfoHolder = TestActorRef(Props(new PeersInfoHolderActor(
-      peerEventBus.ref, storagesInstance.storages.appStateStorage, Some(forkResolver))))
+    val peersInfoHolder = TestActorRef(Props(new EtcPeerManagerActor(
+      peerManager.ref, peerEventBus.ref, storagesInstance.storages.appStateStorage, Some(forkResolver))))
 
     val requestSender = TestProbe()
 
@@ -283,10 +296,7 @@ class PeersInfoHolderSpec extends FlatSpec with Matchers {
 
       peerEventBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
 
-      peerEventBus.expectMsg(Subscribe(MessageReceivedClassifier(
-        Set(BlockHeaders.code, NewBlock.code, NewBlockHashes.code), PeerSelector.WithId(peer.id))))
-
-      peerEventBus.expectMsg(Subscribe(MessageSentClassifier(
+      peerEventBus.expectMsg(Subscribe(MessageClassifier(
         Set(BlockHeaders.code, NewBlock.code, NewBlockHashes.code), PeerSelector.WithId(peer.id))))
 
       //Peer should receive request for highest block

@@ -1,10 +1,13 @@
 package io.iohk.ethereum.blockchain.sync
 
-import io.iohk.ethereum.network.{Peer, PeerActor}
-import io.iohk.ethereum.network.PeersInfoHolderActor.PeerInfo
+import akka.actor.ActorRef
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 
 trait BlockBroadcast {
+
+  val etcPeerManager: ActorRef
 
   /**
     * Broadcasts various NewBlock's messages to handshaked peers, considering that a block should not be sent to a peer
@@ -21,7 +24,7 @@ trait BlockBroadcast {
       newBlock <- newBlocks
       if shouldSendNewBlock(newBlock, peerInfo)
     } yield (peer, newBlock)
-    blocksForEachPeer.foreach{ case (peer, newBlock) => peer.ref ! PeerActor.SendMessage(newBlock) }
+    blocksForEachPeer.foreach{ case (peer, newBlock) => etcPeerManager ! EtcPeerManagerActor.SendMessage(newBlock, peer.id) }
   }
 
   private def shouldSendNewBlock(newBlock: NewBlock, peerInfo: PeerInfo): Boolean =

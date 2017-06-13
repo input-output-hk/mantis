@@ -8,9 +8,9 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.network.PeersInfoHolderActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.{Peer, PeersInfoHolderActor}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.validators.Validators
 
@@ -24,7 +24,7 @@ class SyncController(
     val peerEventBus: ActorRef,
     val pendingTransactionsManager: ActorRef,
     val ommersPool: ActorRef,
-    val peersInfoHolder: ActorRef,
+    val etcPeerManager: ActorRef,
     val externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor
     with ActorLogging
@@ -43,7 +43,7 @@ class SyncController(
 
   var handshakedPeers: Map[Peer, PeerInfo] = Map.empty
 
-  scheduler.schedule(0.seconds, peersScanInterval, peersInfoHolder, PeersInfoHolderActor.GetHandshakedPeers)
+  scheduler.schedule(0.seconds, peersScanInterval, etcPeerManager, EtcPeerManagerActor.GetHandshakedPeers)
 
   override implicit def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
@@ -71,7 +71,7 @@ class SyncController(
   }
 
   def handlePeerUpdates: Receive = {
-    case PeersInfoHolderActor.HandshakedPeers(peers) =>
+    case EtcPeerManagerActor.HandshakedPeers(peers) =>
       peers.foreach {
         case (peer, _) if !handshakedPeers.contains(peer) =>
           context watch peer.ref

@@ -6,8 +6,8 @@ import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
 import io.iohk.ethereum.blockchain.sync.SyncController._
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError
-import io.iohk.ethereum.network.{Peer, PeerActor}
-import io.iohk.ethereum.network.PeersInfoHolderActor.PeerInfo
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor}
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -87,7 +87,7 @@ trait RegularSync extends BlockBroadcast {
         val newTd = parentTd + block.header.difficulty
         blockchain.save(block.header.hash, newTd)
 
-        handshakedPeers.keys.foreach(peer => peer.ref ! PeerActor.SendMessage(NewBlock(block, newTd)))
+        handshakedPeers.keys.foreach(peer => etcPeerManager ! EtcPeerManagerActor.SendMessage(NewBlock(block, newTd), peer.id))
         ommersPool ! new RemoveOmmers((block.header +: block.body.uncleNodesList).toList)
         pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
 
@@ -102,7 +102,8 @@ trait RegularSync extends BlockBroadcast {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
         val request = GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
-        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerEventBus, request, resolveBranches = false)))
+        waitingForActor = Some(context.actorOf(
+          SyncBlockHeadersRequestHandler.props(peer, etcPeerManager, peerEventBus, request, resolveBranches = false)))
       case None =>
         log.warning("no peers to download from")
         scheduleResume()
@@ -144,7 +145,7 @@ trait RegularSync extends BlockBroadcast {
             val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
             pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toList)
             val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-            waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerEventBus, hashes)))
+            waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, etcPeerManager, peerEventBus, hashes)))
             //add first block from branch as ommer
             oldBranch.headOption.foreach { h => ommersPool ! AddOmmers(h.header) }
           } else {
@@ -154,7 +155,8 @@ trait RegularSync extends BlockBroadcast {
           }
         } else {
           val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
-          waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, peerEventBus, request, resolveBranches = true)))
+          waitingForActor = Some(context.actorOf(
+            SyncBlockHeadersRequestHandler.props(peer, etcPeerManager, peerEventBus, request, resolveBranches = true)))
         }
       case _ =>
         log.warning("got header that does not have parent")
@@ -192,7 +194,7 @@ trait RegularSync extends BlockBroadcast {
               headersQueue = headersQueue.drop(blocks.length)
               if (headersQueue.nonEmpty) {
                 val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerEventBus, hashes)))
+                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, etcPeerManager, peerEventBus, hashes)))
               } else {
                 context.self ! ResumeRegularSync
               }

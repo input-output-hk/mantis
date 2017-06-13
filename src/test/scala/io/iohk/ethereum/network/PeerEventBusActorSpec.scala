@@ -5,10 +5,10 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, MessageToPeer, PeerDisconnected, PeerHandshakeSuccessful}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
-import io.iohk.ethereum.network.PeersInfoHolderActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Ping, Pong}
@@ -20,8 +20,8 @@ class PeerEventBusActorSpec extends FlatSpec with Matchers {
 
     val probe1 = TestProbe()(system)
     val probe2 = TestProbe()(system)
-    val classifier1 = MessageReceivedClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))
-    val classifier2 = MessageReceivedClassifier(Set(Ping.code), PeerSelector.AllPeers)
+    val classifier1 = MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))
+    val classifier2 = MessageClassifier(Set(Ping.code), PeerSelector.AllPeers)
     peerMessageBusActor.tell(PeerEventBusActor.Subscribe(classifier1), probe1.ref)
     peerMessageBusActor.tell(PeerEventBusActor.Subscribe(classifier2), probe2.ref)
 
@@ -39,33 +39,10 @@ class PeerEventBusActorSpec extends FlatSpec with Matchers {
     probe2.expectMsg(msgFromPeer2)
   }
 
-  it should "relay messages sent to subscribers" in new TestSetup {
-
-    val probe1 = TestProbe()(system)
-    val probe2 = TestProbe()(system)
-    val classifier1 = MessageSentClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))
-    val classifier2 = MessageSentClassifier(Set(Ping.code), PeerSelector.AllPeers)
-    peerMessageBusActor.tell(PeerEventBusActor.Subscribe(classifier1), probe1.ref)
-    peerMessageBusActor.tell(PeerEventBusActor.Subscribe(classifier2), probe2.ref)
-
-    val msgToPeer = MessageToPeer(Ping(), PeerId("1"))
-    peerMessageBusActor ! PeerEventBusActor.Publish(msgToPeer)
-
-    probe1.expectMsg(msgToPeer)
-    probe2.expectMsg(msgToPeer)
-
-    peerMessageBusActor.tell(PeerEventBusActor.Unsubscribe(classifier1), probe1.ref)
-
-    val msgFromPeer2 = MessageToPeer(Ping(), PeerId("99"))
-    peerMessageBusActor ! PeerEventBusActor.Publish(msgFromPeer2)
-    probe1.expectNoMsg()
-    probe2.expectMsg(msgFromPeer2)
-  }
-
   it should "only relay matching message codes" in new TestSetup {
 
     val probe1 = TestProbe()
-    val classifier1 = MessageReceivedClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))
+    val classifier1 = MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))
     peerMessageBusActor.tell(PeerEventBusActor.Subscribe(classifier1), probe1.ref)
 
     val msgFromPeer = MessageFromPeer(Ping(), PeerId("1"))

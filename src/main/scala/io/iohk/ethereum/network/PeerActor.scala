@@ -10,7 +10,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.PeerActor.Status._
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, MessageToPeer, PeerDisconnected, PeerHandshakeSuccessful}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.utils.NodeStatus
 import io.iohk.ethereum.network.handshaker.Handshaker
@@ -212,7 +212,6 @@ class PeerActor[R <: HandshakeResult](
 
         case SendMessage(message) =>
           rlpxConnection.sendMessage(message)
-          peerEventBus ! Publish(MessageToPeer(message.underlyingMsg, peerId))
 
         case GetStatus =>
           sender() ! StatusResponse(Handshaked)

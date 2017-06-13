@@ -7,7 +7,7 @@ import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockPreparationError, Ledger}
-import io.iohk.ethereum.network.PeersInfoHolderActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.validators.BlockValidator.BlockTransactionsHashError

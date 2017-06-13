@@ -4,10 +4,10 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageReceivedClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
-import io.iohk.ethereum.network.{Peer, PeerActor, PeerId, PeerManagerActor}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.utils.MiningConfig
 
@@ -15,8 +15,8 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object PendingTransactionsManager {
-  def props(miningConfig: MiningConfig, peerManager: ActorRef, peerMessageBus: ActorRef): Props =
-    Props(new PendingTransactionsManager(miningConfig, peerManager, peerMessageBus))
+  def props(miningConfig: MiningConfig, peerManager: ActorRef, etcPeerManager: ActorRef, peerMessageBus: ActorRef): Props =
+    Props(new PendingTransactionsManager(miningConfig, peerManager, etcPeerManager, peerMessageBus))
 
   case class AddTransactions(signedTransactions: List[SignedTransaction])
 
@@ -32,7 +32,8 @@ object PendingTransactionsManager {
   case class RemoveTransactions(signedTransactions: Seq[SignedTransaction])
 }
 
-class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorRef, peerMessageBus: ActorRef) extends Actor {
+class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorRef,
+                                 etcPeerManager: ActorRef, peerMessageBus: ActorRef) extends Actor {
 
   import PendingTransactionsManager._
   import akka.pattern.ask
@@ -49,7 +50,7 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
 
   implicit val timeout = Timeout(3.seconds)
 
-  peerMessageBus ! Subscribe(MessageReceivedClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
+  peerMessageBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
   override def receive: Receive = {
     case AddTransactions(signedTransactions) =>
@@ -69,7 +70,7 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
         .filterNot(isTxKnown(_, peer.id)) // and not known by peer
 
         if (txsToNotify.nonEmpty) {
-          peer.ref ! PeerActor.SendMessage(SignedTransactions(txsToNotify))
+          etcPeerManager ! EtcPeerManagerActor.SendMessage(SignedTransactions(txsToNotify), peer.id)
           txsToNotify.foreach(setTxKnown(_, peer.id))
         }
 
