@@ -208,7 +208,7 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
           decoded.flatMap { case (msg, sig) =>
             val r = sig.take(ECDSASignature.RLength)
             val s = sig.drop(ECDSASignature.RLength).take(ECDSASignature.SLength)
-            val v = sig.takeRight(1)
+            val v = sig.takeRight(ECDSASignature.VLength)
 
             if (v.contains(ECDSASignature.positivePointSign) || v.contains(ECDSASignature.negativePointSign)) {
               Right(EcRecoverRequest(msg, ECDSASignature(r, s, v)))

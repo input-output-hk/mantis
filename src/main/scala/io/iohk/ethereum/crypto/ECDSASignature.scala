@@ -12,7 +12,8 @@ object ECDSASignature {
 
   val SLength = 32
   val RLength = 32
-  val EncodedLength: Int = RLength + SLength + 1
+  val VLength = 1
+  val EncodedLength: Int = RLength + SLength + VLength
   //byte value that indicates that bytes representing ECC point are in uncompressed format, and should be decoded properly
   val uncompressedIndicator:Byte = 0x04
 
