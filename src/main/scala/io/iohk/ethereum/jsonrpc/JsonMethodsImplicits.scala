@@ -202,7 +202,7 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
 
           val decoded = for {
             msg <- extractBytes(message)
-            sig <- extractBytes(signature)
+            sig <- extractBytes(signature, ECDSASignature.EncodedLength)
           } yield (msg, sig)
 
           decoded.flatMap { case (msg, sig) =>
