@@ -293,11 +293,15 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       } yield CallTx(
         from = from,
         to = to,
-        gas = gas.getOrElse(0),
+        gas = gas,
         gasPrice = gasPrice.getOrElse(0),
         value = value.getOrElse(0),
         data = data.getOrElse(ByteString("")))
     }
+  }
+
+  implicit val eth_estimateGas = new JsonEncoder[EstimateGasResponse] {
+    override def encodeJson(t: EstimateGasResponse): JValue = encodeAsHex(t.gas)
   }
 
   implicit val eth_getCode = new JsonDecoder[GetCodeRequest] with JsonEncoder[GetCodeResponse] {
