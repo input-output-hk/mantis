@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
-import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTransactionResponse}
+import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTransactionResponse, SignRequest}
 import org.json4s.{Extraction, JsonAST}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue, _}
 import org.json4s.JsonDSL._
@@ -385,6 +385,19 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       }
 
     def encodeJson(t: GetTransactionCountResponse): JValue = encodeAsHex(t.value)
+  }
+
+  implicit val eth_sign = new JsonDecoder[SignRequest] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, SignRequest] =
+      params match {
+        case Some(JArray(JString(message) :: JString(addr) :: _)) =>
+          for {
+            message <- extractBytes(message)
+            address <- extractAddress(addr)
+          } yield SignRequest(message, address, None)
+        case _ =>
+          Left(InvalidParams())
+      }
   }
 
 }

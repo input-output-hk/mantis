@@ -14,6 +14,7 @@ import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Formats}
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 
 import scala.util.Try
 
@@ -192,6 +193,24 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
 
     def encodeJson(t: SendTransactionWithPassphraseResponse): JValue =
       encodeAsHex(t.txHash)
+  }
+
+  implicit val personal_sign = new Codec[SignRequest, SignResponse] {
+    override def encodeJson(t: SignResponse): JValue = {
+      import t.signature._
+      encodeAsHex(ByteString(r.toUnsignedByteArray ++ s.toUnsignedByteArray :+ v))
+    }
+
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, SignRequest] =
+      params match {
+        case Some(JArray(JString(message) :: JString(addr) :: JString(passphase) :: _)) =>
+          for {
+            message <- extractBytes(message)
+            address <- extractAddress(addr)
+          } yield SignRequest(message, address, Some(passphase))
+        case _ =>
+          Left(InvalidParams())
+      }
   }
 
   implicit val personal_ecRecover = new Codec[EcRecoverRequest, EcRecoverResponse] {
