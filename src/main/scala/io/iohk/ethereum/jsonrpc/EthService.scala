@@ -1,8 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
-import java.util.Date
-import java.util.concurrent.atomic.AtomicReference
 import java.util.function.UnaryOperator
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
@@ -31,6 +29,7 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
+
 // scalastyle:off number.of.methods number.of.types
 object EthService {
 
