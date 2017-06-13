@@ -154,6 +154,17 @@ trait PendingTransactionsManagerBuilder {
   lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(miningConfig, peerManager, peerMessageBus))
 }
 
+trait FilterManagerBuilder {
+  self: ActorSystemBuilder
+    with BlockChainBuilder
+    with StorageBuilder
+    with KeyStoreBuilder
+    with PendingTransactionsManagerBuilder =>
+
+  lazy val filterManager: ActorRef =
+    actorSystem.actorOf(FilterManager.props(blockchain, storagesInstance.storages.appStateStorage, keyStore, pendingTransactionsManager))
+}
+
 trait BlockGeneratorBuilder {
   self: StorageBuilder with
     BlockchainConfigBuilder with
@@ -175,10 +186,11 @@ trait EthServiceBuilder {
     KeyStoreBuilder with
     SyncControllerBuilder with
     OmmersPoolBuilder with
-    MiningConfigBuilder =>
+    MiningConfigBuilder with
+    FilterManagerBuilder =>
 
   lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage, miningConfig,
-    ledger, blockchainConfig, keyStore, pendingTransactionsManager, syncController, ommersPool)
+    ledger, blockchainConfig, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager)
 }
 
 trait PersonalServiceBuilder {
@@ -314,3 +326,4 @@ trait Node extends NodeKeyBuilder
   with PendingTransactionsManagerBuilder
   with OmmersPoolBuilder
   with MiningConfigBuilder
+  with FilterManagerBuilder

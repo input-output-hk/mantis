@@ -1,8 +1,9 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.TxLogEntry
+import io.iohk.ethereum.domain.{Address, TxLogEntry}
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.utils.ByteUtils.or
 
 object BloomFilter {
@@ -11,6 +12,15 @@ object BloomFilter {
   private val BloomFilterBitSize: Int = BloomFilterByteSize * 8
   val EmptyBloomFilter: ByteString = ByteString(Array.fill(BloomFilterByteSize)(0.toByte))
   private val IntIndexesToAccess: Set[Int] = Set(0, 2, 4)
+
+  def containsAnyOf(bloomFilterBytes: ByteString, toCheck: Seq[ByteString]): Boolean = {
+    toCheck.exists { bytes =>
+      val bloomFilterForBytes = bloomFilter(bytes.toArray[Byte])
+
+      val andResult = ByteUtils.and(bloomFilterForBytes, bloomFilterBytes.toArray[Byte])
+      andResult sameElements bloomFilterForBytes
+    }
+  }
 
   /**
     * Given the logs of a receipt creates the bloom filter associated with them
@@ -52,5 +62,4 @@ object BloomFilter {
     val newByte: Byte = (bytes(byteIndex) | 1 << (bitIndex % 8).toByte).toByte
     bytes.updated(byteIndex, newByte)
   }
-
 }

@@ -453,6 +453,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val syncingController = TestProbe()
     val pendingTransactionsManager = TestProbe()
     val ommersPool = TestProbe()
+    val filterManager = TestProbe()
 
     val miningConfig = new MiningConfig {
       override val coinbase: Address = Address(42)
@@ -463,7 +464,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     }
 
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
-      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref)
+      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestHash = blockToRequest.header.hash

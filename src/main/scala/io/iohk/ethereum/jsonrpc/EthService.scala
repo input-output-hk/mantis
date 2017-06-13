@@ -11,10 +11,10 @@ import io.iohk.ethereum.domain._
 import akka.actor.ActorRef
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
 import io.iohk.ethereum.db.storage.AppStateStorage
-
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
@@ -29,6 +29,7 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
+
 // scalastyle:off number.of.methods number.of.types
 object EthService {
 
@@ -112,6 +113,27 @@ object EthService {
 
   case class GetTransactionCountRequest(address: Address, block: BlockParam)
   case class GetTransactionCountResponse(value: BigInt)
+
+  case class NewFilterRequest(filter: Filter)
+  case class Filter(
+      fromBlock: Option[BlockParam],
+      toBlock: Option[BlockParam],
+      address: Option[Address],
+      topics: Seq[Seq[ByteString]])
+
+  case class NewBlockFilterRequest()
+  case class NewPendingTransactionFilterRequest()
+
+  case class NewFilterResponse(filterId: BigInt)
+
+  case class UninstallFilterRequest(filterId: BigInt)
+  case class UninstallFilterResponse(success: Boolean)
+
+  case class GetFilterChangesRequest(filterId: BigInt)
+  case class GetFilterChangesResponse(filterChanges: FilterChanges)
+
+  case class GetFilterLogsRequest(filterId: BigInt)
+  case class GetFilterLogsResponse(filterLogs: FilterLogs)
 }
 
 class EthService(
@@ -124,7 +146,8 @@ class EthService(
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
     syncingController: ActorRef,
-    ommersPool: ActorRef) extends Logger {
+    ommersPool: ActorRef,
+    filterManager: ActorRef) extends Logger {
 
   import EthService._
 
@@ -327,7 +350,7 @@ class EthService(
     val stx = SignedTransaction(tx, ECDSASignature(0, 0, 0.toByte), fromAddress)
 
     Future {
-      resolveBlock(req.block).map { block =>
+      resolveBlock(req.block, blockchain, appStateStorage).map { block =>
         val txResult = ledger.simulateTransaction(stx, block.header, blockchainStorages)
         CallResponse(txResult.vmReturnData)
       }
@@ -336,7 +359,7 @@ class EthService(
 
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Future {
-      resolveBlock(req.block).map { block =>
+      resolveBlock(req.block, blockchain, appStateStorage).map { block =>
         val world = InMemoryWorldStateProxy(blockchainStorages, Some(block.header.stateRoot))
         GetCodeResponse(world.getCode(req.address))
       }
@@ -345,7 +368,7 @@ class EthService(
 
   def getUncleCountByBlockNumber(req: GetUncleCountByBlockNumberRequest): ServiceResponse[GetUncleCountByBlockNumberResponse] = {
     Future {
-      resolveBlock(req.block).map { block =>
+      resolveBlock(req.block, blockchain, appStateStorage).map { block =>
         GetUncleCountByBlockNumberResponse(block.body.uncleNodesList.size)
       }
     }
@@ -364,7 +387,7 @@ class EthService(
 
   def getBlockTransactionCountByNumber(req: GetBlockTransactionCountByNumberRequest): ServiceResponse[GetBlockTransactionCountByNumberResponse] = {
     Future {
-      resolveBlock(req.block).map { block =>
+      resolveBlock(req.block, blockchain, appStateStorage).map { block =>
         GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
       }
     }
@@ -394,24 +417,58 @@ class EthService(
     }
   }
 
-  private def withAccount[T](address: Address, blockParam: BlockParam)(f: Account => T): Either[JsonRpcError, T] = {
-    resolveBlock(blockParam).map { block =>
-      f(blockchain.getAccount(address, block.header.number).getOrElse(Account.Empty))
+  def newFilter(req: NewFilterRequest): ServiceResponse[NewFilterResponse] = {
+    implicit val timeout = Timeout(3.seconds)
+
+    import req.filter._
+    (filterManager ? FilterManager.NewLogFilter(fromBlock, toBlock, address, topics)).mapTo[FilterManager.NewFilterResponse].map { resp =>
+      Right(NewFilterResponse(resp.id))
     }
   }
 
-  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, Block] = {
-    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
-      blockchain.getBlockByNumber(number)
-        .map(Right.apply)
-        .getOrElse(Left(JsonRpcErrors.InvalidParams(s"Block $number not found")))
-    }
+  def newBlockFilter(req: NewBlockFilterRequest): ServiceResponse[NewFilterResponse] = {
+    implicit val timeout = Timeout(3.seconds)
 
-    blockParam match {
-      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber)
-      case BlockParam.Earliest => getBlock(0)
-      case BlockParam.Latest => getBlock(appStateStorage.getBestBlockNumber())
-      case BlockParam.Pending => getBlock(appStateStorage.getBestBlockNumber())
+    (filterManager ? FilterManager.NewBlockFilter()).mapTo[FilterManager.NewFilterResponse].map { resp =>
+      Right(NewFilterResponse(resp.id))
+    }
+  }
+
+  def newPendingTransactionFilter(req: NewPendingTransactionFilterRequest): ServiceResponse[NewFilterResponse] = {
+    implicit val timeout = Timeout(3.seconds)
+
+    (filterManager ? FilterManager.NewPendingTransactionFilter()).mapTo[FilterManager.NewFilterResponse].map { resp =>
+      Right(NewFilterResponse(resp.id))
+    }
+  }
+
+  def uninstallFilter(req: UninstallFilterRequest): ServiceResponse[UninstallFilterResponse] = {
+    implicit val timeout = Timeout(3.seconds)
+
+    (filterManager ? FilterManager.UninstallFilter(req.filterId)).mapTo[FilterManager.UninstallFilterResponse].map { _ =>
+      Right(UninstallFilterResponse(success = true))
+    }
+  }
+
+  def getFilterChanges(req: GetFilterChangesRequest): ServiceResponse[GetFilterChangesResponse] = {
+    implicit val timeout = Timeout(3.seconds)
+
+    (filterManager ? FilterManager.GetFilterChanges(req.filterId)).mapTo[FilterManager.FilterChanges].map { filterChanges =>
+      Right(GetFilterChangesResponse(filterChanges))
+    }
+  }
+
+  def getFilterLogs(req: GetFilterLogsRequest): ServiceResponse[GetFilterLogsResponse] = {
+    implicit val timeout = Timeout(3.seconds)
+
+    (filterManager ? FilterManager.GetFilterLogs(req.filterId)).mapTo[FilterManager.FilterLogs].map { filterLogs =>
+      Right(GetFilterLogsResponse(filterLogs))
+    }
+  }
+
+  private def withAccount[T](address: Address, blockParam: BlockParam)(f: Account => T): Either[JsonRpcError, T] = {
+    resolveBlock(blockParam, blockchain, appStateStorage).map { block =>
+      f(blockchain.getAccount(address, block.header.number).getOrElse(Account.Empty))
     }
   }
 
