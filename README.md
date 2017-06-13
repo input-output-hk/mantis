@@ -8,9 +8,9 @@
 
 ## A Scala based client for Ethereum Classic 
 
-### Milestone 1 - blockSync
+### Milestone 3 - transaction execution
 
-**This version of the code only supports downloading the blockchain from remote peers.**
+**This version of the code supports downloading the blockchain from remote peers and executing the transactions in the blocks. When all transactions up to and including the latest have been executed the client will continue to stay synchronized.**
 
 For the curious ...
 
@@ -40,7 +40,7 @@ settings can all be overriden in
 
 The client has not been run on Windows.
  
-The [next milestone](https://iohk.io/projects/ethereum-classic/#roadmap) involves executing the transactions with our new Ethereum Virtual Machine!
+The [next milestone](https://iohk.io/projects/ethereum-classic/#roadmap) involves integrating our client with Mist browser!
   
   
 
