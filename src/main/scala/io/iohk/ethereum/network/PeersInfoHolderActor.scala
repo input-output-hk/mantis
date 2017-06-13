@@ -13,15 +13,27 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, NewBlockHashes}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 
+/**
+  * PeersInfoHolder actor is in charge of keeping updated information about each peer, while also being able to
+  * query it for this information.
+  * In order to do so it receives events for peer creation, disconnection and new messages being sent and
+  * received by each peer.
+  */
 class PeersInfoHolderActor(peerEventBusActor: ActorRef, appStateStorage: AppStateStorage,
                            forkResolverOpt: Option[ForkResolver]) extends Actor with ActorLogging {
 
   private type PeersWithInfo = Map[PeerId, PeerWithInfo]
 
+  //Subscribe to the event of any peer getting handshaked
   peerEventBusActor ! Subscribe(PeerHandshaked)
 
   override def receive: Receive = handlePeersInfoEvents(Map.empty)
 
+  /**
+    * Processes both messages for updating the information about each peer and for requesting this information
+    *
+    * @param peersWithInfo, which has the peer and peer information for each handshaked peer (identified by it's id)
+    */
   def handlePeersInfoEvents(peersWithInfo: PeersWithInfo): Receive = {
 
     case MessageToPeer(message, peerId) if peersWithInfo.contains(peerId) =>

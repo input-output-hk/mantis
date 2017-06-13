@@ -12,6 +12,10 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, Ge
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.PeerManagerActor
 
+/**
+  * BlockchainHost actor is in charge of replying to the peer's requests for blockchain data, which includes both
+  * node and block data.
+  */
 class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfiguration,
                           peerEventBusActor: ActorRef, peerManagerActor: ActorRef) extends Actor with ActorLogging {
 
@@ -20,25 +24,42 @@ class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfigu
 
   override def receive: Receive = {
     case MessageFromPeer(message, peerId) =>
-      val responseOpt = handleBlockFastDownload(message) orElse handleEvmMptFastDownload(message)
+      val responseOpt = handleBlockFastDownload(message) orElse handleEvmCodeMptFastDownload(message)
       responseOpt.foreach{ response =>
         peerManagerActor ! PeerManagerActor.SendMessage(response, peerId)
       }
   }
 
-  private def handleEvmMptFastDownload(message: Message): Option[MessageSerializable] = message match {
-    case request: GetNodeData =>
+  /**
+    * Handles requests for node data, which includes both mpt nodes and evm code (both requested by hash).
+    * Both types of node data are requested by the same GetNodeData message
+    *
+    * @param message to be processed
+    * @return message response if message is a request for node data or None if not
+    */
+  private def handleEvmCodeMptFastDownload(message: Message): Option[MessageSerializable] = message match {
+    case GetNodeData(mptElementsHashes) =>
+      val hashesRequested = mptElementsHashes.take(peerConfiguration.fastSyncHostConfiguration.maxMptComponentsPerMessage)
 
-      val result: Seq[ByteString] = request.mptElementsHashes.take(peerConfiguration.fastSyncHostConfiguration.maxMptComponentsPerMessage).flatMap { hash =>
-        blockchain.getMptNodeByHash(hash).map(_.toBytes: ByteString)
-          .orElse(blockchain.getEvmCodeByHash(hash).map((evm: ByteString) => evm))
+      val nodeData: Seq[ByteString] = hashesRequested.flatMap { hash =>
+        //Fetch mpt node by hash
+        val maybeMptNodeData = blockchain.getMptNodeByHash(hash).map(_.toBytes: ByteString)
+
+        //If no mpt node was found, fetch evm by hash
+        maybeMptNodeData.orElse(blockchain.getEvmCodeByHash(hash))
       }
 
-      Some(NodeData(result))
+      Some(NodeData(nodeData))
 
     case _ => None
   }
 
+  /**
+    * Handles request for block data, which includes receipts, block bodies and headers (all requested by hash)
+    *
+    * @param message to be processed
+    * @return message response if message is a request for block data or None if not
+    */
   private def handleBlockFastDownload(message: Message): Option[MessageSerializable] = message match {
     case request: GetReceipts =>
       val receipts = request.blockHashes.take(peerConfiguration.fastSyncHostConfiguration.maxReceiptsPerMessage)
@@ -58,11 +79,7 @@ class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfigu
       blockNumber match {
         case Some(startBlockNumber) if startBlockNumber >= 0 && request.maxHeaders >= 0 && request.skip >= 0 =>
 
-          val headersCount: BigInt =
-            if (peerConfiguration.fastSyncHostConfiguration.maxBlocksHeadersPerMessage < request.maxHeaders)
-              peerConfiguration.fastSyncHostConfiguration.maxBlocksHeadersPerMessage
-            else
-              request.maxHeaders
+          val headersCount: BigInt = request.maxHeaders min peerConfiguration.fastSyncHostConfiguration.maxBlocksHeadersPerMessage
 
           val range = if (request.reverse) {
             startBlockNumber to (startBlockNumber - (request.skip + 1) * headersCount + 1) by -(request.skip + 1)
