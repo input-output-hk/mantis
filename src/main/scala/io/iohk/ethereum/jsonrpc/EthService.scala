@@ -4,6 +4,8 @@ import java.time.Duration
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.UnaryOperator
+import java.util.Date
+import java.util.concurrent.atomic.AtomicReference
 
 import akka.pattern.ask
 import akka.util.Timeout
@@ -29,7 +31,6 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
-
 // scalastyle:off number.of.methods number.of.types
 object EthService {
 
@@ -47,17 +48,32 @@ object EthService {
   case class BlockByBlockHashRequest(blockHash: ByteString, fullTxs: Boolean)
   case class BlockByBlockHashResponse(blockResponse: Option[BlockResponse])
 
+  case class BlockByNumberRequest(block: BlockParam, fullTxs: Boolean)
+  case class BlockByNumberResponse(blockResponse: Option[BlockResponse])
+
   case class GetTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
   case class GetTransactionByBlockHashAndIndexResponse(transactionResponse: Option[TransactionResponse])
 
   case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
   case class UncleByBlockHashAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
 
+  case class UncleByBlockNumberAndIndexRequest(block: BlockParam, uncleIndex: BigInt)
+  case class UncleByBlockNumberAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
+
   case class SubmitHashRateRequest(hashRate: BigInt, id: ByteString)
   case class SubmitHashRateResponse(success: Boolean)
 
+  case class GetMiningRequest()
+  case class GetMiningResponse(isMining: Boolean)
+
+  case class GetTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
+  case class GetTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[TransactionResponse])
+
   case class GetHashRateRequest()
   case class GetHashRateResponse(hashRate: BigInt)
+
+  case class GetGasPriceRequest()
+  case class GetGasPriceResponse(price: BigInt)
 
   case class GetWorkRequest()
   case class GetWorkResponse(powHeaderHash: ByteString, dagSeed: ByteString, target: ByteString)
@@ -83,12 +99,13 @@ object EthService {
   case class CallTx(
     from: Option[ByteString],
     to: Option[ByteString],
-    gas: BigInt,
+    gas: Option[BigInt],
     gasPrice: BigInt,
     value: BigInt,
     data: ByteString)
   case class CallRequest(tx: CallTx, block: BlockParam)
   case class CallResponse(returnData: ByteString)
+  case class EstimateGasResponse(gas: BigInt)
 
   case class GetCodeRequest(address: Address, block: BlockParam)
   case class GetCodeResponse(result: ByteString)
@@ -113,6 +130,8 @@ object EthService {
 
   case class GetTransactionCountRequest(address: Address, block: BlockParam)
   case class GetTransactionCountResponse(value: BigInt)
+
+  case class ResolvedBlock(block: Block, pending: Boolean)
 
   case class NewFilterRequest(filter: Filter)
   case class Filter(
@@ -147,13 +166,16 @@ class EthService(
     pendingTransactionsManager: ActorRef,
     syncingController: ActorRef,
     ommersPool: ActorRef,
-    filterManager: ActorRef) extends Logger {
+    filterManager: ActorRef)
+  extends Logger {
 
   import EthService._
 
   lazy val blockchain = BlockchainImpl(blockchainStorages)
 
+  val minerTimeOut: Long = 5.seconds.toMillis
   val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] = new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
+  val lastActive = new AtomicReference[Option[Date]](None)
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
     Future.successful(Right(ProtocolVersionResponse(f"0x$CurrentProtocolVersion%x")))
@@ -189,8 +211,23 @@ class EthService(
     val blockOpt = blockchain.getBlockByHash(blockHash)
     val totalDifficulty = blockchain.getTotalDifficultyByHash(blockHash)
 
-    val blockResponseOpt = blockOpt.map(block => BlockResponse(block, fullTxs, totalDifficulty))
+    val blockResponseOpt = blockOpt.map(block => BlockResponse(block, totalDifficulty, fullTxs = fullTxs))
     Right(BlockByBlockHashResponse(blockResponseOpt))
+  }
+
+  /**
+    * Implements the eth_getBlockByNumber method that fetches a requested block.
+    *
+    * @param request with the block requested (by it's number or by tag)
+    * @return the block requested or None if the client doesn't have the block
+    */
+  def getBlockByNumber(request: BlockByNumberRequest): ServiceResponse[BlockByNumberResponse] = Future {
+    val BlockByNumberRequest(blockParam, fullTxs) = request
+    val blockResponseOpt = resolveBlock(blockParam).toOption.map { case ResolvedBlock(block, pending) =>
+      val totalDifficulty = blockchain.getTotalDifficultyByHash(block.header.hash)
+      BlockResponse(block, totalDifficulty, fullTxs = fullTxs, pendingBlock = pending)
+    }
+    Right(BlockByNumberResponse(blockResponseOpt))
   }
 
   /**
@@ -230,11 +267,36 @@ class EthService(
     val totalDifficulty = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getTotalDifficultyByHash(uncleHeader.hash))
 
     //The block in the response will not have any txs or uncles
-    val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader => BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty) }
+    val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader =>
+      BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = false) }
     Right(UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt))
   }
 
+  /**
+    * Implements the eth_getUncleByBlockNumberAndIndex method that fetches an uncle from a certain index in a requested block.
+    *
+    * @param request with the number/tag of the block and the index of the uncle requested
+    * @return the uncle that the block has at the given index or None if the client doesn't have the block or if there's no uncle in that index
+    */
+  def getUncleByBlockNumberAndIndex(request: UncleByBlockNumberAndIndexRequest): ServiceResponse[UncleByBlockNumberAndIndexResponse] = Future {
+    val UncleByBlockNumberAndIndexRequest(blockParam, uncleIndex) = request
+    val uncleBlockResponseOpt = resolveBlock(blockParam).toOption
+      .flatMap { case ResolvedBlock(block, pending) =>
+        if (uncleIndex >= 0 && uncleIndex < block.body.uncleNodesList.size) {
+          val uncleHeader = block.body.uncleNodesList.apply(uncleIndex.toInt)
+          val totalDifficulty = blockchain.getTotalDifficultyByHash(uncleHeader.hash)
+
+          //The block in the response will not have any txs or uncles
+          Some(BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = pending))
+        } else
+          None
+      }
+
+    Right(UncleByBlockNumberAndIndexResponse(uncleBlockResponseOpt))
+  }
+
   def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] = {
+    reportActive()
     hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
       override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
         val now = new Date
@@ -243,6 +305,42 @@ class EthService(
     })
 
     Future.successful(Right(SubmitHashRateResponse(true)))
+  }
+
+  def getGetGasPrice(req: GetGasPriceRequest): ServiceResponse[GetGasPriceResponse] = {
+    val blockDifference = 30
+    val bestBlock = appStateStorage.getBestBlockNumber()
+
+    Future{
+      val gasPrice = ((bestBlock - blockDifference) to bestBlock)
+        .flatMap(blockchain.getBlockByNumber)
+        .flatMap(_.body.transactionList)
+        .map(_.tx.gasPrice)
+      if (gasPrice.nonEmpty) {
+        val avgGasPrice = gasPrice.sum / gasPrice.length
+        Right(GetGasPriceResponse(avgGasPrice))
+      } else {
+        Right(GetGasPriceResponse(0))
+      }
+    }
+  }
+
+  def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] = {
+    val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
+      override def apply(e: Option[Date]): Option[Date] = {
+        e.filter { time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < minerTimeOut }
+      }
+    }).isDefined
+    Future.successful(Right(GetMiningResponse(isMining)))
+  }
+
+  private def reportActive() = {
+    val now = new Date()
+    lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
+      override def apply(e: Option[Date]): Option[Date] = {
+        Some(now)
+      }
+    })
   }
 
   def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] = {
@@ -257,18 +355,18 @@ class EthService(
   }
 
   private def removeObsoleteHashrates(now: Date, rates: Map[ByteString, (BigInt, Date)]):Map[ByteString, (BigInt, Date)]={
-    val rateUsefulnessTime = 5.seconds.toMillis
     rates.filter { case (_, (_, reported)) =>
-      Duration.between(reported.toInstant, now.toInstant).toMillis < rateUsefulnessTime
+      Duration.between(reported.toInstant, now.toInstant).toMillis < minerTimeOut
     }
   }
 
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] = {
+    reportActive()
     import io.iohk.ethereum.mining.pow.PowCache._
 
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
 
-    getOmmersFromPool.zip(getTransactionsFromPool).map {
+    getOmmersFromPool(blockNumber).zip(getTransactionsFromPool).map {
       case (ommers, pendingTxs) =>
         blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommers.headers, miningConfig.coinbase) match {
           case Right(b) =>
@@ -284,10 +382,10 @@ class EthService(
       }
   }
 
-  private def getOmmersFromPool = {
+  private def getOmmersFromPool(blockNumber: BigInt) = {
     implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
 
-    (ommersPool ? OmmersPool.GetOmmers).mapTo[OmmersPool.Ommers]
+    (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
       .recover { case ex =>
         log.error("failed to get ommer, mining block with empty ommers list", ex)
         OmmersPool.Ommers(Nil)
@@ -308,10 +406,10 @@ class EthService(
     Future.successful(Right(GetCoinbaseResponse(miningConfig.coinbase)))
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
+    reportActive()
     blockGenerator.getPrepared(req.powHeaderHash) match {
       case Some(block) if appStateStorage.getBestBlockNumber() <= block.header.number =>
         syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
-        pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
         Future.successful(Right(SubmitWorkResponse(true)))
       case _ =>
         Future.successful(Right(SubmitWorkResponse(false)))
@@ -338,28 +436,20 @@ class EthService(
   }
 
   def call(req: CallRequest): ServiceResponse[CallResponse] = {
-    val fromAddress = req.tx.from
-      .map(Address.apply) // `from` param, if specified
-      .getOrElse(
-        keyStore
-          .listAccounts().getOrElse(Nil).headOption // first account, if exists and `from` param not specified
-          .getOrElse(Address(0))) // 0x0 default
-
-    val toAddress = req.tx.to.map(Address.apply)
-    val tx = Transaction(0, req.tx.gasPrice, req.tx.gas, toAddress, req.tx.value, req.tx.data)
-    val stx = SignedTransaction(tx, ECDSASignature(0, 0, 0.toByte), fromAddress)
-
     Future {
-      resolveBlock(req.block, blockchain, appStateStorage).map { block =>
-        val txResult = ledger.simulateTransaction(stx, block.header, blockchainStorages)
-        CallResponse(txResult.vmReturnData)
-      }
+      doCall(req).map(r => CallResponse(r.vmReturnData))
+    }
+  }
+
+  def estimateGas(req: CallRequest): ServiceResponse[EstimateGasResponse] = {
+    Future {
+      doCall(req).map(r => EstimateGasResponse(r.gasUsed))
     }
   }
 
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Future {
-      resolveBlock(req.block, blockchain, appStateStorage).map { block =>
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         val world = InMemoryWorldStateProxy(blockchainStorages, Some(block.header.stateRoot))
         GetCodeResponse(world.getCode(req.address))
       }
@@ -368,7 +458,7 @@ class EthService(
 
   def getUncleCountByBlockNumber(req: GetUncleCountByBlockNumberRequest): ServiceResponse[GetUncleCountByBlockNumberResponse] = {
     Future {
-      resolveBlock(req.block, blockchain, appStateStorage).map { block =>
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         GetUncleCountByBlockNumberResponse(block.body.uncleNodesList.size)
       }
     }
@@ -387,10 +477,26 @@ class EthService(
 
   def getBlockTransactionCountByNumber(req: GetBlockTransactionCountByNumberRequest): ServiceResponse[GetBlockTransactionCountByNumberResponse] = {
     Future {
-      resolveBlock(req.block, blockchain, appStateStorage).map { block =>
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
       }
     }
+  }
+
+  def getTransactionByBlockNumberAndIndexRequest(req: GetTransactionByBlockNumberAndIndexRequest):
+  ServiceResponse[GetTransactionByBlockNumberAndIndexResponse] = Future {
+    import req._
+    resolveBlock(block).map{
+      blockWithTx =>
+        val blockTxs = blockWithTx.block.body.transactionList
+        if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
+          GetTransactionByBlockNumberAndIndexResponse(
+            Some(TransactionResponse(blockTxs(transactionIndex.toInt),
+              Some(blockWithTx.block.header),
+              Some(transactionIndex.toInt))))
+        else
+          GetTransactionByBlockNumberAndIndexResponse(None)
+    }.left.flatMap(_ => Right(GetTransactionByBlockNumberAndIndexResponse(None)))
   }
 
   def getBalance(req: GetBalanceRequest): ServiceResponse[GetBalanceResponse] = {
@@ -467,9 +573,51 @@ class EthService(
   }
 
   private def withAccount[T](address: Address, blockParam: BlockParam)(f: Account => T): Either[JsonRpcError, T] = {
-    resolveBlock(blockParam, blockchain, appStateStorage).map { block =>
+    resolveBlock(blockParam).map { case ResolvedBlock(block, _) =>
       f(blockchain.getAccount(address, block.header.number).getOrElse(Account.Empty))
     }
   }
 
+  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
+    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
+      blockchain.getBlockByNumber(number)
+        .map(Right.apply)
+        .getOrElse(Left(JsonRpcErrors.InvalidParams(s"Block $number not found")))
+    }
+
+    blockParam match {
+      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pending = false))
+      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pending = false))
+      case BlockParam.Latest => getBlock(appStateStorage.getBestBlockNumber()).map(ResolvedBlock(_, pending = false))
+      case BlockParam.Pending => getBlock(appStateStorage.getBestBlockNumber()).map(ResolvedBlock(_, pending = true))
+    }
+  }
+
+  private def doCall(req: CallRequest): Either[JsonRpcError, Ledger.TxResult] = {
+    val fromAddress = req.tx.from
+      .map(Address.apply) // `from` param, if specified
+      .getOrElse(
+      keyStore
+        .listAccounts().getOrElse(Nil).headOption // first account, if exists and `from` param not specified
+        .getOrElse(Address(0))) // 0x0 default
+
+    val toAddress = req.tx.to.map(Address.apply)
+
+    // TODO improvement analysis is suggested in EC-199
+    val gasLimit: Either[JsonRpcError, BigInt] = {
+      if(req.tx.gas.isDefined) Right[JsonRpcError, BigInt](req.tx.gas.get)
+      else resolveBlock(BlockParam.Latest).map(r => r.block.header.gasLimit)
+    }
+
+    gasLimit.flatMap { gl =>
+      val tx = Transaction(0, req.tx.gasPrice, gl, toAddress, req.tx.value, req.tx.data)
+      val fakeSignature = ECDSASignature(0, 0, 0.toByte)
+      val stx = SignedTransaction(tx, fakeSignature, fromAddress)
+
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
+        ledger.simulateTransaction(stx, block.header, blockchainStorages)
+      }
+    }
+
+  }
 }

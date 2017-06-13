@@ -189,6 +189,15 @@ class FilterManager(
     filters.find(_.id == id)
 
   private def generateId(): BigInt = Math.abs(Random.nextLong())
+
+  private def resolveBlockNumber(blockParam: BlockParam, appStateStorage: AppStateStorage): BigInt = {
+    blockParam match {
+      case BlockParam.WithNumber(blockNumber) => blockNumber
+      case BlockParam.Earliest => 0
+      case BlockParam.Latest => appStateStorage.getBestBlockNumber()
+      case BlockParam.Pending => appStateStorage.getBestBlockNumber() + 1
+    }
+  }
 }
 
 object FilterManager {

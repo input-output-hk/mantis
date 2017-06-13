@@ -56,7 +56,7 @@ trait JsonMethodsImplicits {
         Right(n)
 
       case JString(s) =>
-        Try(BigInt(decode(s))).toEither.left.map(_ => InvalidParams())
+        Try(BigInt(1, decode(s))).toEither.left.map(_ => InvalidParams())
 
       case _ =>
         Left(InvalidParams("could not extract quantity"))

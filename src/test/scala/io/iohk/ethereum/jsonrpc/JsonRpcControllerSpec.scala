@@ -1,6 +1,5 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
@@ -15,7 +14,7 @@ import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.{Config, MiningConfig}
+import io.iohk.ethereum.utils.MiningConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
@@ -33,10 +32,10 @@ import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
+// scalastyle:off file.size.limit
 class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience with Eventually {
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
@@ -205,6 +204,30 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(expectedBlockResponse)
   }
 
+  it should "handle eth_getBlockByNumber request" in new TestSetup {
+
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val blockTd = blockToRequest.header.difficulty
+
+    blockchain.save(blockToRequest)
+    blockchain.save(blockToRequest.header.hash, blockTd)
+
+    val request = JsonRpcRequest(
+      "2.0",
+      "eth_getBlockByNumber",
+      Some(JArray(List(JString(s"0x${Hex.toHexString(blockToRequest.header.number.toByteArray)}"), JBool(false)))),
+      Some(JInt(1))
+    )
+    val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
+
+    val expectedBlockResponse = Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(expectedBlockResponse)
+  }
+
   it should "handle eth_getUncleByBlockHashAndIndex request" in new TestSetup {
     val uncle = Fixtures.Blocks.DaoForkBlock.header
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, BlockBody(Nil, Seq(uncle)))
@@ -222,7 +245,36 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     )
     val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
 
-    val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None))
+    val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None, pendingBlock = false))
+      .removeField {
+        case ("transactions", _) => true
+        case _ => false
+      }
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(expectedUncleBlockResponse)
+  }
+
+  it should "handle eth_getUncleByBlockNumberAndIndex request" in new TestSetup {
+    val uncle = Fixtures.Blocks.DaoForkBlock.header
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, BlockBody(Nil, Seq(uncle)))
+
+    blockchain.save(blockToRequest)
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getUncleByBlockNumberAndIndex",
+      Some(JArray(List(
+        JString(s"0x${Hex.toHexString(blockToRequest.header.number.toByteArray)}"),
+        JString(s"0x${Hex.toHexString(BigInt(0).toByteArray)}")
+      ))),
+      Some(JInt(1))
+    )
+    val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
+
+    val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None, pendingBlock = false))
       .removeField {
         case ("transactions", _) => true
         case _ => false
@@ -413,7 +465,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(Nil))
 
-    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    ommersPool.expectMsg(OmmersPool.GetOmmers(2))
     ommersPool.reply(Ommers(Nil))
 
     val response = result.futureValue
@@ -446,7 +498,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val result: Future[JsonRpcResponse] = jsonRpcController.handleRequest(request)
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    ommersPool.expectMsg(OmmersPool.GetOmmers(2))
     //on time out it should respond with empty list
 
     //wait for actor timeouts
@@ -524,6 +576,24 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(JString("0x0"))
   }
 
+  it should "eth_gasPrice" in new TestSetup {
+    (appStateStorage.getBestBlockNumber _).expects().returning(42)
+    blockchain.save(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_gasPrice",
+      None,
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x4a817c800"))
+  }
+
   it should "eth_call" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
@@ -548,6 +618,32 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JString("0x617364"))
+  }
+
+  it should "eth_estimateGas" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.estimateGas _).expects(*).returning(Future.successful(Right(EstimateGasResponse(2310))))
+
+    val json = JArray(List(
+      JObject(
+        "from" -> "0xabbb6bebfa05aa13e908eaa492bd7a8343760477",
+        "to" -> "0xda714fe079751fa7a1ad80b76571ea6ec52a446c",
+        "gas" -> "0x12",
+        "gasPrice" -> "0x123",
+        "value" -> "0x99",
+        "data" -> "0xFF44"
+      ),
+      JString("latest")
+    ))
+    val rpcRequest = JsonRpcRequest("2.0", "eth_estimateGas", Some(json), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x906"))
   }
 
   it should "eth_getCode" in new TestSetup {
@@ -655,6 +751,88 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JString("0x" + "42" * 20))
+  }
+
+  it should "eth_getTransactionByBlockNumberAndIndex by tag" in new TestSetup {
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val txIndex = 1
+
+    blockchain.save(blockToRequest)
+    (appStateStorage.getBestBlockNumber _).expects().returns(blockToRequest.header.number)
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getTransactionByBlockNumberAndIndex",
+      Some(JArray(List(
+        JString(s"latest"),
+        JString(s"0x${Hex.toHexString(BigInt(txIndex).toByteArray)}")
+      ))),
+      Some(JInt(1))
+    )
+    val response = jsonRpcController.handleRequest(request).futureValue
+    val expectedStx = blockToRequest.body.transactionList(txIndex)
+    val expectedTxResponse = Extraction.decompose(
+      TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndex))
+    )
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(expectedTxResponse)
+  }
+
+  it should "eth_getTransactionByBlockNumberAndIndex by hex number" in new TestSetup {
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xC005)), Fixtures.Blocks.Block3125369.body)
+    val txIndex = 1
+
+    blockchain.save(blockToRequest)
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getTransactionByBlockNumberAndIndex",
+      Some(JArray(List(
+        JString(s"0xC005"),
+        JString(s"0x${Hex.toHexString(BigInt(txIndex).toByteArray)}")
+      ))),
+      Some(JInt(1))
+    )
+    val response = jsonRpcController.handleRequest(request).futureValue
+    val expectedStx = blockToRequest.body.transactionList(txIndex)
+    val expectedTxResponse = Extraction.decompose(
+      TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndex))
+    )
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(expectedTxResponse)
+  }
+
+  it should "eth_getTransactionByBlockNumberAndIndex by number" in new TestSetup {
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val txIndex = 1
+
+    blockchain.save(blockToRequest)
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getTransactionByBlockNumberAndIndex",
+      Some(JArray(List(
+        JInt(Fixtures.Blocks.Block3125369.header.number),
+        JString(s"0x${Hex.toHexString(BigInt(txIndex).toByteArray)}")
+      ))),
+      Some(JInt(1))
+    )
+    val response = jsonRpcController.handleRequest(request).futureValue
+    val expectedStx = blockToRequest.body.transactionList(txIndex)
+    val expectedTxResponse = Extraction.decompose(
+      TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndex))
+    )
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(expectedTxResponse)
   }
 
   it should "eth_getBalance" in new TestSetup {

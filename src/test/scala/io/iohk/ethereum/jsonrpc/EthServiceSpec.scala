@@ -16,7 +16,6 @@ import io.iohk.ethereum.utils.MiningConfig
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.Await
 import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
@@ -106,6 +105,70 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.transactionResponse shouldBe Some(expectedTxResponse)
   }
 
+  //FIXME: This test should be changed once the pending block doesn't equal to the latest one
+  it should "answer eth_getBlockByNumber with the correct parameters in None when the pending block is requested" in new TestSetup {
+    val bestBlockNumber = 10
+
+    blockchain.save(blockToRequest.copy(header = blockToRequest.header.copy(number = bestBlockNumber)))
+    blockchain.save(blockToRequestHash, blockTd)
+    (appStateStorage.getBestBlockNumber _).expects().returning(bestBlockNumber)
+
+    val request = BlockByNumberRequest(BlockParam.Pending, fullTxs = true)
+    val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
+    response.blockResponse.get.hash shouldBe None
+    response.blockResponse.get.nonce shouldBe None
+    response.blockResponse.get.miner shouldBe None
+  }
+
+  it should "answer eth_getBlockByNumber with None when the requested block isn't in the blockchain" in new TestSetup {
+    val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
+    val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
+    response.blockResponse shouldBe None
+  }
+
+  it should "answer eth_getBlockByNumber with the block response correctly when it's totalDifficulty is in blockchain" in new TestSetup {
+    blockchain.save(blockToRequest)
+    blockchain.save(blockToRequestHash, blockTd)
+
+    val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
+    val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
+
+    val stxResponses = blockToRequest.body.transactionList.zipWithIndex.map { case (stx, txIndex) =>
+      TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
+    }
+
+    response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true, totalDifficulty = Some(blockTd)))
+    response.blockResponse.get.totalDifficulty shouldBe Some(blockTd)
+    response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses)
+  }
+
+  it should "answer eth_getBlockByNumber with the block response correctly when it's totalDifficulty is not in blockchain" in new TestSetup {
+    blockchain.save(blockToRequest)
+
+    val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
+    val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
+
+    val stxResponses = blockToRequest.body.transactionList.zipWithIndex.map { case (stx, txIndex) =>
+      TransactionResponse(stx, Some(blockToRequest.header), Some(txIndex))
+    }
+
+    response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true))
+    response.blockResponse.get.totalDifficulty shouldBe None
+    response.blockResponse.get.transactions.right.toOption shouldBe Some(stxResponses)
+  }
+
+  it should "answer eth_getBlockByNumber with the block response correctly when the txs should be hashed" in new TestSetup {
+    blockchain.save(blockToRequest)
+    blockchain.save(blockToRequestHash, blockTd)
+
+    val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
+    val response = Await.result(ethService.getBlockByNumber(request.copy(fullTxs = false)), Duration.Inf).right.get
+
+    response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
+    response.blockResponse.get.totalDifficulty shouldBe Some(blockTd)
+    response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.transactionList.map(_.hash))
+  }
+
   it should "answer eth_getBlockByHash with None when the requested block isn't in the blockchain" in new TestSetup {
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
     val response = Await.result(ethService.getByBlockHash(request), Duration.Inf).right.get
@@ -191,7 +254,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
     val response = Await.result(ethService.getUncleByBlockHashAndIndex(request), Duration.Inf).right.get
 
-    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None))
+    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None, pendingBlock = false))
     response.uncleBlockResponse.get.totalDifficulty shouldBe None
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
@@ -205,7 +268,63 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
     val response = Await.result(ethService.getUncleByBlockHashAndIndex(request), Duration.Inf).right.get
 
-    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleTd)))
+    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleTd), pendingBlock = false))
+    response.uncleBlockResponse.get.totalDifficulty shouldBe Some(uncleTd)
+    response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
+    response.uncleBlockResponse.get.uncles shouldBe Nil
+  }
+
+  it should "answer eth_getUncleByBlockNumberAndIndex with None when the requested block isn't in the blockchain" in new TestSetup {
+    val uncleIndexToRequest = 0
+    val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
+    val response = Await.result(ethService.getUncleByBlockNumberAndIndex(request), Duration.Inf).right.get
+    response.uncleBlockResponse shouldBe None
+  }
+
+  it should "answer eth_getUncleByBlockNumberAndIndex with None when there's no uncle" in new TestSetup {
+    blockchain.save(blockToRequest)
+
+    val uncleIndexToRequest = 0
+    val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
+    val response = Await.result(ethService.getUncleByBlockNumberAndIndex(request), Duration.Inf).right.get
+
+    response.uncleBlockResponse shouldBe None
+  }
+
+  it should "answer eth_getUncleByBlockNumberAndIndex with None when there's no uncle in the requested index" in new TestSetup {
+    blockchain.save(blockToRequestWithUncles)
+
+    val uncleIndexToRequest = 0
+    val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
+    val response1 = Await.result(ethService.getUncleByBlockNumberAndIndex(request.copy(uncleIndex = 1)), Duration.Inf).right.get
+    val response2 = Await.result(ethService.getUncleByBlockNumberAndIndex(request.copy(uncleIndex = -1)), Duration.Inf).right.get
+
+    response1.uncleBlockResponse shouldBe None
+    response2.uncleBlockResponse shouldBe None
+  }
+
+  it should "answer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one but there's no total difficulty for it" in new TestSetup {
+    blockchain.save(blockToRequestWithUncles)
+
+    val uncleIndexToRequest = 0
+    val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
+    val response = Await.result(ethService.getUncleByBlockNumberAndIndex(request), Duration.Inf).right.get
+
+    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None, pendingBlock = false))
+    response.uncleBlockResponse.get.totalDifficulty shouldBe None
+    response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
+    response.uncleBlockResponse.get.uncles shouldBe Nil
+  }
+
+  it should "anwer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one and there's total difficulty for it" in new TestSetup {
+    blockchain.save(blockToRequestWithUncles)
+    blockchain.save(uncle.hash, uncleTd)
+
+    val uncleIndexToRequest = 0
+    val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
+    val response = Await.result(ethService.getUncleByBlockNumberAndIndex(request), Duration.Inf).right.get
+
+    response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleTd), pendingBlock = false))
     response.uncleBlockResponse.get.totalDifficulty shouldBe Some(uncleTd)
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
@@ -232,7 +351,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(Nil))
 
-    ommersPool.expectMsg(OmmersPool.GetOmmers)
+    ommersPool.expectMsg(OmmersPool.GetOmmers(1))
     ommersPool.reply(OmmersPool.Ommers(Nil))
 
     response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
@@ -272,10 +391,26 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val tx = CallTx(
       Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),
       Some(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477"))),
-      1, 2, 3, ByteString(""))
+      Some(1), 2, 3, ByteString(""))
     val response = ethService.call(CallRequest(tx, BlockParam.Latest))
 
     response.futureValue shouldEqual Right(CallResponse(ByteString("return_value")))
+  }
+
+  it should "execute estimateGas and return a value" in new TestSetup {
+    blockchain.save(blockToRequest)
+    (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
+
+    val txResult = TxResult(InMemoryWorldStateProxy(storagesInstance.storages), 123, Nil, ByteString("return_value"))
+    (ledger.simulateTransaction _).expects(*, *, *).returning(txResult)
+
+    val tx = CallTx(
+      Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),
+      Some(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477"))),
+      Some(1), 2, 3, ByteString(""))
+    val response = ethService.estimateGas(CallRequest(tx, BlockParam.Latest))
+
+    response.futureValue shouldEqual Right(EstimateGasResponse(123))
   }
 
   it should "get uncle count by block number" in new TestSetup {
@@ -360,9 +495,108 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
   }
 
+  it should "return if node is mining base on getWork" in new TestSetup {
+    ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
+
+    (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(block))
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    ethService.getWork(GetWorkRequest())
+
+    Thread.sleep(1.seconds.toMillis)
+
+    val response = ethService.getMining(GetMiningRequest())
+
+    response.futureValue shouldEqual Right(GetMiningResponse(true))
+  }
+
+  it should "return if node is mining base on submitWork" in new TestSetup {
+    ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
+
+    (blockGenerator.getPrepared _).expects(*).returning(Some(block))
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    ethService.submitWork(SubmitWorkRequest(ByteString("nonce"), ByteString(Hex.decode("01" * 32)), ByteString(Hex.decode("01" * 32))))
+
+    Thread.sleep(1.seconds.toMillis)
+
+    val response = ethService.getMining(GetMiningRequest())
+
+    response.futureValue shouldEqual Right(GetMiningResponse(true))
+  }
+
+  it should "return if node is mining base on submitHashRate" in new TestSetup {
+    ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
+
+    ethService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
+
+    Thread.sleep(1.seconds.toMillis)
+
+    val response = ethService.getMining(GetMiningRequest())
+
+    response.futureValue shouldEqual Right(GetMiningResponse(true))
+  }
+
+  it should "return if node is mining after time out" in new TestSetup {
+    (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(block))
+    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    ethService.getWork(GetWorkRequest())
+
+    Thread.sleep(6.seconds.toMillis)
+
+    val response = ethService.getMining(GetMiningRequest())
+
+    response.futureValue shouldEqual Right(GetMiningResponse(false))
+  }
+
   it should "return correct coinbase" in new TestSetup {
     val response = ethService.getCoinbase(GetCoinbaseRequest())
     response.futureValue shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
+  }
+
+  it should "return 0 gas price if there are no transactions" in new TestSetup {
+    (appStateStorage.getBestBlockNumber _).expects().returning(42)
+
+    val response = ethService.getGetGasPrice(GetGasPriceRequest())
+    response.futureValue shouldEqual Right(GetGasPriceResponse(0))
+  }
+
+  it should "return average gas price" in new TestSetup {
+    (appStateStorage.getBestBlockNumber _).expects().returning(42)
+    blockchain.save(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
+
+    val response = ethService.getGetGasPrice(GetGasPriceRequest())
+    response.futureValue shouldEqual Right(GetGasPriceResponse(BigInt("20000000000")))
+  }
+
+  it should "getTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup {
+    blockchain.save(blockToRequest)
+    (appStateStorage.getBestBlockNumber _).expects().returns(blockToRequest.header.number)
+
+    val txIndex: Int = 1
+    val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
+    val response = Await.result(ethService.getTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+
+    val expectedTxResponse = TransactionResponse(blockToRequest.body.transactionList(txIndex), Some(blockToRequest.header), Some(txIndex))
+    response.transactionResponse shouldBe Some(expectedTxResponse)
+  }
+
+  it should "getTransactionByBlockNumberAndIndexRequest return empty response if transaction does not exists when getting by index" in new TestSetup {
+    blockchain.save(blockToRequest)
+
+    val txIndex: Int = blockToRequest.body.transactionList.length + 42
+    val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number), txIndex)
+    val response = Await.result(ethService.getTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+
+    response.transactionResponse shouldBe None
+  }
+
+  it should "getTransactionByBlockNumberAndIndexRequest return empty response if block does not exists when getting by index" in new TestSetup {
+    blockchain.save(blockToRequest)
+
+    val txIndex: Int = 1
+    val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequest.header.number - 42), txIndex)
+    val response = Await.result(ethService.getTransactionByBlockNumberAndIndexRequest(request), Duration.Inf).right.get
+
+    response.transactionResponse shouldBe None
   }
 
   it should "handle getBalance request" in new TestSetup {
@@ -467,6 +701,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val blockToRequestNumber = blockToRequest.header.number
     val blockToRequestHash = blockToRequest.header.hash
     val blockTd = blockToRequest.header.difficulty
 

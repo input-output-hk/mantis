@@ -3,11 +3,10 @@ package io.iohk.ethereum.domain
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
 import io.iohk.ethereum.vm.UInt256
-import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
@@ -158,16 +157,6 @@ class BlockchainImpl(
                       protected val totalDifficultyStorage: TotalDifficultyStorage
                     ) extends Blockchain {
 
-
-  private val byteArrayUInt256Serializer = new ByteArrayEncoder[UInt256] {
-    override def toBytes(input: UInt256): Array[Byte] = input.bytes.toArray[Byte]
-  }
-
-  private val rlpUInt256Serializer = new ByteArraySerializable[UInt256] {
-    override def fromBytes(bytes: Array[Byte]): UInt256 = ByteString(bytes).toUInt256
-    override def toBytes(input: UInt256): Array[Byte] = input.toBytes
-  }
-
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
     blockHeadersStorage.get(hash)
 
@@ -191,11 +180,7 @@ class BlockchainImpl(
     }
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = {
-    val storageMpt =
-      MerklePatriciaTrie[UInt256, UInt256](rootHash.toArray[Byte], nodeStorage,
-        crypto.kec256(_: Array[Byte]))(HashByteArraySerializable(byteArrayUInt256Serializer), rlpUInt256Serializer)
-
-    storageMpt.get(UInt256(position)).getOrElse(UInt256(0)).bytes
+    storageMpt(rootHash, nodeStorage).get(UInt256(position)).getOrElse(UInt256(0)).bytes
   }
 
   override def save(blockHeader: BlockHeader): Unit = {

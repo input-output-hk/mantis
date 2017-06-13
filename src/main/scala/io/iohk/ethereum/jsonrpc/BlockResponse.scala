@@ -5,16 +5,16 @@ import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 
 case class BlockResponse(
-    number: Option[BigInt],
+    number: BigInt,
     hash: Option[ByteString],
     parentHash: ByteString,
     nonce: Option[ByteString],
     sha3Uncles: ByteString,
-    logsBloom: Option[ByteString],
+    logsBloom: ByteString,
     transactionsRoot: ByteString,
     stateRoot: ByteString,
     receiptsRoot: ByteString,
-    miner: ByteString,
+    miner: Option[ByteString],
     difficulty: BigInt,
     totalDifficulty: Option[BigInt],
     extraData: ByteString,
@@ -27,7 +27,8 @@ case class BlockResponse(
 
 object BlockResponse {
 
-  def apply(block: Block, fullTxs: Boolean = false, totalDifficulty: Option[BigInt] = None): BlockResponse = {
+  def apply(block: Block, totalDifficulty: Option[BigInt] = None,
+            fullTxs: Boolean = false, pendingBlock: Boolean = false): BlockResponse = {
     val transactions =
       if (fullTxs)
         Right(block.body.transactionList.zipWithIndex.map { case (stx, transactionIndex) =>
@@ -37,16 +38,16 @@ object BlockResponse {
         Left(block.body.transactionList.map(_.hash))
 
     BlockResponse(
-      number = Some(block.header.number),
-      hash = Some(block.header.hash),
+      number = block.header.number,
+      hash = if(pendingBlock) None else Some(block.header.hash),
       parentHash = block.header.parentHash,
-      nonce = Some(block.header.nonce),
+      nonce = if(pendingBlock) None else Some(block.header.nonce),
       sha3Uncles = block.header.ommersHash,
-      logsBloom = Some(block.header.logsBloom),
+      logsBloom = block.header.logsBloom,
       transactionsRoot = block.header.transactionsRoot,
       stateRoot = block.header.stateRoot,
       receiptsRoot = block.header.receiptsRoot,
-      miner = block.header.beneficiary,
+      miner = if(pendingBlock) None else Some(block.header.beneficiary),
       difficulty = block.header.difficulty,
       totalDifficulty = totalDifficulty,
       extraData = block.header.extraData,
@@ -59,10 +60,11 @@ object BlockResponse {
     )
   }
 
-  def apply(blockHeader: BlockHeader, totalDifficulty: Option[BigInt]): BlockResponse =
+  def apply(blockHeader: BlockHeader, totalDifficulty: Option[BigInt], pendingBlock: Boolean): BlockResponse =
     BlockResponse(
       block = Block(blockHeader, BlockBody(Nil, Nil)),
-      totalDifficulty = totalDifficulty
+      totalDifficulty = totalDifficulty,
+      pendingBlock = pendingBlock
     )
 
 }
