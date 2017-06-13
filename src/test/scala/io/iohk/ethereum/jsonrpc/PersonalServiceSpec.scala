@@ -142,9 +142,6 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
   }
 
   it should "recover address form signed message" in new TestSetup {
-//    > personal.sign("0xdeadbeaf", "0x12c2a3b877289050FBcfADC1D252842CA742BE81", "password")
-//    "0x117b8d5b518dc428d97e5e0c6f870ad90e561c97de8fe6cad6382a7e82134e61396d881ef1f8bc606ef94b74b83d76953b61f1bcf55c002ef12dd0348edff24b1b"
-
     val sigAddress = Address(ByteString(Hex.decode("12c2a3b877289050FBcfADC1D252842CA742BE81")))
 
     val message = ByteString(Hex.decode("deadbeaf"))

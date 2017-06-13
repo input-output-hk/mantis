@@ -48,8 +48,11 @@ trait JsonMethodsImplicits {
   protected def extractBytes(input: JString): Either[JsonRpcError, ByteString] =
     extractBytes(input.s)
 
+  protected def extractBytes(input: String, size: Int): Either[JsonRpcError, ByteString] =
+    extractBytes(input).filterOrElse(_.length == size, InvalidParams(s"Invalid value [$input], expected $size bytes"))
+
   protected def extractHash(input: String): Either[JsonRpcError, ByteString] =
-    extractBytes(input).filterOrElse(_.length == 32, InvalidParams(s"Invalid value [$input], expected 32 bytes"))
+    extractBytes(input, 32)
 
   protected def extractQuantity(input: JValue): Either[JsonRpcError, BigInt] =
     input match {
@@ -192,13 +195,10 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
   }
 
   implicit val personal_ecRecover = new Codec[EcRecoverRequest, EcRecoverResponse] {
-    val signatureLength = 65
-    val rLength = 32
-    val vLength = 32
 
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, EcRecoverRequest] =
       params match {
-        case Some(JArray(JString(message) :: JString(signature) :: _)) if signature.length == (signatureLength * 2 + 2) =>
+        case Some(JArray(JString(message) :: JString(signature) :: _)) =>
 
           val decoded = for {
             msg <- extractBytes(message)
@@ -206,8 +206,8 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
           } yield (msg, sig)
 
           decoded.flatMap { case (msg, sig) =>
-            val r = sig.take(rLength)
-            val s = sig.drop(rLength).take(vLength)
+            val r = sig.take(ECDSASignature.RLength)
+            val s = sig.drop(ECDSASignature.RLength).take(ECDSASignature.SLength)
             val v = sig.takeRight(1)
 
             if (v.contains(ECDSASignature.positivePointSign) || v.contains(ECDSASignature.negativePointSign)) {
