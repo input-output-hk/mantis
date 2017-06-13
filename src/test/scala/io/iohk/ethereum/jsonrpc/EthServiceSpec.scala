@@ -391,10 +391,26 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val tx = CallTx(
       Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),
       Some(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477"))),
-      1, 2, 3, ByteString(""))
+      Some(1), 2, 3, ByteString(""))
     val response = ethService.call(CallRequest(tx, BlockParam.Latest))
 
     response.futureValue shouldEqual Right(CallResponse(ByteString("return_value")))
+  }
+
+  it should "execute estimateGas and return a value" in new TestSetup {
+    blockchain.save(blockToRequest)
+    (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
+
+    val txResult = TxResult(InMemoryWorldStateProxy(storagesInstance.storages), 123, Nil, ByteString("return_value"))
+    (ledger.simulateTransaction _).expects(*, *, *).returning(txResult)
+
+    val tx = CallTx(
+      Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),
+      Some(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477"))),
+      Some(1), 2, 3, ByteString(""))
+    val response = ethService.estimateGas(CallRequest(tx, BlockParam.Latest))
+
+    response.futureValue shouldEqual Right(EstimateGasResponse(123))
   }
 
   it should "get uncle count by block number" in new TestSetup {
