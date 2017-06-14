@@ -3,13 +3,15 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, Receipt, TxLogEntry}
-import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.p2p.EtcMessageDecoders.EtcMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.PV63.Receipts
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
+
+import scala.util.Success
 
 class ReceiptsSpec extends FlatSpec with Matchers {
 
@@ -47,10 +49,10 @@ class ReceiptsSpec extends FlatSpec with Matchers {
   }
 
   it should "decode receipts" in {
-    EthereumMessageDecoder.fromBytes(Receipts.code, encode(encodedReceipts), Versions.PV63) shouldBe receipts
+    EtcMessageDecoder.fromBytes(Receipts.code, encode(encodedReceipts), Versions.PV63) shouldBe Success(receipts)
   }
 
   it should "decode encoded receipts" in {
-    EthereumMessageDecoder.fromBytes(Receipts.code, receipts.toBytes, Versions.PV63) shouldBe receipts
+    EtcMessageDecoder.fromBytes(Receipts.code, receipts.toBytes, Versions.PV63) shouldBe Success(receipts)
   }
 }

@@ -5,20 +5,21 @@ import java.net.InetSocketAddress
 import io.iohk.ethereum.network.PeerActor.Status.Handshaking
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import org.scalatest.concurrent.Eventually
-import org.scalatest.time.{Seconds, Milliseconds, Span}
+import org.scalatest.time.{Milliseconds, Seconds, Span}
 import akka.actor._
 import akka.testkit.{TestActorRef, TestProbe}
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.utils.Config
 import org.scalatest.{FlatSpec, Matchers}
 import PeerActor.Status
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 
 class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
 
   override implicit val patienceConfig = PatienceConfig(Span(5, Seconds), Span(100, Milliseconds))
 
   "PeerManager" should "try to connect to bootstrap nodes on startup" in new TestSetup {
-    val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(
+    val peerManager = TestActorRef[PeerManagerActor[EtcPeerInfo]](Props(new PeerManagerActor(
       peerConfiguration, peerFactory, Some(time.scheduler))))(system)
 
     time.advance(800) // wait for bootstrap nodes scan
@@ -38,7 +39,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
   }
 
   it should "retry connections to remaining bootstrap nodes" in new TestSetup {
-    val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(
+    val peerManager = TestActorRef[PeerManagerActor[EtcPeerInfo]](Props(new PeerManagerActor(
       peerConfiguration, peerFactory, Some(time.scheduler))))(system)
 
     time.advance(800)
@@ -75,7 +76,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
   }
 
   it should "disconnect the worst handshaking peer when limit is reached" in new TestSetup {
-    val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(
+    val peerManager = TestActorRef[PeerManagerActor[EtcPeerInfo]](Props(new PeerManagerActor(
       peerConfiguration, peerFactory, Some(time.scheduler))))
 
     time.advance(800) // connect to 2 bootstrap peers
@@ -136,7 +137,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
       peer.ref
     }
 
-    def respondWithStatus(peer: TestProbe, status: PeerActor.Status): Unit = {
+    def respondWithStatus(peer: TestProbe, status: PeerActor.Status[EtcPeerInfo]): Unit = {
       peer.expectMsg(PeerActor.GetStatus)
       peer.reply(PeerActor.StatusResponse(status))
     }

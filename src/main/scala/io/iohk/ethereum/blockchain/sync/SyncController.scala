@@ -8,7 +8,9 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerActor.{Status => PeerStatus}
+import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
 import io.iohk.ethereum.utils.Config
@@ -41,7 +43,7 @@ class SyncController(
       case _ => Stop
     }
 
-  var handshakedPeers: Map[Peer, PeerStatus.Handshaked] = Map.empty
+  var handshakedPeers: Map[Peer, EtcPeerInfo] = Map.empty
 
   scheduler.schedule(0.seconds, peersScanInterval, peerManager, PeerManagerActor.GetPeers)
 
@@ -71,9 +73,9 @@ class SyncController(
   }
 
   def handlePeerUpdates: Receive = {
-    case peers: PeerManagerActor.Peers =>
-      peers.peers.foreach {
-        case (peer, _: PeerActor.Status.Handshaked) =>
+    case peers@Peers(peersWithInfo) =>
+      peersWithInfo.foreach {
+        case (peer, PeerActor.Status.Handshaked(_)) =>
           if (!handshakedPeers.contains(peer)) context watch peer.ref
 
         case (peer, _) if handshakedPeers.contains(peer) =>
@@ -82,7 +84,9 @@ class SyncController(
         case _ => // nothing
       }
 
-      handshakedPeers = peers.handshaked
+      handshakedPeers = peers.handshaked.map{
+        case (peer, PeerActor.Status.Handshaked(peerInfo: EtcPeerInfo)) => peer -> peerInfo
+      }
 
     case Terminated(ref) if handshakedPeers.exists(_._1.ref == ref) =>
       removePeer(ref)
@@ -100,7 +104,7 @@ class SyncController(
     handshakedPeers = handshakedPeers.filterNot(_._1.ref == peerRef)
   }
 
-  def peersToDownloadFrom: Map[Peer, PeerStatus.Handshaked] =
+  def peersToDownloadFrom: Map[Peer, EtcPeerInfo] =
     handshakedPeers.filterNot { case (p, s) => isBlacklisted(p.id) }
 }
 

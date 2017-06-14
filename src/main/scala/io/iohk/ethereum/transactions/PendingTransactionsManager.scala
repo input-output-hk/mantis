@@ -3,6 +3,7 @@ package io.iohk.ethereum.transactions
 import akka.actor.{Actor, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.{Peer, PeerActor, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.PeerMessageBusActor.{MessageClassifier, MessageFromPeer, PeerSelector, Subscribe}
@@ -56,7 +57,7 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
       val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.contains(t))
       if (transactionsToAdd.nonEmpty) {
         pendingTransactions = (pendingTransactions ++ transactionsToAdd).takeRight(miningConfig.txPoolSize)
-        (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
+        (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers[EtcPeerInfo]].foreach { peers =>
           peers.handshaked.foreach { case (peer, _) => self ! NotifyPeer(transactionsToAdd, peer) }
         }
       }
@@ -81,7 +82,7 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
     case MessageFromPeer(SignedTransactions(signedTransactions), peerId) =>
       pendingTransactions = (pendingTransactions ++ signedTransactions).takeRight(miningConfig.txPoolSize)
       signedTransactions.foreach(setTxKnown(_, peerId))
-      (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
+      (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers[EtcPeerInfo]].foreach { peers =>
         peers.handshaked.foreach { case (peer, _) => self ! NotifyPeer(signedTransactions, peer) }
       }
   }

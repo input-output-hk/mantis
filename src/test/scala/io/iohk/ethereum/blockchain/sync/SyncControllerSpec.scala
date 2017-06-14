@@ -12,6 +12,7 @@ import io.iohk.ethereum.blockchain.sync.SyncController.{DependencyActors, MinedB
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader}
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
 import io.iohk.ethereum.network.PeerMessageBusActor._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
@@ -44,8 +45,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer1 -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty),
-      peer2 -> PeerActor.Status.Handshaked(peer2Status, forkAccepted = true, peer1Status.totalDifficulty))))
+      peer1 -> PeerActor.Status.Handshaked(EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, forkAccepted = true, 0)),
+      peer2 -> PeerActor.Status.Handshaked(EtcPeerInfo(peer2Status, peer1Status.totalDifficulty, forkAccepted = true, 0)))))
 
     syncController ! SyncController.StartSync
 
@@ -104,7 +105,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer2 -> PeerActor.Status.Handshaked(peer2Status, forkAccepted = true, peer2Status.totalDifficulty))))
+      peer2 -> PeerActor.Status.Handshaked(EtcPeerInfo(peer2Status, peer2Status.totalDifficulty, forkAccepted = true, 0)))))
 
     syncController ! SyncController.StartSync
 
@@ -154,7 +155,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer2 -> PeerActor.Status.Handshaked(peer2Status, forkAccepted = true, peer2Status.totalDifficulty))))
+      peer2 -> PeerActor.Status.Handshaked(EtcPeerInfo(peer2Status, peer2Status.totalDifficulty, forkAccepted = true, 0)))))
 
     val expectedTargetBlock = 399500
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
@@ -196,7 +197,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty))))
+      peer -> PeerActor.Status.Handshaked(EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, forkAccepted = true, 0)))))
 
     val expectedMaxBlock = 399500
     val newBlockDifficulty = 23
@@ -257,7 +258,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty))))
+      peer -> PeerActor.Status.Handshaked(EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, forkAccepted = true, 0)))))
 
     val expectedMaxBlock = 399500
     val newBlockDifficulty = 23
@@ -381,10 +382,10 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer1 -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty),
-      peer2 -> PeerActor.Status.Handshaked(peer2Status, forkAccepted = false, peer1Status.totalDifficulty),
-      peer3 -> PeerActor.Status.Handshaked(peer3Status, forkAccepted = false, peer1Status.totalDifficulty),
-      peer4 -> PeerActor.Status.Handshaked(peer4Status, forkAccepted = true, peer1Status.totalDifficulty))))
+      peer1 -> PeerActor.Status.Handshaked(EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, forkAccepted = true, 0)),
+      peer2 -> PeerActor.Status.Handshaked(EtcPeerInfo(peer2Status, peer1Status.totalDifficulty, forkAccepted = false, 0)),
+      peer3 -> PeerActor.Status.Handshaked(EtcPeerInfo(peer3Status, peer1Status.totalDifficulty, forkAccepted = false, 0)),
+      peer4 -> PeerActor.Status.Handshaked(EtcPeerInfo(peer4Status, peer1Status.totalDifficulty, forkAccepted = true, 0)))))
 
     val expectedTargetBlock = 399500
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
@@ -421,7 +422,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer1 -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty)
+      peer1 -> PeerActor.Status.Handshaked(EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, forkAccepted = true, 0))
     )))
 
     val expectedMaxBlock = 399500
@@ -503,8 +504,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer1 -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty),
-      peer2 -> PeerActor.Status.Handshaked(peer2Status, forkAccepted = true, peer2Status.totalDifficulty)
+      peer1 -> PeerActor.Status.Handshaked(EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, forkAccepted = true, 0)),
+      peer2 -> PeerActor.Status.Handshaked(EtcPeerInfo(peer2Status, peer2Status.totalDifficulty, forkAccepted = true, 0))
     )))
 
     val expectedMaxBlock = 399500
@@ -577,8 +578,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer1 -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty),
-      peer2 -> PeerActor.Status.Handshaked(peer2Status, forkAccepted = true, peer2Status.totalDifficulty)
+      peer1 -> PeerActor.Status.Handshaked(EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, forkAccepted = true, 0)),
+      peer2 -> PeerActor.Status.Handshaked(EtcPeerInfo(peer2Status, peer2Status.totalDifficulty, forkAccepted = true, 0))
     )))
 
     val expectedMaxBlock = 399500
@@ -634,7 +635,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty))))
+      peer -> PeerActor.Status.Handshaked(EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, forkAccepted = true, 0)))))
 
     val expectedMaxBlock = 399500
     val newBlockDifficulty = 23
@@ -684,7 +685,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerManager.expectMsg(GetPeers)
     peerManager.reply(Peers(Map(
-      peer -> PeerActor.Status.Handshaked(peer1Status, forkAccepted = true, peer1Status.totalDifficulty))))
+      peer -> PeerActor.Status.Handshaked(EtcPeerInfo(peer1Status, peer1Status.totalDifficulty, forkAccepted = true, 0)))))
 
     val expectedMaxBlock = 399500
     val newBlockDifficulty = 23

@@ -3,6 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorRef
 import akka.agent.Agent
 import akka.util.Timeout
+import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.utils.ServerStatus.{Listening, NotListening}
 import io.iohk.ethereum.utils.{Config, NodeStatus}
@@ -45,7 +46,7 @@ class NetService(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) {
     implicit val timeout = Timeout(2.seconds)
 
     (peerManager ? PeerManagerActor.GetPeers)
-      .mapTo[PeerManagerActor.Peers]
+      .mapTo[PeerManagerActor.Peers[EtcPeerInfo]]
       .map { peers => Right(PeerCountResponse(peers.handshaked.size)) }
   }
 
