@@ -2,6 +2,7 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
+import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -104,6 +105,8 @@ trait Blockchain {
     */
   def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt]
 
+  def getTransactionLocation(txHash: ByteString): Option[TransactionLocation]
+
   /**
     * Persists a block in the underlying Blockchain Database
     *
@@ -154,7 +157,8 @@ class BlockchainImpl(
                       protected val evmCodeStorage: EvmCodeStorage,
                       protected val mptNodeStorage: MptNodeStorage,
                       protected val nodeStorage: NodeStorage,
-                      protected val totalDifficultyStorage: TotalDifficultyStorage
+                      protected val totalDifficultyStorage: TotalDifficultyStorage,
+                      protected val transactionMappingStorage: TransactionMappingStorage
                     ) extends Blockchain {
 
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
@@ -191,7 +195,12 @@ class BlockchainImpl(
 
   override def getMptNodeByHash(hash: ByteString): Option[MptNode] = mptNodeStorage.get(hash)
 
-  override def save(blockHash: ByteString, blockBody: BlockBody): Unit = blockBodiesStorage.put(blockHash, blockBody)
+  override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = transactionMappingStorage.get(txHash)
+
+  override def save(blockHash: ByteString, blockBody: BlockBody): Unit = {
+    blockBodiesStorage.put(blockHash, blockBody)
+    saveTxsLocations(blockHash, blockBody)
+  }
 
   override def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit = receiptStorage.put(blockHash, receipts)
 
@@ -207,10 +216,20 @@ class BlockchainImpl(
   private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit = blockNumberMappingStorage.put(number, hash)
 
   override def removeBlock(blockHash: ByteString): Unit = {
+    val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
     blockHeadersStorage.remove(blockHash)
     blockBodiesStorage.remove(blockHash)
     totalDifficultyStorage.remove(blockHash)
     receiptStorage.remove(blockHash)
+    maybeTxList.foreach(removeTxsLocations)
+  }
+
+  private def saveTxsLocations(blockHash: ByteString, blockBody: BlockBody): Unit =
+    blockBody.transactionList.zipWithIndex.foreach{ case (tx, index) =>
+      transactionMappingStorage.put(tx.hash, TransactionLocation(blockHash, index)) }
+
+  private def removeTxsLocations(stxs: Seq[SignedTransaction]): Unit = {
+    stxs.map(_.hash).foreach{ transactionMappingStorage.remove }
   }
 }
 
@@ -223,6 +242,7 @@ trait BlockchainStorages {
   val mptNodeStorage: MptNodeStorage
   val nodeStorage: NodeStorage
   val totalDifficultyStorage: TotalDifficultyStorage
+  val transactionMappingStorage: TransactionMappingStorage
 }
 
 object BlockchainImpl {
@@ -235,6 +255,7 @@ object BlockchainImpl {
       evmCodeStorage = storages.evmCodeStorage,
       mptNodeStorage = storages.mptNodeStorage,
       nodeStorage = storages.nodeStorage,
-      totalDifficultyStorage = storages.totalDifficultyStorage
+      totalDifficultyStorage = storages.totalDifficultyStorage,
+      transactionMappingStorage = storages.transactionMappingStorage
     )
 }

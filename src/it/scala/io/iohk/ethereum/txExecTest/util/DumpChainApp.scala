@@ -6,6 +6,7 @@ import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{Blockchain, _}
 import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
@@ -121,4 +122,6 @@ object DumpChainApp extends App{
     def getAccount(address: Address, blockNumber: BigInt): Option[Account] = ???
 
     override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = ???
+
+    override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = ???
   }

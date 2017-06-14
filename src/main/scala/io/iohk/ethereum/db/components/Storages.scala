@@ -34,6 +34,8 @@ object Storages {
 
       override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
 
+      override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
+
     }
 
   }
@@ -69,6 +71,8 @@ object Storages {
         new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
 
       override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
+
+      override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
     }
   }
 }
