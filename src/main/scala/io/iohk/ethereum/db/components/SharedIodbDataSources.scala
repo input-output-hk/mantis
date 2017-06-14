@@ -27,6 +27,8 @@ trait SharedIodbDataSources extends DataSourcesComponent {
 
     override val appStateDataSource: DataSource = dataSource
 
+    override val transactionMappingDataSource: DataSource = dataSource
+
     override def closeAll(): Unit = dataSource.close()
   }
 }

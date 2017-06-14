@@ -138,6 +138,8 @@ class JsonRpcController(
       handle[GetStorageAtRequest, GetStorageAtResponse](ethService.getStorageAt, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionCount", _, _) =>
       handle[GetTransactionCountRequest, GetTransactionCountResponse](ethService.getTransactionCount, req)
+    case req @ JsonRpcRequest(_, "eth_getTransactionByHash", _, _) =>
+      handle[GetTransactionByHashRequest, GetTransactionByHashResponse](ethService.getTransactionByHash, req)
     case req @ JsonRpcRequest(_, "eth_sign", _, _) =>
       // Even if it's under eth_xxx this method actually does the same as personal_sign but needs the account
       // to be unlocked before calling
