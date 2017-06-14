@@ -93,9 +93,12 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
     */
   private def updatePeersWithInfo(peers: PeersWithInfo, peerId: PeerId, message: Message,
                                   messageHandler: (Message, PeerWithInfo) => PeerInfo): PeersWithInfo = {
-    val peerWithInfo = peers(peerId)
-    val newPeerInfo = messageHandler(message, peerWithInfo)
-    peers + (peerId -> peerWithInfo.copy(peerInfo = newPeerInfo))
+    if(peers.contains(peerId)){
+      val peerWithInfo = peers(peerId)
+      val newPeerInfo = messageHandler(message, peerWithInfo)
+      peers + (peerId -> peerWithInfo.copy(peerInfo = newPeerInfo))
+    } else
+      peers
   }
 
   /**

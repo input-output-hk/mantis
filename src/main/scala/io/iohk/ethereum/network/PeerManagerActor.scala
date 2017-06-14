@@ -42,16 +42,27 @@ class PeerManagerActor(
       case _ => Stop
     }
 
-  override def receive: Receive = handleCommonMessages orElse {
+  override def receive: Receive = {
+
+    case StartConnecting =>
+      context become listening
+      unstashAll()
+
+    case _ =>
+      stash()
+
+  }
+
+  def listening: Receive = handleCommonMessages orElse {
     case msg: HandlePeerConnection =>
-      context become tryingToConnect
+      context become(tryingToConnect, false)
       tryDiscardPeersToFreeUpLimit()
         .map(_ => (msg, Success(())))
         .recover { case ex => (msg, Failure(ex)) }
         .pipeTo(self)
 
     case msg: ConnectToPeer =>
-      context become tryingToConnect
+      context become(tryingToConnect, false)
       tryDiscardPeersToFreeUpLimit()
         .map(_ => (msg, Success(())))
         .recover { case ex => (msg, Failure(ex)) }
@@ -202,6 +213,8 @@ object PeerManagerActor {
     val maxReceiptsPerMessage: Int
     val maxMptComponentsPerMessage: Int
   }
+
+  case object StartConnecting
 
   case class HandlePeerConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
 

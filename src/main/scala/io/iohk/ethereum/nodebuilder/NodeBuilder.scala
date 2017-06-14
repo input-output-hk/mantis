@@ -96,7 +96,7 @@ trait HandshakerBuilder {
 trait PeerEventBusBuilder {
   self: ActorSystemBuilder =>
 
-  lazy val peerEventBus = actorSystem.actorOf(PeerEventBusActor.props)
+  lazy val peerEventBus = actorSystem.actorOf(PeerEventBusActor.props, "peer-event-bus")
 }
 
 trait PeerManagerActorBuilder {
@@ -124,7 +124,7 @@ trait EtcPeerManagerActorBuilder {
     with StorageBuilder =>
 
   lazy val etcPeerManager = actorSystem.actorOf(EtcPeerManagerActor.props(
-    peerManager, peerEventBus, storagesInstance.storages.appStateStorage, forkResolverOpt))
+    peerManager, peerEventBus, storagesInstance.storages.appStateStorage, forkResolverOpt), "etc-peer-manager")
 
 }
 
@@ -136,7 +136,7 @@ trait BlockchainHostBuilder {
     with PeerEventBusBuilder =>
 
   val blockchainHost = actorSystem.actorOf(BlockchainHostActor.props(
-    blockchain, peerConfiguration, peerEventBus, etcPeerManager))
+    blockchain, peerConfiguration, peerEventBus, etcPeerManager), "blockchain-host")
 
 }
 
