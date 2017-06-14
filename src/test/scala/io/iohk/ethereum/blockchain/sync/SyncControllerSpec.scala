@@ -12,14 +12,14 @@ import io.iohk.ethereum.blockchain.sync.SyncController.{DependencyActors, MinedB
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader}
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config
@@ -65,8 +65,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
 
     val expectedTargetBlock = 399500
-
-   val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
+    val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(expectedTargetBlock), 1, 0, reverse = false), peer2.id))
@@ -74,12 +73,13 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     storagesInstance.storages.appStateStorage.putBestBlockNumber(targetBlockHeader.number)
 
-    peer1.ref ! PoisonPill
-
     peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
-
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(1), 10, 0, reverse = false), peer1.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
+
+    val blockHeadersRequestHandler = peerMessageBus.sender()
+    peerMessageBus.send(syncController, PeerDisconnected(peer1.id))
+    peerMessageBus.send(blockHeadersRequestHandler, PeerDisconnected(peer1.id))
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer2.id))
     peerMessageBus.expectMsgAllOf(
@@ -755,11 +755,13 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val etcPeerManager = TestProbe()
     etcPeerManager.ignoreMsg{ case GetHandshakedPeers => true }
 
-    val dataSource = EphemDataSource()
-
     val ledger: Ledger = new Mocks.MockLedger((block, _, _) => !blocksForWhichLedgerFails.contains(block.header.number))
 
     val peerMessageBus = TestProbe()
+    peerMessageBus.ignoreMsg{
+      case Subscribe(PeerDisconnectedClassifier(_)) => true
+      case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
+    }
     val pendingTransactionsManager = TestProbe()
     val ommersPool = TestProbe()
 
@@ -774,7 +776,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       externalSchedulerOpt = Some(time.scheduler))))
 
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
-
     val baseBlockHeader = BlockHeader(
       parentHash = ByteString("unused"),
       ommersHash = ByteString("unused"),

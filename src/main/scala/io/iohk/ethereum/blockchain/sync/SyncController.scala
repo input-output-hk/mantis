@@ -9,8 +9,11 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerDisconnectedClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.validators.Validators
 
@@ -74,15 +77,15 @@ class SyncController(
     case EtcPeerManagerActor.HandshakedPeers(peers) =>
       peers.foreach {
         case (peer, _) if !handshakedPeers.contains(peer) =>
-          context watch peer.ref
+          peerEventBus ! Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id)))
 
         case _ => // nothing
       }
 
       handshakedPeers = peers
 
-    case Terminated(ref) if handshakedPeers.exists(_._1.ref == ref) =>
-      removePeer(ref)
+    case PeerDisconnected(peerId) if handshakedPeers.exists(_._1.id == peerId) =>
+      removePeer(peerId)
 
     case BlacklistPeer(ref, reason) =>
       blacklist(ref, blacklistDuration, reason)
@@ -91,10 +94,10 @@ class SyncController(
       undoBlacklist(ref)
   }
 
-  def removePeer(peerRef: ActorRef): Unit = {
-    context.unwatch(peerRef)
-    handshakedPeers.find(_._1.ref == peerRef).foreach { case (peer, _) => undoBlacklist(peer.id) }
-    handshakedPeers = handshakedPeers.filterNot(_._1.ref == peerRef)
+  def removePeer(peerId: PeerId): Unit = {
+    peerEventBus ! Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peerId)))
+    handshakedPeers.find(_._1.id == peerId).foreach { case (peer, _) => undoBlacklist(peer.id) }
+    handshakedPeers = handshakedPeers.filterNot(_._1.id == peerId)
   }
 
   def peersToDownloadFrom: Map[Peer, PeerInfo] =
