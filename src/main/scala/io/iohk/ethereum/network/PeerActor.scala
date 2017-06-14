@@ -182,7 +182,6 @@ class PeerActor[R <: HandshakeResult](
 
   def handleDisconnectMsg: Receive = {
     case RLPxConnectionHandler.MessageReceived(d: Disconnect) =>
-      peerEventBus ! Publish(PeerDisconnected(peerId))
       log.info("Received {}. Closing connection", d)
       context stop self
   }

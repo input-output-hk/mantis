@@ -13,6 +13,8 @@ import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
+import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.MessageSerializable
@@ -21,6 +23,7 @@ import io.iohk.ethereum.utils.{Config, NodeStatus}
 import scala.util.{Failure, Success}
 
 class PeerManagerActor(
+    peerEventBus: ActorRef,
     peerConfiguration: PeerConfiguration,
     peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None,
@@ -89,7 +92,11 @@ class PeerManagerActor(
       peer.ref ! PeerActor.SendMessage(message)
 
     case Terminated(ref) =>
-      peers -= PeerId(ref.path.name)
+      val maybePeerId = peers.collect{ case (id, Peer(_, peerRef)) if peerRef == ref => id }
+      maybePeerId.foreach{ peerId =>
+        peerEventBus ! Publish(PeerDisconnected(peerId))
+        peers -= peerId
+      }
   }
 
   def tryingToConnect: Receive = handleCommonMessages orElse {
@@ -170,17 +177,17 @@ class PeerManagerActor(
 object PeerManagerActor {
   def props[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
                                   peerConfiguration: PeerConfiguration,
-                                  peerMessageBus: ActorRef,
+                                  peerEventBus: ActorRef,
                                   handshaker: Handshaker[R]): Props =
-    Props(new PeerManagerActor(peerConfiguration,
-      peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, handshaker)))
+    Props(new PeerManagerActor(peerEventBus, peerConfiguration,
+      peerFactory(nodeStatusHolder, peerConfiguration, peerEventBus, handshaker)))
 
   def props[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
                                   peerConfiguration: PeerConfiguration,
                                   bootstrapNodes: Set[String],
                                   peerMessageBus: ActorRef,
                                   handshaker: Handshaker[R]): Props =
-    Props(new PeerManagerActor(peerConfiguration,
+    Props(new PeerManagerActor(peerMessageBus, peerConfiguration,
       peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, handshaker),
       bootstrapNodes = bootstrapNodes)
     )
