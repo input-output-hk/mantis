@@ -54,67 +54,34 @@ object PeerEventBusActor {
     private var connectionSubscriptions: Seq[Subscription] = Nil
 
     /**
-      * Adds a subscription to a
+      * Subscribes the subscriber to a requested event
       *
       * @param subscriber
-      * @param to
-      * @return
+      * @param to, classifier for the event subscribed
+      * @return true if successful and false if not (because it was already subscribed to that Classifier, or otherwise)
       */
     override def subscribe(subscriber: ActorRef, to: Classifier): Boolean = to match {
       case msgClassifier: MessageClassifier => subscribeToMessageReceived(subscriber, msgClassifier)
       case _ => subscribeToConnectionEvent(subscriber, to)
     }
 
-    def subscribeToMessageReceived(subscriber: ActorRef, to: MessageClassifier): Boolean = {
-      val newSubscriptions = messageSubscriptions.get((subscriber, to.peerSelector)) match {
-        case Some(messageCodes) =>
-          messageSubscriptions + ((subscriber, to.peerSelector) -> (messageCodes ++ to.messageCodes))
-        case None =>  messageSubscriptions + ((subscriber, to.peerSelector) -> to.messageCodes)
-      }
-      if(newSubscriptions == messageSubscriptions) false
-      else {
-        messageSubscriptions = newSubscriptions
-        true
-      }
-    }
-
-    def subscribeToConnectionEvent(subscriber: ActorRef, to: Classifier): Boolean = {
-      val subscription = Subscription(subscriber, to)
-      if (connectionSubscriptions.contains(subscription)) {
-        false
-      } else {
-        connectionSubscriptions = connectionSubscriptions :+ subscription
-        true
-      }
-    }
-
+    /**
+      * Unsubscribes the subscriber from a requested event
+      *
+      * @param subscriber
+      * @param from, classifier for the event to unsubscribe
+      * @return true if successful and false if not (because it wasn't subscribed to that Classifier, or otherwise)
+      */
     override def unsubscribe(subscriber: ActorRef, from: Classifier): Boolean = from match {
       case msgClassifier: MessageClassifier => unsubscribeFromMessageReceived(subscriber, msgClassifier)
       case _ => unsubscribeFromConnectionEvent(subscriber, from)
     }
 
-    def unsubscribeFromMessageReceived(subscriber: ActorRef, from: MessageClassifier): Boolean = {
-      messageSubscriptions.get((subscriber, from.peerSelector)).exists { messageCodes =>
-        val newMessageCodes = messageCodes -- from.messageCodes
-        if (messageCodes == newMessageCodes) false
-        else {
-          if(newMessageCodes.isEmpty) messageSubscriptions = messageSubscriptions - ((subscriber, from.peerSelector))
-          else messageSubscriptions = messageSubscriptions + ((subscriber, from.peerSelector) -> newMessageCodes)
-          true
-        }
-      }
-    }
-
-    def unsubscribeFromConnectionEvent(subscriber: ActorRef, from: Classifier): Boolean = {
-      val subscription = Subscription(subscriber, from)
-      if (connectionSubscriptions.contains(subscription)) {
-        connectionSubscriptions = connectionSubscriptions.filterNot(_ == subscription)
-        true
-      } else {
-        false
-      }
-    }
-
+    /**
+      * Unsubscribes the subscriber from all events it was subscribed
+      *
+      * @param subscriber
+      */
     override def unsubscribe(subscriber: ActorRef): Unit = {
       messageSubscriptions = messageSubscriptions.filterKeys(_._1 != subscriber)
       connectionSubscriptions = connectionSubscriptions.filterNot(_.subscriber == subscriber)
@@ -140,6 +107,80 @@ object PeerEventBusActor {
       }
       interestedSubscribers.foreach(_ ! event)
     }
+
+    /**
+      * Subscribes the subscriber to a requested message received event
+      *
+      * @param subscriber
+      * @param to, classifier for the message received event subscribed
+      * @return true if successful and false if not (because it was already subscribed to that Classifier, or otherwise)
+      */
+    private def subscribeToMessageReceived(subscriber: ActorRef, to: MessageClassifier): Boolean = {
+      val newSubscriptions = messageSubscriptions.get((subscriber, to.peerSelector)) match {
+        case Some(messageCodes) =>
+          messageSubscriptions + ((subscriber, to.peerSelector) -> (messageCodes ++ to.messageCodes))
+        case None =>  messageSubscriptions + ((subscriber, to.peerSelector) -> to.messageCodes)
+      }
+      if(newSubscriptions == messageSubscriptions) false
+      else {
+        messageSubscriptions = newSubscriptions
+        true
+      }
+    }
+
+    /**
+      * Subscribes the subscriber to a requested connection event (new peer handshaked or peer disconnected)
+      *
+      * @param subscriber
+      * @param to, classifier for the connection event subscribed
+      * @return true if successful and false if not (because it was already subscribed to that Classifier, or otherwise)
+      */
+    private def subscribeToConnectionEvent(subscriber: ActorRef, to: Classifier): Boolean = {
+      val subscription = Subscription(subscriber, to)
+      if (connectionSubscriptions.contains(subscription)) {
+        false
+      } else {
+        connectionSubscriptions = connectionSubscriptions :+ subscription
+        true
+      }
+    }
+
+    /**
+      * Unsubscribes the subscriber from a requested received message event event
+      *
+      * @param subscriber
+      * @param from, classifier for the message received event to unsubscribe
+      * @return true if successful and false if not (because it wasn't subscribed to that Classifier, or otherwise)
+      */
+    private def unsubscribeFromMessageReceived(subscriber: ActorRef, from: MessageClassifier): Boolean = {
+      messageSubscriptions.get((subscriber, from.peerSelector)).exists { messageCodes =>
+        val newMessageCodes = messageCodes -- from.messageCodes
+        if (messageCodes == newMessageCodes) false
+        else {
+          if(newMessageCodes.isEmpty) messageSubscriptions = messageSubscriptions - ((subscriber, from.peerSelector))
+          else messageSubscriptions = messageSubscriptions + ((subscriber, from.peerSelector) -> newMessageCodes)
+          true
+        }
+      }
+    }
+
+    /**
+      * Unsubscribes the subscriber from a requested event
+      *
+      * @param subscriber
+      * @param from, classifier for the connection event to unsubscribe
+      * @return true if successful and false if not (because it wasn't subscribed to that Classifier, or otherwise)
+      */
+    private def unsubscribeFromConnectionEvent(subscriber: ActorRef, from: Classifier): Boolean = {
+      val subscription = Subscription(subscriber, from)
+      if (connectionSubscriptions.contains(subscription)) {
+        connectionSubscriptions = connectionSubscriptions.filterNot(_ == subscription)
+        true
+      } else {
+        false
+      }
+    }
+
 
   }
 
