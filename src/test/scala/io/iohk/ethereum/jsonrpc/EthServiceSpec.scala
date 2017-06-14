@@ -673,7 +673,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetTransactionCountResponse(BigInt(999)))
   }
 
-  it should "handle get transaction by hash if the tx is not on the blockchain" in new TestSetup {
+  it should "handle get transaction by hash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
     val request = GetTransactionByHashRequest(txToRequestHash)
     val response = ethService.getTransactionByHash(request)
 

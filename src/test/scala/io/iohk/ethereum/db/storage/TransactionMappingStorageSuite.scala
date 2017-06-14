@@ -8,7 +8,7 @@ import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 
 class TransactionMappingStorageSuite extends FunSuite with PropertyChecks with ObjectGenerators {
-  test("TotalDifficultyStorage insert") {
+  test("TransactionMappingStorage insert") {
     forAll(Gen.listOf(byteStringOfLengthNGen(32))){ txByteArrayHashes =>
       val txHashes = txByteArrayHashes.distinct
       val blockHashesList = Gen.listOfN(txByteArrayHashes.length, byteStringOfLengthNGen(32)).sample.get
@@ -26,7 +26,7 @@ class TransactionMappingStorageSuite extends FunSuite with PropertyChecks with O
     }
   }
 
-  test("TotalDifficultyStorage delete") {
+  test("TransactionMappingStorage delete") {
     forAll(Gen.listOf(byteStringOfLengthNGen(32))){ txByteArrayHashes =>
       val txHashes = txByteArrayHashes.distinct
       val blockHashesList = Gen.listOfN(txByteArrayHashes.length, byteStringOfLengthNGen(32)).sample.get
@@ -35,14 +35,14 @@ class TransactionMappingStorageSuite extends FunSuite with PropertyChecks with O
         TransactionLocation(blockHash, txIndex) }
       val txHashAndLocationPair = txHashes.zip(txLocationList)
 
-      //Total difficulty of blocks is inserted
+      //Mapping of tx to blocks is inserted
       val initialTxMappingStorage = new TransactionMappingStorage(EphemDataSource())
       val txMappingStorage = txHashAndLocationPair.foldLeft(initialTxMappingStorage){
         case (recTxMappingStorage, (txHash, txLocation)) =>
           recTxMappingStorage.put(txHash, txLocation)
       }
 
-      //Total difficulty of blocks is deleted
+      //Mapping of tx to blocks is deleted
       val (toDelete, toLeave) = txHashAndLocationPair.splitAt(Gen.choose(0, txHashAndLocationPair.size).sample.get)
       val txMappingStorageAfterDelete = toDelete.foldLeft(txMappingStorage){
         case (recTxMappingStorage, (txHash, _)) =>
