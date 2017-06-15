@@ -28,10 +28,10 @@ class FrameCodecSpec extends FlatSpec with Matchers {
   object DummyMsg {
     val code: Int = 2323
 
-    implicit class DummyMsgEnc(msg: DummyMsg) extends MessageSerializable with RLPSerializable {
+    implicit class DummyMsgEnc(val underlyingMsg: DummyMsg) extends MessageSerializable with RLPSerializable {
       override def code: Int = DummyMsg.code
 
-      override def toRLPEncodable: RLPEncodeable = RLPList(msg.aField, msg.anotherField)
+      override def toRLPEncodable: RLPEncodeable = RLPList(underlyingMsg.aField, underlyingMsg.anotherField)
     }
 
     implicit class DummyMsgDec(val bytes: Array[Byte]) {

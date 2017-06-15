@@ -8,24 +8,22 @@ import akka.testkit.TestProbe
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
-import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class NetServiceSpec extends FlatSpec with Matchers with MockFactory {
+class NetServiceSpec extends FlatSpec with Matchers {
 
   "NetService" should "return handshaked peer count" in new TestSetup {
     val resF = netService.peerCount(PeerCountRequest())
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(PeerManagerActor.Peers(Map(
-      Peer(new InetSocketAddress(1), testRef) -> PeerActor.Status.Handshaked(mock[Status], true, 0),
-      Peer(new InetSocketAddress(2), testRef) -> PeerActor.Status.Handshaked(mock[Status], true, 0),
+      Peer(new InetSocketAddress(1), testRef) -> PeerActor.Status.Handshaked,
+      Peer(new InetSocketAddress(2), testRef) -> PeerActor.Status.Handshaked,
       Peer(new InetSocketAddress(3), testRef) -> PeerActor.Status.Connecting)))
 
     Await.result(resF, 3.seconds) shouldBe Right(PeerCountResponse(2))
