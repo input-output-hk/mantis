@@ -53,7 +53,6 @@ class PersonalService(
   keyStore: KeyStore,
   blockchain: Blockchain,
   txPool: ActorRef,
-  blockchainStorages: BlockchainStorages,
   appStateStorage: AppStateStorage) {
 
   private val unlockedWallets: mutable.Map[Address, Wallet] = mutable.Map.empty

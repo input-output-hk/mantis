@@ -1,8 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
-import java.util.Date
-import java.util.concurrent.atomic.AtomicReference
 import java.util.function.UnaryOperator
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
@@ -143,7 +141,6 @@ class EthService(
     appStateStorage: AppStateStorage,
     miningConfig: MiningConfig,
     ledger: Ledger,
-    blockchainConfig: BlockchainConfig,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
     syncingController: ActorRef,
