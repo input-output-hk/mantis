@@ -404,7 +404,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_sign = new JsonDecoder[SignRequest] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, SignRequest] =
       params match {
-        case Some(JArray(JString(message) :: JString(addr) :: _)) =>
+        case Some(JArray(JString(addr) :: JString(message) :: _)) =>
           for {
             message <- extractBytes(message)
             address <- extractAddress(addr)

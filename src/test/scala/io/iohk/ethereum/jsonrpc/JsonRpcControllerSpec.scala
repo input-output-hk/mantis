@@ -944,8 +944,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       "2.0",
       "eth_sign",
       Some(JArray(List(
-        JString(s"0xdeadbeaf"),
-        JString(s"0x9b2055d370f73ec7d8a03e965129118dc8f5bf83")
+        JString(s"0x9b2055d370f73ec7d8a03e965129118dc8f5bf83"),
+        JString(s"0xdeadbeaf")
       ))),
       Some(JInt(1))
     )
