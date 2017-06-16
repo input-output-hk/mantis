@@ -403,22 +403,12 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
 
     def extractFilter(obj: JObject): Either[JsonRpcError, Filter] = {
       val topicsEither: Either[JsonRpcError, Seq[Seq[ByteString]]] =
-        Try((obj \ "topics").extractOpt[JArray].map(_.arr).getOrElse(Nil).map {
-          case JNull => Nil
-          case js: JString =>
-            Seq(extractBytes(js).toOption.getOrElse(throw new RuntimeException(s"Unable to parse topics, expected byte data but got  ${js.values}")))
-          case jarr: JArray => jarr.arr.map {
-            case e: JString =>
-              extractBytes(e).toOption.getOrElse(throw new RuntimeException(s"Unable to parse topics, expected byte data but got ${e.values}"))
-            case other =>
-              throw new RuntimeException(s"Unable to parse topics, expected byte data but got: $other")
-          }
-          case other =>
-            throw new RuntimeException(s"Unable to parse topics, expected byte data or array but got: $other")
-        }) match {
-          case Success(topics) => Right(topics)
-          case Failure(ex) => Left(JsonRpcErrors.InvalidParams(ex.getMessage))
-        }
+        allSuccess((obj \ "topics").extractOpt[JArray].map(_.arr).getOrElse(Nil).map {
+          case JNull => Right(Nil)
+          case jstr: JString => parseTopic(jstr).map(Seq(_))
+          case jarr: JArray => parseNestedTopics(jarr)
+          case other => Left(InvalidParams(msg = s"Unable to parse topics, expected byte data or array but got: $other"))
+        })
 
       for {
         fromBlock <- toEitherOpt((obj \ "fromBlock").extractOpt[JValue].map(extractBlockParam))
@@ -430,6 +420,22 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
         toBlock = toBlock,
         address = address,
         topics = topics)
+    }
+
+    private def parseNestedTopics(jarr: JArray): Either[JsonRpcError, Seq[ByteString]] = {
+      allSuccess(jarr.arr.map {
+        case jstr: JString => parseTopic(jstr)
+        case other => Left(InvalidParams(msg = s"Unable to parse topics, expected byte data but got: $other"))
+      })
+    }
+
+    private def allSuccess[T](eithers: Seq[Either[JsonRpcError, T]]): Either[JsonRpcError, Seq[T]] = {
+      if (eithers.forall(_.isRight)) Right(eithers.map(_.right.get))
+      else Left(InvalidParams(msg = eithers.collect { case Left(err) => err.message }.mkString("\n")))
+    }
+
+    private def parseTopic(jstr: JString): Either[JsonRpcError, ByteString] = {
+      extractBytes(jstr).left.map(_ => InvalidParams(msg = s"Unable to parse topics, expected byte data but got ${jstr.values}"))
     }
   }
 

@@ -1,6 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorRef, Cancellable, Props, Scheduler}
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
@@ -8,6 +8,7 @@ import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.utils.FilterConfig
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -19,17 +20,24 @@ class FilterManager(
     blockchain: Blockchain,
     appStateStorage: AppStateStorage,
     keyStore: KeyStore,
-    pendingTransactionsManager: ActorRef)
+    pendingTransactionsManager: ActorRef,
+    config: FilterConfig,
+    externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor {
 
   import FilterManager._
   import akka.pattern.{ask, pipe}
+  import context.system
+
+  def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
 
   val maxBlockHashesChanges = 256
 
-  var filters: Seq[Filter] = Nil
+  var filters: Map[BigInt, Filter] = Map.empty
 
   var lastCheckBlocks: Map[BigInt, BigInt] = Map.empty
+
+  var filterTimeouts: Map[BigInt, Cancellable] = Map.empty
 
   implicit val timeout = Timeout(5.seconds)
 
@@ -40,24 +48,34 @@ class FilterManager(
     case UninstallFilter(id) => uninstallFilter(id)
     case GetFilterLogs(id) => getFilterLogs(id)
     case GetFilterChanges(id) => getFilterChanges(id)
+    case FilterTimeout(id) => uninstallFilter(id)
+  }
+
+  private def resetTimeout(id: BigInt): Unit = {
+    filterTimeouts.get(id).foreach(_.cancel())
+    val timeoutCancellable = scheduler.scheduleOnce(config.filterTimeout, self, FilterTimeout(id))
+    filterTimeouts += (id -> timeoutCancellable)
   }
 
   private def addFilterAndSendResponse(filter: Filter): Unit = {
-    filters :+= filter
+    filters += (filter.id -> filter)
     lastCheckBlocks += (filter.id -> appStateStorage.getBestBlockNumber())
+    resetTimeout(filter.id)
     sender() ! NewFilterResponse(filter.id)
   }
 
   private def uninstallFilter(id: BigInt): Unit = {
-    filters = filters.filterNot(_.id == id)
+    filters -= id
     lastCheckBlocks -= id
+    filterTimeouts.get(id).foreach(_.cancel())
+    filterTimeouts -= id
     sender() ! UninstallFilterResponse()
   }
 
   private def getFilterLogs(id: BigInt): Unit = {
-    val filterOpt = getFilterById(id)
-
+    val filterOpt = filters.get(id)
     filterOpt.foreach { _ => lastCheckBlocks += (id -> appStateStorage.getBestBlockNumber()) }
+    resetTimeout(id)
 
     filterOpt match {
       case Some(logFilter: LogFilter) =>
@@ -109,9 +127,9 @@ class FilterManager(
     val bestBlockNumber = appStateStorage.getBestBlockNumber()
     val lastCheckBlock = lastCheckBlocks.getOrElse(id, bestBlockNumber)
 
-    val filterOpt = getFilterById(id)
-
+    val filterOpt = filters.get(id)
     filterOpt.foreach { _ => lastCheckBlocks += (id -> bestBlockNumber) }
+    resetTimeout(id)
 
     filterOpt match {
       case Some(logFilter: LogFilter) =>
@@ -185,9 +203,6 @@ class FilterManager(
       }
   }
 
-  private def getFilterById(id: BigInt): Option[Filter] =
-    filters.find(_.id == id)
-
   private def generateId(): BigInt = Math.abs(Random.nextLong())
 
   private def resolveBlockNumber(blockParam: BlockParam, appStateStorage: AppStateStorage): BigInt = {
@@ -204,8 +219,9 @@ object FilterManager {
   def props(blockchain: Blockchain,
             appStateStorage: AppStateStorage,
             keyStore: KeyStore,
-            pendingTransactionsManager: ActorRef): Props =
-    Props(new FilterManager(blockchain, appStateStorage, keyStore, pendingTransactionsManager))
+            pendingTransactionsManager: ActorRef,
+            config: FilterConfig): Props =
+    Props(new FilterManager(blockchain, appStateStorage, keyStore, pendingTransactionsManager, config))
 
   sealed trait Filter {
     def id: BigInt
@@ -250,4 +266,6 @@ object FilterManager {
   case class BlockFilterLogs(blockHashes: Seq[ByteString]) extends FilterLogs
   case class PendingTransactionFilterLogs(txHashes: Seq[ByteString]) extends FilterLogs
   // TODO: getTransactionByHash method should also query pending transactions
+
+  private case class FilterTimeout(id: BigInt)
 }

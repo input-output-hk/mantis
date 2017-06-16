@@ -130,6 +130,20 @@ object Config {
 
 }
 
+trait FilterConfig {
+  val filterTimeout: FiniteDuration
+}
+
+object FilterConfig {
+  def apply(etcClientConfig: com.typesafe.config.Config): FilterConfig = {
+    val filterConfig = etcClientConfig.getConfig("filter")
+
+    new FilterConfig {
+      val filterTimeout: FiniteDuration = filterConfig.getDuration("filter-timeout").toMillis.millis
+    }
+  }
+}
+
 trait MiningConfig {
   val txPoolSize: Int
   val ommersPoolSize: Int

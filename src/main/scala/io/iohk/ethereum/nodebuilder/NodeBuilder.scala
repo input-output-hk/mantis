@@ -35,6 +35,10 @@ trait MiningConfigBuilder {
   lazy val miningConfig = MiningConfig(Config.config)
 }
 
+trait FilterConfigBuilder {
+  lazy val filterConfig = FilterConfig(Config.config)
+}
+
 trait NodeKeyBuilder {
   lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile)
 }
@@ -159,10 +163,11 @@ trait FilterManagerBuilder {
     with BlockChainBuilder
     with StorageBuilder
     with KeyStoreBuilder
-    with PendingTransactionsManagerBuilder =>
+    with PendingTransactionsManagerBuilder
+    with FilterConfigBuilder =>
 
   lazy val filterManager: ActorRef =
-    actorSystem.actorOf(FilterManager.props(blockchain, storagesInstance.storages.appStateStorage, keyStore, pendingTransactionsManager))
+    actorSystem.actorOf(FilterManager.props(blockchain, storagesInstance.storages.appStateStorage, keyStore, pendingTransactionsManager, filterConfig))
 }
 
 trait BlockGeneratorBuilder {
@@ -327,3 +332,4 @@ trait Node extends NodeKeyBuilder
   with OmmersPoolBuilder
   with MiningConfigBuilder
   with FilterManagerBuilder
+  with FilterConfigBuilder

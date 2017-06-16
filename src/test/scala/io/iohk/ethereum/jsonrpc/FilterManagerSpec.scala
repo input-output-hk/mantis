@@ -1,6 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -11,11 +11,14 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import akka.pattern.ask
+import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.DefaultPatience
 import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.utils.FilterConfig
 import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
@@ -25,7 +28,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
   implicit val timeout = Timeout(5.seconds)
 
   "FilterManager" should "handle log filter logs and changes" in new TestSetup {
-    val filterManager = TestActorRef[FilterManager](FilterManager.props(blockchain, appStateStorage, keyStore, pendingTransactionsManager.ref))
+    val filterManager = TestActorRef[FilterManager](Props(new FilterManager(blockchain, appStateStorage, keyStore, pendingTransactionsManager.ref, config, Some(time.scheduler))))
 
     val address = Address("0x1234")
     val topics = Seq(Seq(), Seq(ByteString(Hex.decode("4567"))))
@@ -156,7 +159,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
   }
 
   it should "handle block filter" in new TestSetup {
-    val filterManager = TestActorRef[FilterManager](FilterManager.props(blockchain, appStateStorage, keyStore, pendingTransactionsManager.ref))
+    val filterManager = TestActorRef[FilterManager](Props(new FilterManager(blockchain, appStateStorage, keyStore, pendingTransactionsManager.ref, config, Some(time.scheduler))))
 
     (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
 
@@ -190,7 +193,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
   }
 
   it should "handle pending transactions filter" in new TestSetup {
-    val filterManager = TestActorRef[FilterManager](FilterManager.props(blockchain, appStateStorage, keyStore, pendingTransactionsManager.ref))
+    val filterManager = TestActorRef[FilterManager](Props(new FilterManager(blockchain, appStateStorage, keyStore, pendingTransactionsManager.ref, config, Some(time.scheduler))))
 
     (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
 
@@ -227,8 +230,64 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
     getLogsRes.txHashes shouldBe pendingTxs.map(_.hash)
   }
 
+  it should "timeout unused filter" in new TestSetup {
+    val filterManager = TestActorRef[FilterManager](Props(new FilterManager(blockchain, appStateStorage, keyStore, pendingTransactionsManager.ref, config, Some(time.scheduler))))
+
+    (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
+
+    val createResp =
+      (filterManager ? FilterManager.NewPendingTransactionFilter())
+        .mapTo[FilterManager.NewFilterResponse].futureValue
+
+    (appStateStorage.getBestBlockNumber _).expects().returning(3)
+
+    val pendingTxs = Seq(
+      SignedTransaction(
+        tx = Transaction(
+          nonce = 0,
+          gasPrice = 123,
+          gasLimit = 123,
+          receivingAddress = Address("0x1234"),
+          value = 0,
+          payload = ByteString()),
+        signature = ECDSASignature(0, 0, 0.toByte),
+        senderAddress = Address("0x0099"))
+    )
+
+    (keyStore.listAccounts _).expects().returning(Right(pendingTxs.map(_.senderAddress).toList))
+
+    val getLogsResF =
+      (filterManager ? FilterManager.GetFilterLogs(createResp.id))
+        .mapTo[FilterManager.PendingTransactionFilterLogs]
+
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(pendingTxs))
+
+    val getLogsRes = getLogsResF.futureValue
+
+    // the filter should work
+    getLogsRes.txHashes shouldBe pendingTxs.map(_.hash)
+
+    time.advance(15.seconds)
+
+    // the filter should no longer exist
+    val getLogsRes2 =
+      (filterManager ? FilterManager.GetFilterLogs(createResp.id))
+        .mapTo[FilterManager.FilterLogs].futureValue
+
+    pendingTransactionsManager.expectNoMsg()
+
+    getLogsRes2 shouldBe LogFilterLogs(Nil)
+  }
+
   trait TestSetup extends MockFactory {
     implicit val system = ActorSystem("FilterManagerSpec_System")
+
+    val config = new FilterConfig {
+      override val filterTimeout = 10.seconds
+    }
+
+    val time = new VirtualTime
 
     val blockchain = mock[Blockchain]
     val appStateStorage = mock[AppStateStorage]
