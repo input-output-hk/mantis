@@ -6,12 +6,13 @@ import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{Blockchain, _}
-import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.messages.{PV62, PV63}
-import io.iohk.ethereum.network.{ForkResolver, PeerManagerActor, PeerMessageBusActor, loadAsymmetricCipherKeyPair}
+import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor, loadAsymmetricCipherKeyPair}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 
@@ -67,18 +68,15 @@ object DumpChainApp extends App{
         override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
       }
 
-    lazy val handshaker: Handshaker[EtcPeerInfo] = EtcHandshaker(handshakerConfiguration)
+    lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
 
-    val peerMessageBus = actorSystem.actorOf(PeerMessageBusActor.props)
+    val peerMessageBus = actorSystem.actorOf(PeerEventBusActor.props)
 
     val peerManager = actorSystem.actorOf(PeerManagerActor.props(
       nodeStatusHolder = nodeStatusHolder,
       peerConfiguration = peerConfig,
-      appStateStorage = storagesInstance.storages.appStateStorage,
-      blockchain = blockchain,
       bootstrapNodes = Set(node),
       peerMessageBus,
-      forkResolverOpt = forkResolverOpt,
       handshaker = handshaker), "peer-manager")
     actorSystem.actorOf(DumpChainActor.props(peerManager,peerMessageBus,startBlock,maxBlocks), "dumper")
   }
@@ -121,4 +119,6 @@ object DumpChainApp extends App{
     def getAccount(address: Address, blockNumber: BigInt): Option[Account] = ???
 
     override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = ???
+
+    override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = ???
   }

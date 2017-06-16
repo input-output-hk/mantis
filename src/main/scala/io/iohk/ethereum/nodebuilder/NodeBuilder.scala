@@ -3,7 +3,7 @@ package io.iohk.ethereum.nodebuilder
 import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.blockchain.sync.SyncController
+import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
 import io.iohk.ethereum.blockchain.sync.SyncController.DependencyActors
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -15,8 +15,8 @@ import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
 import io.iohk.ethereum.mining.BlockGenerator
-import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.utils._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -94,35 +94,53 @@ trait HandshakerBuilder {
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
     }
 
-  lazy val handshaker: Handshaker[EtcPeerInfo] = EtcHandshaker(handshakerConfiguration)
+  lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
 }
 
-trait PeerMessageBusBuilder {
+trait PeerEventBusBuilder {
   self: ActorSystemBuilder =>
 
-  lazy val peerMessageBus = actorSystem.actorOf(PeerMessageBusActor.props)
+  lazy val peerEventBus = actorSystem.actorOf(PeerEventBusActor.props, "peer-event-bus")
 }
 
 trait PeerManagerActorBuilder {
 
   self: ActorSystemBuilder
     with NodeStatusBuilder
-    with StorageBuilder
-    with BlockChainBuilder
     with HandshakerBuilder
-    with ForkResolverBuilder
-    with PeerMessageBusBuilder =>
+    with PeerEventBusBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
   lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props(
     nodeStatusHolder,
     Config.Network.peer,
-    storagesInstance.storages.appStateStorage,
-    blockchain,
-    peerMessageBus,
-    forkResolverOpt,
+    peerEventBus,
     handshaker), "peer-manager")
+
+}
+
+trait EtcPeerManagerActorBuilder {
+  self: ActorSystemBuilder
+    with PeerManagerActorBuilder
+    with PeerEventBusBuilder
+    with ForkResolverBuilder
+    with StorageBuilder =>
+
+  lazy val etcPeerManager = actorSystem.actorOf(EtcPeerManagerActor.props(
+    peerManager, peerEventBus, storagesInstance.storages.appStateStorage, forkResolverOpt), "etc-peer-manager")
+
+}
+
+trait BlockchainHostBuilder {
+  self: ActorSystemBuilder
+    with BlockChainBuilder
+    with PeerManagerActorBuilder
+    with EtcPeerManagerActorBuilder
+    with PeerEventBusBuilder =>
+
+  val blockchainHost = actorSystem.actorOf(BlockchainHostActor.props(
+    blockchain, peerConfiguration, peerEventBus, etcPeerManager), "blockchain-host")
 
 }
 
@@ -152,10 +170,12 @@ trait NetServiceBuilder {
 trait PendingTransactionsManagerBuilder {
   self: ActorSystemBuilder
     with PeerManagerActorBuilder
-    with PeerMessageBusBuilder
+    with EtcPeerManagerActorBuilder
+    with PeerEventBusBuilder
     with MiningConfigBuilder =>
 
-  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(miningConfig, peerManager, peerMessageBus))
+  lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(
+    miningConfig, peerManager, etcPeerManager, peerEventBus))
 }
 
 trait FilterManagerBuilder {
@@ -255,14 +275,14 @@ trait SyncControllerBuilder {
     ServerActorBuilder with
     BlockChainBuilder with
     NodeStatusBuilder with
-    PeerManagerActorBuilder with
     StorageBuilder with
     BlockchainConfigBuilder with
     ValidatorsBuilder with
     LedgerBuilder with
-    PeerMessageBusBuilder with
+    PeerEventBusBuilder with
     PendingTransactionsManagerBuilder with
-    OmmersPoolBuilder =>
+    OmmersPoolBuilder with
+    EtcPeerManagerActorBuilder =>
 
 
 
@@ -274,12 +294,10 @@ trait SyncControllerBuilder {
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       validators,
-      peerManager,
-      peerMessageBus,
+      peerEventBus,
       pendingTransactionsManager,
-      ommersPool
-      ),
-    "sync-controller")
+      ommersPool,
+      etcPeerManager), "sync-controller")
 
 }
 
@@ -327,9 +345,11 @@ trait Node extends NodeKeyBuilder
   with ShutdownHookBuilder
   with GenesisDataLoaderBuilder
   with BlockchainConfigBuilder
-  with PeerMessageBusBuilder
+  with PeerEventBusBuilder
   with PendingTransactionsManagerBuilder
   with OmmersPoolBuilder
   with MiningConfigBuilder
+  with EtcPeerManagerActorBuilder
+  with BlockchainHostBuilder
   with FilterManagerBuilder
   with FilterConfigBuilder

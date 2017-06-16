@@ -14,6 +14,7 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
@@ -64,6 +65,9 @@ object EthService {
 
   case class GetMiningRequest()
   case class GetMiningResponse(isMining: Boolean)
+
+  case class GetTransactionByHashRequest(txHash: ByteString)
+  case class GetTransactionByHashResponse(txResponse: Option[TransactionResponse])
 
   case class GetTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
   case class GetTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[TransactionResponse])
@@ -227,6 +231,30 @@ class EthService(
       BlockResponse(block, totalDifficulty, fullTxs = fullTxs, pendingBlock = pending)
     }
     Right(BlockByNumberResponse(blockResponseOpt))
+  }
+
+  /**
+    * Implements the eth_getTransactionByHash method that fetches a requested tx.
+    * The tx requested will be fetched from the pending tx pool or from the already executed txs (depending on the tx state)
+    *
+    * @param req with the tx requested (by it's hash)
+    * @return the tx requested or None if the client doesn't have the tx
+    */
+  def getTransactionByHash(req: GetTransactionByHashRequest): ServiceResponse[GetTransactionByHashResponse] = {
+    val maybeTxPendingResponse: Future[Option[TransactionResponse]] = getTransactionsFromPool.map{
+      _.signedTransactions.find(_.hash == req.txHash).map(TransactionResponse(_)) }
+
+    val maybeTxResponse: Future[Option[TransactionResponse]] = maybeTxPendingResponse.flatMap{ txPending =>
+      Future { txPending.orElse{
+        for {
+          TransactionLocation(blockHash, txIndex) <- blockchain.getTransactionLocation(req.txHash)
+          Block(header, body) <- blockchain.getBlockByHash(blockHash)
+          stx <- body.transactionList.lift(txIndex)
+        } yield TransactionResponse(stx, Some(header), Some(txIndex))
+      }}
+    }
+
+    maybeTxResponse.map(txResponse => Right(GetTransactionByHashResponse(txResponse)))
   }
 
   /**

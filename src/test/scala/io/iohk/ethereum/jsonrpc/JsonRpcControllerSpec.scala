@@ -908,11 +908,84 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(JString("0x7b"))
   }
 
+  it should "eth_getTransactionByHash" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    val txResponse = TransactionResponse(Fixtures.Blocks.Block3125369.body.transactionList.head)
+    (mockEthService.getTransactionByHash _).expects(*)
+      .returning(Future.successful(Right(GetTransactionByHashResponse(Some(txResponse)))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getTransactionByHash",
+      Some(JArray(List(
+        JString("0xe9b2d3e8a2bc996a1c7742de825fdae2466ae783ce53484304efffe304ff232d")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(Extraction.decompose(txResponse))
+  }
+
+  it should "eth_sign" in new TestSetup {
+
+    (personalService.sign _).expects(
+      SignRequest(
+        ByteString(Hex.decode("deadbeaf")),
+        Address(ByteString(Hex.decode("9b2055d370f73ec7d8a03e965129118dc8f5bf83"))),
+        None))
+      .returns(Future.successful(Right(SignResponse(sig))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_sign",
+      Some(JArray(List(
+        JString(s"0x9b2055d370f73ec7d8a03e965129118dc8f5bf83"),
+        JString(s"0xdeadbeaf")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0xa3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a12d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee1b"))
+  }
+
+  it should "personal_sign" in new TestSetup {
+
+    (personalService.sign _).expects(
+        SignRequest(
+          ByteString(Hex.decode("deadbeaf")),
+          Address(ByteString(Hex.decode("9b2055d370f73ec7d8a03e965129118dc8f5bf83"))),
+          Some("thePassphrase")))
+      .returns(Future.successful(Right(SignResponse(sig))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "personal_sign",
+      Some(JArray(List(
+        JString(s"0xdeadbeaf"),
+        JString(s"0x9b2055d370f73ec7d8a03e965129118dc8f5bf83"),
+        JString("thePassphrase")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0xa3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a12d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee1b"))
+  }
+
   it should "personal_ecRecover" in new TestSetup {
-    val r: ByteString = ByteString(Hex.decode("a3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a1"))
-    val s: ByteString = ByteString(Hex.decode("2d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee"))
-    val v: ByteString = ByteString(Hex.decode("1b"))
-    val sig = ECDSASignature(r, s, v)
 
     (personalService.ecRecover _).expects(EcRecoverRequest(ByteString(Hex.decode("deadbeaf")), sig))
       .returns(Future.successful(Right(EcRecoverResponse(Address(ByteString(Hex.decode("9b2055d370f73ec7d8a03e965129118dc8f5bf83")))))))
@@ -1132,6 +1205,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       extraData = ByteString("unused"),
       mixHash = ByteString("unused"),
       nonce = ByteString("unused"))
+
+    val r: ByteString = ByteString(Hex.decode("a3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a1"))
+    val s: ByteString = ByteString(Hex.decode("2d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee"))
+    val v: ByteString = ByteString(Hex.decode("1b"))
+    val sig = ECDSASignature(r, s, v)
   }
 
 }

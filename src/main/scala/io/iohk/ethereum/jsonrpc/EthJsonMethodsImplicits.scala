@@ -2,15 +2,12 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.FilterManager.{Filter => _, NewFilterResponse => _, UninstallFilterResponse => _, _}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
-import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTransactionResponse}
+import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTransactionResponse, SignRequest}
 import org.json4s.{Extraction, JsonAST}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue, _}
 import org.json4s.JsonDSL._
-
-import scala.util.{Failure, Success, Try}
 
 // scalastyle:off number.of.methods
 object EthJsonMethodsImplicits extends JsonMethodsImplicits {
@@ -146,6 +143,20 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: BlockByNumberResponse): JValue =
       Extraction.decompose(t.blockResponse)
   }
+
+  implicit val eth_getTransactionByHash =
+    new JsonDecoder[GetTransactionByHashRequest] with JsonEncoder[GetTransactionByHashResponse] {
+      override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetTransactionByHashRequest] = params match {
+        case Some(JArray(JString(txHash) :: Nil)) =>
+          for {
+            parsedTxHash <- extractHash(txHash)
+          } yield GetTransactionByHashRequest(parsedTxHash)
+        case _ => Left(InvalidParams())
+      }
+
+      override def encodeJson(t: GetTransactionByHashResponse): JValue =
+        Extraction.decompose(t.txResponse)
+    }
 
   implicit val eth_getTransactionByBlockHashAndIndex =
     new JsonDecoder[GetTransactionByBlockHashAndIndexRequest] with JsonEncoder[GetTransactionByBlockHashAndIndexResponse] {
@@ -472,9 +483,9 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       }
     override def encodeJson(t: GetFilterChangesResponse): JValue =
       t.filterChanges match {
-        case LogFilterChanges(logs) => JArray(logs.map(Extraction.decompose).toList)
-        case BlockFilterChanges(blockHashes) =>  JArray(blockHashes.map(encodeAsHex).toList)
-        case PendingTransactionFilterChanges(txHashes) => JArray(txHashes.map(encodeAsHex).toList)
+        case FilterManager.LogFilterChanges(logs) => JArray(logs.map(Extraction.decompose).toList)
+        case FilterManager.BlockFilterChanges(blockHashes) =>  JArray(blockHashes.map(encodeAsHex).toList)
+        case FilterManager.PendingTransactionFilterChanges(txHashes) => JArray(txHashes.map(encodeAsHex).toList)
       }
   }
 
@@ -495,6 +506,19 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
         case LogFilterLogs(logs) => JArray(logs.map(Extraction.decompose).toList)
         case BlockFilterLogs(blockHashes) =>  JArray(blockHashes.map(encodeAsHex).toList)
         case PendingTransactionFilterLogs(txHashes) => JArray(txHashes.map(encodeAsHex).toList)
+      }
+  }
+
+  implicit val eth_sign = new JsonDecoder[SignRequest] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, SignRequest] =
+      params match {
+        case Some(JArray(JString(addr) :: JString(message) :: _)) =>
+          for {
+            message <- extractBytes(message)
+            address <- extractAddress(addr)
+          } yield SignRequest(message, address, None)
+        case _ =>
+          Left(InvalidParams())
       }
   }
 

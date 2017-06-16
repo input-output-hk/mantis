@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address, Receipt, TxLogEntry}
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable, MessageSerializableImplicit}
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
@@ -19,7 +19,7 @@ object PV63 {
 
     val code: Int = Versions.SubProtocolOffset + 0x0d
 
-    implicit class GetNodeDataEnc(m: GetNodeData) extends MessageSerializableImplicit[GetNodeData](m) with RLPSerializable {
+    implicit class GetNodeDataEnc(val underlyingMsg: GetNodeData) extends MessageSerializableImplicit[GetNodeData](underlyingMsg) with RLPSerializable {
       override def code: Int = GetNodeData.code
 
       override def toRLPEncodable: RLPEncodeable = toRlpList(msg.mptElementsHashes)
@@ -136,7 +136,7 @@ object PV63 {
 
     val code: Int = Versions.SubProtocolOffset + 0x0e
 
-    implicit class NodeDataEnc(m: NodeData) extends MessageSerializableImplicit[NodeData](m) with RLPSerializable {
+    implicit class NodeDataEnc(val underlyingMsg: NodeData) extends MessageSerializableImplicit[NodeData](underlyingMsg) with RLPSerializable {
 
       import io.iohk.ethereum.network.p2p.messages.PV63.MptNode._
 
@@ -219,7 +219,7 @@ object PV63 {
   object GetReceipts {
     val code: Int = Versions.SubProtocolOffset + 0x0f
 
-    implicit class GetReceiptsEnc(m: GetReceipts) extends MessageSerializableImplicit[GetReceipts](m) with RLPSerializable {
+    implicit class GetReceiptsEnc(val underlyingMsg: GetReceipts) extends MessageSerializableImplicit[GetReceipts](underlyingMsg) with RLPSerializable {
       override def code: Int = GetReceipts.code
 
       override def toRLPEncodable: RLPEncodeable = msg.blockHashes: RLPList
@@ -299,7 +299,7 @@ object PV63 {
 
     val code: Int = Versions.SubProtocolOffset + 0x10
 
-    implicit class ReceiptsEnc(m: Receipts) extends MessageSerializableImplicit[Receipts](m) with RLPSerializable {
+    implicit class ReceiptsEnc(val underlyingMsg: Receipts) extends MessageSerializableImplicit[Receipts](underlyingMsg) with RLPSerializable {
       import ReceiptImplicits._
 
       override def code: Int = Receipts.code

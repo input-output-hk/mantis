@@ -9,9 +9,10 @@ import org.spongycastle.util.encoders.Hex
 
 class SyncBlockBodiesRequestHandler(
     peer: Peer,
+    etcPeerManager: ActorRef,
     peerMessageBus: ActorRef,
     requestedHashes: Seq[ByteString])(implicit scheduler: Scheduler)
-  extends SyncRequestHandler[GetBlockBodies, BlockBodies](peer, peerMessageBus) {
+  extends SyncRequestHandler[GetBlockBodies, BlockBodies](peer, etcPeerManager, peerMessageBus) {
 
   override val requestMsg = GetBlockBodies(requestedHashes)
   override val responseMsgCode: Int = BlockBodies.code
@@ -43,7 +44,7 @@ class SyncBlockBodiesRequestHandler(
 }
 
 object SyncBlockBodiesRequestHandler {
-  def props(peer: Peer, peerMessageBus: ActorRef, requestedHashes: Seq[ByteString])
+  def props(peer: Peer, etcPeerManager: ActorRef, peerMessageBus: ActorRef, requestedHashes: Seq[ByteString])
            (implicit scheduler: Scheduler): Props =
-    Props(new SyncBlockBodiesRequestHandler(peer, peerMessageBus, requestedHashes))
+    Props(new SyncBlockBodiesRequestHandler(peer, etcPeerManager, peerMessageBus, requestedHashes))
 }

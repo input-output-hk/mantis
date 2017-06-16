@@ -33,7 +33,7 @@ object WireProtocol {
 
     val code = 0x00
 
-    implicit class HelloEnc(m: Hello) extends MessageSerializableImplicit[Hello](m) with RLPSerializable {
+    implicit class HelloEnc(val underlyingMsg: Hello) extends MessageSerializableImplicit[Hello](underlyingMsg) with RLPSerializable {
       import io.iohk.ethereum.rlp._
 
       override def code: Int = Hello.code
@@ -94,7 +94,7 @@ object WireProtocol {
 
     val code = 0x01
 
-    implicit class DisconnectEnc(m: Disconnect) extends MessageSerializableImplicit[Disconnect](m) with RLPSerializable  {
+    implicit class DisconnectEnc(val underlyingMsg: Disconnect) extends MessageSerializableImplicit[Disconnect](underlyingMsg) with RLPSerializable  {
       override def code: Int = Disconnect.code
 
       override def toRLPEncodable: RLPEncodeable = RLPList(msg.reason)
@@ -137,7 +137,7 @@ object WireProtocol {
 
     val code = 0x02
 
-    implicit class PingEnc(m: Ping) extends MessageSerializableImplicit[Ping](m) with RLPSerializable {
+    implicit class PingEnc(val underlyingMsg: Ping) extends MessageSerializableImplicit[Ping](underlyingMsg) with RLPSerializable {
       override def code: Int = Ping.code
 
       override def toRLPEncodable: RLPEncodeable = RLPList()
@@ -156,7 +156,7 @@ object WireProtocol {
 
     val code = 0x03
 
-    implicit class PongEnc(m: Pong) extends MessageSerializableImplicit[Pong](m) with RLPSerializable  {
+    implicit class PongEnc(val underlyingMsg: Pong) extends MessageSerializableImplicit[Pong](underlyingMsg) with RLPSerializable  {
       override def code: Int = Pong.code
 
       override def toRLPEncodable: RLPEncodeable = RLPList()

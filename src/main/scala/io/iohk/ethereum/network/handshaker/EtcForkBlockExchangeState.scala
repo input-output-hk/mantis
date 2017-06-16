@@ -1,7 +1,7 @@
 package io.iohk.ethereum.network.handshaker
 
-import io.iohk.ethereum.network.EtcMessageHandler.EtcPeerInfo
 import io.iohk.ethereum.network.ForkResolver
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
@@ -10,7 +10,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Logger
 
 case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfiguration,
-                                     forkResolver: ForkResolver, remoteStatus: Status) extends InProgressState[EtcPeerInfo] with Logger {
+                                     forkResolver: ForkResolver, remoteStatus: Status) extends InProgressState[PeerInfo] with Logger {
 
   import handshakerConfiguration._
 
@@ -20,7 +20,7 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
       timeout = peerConfiguration.waitForChainCheckTimeout
     )
 
-  def applyResponseMessage: PartialFunction[Message, HandshakerState[EtcPeerInfo]] = {
+  def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = {
 
     case BlockHeaders(blockHeaders) =>
 
@@ -34,16 +34,16 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
 
           if (forkResolver.isAccepted(fork)) {
             log.info("Fork is accepted")
-            val peerInfo: EtcPeerInfo = EtcPeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, forkBlockHeader.number)
+            val peerInfo: PeerInfo = PeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, forkBlockHeader.number)
             ConnectedState(peerInfo)
           } else {
             log.warn("Fork is not accepted")
-            DisconnectedState[EtcPeerInfo](Disconnect.Reasons.UselessPeer)
+            DisconnectedState[PeerInfo](Disconnect.Reasons.UselessPeer)
           }
 
         case None =>
           log.info("Peer did not respond with fork block header")
-          ConnectedState(EtcPeerInfo(remoteStatus, remoteStatus.totalDifficulty, false, 0))
+          ConnectedState(PeerInfo(remoteStatus, remoteStatus.totalDifficulty, false, 0))
       }
 
   }
@@ -61,7 +61,7 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
 
   }
 
-  def processTimeout: HandshakerState[EtcPeerInfo] =
+  def processTimeout: HandshakerState[PeerInfo] =
     DisconnectedState(Disconnect.Reasons.TimeoutOnReceivingAMessage)
 
 }

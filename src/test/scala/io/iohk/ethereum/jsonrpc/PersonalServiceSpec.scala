@@ -10,7 +10,7 @@ import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainStorages
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
-import io.iohk.ethereum.keystore.KeyStore.IOError
+import io.iohk.ethereum.keystore.KeyStore.{IOError, WrongPassphrase}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransactions
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
@@ -141,6 +141,85 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     txRes shouldEqual Left(AccountLocked)
   }
 
+  it should "sign a message when correct passphrase is sent" in new TestSetup {
+
+    (keyStore.unlockAccount _ ).expects(address, passphrase)
+      .returning(Right(wallet))
+
+    val message = ByteString(Hex.decode("deadbeaf"))
+
+    val r = ByteString(Hex.decode("d237344891a90a389b7747df6fbd0091da20d1c61adb961b4491a4c82f58dcd2"))
+    val s = ByteString(Hex.decode("5425852614593caf3a922f48a6fe5204066dcefbf6c776c4820d3e7522058d00"))
+    val v = ByteString(Hex.decode("1b"))
+
+    val req = SignRequest(message, address, Some(passphrase))
+
+    val res = personal.sign(req).futureValue
+    res shouldEqual Right(SignResponse(ECDSASignature(r, s, v)))
+
+    // Account should still be locked after calling sign with passphrase
+    val txReq = SendTransactionRequest(tx)
+    val txRes = personal.sendTransaction(txReq).futureValue
+    txRes shouldEqual Left(AccountLocked)
+
+  }
+
+  it should "sign a message using an unlocked account" in new TestSetup {
+
+    (keyStore.unlockAccount _ ).expects(address, passphrase)
+      .returning(Right(wallet))
+
+    val message = ByteString(Hex.decode("deadbeaf"))
+
+    val r = ByteString(Hex.decode("d237344891a90a389b7747df6fbd0091da20d1c61adb961b4491a4c82f58dcd2"))
+    val s = ByteString(Hex.decode("5425852614593caf3a922f48a6fe5204066dcefbf6c776c4820d3e7522058d00"))
+    val v = ByteString(Hex.decode("1b"))
+
+    val req = SignRequest(message, address, None)
+
+    personal.unlockAccount(UnlockAccountRequest(address, passphrase)).futureValue
+    val res = personal.sign(req).futureValue
+    res shouldEqual Right(SignResponse(ECDSASignature(r, s, v)))
+  }
+
+  it should "return an error if signing a message using a locked account" in new TestSetup {
+
+    val message = ByteString(Hex.decode("deadbeaf"))
+
+    val req = SignRequest(message, address, None)
+
+    val res = personal.sign(req).futureValue
+    res shouldEqual Left(AccountLocked)
+  }
+
+  it should "return an error when signing a message if passphrase is wrong" in new TestSetup {
+
+    val wrongPassphase = "wrongPassphrase"
+
+    (keyStore.unlockAccount _ ).expects(address, wrongPassphase)
+      .returning(Left(WrongPassphrase))
+
+    val message = ByteString(Hex.decode("deadbeaf"))
+
+    val req = SignRequest(message, address, Some(wrongPassphase))
+
+    val res = personal.sign(req).futureValue
+    res shouldEqual Left(InvalidPassphrase)
+  }
+
+  it should "return an error when signing if unexistent address is sent" in new TestSetup {
+
+    (keyStore.unlockAccount _ ).expects(address, passphrase)
+      .returning(Left(KeyStore.KeyNotFound))
+
+    val message = ByteString(Hex.decode("deadbeaf"))
+
+    val req = SignRequest(message, address, Some(passphrase))
+
+    val res = personal.sign(req).futureValue
+    res shouldEqual Left(KeyNotFound)
+  }
+
   it should "recover address form signed message" in new TestSetup {
     val sigAddress = Address(ByteString(Hex.decode("12c2a3b877289050FBcfADC1D252842CA742BE81")))
 
@@ -156,9 +235,26 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     res shouldEqual Right(EcRecoverResponse(sigAddress))
   }
 
+  it should "allow to sign and recover the same message" in new TestSetup {
+
+    (keyStore.unlockAccount _ ).expects(address, passphrase)
+      .returning(Right(wallet))
+
+    val message = ByteString(Hex.decode("deadbeaf"))
+
+    personal.sign(SignRequest(message, address, Some(passphrase)))
+      .futureValue.left.map(_ => fail())
+      .map(response => EcRecoverRequest(message, response.signature))
+      .foreach{ req =>
+        val res = personal.ecRecover(req).futureValue
+        res shouldEqual Right(EcRecoverResponse(address))
+      }
+
+  }
+
   trait TestSetup {
     val prvKey = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
-    val address = Address(123)
+    val address = Address(Hex.decode("aa6826f00d01fe4085f0c3dd12778e206ce4e2ac"))
     val passphrase = "aaa"
 
     val nonce = 7
