@@ -4,7 +4,6 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
-import io.iohk.ethereum.blockchain.sync.SyncController.DependencyActors
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
@@ -215,14 +214,14 @@ trait EthServiceBuilder {
     FilterManagerBuilder =>
 
   lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage, miningConfig,
-    ledger, blockchainConfig, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager)
+    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager)
 }
 
 trait PersonalServiceBuilder {
   self: KeyStoreBuilder with BlockChainBuilder with PendingTransactionsManagerBuilder with StorageBuilder =>
 
   lazy val personalService = new PersonalService(keyStore, blockchain, pendingTransactionsManager,
-    storagesInstance.storages, storagesInstance.storages.appStateStorage)
+    storagesInstance.storages.appStateStorage)
 }
 
 trait KeyStoreBuilder {

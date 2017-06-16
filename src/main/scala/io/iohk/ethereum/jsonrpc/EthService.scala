@@ -164,7 +164,6 @@ class EthService(
     appStateStorage: AppStateStorage,
     miningConfig: MiningConfig,
     ledger: Ledger,
-    blockchainConfig: BlockchainConfig,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
     syncingController: ActorRef,
