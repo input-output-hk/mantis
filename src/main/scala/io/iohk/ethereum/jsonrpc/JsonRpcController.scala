@@ -140,6 +140,10 @@ class JsonRpcController(
       handle[GetTransactionCountRequest, GetTransactionCountResponse](ethService.getTransactionCount, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByHash", _, _) =>
       handle[GetTransactionByHashRequest, GetTransactionByHashResponse](ethService.getTransactionByHash, req)
+    case req @ JsonRpcRequest(_, "eth_sign", _, _) =>
+      // Even if it's under eth_xxx this method actually does the same as personal_sign but needs the account
+      // to be unlocked before calling
+      handle[SignRequest, SignResponse](personalService.sign, req)(eth_sign, personal_sign)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
@@ -160,6 +164,9 @@ class JsonRpcController(
 
     case req @ JsonRpcRequest(_, "personal_lockAccount", _, _) =>
       handle[LockAccountRequest, LockAccountResponse](personalService.lockAccount, req)
+
+    case req @ JsonRpcRequest(_, "personal_sign", _, _) =>
+      handle[SignRequest, SignResponse](personalService.sign, req)(personal_sign, personal_sign)
 
     case req @ JsonRpcRequest(_, "personal_ecRecover", _, _) =>
       handle[EcRecoverRequest, EcRecoverResponse](personalService.ecRecover, req)
