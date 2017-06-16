@@ -62,7 +62,7 @@ class JsonRpcController(
     Apis.Debug -> PartialFunction.empty
   )
 
-  private val enabledApis = config.apis :+ Apis.Rpc // RPC enabled by default
+  private def enabledApis = config.apis :+ Apis.Rpc // RPC enabled by default
 
   private def handleWeb3Request: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "web3_sha3", _, _) =>
