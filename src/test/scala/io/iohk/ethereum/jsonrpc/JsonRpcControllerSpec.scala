@@ -1006,6 +1006,22 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(JString("0x9b2055d370f73ec7d8a03e965129118dc8f5bf83"))
   }
 
+  it should "rpc_modules" in new TestSetup {
+    val request: JsonRpcRequest = JsonRpcRequest("2.0", "rpc_modules", None, Some(JInt(1)))
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JObject(
+      "net" -> "1.0",
+      "rpc" -> "1.0",
+      "personal" -> "1.0",
+      "eth" -> "1.0",
+      "web3" -> "1.0"
+    ))
+  }
+
   trait TestSetup extends MockFactory {
     def config: JsonRpcConfig = Config.Network.Rpc
 
