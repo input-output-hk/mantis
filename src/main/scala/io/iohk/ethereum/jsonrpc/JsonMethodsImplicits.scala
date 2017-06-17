@@ -38,7 +38,7 @@ trait JsonMethodsImplicits {
     }.toEither.left.map(_ => InvalidParams())
 
   private def decode(s: String): Either[JsonRpcError, Array[Byte]] = {
-    if(!s.startsWith("0x")) Left(InvalidParams())
+    if(!s.isEmpty && !s.startsWith("0x")) Left(InvalidParams())
     else decodeWithoutHexPrefix(s.drop("0x".length))
   }
 
