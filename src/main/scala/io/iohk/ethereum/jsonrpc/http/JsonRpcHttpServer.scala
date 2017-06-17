@@ -15,6 +15,7 @@ import org.json4s.{DefaultFormats, native}
 
 import scala.util.{Failure, Success}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHttpServerConfig)
                        (implicit val actorSystem: ActorSystem)
@@ -34,6 +35,8 @@ class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHtt
   val route: Route = {
     (pathEndOrSingleSlash & post & entity(as[JsonRpcRequest])) { request =>
       handleRequest(request)
+    } ~ (pathEndOrSingleSlash & post & entity(as[Seq[JsonRpcRequest]])) { request =>
+      handleBatchRequest(request)
     }
   }
 
@@ -50,6 +53,10 @@ class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHtt
 
   private def handleRequest(request: JsonRpcRequest) = {
     complete(jsonRpcController.handleRequest(request))
+  }
+
+  private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
+    complete(Future.sequence(requests.map(request => jsonRpcController.handleRequest(request))))
   }
 
 }
