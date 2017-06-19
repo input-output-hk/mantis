@@ -1,7 +1,7 @@
 package io.iohk.ethereum
 
 import java.nio.charset.StandardCharsets
-import java.security.{SecureRandom, Security}
+import java.security.SecureRandom
 
 import akka.util.ByteString
 import fr.cryptohash.{Keccak256, Keccak512}
@@ -11,11 +11,8 @@ import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.digests.{RIPEMD160Digest, SHA256Digest}
 import org.spongycastle.crypto.generators.{ECKeyPairGenerator, PKCS5S2ParametersGenerator, SCrypt}
 import org.spongycastle.crypto.params._
-import org.spongycastle.jce.provider.BouncyCastleProvider
 
 package object crypto {
-
-  Security.insertProviderAt(new BouncyCastleProvider(), 1)
 
   val curveParams: X9ECParameters = SECNamedCurves.getByName("secp256k1")
   val curve: ECDomainParameters = new ECDomainParameters(curveParams.getCurve, curveParams.getG, curveParams.getN, curveParams.getH)

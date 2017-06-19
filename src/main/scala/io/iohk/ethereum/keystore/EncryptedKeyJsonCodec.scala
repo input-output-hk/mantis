@@ -49,7 +49,7 @@ object EncryptedKeyJsonCodec {
 
     val uuid = UUID.fromString((json \ "id").extract[String])
     val address = Address((json \ "address").extract[String])
-    val version = (json \ "version").extract[String]
+    val version = (json \ "version").extract[Int]
 
     val crypto = json \ "crypto"
     val cipher = (crypto \ "cipher").extract[String]

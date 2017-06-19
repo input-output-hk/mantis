@@ -26,7 +26,7 @@ object EncryptedKey {
     mac: ByteString)
 
   def apply(prvKey: ByteString, passphrase: String): EncryptedKey = {
-    val version = "3"
+    val version = 3
     val uuid = UUID.randomUUID()
     val pubKey = crypto.pubKeyFromPrvKey(prvKey)
     val address = Address(crypto.kec256(pubKey))
@@ -71,11 +71,10 @@ case class EncryptedKey(
   id: UUID,
   address: Address,
   cryptoSpec: CryptoSpec,
-  version: String
+  version: Int
 ) {
 
   def decrypt(passphrase: String): Either[String, ByteString] = {
-    val cipher = getCipher(cryptoSpec.cipher)
     val dk = deriveKey(passphrase, cryptoSpec.kdfParams)
     val secret = dk.take(16)
     val decrypted = getCipher(cryptoSpec.cipher).decrypt(secret, cryptoSpec.iv, cryptoSpec.ciphertext)
