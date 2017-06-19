@@ -42,7 +42,9 @@ object PV62 {
 
     val code: Int = Versions.SubProtocolOffset + 0x01
 
-    implicit class NewBlockHashesEnc(m: NewBlockHashes) extends MessageSerializableImplicit[NewBlockHashes](m) with RLPSerializable {
+    implicit class NewBlockHashesEnc(val underlyingMsg: NewBlockHashes)
+      extends MessageSerializableImplicit[NewBlockHashes](underlyingMsg) with RLPSerializable {
+
       import BlockHash._
 
       override def code: Int = NewBlockHashes.code
@@ -66,7 +68,9 @@ object PV62 {
   object GetBlockHeaders {
     val code: Int = Versions.SubProtocolOffset + 0x03
 
-    implicit class GetBlockHeadersEnc(m: GetBlockHeaders) extends MessageSerializableImplicit[GetBlockHeaders](m) with RLPSerializable {
+    implicit class GetBlockHeadersEnc(val underlyingMsg: GetBlockHeaders)
+      extends MessageSerializableImplicit[GetBlockHeaders](underlyingMsg) with RLPSerializable {
+
       override def code: Int = GetBlockHeaders.code
 
       override def toRLPEncodable: RLPEncodeable = {
@@ -163,7 +167,7 @@ object PV62 {
 
     val code: Int = Versions.SubProtocolOffset + 0x06
 
-    implicit class BlockBodiesEnc(m: BlockBodies) extends MessageSerializableImplicit[BlockBodies](m) with RLPSerializable {
+    implicit class BlockBodiesEnc(val underlyingMsg: BlockBodies) extends MessageSerializableImplicit[BlockBodies](underlyingMsg) with RLPSerializable {
       override def code: Int = BlockBodies.code
 
       override def toRLPEncodable: RLPEncodeable = RLPList(msg.bodies.map(_.toRLPEncodable): _*)
@@ -200,7 +204,7 @@ object PV62 {
 
     val code: Int = Versions.SubProtocolOffset + 0x04
 
-    implicit class BlockHeadersEnc(m: BlockHeaders) extends MessageSerializableImplicit[BlockHeaders](m) with RLPSerializable {
+    implicit class BlockHeadersEnc(val underlyingMsg: BlockHeaders) extends MessageSerializableImplicit[BlockHeaders](underlyingMsg) with RLPSerializable {
       import BlockHeaderImplicits._
 
       override def code: Int = BlockHeaders.code
@@ -228,7 +232,9 @@ object PV62 {
 
     val code: Int = Versions.SubProtocolOffset + 0x05
 
-    implicit class GetBlockBodiesEnc(m: GetBlockBodies) extends MessageSerializableImplicit[GetBlockBodies](m) with RLPSerializable {
+    implicit class GetBlockBodiesEnc(val underlyingMsg: GetBlockBodies)
+      extends MessageSerializableImplicit[GetBlockBodies](underlyingMsg) with RLPSerializable {
+
       override def code: Int = GetBlockBodies.code
 
       override def toRLPEncodable: RLPEncodeable = toRlpList(msg.hashes)

@@ -24,6 +24,7 @@ import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactions
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.vm.UInt256
@@ -672,6 +673,40 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetTransactionCountResponse(BigInt(999)))
   }
 
+  it should "handle get transaction by hash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
+    val request = GetTransactionByHashRequest(txToRequestHash)
+    val response = ethService.getTransactionByHash(request)
+
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactions(Nil))
+
+    response.futureValue shouldEqual Right(GetTransactionByHashResponse(None))
+  }
+
+  it should "handle get transaction by hash if the tx is still pending" in new TestSetup {
+    val request = GetTransactionByHashRequest(txToRequestHash)
+    val response = ethService.getTransactionByHash(request)
+
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactions(Seq(txToRequest)))
+
+    response.futureValue shouldEqual Right(GetTransactionByHashResponse(Some(TransactionResponse(txToRequest))))
+  }
+
+  it should "handle get transaction by hash if the tx was already executed" in new TestSetup {
+    val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    blockchain.save(blockWithTx)
+
+    val request = GetTransactionByHashRequest(txToRequestHash)
+    val response = ethService.getTransactionByHash(request)
+
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactions(Nil))
+
+    response.futureValue shouldEqual Right(GetTransactionByHashResponse(Some(
+      TransactionResponse(txToRequest, Some(blockWithTx.header), Some(0)))))
+  }
+
   trait TestSetup extends MockFactory {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchain = BlockchainImpl(storagesInstance.storages)
@@ -697,7 +732,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     }
 
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
-      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref)
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number
@@ -733,6 +768,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val seedHash = ByteString(Hex.decode("00" * 32))
     val powHash = ByteString(Hex.decode("f5877d30b85d6cd0f80d2c4711e3cfb7d386e331f801f903d9ca52fc5e8f7cc2"))
     val target = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
+
+    val txToRequest = Fixtures.Blocks.Block3125369.body.transactionList.head
+    val txToRequestHash = txToRequest.hash
   }
 
 }

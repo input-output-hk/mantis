@@ -1,6 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
@@ -13,6 +14,7 @@ import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Formats}
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 
 import scala.util.Try
 
@@ -29,10 +31,15 @@ trait JsonMethodsImplicits {
   protected def encodeAsHex(input: BigInt): JString =
     JString(s"0x${input.toString(16)}")
 
-  private def decode(s: String): Array[Byte] = {
-    val stripped = s.replaceFirst("^0x", "")
-    val normalized = if (stripped.length % 2 == 1) "0" + stripped else stripped
-    Hex.decode(normalized)
+  protected def decodeWithoutHexPrefix(s: String): Either[JsonRpcError, Array[Byte]] =
+    Try {
+      val normalized = if (s.length % 2 == 1) "0" + s else s
+      Hex.decode(normalized)
+    }.toEither.left.map(_ => InvalidParams())
+
+  private def decode(s: String): Either[JsonRpcError, Array[Byte]] = {
+    if(!s.startsWith("0x")) Left(InvalidParams())
+    else decodeWithoutHexPrefix(s.drop("0x".length))
   }
 
   protected def extractAddress(input: String): Either[JsonRpcError, Address] =
@@ -42,13 +49,16 @@ trait JsonMethodsImplicits {
     extractAddress(input.s)
 
   protected def extractBytes(input: String): Either[JsonRpcError, ByteString] =
-    Try(ByteString(decode(input))).toEither.left.map(_ => InvalidParams())
+    decode(input).map(ByteString(_))
 
   protected def extractBytes(input: JString): Either[JsonRpcError, ByteString] =
     extractBytes(input.s)
 
+  protected def extractBytes(input: String, size: Int): Either[JsonRpcError, ByteString] =
+    extractBytes(input).filterOrElse(_.length == size, InvalidParams(s"Invalid value [$input], expected $size bytes"))
+
   protected def extractHash(input: String): Either[JsonRpcError, ByteString] =
-    extractBytes(input).filterOrElse(_.length == 32, InvalidParams(s"Invalid value [$input], expected 32 bytes"))
+    extractBytes(input, 32)
 
   protected def extractQuantity(input: JValue): Either[JsonRpcError, BigInt] =
     input match {
@@ -56,7 +66,7 @@ trait JsonMethodsImplicits {
         Right(n)
 
       case JString(s) =>
-        Try(BigInt(1, decode(s))).toEither.left.map(_ => InvalidParams())
+        decode(s).map(BigInt(1, _))
 
       case _ =>
         Left(InvalidParams("could not extract quantity"))
@@ -147,7 +157,7 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, ImportRawKeyRequest] =
       params match {
         case Some(JArray(JString(key) :: JString(passphrase) :: _)) =>
-          extractBytes(key).map(ImportRawKeyRequest(_, passphrase))
+          decodeWithoutHexPrefix(key).map(bytes => ImportRawKeyRequest(ByteString(bytes), passphrase))
         case _ =>
           Left(InvalidParams())
       }
@@ -188,6 +198,54 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
 
     def encodeJson(t: SendTransactionWithPassphraseResponse): JValue =
       encodeAsHex(t.txHash)
+  }
+
+  implicit val personal_sign = new Codec[SignRequest, SignResponse] {
+    override def encodeJson(t: SignResponse): JValue = {
+      import t.signature._
+      encodeAsHex(ByteString(r.toUnsignedByteArray ++ s.toUnsignedByteArray :+ v))
+    }
+
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, SignRequest] =
+      params match {
+        case Some(JArray(JString(message) :: JString(addr) :: JString(passphase) :: _)) =>
+          for {
+            message <- extractBytes(message)
+            address <- extractAddress(addr)
+          } yield SignRequest(message, address, Some(passphase))
+        case _ =>
+          Left(InvalidParams())
+      }
+  }
+
+  implicit val personal_ecRecover = new Codec[EcRecoverRequest, EcRecoverResponse] {
+
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, EcRecoverRequest] =
+      params match {
+        case Some(JArray(JString(message) :: JString(signature) :: _)) =>
+
+          val decoded = for {
+            msg <- extractBytes(message)
+            sig <- extractBytes(signature, ECDSASignature.EncodedLength)
+          } yield (msg, sig)
+
+          decoded.flatMap { case (msg, sig) =>
+            val r = sig.take(ECDSASignature.RLength)
+            val s = sig.drop(ECDSASignature.RLength).take(ECDSASignature.SLength)
+            val v = sig.takeRight(ECDSASignature.VLength)
+
+            if (v.contains(ECDSASignature.positivePointSign) || v.contains(ECDSASignature.negativePointSign)) {
+              Right(EcRecoverRequest(msg, ECDSASignature(r, s, v)))
+            } else {
+              Left(InvalidParams("invalid point sign v, allowed values are 27 and 28"))
+            }
+          }
+        case _ =>
+          Left(InvalidParams())
+      }
+
+    def encodeJson(t: EcRecoverResponse): JValue =
+      encodeAsHex(t.address.bytes)
   }
 
   implicit val personal_unlockAccount = new Codec[UnlockAccountRequest, UnlockAccountResponse] {

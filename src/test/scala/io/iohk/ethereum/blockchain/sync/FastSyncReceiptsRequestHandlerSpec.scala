@@ -8,15 +8,18 @@ import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.domain.Receipt
-import io.iohk.ethereum.network.{Peer, PeerActor}
-import io.iohk.ethereum.network.PeerMessageBusActor._
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts}
 import org.scalatest.{FlatSpec, Matchers}
 
 class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
 
   "FastSyncReceiptsRequestHandler" should "handle successful response (and enqueue remaining receipts)" in new TestSetup {
-    peerTestProbe.expectMsg(PeerActor.SendMessage(GetReceipts(requestedHashes)))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetReceipts(requestedHashes), peer.id))
+    peerMessageBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer.id))))
 
     val responseReceipts = Seq(Seq(Receipt(ByteString(""), 0, ByteString(""), Nil)))
@@ -28,11 +31,13 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     blockchain.getReceiptsByHash(requestedHashes.head) shouldBe Some(responseReceipts.head)
     blockchain.getReceiptsByHash(requestedHashes(1)) shouldBe None
 
+    peerMessageBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
     peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer.id))))
   }
 
   it should "handle timeout" in new TestSetup {
-    peerTestProbe.expectMsg(PeerActor.SendMessage(GetReceipts(requestedHashes)))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetReceipts(requestedHashes), peer.id))
+    peerMessageBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer.id))))
 
     time.advance(10.seconds)
@@ -41,14 +46,16 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes))
     parent.expectMsg(SyncRequestHandler.Done)
 
+    peerMessageBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
     peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer.id))))
   }
 
   it should "handle peer termination" in new TestSetup {
-    peerTestProbe.expectMsg(PeerActor.SendMessage(GetReceipts(requestedHashes)))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetReceipts(requestedHashes), peer.id))
+    peerMessageBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer.id))))
 
-    peer.ref ! PoisonPill
+    peerMessageBus.send(fastSyncReceiptsRequestHandler, PeerDisconnected(peer.id))
 
     parent.expectMsg(FastSync.EnqueueReceipts(requestedHashes))
     parent.expectMsg(SyncRequestHandler.Done)
@@ -66,11 +73,14 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
 
     val parent = TestProbe()
 
+    val etcPeerManager = TestProbe()
+
     val peerMessageBus = TestProbe()
 
     val fastSyncReceiptsRequestHandler =
       parent.childActorOf(FastSyncReceiptsRequestHandler.props(
         peer,
+        etcPeerManager.ref,
         peerMessageBus.ref,
         requestedHashes,
         storagesInstance.storages.appStateStorage,

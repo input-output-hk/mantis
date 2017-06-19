@@ -34,6 +34,7 @@ object JsonRpcController {
     val Personal = "personal"
     val Admin = "admin"
     val Debug = "debug"
+    val Rpc = "rpc"
   }
 
 }
@@ -56,9 +57,12 @@ class JsonRpcController(
     Apis.Net -> handleNetRequest,
     Apis.Db -> PartialFunction.empty,
     Apis.Personal -> handlePersonalRequest,
+    Apis.Rpc -> handleRpcRequest,
     Apis.Admin -> PartialFunction.empty,
     Apis.Debug -> PartialFunction.empty
   )
+
+  private def enabledApis = config.apis :+ Apis.Rpc // RPC enabled by default
 
   private def handleWeb3Request: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "web3_sha3", _, _) =>
@@ -138,6 +142,12 @@ class JsonRpcController(
       handle[GetStorageAtRequest, GetStorageAtResponse](ethService.getStorageAt, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionCount", _, _) =>
       handle[GetTransactionCountRequest, GetTransactionCountResponse](ethService.getTransactionCount, req)
+    case req @ JsonRpcRequest(_, "eth_getTransactionByHash", _, _) =>
+      handle[GetTransactionByHashRequest, GetTransactionByHashResponse](ethService.getTransactionByHash, req)
+    case req @ JsonRpcRequest(_, "eth_sign", _, _) =>
+      // Even if it's under eth_xxx this method actually does the same as personal_sign but needs the account
+      // to be unlocked before calling
+      handle[SignRequest, SignResponse](personalService.sign, req)(eth_sign, personal_sign)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
@@ -158,6 +168,18 @@ class JsonRpcController(
 
     case req @ JsonRpcRequest(_, "personal_lockAccount", _, _) =>
       handle[LockAccountRequest, LockAccountResponse](personalService.lockAccount, req)
+
+    case req @ JsonRpcRequest(_, "personal_sign", _, _) =>
+      handle[SignRequest, SignResponse](personalService.sign, req)(personal_sign, personal_sign)
+
+    case req @ JsonRpcRequest(_, "personal_ecRecover", _, _) =>
+      handle[EcRecoverRequest, EcRecoverResponse](personalService.ecRecover, req)
+  }
+
+  private def handleRpcRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "rpc_modules", _, _) =>
+      val result = enabledApis.map { _ -> "1.0" }.toMap
+      Future.successful(JsonRpcResponse("2.0", Some(result), None, req.id))
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
@@ -165,8 +187,7 @@ class JsonRpcController(
       case _ => Future.successful(errorResponse(request, MethodNotFound))
     }
 
-    val handleFn = config.apis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
-
+    val handleFn = enabledApis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
     handleFn(request)
   }
 

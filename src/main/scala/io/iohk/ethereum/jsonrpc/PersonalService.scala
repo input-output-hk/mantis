@@ -2,6 +2,8 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
 import akka.util.ByteString
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainStorages}
 import io.iohk.ethereum.jsonrpc.PersonalService._
@@ -36,6 +38,12 @@ object PersonalService {
   case class SendTransactionRequest(tx: TransactionRequest)
   case class SendTransactionResponse(txHash: ByteString)
 
+  case class SignRequest(message: ByteString, address: Address, passphrase: Option[String])
+  case class SignResponse(signature: ECDSASignature)
+
+  case class EcRecoverRequest(message: ByteString, signature: ECDSASignature)
+  case class EcRecoverResponse(address: Address)
+
   val InvalidKey = InvalidParams("Invalid key provided, expected 32 bytes (64 hex digits)")
   val InvalidAddress = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
   val InvalidPassphrase = LogicError("Could not decrypt key with given passphrase")
@@ -48,7 +56,6 @@ class PersonalService(
   keyStore: KeyStore,
   blockchain: Blockchain,
   txPool: ActorRef,
-  blockchainStorages: BlockchainStorages,
   appStateStorage: AppStateStorage) {
 
   private val unlockedWallets: mutable.Map[Address, Wallet] = mutable.Map.empty
@@ -86,6 +93,27 @@ class PersonalService(
     Right(LockAccountResponse(true))
   }
 
+  def sign(request: SignRequest): ServiceResponse[SignResponse] = Future {
+    import request._
+
+    val accountWallet = {
+      if(passphrase.isDefined) keyStore.unlockAccount(address, passphrase.get).left.map(handleError)
+      else unlockedWallets.get(request.address).toRight(AccountLocked)
+    }
+
+    accountWallet
+      .map { wallet =>
+        SignResponse(ECDSASignature.sign(getMessageToSign(message), wallet.keyPair))
+      }
+  }
+
+  def ecRecover(req: EcRecoverRequest): ServiceResponse[EcRecoverResponse] = Future {
+    import req._
+    signature.publicKey(getMessageToSign(message)).map { publicKey =>
+      Right(EcRecoverResponse(Address(crypto.kec256(publicKey))))
+    }.getOrElse(Left(InvalidParams("unable to recover address")))
+  }
+
   def sendTransaction(request: SendTransactionWithPassphraseRequest): ServiceResponse[SendTransactionWithPassphraseResponse] = Future {
     keyStore.unlockAccount(request.tx.from, request.passphrase).left.map(handleError).map { wallet =>
       val hash = sendTransaction(request.tx, wallet)
@@ -117,6 +145,14 @@ class PersonalService(
   private def getCurrentAccount(address: Address): Option[Account] =
     blockchain.getAccount(address, appStateStorage.getBestBlockNumber())
 
+  private def getMessageToSign(message: ByteString) = {
+    val prefixed: Array[Byte] =
+      0x19.toByte +:
+        s"Ethereum Signed Message:\n${message.length}".getBytes ++:
+        message.toArray[Byte]
+
+    crypto.kec256(prefixed)
+  }
 
   private val handleError: PartialFunction[KeyStore.KeyStoreError, JsonRpcError] = {
     case KeyStore.DecryptionFailed => InvalidPassphrase

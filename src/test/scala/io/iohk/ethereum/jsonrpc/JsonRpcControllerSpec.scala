@@ -1,6 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
@@ -907,6 +907,121 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(JString("0x7b"))
   }
 
+  it should "eth_getTransactionByHash" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    val txResponse = TransactionResponse(Fixtures.Blocks.Block3125369.body.transactionList.head)
+    (mockEthService.getTransactionByHash _).expects(*)
+      .returning(Future.successful(Right(GetTransactionByHashResponse(Some(txResponse)))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getTransactionByHash",
+      Some(JArray(List(
+        JString("0xe9b2d3e8a2bc996a1c7742de825fdae2466ae783ce53484304efffe304ff232d")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(Extraction.decompose(txResponse))
+  }
+
+  it should "eth_sign" in new TestSetup {
+
+    (personalService.sign _).expects(
+      SignRequest(
+        ByteString(Hex.decode("deadbeaf")),
+        Address(ByteString(Hex.decode("9b2055d370f73ec7d8a03e965129118dc8f5bf83"))),
+        None))
+      .returns(Future.successful(Right(SignResponse(sig))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_sign",
+      Some(JArray(List(
+        JString(s"0x9b2055d370f73ec7d8a03e965129118dc8f5bf83"),
+        JString(s"0xdeadbeaf")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0xa3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a12d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee1b"))
+  }
+
+  it should "personal_sign" in new TestSetup {
+
+    (personalService.sign _).expects(
+        SignRequest(
+          ByteString(Hex.decode("deadbeaf")),
+          Address(ByteString(Hex.decode("9b2055d370f73ec7d8a03e965129118dc8f5bf83"))),
+          Some("thePassphrase")))
+      .returns(Future.successful(Right(SignResponse(sig))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "personal_sign",
+      Some(JArray(List(
+        JString(s"0xdeadbeaf"),
+        JString(s"0x9b2055d370f73ec7d8a03e965129118dc8f5bf83"),
+        JString("thePassphrase")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0xa3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a12d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee1b"))
+  }
+
+  it should "personal_ecRecover" in new TestSetup {
+
+    (personalService.ecRecover _).expects(EcRecoverRequest(ByteString(Hex.decode("deadbeaf")), sig))
+      .returns(Future.successful(Right(EcRecoverResponse(Address(ByteString(Hex.decode("9b2055d370f73ec7d8a03e965129118dc8f5bf83")))))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "personal_ecRecover",
+      Some(JArray(List(
+        JString(s"0xdeadbeaf"),
+        JString(s"0xa3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a12d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee1b")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x9b2055d370f73ec7d8a03e965129118dc8f5bf83"))
+  }
+
+  it should "rpc_modules" in new TestSetup {
+    val request: JsonRpcRequest = JsonRpcRequest("2.0", "rpc_modules", None, Some(JInt(1)))
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JObject(
+      "net" -> "1.0",
+      "rpc" -> "1.0",
+      "personal" -> "1.0",
+      "eth" -> "1.0",
+      "web3" -> "1.0"
+    ))
+  }
+
   trait TestSetup extends MockFactory {
     def config: JsonRpcConfig = Config.Network.Rpc
 
@@ -938,7 +1053,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
-      blockchainConfig, keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref)
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 
     val blockHeader = BlockHeader(
@@ -957,6 +1072,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       extraData = ByteString("unused"),
       mixHash = ByteString("unused"),
       nonce = ByteString("unused"))
+
+    val r: ByteString = ByteString(Hex.decode("a3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a1"))
+    val s: ByteString = ByteString(Hex.decode("2d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee"))
+    val v: ByteString = ByteString(Hex.decode("1b"))
+    val sig = ECDSASignature(r, s, v)
   }
 
 }

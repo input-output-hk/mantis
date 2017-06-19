@@ -2,6 +2,7 @@ package io.iohk.ethereum.rlp
 
 import akka.util.ByteString
 import io.iohk.ethereum.rlp.RLP._
+import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 
 import scala.language.implicitConversions
 
@@ -53,14 +54,8 @@ object RLPImplicits {
   //Used for decoding and encoding positive (or 0) BigInts
   implicit val bigIntEncDec = new RLPEncoder[BigInt] with RLPDecoder[BigInt] {
 
-    def asUnsignedByteArray(srcBigInteger: BigInt): Array[Byte] = {
-      val asByteArray = srcBigInteger.toByteArray
-      if (asByteArray.head == 0) asByteArray.tail
-      else asByteArray
-    }
-
     override def encode(obj: BigInt): RLPValue = RLPValue(
-      if (obj.equals(BigInt(0))) byteToByteArray(0: Byte) else asUnsignedByteArray(obj)
+      if (obj.equals(BigInt(0))) byteToByteArray(0: Byte) else obj.toUnsignedByteArray
     )
 
     override def decode(rlp: RLPEncodeable): BigInt = rlp match {

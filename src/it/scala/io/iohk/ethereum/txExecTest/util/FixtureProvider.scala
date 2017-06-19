@@ -42,6 +42,7 @@ object FixtureProvider {
       override val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(EphemDataSource())
       override val totalDifficultyStorage: TotalDifficultyStorage = new TotalDifficultyStorage(EphemDataSource())
       override val nodeStorage: NodeStorage = new NodeStorage(EphemDataSource())
+      override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(EphemDataSource())
     }
 
     val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile { case (number, _) => number <= blockNumber }
