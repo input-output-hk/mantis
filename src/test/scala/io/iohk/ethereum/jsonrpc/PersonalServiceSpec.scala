@@ -6,11 +6,11 @@ import akka.util.ByteString
 import io.iohk.ethereum.DefaultPatience
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainStorages}
+import io.iohk.ethereum.domain.{Account, Address, Blockchain}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
-import io.iohk.ethereum.keystore.KeyStore.{IOError, WrongPassphrase}
+import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransactions
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
@@ -197,7 +197,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val wrongPassphase = "wrongPassphrase"
 
     (keyStore.unlockAccount _ ).expects(address, wrongPassphase)
-      .returning(Left(WrongPassphrase))
+      .returning(Left(DecryptionFailed))
 
     val message = ByteString(Hex.decode("deadbeaf"))
 
