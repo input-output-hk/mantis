@@ -727,14 +727,14 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         blockHash = Fixtures.Blocks.Block3125369.header.hash,
         cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + gasUsedByTx,
         gasUsed = gasUsedByTx,
-        contractAddress = Some(createdContractAddress.bytes),
+        contractAddress = Some(createdContractAddress),
         logs = Seq(TxLog(
           logIndex = 0,
           transactionIndex = Some(1),
           transactionHash = Some(contractCreatingTransaction.hash),
           blockHash = Fixtures.Blocks.Block3125369.header.hash,
           blockNumber = Fixtures.Blocks.Block3125369.header.number,
-          address = fakeReceipt.logs.head.loggerAddress.bytes,
+          address = fakeReceipt.logs.head.loggerAddress,
           data = fakeReceipt.logs.head.data,
           topics = fakeReceipt.logs.head.logTopics
         ))))))

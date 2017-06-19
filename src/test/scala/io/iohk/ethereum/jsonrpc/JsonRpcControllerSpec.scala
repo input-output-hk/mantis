@@ -1038,14 +1038,14 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
         blockHash = Fixtures.Blocks.Block3125369.header.hash,
         cumulativeGasUsed = arbitraryValue * 10,
         gasUsed = arbitraryValue,
-        contractAddress = Some(Address(arbitraryValue).bytes),
+        contractAddress = Some(Address(arbitraryValue)),
         logs = Seq(TxLog(
           logIndex = 0,
           transactionIndex = Some(1),
           transactionHash = Some(ByteString(Hex.decode("23" * 32))),
           blockHash = Fixtures.Blocks.Block3125369.header.hash,
           blockNumber = Fixtures.Blocks.Block3125369.header.number,
-          address = Address(arbitraryValue).bytes,
+          address = Address(arbitraryValue),
           data = ByteString(Hex.decode("43" * 32)),
           topics = Seq(ByteString(Hex.decode("44" * 32)), ByteString(Hex.decode("45" * 32)))))))))
 

@@ -261,7 +261,7 @@ class EthService(
         blockHash = header.hash,
         cumulativeGasUsed = receipt.cumulativeGasUsed,
         gasUsed = if (txIndex == 0) receipt.cumulativeGasUsed else receipt.cumulativeGasUsed - receipts(txIndex - 1).cumulativeGasUsed,
-        contractAddress = contractAddress.map(_.bytes),
+        contractAddress = contractAddress,
         logs = receipt.logs.zipWithIndex.map { case (txLog, index) =>
           TxLog(
             logIndex = index,
@@ -269,7 +269,7 @@ class EthService(
             transactionHash = Some(stx.hash),
             blockHash = header.hash,
             blockNumber = header.number,
-            address = txLog.loggerAddress.bytes,
+            address = txLog.loggerAddress,
             data = txLog.data,
             topics = txLog.logTopics)
         })

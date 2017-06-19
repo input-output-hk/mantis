@@ -10,7 +10,7 @@ case class TransactionReceiptResponse(
   blockHash: ByteString,
   cumulativeGasUsed: BigInt,
   gasUsed: BigInt,
-  contractAddress: Option[ByteString],
+  contractAddress: Option[Address],
   logs: Seq[TxLog]
 )
 
@@ -21,6 +21,6 @@ case class TxLog(
   transactionHash: Option[ByteString],
   blockHash: ByteString,
   blockNumber: BigInt,
-  address: ByteString,
+  address: Address,
   data: ByteString,
   topics: Seq[ByteString])
