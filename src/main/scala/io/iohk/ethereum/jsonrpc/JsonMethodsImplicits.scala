@@ -31,15 +31,10 @@ trait JsonMethodsImplicits {
   protected def encodeAsHex(input: BigInt): JString =
     JString(s"0x${input.toString(16)}")
 
-  protected def decodeWithoutHexPrefix(s: String): Either[JsonRpcError, Array[Byte]] =
-    Try {
-      val normalized = if (s.length % 2 == 1) "0" + s else s
-      Hex.decode(normalized)
-    }.toEither.left.map(_ => InvalidParams())
-
-  private def decode(s: String): Either[JsonRpcError, Array[Byte]] = {
-    if(!s.isEmpty && !s.startsWith("0x")) Left(InvalidParams())
-    else decodeWithoutHexPrefix(s.drop("0x".length))
+  private def decode(s: String): Array[Byte] = {
+    val stripped = s.replaceFirst("^0x", "")
+    val normalized = if (stripped.length % 2 == 1) "0" + stripped else stripped
+    Hex.decode(normalized)
   }
 
   protected def extractAddress(input: String): Either[JsonRpcError, Address] =
@@ -49,7 +44,7 @@ trait JsonMethodsImplicits {
     extractAddress(input.s)
 
   protected def extractBytes(input: String): Either[JsonRpcError, ByteString] =
-    decode(input).map(ByteString(_))
+    Try(ByteString(decode(input))).toEither.left.map(_ => InvalidParams())
 
   protected def extractBytes(input: JString): Either[JsonRpcError, ByteString] =
     extractBytes(input.s)
@@ -66,7 +61,7 @@ trait JsonMethodsImplicits {
         Right(n)
 
       case JString(s) =>
-        decode(s).map(BigInt(1, _))
+        Try(BigInt(1, decode(s))).toEither.left.map(_ => InvalidParams())
 
       case _ =>
         Left(InvalidParams("could not extract quantity"))
@@ -157,7 +152,7 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, ImportRawKeyRequest] =
       params match {
         case Some(JArray(JString(key) :: JString(passphrase) :: _)) =>
-          decodeWithoutHexPrefix(key).map(bytes => ImportRawKeyRequest(ByteString(bytes), passphrase))
+          extractBytes(key).map(ImportRawKeyRequest(_, passphrase))
         case _ =>
           Left(InvalidParams())
       }
