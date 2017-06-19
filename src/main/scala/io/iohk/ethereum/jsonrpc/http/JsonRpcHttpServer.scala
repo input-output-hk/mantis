@@ -33,10 +33,12 @@ class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHtt
       .result()
 
   val route: Route = {
-    (pathEndOrSingleSlash & post & entity(as[JsonRpcRequest])) { request =>
-      handleRequest(request)
-    } ~ (pathEndOrSingleSlash & post & entity(as[Seq[JsonRpcRequest]])) { request =>
-      handleBatchRequest(request)
+    (pathEndOrSingleSlash & post) {
+      entity(as[JsonRpcRequest]) { request =>
+        handleRequest(request)
+      } ~ entity(as[Seq[JsonRpcRequest]]) { request =>
+        handleBatchRequest(request)
+      }
     }
   }
 
