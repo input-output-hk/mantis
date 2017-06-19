@@ -151,6 +151,8 @@ class JsonRpcController(
       handle[GetFilterChangesRequest, GetFilterChangesResponse](ethService.getFilterChanges, req)
     case req @ JsonRpcRequest(_, "eth_getFilterLogs", _, _) =>
       handle[GetFilterLogsRequest, GetFilterLogsResponse](ethService.getFilterLogs, req)
+   case req @ JsonRpcRequest(_, "eth_getLogs", _, _) =>
+      handle[GetLogsRequest, GetLogsResponse](ethService.getLogs, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByHash", _, _) =>
       handle[GetTransactionByHashRequest, GetTransactionByHashResponse](ethService.getTransactionByHash, req)
     case req @ JsonRpcRequest(_, "eth_sign", _, _) =>

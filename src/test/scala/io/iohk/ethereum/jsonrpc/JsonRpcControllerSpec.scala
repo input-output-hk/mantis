@@ -9,6 +9,7 @@ import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
@@ -1151,6 +1152,49 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       JString("0x1234"),
       JString("0x4567"),
       JString("0x7890"))))
+  }
+
+  it should "eth_getLogs" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.getLogs _).expects(*)
+      .returning(Future.successful(Right(GetLogsResponse(LogFilterLogs(Seq(
+        FilterManager.Log(
+          logIndex = 0,
+          transactionIndex = Some(0),
+          transactionHash = Some(ByteString(Hex.decode("123ffa"))),
+          blockHash = ByteString(Hex.decode("123eeaa22a")),
+          blockNumber = 99,
+          address = Address("0x123456"),
+          data = ByteString(Hex.decode("ff33")),
+          topics = Seq(ByteString(Hex.decode("33")), ByteString(Hex.decode("55"))))))))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getLogs",
+      Some(JArray(List(JObject(
+        "fromBlock" -> "0x0",
+        "toBlock" -> "latest",
+        "address" -> "0x2B5A350698C91E684EB08c10F7e462f761C0e681",
+        "topics" -> JArray(List(JNull, "0x00000000000000000000000000000000000000000000000000000000000001c8"))
+      )))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JArray(List(JObject(
+      "logIndex" -> JString("0x0"),
+      "transactionIndex" -> JString("0x0"),
+      "transactionHash" -> JString("0x123ffa"),
+      "blockHash" -> JString("0x123eeaa22a"),
+      "blockNumber" -> JString("0x63"),
+      "address" -> JString("0x0000000000000000000000000000000000123456"),
+      "data" -> JString("0xff33"),
+      "topics" -> JArray(List(JString("0x33"), JString("0x55")))))))
   }
 
   trait TestSetup extends MockFactory {

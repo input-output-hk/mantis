@@ -2,6 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.FilterManager.{BlockFilterLogs, LogFilterLogs, PendingTransactionFilterLogs}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
 import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTransactionResponse, SignRequest}
@@ -411,43 +412,6 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
           } yield NewFilterRequest(filter)
         case _ => Left(InvalidParams())
       }
-
-    def extractFilter(obj: JObject): Either[JsonRpcError, Filter] = {
-      val topicsEither: Either[JsonRpcError, Seq[Seq[ByteString]]] =
-        allSuccess((obj \ "topics").extractOpt[JArray].map(_.arr).getOrElse(Nil).map {
-          case JNull => Right(Nil)
-          case jstr: JString => parseTopic(jstr).map(Seq(_))
-          case jarr: JArray => parseNestedTopics(jarr)
-          case other => Left(InvalidParams(msg = s"Unable to parse topics, expected byte data or array but got: $other"))
-        })
-
-      for {
-        fromBlock <- toEitherOpt((obj \ "fromBlock").extractOpt[JValue].map(extractBlockParam))
-        toBlock <- toEitherOpt((obj \ "toBlock").extractOpt[JValue].map(extractBlockParam))
-        address <- toEitherOpt((obj \ "address").extractOpt[String].map(extractAddress))
-        topics <- topicsEither
-      } yield Filter(
-        fromBlock = fromBlock,
-        toBlock = toBlock,
-        address = address,
-        topics = topics)
-    }
-
-    private def parseNestedTopics(jarr: JArray): Either[JsonRpcError, Seq[ByteString]] = {
-      allSuccess(jarr.arr.map {
-        case jstr: JString => parseTopic(jstr)
-        case other => Left(InvalidParams(msg = s"Unable to parse topics, expected byte data but got: $other"))
-      })
-    }
-
-    private def allSuccess[T](eithers: Seq[Either[JsonRpcError, T]]): Either[JsonRpcError, Seq[T]] = {
-      if (eithers.forall(_.isRight)) Right(eithers.map(_.right.get))
-      else Left(InvalidParams(msg = eithers.collect { case Left(err) => err.message }.mkString("\n")))
-    }
-
-    private def parseTopic(jstr: JString): Either[JsonRpcError, ByteString] = {
-      extractBytes(jstr).left.map(_ => InvalidParams(msg = s"Unable to parse topics, expected byte data but got ${jstr.values}"))
-    }
   }
 
   implicit val eth_newBlockFilter = new JsonDecoder[NewBlockFilterRequest] {
@@ -509,6 +473,57 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       }
   }
 
+  implicit val eth_getLogs = new JsonDecoder[GetLogsRequest] with JsonEncoder[GetLogsResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetLogsRequest] =
+      params match {
+        case Some(JArray((filterObj: JObject) :: Nil)) =>
+          for {
+            filter <- extractFilter(filterObj)
+          } yield GetLogsRequest(filter)
+        case _ => Left(InvalidParams())
+      }
+
+    override def encodeJson(t: GetLogsResponse): JValue =
+      JArray(t.filterLogs.logs.map(Extraction.decompose).toList)
+  }
+
+  private def extractFilter(obj: JObject): Either[JsonRpcError, Filter] = {
+    def allSuccess[T](eithers: Seq[Either[JsonRpcError, T]]): Either[JsonRpcError, Seq[T]] = {
+      if (eithers.forall(_.isRight)) Right(eithers.map(_.right.get))
+      else Left(InvalidParams(msg = eithers.collect { case Left(err) => err.message }.mkString("\n")))
+    }
+
+    def parseTopic(jstr: JString): Either[JsonRpcError, ByteString] = {
+      extractBytes(jstr).left.map(_ => InvalidParams(msg = s"Unable to parse topics, expected byte data but got ${jstr.values}"))
+    }
+
+    def parseNestedTopics(jarr: JArray): Either[JsonRpcError, Seq[ByteString]] = {
+      allSuccess(jarr.arr.map {
+        case jstr: JString => parseTopic(jstr)
+        case other => Left(InvalidParams(msg = s"Unable to parse topics, expected byte data but got: $other"))
+      })
+    }
+
+    val topicsEither: Either[JsonRpcError, Seq[Seq[ByteString]]] =
+      allSuccess((obj \ "topics").extractOpt[JArray].map(_.arr).getOrElse(Nil).map {
+        case JNull => Right(Nil)
+        case jstr: JString => parseTopic(jstr).map(Seq(_))
+        case jarr: JArray => parseNestedTopics(jarr)
+        case other => Left(InvalidParams(msg = s"Unable to parse topics, expected byte data or array but got: $other"))
+      })
+
+    for {
+      fromBlock <- toEitherOpt((obj \ "fromBlock").extractOpt[JValue].map(extractBlockParam))
+      toBlock <- toEitherOpt((obj \ "toBlock").extractOpt[JValue].map(extractBlockParam))
+      address <- toEitherOpt((obj \ "address").extractOpt[String].map(extractAddress))
+      topics <- topicsEither
+    } yield Filter(
+      fromBlock = fromBlock,
+      toBlock = toBlock,
+      address = address,
+      topics = topics)
+  }
+
   implicit val eth_sign = new JsonDecoder[SignRequest] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, SignRequest] =
       params match {
@@ -521,5 +536,4 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
           Left(InvalidParams())
       }
   }
-
 }

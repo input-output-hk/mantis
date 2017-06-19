@@ -15,7 +15,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
-import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs}
+import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
@@ -156,6 +156,9 @@ object EthService {
 
   case class GetFilterLogsRequest(filterId: BigInt)
   case class GetFilterLogsResponse(filterLogs: FilterLogs)
+
+  case class GetLogsRequest(filter: Filter)
+  case class GetLogsResponse(filterLogs: LogFilterLogs)
 }
 
 class EthService(
@@ -595,6 +598,15 @@ class EthService(
 
     (filterManager ? FilterManager.GetFilterLogs(req.filterId)).mapTo[FilterManager.FilterLogs].map { filterLogs =>
       Right(GetFilterLogsResponse(filterLogs))
+    }
+  }
+
+  def getLogs(req: GetLogsRequest): ServiceResponse[GetLogsResponse] = {
+    implicit val timeout = Timeout(3.seconds)
+    import req.filter._
+
+    (filterManager ? FilterManager.GetLogs(fromBlock, toBlock, address, topics)).mapTo[FilterManager.LogFilterLogs].map { filterLogs =>
+      Right(GetLogsResponse(filterLogs))
     }
   }
 

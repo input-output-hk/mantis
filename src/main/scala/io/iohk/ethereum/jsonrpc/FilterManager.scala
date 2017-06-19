@@ -49,6 +49,9 @@ class FilterManager(
     case GetFilterLogs(id) => getFilterLogs(id)
     case GetFilterChanges(id) => getFilterChanges(id)
     case FilterTimeout(id) => uninstallFilter(id)
+    case gl: GetLogs =>
+      val filter = LogFilter(0, gl.fromBlock, gl.toBlock, gl.address, gl.topics)
+      sender() ! LogFilterLogs(getLogs(filter, None))
   }
 
   private def resetTimeout(id: BigInt): Unit = {
@@ -103,7 +106,7 @@ class FilterManager(
         logsSoFar
       } else {
         blockchain.getBlockHeaderByNumber(currentBlockNumber) match {
-          case Some(blockHeader) if BloomFilter.containsAnyOf(blockHeader.logsBloom, bytesToCheckInBloomFilter) =>
+          case Some(blockHeader) if bytesToCheckInBloomFilter.isEmpty || BloomFilter.containsAnyOf(blockHeader.logsBloom, bytesToCheckInBloomFilter) =>
             blockchain.getReceiptsByHash(blockHeader.hash) match {
               case Some(receipts) => recur(currentBlockNumber + 1, toBlockNumber, logsSoFar ++ getLogsFromBlock(filter, blockHeader, receipts))
               case None => logsSoFar
@@ -152,7 +155,7 @@ class FilterManager(
     val bytesToCheckInBloomFilter = filter.address.map(a => Seq(a.bytes)).getOrElse(Nil) ++ filter.topics.flatten
 
     receipts.zipWithIndex.foldLeft(Seq[Log]()) { case (logsSoFar, (receipt, txIndex)) =>
-      if (BloomFilter.containsAnyOf(receipt.logsBloomFilter, bytesToCheckInBloomFilter)) {
+      if (bytesToCheckInBloomFilter.isEmpty || BloomFilter.containsAnyOf(receipt.logsBloomFilter, bytesToCheckInBloomFilter)) {
         logsSoFar ++ receipt.logs.zipWithIndex
         .filter { case (log, _) => filter.address.forall(_ == log.loggerAddress) && topicsMatch(log.logTopics, filter.topics) }
         .map { case (log, logIndex) =>
@@ -245,6 +248,8 @@ object FilterManager {
 
   case class GetFilterLogs(id: BigInt)
   case class GetFilterChanges(id: BigInt)
+
+  case class GetLogs(fromBlock: Option[BlockParam], toBlock: Option[BlockParam], address: Option[Address], topics: Seq[Seq[ByteString]])
 
   case class Log(
       logIndex: BigInt,
