@@ -34,6 +34,7 @@ object JsonRpcController {
     val Personal = "personal"
     val Admin = "admin"
     val Debug = "debug"
+    val Rpc = "rpc"
   }
 
 }
@@ -56,9 +57,12 @@ class JsonRpcController(
     Apis.Net -> handleNetRequest,
     Apis.Db -> PartialFunction.empty,
     Apis.Personal -> handlePersonalRequest,
+    Apis.Rpc -> handleRpcRequest,
     Apis.Admin -> PartialFunction.empty,
     Apis.Debug -> PartialFunction.empty
   )
+
+  private def enabledApis = config.apis :+ Apis.Rpc // RPC enabled by default
 
   private def handleWeb3Request: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "web3_sha3", _, _) =>
@@ -174,13 +178,18 @@ class JsonRpcController(
       handle[EcRecoverRequest, EcRecoverResponse](personalService.ecRecover, req)
   }
 
+  private def handleRpcRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "rpc_modules", _, _) =>
+      val result = enabledApis.map { _ -> "1.0" }.toMap
+      Future.successful(JsonRpcResponse("2.0", Some(result), None, req.id))
+  }
+
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
     val notFoundFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
       case _ => Future.successful(errorResponse(request, MethodNotFound))
     }
 
-    val handleFn = config.apis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
-
+    val handleFn = enabledApis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
     handleFn(request)
   }
 
