@@ -1006,6 +1006,66 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     response.result shouldBe Some(JString("0x9b2055d370f73ec7d8a03e965129118dc8f5bf83"))
   }
 
+  it should "eth_getTransactionReceipt" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    val arbitraryValue = 42
+
+    val mockRequest = GetTransactionReceiptRequest(ByteString(Hex.decode("b903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238")))
+
+    val mockResponse = Right(GetTransactionReceiptResponse(Some(
+      TransactionReceiptResponse(
+        transactionHash = ByteString(Hex.decode("23" * 32)),
+        transactionIndex = 1,
+        blockNumber = Fixtures.Blocks.Block3125369.header.number,
+        blockHash = Fixtures.Blocks.Block3125369.header.hash,
+        cumulativeGasUsed = arbitraryValue * 10,
+        gasUsed = arbitraryValue,
+        contractAddress = Some(Address(arbitraryValue).bytes),
+        logs = Seq(TxLog(
+          logIndex = 0,
+          transactionIndex = Some(1),
+          transactionHash = Some(ByteString(Hex.decode("23" * 32))),
+          blockHash = Fixtures.Blocks.Block3125369.header.hash,
+          blockNumber = Fixtures.Blocks.Block3125369.header.number,
+          address = Address(arbitraryValue).bytes,
+          data = ByteString(Hex.decode("43" * 32)),
+          topics = Seq(ByteString(Hex.decode("44" * 32)), ByteString(Hex.decode("45" * 32)))))))))
+
+    (mockEthService.getTransactionReceipt _).expects(*).returning(Future.successful(mockResponse))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getTransactionReceipt",
+      Some(JArray(List(JString(s"0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238")))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JObject(
+      JField("transactionHash", JString("0x" + "23" * 32)),
+      JField("transactionIndex", JString("0x1")),
+      JField("blockNumber", JString("0x2fb079")),
+      JField("blockHash", JString("0x" + Hex.toHexString(Fixtures.Blocks.Block3125369.header.hash.toArray[Byte]))),
+      JField("cumulativeGasUsed", JString("0x1a4")),
+      JField("gasUsed", JString("0x2a")),
+      JField("contractAddress", JString("0x000000000000000000000000000000000000002a")),
+      JField("logs", JArray(List(JObject(
+        JField("logIndex", JString("0x0")),
+        JField("transactionIndex", JString("0x1")),
+        JField("transactionHash", JString("0x" + "23" * 32)),
+        JField("blockHash", JString("0x" + Hex.toHexString(Fixtures.Blocks.Block3125369.header.hash.toArray[Byte]))),
+        JField("blockNumber", JString("0x2fb079")),
+        JField("address", JString("0x000000000000000000000000000000000000002a")),
+        JField("data", JString("0x" + "43" * 32)),
+        JField("topics", JArray(List(JString("0x" + "44" * 32), JString("0x" + "45" * 32))))))))
+    ))
+  }
+
   trait TestSetup extends MockFactory {
     def config: JsonRpcConfig = Config.Network.Rpc
 
