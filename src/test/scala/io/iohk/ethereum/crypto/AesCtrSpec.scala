@@ -7,7 +7,7 @@ import org.spongycastle.util.encoders.Hex
 
 class AesCtrSpec extends FlatSpec with Matchers with PropertyChecks {
 
-  "AES_CTR" should "correctly evaluate for the test vectors" ignore {
+  "AES_CTR" should "correctly evaluate for the test vectors" in {
 
 
     // http://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38a.pdf Appendix F.5
@@ -41,7 +41,7 @@ class AesCtrSpec extends FlatSpec with Matchers with PropertyChecks {
     }
   }
 
-  it should "decrypt encrypted random values" ignore {
+  it should "decrypt encrypted random values" in {
     val keyGen = Generators.getByteStringGen(16, 16)
     val ivGen = Generators.getByteStringGen(16, 16)
     val plaintextGen = Generators.getByteStringGen(1, 256)
