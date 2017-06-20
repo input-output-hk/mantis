@@ -85,8 +85,8 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
     logsResp.logs.size shouldBe 1
     logsResp.logs.head shouldBe FilterManager.Log(
       logIndex = 0,
-      transactionIndex = Some(0),
-      transactionHash = Some(bb2.transactionList.head.hash),
+      transactionIndex = 0,
+      transactionHash = bb2.transactionList.head.hash,
       blockHash = bh2.hash,
       blockNumber = bh2.number,
       address = Address(0x1234),

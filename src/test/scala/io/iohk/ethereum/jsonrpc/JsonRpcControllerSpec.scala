@@ -1100,8 +1100,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       .returning(Future.successful(Right(GetFilterChangesResponse(FilterManager.LogFilterChanges(Seq(
         FilterManager.Log(
         logIndex = 0,
-        transactionIndex = Some(0),
-        transactionHash = Some(ByteString(Hex.decode("123ffa"))),
+        transactionIndex = 0,
+        transactionHash = ByteString(Hex.decode("123ffa")),
         blockHash = ByteString(Hex.decode("123eeaa22a")),
         blockNumber = 99,
         address = Address("0x123456"),
@@ -1164,8 +1164,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
       .returning(Future.successful(Right(GetLogsResponse(LogFilterLogs(Seq(
         FilterManager.Log(
           logIndex = 0,
-          transactionIndex = Some(0),
-          transactionHash = Some(ByteString(Hex.decode("123ffa"))),
+          transactionIndex = 0,
+          transactionHash = ByteString(Hex.decode("123ffa")),
           blockHash = ByteString(Hex.decode("123eeaa22a")),
           blockNumber = 99,
           address = Address("0x123456"),

@@ -163,8 +163,8 @@ class FilterManager(
           val tx = blockBody.transactionList(txIndex)
           Log(
             logIndex = logIndex,
-            transactionIndex = Some(txIndex), // TODO: None is this is a pending block (?)
-            transactionHash = Some(tx.hash), // TODO: None is this is a pending block (?)
+            transactionIndex = txIndex,
+            transactionHash = tx.hash,
             blockHash = blockHeader.hash,
             blockNumber = blockHeader.number,
             address = log.loggerAddress,
@@ -176,7 +176,8 @@ class FilterManager(
   }
 
   private def topicsMatch(logTopics: Seq[ByteString], filterTopics: Seq[Seq[ByteString]]): Boolean = {
-    (filterTopics zip logTopics).forall { case (filter, log) => filter.isEmpty || filter.contains(log) }
+    logTopics.size >= filterTopics.size &&
+      (filterTopics zip logTopics).forall { case (filter, log) => filter.isEmpty || filter.contains(log) }
   }
 
   private def getBlockHashesAfter(blockNumber: BigInt): Seq[ByteString] = {
@@ -253,8 +254,8 @@ object FilterManager {
 
   case class Log(
       logIndex: BigInt,
-      transactionIndex: Option[BigInt],
-      transactionHash: Option[ByteString],
+      transactionIndex: BigInt,
+      transactionHash: ByteString,
       blockHash: ByteString,
       blockNumber: BigInt,
       address: Address,
@@ -270,7 +271,6 @@ object FilterManager {
   case class LogFilterLogs(logs: Seq[Log]) extends FilterLogs
   case class BlockFilterLogs(blockHashes: Seq[ByteString]) extends FilterLogs
   case class PendingTransactionFilterLogs(txHashes: Seq[ByteString]) extends FilterLogs
-  // TODO: getTransactionByHash method should also query pending transactions
 
   private case class FilterTimeout(id: BigInt)
 }
