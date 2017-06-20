@@ -26,6 +26,20 @@ class JsonRpcHttpServerSpec extends FlatSpec with Matchers with ScalatestRouteTe
     }
   }
 
+  "JsonRpcHttpServer" should "pass valid batch json request to controller" in new TestSetup {
+    (jsonRpcController.handleRequest _).expects(*)
+      .twice()
+      .returning(Future.successful(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+
+    val jsonRequest = ByteString("""[{"jsonrpc":"2.0", "method": "asd", "id": "1"}, {"jsonrpc":"2.0", "method": "asd", "id": "2"}]""")
+    val postRequest = HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+
+    postRequest ~>  Route.seal(jsonRpcHttpServer.route) ~> check {
+      status === StatusCodes.OK
+      responseAs[String] shouldEqual """[{"jsonrpc":"2.0","result":"this is a response","id":1},{"jsonrpc":"2.0","result":"this is a response","id":1}]"""
+    }
+  }
+
   it should "return BadRequest when malformed request is received" in new TestSetup {
     val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "this is not a valid json""")
     val postRequest = HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
