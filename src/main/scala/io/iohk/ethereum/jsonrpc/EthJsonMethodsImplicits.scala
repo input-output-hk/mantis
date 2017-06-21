@@ -273,33 +273,19 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       }
 
     def encodeJson(t: CallResponse): JValue = encodeAsHex(t.returnData)
-
-    def extractCall(obj: JObject): Either[JsonRpcError, CallTx] = {
-      def optionalQuantity(input: JValue): Either[JsonRpcError, Option[BigInt]] =
-        input match {
-          case JNothing => Right(None)
-          case o => extractQuantity(o).map(Some(_))
-        }
-
-      for {
-        from <- toEitherOpt((obj \ "from").extractOpt[String].map(extractBytes))
-        to <- toEitherOpt((obj \ "to").extractOpt[String].map(extractBytes))
-        gas <- optionalQuantity(obj \ "gas")
-        gasPrice <- optionalQuantity(obj \ "gasPrice")
-        value <- optionalQuantity(obj \ "value")
-        data <- toEitherOpt((obj \ "data").extractOpt[String].map(extractBytes))
-      } yield CallTx(
-        from = from,
-        to = to,
-        gas = gas,
-        gasPrice = gasPrice.getOrElse(0),
-        value = value.getOrElse(0),
-        data = data.getOrElse(ByteString("")))
-    }
   }
 
-  implicit val eth_estimateGas = new JsonEncoder[EstimateGasResponse] {
+  implicit val eth_estimateGas = new JsonDecoder[CallRequest] with JsonEncoder[EstimateGasResponse] {
     override def encodeJson(t: EstimateGasResponse): JValue = encodeAsHex(t.gas)
+
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, CallRequest] =
+      withoutBlockParam.applyOrElse(params, eth_call.decodeJson)
+
+    def withoutBlockParam: PartialFunction[Option[JArray], Either[JsonRpcError, CallRequest]] = {
+      case Some(JArray((txObj: JObject) :: Nil)) =>
+        extractCall(txObj).map(CallRequest(_, BlockParam.Latest))
+    }
+
   }
 
   implicit val eth_getCode = new JsonDecoder[GetCodeRequest] with JsonEncoder[GetCodeResponse] {
@@ -536,4 +522,31 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
           Left(InvalidParams())
       }
   }
+
+  def extractCall(obj: JObject): Either[JsonRpcError, CallTx] = {
+    def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] =
+      opt.map(_.right.map(Some.apply)).getOrElse(Right(None))
+
+    def optionalQuantity(input: JValue): Either[JsonRpcError, Option[BigInt]] =
+      input match {
+        case JNothing => Right(None)
+        case o => extractQuantity(o).map(Some(_))
+      }
+
+    for {
+      from <- toEitherOpt((obj \ "from").extractOpt[String].map(extractBytes))
+      to <- toEitherOpt((obj \ "to").extractOpt[String].map(extractBytes))
+      gas <- optionalQuantity(obj \ "gas")
+      gasPrice <- optionalQuantity(obj \ "gasPrice")
+      value <- optionalQuantity(obj \ "value")
+      data <- toEitherOpt((obj \ "data").extractOpt[String].map(extractBytes))
+    } yield CallTx(
+      from = from,
+      to = to,
+      gas = gas,
+      gasPrice = gasPrice.getOrElse(0),
+      value = value.getOrElse(0),
+      data = data.getOrElse(ByteString("")))
+  }
+
 }

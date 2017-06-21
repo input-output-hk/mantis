@@ -29,6 +29,7 @@ import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -36,7 +37,7 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
 // scalastyle:off file.size.limit
-class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience with Eventually {
+class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks with ScalaFutures with DefaultPatience with Eventually {
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer
@@ -624,26 +625,35 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val mockEthService = mock[EthService]
     override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
 
-    (mockEthService.estimateGas _).expects(*).returning(Future.successful(Right(EstimateGasResponse(2310))))
+    (mockEthService.estimateGas _).expects(*).anyNumberOfTimes().returning(Future.successful(Right(EstimateGasResponse(2310))))
 
-    val json = JArray(List(
-      JObject(
-        "from" -> "0xabbb6bebfa05aa13e908eaa492bd7a8343760477",
-        "to" -> "0xda714fe079751fa7a1ad80b76571ea6ec52a446c",
-        "gas" -> "0x12",
-        "gasPrice" -> "0x123",
-        "value" -> "0x99",
-        "data" -> "0xFF44"
-      ),
-      JString("latest")
-    ))
-    val rpcRequest = JsonRpcRequest("2.0", "eth_estimateGas", Some(json), Some(1))
-    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+    val callObj = JObject(
+      "from" -> "0xabbb6bebfa05aa13e908eaa492bd7a8343760477",
+      "to" -> "0xda714fe079751fa7a1ad80b76571ea6ec52a446c",
+      "gas" -> "0x12",
+      "gasPrice" -> "0x123",
+      "value" -> "0x99",
+      "data" -> "0xFF44"
+    )
+    val callObjWithoutData = callObj.replace(List("data"), "")
 
-    response.jsonrpc shouldBe "2.0"
-    response.id shouldBe JInt(1)
-    response.error shouldBe None
-    response.result shouldBe Some(JString("0x906"))
+    val table = Table(
+      "Requests",
+      JArray(List(callObj, JString("latest"))),
+      JArray(List(callObj)),
+      JArray(List(callObjWithoutData))
+    )
+
+    forAll(table) { json =>
+      val rpcRequest = JsonRpcRequest("2.0", "eth_estimateGas", Some(json), Some(1))
+      val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+      response.jsonrpc shouldBe "2.0"
+      response.id shouldBe JInt(1)
+      response.error shouldBe None
+      response.result shouldBe Some(JString("0x906"))
+    }
+
   }
 
   it should "eth_getCode" in new TestSetup {
