@@ -8,6 +8,7 @@ import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.utils.FilterConfig
 
 import scala.annotation.tailrec
@@ -37,6 +38,8 @@ class FilterManager(
 
   var lastCheckBlocks: Map[BigInt, BigInt] = Map.empty
 
+  var lastCheckTimestamps: Map[BigInt, Long] = Map.empty
+
   var filterTimeouts: Map[BigInt, Cancellable] = Map.empty
 
   implicit val timeout = Timeout(5.seconds)
@@ -63,6 +66,7 @@ class FilterManager(
   private def addFilterAndSendResponse(filter: Filter): Unit = {
     filters += (filter.id -> filter)
     lastCheckBlocks += (filter.id -> appStateStorage.getBestBlockNumber())
+    lastCheckTimestamps += (filter.id -> System.currentTimeMillis())
     resetTimeout(filter.id)
     sender() ! NewFilterResponse(filter.id)
   }
@@ -70,6 +74,7 @@ class FilterManager(
   private def uninstallFilter(id: BigInt): Unit = {
     filters -= id
     lastCheckBlocks -= id
+    lastCheckTimestamps -= id
     filterTimeouts.get(id).foreach(_.cancel())
     filterTimeouts -= id
     sender() ! UninstallFilterResponse()
@@ -77,7 +82,10 @@ class FilterManager(
 
   private def getFilterLogs(id: BigInt): Unit = {
     val filterOpt = filters.get(id)
-    filterOpt.foreach { _ => lastCheckBlocks += (id -> appStateStorage.getBestBlockNumber()) }
+    filterOpt.foreach { _ =>
+      lastCheckBlocks += (id -> appStateStorage.getBestBlockNumber())
+      lastCheckTimestamps += (id -> System.currentTimeMillis())
+    }
     resetTimeout(id)
 
     filterOpt match {
@@ -89,7 +97,7 @@ class FilterManager(
 
       case Some(_: PendingTransactionFilter) =>
         getPendingTransactions().map { pendingTransactions =>
-          PendingTransactionFilterLogs(pendingTransactions.map(_.hash))
+          PendingTransactionFilterLogs(pendingTransactions.map(_.stx.hash))
         }.pipeTo(sender())
 
       case None =>
@@ -129,9 +137,13 @@ class FilterManager(
   private def getFilterChanges(id: BigInt): Unit = {
     val bestBlockNumber = appStateStorage.getBestBlockNumber()
     val lastCheckBlock = lastCheckBlocks.getOrElse(id, bestBlockNumber)
+    val lastCheckTimestamp = lastCheckTimestamps.getOrElse(id, System.currentTimeMillis())
 
     val filterOpt = filters.get(id)
-    filterOpt.foreach { _ => lastCheckBlocks += (id -> bestBlockNumber) }
+    filterOpt.foreach { _ =>
+      lastCheckBlocks += (id -> bestBlockNumber)
+      lastCheckTimestamps += (id -> System.currentTimeMillis())
+    }
     resetTimeout(id)
 
     filterOpt match {
@@ -142,8 +154,9 @@ class FilterManager(
         sender() ! BlockFilterChanges(getBlockHashesAfter(lastCheckBlock).takeRight(maxBlockHashesChanges))
 
       case Some(_: PendingTransactionFilter) =>
-        getPendingTransactions().map { pendingTransactions => // TODO: should this return only pending transactions added since last poll?
-          PendingTransactionFilterChanges(pendingTransactions.map(_.hash))
+        getPendingTransactions().map { pendingTransactions =>
+          val filtered = pendingTransactions.filter(_.addTimestamp > lastCheckTimestamp)
+          PendingTransactionFilterChanges(filtered.map(_.stx.hash))
         }.pipeTo(sender())
 
       case None =>
@@ -196,12 +209,13 @@ class FilterManager(
     recur(blockNumber + 1, Nil)
   }
 
-  private def getPendingTransactions(): Future[Seq[SignedTransaction]] = {
+  private def getPendingTransactions(): Future[Seq[PendingTransaction]] = {
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
-      .mapTo[PendingTransactionsManager.PendingTransactions]
-      .flatMap { case PendingTransactionsManager.PendingTransactions(pendingTransactions) =>
+      .mapTo[PendingTransactionsManager.PendingTransactionsResponse]
+      .flatMap { case PendingTransactionsManager.PendingTransactionsResponse(pendingTransactions) =>
         keyStore.listAccounts() match {
-          case Right(accounts) => Future.successful(pendingTransactions.filter(pt => accounts.contains(pt.senderAddress)))
+          case Right(accounts) =>
+            Future.successful(pendingTransactions.filter(pt => accounts.contains(pt.stx.senderAddress)))
           case Left(_) => Future.failed(new RuntimeException("Cannot get account list"))
         }
       }

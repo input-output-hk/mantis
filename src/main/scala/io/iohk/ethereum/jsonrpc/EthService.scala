@@ -22,7 +22,7 @@ import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils.MiningConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactions
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.ommers.OmmersPool
 import org.spongycastle.util.encoders.Hex
 
@@ -244,7 +244,7 @@ class EthService(
     */
   def getTransactionByHash(req: GetTransactionByHashRequest): ServiceResponse[GetTransactionByHashResponse] = {
     val maybeTxPendingResponse: Future[Option[TransactionResponse]] = getTransactionsFromPool.map{
-      _.signedTransactions.find(_.hash == req.txHash).map(TransactionResponse(_)) }
+      _.pendingTransactions.map(_.stx).find(_.hash == req.txHash).map(TransactionResponse(_)) }
 
     val maybeTxResponse: Future[Option[TransactionResponse]] = maybeTxPendingResponse.flatMap{ txPending =>
       Future { txPending.orElse{
@@ -397,7 +397,7 @@ class EthService(
 
     getOmmersFromPool(blockNumber).zip(getTransactionsFromPool).map {
       case (ommers, pendingTxs) =>
-        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommers.headers, miningConfig.coinbase) match {
+        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
           case Right(b) =>
             Right(GetWorkResponse(
               powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))),
@@ -424,10 +424,10 @@ class EthService(
   private def getTransactionsFromPool = {
     implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
 
-    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactions]
+    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .recover { case ex =>
         log.error("failed to get transactions, mining block with empty transactions list", ex)
-        PendingTransactions(Nil)
+        PendingTransactionsResponse(Nil)
       }
   }
 

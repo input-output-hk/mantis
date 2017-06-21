@@ -18,6 +18,7 @@ import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.utils.FilterConfig
 import org.scalatest.concurrent.ScalaFutures
 
@@ -223,7 +224,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
         .mapTo[FilterManager.PendingTransactionFilterLogs]
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(pendingTxs))
+    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(pendingTxs.map(PendingTransaction(_, 0))))
 
     val getLogsRes = getLogsResF.futureValue
 
@@ -261,7 +262,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
         .mapTo[FilterManager.PendingTransactionFilterLogs]
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(pendingTxs))
+    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(pendingTxs.map(PendingTransaction(_, 0))))
 
     val getLogsRes = getLogsResF.futureValue
 

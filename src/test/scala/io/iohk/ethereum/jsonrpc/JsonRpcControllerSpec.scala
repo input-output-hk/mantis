@@ -463,7 +463,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with ScalaFutures wit
     val result: Future[JsonRpcResponse] = jsonRpcController.handleRequest(request)
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(Nil))
+    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
     ommersPool.expectMsg(OmmersPool.GetOmmers(2))
     ommersPool.reply(Ommers(Nil))
