@@ -245,7 +245,6 @@ class EthService(
       receipt: Receipt <- receipts.lift(txIndex)
     } yield {
 
-      //transaction with contract creation 0xb7b8cc9154896b25839ede4cd0c2ad193adf06489fdd9c0a9dfce05620c04ec1
       val contractAddress = if (stx.tx.isContractInit) {
         //do not subtract 1 from nonce because in transaction we have nonce of account before transaction execution
         val hash = kec256(rlp.encode(RLPList(stx.senderAddress.bytes, UInt256(stx.tx.nonce).toRLPEncodable)))
