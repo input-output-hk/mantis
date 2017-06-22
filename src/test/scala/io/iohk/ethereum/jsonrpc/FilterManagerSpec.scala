@@ -12,7 +12,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import akka.pattern.ask
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.DefaultPatience
+import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.ledger.BloomFilter
@@ -24,9 +24,7 @@ import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
 
-class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience {
-
-  implicit val timeout = Timeout(5.seconds)
+class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience {
 
   "FilterManager" should "handle log filter logs and changes" in new TestSetup {
     val filterManager = TestActorRef[FilterManager](Props(new FilterManager(blockchain, appStateStorage, keyStore, pendingTransactionsManager.ref, config, Some(time.scheduler))))

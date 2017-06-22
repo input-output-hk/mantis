@@ -1,7 +1,7 @@
 package io.iohk.ethereum.mining
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto
+import io.iohk.ethereum.{Timeouts, crypto}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain._
@@ -107,7 +107,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
       override val txPoolSize: Int = 30
-      override val poolingServicesTimeout: FiniteDuration = 3.seconds
+      override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val blockGenerator = new BlockGenerator(blockchainStorages.storages, blockchainConfig, miningConfig, ledger, validators)

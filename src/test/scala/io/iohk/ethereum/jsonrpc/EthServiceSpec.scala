@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.{DefaultPatience, Fixtures, crypto}
+import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -33,7 +33,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.duration._
 
 // scalastyle:off file.size.limit
-class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockFactory with DefaultPatience {
+class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockFactory with NormalPatience {
 
   behavior of "EthService"
 
@@ -494,13 +494,13 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val id2 = ByteString("id2")
 
     ethService.submitHashRate(SubmitHashRateRequest(rate, id1)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
-    Thread.sleep(2.seconds.toMillis)
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
     ethService.submitHashRate(SubmitHashRateRequest(rate, id2)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
 
     val response1 = ethService.getHashRate(GetHashRateRequest())
     response1.futureValue shouldEqual Right(GetHashRateResponse(rate * 2))
 
-    Thread.sleep(4.seconds.toMillis)
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
     val response2 = ethService.getHashRate(GetHashRateRequest())
     response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
   }
@@ -512,7 +512,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
     ethService.getWork(GetWorkRequest())
 
-    Thread.sleep(1.seconds.toMillis)
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -526,7 +526,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
     ethService.submitWork(SubmitWorkRequest(ByteString("nonce"), ByteString(Hex.decode("01" * 32)), ByteString(Hex.decode("01" * 32))))
 
-    Thread.sleep(1.seconds.toMillis)
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -538,7 +538,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     ethService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
 
-    Thread.sleep(1.seconds.toMillis)
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -550,7 +550,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
     ethService.getWork(GetWorkRequest())
 
-    Thread.sleep(6.seconds.toMillis)
+    Thread.sleep(2 * Timeouts.normalTimeout.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 

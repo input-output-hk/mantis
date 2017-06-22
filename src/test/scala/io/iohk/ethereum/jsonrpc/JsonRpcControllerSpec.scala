@@ -4,7 +4,7 @@ import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.{DefaultPatience, Fixtures}
+import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
@@ -32,11 +32,11 @@ import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 // scalastyle:off file.size.limit
-class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks with ScalaFutures with DefaultPatience with Eventually {
+class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks with ScalaFutures with NormalPatience with Eventually {
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer
@@ -44,7 +44,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   "JsonRpcController" should "handle valid sha3 request" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "web3_sha3", Some(JArray(JString("0x1234") :: Nil)), Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -55,7 +55,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   it should "fail when invalid request is received" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "web3_sha3", Some(JArray(JString("asdasd") :: Nil)), Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -65,7 +65,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   it should "handle clientVersion request" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "web3_clientVersion", None, Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -78,7 +78,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     val rpcRequest = JsonRpcRequest("2.0", "net_peerCount", None, Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response.result shouldBe Some(JString("0x7b"))
   }
@@ -88,7 +88,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     val rpcRequest = JsonRpcRequest("2.0", "net_listening", None, Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response.result shouldBe Some(JBool(false))
   }
@@ -98,7 +98,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     val rpcRequest = JsonRpcRequest("2.0", "net_version", None, Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), 3.seconds)
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response.result shouldBe Some(JString("99"))
   }
@@ -106,7 +106,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   it should "eth_protocolVersion" in new TestSetup {
     val rpcRequest = JsonRpcRequest("2.0", "eth_protocolVersion", None, Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -120,7 +120,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     val rpcRequest = JsonRpcRequest("2.0", "eth_blockNumber", None, Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -135,7 +135,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     val rpcRequest = JsonRpcRequest("2.0", "eth_syncing", None, Some(1))
 
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
@@ -170,7 +170,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       Some(JArray(List(JString(s"0x${blockToRequest.header.hashAsHexString}")))),
       Some(JInt(1))
     )
-    val response = Await.result(jsonRpcController.handleRequest(rpcRequest), Duration.Inf)
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     val expectedTxCount = Extraction.decompose(BigInt(blockToRequest.body.transactionList.size))
 
@@ -194,7 +194,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       Some(JArray(List(JString(s"0x${blockToRequest.header.hashAsHexString}"), JBool(false)))),
       Some(JInt(1))
     )
-    val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
+    val response = jsonRpcController.handleRequest(request).futureValue
 
     val expectedBlockResponse = Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
 
@@ -218,7 +218,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       Some(JArray(List(JString(s"0x${Hex.toHexString(blockToRequest.header.number.toByteArray)}"), JBool(false)))),
       Some(JInt(1))
     )
-    val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
+    val response = jsonRpcController.handleRequest(request).futureValue
 
     val expectedBlockResponse = Extraction.decompose(BlockResponse(blockToRequest, fullTxs = false, totalDifficulty = Some(blockTd)))
 
@@ -243,7 +243,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       ))),
       Some(JInt(1))
     )
-    val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
+    val response = jsonRpcController.handleRequest(request).futureValue
 
     val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None, pendingBlock = false))
       .removeField {
@@ -272,7 +272,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       ))),
       Some(JInt(1))
     )
-    val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
+    val response = jsonRpcController.handleRequest(request).futureValue
 
     val expectedUncleBlockResponse = Extraction.decompose(BlockResponse(uncle, None, pendingBlock = false))
       .removeField {
@@ -301,7 +301,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       ))),
       Some(JInt(1))
     )
-    val response = Await.result(jsonRpcController.handleRequest(request), Duration.Inf)
+    val response = jsonRpcController.handleRequest(request).futureValue
     val expectedStx = blockToRequest.body.transactionList.apply(txIndexToRequest)
     val expectedTxResponse = Extraction.decompose(
       TransactionResponse(expectedStx, Some(blockToRequest.header), Some(txIndexToRequest))
@@ -1307,7 +1307,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
       override val txPoolSize: Int = 30
-      override val poolingServicesTimeout: FiniteDuration = 3.seconds
+      override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val filterConfig = new FilterConfig {
