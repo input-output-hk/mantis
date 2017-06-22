@@ -42,7 +42,7 @@ class FilterManager(
 
   var filterTimeouts: Map[BigInt, Cancellable] = Map.empty
 
-  implicit val timeout = Timeout(5.seconds)
+  implicit val timeout = Timeout(config.pendingTransactionsManagerQueryTimeout)
 
   override def receive: Receive = {
     case NewLogFilter(fromBlock, toBlock, address, topics) => addFilterAndSendResponse(LogFilter(generateId(), fromBlock, toBlock, address, topics))

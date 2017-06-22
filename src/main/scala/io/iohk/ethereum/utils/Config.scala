@@ -132,6 +132,8 @@ object Config {
 
 trait FilterConfig {
   val filterTimeout: FiniteDuration
+  val filterManagerQueryTimeout: FiniteDuration
+  val pendingTransactionsManagerQueryTimeout: FiniteDuration
 }
 
 object FilterConfig {
@@ -140,6 +142,8 @@ object FilterConfig {
 
     new FilterConfig {
       val filterTimeout: FiniteDuration = filterConfig.getDuration("filter-timeout").toMillis.millis
+      val filterManagerQueryTimeout: FiniteDuration = filterConfig.getDuration("filter-manager-query-timeout").toMillis.millis
+      val pendingTransactionsManagerQueryTimeout: FiniteDuration = filterConfig.getDuration("pending-transactions-manager-query-timeout").toMillis.millis
     }
   }
 }

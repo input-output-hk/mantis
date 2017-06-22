@@ -12,7 +12,7 @@ import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.utils.MiningConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, FilterConfig, MiningConfig}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -25,7 +25,6 @@ import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
-import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.vm.UInt256
 import org.scalamock.scalatest.MockFactory
@@ -765,8 +764,14 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val poolingServicesTimeout: FiniteDuration = 3.seconds
     }
 
+    val filterConfig = new FilterConfig {
+      override val filterTimeout: FiniteDuration = 3.seconds
+      override val filterManagerQueryTimeout: FiniteDuration = 3.seconds
+      override val pendingTransactionsManagerQueryTimeout: FiniteDuration = 3.seconds
+    }
+
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref)
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number

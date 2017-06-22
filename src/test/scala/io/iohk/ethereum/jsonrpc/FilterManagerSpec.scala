@@ -286,6 +286,8 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
 
     val config = new FilterConfig {
       override val filterTimeout = 10.seconds
+      override val filterManagerQueryTimeout: FiniteDuration = 10.seconds
+      override val pendingTransactionsManagerQueryTimeout: FiniteDuration = 10.seconds
     }
 
     val time = new VirtualTime
