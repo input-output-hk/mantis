@@ -29,8 +29,8 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val msg = SignedTransactions(Seq.fill(10)(newStx()))
     pendingTransactionsManager ! MessageFromPeer(msg, PeerId("1"))
 
-    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactions].futureValue
-    pendingTxs.signedTransactions.toSet shouldBe msg.txs.toSet
+    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    pendingTxs.pendingTransactions.map(_.stx).toSet shouldBe msg.txs.toSet
   }
 
   it should "broadcast received pending transactions to other peers" in new TestSetup {
@@ -46,8 +46,8 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
       EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx)), peer3.id)
     )
 
-    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactions].futureValue
-    pendingTxs.signedTransactions shouldBe Seq(stx)
+    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    pendingTxs.pendingTransactions.map(_.stx) shouldBe Seq(stx)
   }
 
   it should "notify other peers about received transactions and handle removal" in new TestSetup {
@@ -74,9 +74,9 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTransactionsManager ! RemoveTransactions(msg1.txs.dropRight(4))
     pendingTransactionsManager ! RemoveTransactions(msg2.txs.drop(2))
 
-    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactions].futureValue
-    pendingTxs.signedTransactions.size shouldBe 6
-    pendingTxs.signedTransactions shouldBe msg1.txs.takeRight(4) ++ msg2.txs.take(2)
+    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    pendingTxs.pendingTransactions.size shouldBe 6
+    pendingTxs.pendingTransactions.map(_.stx) shouldBe msg1.txs.takeRight(4) ++ msg2.txs.take(2)
   }
 
   it should "not add pending transaction again when it was removed while waiting for peers" in new TestSetup {
@@ -90,8 +90,8 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
     etcPeerManager.expectNoMsg()
 
-    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactions].futureValue
-    pendingTxs.signedTransactions.size shouldBe 0
+    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    pendingTxs.pendingTransactions.size shouldBe 0
   }
 
   trait TestSetup {

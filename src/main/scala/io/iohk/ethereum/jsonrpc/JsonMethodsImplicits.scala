@@ -112,6 +112,10 @@ trait JsonMethodsImplicits {
           .left.map(_ => JsonRpcErrors.InvalidParams(s"Invalid default block param: $other"))
     }
   }
+
+  def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] =
+    opt.map(_.right.map(Some.apply)).getOrElse(Right(None))
+
 }
 
 object JsonMethodsImplicits extends JsonMethodsImplicits {

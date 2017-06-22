@@ -9,12 +9,12 @@ import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.MiningConfig
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, FilterConfig, MiningConfig}
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.keystore.KeyStore
@@ -463,7 +463,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val result: Future[JsonRpcResponse] = jsonRpcController.handleRequest(request)
 
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactions(Nil))
+    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
     ommersPool.expectMsg(OmmersPool.GetOmmers(2))
     ommersPool.reply(Ommers(Nil))
@@ -1016,7 +1016,199 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x9b2055d370f73ec7d8a03e965129118dc8f5bf83"))
   }
 
-  it should "rpc_modules" in new TestSetup {
+  it should "eth_newFilter" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.newFilter _).expects(*)
+      .returning(Future.successful(Right(NewFilterResponse(123))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_newFilter",
+      Some(JArray(List(JObject(
+        "fromBlock" -> "0x0",
+        "toBlock" -> "latest",
+        "address" -> "0x2B5A350698C91E684EB08c10F7e462f761C0e681",
+        "topics" -> JArray(List(JNull, "0x00000000000000000000000000000000000000000000000000000000000001c8"))
+      )))),
+      Some(JInt(1))
+    )
+
+
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString("0x7b"))
+  }
+
+  it should "eth_newBlockFilter" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.newBlockFilter _).expects(*)
+      .returning(Future.successful(Right(NewFilterResponse(999))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_newBlockFilter",
+      Some(JArray(List())),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.result shouldBe Some(JString("0x3e7"))
+  }
+
+  it should "eth_newPendingTransactionFilter" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.newPendingTransactionFilter _).expects(*)
+      .returning(Future.successful(Right(NewFilterResponse(2))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_newPendingTransactionFilter",
+      Some(JArray(List())),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.result shouldBe Some(JString("0x2"))
+  }
+
+  it should "eth_uninstallFilter" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.uninstallFilter _).expects(*)
+      .returning(Future.successful(Right(UninstallFilterResponse(true))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_uninstallFilter",
+      Some(JArray(List(JString("0x1")))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JBool(true))
+  }
+
+  it should "eth_getFilterChanges" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.getFilterChanges _).expects(*)
+      .returning(Future.successful(Right(GetFilterChangesResponse(FilterManager.LogFilterChanges(Seq(
+        FilterManager.Log(
+        logIndex = 0,
+        transactionIndex = 0,
+        transactionHash = ByteString(Hex.decode("123ffa")),
+        blockHash = ByteString(Hex.decode("123eeaa22a")),
+        blockNumber = 99,
+        address = Address("0x123456"),
+        data = ByteString(Hex.decode("ff33")),
+        topics = Seq(ByteString(Hex.decode("33")), ByteString(Hex.decode("55"))))))))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getFilterChanges",
+      Some(JArray(List(JString("0x1")))),
+      Some(JInt(1)))
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JArray(List(JObject(
+      "logIndex" -> JString("0x0"),
+      "transactionIndex" -> JString("0x0"),
+      "transactionHash" -> JString("0x123ffa"),
+      "blockHash" -> JString("0x123eeaa22a"),
+      "blockNumber" -> JString("0x63"),
+      "address" -> JString("0x0000000000000000000000000000000000123456"),
+      "data" -> JString("0xff33"),
+      "topics" -> JArray(List(JString("0x33"), JString("0x55")))))))
+  }
+
+  it should "eth_getFilterLogs" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.getFilterLogs _).expects(*)
+      .returning(Future.successful(Right(GetFilterLogsResponse(FilterManager.BlockFilterLogs(Seq(
+        ByteString(Hex.decode("1234")),
+        ByteString(Hex.decode("4567")),
+        ByteString(Hex.decode("7890"))
+      ))))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getFilterLogs",
+      Some(JArray(List(JString("0x1")))),
+      Some(JInt(1)))
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JArray(List(
+      JString("0x1234"),
+      JString("0x4567"),
+      JString("0x7890"))))
+  }
+
+  it should "eth_getLogs" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    (mockEthService.getLogs _).expects(*)
+      .returning(Future.successful(Right(GetLogsResponse(LogFilterLogs(Seq(
+        FilterManager.Log(
+          logIndex = 0,
+          transactionIndex = 0,
+          transactionHash = ByteString(Hex.decode("123ffa")),
+          blockHash = ByteString(Hex.decode("123eeaa22a")),
+          blockNumber = 99,
+          address = Address("0x123456"),
+          data = ByteString(Hex.decode("ff33")),
+          topics = Seq(ByteString(Hex.decode("33")), ByteString(Hex.decode("55"))))))))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "eth_getLogs",
+      Some(JArray(List(JObject(
+        "fromBlock" -> "0x0",
+        "toBlock" -> "latest",
+        "address" -> "0x2B5A350698C91E684EB08c10F7e462f761C0e681",
+        "topics" -> JArray(List(JNull, "0x00000000000000000000000000000000000000000000000000000000000001c8"))
+      )))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JArray(List(JObject(
+      "logIndex" -> JString("0x0"),
+      "transactionIndex" -> JString("0x0"),
+      "transactionHash" -> JString("0x123ffa"),
+      "blockHash" -> JString("0x123eeaa22a"),
+      "blockNumber" -> JString("0x63"),
+      "address" -> JString("0x0000000000000000000000000000000000123456"),
+      "data" -> JString("0xff33"),
+      "topics" -> JArray(List(JString("0x33"), JString("0x55")))))))
+  }
+
+ it should "rpc_modules" in new TestSetup {
     val request: JsonRpcRequest = JsonRpcRequest("2.0", "rpc_modules", None, Some(JInt(1)))
 
     val response = jsonRpcController.handleRequest(request).futureValue
@@ -1108,6 +1300,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     val pendingTransactionsManager = TestProbe()
     val ommersPool = TestProbe()
+    val filterManager = TestProbe()
 
     val miningConfig = new MiningConfig {
       override val coinbase: Address = Address(Hex.decode("42" * 20))
@@ -1117,13 +1310,18 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override val poolingServicesTimeout: FiniteDuration = 3.seconds
     }
 
+    val filterConfig = new FilterConfig {
+      override val filterTimeout: FiniteDuration = 3.seconds
+      override val filterManagerQueryTimeout: FiniteDuration = 3.seconds
+      override val pendingTransactionsManagerQueryTimeout: FiniteDuration = 3.seconds
+    }
 
     val appStateStorage = mock[AppStateStorage]
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref)
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 
     val blockHeader = BlockHeader(

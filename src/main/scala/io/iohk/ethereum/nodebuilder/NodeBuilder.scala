@@ -34,6 +34,10 @@ trait MiningConfigBuilder {
   lazy val miningConfig = MiningConfig(Config.config)
 }
 
+trait FilterConfigBuilder {
+  lazy val filterConfig = FilterConfig(Config.config)
+}
+
 trait NodeKeyBuilder {
   lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile)
 }
@@ -173,6 +177,18 @@ trait PendingTransactionsManagerBuilder {
     miningConfig, peerManager, etcPeerManager, peerEventBus))
 }
 
+trait FilterManagerBuilder {
+  self: ActorSystemBuilder
+    with BlockChainBuilder
+    with StorageBuilder
+    with KeyStoreBuilder
+    with PendingTransactionsManagerBuilder
+    with FilterConfigBuilder =>
+
+  lazy val filterManager: ActorRef =
+    actorSystem.actorOf(FilterManager.props(blockchain, storagesInstance.storages.appStateStorage, keyStore, pendingTransactionsManager, filterConfig))
+}
+
 trait BlockGeneratorBuilder {
   self: StorageBuilder with
     BlockchainConfigBuilder with
@@ -190,13 +206,16 @@ trait EthServiceBuilder {
     PendingTransactionsManagerBuilder with
     LedgerBuilder with
     ValidatorsBuilder with
+    BlockchainConfigBuilder with
     KeyStoreBuilder with
     SyncControllerBuilder with
     OmmersPoolBuilder with
-    MiningConfigBuilder =>
+    MiningConfigBuilder with
+    FilterManagerBuilder with
+    FilterConfigBuilder =>
 
   lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage, miningConfig,
-    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool)
+    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig)
 }
 
 trait PersonalServiceBuilder {
@@ -332,3 +351,5 @@ trait Node extends NodeKeyBuilder
   with MiningConfigBuilder
   with EtcPeerManagerActorBuilder
   with BlockchainHostBuilder
+  with FilterManagerBuilder
+  with FilterConfigBuilder
