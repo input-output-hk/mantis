@@ -32,7 +32,7 @@ object EncryptedKey {
     val address = Address(crypto.kec256(pubKey))
 
     val salt = crypto.secureRandomByteString(32)
-    val kdfParams = ScryptParams(salt, 2 << 17, 8, 1, 32) //params used by Geth
+    val kdfParams = ScryptParams(salt, 1 << 18, 8, 1, 32) //params used by Geth
     val dk = deriveKey(passphrase, kdfParams)
 
     val cipherName = AES128CTR

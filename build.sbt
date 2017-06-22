@@ -61,6 +61,8 @@ scalacOptions := Seq(
   "-Xfatal-warnings"
 )
 
+parallelExecution in Test := false
+
 testOptions in Test += Tests.Argument("-oD")
 
 (test in Evm) := (test in Evm).dependsOn(solidityCompile).value
