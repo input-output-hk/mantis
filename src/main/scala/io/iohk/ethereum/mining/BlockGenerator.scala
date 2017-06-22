@@ -27,7 +27,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
   private val cache: AtomicReference[List[Block]] = new AtomicReference(Nil)
-
+  // scalastyle:off
   def generateBlockForMining(blockNumber: BigInt, transactions: Seq[SignedTransaction], ommers: Seq[BlockHeader], beneficiary: Address):
   Either[BlockPreparationError, Block] = {
     val blockchain = BlockchainImpl(blockchainStorages)
@@ -40,7 +40,8 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
           ommersHash = ByteString(kec256(ommers.toBytes: Array[Byte])),
           beneficiary = beneficiary.bytes,
           stateRoot = ByteString.empty,
-          transactionsRoot = buildMpt(transactions, SignedTransaction.byteArraySerializable),
+          //not here
+          transactionsRoot = ByteString.empty,
           receiptsRoot = ByteString.empty,
           logsBloom = ByteString.empty,
           difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
@@ -53,18 +54,21 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
           nonce = ByteString.empty
         )
 
-        val body = BlockBody(transactions, ommers)
+        val body = BlockBody(transactions.toSet[SignedTransaction].toList.sortBy(_.tx.nonce), ommers)
         val block = Block(header, body)
 
-        ledger.prepareBlock(block, blockchainStorages, validators).right.map { case BlockPreparationResult(BlockResult(_, gasUsed, receipts), stateRoot) =>
-          val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
-          val bloomFilter = ByteString(or(receiptsLogs: _*))
+        ledger.prepareBlock(block, blockchainStorages, validators).right.map {
+          case BlockPreparationResult(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot) =>
+            val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
+            val bloomFilter = ByteString(or(receiptsLogs: _*))
 
-          block.copy(header = block.header.copy(
-            stateRoot = stateRoot,
-            receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable),
-            logsBloom = bloomFilter,
-            gasUsed = gasUsed))
+            block.copy(header = block.header.copy(
+              transactionsRoot = buildMpt(prepareBlock.body.transactionList, SignedTransaction.byteArraySerializable),
+              stateRoot = stateRoot,
+              receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable),
+              logsBloom = bloomFilter,
+              gasUsed = gasUsed),
+              body = prepareBlock.body)
         }
       }.getOrElse(Left(NoParent))
     }

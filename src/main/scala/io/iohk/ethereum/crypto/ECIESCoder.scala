@@ -6,7 +6,7 @@ import java.security.SecureRandom
 
 import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.crypto.digests.{SHA1Digest, SHA256Digest}
-import org.spongycastle.crypto.engines.AESFastEngine
+import org.spongycastle.crypto.engines.AESEngine
 import org.spongycastle.crypto.generators.ECKeyPairGenerator
 import org.spongycastle.crypto.macs.HMac
 import org.spongycastle.crypto.modes.SICBlockCipher
@@ -38,7 +38,7 @@ object ECIESCoder {
 
   @throws[InvalidCipherTextException]
   def decrypt(ephem: ECPoint, prv: BigInteger, IV: Option[Array[Byte]], cipher: Array[Byte], macData: Option[Array[Byte]]): Array[Byte] = {
-    val aesFastEngine = new AESFastEngine
+    val aesFastEngine = new AESEngine
 
     val iesEngine = new EthereumIESEngine(
       kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest)),
@@ -139,7 +139,7 @@ object ECIESCoder {
   }
 
   private def makeIESEngine(pub: ECPoint, prv: BigInteger, IV: Option[Array[Byte]]) = {
-    val aesFastEngine = new AESFastEngine
+    val aesFastEngine = new AESEngine
 
     val iesEngine = new EthereumIESEngine(
       kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest)),

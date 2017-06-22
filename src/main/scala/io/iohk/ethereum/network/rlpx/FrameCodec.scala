@@ -7,7 +7,7 @@ import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.spongycastle.crypto.StreamCipher
 import org.spongycastle.crypto.digests.KeccakDigest
-import org.spongycastle.crypto.engines.AESFastEngine
+import org.spongycastle.crypto.engines.AESEngine
 import org.spongycastle.crypto.modes.SICBlockCipher
 import org.spongycastle.crypto.params.{KeyParameter, ParametersWithIV}
 
@@ -25,13 +25,13 @@ class FrameCodec(private val secrets: Secrets) {
   private val allZerosIV = Array.fill[Byte](16)(0)
 
   private val enc: StreamCipher = {
-    val cipher = new SICBlockCipher(new AESFastEngine)
+    val cipher = new SICBlockCipher(new AESEngine)
     cipher.init(true, new ParametersWithIV(new KeyParameter(secrets.aes), allZerosIV))
     cipher
   }
 
   private val dec: StreamCipher = {
-    val cipher = new SICBlockCipher(new AESFastEngine)
+    val cipher = new SICBlockCipher(new AESEngine)
     cipher.init(false, new ParametersWithIV(new KeyParameter(secrets.aes), allZerosIV))
     cipher
   }
@@ -191,8 +191,8 @@ class FrameCodec(private val secrets: Secrets) {
     ByteString(macBuffer.take(16))
   }
 
-  private def makeMacCipher: AESFastEngine = {
-    val macc = new AESFastEngine
+  private def makeMacCipher: AESEngine = {
+    val macc = new AESEngine
     macc.init(true, new KeyParameter(secrets.mac.toArray))
     macc
   }

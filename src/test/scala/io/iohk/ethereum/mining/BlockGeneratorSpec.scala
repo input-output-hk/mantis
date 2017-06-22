@@ -52,6 +52,22 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fulBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
 
+  it should "filter out failing transactions" in new Envirnoment {
+    val result: Either[BlockPreparationError, Block] =
+      blockGenerator.generateBlockForMining(1, Seq(signedTransaction, duplicatedSignedTransaction), Nil, Address(testAddress))
+    result shouldBe a[Right[_, Block]]
+
+    //mined with etc-client + ethminer
+    val minedNonce = ByteString(Hex.decode("5e8d5c12cea7e0c7"))
+    val minedMixHash = ByteString(Hex.decode("9247b81258f97159f987a5f4f9e94df1d95e10eeabff2836020eafb27a8228b0"))
+    val miningTimestamp = 1494604913
+
+    val fulBlock: Either[BlockPreparationError, Block] = result.right
+      .map(b => b.copy(header = b.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
+    fulBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
+    fulBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+  }
+
   trait Envirnoment {
 
     val testAddress = 42
@@ -70,6 +86,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       value = txTransfer,
       payload = ByteString.empty)
     val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
+    val duplicatedSignedTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
 
     val blockchainStorages = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchainConfig = new BlockchainConfig {
