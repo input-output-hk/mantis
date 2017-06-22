@@ -512,9 +512,15 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
         case other => Left(InvalidParams(msg = s"Unable to parse topics, expected byte data or array but got: $other"))
       })
 
+    def optionalBlockParam(field: String) =
+      (obj \ field).extractOpt[JValue].flatMap {
+        case JNothing => None
+        case other => Some(extractBlockParam(other))
+      }
+
     for {
-      fromBlock <- toEitherOpt((obj \ "fromBlock").extractOpt[JValue].map(extractBlockParam))
-      toBlock <- toEitherOpt((obj \ "toBlock").extractOpt[JValue].map(extractBlockParam))
+      fromBlock <- toEitherOpt(optionalBlockParam("fromBlock"))
+      toBlock <- toEitherOpt(optionalBlockParam("toBlock"))
       address <- toEitherOpt((obj \ "address").extractOpt[String].map(extractAddress))
       topics <- topicsEither
     } yield Filter(
