@@ -155,7 +155,7 @@ class PersonalService(
   }
 
   private val handleError: PartialFunction[KeyStore.KeyStoreError, JsonRpcError] = {
-    case KeyStore.WrongPassphrase => InvalidPassphrase
+    case KeyStore.DecryptionFailed => InvalidPassphrase
     case KeyStore.KeyNotFound => KeyNotFound
     case KeyStore.IOError(msg) => LogicError(msg)
   }

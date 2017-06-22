@@ -1,26 +1,21 @@
 package io.iohk.ethereum
 
-import java.security.{MessageDigest, SecureRandom}
-import javax.crypto.Cipher
-import javax.crypto.spec.SecretKeySpec
+import java.nio.charset.StandardCharsets
+import java.security.SecureRandom
 
 import akka.util.ByteString
 import fr.cryptohash.{Keccak256, Keccak512}
 import org.spongycastle.asn1.sec.SECNamedCurves
 import org.spongycastle.asn1.x9.X9ECParameters
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.digests.RIPEMD160Digest
-import org.spongycastle.crypto.generators.ECKeyPairGenerator
-import org.spongycastle.crypto.params.{ECDomainParameters, ECKeyGenerationParameters, ECPrivateKeyParameters, ECPublicKeyParameters}
-
-import scala.util.Try
+import org.spongycastle.crypto.digests.{RIPEMD160Digest, SHA256Digest}
+import org.spongycastle.crypto.generators.{ECKeyPairGenerator, PKCS5S2ParametersGenerator, SCrypt}
+import org.spongycastle.crypto.params._
 
 package object crypto {
 
   val curveParams: X9ECParameters = SECNamedCurves.getByName("secp256k1")
   val curve: ECDomainParameters = new ECDomainParameters(curveParams.getCurve, curveParams.getG, curveParams.getN, curveParams.getH)
-
-  val sha256Digest = MessageDigest.getInstance("SHA-256")
 
   def kec256(input: Array[Byte], start: Int, length: Int): Array[Byte] = {
     val digest = new Keccak256
@@ -56,6 +51,11 @@ package object crypto {
     (prvKey, pubKey)
   }
 
+  def keyPairToByteStrings(keyPair: AsymmetricCipherKeyPair): (ByteString, ByteString) = {
+    val (prv, pub) = keyPairToByteArrays(keyPair)
+    (ByteString(prv), ByteString(pub))
+  }
+
   def keyPairFromPrvKey(prvKeyBytes: Array[Byte]): AsymmetricCipherKeyPair = {
     val privateKey = BigInt(1, prvKeyBytes)
     keyPairFromPrvKey(privateKey)
@@ -66,9 +66,12 @@ package object crypto {
     new AsymmetricCipherKeyPair(new ECPublicKeyParameters(publicKey, curve), new ECPrivateKeyParameters(prvKey.bigInteger, curve))
   }
 
-  def pubKeyFromPrvKey(prvKey: Array[Byte]): Array[Byte] = {
+  def pubKeyFromPrvKey(prvKey: Array[Byte]): Array[Byte] =
     keyPairToByteArrays(keyPairFromPrvKey(prvKey))._2
-  }
+
+
+  def pubKeyFromPrvKey(prvKey: ByteString): ByteString =
+    ByteString(pubKeyFromPrvKey(prvKey.toArray))
 
   def ripemd160(input: Array[Byte]): Array[Byte] = {
     val digest = new RIPEMD160Digest
@@ -81,25 +84,33 @@ package object crypto {
   def ripemd160(input: ByteString): ByteString =
     ByteString(ripemd160(input.toArray))
 
-  def sha256(input: Array[Byte]): Array[Byte] =
-    sha256Digest.digest(input)
+  def sha256(input: Array[Byte]): Array[Byte] = {
+    val digest = new SHA256Digest()
+    val out = Array.ofDim[Byte](digest.getDigestSize)
+    digest.update(input, 0, input.size)
+    digest.doFinal(out, 0)
+    out
+  }
 
   def sha256(input: ByteString): ByteString =
     ByteString(sha256(input.toArray))
 
-  // Simple AES encryption
-  // TODO: replace with more robust functions for different AES modes, accepting IV vectors and parameterised KDFs
-  def encrypt(message: Array[Byte], secret: Array[Byte]): Array[Byte] = {
-    val cipher = Cipher.getInstance("AES")
-    cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(kec256(secret).take(16), "AES"))
-    cipher.doFinal(message)
+  def secureRandomByteString(length: Int): ByteString = {
+    val random = new SecureRandom()
+    val bytes = Array.ofDim[Byte](length)
+    random.nextBytes(bytes)
+    ByteString(bytes)
   }
 
-  // Simple AES decryption
-  // TODO: replace with more robust functions for different AES modes, accepting IV vectors and parameterised KDFs
-  def decrypt(encrypted: Array[Byte], secret: Array[Byte]): Option[Array[Byte]] = {
-    val cipher = Cipher.getInstance("AES")
-    cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(kec256(secret).take(16), "AES"))
-    Try(cipher.doFinal(encrypted)).toOption
+  def pbkdf2HMacSha256(passphrase: String, salt: ByteString, c: Int, dklen: Int): ByteString = {
+    val generator = new PKCS5S2ParametersGenerator(new SHA256Digest())
+    generator.init(passphrase.getBytes(StandardCharsets.UTF_8), salt.toArray, c)
+    val key = generator.generateDerivedMacParameters(dklen * 8).asInstanceOf[KeyParameter]
+    ByteString(key.getKey)
+  }
+
+  def scrypt(passphrase: String, salt: ByteString, n: Int, r: Int, p: Int, dklen: Int): ByteString = {
+    val key = SCrypt.generate(passphrase.getBytes(StandardCharsets.UTF_8), salt.toArray, n, r, p, dklen)
+    ByteString(key)
   }
 }
