@@ -4,7 +4,7 @@ import java.io.File
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.keystore.KeyStore.{IOError, KeyNotFound, WrongPassphrase}
+import io.iohk.ethereum.keystore.KeyStore.{IOError, KeyNotFound, DecryptionFailed}
 import io.iohk.ethereum.utils.Config
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -62,7 +62,7 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter {
   it should "return an error when unlocking an account with a wrong passphrase" in new TestSetup {
     keyStore.importPrivateKey(key1, "aaa")
     val res = keyStore.unlockAccount(addr1, "bbb")
-    res shouldEqual Left(WrongPassphrase)
+    res shouldEqual Left(DecryptionFailed)
   }
 
   it should "return an error when trying to unlock an unknown account" in new TestSetup {

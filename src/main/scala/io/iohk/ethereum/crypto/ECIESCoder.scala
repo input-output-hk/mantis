@@ -38,13 +38,13 @@ object ECIESCoder {
 
   @throws[InvalidCipherTextException]
   def decrypt(ephem: ECPoint, prv: BigInteger, IV: Option[Array[Byte]], cipher: Array[Byte], macData: Option[Array[Byte]]): Array[Byte] = {
-    val aesFastEngine = new AESEngine
+    val aesEngine = new AESEngine
 
     val iesEngine = new EthereumIESEngine(
       kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest)),
       mac = new HMac(new SHA256Digest),
       hash = new SHA256Digest,
-      cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesFastEngine))),
+      cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesEngine))),
       IV = IV,
       prvSrc = Left(new ECPrivateKeyParameters(prv, curve)),
       pubSrc = Left(new ECPublicKeyParameters(ephem, curve)))
@@ -139,13 +139,13 @@ object ECIESCoder {
   }
 
   private def makeIESEngine(pub: ECPoint, prv: BigInteger, IV: Option[Array[Byte]]) = {
-    val aesFastEngine = new AESEngine
+    val aesEngine = new AESEngine
 
     val iesEngine = new EthereumIESEngine(
       kdf = Left(new ConcatKDFBytesGenerator(new SHA256Digest)),
       mac = new HMac(new SHA256Digest),
       hash = new SHA256Digest,
-      cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesFastEngine))),
+      cipher = Some(new BufferedBlockCipher(new SICBlockCipher(aesEngine))),
       IV = IV,
       prvSrc = Left(new ECPrivateKeyParameters(prv, curve)),
       pubSrc = Left(new ECPublicKeyParameters(pub, curve)))

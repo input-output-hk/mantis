@@ -193,7 +193,7 @@ class FrameCodec(private val secrets: Secrets) {
 
   private def makeMacCipher: AESEngine = {
     val macc = new AESEngine
-    macc.init(true, new KeyParameter(secrets.mac.toArray))
+    macc.init(true, new KeyParameter(secrets.mac))
     macc
   }
 

@@ -49,6 +49,9 @@ class Address private(val bytes: ByteString) {
     bytes.hashCode
 
   override def toString: String =
-    s"0x${Hex.toHexString(toArray)}"
+    s"0x$toUnprefixedString"
+
+  def toUnprefixedString: String =
+    Hex.toHexString(toArray)
 
 }

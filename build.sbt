@@ -22,7 +22,7 @@ val dep = {
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
     "io.suzaku" %% "boopickle" % "1.2.6",
     "org.consensusresearch" %% "scrypto" % "1.2.0-RC3",
-    "com.madgag.spongycastle" % "core" % "1.54.0.0",
+    "com.madgag.spongycastle" % "core" % "1.56.0.0",
     "org.iq80.leveldb" % "leveldb" % "0.9",
     "org.scorexfoundation" %% "iodb" % "0.3.0",
     "ch.qos.logback" % "logback-classic" % "1.1.9",
@@ -60,6 +60,8 @@ scalacOptions := Seq(
   "-feature",
   "-Xfatal-warnings"
 )
+
+parallelExecution in Test := false
 
 testOptions in Test += Tests.Argument("-oD")
 
