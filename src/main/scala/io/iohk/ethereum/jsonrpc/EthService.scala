@@ -92,7 +92,8 @@ object EthService {
   case class SubmitWorkResponse(success: Boolean)
 
   case class SyncingRequest()
-  case class SyncingResponse(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
+  case class SyncingStatus(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
+  case class SyncingResponse(syncStatus: Option[SyncingStatus])
 
   case class SendRawTransactionRequest(data: ByteString)
   case class SendRawTransactionResponse(transactionHash: ByteString)
@@ -494,12 +495,27 @@ class EthService(
     }
   }
 
- def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = {
-    Future(Right(SyncingResponse(
-      startingBlock = appStateStorage.getSyncStartingBlock(),
-      currentBlock = appStateStorage.getBestBlockNumber(),
-      highestBlock = appStateStorage.getEstimatedHighestBlock())))
-  }
+  /**
+    * Implements the eth_syncing method that returns syncing information if the node is syncing.
+    *
+    * @return The syncing status if the node is syncing or None if not
+    */
+ def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = Future {
+   val currentBlock = appStateStorage.getBestBlockNumber()
+   val highestBlock = appStateStorage.getEstimatedHighestBlock()
+
+   //The node is syncing if there's any block that other peers have and this peer doesn't
+   val maybeSyncStatus =
+     if(currentBlock < highestBlock)
+       Some(SyncingStatus(
+         startingBlock = appStateStorage.getSyncStartingBlock(),
+         currentBlock = currentBlock,
+         highestBlock = highestBlock
+       ))
+     else
+       None
+   Right(SyncingResponse(maybeSyncStatus))
+ }
 
   def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionDec

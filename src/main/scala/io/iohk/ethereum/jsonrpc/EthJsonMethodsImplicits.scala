@@ -246,7 +246,10 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_syncing = new JsonDecoder[SyncingRequest] with JsonEncoder[SyncingResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, SyncingRequest] = Right(SyncingRequest())
 
-    def encodeJson(t: SyncingResponse): JValue = Extraction.decompose(t)
+    def encodeJson(t: SyncingResponse): JValue = t.syncStatus match {
+      case Some(syncStatus) => Extraction.decompose(syncStatus)
+      case None => false
+    }
   }
 
   implicit val eth_sendRawTransaction = new JsonDecoder[SendRawTransactionRequest] with JsonEncoder[SendRawTransactionResponse] {
