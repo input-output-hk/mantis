@@ -20,10 +20,15 @@ import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils.MiningConfig
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.rlp
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.UInt256RLPImplicits._
+import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.Future
@@ -68,6 +73,9 @@ object EthService {
 
   case class GetTransactionByHashRequest(txHash: ByteString)
   case class GetTransactionByHashResponse(txResponse: Option[TransactionResponse])
+
+  case class GetTransactionReceiptRequest(txHash: ByteString)
+  case class GetTransactionReceiptResponse(txResponse: Option[TransactionReceiptResponse])
 
   case class GetTransactionByBlockNumberAndIndexRequest(block: BlockParam, transactionIndex: BigInt)
   case class GetTransactionByBlockNumberAndIndexResponse(transactionResponse: Option[TransactionResponse])
@@ -257,6 +265,47 @@ class EthService(
     }
 
     maybeTxResponse.map(txResponse => Right(GetTransactionByHashResponse(txResponse)))
+  }
+
+  def getTransactionReceipt(req: GetTransactionReceiptRequest): ServiceResponse[GetTransactionReceiptResponse] = Future {
+    val result: Option[TransactionReceiptResponse] = for {
+      TransactionLocation(blockHash, txIndex) <- blockchain.getTransactionLocation(req.txHash)
+      Block(header, body) <- blockchain.getBlockByHash(blockHash)
+      stx <- body.transactionList.lift(txIndex)
+      receipts <- blockchain.getReceiptsByHash(blockHash)
+      receipt: Receipt <- receipts.lift(txIndex)
+    } yield {
+
+      val contractAddress = if (stx.tx.isContractInit) {
+        //do not subtract 1 from nonce because in transaction we have nonce of account before transaction execution
+        val hash = kec256(rlp.encode(RLPList(stx.senderAddress.bytes, UInt256(stx.tx.nonce).toRLPEncodable)))
+        Some(Address(hash))
+      } else {
+        None
+      }
+
+      TransactionReceiptResponse(
+        transactionHash = stx.hash,
+        transactionIndex = txIndex,
+        blockNumber = header.number,
+        blockHash = header.hash,
+        cumulativeGasUsed = receipt.cumulativeGasUsed,
+        gasUsed = if (txIndex == 0) receipt.cumulativeGasUsed else receipt.cumulativeGasUsed - receipts(txIndex - 1).cumulativeGasUsed,
+        contractAddress = contractAddress,
+        logs = receipt.logs.zipWithIndex.map { case (txLog, index) =>
+          TxLog(
+            logIndex = index,
+            transactionIndex = Some(txIndex),
+            transactionHash = Some(stx.hash),
+            blockHash = header.hash,
+            blockNumber = header.number,
+            address = txLog.loggerAddress,
+            data = txLog.data,
+            topics = txLog.logTopics)
+        })
+    }
+
+    Right(GetTransactionReceiptResponse(result))
   }
 
   /**

@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import org.json4s.JsonAST.{JNull, JString}
-import org.json4s.{CustomSerializer, DefaultFormats, Extraction, JValue}
+import org.json4s.CustomSerializer
 import org.spongycastle.util.encoders.Hex
 
 object JsonSerializers {

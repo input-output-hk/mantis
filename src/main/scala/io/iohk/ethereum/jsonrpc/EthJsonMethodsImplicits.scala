@@ -159,6 +159,20 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
         Extraction.decompose(t.txResponse)
     }
 
+  implicit val eth_getTransactionReceipt =
+    new JsonDecoder[GetTransactionReceiptRequest] with JsonEncoder[GetTransactionReceiptResponse] {
+      override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetTransactionReceiptRequest] = params match {
+        case Some(JArray(JString(txHash) :: Nil)) =>
+          for {
+            parsedTxHash <- extractHash(txHash)
+          } yield GetTransactionReceiptRequest(parsedTxHash)
+        case _ => Left(InvalidParams())
+      }
+
+      override def encodeJson(t: GetTransactionReceiptResponse): JValue =
+        Extraction.decompose(t.txResponse)
+    }
+
   implicit val eth_getTransactionByBlockHashAndIndex =
     new JsonDecoder[GetTransactionByBlockHashAndIndexRequest] with JsonEncoder[GetTransactionByBlockHashAndIndexResponse] {
       override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetTransactionByBlockHashAndIndexRequest] = params match {

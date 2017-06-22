@@ -67,9 +67,6 @@ object SignedTransaction {
     SignedTransaction(tx, txSignature, chainId)
   }
 
-  def apply(tx: Transaction, pointSign: Int, signatureRandom: ByteString, signature: ByteString): Option[SignedTransaction] =
-    SignedTransaction(tx, pointSign.toByte, signatureRandom, signature)
-
   def apply(tx: Transaction, signature: ECDSASignature, chainId: Byte): Option[SignedTransaction] = {
     for {
       sender <- SignedTransaction.getSender(tx, signature, chainId)
