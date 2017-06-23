@@ -26,10 +26,10 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
-  private val cache: AtomicReference[List[Block]] = new AtomicReference(Nil)
+  private val cache: AtomicReference[List[PendingBlock]] = new AtomicReference(Nil)
 
   def generateBlockForMining(blockNumber: BigInt, transactions: Seq[SignedTransaction], ommers: Seq[BlockHeader], beneficiary: Address):
-  Either[BlockPreparationError, Block] = {
+  Either[BlockPreparationError, PendingBlock] = {
     val blockchain = BlockchainImpl(blockchainStorages)
 
     val result = validators.ommersValidator.validate(blockNumber, ommers, blockchain).left.map(InvalidOmmers).flatMap { _ =>
@@ -60,39 +60,40 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
           val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
           val bloomFilter = ByteString(or(receiptsLogs: _*))
 
-          block.copy(header = block.header.copy(
-            stateRoot = stateRoot,
-            receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable),
-            logsBloom = bloomFilter,
-            gasUsed = gasUsed))
+          PendingBlock(block.copy(header = block.header.copy(
+              stateRoot = stateRoot,
+              receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable),
+              logsBloom = bloomFilter,
+              gasUsed = gasUsed)
+            ), receipts)
         }
       }.getOrElse(Left(NoParent))
     }
 
-    result.right.foreach(b => cache.updateAndGet(new UnaryOperator[List[Block]] {
-      override def apply(t: List[Block]): List[Block] =
+    result.right.foreach(b => cache.updateAndGet(new UnaryOperator[List[PendingBlock]] {
+      override def apply(t: List[PendingBlock]): List[PendingBlock] =
         (b :: t).take(miningConfig.blockCacheSize)
     }))
 
     result
   }
 
-  def getPrepared(powHeaderHash: ByteString): Option[Block] = {
-    cache.getAndUpdate(new UnaryOperator[List[Block]] {
-      override def apply(t: List[Block]): List[Block] =
-        t.filterNot(b => ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))) == powHeaderHash)
-    }).find { b =>
-      ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))) == powHeaderHash
+  def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] = {
+    cache.getAndUpdate(new UnaryOperator[List[PendingBlock]] {
+      override def apply(t: List[PendingBlock]): List[PendingBlock] =
+        t.filterNot(p => ByteString(kec256(BlockHeader.getEncodedWithoutNonce(p.block.header))) == powHeaderHash)
+    }).find { p =>
+      ByteString(kec256(BlockHeader.getEncodedWithoutNonce(p.block.header))) == powHeaderHash
     }
   }
 
   /**
     * This function returns the block currently being mined block with highest timestamp
     */
-  def getPending: Option[Block] = {
+  def getPending: Option[PendingBlock] = {
     val pendingBlocks = cache.get()
     if(pendingBlocks.isEmpty) None
-    else Some(pendingBlocks.maxBy(_.header.unixTimestamp))
+    else Some(pendingBlocks.maxBy(_.block.header.unixTimestamp))
   }
 
   //returns maximal limit to be able to include as many transactions as possible
@@ -117,6 +118,8 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
 trait BlockTimestampProvider {
   def getEpochSecond: Long
 }
+
+case class PendingBlock(block: Block, receipts: Seq[Receipt])
 
 object DefaultBlockTimestampProvider extends BlockTimestampProvider {
   override def getEpochSecond: Long = Instant.now.getEpochSecond

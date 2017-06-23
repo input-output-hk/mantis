@@ -180,13 +180,23 @@ trait PendingTransactionsManagerBuilder {
 trait FilterManagerBuilder {
   self: ActorSystemBuilder
     with BlockChainBuilder
+    with BlockGeneratorBuilder
     with StorageBuilder
     with KeyStoreBuilder
     with PendingTransactionsManagerBuilder
     with FilterConfigBuilder =>
 
   lazy val filterManager: ActorRef =
-    actorSystem.actorOf(FilterManager.props(blockchain, storagesInstance.storages.appStateStorage, keyStore, pendingTransactionsManager, filterConfig))
+    actorSystem.actorOf(
+      FilterManager.props(
+        blockchain,
+        blockGenerator,
+        storagesInstance.storages.appStateStorage,
+        keyStore,
+        pendingTransactionsManager,
+        filterConfig
+      )
+    )
 }
 
 trait BlockGeneratorBuilder {
