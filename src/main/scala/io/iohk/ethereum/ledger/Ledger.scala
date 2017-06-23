@@ -67,12 +67,12 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
       case Right(result) =>
         log.debug(s"Prepared for mining block with number ${block.header.number}")
         Right(result)
-      case Left(TxsExecutionError(tx,reason)) =>
+      case Left(TxsExecutionError(tx, reason)) =>
         log.debug(s"failed to execute transaction $tx because: $reason")
         val newBlock = block.copy(body = block.body.copy(transactionList = block.body.transactionList.filter(_.hash != tx.hash)))
-        prepareBlock(newBlock, storages,validators)
-      case r =>
-        r.left.map(e => TxError(e.reason))
+        prepareBlock(newBlock, storages, validators)
+      case Left(error: BlockExecutionError) =>
+        Left(TxError(error.reason))
     }
   }
 
