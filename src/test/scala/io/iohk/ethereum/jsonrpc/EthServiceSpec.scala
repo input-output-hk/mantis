@@ -106,19 +106,33 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.transactionResponse shouldBe Some(expectedTxResponse)
   }
 
-  //FIXME: This test should be changed once the pending block doesn't equal to the latest one
-  it should "answer eth_getBlockByNumber with the correct parameters in None when the pending block is requested" in new TestSetup {
-    val bestBlockNumber = 10
+  it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {
 
-    blockchain.save(blockToRequest.copy(header = blockToRequest.header.copy(number = bestBlockNumber)))
-    blockchain.save(blockToRequestHash, blockTd)
-    (appStateStorage.getBestBlockNumber _).expects().returning(bestBlockNumber)
+    (blockGenerator.getPending _).expects().returns(Some(blockToRequest))
 
     val request = BlockByNumberRequest(BlockParam.Pending, fullTxs = true)
     val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
-    response.blockResponse.get.hash shouldBe None
-    response.blockResponse.get.nonce shouldBe None
-    response.blockResponse.get.miner shouldBe None
+
+    response.blockResponse.isDefined should be (true)
+    val blockResponse = response.blockResponse.get
+
+    blockResponse.hash shouldBe None
+    blockResponse.nonce shouldBe None
+    blockResponse.miner shouldBe None
+    blockResponse.number shouldBe blockToRequest.header.number
+  }
+
+  it should "answer eth_getBlockByNumber with the latest block pending block is requested and there are no pending ones" in new TestSetup {
+
+    blockchain.save(blockToRequest)
+    blockchain.save(blockToRequestHash, blockTd)
+
+    (blockGenerator.getPending _).expects().returns(None)
+    (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
+
+    val request = BlockByNumberRequest(BlockParam.Pending, fullTxs = true)
+    val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
+    response.blockResponse.get.hash.get shouldEqual blockToRequest.header.hash
   }
 
   it should "answer eth_getBlockByNumber with None when the requested block isn't in the blockchain" in new TestSetup {

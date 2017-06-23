@@ -1,5 +1,7 @@
 package io.iohk.ethereum.mining
 
+import java.time.Instant
+
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
@@ -52,6 +54,22 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fulBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
 
+  it should "return the pending block as the one with highest timestamp between generated ones" in new Envirnoment {
+    val result: Either[BlockPreparationError, Block] = blockGenerator.generateBlockForMining(1, Seq(signedTransaction), Nil, Address(testAddress))
+    result shouldBe a[Right[_, Block]]
+
+    blockTimestampProvider.advance(result.right.get.header.unixTimestamp + 10)
+
+    val result2: Either[BlockPreparationError, Block] = blockGenerator.generateBlockForMining(1, Seq(signedTransaction2), Nil, Address(testAddress))
+    result2 shouldBe a[Right[_, Block]]
+
+    blockGenerator.getPending shouldEqual Some(result2.right.get)
+  }
+
+  it should "return None if there are no pending blocks" in new Envirnoment {
+    blockGenerator.getPending shouldEqual None
+  }
+
   trait Envirnoment {
 
     val testAddress = 42
@@ -70,6 +88,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       value = txTransfer,
       payload = ByteString.empty)
     val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
+
+    val signedTransaction2: SignedTransaction = SignedTransaction.sign(transaction.copy(gasPrice = 2), keyPair, Some(0x3d.toByte))
 
     val blockchainStorages = new SharedEphemDataSources with Storages.DefaultStorages
     val blockchainConfig = new BlockchainConfig {
@@ -110,6 +130,16 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val poolingServicesTimeout: FiniteDuration = 3.seconds
     }
 
-    val blockGenerator = new BlockGenerator(blockchainStorages.storages, blockchainConfig, miningConfig, ledger, validators)
+    val blockTimestampProvider = new FakeBlockTimestampProvider
+
+    val blockGenerator = new BlockGenerator(blockchainStorages.storages, blockchainConfig, miningConfig, ledger, validators, blockTimestampProvider)
   }
+}
+
+class FakeBlockTimestampProvider extends BlockTimestampProvider {
+  private var timestamp = Instant.now.getEpochSecond
+
+  def advance(seconds: Long): Unit = timestamp += seconds
+
+  override def getEpochSecond: Long = timestamp
 }

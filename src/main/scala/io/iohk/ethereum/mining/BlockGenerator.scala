@@ -22,7 +22,7 @@ import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.crypto._
 
 class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: BlockchainConfig, miningConfig: MiningConfig,
-  ledger: Ledger, validators: Validators) {
+  ledger: Ledger, validators: Validators, blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider) {
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
@@ -34,7 +34,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
 
     val result = validators.ommersValidator.validate(blockNumber, ommers, blockchain).left.map(InvalidOmmers).flatMap { _ =>
       blockchain.getBlockByNumber(blockNumber - 1).map { parent =>
-        val blockTimestamp = Instant.now.getEpochSecond
+        val blockTimestamp = blockTimestampProvider.getEpochSecond
         val header = BlockHeader(
           parentHash = parent.header.hash,
           ommersHash = ByteString(kec256(ommers.toBytes: Array[Byte])),
@@ -86,6 +86,15 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
     }
   }
 
+  /**
+    * This function returns the block currently being mined block with highest timestamp
+    */
+  def getPending: Option[Block] = {
+    val pendingBlocks = cache.get()
+    if(pendingBlocks.isEmpty) None
+    else Some(pendingBlocks.maxBy(_.header.unixTimestamp))
+  }
+
   //returns maximal limit to be able to include as many transactions as possible
   private def calculateGasLimit(parentGas: BigInt): BigInt = {
     val GasLimitBoundDivisor: Int = 1024
@@ -103,6 +112,14 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
     ByteString(hash)
   }
 
+}
+
+trait BlockTimestampProvider {
+  def getEpochSecond: Long
+}
+
+object DefaultBlockTimestampProvider extends BlockTimestampProvider {
+  override def getEpochSecond: Long = Instant.now.getEpochSecond
 }
 
 object BlockGenerator {

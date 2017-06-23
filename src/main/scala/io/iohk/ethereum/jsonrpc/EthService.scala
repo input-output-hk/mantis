@@ -692,7 +692,10 @@ class EthService(
       case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pending = false))
       case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pending = false))
       case BlockParam.Latest => getBlock(appStateStorage.getBestBlockNumber()).map(ResolvedBlock(_, pending = false))
-      case BlockParam.Pending => getBlock(appStateStorage.getBestBlockNumber()).map(ResolvedBlock(_, pending = true))
+      case BlockParam.Pending =>
+        blockGenerator.getPending.map(ResolvedBlock(_, pending = true))
+          .map(Right.apply)
+          .getOrElse(resolveBlock(BlockParam.Latest))
     }
   }
 
