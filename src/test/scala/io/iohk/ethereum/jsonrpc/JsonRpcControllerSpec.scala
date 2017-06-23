@@ -9,7 +9,7 @@ import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.FilterManager.{Log, LogFilterLogs}
+import io.iohk.ethereum.jsonrpc.FilterManager.{TxLog, LogFilterLogs}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
@@ -1107,7 +1107,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     (mockEthService.getFilterChanges _).expects(*)
       .returning(Future.successful(Right(GetFilterChangesResponse(FilterManager.LogFilterChanges(Seq(
-        FilterManager.Log(
+        FilterManager.TxLog(
         logIndex = 0,
         transactionIndex = 0,
         transactionHash = ByteString(Hex.decode("123ffa")),
@@ -1171,7 +1171,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     (mockEthService.getLogs _).expects(*)
       .returning(Future.successful(Right(GetLogsResponse(LogFilterLogs(Seq(
-        FilterManager.Log(
+        FilterManager.TxLog(
           logIndex = 0,
           transactionIndex = 0,
           transactionHash = ByteString(Hex.decode("123ffa")),
@@ -1241,7 +1241,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
         cumulativeGasUsed = arbitraryValue * 10,
         gasUsed = arbitraryValue,
         contractAddress = Some(Address(arbitraryValue)),
-        logs = Seq(Log(
+        logs = Seq(TxLog(
           logIndex = 0,
           transactionIndex = 1,
           transactionHash = ByteString(Hex.decode("23" * 32)),

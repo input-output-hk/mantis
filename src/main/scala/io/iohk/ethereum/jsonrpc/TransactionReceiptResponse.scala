@@ -2,7 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.jsonrpc.FilterManager.Log
+import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 
 case class TransactionReceiptResponse(
   transactionHash: ByteString,
@@ -12,5 +12,5 @@ case class TransactionReceiptResponse(
   cumulativeGasUsed: BigInt,
   gasUsed: BigInt,
   contractAddress: Option[Address],
-  logs: Seq[Log]
+  logs: Seq[TxLog]
 )

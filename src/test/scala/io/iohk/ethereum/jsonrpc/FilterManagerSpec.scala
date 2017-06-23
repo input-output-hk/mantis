@@ -84,7 +84,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
         .mapTo[FilterManager.LogFilterLogs].futureValue
 
     logsResp.logs.size shouldBe 1
-    logsResp.logs.head shouldBe FilterManager.Log(
+    logsResp.logs.head shouldBe FilterManager.TxLog(
       logIndex = 0,
       transactionIndex = 0,
       transactionHash = bb2.transactionList.head.hash,
