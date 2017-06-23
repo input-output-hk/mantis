@@ -9,7 +9,7 @@ import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
+import io.iohk.ethereum.jsonrpc.FilterManager.{Log, LogFilterLogs}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
@@ -1241,10 +1241,10 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
         cumulativeGasUsed = arbitraryValue * 10,
         gasUsed = arbitraryValue,
         contractAddress = Some(Address(arbitraryValue)),
-        logs = Seq(TxLog(
+        logs = Seq(Log(
           logIndex = 0,
-          transactionIndex = Some(1),
-          transactionHash = Some(ByteString(Hex.decode("23" * 32))),
+          transactionIndex = 1,
+          transactionHash = ByteString(Hex.decode("23" * 32)),
           blockHash = Fixtures.Blocks.Block3125369.header.hash,
           blockNumber = Fixtures.Blocks.Block3125369.header.number,
           address = Address(arbitraryValue),

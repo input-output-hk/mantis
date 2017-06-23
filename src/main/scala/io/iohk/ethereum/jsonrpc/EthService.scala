@@ -15,7 +15,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
-import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs}
+import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, Log, LogFilterLogs}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
@@ -293,10 +293,10 @@ class EthService(
         gasUsed = if (txIndex == 0) receipt.cumulativeGasUsed else receipt.cumulativeGasUsed - receipts(txIndex - 1).cumulativeGasUsed,
         contractAddress = contractAddress,
         logs = receipt.logs.zipWithIndex.map { case (txLog, index) =>
-          TxLog(
+          Log(
             logIndex = index,
-            transactionIndex = Some(txIndex),
-            transactionHash = Some(stx.hash),
+            transactionIndex = txIndex,
+            transactionHash = stx.hash,
             blockHash = header.hash,
             blockNumber = header.number,
             address = txLog.loggerAddress,

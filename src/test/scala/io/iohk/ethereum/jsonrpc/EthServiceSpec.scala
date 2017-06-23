@@ -19,6 +19,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.Await
 import io.iohk.ethereum.jsonrpc.EthService.ProtocolVersionRequest
+import io.iohk.ethereum.jsonrpc.FilterManager.Log
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
@@ -727,10 +728,10 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + gasUsedByTx,
         gasUsed = gasUsedByTx,
         contractAddress = Some(createdContractAddress),
-        logs = Seq(TxLog(
+        logs = Seq(Log(
           logIndex = 0,
-          transactionIndex = Some(1),
-          transactionHash = Some(contractCreatingTransaction.hash),
+          transactionIndex = 1,
+          transactionHash = contractCreatingTransaction.hash,
           blockHash = Fixtures.Blocks.Block3125369.header.hash,
           blockNumber = Fixtures.Blocks.Block3125369.header.number,
           address = fakeReceipt.logs.head.loggerAddress,
