@@ -332,17 +332,26 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
 
-  it should "return syncing info" in new TestSetup {
+  it should "return syncing info if the peer is syncing" in new TestSetup {
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
     (appStateStorage.getEstimatedHighestBlock _).expects().returning(10000)
     (appStateStorage.getBestBlockNumber _).expects().returning(200)
     val response = ethService.syncing(SyncingRequest()).futureValue.right.get
 
-    response shouldEqual SyncingResponse(
+    response shouldEqual SyncingResponse(Some(EthService.SyncingStatus(
       startingBlock = 999,
       currentBlock = 200,
       highestBlock = 10000
-    )
+    )))
+  }
+
+  it should "return no syncing info if the peer is not syncing" in new TestSetup {
+    (appStateStorage.getSyncStartingBlock _).expects().returning(999)
+    (appStateStorage.getEstimatedHighestBlock _).expects().returning(1000)
+    (appStateStorage.getBestBlockNumber _).expects().returning(1000)
+    val response = ethService.syncing(SyncingRequest()).futureValue.right.get
+
+    response shouldEqual SyncingResponse(None)
   }
 
   it should "return requested work" in new TestSetup {
