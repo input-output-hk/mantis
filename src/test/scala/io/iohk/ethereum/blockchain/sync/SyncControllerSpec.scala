@@ -28,6 +28,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 
+// scalastyle:off file.size.limit
 class SyncControllerSpec extends FlatSpec with Matchers {
 
   "SyncController" should "download target block and request state nodes" in new TestSetup() {
@@ -697,6 +698,63 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     //wait for actor to insert data
     Thread.sleep(3.seconds.toMillis)
+    blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(minedBlockHeader, BlockBody(Nil, Nil)))
+    blockchain.getTotalDifficultyByHash(minedBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + minedBlockHeader.difficulty)
+
+    ommersPool.expectMsg(RemoveOmmers(minedBlockHeader))
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+    pendingTransactionsManager.expectNoMsg()
+  }
+
+  it should "accept mined blocks after request timed-out" in new TestSetup() {
+    val peerTestProbe: TestProbe = TestProbe()(system)
+
+    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref)
+
+    time.advance(1.seconds)
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+
+    etcPeerManager.send(syncController, HandshakedPeers(Map(
+      peer -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0))))
+
+    val expectedMaxBlock = 399500
+    val newBlockDifficulty = 23
+    val maxBlocTotalDifficulty = 12340
+    val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock)
+    val minedBlockHeader: BlockHeader = baseBlockHeader
+      .copy(number = expectedMaxBlock + 1, parentHash = maxBlockHeader.hash, difficulty = newBlockDifficulty,
+        stateRoot = ByteString(Hex.decode("d0aedc3838a3d7f9a526bdd642b55fb1b6292596985cfab2eedb751da19b8bb4")))
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
+    storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
+    storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
+    storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, maxBlocTotalDifficulty)
+
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    peerMessageBus.ignoreNoMsg()
+
+    syncController ! SyncController.StartSync
+
+    //Send block headers request
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      peer.id))
+    peerMessageBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
+
+    //wait for timeout
+    time.advance(2 * Config.FastSync.peerResponseTimeout)
+    peerMessageBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
+
+    syncController ! MinedBlock(Block(minedBlockHeader,BlockBody(Nil,Nil)))
+
+    //wait for actor to insert data
+    time.advance(3.seconds.toMillis)
+
+    //Check that the mined block was inserted into the blockchain
     blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(minedBlockHeader, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(minedBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + minedBlockHeader.difficulty)
 
