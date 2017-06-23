@@ -8,7 +8,11 @@
 
 ## A Scala based client for Ethereum Classic 
 
-### Prerequisites - the scala build tool [sbt](http://www.scala-sbt.org/) must be installed. 
+### Prerequisites 
+
+The scala build tool [sbt](http://www.scala-sbt.org/) must be installed. 
+
+A recent [java sdk](http://www.oracle.com/technetwork/java/javase/downloads/index.html#close) must be installed.
 
 ### Milestone 3 - transaction execution
 
