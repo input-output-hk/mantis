@@ -8,6 +8,8 @@
 
 ## A Scala based client for Ethereum Classic 
 
+### Prerequisites - the scala build tool [sbt](http://www.scala-sbt.org/) must be installed. 
+
 ### Milestone 3 - transaction execution
 
 **This version of the code supports downloading the blockchain from remote peers and executing the transactions in the blocks. When all transactions up to and including the latest have been executed the client will continue to stay synchronized.**
