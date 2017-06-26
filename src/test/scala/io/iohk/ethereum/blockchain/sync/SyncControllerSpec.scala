@@ -343,7 +343,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(nextNewBlockHeader.hash)), peer.id))
 
     //wait for actor to insert data
-    //Thread.sleep(Timeouts.normalTimeout.toMillis)
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     blockchain.getBlockByNumber(expectedMaxBlock) shouldBe Some(Block(newBlockHeaderParent, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(newBlockHeaderParent.hash) shouldBe Some(commonRootTotalDifficulty + newBlockHeaderParent.difficulty)
