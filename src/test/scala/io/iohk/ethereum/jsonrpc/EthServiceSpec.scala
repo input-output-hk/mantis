@@ -3,6 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
+import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
@@ -29,8 +30,6 @@ import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.vm.UInt256
 import org.scalamock.scalatest.MockFactory
 import org.spongycastle.util.encoders.Hex
-
-import scala.concurrent.duration._
 
 // scalastyle:off file.size.limit
 class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockFactory with NormalPatience {
@@ -494,13 +493,13 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val id2 = ByteString("id2")
 
     ethService.submitHashRate(SubmitHashRateRequest(rate, id1)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
-    Thread.sleep(Timeouts.normalTimeout.toMillis)
+    Thread.sleep(ethService.minerTimeOut / 2)
     ethService.submitHashRate(SubmitHashRateRequest(rate, id2)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
 
     val response1 = ethService.getHashRate(GetHashRateRequest())
     response1.futureValue shouldEqual Right(GetHashRateResponse(rate * 2))
 
-    Thread.sleep(Timeouts.normalTimeout.toMillis)
+    Thread.sleep(ethService.minerTimeOut / 2)
     val response2 = ethService.getHashRate(GetHashRateRequest())
     response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
   }
@@ -512,7 +511,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
     ethService.getWork(GetWorkRequest())
 
-    Thread.sleep(Timeouts.normalTimeout.toMillis)
+    //Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -526,7 +525,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
     ethService.submitWork(SubmitWorkRequest(ByteString("nonce"), ByteString(Hex.decode("01" * 32)), ByteString(Hex.decode("01" * 32))))
 
-    Thread.sleep(Timeouts.normalTimeout.toMillis)
+    //Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -538,7 +537,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     ethService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
 
-    Thread.sleep(Timeouts.normalTimeout.toMillis)
+    //Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -550,7 +549,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
     ethService.getWork(GetWorkRequest())
 
-    Thread.sleep(2 * Timeouts.normalTimeout.toMillis)
+    Thread.sleep(ethService.minerTimeOut)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -770,17 +769,19 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
       override val txPoolSize: Int = 30
-      override val poolingServicesTimeout: FiniteDuration = 3.seconds
+      override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val filterConfig = new FilterConfig {
-      override val filterTimeout: FiniteDuration = 3.seconds
-      override val filterManagerQueryTimeout: FiniteDuration = 3.seconds
-      override val pendingTransactionsManagerQueryTimeout: FiniteDuration = 3.seconds
+      override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val pendingTransactionsManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig)
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig) {
+      override val minerTimeOut: Long = Timeouts.shortTimeout.toMillis
+    }
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number

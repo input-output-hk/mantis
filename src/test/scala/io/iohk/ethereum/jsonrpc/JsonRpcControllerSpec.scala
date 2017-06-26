@@ -501,10 +501,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     ommersPool.expectMsg(OmmersPool.GetOmmers(2))
     //on time out it should respond with empty list
 
-    //wait for actor timeouts
-    Thread.sleep(4.seconds.toMillis)
-
-    val response = result.futureValue
+    val response = result.futureValue(timeout(Timeouts.longTimeout))
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None

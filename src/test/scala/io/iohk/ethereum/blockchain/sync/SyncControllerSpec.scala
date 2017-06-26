@@ -343,7 +343,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(nextNewBlockHeader.hash)), peer.id))
 
     //wait for actor to insert data
-    Thread.sleep(Timeouts.normalTimeout.toMillis)
+    //Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     blockchain.getBlockByNumber(expectedMaxBlock) shouldBe Some(Block(newBlockHeaderParent, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(newBlockHeaderParent.hash) shouldBe Some(commonRootTotalDifficulty + newBlockHeaderParent.difficulty)
@@ -662,7 +662,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref)
 
-    time.advance(1.seconds)
+    //time.advance(1.seconds)
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
@@ -692,7 +692,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     syncController.children.last ! MessageFromPeer(BlockHeaders(Seq()), peer.id)
 
     //wait for empty headers processing
-    Thread.sleep(Timeouts.normalTimeout.toMillis)
+    Thread.sleep(Timeouts.shortTimeout.toMillis)
     syncController ! MinedBlock(Block(minedBlockHeader,BlockBody(Nil,Nil)))
 
     //wait for actor to insert data

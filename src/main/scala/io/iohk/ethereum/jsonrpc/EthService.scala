@@ -187,7 +187,7 @@ class EthService(
 
   lazy val blockchain = BlockchainImpl(blockchainStorages)
 
-  val minerTimeOut: Long = 5.seconds.toMillis
+  val minerTimeOut: Long = 5.seconds.toMillis // TODO: configure timeout
   val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] = new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
   val lastActive = new AtomicReference[Option[Date]](None)
 
