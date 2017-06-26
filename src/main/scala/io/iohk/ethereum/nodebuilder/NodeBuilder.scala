@@ -1,5 +1,7 @@
 package io.iohk.ethereum.nodebuilder
 
+import java.security.SecureRandom
+
 import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
@@ -39,7 +41,8 @@ trait FilterConfigBuilder {
 }
 
 trait NodeKeyBuilder {
-  lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile)
+  self: SecureRandomBuilder =>
+  lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile, secureRandom)
 }
 
 trait ActorSystemBuilder {
@@ -107,7 +110,8 @@ trait PeerManagerActorBuilder {
   self: ActorSystemBuilder
     with NodeStatusBuilder
     with HandshakerBuilder
-    with PeerEventBusBuilder =>
+    with PeerEventBusBuilder
+    with SecureRandomBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
@@ -115,7 +119,8 @@ trait PeerManagerActorBuilder {
     nodeStatusHolder,
     Config.Network.peer,
     peerEventBus,
-    handshaker), "peer-manager")
+    handshaker,
+    secureRandom), "peer-manager")
 
 }
 
@@ -226,7 +231,8 @@ trait PersonalServiceBuilder {
 }
 
 trait KeyStoreBuilder {
-  lazy val keyStore: KeyStore = new KeyStoreImpl(Config.keyStoreDir)
+  self: SecureRandomBuilder =>
+  lazy val keyStore: KeyStore = new KeyStoreImpl(Config.keyStoreDir, secureRandom)
 }
 
 trait JSONRpcControllerBuilder {
@@ -322,6 +328,10 @@ trait GenesisDataLoaderBuilder {
   lazy val genesisDataLoader = new GenesisDataLoader(storagesInstance.dataSource, blockchain, blockchainConfig)
 }
 
+trait SecureRandomBuilder {
+  val secureRandom = new SecureRandom // TODO: use config
+}
+
 trait Node extends NodeKeyBuilder
   with ActorSystemBuilder
   with StorageBuilder
@@ -353,3 +363,4 @@ trait Node extends NodeKeyBuilder
   with BlockchainHostBuilder
   with FilterManagerBuilder
   with FilterConfigBuilder
+  with SecureRandomBuilder

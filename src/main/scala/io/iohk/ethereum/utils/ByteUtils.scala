@@ -42,10 +42,16 @@ object ByteUtils {
     }
   }
 
-  def secureRandomBytes(len: Int): Array[Byte] = {
+  def secureRandomBytes(secureRandom: SecureRandom, len: Int): Array[Byte] = {
     val arr = new Array[Byte](len)
-    new SecureRandom().nextBytes(arr)
+    secureRandom.nextBytes(arr)
     arr
+  }
+
+  def secureRandomByteString(secureRandom: SecureRandom, length: Int): ByteString = {
+    val bytes = Array.ofDim[Byte](length)
+    secureRandom.nextBytes(bytes)
+    ByteString(bytes)
   }
 
   def randomBytes(len: Int): Array[Byte] = {

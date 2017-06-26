@@ -2,6 +2,7 @@ package io.iohk.ethereum.network.rlpx
 
 import java.net.URI
 import java.nio.ByteBuffer
+import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
@@ -39,30 +40,30 @@ object AuthHandshaker {
   val MaxPadding = 300
   val Version = 4
 
-  def apply(nodeKey: AsymmetricCipherKeyPair): AuthHandshaker = {
-    val nonce = secureRandomBytes(NonceSize)
-    AuthHandshaker(nodeKey, ByteString(nonce))
+  def apply(nodeKey: AsymmetricCipherKeyPair, secureRandom: SecureRandom): AuthHandshaker = {
+    val nonce = secureRandomBytes(secureRandom, NonceSize)
+    AuthHandshaker(nodeKey, ByteString(nonce), generateKeyPair(secureRandom))
   }
 }
 
 case class AuthHandshaker(
     nodeKey: AsymmetricCipherKeyPair,
     nonce: ByteString,
-    ephemeralKey: AsymmetricCipherKeyPair = generateKeyPair(),
+    ephemeralKey: AsymmetricCipherKeyPair,
     isInitiator: Boolean = false,
     initiatePacketOpt: Option[ByteString] = None,
     responsePacketOpt: Option[ByteString] = None) {
 
   import AuthHandshaker._
 
-  def initiate(uri: URI): (ByteString, AuthHandshaker) = {
+  def initiate(uri: URI, secureRandom: SecureRandom): (ByteString, AuthHandshaker) = {
     val remotePubKey = publicKeyFromNodeId(uri.getUserInfo)
     val message = createAuthInitiateMessageV4(remotePubKey)
     val encoded: Array[Byte] = message.toBytes
     val padded = encoded ++ randomBytes(Random.nextInt(MaxPadding - MinPadding) + MinPadding)
     val encryptedSize = padded.length + ECIESCoder.OverheadSize
     val sizePrefix = ByteBuffer.allocate(2).putShort(encryptedSize.toShort).array
-    val encryptedPayload = ECIESCoder.encrypt(remotePubKey, padded, Some(sizePrefix))
+    val encryptedPayload = ECIESCoder.encrypt(remotePubKey, secureRandom, padded, Some(sizePrefix))
     val packet = ByteString(sizePrefix ++ encryptedPayload)
 
     (packet, copy(isInitiator = true, initiatePacketOpt = Some(packet)))
@@ -89,7 +90,7 @@ case class AuthHandshaker(
     copy(responsePacketOpt = Some(data)).finalizeHandshake(message.ephemeralPublicKey, message.nonce)
   }
 
-  def handleInitialMessage(data: ByteString): (ByteString, AuthHandshakeResult) = {
+  def handleInitialMessage(data: ByteString, secureRandom: SecureRandom): (ByteString, AuthHandshakeResult) = {
     val plaintext = ECIESCoder.decrypt(nodeKey.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD, data.toArray)
     val message = AuthInitiateMessage.decode(plaintext)
 
@@ -98,7 +99,7 @@ case class AuthHandshaker(
       nonce = nonce,
       knownPeer = false)
 
-    val encryptedPacket = ByteString(ECIESCoder.encrypt(message.publicKey, response.encoded.toArray, None))
+    val encryptedPacket = ByteString(ECIESCoder.encrypt(message.publicKey, secureRandom, response.encoded.toArray, None))
 
     val remoteEphemeralKey = extractEphemeralKey(message.signature, message.nonce, message.publicKey)
     val handshakeResult = copy(
@@ -108,7 +109,7 @@ case class AuthHandshaker(
     (encryptedPacket, handshakeResult)
   }
 
-  def handleInitialMessageV4(data: ByteString): (ByteString, AuthHandshakeResult) = {
+  def handleInitialMessageV4(data: ByteString, secureRandom: SecureRandom): (ByteString, AuthHandshakeResult) = {
     val sizeBytes = data.take(2)
     val encryptedPayload = data.drop(2)
 
@@ -127,7 +128,7 @@ case class AuthHandshaker(
 
     val encryptedSize = encodedResponse.length + ECIESCoder.OverheadSize
     val sizePrefix = ByteBuffer.allocate(2).putShort(encryptedSize.toShort).array
-    val encryptedResponsePayload = ECIESCoder.encrypt(message.publicKey, encodedResponse, Some(sizePrefix))
+    val encryptedResponsePayload = ECIESCoder.encrypt(message.publicKey, secureRandom, encodedResponse, Some(sizePrefix))
     val packet = ByteString(sizePrefix ++ encryptedResponsePayload)
 
     val remoteEphemeralKey = extractEphemeralKey(message.signature, message.nonce, message.publicKey)

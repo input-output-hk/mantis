@@ -1,6 +1,7 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
+import java.security.SecureRandom
 
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import akka.actor._
@@ -225,17 +226,18 @@ object PeerActor {
                                   nodeStatusHolder: Agent[NodeStatus],
                                   peerConfiguration: PeerConfiguration,
                                   peerEventBus: ActorRef,
-                                  handshaker: Handshaker[R]): Props =
+                                  handshaker: Handshaker[R],
+                                  secureRandom: SecureRandom): Props =
     Props(new PeerActor(
       peerAddress,
-      rlpxConnectionFactory(nodeStatusHolder().key),
+      rlpxConnectionFactory(nodeStatusHolder().key, secureRandom),
       peerConfiguration,
       peerEventBus,
       initHandshaker = handshaker))
 
-  def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair): ActorContext => ActorRef = { ctx =>
+  def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair, secureRandom: SecureRandom): ActorContext => ActorRef = { ctx =>
     // FIXME This message decoder should be configurable
-    ctx.actorOf(RLPxConnectionHandler.props(nodeKey, EthereumMessageDecoder, Versions.PV63), "rlpx-connection")
+    ctx.actorOf(RLPxConnectionHandler.props(nodeKey, EthereumMessageDecoder, Versions.PV63, secureRandom), "rlpx-connection")
   }
 
   case class RLPxConnection(ref: ActorRef, remoteAddress: InetSocketAddress, uriOpt: Option[URI]) {

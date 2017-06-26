@@ -1,5 +1,7 @@
 package io.iohk.ethereum.txExecTest.util
 
+import java.security.SecureRandom
+
 import akka.actor.ActorSystem
 import akka.agent.Agent
 import akka.util.ByteString
@@ -26,6 +28,7 @@ object DumpChainApp extends App{
     val privateNetworkId = conf.getInt("networkId")
     val startBlock = conf.getInt("startBlock")
     val maxBlocks = conf.getInt("maxBlocks")
+    val secureRandom = new SecureRandom // TODO: should it be configurable here as well?
 
     val blockchainConfig = BlockchainConfig(Config.config)
 
@@ -46,7 +49,7 @@ object DumpChainApp extends App{
 
     val blockchain: Blockchain = new BlockchainMock(genesisHash)
 
-    val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile)
+    val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile, secureRandom)
 
     val nodeStatus =
       NodeStatus(
@@ -77,7 +80,8 @@ object DumpChainApp extends App{
       peerConfiguration = peerConfig,
       bootstrapNodes = Set(node),
       peerMessageBus,
-      handshaker = handshaker), "peer-manager")
+      handshaker = handshaker,
+      secureRandom), "peer-manager")
     actorSystem.actorOf(DumpChainActor.props(peerManager,peerMessageBus,startBlock,maxBlocks), "dumper")
   }
 

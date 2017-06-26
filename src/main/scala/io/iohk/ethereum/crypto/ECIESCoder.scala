@@ -80,12 +80,11 @@ object ECIESCoder {
     iesEngine.processBlock(cipher, 0, cipher.length, forEncryption = false)
   }
 
-  def encrypt(toPub: ECPoint, plaintext: Array[Byte], macData: Option[Array[Byte]] = None): Array[Byte] = {
+  def encrypt(toPub: ECPoint, secureRandom: SecureRandom, plaintext: Array[Byte], macData: Option[Array[Byte]] = None): Array[Byte] = {
 
-    val random = new SecureRandom
-    val gParam = new ECKeyGenerationParameters(curve, random)
+    val gParam = new ECKeyGenerationParameters(curve, secureRandom)
 
-    val IV = ByteUtils.secureRandomBytes(KeySize / 8)
+    val IV = ByteUtils.secureRandomBytes(secureRandom, KeySize / 8)
 
     val eGen = new ECKeyPairGenerator
     eGen.init(gParam)
@@ -96,11 +95,11 @@ object ECIESCoder {
 
     val iesEngine = makeIESEngine(toPub, prv, Some(IV))
 
-    val keygenParams = new ECKeyGenerationParameters(curve, random)
+    val keygenParams = new ECKeyGenerationParameters(curve, secureRandom)
     val generator = new ECKeyPairGenerator
     generator.init(keygenParams)
     val gen = new ECKeyPairGenerator
-    gen.init(new ECKeyGenerationParameters(curve, random))
+    gen.init(new ECKeyGenerationParameters(curve, secureRandom))
 
     pub.getEncoded(false) ++ IV ++ iesEngine.processBlock(plaintext, 0, plaintext.length, forEncryption = true, macData)
   }
@@ -118,11 +117,10 @@ object ECIESCoder {
     */
   @throws[IOException]
   @throws[InvalidCipherTextException]
-  def encryptSimple(pub: ECPoint, plaintext: Array[Byte]): Array[Byte] = {
+  def encryptSimple(pub: ECPoint, secureRandom: SecureRandom, plaintext: Array[Byte]): Array[Byte] = {
 
     val eGen = new ECKeyPairGenerator
-    val random = new SecureRandom
-    val gParam = new ECKeyGenerationParameters(curve, random)
+    val gParam = new ECKeyGenerationParameters(curve, secureRandom)
     eGen.init(gParam)
 
     val iesEngine = new EthereumIESEngine(

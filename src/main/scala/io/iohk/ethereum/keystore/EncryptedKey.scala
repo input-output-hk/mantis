@@ -1,5 +1,6 @@
 package io.iohk.ethereum.keystore
 
+import java.security.SecureRandom
 import java.util.UUID
 
 import akka.util.ByteString
@@ -7,6 +8,7 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.SymmetricCipher
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.EncryptedKey._
+import io.iohk.ethereum.utils.ByteUtils
 
 object EncryptedKey {
   val AES128CTR = "aes-128-ctr"
@@ -25,18 +27,18 @@ object EncryptedKey {
     kdfParams: KdfParams,
     mac: ByteString)
 
-  def apply(prvKey: ByteString, passphrase: String): EncryptedKey = {
+  def apply(prvKey: ByteString, passphrase: String, secureRandom: SecureRandom): EncryptedKey = {
     val version = 3
     val uuid = UUID.randomUUID()
     val pubKey = crypto.pubKeyFromPrvKey(prvKey)
     val address = Address(crypto.kec256(pubKey))
 
-    val salt = crypto.secureRandomByteString(32)
+    val salt = ByteUtils.secureRandomByteString(secureRandom, 32)
     val kdfParams = ScryptParams(salt, 1 << 18, 8, 1, 32) //params used by Geth
     val dk = deriveKey(passphrase, kdfParams)
 
     val cipherName = AES128CTR
-    val iv = crypto.secureRandomByteString(16)
+    val iv = ByteUtils.secureRandomByteString(secureRandom, 16)
     val secret = dk.take(16)
     val ciphertext = getCipher(cipherName).encrypt(secret, iv, prvKey)
 

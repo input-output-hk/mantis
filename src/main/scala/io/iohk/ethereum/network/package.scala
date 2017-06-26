@@ -1,6 +1,7 @@
 package io.iohk.ethereum
 
 import java.io.{File, PrintWriter}
+import java.security.SecureRandom
 
 import io.iohk.ethereum.crypto._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
@@ -24,10 +25,10 @@ package object network {
     curve.getCurve.decodePoint(bytes)
   }
 
-  def loadAsymmetricCipherKeyPair(filePath: String): AsymmetricCipherKeyPair = {
+  def loadAsymmetricCipherKeyPair(filePath: String, secureRandom: SecureRandom): AsymmetricCipherKeyPair = {
     val file = new File(filePath)
     if(!file.exists()){
-      val keysValuePair = generateKeyPair()
+      val keysValuePair = generateKeyPair(secureRandom)
 
       //Write keys to file
       val (_, priv) = keyPairToByteArrays(keysValuePair)
