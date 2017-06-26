@@ -712,8 +712,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref)
 
-    time.advance(1.seconds)
-
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
     etcPeerManager.send(syncController, HandshakedPeers(Map(
@@ -752,7 +750,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     syncController ! MinedBlock(Block(minedBlockHeader,BlockBody(Nil,Nil)))
 
     //wait for actor to insert data
-    time.advance(3.seconds.toMillis)
+    Thread.sleep(3.seconds.toMillis)
 
     //Check that the mined block was inserted into the blockchain
     blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(minedBlockHeader, BlockBody(Nil, Nil)))
