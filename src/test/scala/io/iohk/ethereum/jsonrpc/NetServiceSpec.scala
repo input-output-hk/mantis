@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.agent.Agent
 import akka.testkit.TestProbe
-import io.iohk.ethereum.crypto
+import io.iohk.ethereum.{SecureRandomProvider, crypto}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
@@ -15,7 +15,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class NetServiceSpec extends FlatSpec with Matchers {
+class NetServiceSpec extends FlatSpec with Matchers with SecureRandomProvider {
 
   "NetService" should "return handshaked peer count" in new TestSetup {
     val resF = netService.peerCount(PeerCountRequest())
@@ -44,7 +44,7 @@ class NetServiceSpec extends FlatSpec with Matchers {
 
     val peerManager = TestProbe()
 
-    val nodeStatus = NodeStatus(crypto.generateKeyPair(), ServerStatus.Listening(new InetSocketAddress(9000)))
+    val nodeStatus = NodeStatus(crypto.generateKeyPair(secureRandom), ServerStatus.Listening(new InetSocketAddress(9000)))
     val netService = new NetService(Agent(nodeStatus), peerManager.ref)
   }
 

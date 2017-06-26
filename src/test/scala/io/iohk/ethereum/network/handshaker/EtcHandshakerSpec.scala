@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.handshaker
 
 import akka.agent.Agent
 import akka.util.ByteString
-import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.{Fixtures, SecureRandomProvider}
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -119,7 +119,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     handshakerAfterForkBlockOpt.get.nextMessage.leftSide shouldBe Left(HandshakeFailure(Disconnect.Reasons.UselessPeer))
   }
 
-  trait TestSetup {
+  trait TestSetup extends SecureRandomProvider {
 
     val genesisBlock = Block(
       Fixtures.Blocks.Genesis.header,
@@ -133,7 +133,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
 
     blockchain.save(genesisBlock)
 
-    val nodeStatus = NodeStatus(key = generateKeyPair(), serverStatus = ServerStatus.NotListening)
+    val nodeStatus = NodeStatus(key = generateKeyPair(secureRandom), serverStatus = ServerStatus.NotListening)
     lazy val nodeStatusHolder = Agent(nodeStatus)
 
     class MockEtcHandshakerConfiguration extends EtcHandshakerConfiguration {
@@ -190,7 +190,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
   }
 
   trait RemotePeerSetup extends TestSetup {
-    val remoteNodeStatus = NodeStatus(key = generateKeyPair(), serverStatus = ServerStatus.NotListening)
+    val remoteNodeStatus = NodeStatus(key = generateKeyPair(secureRandom), serverStatus = ServerStatus.NotListening)
     val remotePort = 8545
 
     val remoteHello = Hello(

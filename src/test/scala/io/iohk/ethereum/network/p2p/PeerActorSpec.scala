@@ -12,7 +12,7 @@ import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.{Fixtures, Mocks, crypto}
+import io.iohk.ethereum.{Fixtures, Mocks, SecureRandomProvider, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
@@ -318,8 +318,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
         nonce = ByteString("unused"))
   }
 
-  trait NodeStatusSetup {
-    val nodeKey = crypto.generateKeyPair()
+  trait NodeStatusSetup extends SecureRandomProvider {
+    val nodeKey = crypto.generateKeyPair(secureRandom)
 
     val nodeStatus = NodeStatus(
       key = nodeKey,

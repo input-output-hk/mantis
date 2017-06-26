@@ -4,14 +4,15 @@ import java.math.BigInteger
 import java.net.URI
 
 import akka.util.ByteString
+import io.iohk.ethereum.SecureRandomProvider
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.network.rlpx.{AuthHandshakeSuccess, AuthResponseMessage, Secrets, AuthHandshaker}
+import io.iohk.ethereum.network.rlpx.{AuthHandshakeSuccess, AuthHandshaker, AuthResponseMessage, Secrets}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
 
-class AuthHandshakerSpec extends FlatSpec with Matchers {
+class AuthHandshakerSpec extends FlatSpec with Matchers with SecureRandomProvider {
 
   val remoteNodeKey = new AsymmetricCipherKeyPair(
     new ECPublicKeyParameters(curve.getCurve.decodePoint(
@@ -41,7 +42,7 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
   val nonce = ByteString(Array.fill[Byte](AuthHandshaker.NonceSize)(1.toByte))
 
   "AuthHandshaker" should "handle init response" in {
-    val (_, authHandshaker) = AuthHandshaker(nodeKey, nonce, ephemeralKey).initiate(remoteUri)
+    val (_, authHandshaker) = AuthHandshaker(nodeKey, nonce, ephemeralKey).initiate(remoteUri, secureRandom)
 
     val response = AuthResponseMessage(
       ephemeralPublicKey = remoteEphemeralKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ,
@@ -49,7 +50,7 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
       knownPeer = false)
 
     val encodedResponse = response.encoded
-    val encryptedResponse = ECIESCoder.encrypt(nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ, encodedResponse.toArray)
+    val encryptedResponse = ECIESCoder.encrypt(nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ, secureRandom, encodedResponse.toArray)
 
     val AuthHandshakeSuccess(secrets: Secrets) = authHandshaker.handleResponseMessage(ByteString(encryptedResponse))
 
@@ -66,8 +67,8 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
     val thisHandshaker = AuthHandshaker(nodeKey, nonce, ephemeralKey)
     val remoteHandshaker = AuthHandshaker(remoteNodeKey, remoteNonce, remoteEphemeralKey)
 
-    val (initPacket, thisHandshakerInitiated) = thisHandshaker.initiate(remoteUri)
-    val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets)) = remoteHandshaker.handleInitialMessageV4(initPacket)
+    val (initPacket, thisHandshakerInitiated) = thisHandshaker.initiate(remoteUri, secureRandom)
+    val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets)) = remoteHandshaker.handleInitialMessageV4(initPacket, secureRandom)
     val AuthHandshakeSuccess(thisSecrets: Secrets) = thisHandshakerInitiated.handleResponseMessageV4(responsePacket)
 
     remoteSecrets.token shouldBe thisSecrets.token

@@ -3,14 +3,15 @@ package io.iohk.ethereum.keystore
 import java.io.File
 
 import akka.util.ByteString
+import io.iohk.ethereum.SecureRandomProvider
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.keystore.KeyStore.{IOError, KeyNotFound, DecryptionFailed}
+import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyNotFound}
 import io.iohk.ethereum.utils.Config
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import org.apache.commons.io.FileUtils
 
-class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter {
+class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with SecureRandomProvider {
 
   before(clearKeyStore())
 
@@ -39,7 +40,7 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   it should "return an error when the keystore dir cannot be read or written" in new TestSetup {
-    val badKeyStore = new KeyStoreImpl("/root/keystore")
+    val badKeyStore = new KeyStoreImpl("/root/keystore", secureRandom)
 
     val key = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
     val res1 = badKeyStore.importPrivateKey(key, "aaa")
@@ -71,7 +72,7 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   trait TestSetup {
-    val keyStore = new KeyStoreImpl(Config.keyStoreDir)
+    val keyStore = new KeyStoreImpl(Config.keyStoreDir, secureRandom)
 
     val key1 = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
     val addr1 = Address(Hex.decode("aa6826f00d01fe4085f0c3dd12778e206ce4e2ac"))

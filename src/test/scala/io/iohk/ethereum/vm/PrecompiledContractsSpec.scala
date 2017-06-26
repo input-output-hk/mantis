@@ -6,9 +6,10 @@ import io.iohk.ethereum.domain.Address
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
 import MockWorldState._
+import io.iohk.ethereum.SecureRandomProvider
 import io.iohk.ethereum.utils.ByteUtils
 
-class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyChecks {
+class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyChecks with SecureRandomProvider {
 
   def buildContext(recipient: Address, inputData: ByteString, gas: UInt256 = 1000000): PC = {
     val origin = Address(0xcafebabe)
@@ -17,7 +18,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
   }
 
   test("ECDSARECOVER") {
-    val keyPair = generateKeyPair()
+    val keyPair = generateKeyPair(secureRandom)
     val bytesGen = Generators.getByteStringGen(1, 128)
 
     forAll(bytesGen) { bytes =>

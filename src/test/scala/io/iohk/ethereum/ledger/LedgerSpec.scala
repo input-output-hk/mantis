@@ -8,7 +8,7 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.{Mocks, rlp}
+import io.iohk.ethereum.{Mocks, SecureRandomProvider, rlp}
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR}
@@ -667,7 +667,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
     val inputData = ByteString("the payload")
 
-    val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair()
+    val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val newAccountAddress = Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
     val mockVM = new MockVM((pc: Ledger.PC) => {
@@ -689,9 +689,9 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     result.map(br => br.worldState.getAccount(newAccountAddress)) shouldBe Right(Some(Account(nonce = 1)))
   }
 
-  trait TestSetup {
-    val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair()
-    val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair()
+  trait TestSetup extends SecureRandomProvider {
+    val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
+    val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
     val originAddress = Address(kec256(originKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
     val receiverAddress = Address(kec256(receiverKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
