@@ -108,11 +108,11 @@ class FilterManager(
     }
   }
 
-  private def getLogs(filter: LogFilter, startingBlockNumber: Option[BigInt] = None): Seq[Log] = {
+  private def getLogs(filter: LogFilter, startingBlockNumber: Option[BigInt] = None): Seq[TxLog] = {
     val bytesToCheckInBloomFilter = filter.address.map(a => Seq(a.bytes)).getOrElse(Nil) ++ filter.topics.flatten
 
     @tailrec
-    def recur(currentBlockNumber: BigInt, toBlockNumber: BigInt, logsSoFar: Seq[Log]): Seq[Log] = {
+    def recur(currentBlockNumber: BigInt, toBlockNumber: BigInt, logsSoFar: Seq[TxLog]): Seq[TxLog] = {
       if (currentBlockNumber > toBlockNumber) {
         logsSoFar
       } else {
@@ -177,16 +177,16 @@ class FilterManager(
     }
   }
 
-  private def getLogsFromBlock(filter: LogFilter, block: Block, receipts: Seq[Receipt]): Seq[Log] = {
+  private def getLogsFromBlock(filter: LogFilter, block: Block, receipts: Seq[Receipt]): Seq[TxLog] = {
     val bytesToCheckInBloomFilter = filter.address.map(a => Seq(a.bytes)).getOrElse(Nil) ++ filter.topics.flatten
 
-    receipts.zipWithIndex.foldLeft(Seq[Log]()) { case (logsSoFar, (receipt, txIndex)) =>
+    receipts.zipWithIndex.foldLeft(Seq[TxLog]()) { case (logsSoFar, (receipt, txIndex)) =>
       if (bytesToCheckInBloomFilter.isEmpty || BloomFilter.containsAnyOf(receipt.logsBloomFilter, bytesToCheckInBloomFilter)) {
         logsSoFar ++ receipt.logs.zipWithIndex
         .filter { case (log, _) => filter.address.forall(_ == log.loggerAddress) && topicsMatch(log.logTopics, filter.topics) }
         .map { case (log, logIndex) =>
           val tx = block.body.transactionList(txIndex)
-          Log(
+          TxLog(
             logIndex = logIndex,
             transactionIndex = txIndex,
             transactionHash = tx.hash,
@@ -279,7 +279,7 @@ object FilterManager {
 
   case class GetLogs(fromBlock: Option[BlockParam], toBlock: Option[BlockParam], address: Option[Address], topics: Seq[Seq[ByteString]])
 
-  case class Log(
+  case class TxLog(
       logIndex: BigInt,
       transactionIndex: BigInt,
       transactionHash: ByteString,
@@ -290,12 +290,12 @@ object FilterManager {
       topics: Seq[ByteString])
 
   sealed trait FilterChanges
-  case class LogFilterChanges(logs: Seq[Log]) extends FilterChanges
+  case class LogFilterChanges(logs: Seq[TxLog]) extends FilterChanges
   case class BlockFilterChanges(blockHashes: Seq[ByteString]) extends FilterChanges
   case class PendingTransactionFilterChanges(txHashes: Seq[ByteString]) extends FilterChanges
 
   sealed trait FilterLogs
-  case class LogFilterLogs(logs: Seq[Log]) extends FilterLogs
+  case class LogFilterLogs(logs: Seq[TxLog]) extends FilterLogs
   case class BlockFilterLogs(blockHashes: Seq[ByteString]) extends FilterLogs
   case class PendingTransactionFilterLogs(txHashes: Seq[ByteString]) extends FilterLogs
 

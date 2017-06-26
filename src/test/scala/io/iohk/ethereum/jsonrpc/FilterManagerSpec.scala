@@ -93,7 +93,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
         .mapTo[FilterManager.LogFilterLogs].futureValue
 
     logsResp.logs.size shouldBe 1
-    logsResp.logs.head shouldBe FilterManager.Log(
+    logsResp.logs.head shouldBe FilterManager.TxLog(
       logIndex = 0,
       transactionIndex = 0,
       transactionHash = bb2.transactionList.head.hash,
@@ -251,7 +251,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
         .mapTo[FilterManager.LogFilterLogs].futureValue
 
     logsResp.logs.size shouldBe 2
-    logsResp.logs.head shouldBe FilterManager.Log(
+    logsResp.logs.head shouldBe FilterManager.TxLog(
       logIndex = 0,
       transactionIndex = 0,
       transactionHash = bb.transactionList.head.hash,
@@ -261,7 +261,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
       data = ByteString(Hex.decode("99aaff")),
       topics = logs.head.logTopics)
 
-    logsResp.logs(1) shouldBe FilterManager.Log(
+    logsResp.logs(1) shouldBe FilterManager.TxLog(
       logIndex = 0,
       transactionIndex = 0,
       transactionHash = block2.body.transactionList.head.hash,
