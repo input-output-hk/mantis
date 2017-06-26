@@ -2,10 +2,11 @@ package io.iohk.ethereum.jsonrpc.http
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
-import akka.http.scaladsl.server.{MalformedRequestContentRejection, Rejection, RejectionHandler, Route}
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route}
 import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
+import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcErrors, JsonRpcRequest, JsonRpcResponse}
@@ -16,6 +17,7 @@ import org.json4s.{DefaultFormats, native}
 import scala.util.{Failure, Success}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 
 class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHttpServerConfig)
                        (implicit val actorSystem: ActorSystem)
@@ -25,6 +27,8 @@ class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHtt
 
   implicit val formats = DefaultFormats
 
+  val corsSettings = CorsSettings.defaultSettings.copy(allowGenericHttpRequests = true)
+
   implicit def myRejectionHandler: RejectionHandler =
     RejectionHandler.newBuilder()
       .handle { case _: MalformedRequestContentRejection =>
@@ -32,7 +36,7 @@ class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHtt
       }
       .result()
 
-  val route: Route = {
+  val route: Route = cors(corsSettings) {
     (pathEndOrSingleSlash & post) {
       entity(as[JsonRpcRequest]) { request =>
         handleRequest(request)

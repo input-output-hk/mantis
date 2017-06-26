@@ -37,8 +37,9 @@ object JsonSerializers {
 
   object AddressJsonSerializer extends CustomSerializer[Address](_ =>
     (
-      {PartialFunction.empty},
-      {case addr: Address => JString(s"0x${Hex.toHexString(addr.bytes.toArray)}")}
+      { PartialFunction.empty },
+      { case addr: Address => JString(s"0x${Hex.toHexString(addr.bytes.toArray)}")  }
     )
   )
+
 }

@@ -130,6 +130,24 @@ object Config {
 
 }
 
+trait FilterConfig {
+  val filterTimeout: FiniteDuration
+  val filterManagerQueryTimeout: FiniteDuration
+  val pendingTransactionsManagerQueryTimeout: FiniteDuration
+}
+
+object FilterConfig {
+  def apply(etcClientConfig: com.typesafe.config.Config): FilterConfig = {
+    val filterConfig = etcClientConfig.getConfig("filter")
+
+    new FilterConfig {
+      val filterTimeout: FiniteDuration = filterConfig.getDuration("filter-timeout").toMillis.millis
+      val filterManagerQueryTimeout: FiniteDuration = filterConfig.getDuration("filter-manager-query-timeout").toMillis.millis
+      val pendingTransactionsManagerQueryTimeout: FiniteDuration = filterConfig.getDuration("pending-transactions-manager-query-timeout").toMillis.millis
+    }
+  }
+}
+
 trait MiningConfig {
   val txPoolSize: Int
   val ommersPoolSize: Int

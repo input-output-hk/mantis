@@ -1,36 +1,40 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
+import java.util.function.UnaryOperator
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
-import java.util.function.UnaryOperator
 
-import akka.actor.ActorRef
 import akka.pattern.ask
-import akka.util.{ByteString, Timeout}
+import akka.util.Timeout
+import io.iohk.ethereum.domain._
+import akka.actor.ActorRef
+import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
+import io.iohk.ethereum.db.storage.AppStateStorage
+import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
-import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, _}
+import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, TxLog, LogFilterLogs}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.utils.{FilterConfig, Logger, MiningConfig}
+import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
-import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactions
-import io.iohk.ethereum.utils.{Logger, MiningConfig}
 import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration._
+
 // scalastyle:off number.of.methods number.of.types
 object EthService {
 
@@ -88,7 +92,8 @@ object EthService {
   case class SubmitWorkResponse(success: Boolean)
 
   case class SyncingRequest()
-  case class SyncingResponse(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
+  case class SyncingStatus(startingBlock: BigInt, currentBlock: BigInt, highestBlock: BigInt)
+  case class SyncingResponse(syncStatus: Option[SyncingStatus])
 
   case class SendRawTransactionRequest(data: ByteString)
   case class SendRawTransactionResponse(transactionHash: ByteString)
@@ -138,6 +143,30 @@ object EthService {
   case class GetTransactionCountResponse(value: BigInt)
 
   case class ResolvedBlock(block: Block, pending: Boolean)
+
+  case class NewFilterRequest(filter: Filter)
+  case class Filter(
+      fromBlock: Option[BlockParam],
+      toBlock: Option[BlockParam],
+      address: Option[Address],
+      topics: Seq[Seq[ByteString]])
+
+  case class NewBlockFilterRequest()
+  case class NewPendingTransactionFilterRequest()
+
+  case class NewFilterResponse(filterId: BigInt)
+
+  case class UninstallFilterRequest(filterId: BigInt)
+  case class UninstallFilterResponse(success: Boolean)
+
+  case class GetFilterChangesRequest(filterId: BigInt)
+  case class GetFilterChangesResponse(filterChanges: FilterChanges)
+
+  case class GetFilterLogsRequest(filterId: BigInt)
+  case class GetFilterLogsResponse(filterLogs: FilterLogs)
+
+  case class GetLogsRequest(filter: Filter)
+  case class GetLogsResponse(filterLogs: LogFilterLogs)
 }
 
 class EthService(
@@ -149,7 +178,10 @@ class EthService(
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
     syncingController: ActorRef,
-    ommersPool: ActorRef) extends Logger {
+    ommersPool: ActorRef,
+    filterManager: ActorRef,
+    filterConfig: FilterConfig)
+  extends Logger {
 
   import EthService._
 
@@ -221,7 +253,7 @@ class EthService(
     */
   def getTransactionByHash(req: GetTransactionByHashRequest): ServiceResponse[GetTransactionByHashResponse] = {
     val maybeTxPendingResponse: Future[Option[TransactionResponse]] = getTransactionsFromPool.map{
-      _.signedTransactions.find(_.hash == req.txHash).map(TransactionResponse(_)) }
+      _.pendingTransactions.map(_.stx).find(_.hash == req.txHash).map(TransactionResponse(_)) }
 
     val maybeTxResponse: Future[Option[TransactionResponse]] = maybeTxPendingResponse.flatMap{ txPending =>
       Future { txPending.orElse{
@@ -264,8 +296,8 @@ class EthService(
         logs = receipt.logs.zipWithIndex.map { case (txLog, index) =>
           TxLog(
             logIndex = index,
-            transactionIndex = Some(txIndex),
-            transactionHash = Some(stx.hash),
+            transactionIndex = txIndex,
+            transactionHash = stx.hash,
             blockHash = header.hash,
             blockNumber = header.number,
             address = txLog.loggerAddress,
@@ -415,7 +447,7 @@ class EthService(
 
     getOmmersFromPool(blockNumber).zip(getTransactionsFromPool).map {
       case (ommers, pendingTxs) =>
-        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.signedTransactions, ommers.headers, miningConfig.coinbase) match {
+        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
           case Right(b) =>
             Right(GetWorkResponse(
               powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))),
@@ -442,10 +474,10 @@ class EthService(
   private def getTransactionsFromPool = {
     implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
 
-    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactions]
+    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .recover { case ex =>
         log.error("failed to get transactions, mining block with empty transactions list", ex)
-        PendingTransactions(Nil)
+        PendingTransactionsResponse(Nil)
       }
   }
 
@@ -463,12 +495,27 @@ class EthService(
     }
   }
 
- def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = {
-    Future(Right(SyncingResponse(
-      startingBlock = appStateStorage.getSyncStartingBlock(),
-      currentBlock = appStateStorage.getBestBlockNumber(),
-      highestBlock = appStateStorage.getEstimatedHighestBlock())))
-  }
+  /**
+    * Implements the eth_syncing method that returns syncing information if the node is syncing.
+    *
+    * @return The syncing status if the node is syncing or None if not
+    */
+ def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = Future {
+   val currentBlock = appStateStorage.getBestBlockNumber()
+   val highestBlock = appStateStorage.getEstimatedHighestBlock()
+
+   //The node is syncing if there's any block that other peers have and this peer doesn't
+   val maybeSyncStatus =
+     if(currentBlock < highestBlock)
+       Some(SyncingStatus(
+         startingBlock = appStateStorage.getSyncStartingBlock(),
+         currentBlock = currentBlock,
+         highestBlock = highestBlock
+       ))
+     else
+       None
+   Right(SyncingResponse(maybeSyncStatus))
+ }
 
   def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionDec
@@ -567,6 +614,64 @@ class EthService(
       withAccount(req.address, req.block) { account =>
         GetTransactionCountResponse(account.nonce)
       }
+    }
+  }
+
+  def newFilter(req: NewFilterRequest): ServiceResponse[NewFilterResponse] = {
+    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+
+    import req.filter._
+    (filterManager ? FilterManager.NewLogFilter(fromBlock, toBlock, address, topics)).mapTo[FilterManager.NewFilterResponse].map { resp =>
+      Right(NewFilterResponse(resp.id))
+    }
+  }
+
+  def newBlockFilter(req: NewBlockFilterRequest): ServiceResponse[NewFilterResponse] = {
+    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+
+    (filterManager ? FilterManager.NewBlockFilter()).mapTo[FilterManager.NewFilterResponse].map { resp =>
+      Right(NewFilterResponse(resp.id))
+    }
+  }
+
+  def newPendingTransactionFilter(req: NewPendingTransactionFilterRequest): ServiceResponse[NewFilterResponse] = {
+    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+
+    (filterManager ? FilterManager.NewPendingTransactionFilter()).mapTo[FilterManager.NewFilterResponse].map { resp =>
+      Right(NewFilterResponse(resp.id))
+    }
+  }
+
+  def uninstallFilter(req: UninstallFilterRequest): ServiceResponse[UninstallFilterResponse] = {
+    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+
+    (filterManager ? FilterManager.UninstallFilter(req.filterId)).mapTo[FilterManager.UninstallFilterResponse].map { _ =>
+      Right(UninstallFilterResponse(success = true))
+    }
+  }
+
+  def getFilterChanges(req: GetFilterChangesRequest): ServiceResponse[GetFilterChangesResponse] = {
+    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+
+    (filterManager ? FilterManager.GetFilterChanges(req.filterId)).mapTo[FilterManager.FilterChanges].map { filterChanges =>
+      Right(GetFilterChangesResponse(filterChanges))
+    }
+  }
+
+  def getFilterLogs(req: GetFilterLogsRequest): ServiceResponse[GetFilterLogsResponse] = {
+    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+
+    (filterManager ? FilterManager.GetFilterLogs(req.filterId)).mapTo[FilterManager.FilterLogs].map { filterLogs =>
+      Right(GetFilterLogsResponse(filterLogs))
+    }
+  }
+
+  def getLogs(req: GetLogsRequest): ServiceResponse[GetLogsResponse] = {
+    implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+    import req.filter._
+
+    (filterManager ? FilterManager.GetLogs(fromBlock, toBlock, address, topics)).mapTo[FilterManager.LogFilterLogs].map { filterLogs =>
+      Right(GetLogsResponse(filterLogs))
     }
   }
 

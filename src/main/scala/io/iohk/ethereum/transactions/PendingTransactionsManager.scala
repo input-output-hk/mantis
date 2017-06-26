@@ -27,9 +27,11 @@ object PendingTransactionsManager {
   private case class NotifyPeer(signedTransactions: Seq[SignedTransaction], peer: Peer)
 
   case object GetPendingTransactions
-  case class PendingTransactions(signedTransactions: Seq[SignedTransaction])
+  case class PendingTransactionsResponse(pendingTransactions: Seq[PendingTransaction])
 
   case class RemoveTransactions(signedTransactions: Seq[SignedTransaction])
+
+  case class PendingTransaction(stx: SignedTransaction, addTimestamp: Long)
 }
 
 class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorRef,
@@ -41,7 +43,7 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
   /**
     * stores all pending transactions
    */
-  var pendingTransactions: Seq[SignedTransaction] = Nil
+  var pendingTransactions: Seq[PendingTransaction] = Nil
 
   /**
     * stores information which tx hashes are "known" by which peers
@@ -56,9 +58,10 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
     case AddTransactions(signedTransactions) =>
       // TODO: we should check whether a transaction with the same header and nonce exists, and if so replace it with the
       // new version
-      val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.contains(t))
+      val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.map(_.stx).contains(t))
       if (transactionsToAdd.nonEmpty) {
-        pendingTransactions = (pendingTransactions ++ transactionsToAdd).takeRight(miningConfig.txPoolSize)
+        val timestamp = System.currentTimeMillis()
+        pendingTransactions = (pendingTransactions ++ transactionsToAdd.map(PendingTransaction(_, timestamp))).takeRight(miningConfig.txPoolSize)
         (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
           peers.handshaked.foreach { peer => self ! NotifyPeer(transactionsToAdd, peer) }
         }
@@ -66,7 +69,7 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
 
     case NotifyPeer(signedTransactions, peer) =>
       val txsToNotify = signedTransactions
-        .filter(pendingTransactions.contains) // signed transactions that are still pending
+        .filter(stx => pendingTransactions.exists(_.stx.hash == stx.hash)) // signed transactions that are still pending
         .filterNot(isTxKnown(_, peer.id)) // and not known by peer
 
         if (txsToNotify.nonEmpty) {
@@ -75,14 +78,17 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
         }
 
     case GetPendingTransactions =>
-      sender() ! PendingTransactions(pendingTransactions)
+      sender() ! PendingTransactionsResponse(pendingTransactions)
 
     case RemoveTransactions(signedTransactions) =>
-      pendingTransactions = pendingTransactions.filterNot(signedTransactions.contains)
+      pendingTransactions = pendingTransactions.filterNot(pt => signedTransactions.contains(pt.stx))
       knownTransactions = knownTransactions.filterNot(signedTransactions.map(_.hash).contains)
 
     case MessageFromPeer(SignedTransactions(signedTransactions), peerId) =>
-      pendingTransactions = (pendingTransactions ++ signedTransactions).takeRight(miningConfig.txPoolSize)
+      // TODO: we should check whether a transaction with the same header and nonce exists, and if so replace it with the
+      // new version
+      val timestamp = System.currentTimeMillis()
+      pendingTransactions = (pendingTransactions ++ signedTransactions.map(PendingTransaction(_, timestamp))).takeRight(miningConfig.txPoolSize)
       signedTransactions.foreach(setTxKnown(_, peerId))
       (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
         peers.handshaked.foreach { p => self ! NotifyPeer(signedTransactions, p) }

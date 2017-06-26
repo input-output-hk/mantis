@@ -5,6 +5,7 @@ import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.Web3Service._
+import io.iohk.ethereum.utils.Logger
 import org.json4s.JsonAST.{JArray, JValue}
 import org.json4s.JsonDSL._
 
@@ -44,7 +45,7 @@ class JsonRpcController(
   netService: NetService,
   ethService: EthService,
   personalService: PersonalService,
-  config: JsonRpcConfig) {
+  config: JsonRpcConfig) extends Logger {
 
   import JsonRpcController._
   import EthJsonMethodsImplicits._
@@ -142,6 +143,20 @@ class JsonRpcController(
       handle[GetStorageAtRequest, GetStorageAtResponse](ethService.getStorageAt, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionCount", _, _) =>
       handle[GetTransactionCountRequest, GetTransactionCountResponse](ethService.getTransactionCount, req)
+    case req @ JsonRpcRequest(_, "eth_newFilter", _, _) =>
+      handle[NewFilterRequest, NewFilterResponse](ethService.newFilter, req)
+    case req @ JsonRpcRequest(_, "eth_newBlockFilter", _, _) =>
+      handle[NewBlockFilterRequest, NewFilterResponse](ethService.newBlockFilter, req)
+    case req @ JsonRpcRequest(_, "eth_newPendingTransactionFilter", _, _) =>
+      handle[NewPendingTransactionFilterRequest, NewFilterResponse](ethService.newPendingTransactionFilter, req)
+    case req @ JsonRpcRequest(_, "eth_uninstallFilter", _, _) =>
+      handle[UninstallFilterRequest, UninstallFilterResponse](ethService.uninstallFilter, req)
+    case req @ JsonRpcRequest(_, "eth_getFilterChanges", _, _) =>
+      handle[GetFilterChangesRequest, GetFilterChangesResponse](ethService.getFilterChanges, req)
+    case req @ JsonRpcRequest(_, "eth_getFilterLogs", _, _) =>
+      handle[GetFilterLogsRequest, GetFilterLogsResponse](ethService.getFilterLogs, req)
+   case req @ JsonRpcRequest(_, "eth_getLogs", _, _) =>
+      handle[GetLogsRequest, GetLogsResponse](ethService.getLogs, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByHash", _, _) =>
       handle[GetTransactionByHashRequest, GetTransactionByHashResponse](ethService.getTransactionByHash, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionReceipt", _, _) =>
@@ -202,7 +217,10 @@ class JsonRpcController(
             case Right(success) => successResponse(rpcReq, success)
             case Left(error) => errorResponse(rpcReq, error)
           }
-          .recover { case ex => errorResponse(rpcReq, InternalError) }
+          .recover { case ex =>
+            log.error("Failed to handle RPC request", ex)
+            errorResponse(rpcReq, InternalError)
+          }
       case Left(error) =>
         Future.successful(errorResponse(rpcReq, error))
     }
