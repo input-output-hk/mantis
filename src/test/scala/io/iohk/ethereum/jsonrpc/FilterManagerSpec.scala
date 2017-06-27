@@ -30,15 +30,6 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
   implicit val timeout = Timeout(5.seconds)
 
   "FilterManager" should "handle log filter logs and changes" in new TestSetup {
-    val filterManager = TestActorRef[FilterManager](Props(new FilterManager(
-      blockchain,
-      blockGenerator,
-      appStateStorage,
-      keyStore,
-      pendingTransactionsManager.ref,
-      config,
-      Some(time.scheduler)))
-    )
 
     val address = Address("0x1234")
     val topics = Seq(Seq(), Seq(ByteString(Hex.decode("4567"))))
@@ -169,15 +160,6 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
   }
 
   it should "handle pending block filter" in new TestSetup {
-    val filterManager = TestActorRef[FilterManager](Props(new FilterManager(
-      blockchain,
-      blockGenerator,
-      appStateStorage,
-      keyStore,
-      pendingTransactionsManager.ref,
-      config,
-      Some(time.scheduler)))
-    )
 
     val address = Address("0x1234")
     val topics = Seq(Seq(), Seq(ByteString(Hex.decode("4567"))))
@@ -273,7 +255,6 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
   }
 
   it should "handle block filter" in new TestSetup {
-    val filterManager = TestActorRef[FilterManager](Props(new FilterManager(blockchain, blockGenerator, appStateStorage, keyStore, pendingTransactionsManager.ref, config, Some(time.scheduler))))
 
     (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
 
@@ -307,7 +288,6 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
   }
 
   it should "handle pending transactions filter" in new TestSetup {
-    val filterManager = TestActorRef[FilterManager](Props(new FilterManager(blockchain, blockGenerator, appStateStorage, keyStore, pendingTransactionsManager.ref, config, Some(time.scheduler))))
 
     (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
 
@@ -345,7 +325,6 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
   }
 
   it should "timeout unused filter" in new TestSetup {
-    val filterManager = TestActorRef[FilterManager](Props(new FilterManager(blockchain, blockGenerator, appStateStorage, keyStore, pendingTransactionsManager.ref, config, Some(time.scheduler))))
 
     (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
 
@@ -427,6 +406,18 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
       extraData = ByteString(Hex.decode("426974636f696e2069732054484520426c6f636b636861696e2e")),
       mixHash = ByteString(Hex.decode("c6d695926546d3d679199303a6d1fc983fe3f09f44396619a24c4271830a7b95")),
       nonce = ByteString(Hex.decode("62bc3dca012c1b27")))
+
+    val filterManager = TestActorRef[FilterManager](Props(
+      new FilterManager(
+        blockchain,
+        blockGenerator,
+        appStateStorage,
+        keyStore,
+        pendingTransactionsManager.ref,
+        config,
+        Some(time.scheduler))
+      )
+    )
   }
 
 }

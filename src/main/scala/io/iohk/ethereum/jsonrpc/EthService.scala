@@ -486,13 +486,15 @@ class EthService(
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
     reportActive()
-    blockGenerator.getPrepared(req.powHeaderHash) match {
-      case Some(pendingBlock) if appStateStorage.getBestBlockNumber() <= pendingBlock.block.header.number =>
-        import pendingBlock._
-        syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
-        Future.successful(Right(SubmitWorkResponse(true)))
-      case _ =>
-        Future.successful(Right(SubmitWorkResponse(false)))
+    Future {
+      blockGenerator.getPrepared(req.powHeaderHash) match {
+        case Some(pendingBlock) if appStateStorage.getBestBlockNumber() <= pendingBlock.block.header.number =>
+          import pendingBlock._
+          syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
+          Right(SubmitWorkResponse(true))
+        case _ =>
+          Right(SubmitWorkResponse(false))
+      }
     }
   }
 

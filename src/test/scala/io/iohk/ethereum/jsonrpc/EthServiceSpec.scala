@@ -112,7 +112,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (blockGenerator.getPending _).expects().returns(Some(PendingBlock(blockToRequest, Nil)))
 
     val request = BlockByNumberRequest(BlockParam.Pending, fullTxs = true)
-    val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
+    val response = ethService.getBlockByNumber(request).futureValue.right.get
 
     response.blockResponse.isDefined should be (true)
     val blockResponse = response.blockResponse.get
@@ -132,7 +132,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
 
     val request = BlockByNumberRequest(BlockParam.Pending, fullTxs = true)
-    val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
+    val response = ethService.getBlockByNumber(request).futureValue.right.get
     response.blockResponse.get.hash.get shouldEqual blockToRequest.header.hash
   }
 
