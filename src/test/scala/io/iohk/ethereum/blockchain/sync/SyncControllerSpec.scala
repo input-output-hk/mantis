@@ -747,6 +747,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     time.advance(2 * Config.FastSync.peerResponseTimeout)
     peerMessageBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
 
+    //wait for Done msg processing
+    Thread.sleep(1.seconds.toMillis)
     syncController ! MinedBlock(Block(minedBlockHeader,BlockBody(Nil,Nil)))
 
     //wait for actor to insert data
