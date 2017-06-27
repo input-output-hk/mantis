@@ -23,7 +23,7 @@ object Mocks {
       if(shouldExecuteCorrectly(block, storages, validators))
         Right(Nil)
       else
-        Left(TxsExecutionError("StubLedger was set to fail for this case"))
+        Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head, "StubLedger was set to fail for this case"))
     }
 
     override def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators):
@@ -58,18 +58,12 @@ object Mocks {
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Right(Block(blockHeader, blockBody))
     }
 
-    override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
-      override def validate(blockHeader: BlockHeader, blockchain: Blockchain) = Right(blockHeader)
-    }
+    override val blockHeaderValidator: BlockHeaderValidator = (blockHeader: BlockHeader, blockchain: Blockchain) => Right(blockHeader)
 
-    override val ommersValidator: OmmersValidator = new OmmersValidator {
-      override def validate(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain) = Right(())
-    }
+    override val ommersValidator: OmmersValidator = (blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain) => Right(())
 
-    override val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidator {
-      override def validate(stx: SignedTransaction, account: Account, blockHeader: BlockHeader,
-                            upfrontGasCost: UInt256, accumGasLimit: BigInt) = Right(())
-    }
+    override val signedTransactionValidator: SignedTransactionValidator =
+      (stx: SignedTransaction, account: Account, blockHeader: BlockHeader, upfrontGasCost: UInt256, accumGasLimit: BigInt) => Right(())
   }
 
   object MockValidatorsAlwaysFail extends Validators {

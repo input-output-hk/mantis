@@ -35,36 +35,32 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
     val result = validators.ommersValidator.validate(blockNumber, ommers, blockchain).left.map(InvalidOmmers).flatMap { _ =>
       blockchain.getBlockByNumber(blockNumber - 1).map { parent =>
         val blockTimestamp = Instant.now.getEpochSecond
-        val header = BlockHeader(
-          parentHash = parent.header.hash,
-          ommersHash = ByteString(kec256(ommers.toBytes: Array[Byte])),
-          beneficiary = beneficiary.bytes,
-          stateRoot = ByteString.empty,
-          transactionsRoot = buildMpt(transactions, SignedTransaction.byteArraySerializable),
-          receiptsRoot = ByteString.empty,
-          logsBloom = ByteString.empty,
-          difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
-          number = blockNumber,
-          gasLimit = calculateGasLimit(parent.header.gasLimit),
-          gasUsed = 0,
-          unixTimestamp = blockTimestamp,
-          extraData = ByteString("mined with etc scala"),
-          mixHash = ByteString.empty,
-          nonce = ByteString.empty
-        )
+        val header: BlockHeader = prepareHeader(blockNumber, ommers, beneficiary, parent, blockTimestamp)
 
-        val body = BlockBody(transactions, ommers)
+        val transactionsForBlock = transactions
+          .filter(_.tx.gasLimit < header.gasLimit)
+          //if we have 2 transactions from same address we want first one with lower nonce
+          .sortBy(_.tx.nonce)
+          .scanLeft(BigInt(0), None: Option[SignedTransaction]) { case ((accumulatedGas, _), stx) => (accumulatedGas + stx.tx.gasLimit, Some(stx)) }
+          .collect{case (gas,Some(stx)) => (gas,stx)}
+          .takeWhile{case (gas, _) => gas <= header.gasLimit}
+          .map{case (_, stx) => stx}
+
+        val body = BlockBody(transactionsForBlock, ommers)
         val block = Block(header, body)
 
-        ledger.prepareBlock(block, blockchainStorages, validators).right.map { case BlockPreparationResult(BlockResult(_, gasUsed, receipts), stateRoot) =>
-          val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
-          val bloomFilter = ByteString(or(receiptsLogs: _*))
+        ledger.prepareBlock(block, blockchainStorages, validators).right.map {
+          case BlockPreparationResult(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot) =>
+            val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
+            val bloomFilter = ByteString(or(receiptsLogs: _*))
 
-          block.copy(header = block.header.copy(
-            stateRoot = stateRoot,
-            receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable),
-            logsBloom = bloomFilter,
-            gasUsed = gasUsed))
+            block.copy(header = block.header.copy(
+              transactionsRoot = buildMpt(prepareBlock.body.transactionList, SignedTransaction.byteArraySerializable),
+              stateRoot = stateRoot,
+              receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable),
+              logsBloom = bloomFilter,
+              gasUsed = gasUsed),
+              body = prepareBlock.body)
         }
       }.getOrElse(Left(NoParent))
     }
@@ -76,6 +72,25 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
 
     result
   }
+
+  private def prepareHeader(blockNumber: BigInt, ommers: Seq[BlockHeader], beneficiary: Address, parent: Block, blockTimestamp: Long) = BlockHeader(
+    parentHash = parent.header.hash,
+    ommersHash = ByteString(kec256(ommers.toBytes: Array[Byte])),
+    beneficiary = beneficiary.bytes,
+    stateRoot = ByteString.empty,
+    //we are not able to calculate transactionsRoot here because we do not know if they will fail
+    transactionsRoot = ByteString.empty,
+    receiptsRoot = ByteString.empty,
+    logsBloom = ByteString.empty,
+    difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
+    number = blockNumber,
+    gasLimit = calculateGasLimit(parent.header.gasLimit),
+    gasUsed = 0,
+    unixTimestamp = blockTimestamp,
+    extraData = ByteString("mined with etc scala"),
+    mixHash = ByteString.empty,
+    nonce = ByteString.empty
+  )
 
   def getPrepared(powHeaderHash: ByteString): Option[Block] = {
     cache.getAndUpdate(new UnaryOperator[List[Block]] {
@@ -106,6 +121,9 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
 }
 
 object BlockGenerator {
+
   case object NoParent extends BlockPreparationError
+
   case class InvalidOmmers(reason: OmmersError) extends BlockPreparationError
+
 }
