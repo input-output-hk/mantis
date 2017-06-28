@@ -1,5 +1,7 @@
 package io.iohk.ethereum.mining
 
+import java.time.Instant
+
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
@@ -23,7 +25,7 @@ import scala.concurrent.duration._
 class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with Logger {
 
   "BlockGenerator" should "generate correct block with empty transactions" in new TestSetup {
-    val result: Either[BlockPreparationError, Block] = blockGenerator.generateBlockForMining(1, Nil, Nil, Address(testAddress))
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(1, Nil, Nil, Address(testAddress))
     result shouldBe a[Right[_, Block]]
 
     //mined with etc-client + ethminer
@@ -32,13 +34,13 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val miningTimestamp = 1494604913
 
     val fullBlock: Either[BlockPreparationError, Block] = result.right
-      .map(b => b.copy(header = b.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
+      .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
 
   it should "generate correct block with transactions" in new TestSetup {
-    val result: Either[BlockPreparationError, Block] = blockGenerator.generateBlockForMining(1, Seq(signedTransaction), Nil, Address(testAddress))
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(1, Seq(signedTransaction), Nil, Address(testAddress))
     result shouldBe a[Right[_, Block]]
 
     //mined with etc-client + ethminer
@@ -47,13 +49,13 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val miningTimestamp = 1494604913
 
     val fullBlock: Either[BlockPreparationError, Block] = result.right
-      .map(b => b.copy(header = b.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
+      .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
 
   it should "filter out failing transactions" in new TestSetup {
-    val result: Either[BlockPreparationError, Block] =
+    val result: Either[BlockPreparationError, PendingBlock] =
       blockGenerator.generateBlockForMining(1, Seq(signedTransaction, duplicatedSignedTransaction), Nil, Address(testAddress))
     result shouldBe a[Right[_, Block]]
 
@@ -63,7 +65,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val miningTimestamp = 1494604913
 
     val fullBlock: Either[BlockPreparationError, Block] = result.right
-      .map(b => b.copy(header = b.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
+      .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
@@ -75,7 +77,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
         nonce = signedTransaction.tx.nonce - 1),
       keyPair, Some(0x3d.toByte))
 
-    val result: Either[BlockPreparationError, Block] =
+    val result: Either[BlockPreparationError, PendingBlock] =
       blockGenerator.generateBlockForMining(1, Seq(txWitGasTooBigGasLimit, signedTransaction, duplicatedSignedTransaction), Nil, Address(testAddress))
     result shouldBe a[Right[_, Block]]
 
@@ -85,7 +87,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val miningTimestamp = 1494604913
 
     val fullBlock: Either[BlockPreparationError, Block] = result.right
-      .map(b => b.copy(header = b.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
+      .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
@@ -149,6 +151,16 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val poolingServicesTimeout: FiniteDuration = 3.seconds
     }
 
-    val blockGenerator = new BlockGenerator(blockchainStorages.storages, blockchainConfig, miningConfig, ledger, validators)
+    val blockTimestampProvider = new FakeBlockTimestampProvider
+
+    val blockGenerator = new BlockGenerator(blockchainStorages.storages, blockchainConfig, miningConfig, ledger, validators, blockTimestampProvider)
   }
+}
+
+class FakeBlockTimestampProvider extends BlockTimestampProvider {
+  private var timestamp = Instant.now.getEpochSecond
+
+  def advance(seconds: Long): Unit = timestamp += seconds
+
+  override def getEpochSecond: Long = timestamp
 }
