@@ -19,7 +19,7 @@ import org.json4s.{DefaultFormats, Extraction, Formats}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
-import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -451,7 +451,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     (appStateStorage.getBestBlockNumber _).expects().returns(1)
     (blockGenerator.generateBlockForMining _).expects(*, *, *, *)
-      .returns(Right(Block(blockHeader, BlockBody(Nil, Nil))))
+      .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -486,7 +486,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     (appStateStorage.getBestBlockNumber _).expects().returns(1)
     (blockGenerator.generateBlockForMining _).expects(*, *, *, *)
-      .returns(Right(Block(blockHeader, BlockBody(Nil, Nil))))
+      .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -522,7 +522,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     (blockGenerator.getPrepared _)
       .expects(ByteString(Hex.decode(headerPowHash)))
-      .returns(Some(Block(blockHeader, BlockBody(Nil, Nil))))
+      .returns(Some(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
     (appStateStorage.getBestBlockNumber _).expects().returns(1)
 
     val request: JsonRpcRequest = JsonRpcRequest(
