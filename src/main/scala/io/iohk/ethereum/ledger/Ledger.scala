@@ -57,15 +57,23 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val blockExecResult = for {
       //todo why do we require in executeBlockTransactions separate blockchain and blockchain storage
       //todo blockchain storage is part of blockchain
-      execResult <- executeBlockTransactions(block, blockchain, storages, validators.signedTransactionValidator).left.map(e => TxError(e.reason))
+      execResult <- executeBlockTransactions(block, blockchain, storages, validators.signedTransactionValidator)
       BlockResult(resultingWorldStateProxy, _, _) = execResult
       worldToPersist = payBlockReward(blockchainConfig.blockReward, block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for prepared block
-    } yield BlockPreparationResult(execResult, worldPersisted.stateRootHash)
+    } yield BlockPreparationResult(block, execResult, worldPersisted.stateRootHash)
 
-    blockExecResult.foreach { _ => log.debug(s"Prepared for mining block with number ${block.header.number}") }
-
-    blockExecResult
+    blockExecResult match {
+      case Right(result) =>
+        log.debug(s"Prepared for mining block with number ${block.header.number}")
+        Right(result)
+      case Left(TxsExecutionError(tx, reason)) =>
+        log.debug(s"failed to execute transaction $tx because: $reason")
+        val newBlock = block.copy(body = block.body.copy(transactionList = block.body.transactionList.filter(_.hash != tx.hash)))
+        prepareBlock(newBlock, storages, validators)
+      case Left(error: BlockExecutionError) =>
+        Left(TxError(error.reason))
+    }
   }
 
   /**
@@ -134,7 +142,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
             log.debug(s"Receipt generated for tx ${stx.hashAsHexString}, $receipt")
 
             executeTransactions(otherStxs, newWorld, blockHeader, signedTransactionValidator, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
-          case Left(error) => Left(TxsExecutionError(error.toString))
+          case Left(error) => Left(TxsExecutionError(stx, error.toString))
         }
   }
 
@@ -371,7 +379,7 @@ object Ledger {
   type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
 
   case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
-  case class BlockPreparationResult(blockResult: BlockResult, stateRootHash: ByteString)
+  case class BlockPreparationResult(block: Block, blockResult: BlockResult, stateRootHash: ByteString)
   case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry], vmReturnData: ByteString)
 }
 
@@ -381,7 +389,7 @@ sealed trait BlockExecutionError{
 
 object BlockExecutionError {
   case class ValidationBeforeExecError(reason: String) extends BlockExecutionError
-  case class TxsExecutionError(reason: String) extends BlockExecutionError
+  case class TxsExecutionError(stx: SignedTransaction, reason: String) extends BlockExecutionError
   case class ValidationAfterExecError(reason: String) extends BlockExecutionError
 }
 

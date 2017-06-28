@@ -7,6 +7,8 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.BloomFilter
+import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.utils.FilterConfig
@@ -14,10 +16,12 @@ import io.iohk.ethereum.utils.FilterConfig
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.Random
 
 class FilterManager(
     blockchain: Blockchain,
+    blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
@@ -113,9 +117,13 @@ class FilterManager(
         logsSoFar
       } else {
         blockchain.getBlockHeaderByNumber(currentBlockNumber) match {
-          case Some(blockHeader) if bytesToCheckInBloomFilter.isEmpty || BloomFilter.containsAnyOf(blockHeader.logsBloom, bytesToCheckInBloomFilter) =>
-            blockchain.getReceiptsByHash(blockHeader.hash) match {
-              case Some(receipts) => recur(currentBlockNumber + 1, toBlockNumber, logsSoFar ++ getLogsFromBlock(filter, blockHeader, receipts))
+          case Some(header) if bytesToCheckInBloomFilter.isEmpty || BloomFilter.containsAnyOf(header.logsBloom, bytesToCheckInBloomFilter) =>
+            blockchain.getReceiptsByHash(header.hash) match {
+              case Some(receipts) => recur(
+                currentBlockNumber + 1,
+                toBlockNumber,
+                logsSoFar ++ getLogsFromBlock(filter, Block(header, blockchain.getBlockBodyByHash(header.hash).get), receipts)
+              )
               case None => logsSoFar
             }
           case Some(_) => recur(currentBlockNumber + 1, toBlockNumber, logsSoFar)
@@ -124,13 +132,19 @@ class FilterManager(
       }
     }
 
+    val bestBlockNumber = appStateStorage.getBestBlockNumber()
+
     val fromBlockNumber =
-      startingBlockNumber.getOrElse(resolveBlockNumber(filter.fromBlock.getOrElse(BlockParam.Latest), appStateStorage))
+      startingBlockNumber.getOrElse(resolveBlockNumber(filter.fromBlock.getOrElse(BlockParam.Latest), bestBlockNumber))
 
     val toBlockNumber =
-      resolveBlockNumber(filter.toBlock.getOrElse(BlockParam.Latest), appStateStorage)
+      resolveBlockNumber(filter.toBlock.getOrElse(BlockParam.Latest), bestBlockNumber)
 
-    recur(fromBlockNumber, toBlockNumber, Nil)
+    val logs = recur(fromBlockNumber, toBlockNumber, Nil)
+
+    if(filter.toBlock.contains(BlockParam.Pending))
+      logs ++ blockGenerator.getPending.map(p => getLogsFromBlock(filter, p.block, p.receipts)).getOrElse(Nil)
+    else logs
   }
 
   private def getFilterChanges(id: BigInt): Unit = {
@@ -163,7 +177,7 @@ class FilterManager(
     }
   }
 
-  private def getLogsFromBlock(filter: LogFilter, blockHeader: BlockHeader, receipts: Seq[Receipt]): Seq[TxLog] = {
+  private def getLogsFromBlock(filter: LogFilter, block: Block, receipts: Seq[Receipt]): Seq[TxLog] = {
     val bytesToCheckInBloomFilter = filter.address.map(a => Seq(a.bytes)).getOrElse(Nil) ++ filter.topics.flatten
 
     receipts.zipWithIndex.foldLeft(Seq[TxLog]()) { case (logsSoFar, (receipt, txIndex)) =>
@@ -171,14 +185,13 @@ class FilterManager(
         logsSoFar ++ receipt.logs.zipWithIndex
         .filter { case (log, _) => filter.address.forall(_ == log.loggerAddress) && topicsMatch(log.logTopics, filter.topics) }
         .map { case (log, logIndex) =>
-          val blockBody = blockchain.getBlockBodyByHash(blockHeader.hash).get
-          val tx = blockBody.transactionList(txIndex)
+          val tx = block.body.transactionList(txIndex)
           TxLog(
             logIndex = logIndex,
             transactionIndex = txIndex,
             transactionHash = tx.hash,
-            blockHash = blockHeader.hash,
-            blockNumber = blockHeader.number,
+            blockHash = block.header.hash,
+            blockNumber = block.header.number,
             address = log.loggerAddress,
             data = log.data,
             topics = log.logTopics)
@@ -222,23 +235,24 @@ class FilterManager(
 
   private def generateId(): BigInt = Math.abs(Random.nextLong())
 
-  private def resolveBlockNumber(blockParam: BlockParam, appStateStorage: AppStateStorage): BigInt = {
+  private def resolveBlockNumber(blockParam: BlockParam, bestBlockNumber: BigInt): BigInt = {
     blockParam match {
       case BlockParam.WithNumber(blockNumber) => blockNumber
       case BlockParam.Earliest => 0
-      case BlockParam.Latest => appStateStorage.getBestBlockNumber()
-      case BlockParam.Pending => appStateStorage.getBestBlockNumber() + 1
+      case BlockParam.Latest => bestBlockNumber
+      case BlockParam.Pending => bestBlockNumber
     }
   }
 }
 
 object FilterManager {
   def props(blockchain: Blockchain,
+            blockGenerator: BlockGenerator,
             appStateStorage: AppStateStorage,
             keyStore: KeyStore,
             pendingTransactionsManager: ActorRef,
             config: FilterConfig): Props =
-    Props(new FilterManager(blockchain, appStateStorage, keyStore, pendingTransactionsManager, config))
+    Props(new FilterManager(blockchain, blockGenerator, appStateStorage, keyStore, pendingTransactionsManager, config))
 
   sealed trait Filter {
     def id: BigInt
