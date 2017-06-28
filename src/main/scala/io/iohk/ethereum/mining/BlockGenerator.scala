@@ -14,7 +14,7 @@ import io.iohk.ethereum.mining.BlockGenerator.{InvalidOmmers, NoParent}
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
-import io.iohk.ethereum.utils.{BlockchainConfig, MiningConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger, MiningConfig}
 import io.iohk.ethereum.utils.ByteUtils.or
 import io.iohk.ethereum.validators.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError
@@ -22,7 +22,7 @@ import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.crypto._
 
 class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: BlockchainConfig, miningConfig: MiningConfig,
-  ledger: Ledger, validators: Validators) {
+  ledger: Ledger, validators: Validators) extends Logger {
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
@@ -45,6 +45,8 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
           .collect{case (gas,Some(stx)) => (gas,stx)}
           .takeWhile{case (gas, _) => gas <= header.gasLimit}
           .map{case (_, stx) => stx}
+
+        log.error(s"got transactions for block $transactionsForBlock")
 
         val body = BlockBody(transactionsForBlock, ommers)
         val block = Block(header, body)

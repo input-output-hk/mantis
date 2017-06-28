@@ -1,6 +1,6 @@
 package io.iohk.ethereum.transactions
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -35,7 +35,7 @@ object PendingTransactionsManager {
 }
 
 class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorRef,
-                                 etcPeerManager: ActorRef, peerMessageBus: ActorRef) extends Actor {
+                                 etcPeerManager: ActorRef, peerMessageBus: ActorRef) extends Actor with ActorLogging {
 
   import PendingTransactionsManager._
   import akka.pattern.ask
@@ -56,8 +56,6 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
 
   override def receive: Receive = {
     case AddTransactions(signedTransactions) =>
-      // TODO: we should check whether a transaction with the same header and nonce exists, and if so replace it with the
-      // new version
       val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.map(_.stx).contains(t))
       if (transactionsToAdd.nonEmpty) {
         val timestamp = System.currentTimeMillis()
@@ -85,14 +83,8 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
       knownTransactions = knownTransactions.filterNot(signedTransactions.map(_.hash).contains)
 
     case MessageFromPeer(SignedTransactions(signedTransactions), peerId) =>
-      // TODO: we should check whether a transaction with the same header and nonce exists, and if so replace it with the
-      // new version
-      val timestamp = System.currentTimeMillis()
-      pendingTransactions = (pendingTransactions ++ signedTransactions.map(PendingTransaction(_, timestamp))).takeRight(miningConfig.txPoolSize)
+      self ! AddTransactions(signedTransactions.toList)
       signedTransactions.foreach(setTxKnown(_, peerId))
-      (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
-        peers.handshaked.foreach { p => self ! NotifyPeer(signedTransactions, p) }
-      }
   }
 
   private def isTxKnown(signedTransaction: SignedTransaction, peerId: PeerId): Boolean =
