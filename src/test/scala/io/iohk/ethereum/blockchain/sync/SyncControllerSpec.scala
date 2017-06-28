@@ -662,8 +662,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref)
 
-    //time.advance(1.seconds)
-
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
     etcPeerManager.send(syncController, HandshakedPeers(Map(

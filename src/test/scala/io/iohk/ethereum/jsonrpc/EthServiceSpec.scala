@@ -512,8 +512,6 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
     ethService.getWork(GetWorkRequest())
 
-    //Thread.sleep(Timeouts.normalTimeout.toMillis)
-
     val response = ethService.getMining(GetMiningRequest())
 
     response.futureValue shouldEqual Right(GetMiningResponse(true))
@@ -526,8 +524,6 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
     ethService.submitWork(SubmitWorkRequest(ByteString("nonce"), ByteString(Hex.decode("01" * 32)), ByteString(Hex.decode("01" * 32))))
 
-    //Thread.sleep(Timeouts.normalTimeout.toMillis)
-
     val response = ethService.getMining(GetMiningRequest())
 
     response.futureValue shouldEqual Right(GetMiningResponse(true))
@@ -537,8 +533,6 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
     ethService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
-
-    //Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 
