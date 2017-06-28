@@ -1308,9 +1308,9 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     }
 
     val filterConfig = new FilterConfig {
-      override val filterTimeout: FiniteDuration = 3.seconds
-      override val filterManagerQueryTimeout: FiniteDuration = 3.seconds
-      override val pendingTransactionsManagerQueryTimeout: FiniteDuration = 3.seconds
+      override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val pendingTransactionsManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val appStateStorage = mock[AppStateStorage]
