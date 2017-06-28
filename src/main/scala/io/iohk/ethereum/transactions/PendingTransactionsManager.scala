@@ -55,6 +55,7 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
   peerMessageBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
   override def receive: Receive = {
+    // TODO: we should check whether a transaction with the same address and nonce exists, and if so replace it with the new version
     case AddTransactions(signedTransactions) =>
       val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.map(_.stx).contains(t))
       if (transactionsToAdd.nonEmpty) {
