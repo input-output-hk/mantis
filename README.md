@@ -39,14 +39,14 @@ This creates a distribution zip. Unzip that file to create a folder structure st
  ```
 
 The client attempts to contact the remote peers configured in the configuration file and begin a 
-`fast-sync` download. The [configuration file](https://github.com/input-output-hk/etc-client/blob/master/src/main/resources/reference.conf)
+`fast-sync` download. The [configuration file](https://github.com/input-output-hk/etc-client/blob/master/src/main/resources/application.conf)
 settings can all be overriden in 
 
 `./config/application.conf`
 
 The client has not been run on Windows.
  
-The [next milestone](https://iohk.io/projects/ethereum-classic/#roadmap) involves integrating our client with Mist browser!
+The next milestone involves integrating our client with Mist browser!
   
   
 
