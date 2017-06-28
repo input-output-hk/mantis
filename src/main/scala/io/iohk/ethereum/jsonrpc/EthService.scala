@@ -448,11 +448,11 @@ class EthService(
     getOmmersFromPool(blockNumber).zip(getTransactionsFromPool).map {
       case (ommers, pendingTxs) =>
         blockGenerator.generateBlockForMining(blockNumber, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
-          case Right(b) =>
+          case Right(pb) =>
             Right(GetWorkResponse(
-              powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(b.header))),
-              dagSeed = seedForBlock(b.header.number),
-              target = ByteString((BigInt(2).pow(256) / b.header.difficulty).toByteArray)
+              powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
+              dagSeed = seedForBlock(pb.block.header.number),
+              target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
             ))
           case Left(err) =>
             log.error(s"unable to prepare block because of $err")
@@ -486,12 +486,15 @@ class EthService(
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
     reportActive()
-    blockGenerator.getPrepared(req.powHeaderHash) match {
-      case Some(block) if appStateStorage.getBestBlockNumber() <= block.header.number =>
-        syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
-        Future.successful(Right(SubmitWorkResponse(true)))
-      case _ =>
-        Future.successful(Right(SubmitWorkResponse(false)))
+    Future {
+      blockGenerator.getPrepared(req.powHeaderHash) match {
+        case Some(pendingBlock) if appStateStorage.getBestBlockNumber() <= pendingBlock.block.header.number =>
+          import pendingBlock._
+          syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
+          Right(SubmitWorkResponse(true))
+        case _ =>
+          Right(SubmitWorkResponse(false))
+      }
     }
   }
 
@@ -692,7 +695,10 @@ class EthService(
       case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pending = false))
       case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pending = false))
       case BlockParam.Latest => getBlock(appStateStorage.getBestBlockNumber()).map(ResolvedBlock(_, pending = false))
-      case BlockParam.Pending => getBlock(appStateStorage.getBestBlockNumber()).map(ResolvedBlock(_, pending = true))
+      case BlockParam.Pending =>
+        blockGenerator.getPending.map(pb => ResolvedBlock(pb.block, pending = true))
+          .map(Right.apply)
+          .getOrElse(resolveBlock(BlockParam.Latest)) //Default behavior in other clients
     }
   }
 
