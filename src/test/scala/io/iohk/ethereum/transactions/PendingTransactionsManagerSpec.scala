@@ -24,10 +24,24 @@ import scala.concurrent.duration._
 class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience {
 
   "PendingTransactionsManager" should "store pending transactions received from peers" in new TestSetup {
-    val msg = SignedTransactions(Seq.fill(10)(newStx()))
+    val msg = SignedTransactions((1 to 10).map(e => newStx(e)))
     pendingTransactionsManager ! MessageFromPeer(msg, PeerId("1"))
 
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
+
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    pendingTxs.pendingTransactions.map(_.stx).toSet shouldBe msg.txs.toSet
+  }
+
+  it should "ignore known transaction" in new TestSetup {
+    val msg = SignedTransactions(Seq(newStx(1)))
+    pendingTransactionsManager ! MessageFromPeer(msg, PeerId("1"))
+    pendingTransactionsManager ! MessageFromPeer(msg, PeerId("2"))
+
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
+
+    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    pendingTxs.pendingTransactions.map(_.stx).length shouldBe 1
     pendingTxs.pendingTransactions.map(_.stx).toSet shouldBe msg.txs.toSet
   }
 
@@ -78,9 +92,9 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
   }
 
   it should "not add pending transaction again when it was removed while waiting for peers" in new TestSetup {
-    val msg1 = SignedTransactions(Seq.fill(1)(newStx()))
+    val msg1 = SignedTransactions(Seq(newStx(1)))
     pendingTransactionsManager ! MessageFromPeer(msg1, peer1.id)
-
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
     pendingTransactionsManager ! RemoveTransactions(msg1.txs)
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
@@ -95,10 +109,10 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
   trait TestSetup {
     implicit val system = ActorSystem("test-system")
 
-    def newStx(): SignedTransaction = {
+    def newStx(nonce: BigInt = 0): SignedTransaction = {
       val keyPair1 = crypto.generateKeyPair()
       val addr1 = Address(Hex.decode("1c51bf013add0857c5d9cf2f71a7f15ca93d4816"))
-      val tx = Transaction(0, 1, 1, Some(addr1), 0, ByteString(""))
+      val tx = Transaction(nonce, 1, 1, Some(addr1), 0, ByteString(""))
       SignedTransaction.sign(tx, keyPair1, Some(0x3d))
     }
 
