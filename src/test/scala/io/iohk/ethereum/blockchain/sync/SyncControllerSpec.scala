@@ -6,7 +6,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.{Mocks, Timeouts}
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader}
@@ -232,7 +232,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
     )
 
-    etcPeerManager.expectMsgAllOf(10.seconds,
+    etcPeerManager.expectMsgAllOf(Timeouts.normalTimeout,
       EtcPeerManagerActor.SendMessage(
         GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
         peer.id),
@@ -343,7 +343,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(nextNewBlockHeader.hash)), peer.id))
 
     //wait for actor to insert data
-    Thread.sleep(3.seconds.toMillis)
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     blockchain.getBlockByNumber(expectedMaxBlock) shouldBe Some(Block(newBlockHeaderParent, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(newBlockHeaderParent.hash) shouldBe Some(commonRootTotalDifficulty + newBlockHeaderParent.difficulty)
@@ -490,7 +490,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     syncController.children.last ! MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer1.id)
 
     //TODO: investigate why such a long timeout is required
-    etcPeerManager.expectMsgAllOf(20.seconds,
+    etcPeerManager.expectMsgAllOf(Timeouts.veryLongTimeout,
       EtcPeerManagerActor.SendMessage(
         GetBlockHeaders(Left(expectedMaxBlock + 3), Config.FastSync.blockHeadersPerRequest, 0, reverse = false), peer1.id),
       EtcPeerManagerActor.SendMessage(
@@ -576,7 +576,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     syncController.children.last ! MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer1.id)
 
     //TODO: investigate why such a long timeout is required
-    etcPeerManager.expectMsgAllOf(20.seconds,
+    etcPeerManager.expectMsgAllOf(Timeouts.veryLongTimeout,
       EtcPeerManagerActor.SendMessage(
         NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer1.id),
       EtcPeerManagerActor.SendMessage(
@@ -635,7 +635,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash)), peer1.id))
     syncController.children.last ! MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil))), peer1.id)
 
-    peerMessageBus.expectMsgAllOf(5.seconds,
+    peerMessageBus.expectMsgAllOf(Timeouts.normalTimeout,
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
       Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer1.id))),
       Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
@@ -643,7 +643,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       Unsubscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer1.id))))
 
     //As block execution failed for a block received from peer1, the same block is asked to peer2
-    etcPeerManager.expectMsg(10.seconds, EtcPeerManagerActor.SendMessage(
+    etcPeerManager.expectMsg(Timeouts.longTimeout, EtcPeerManagerActor.SendMessage(
       GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
       peer2.id))
 
@@ -661,8 +661,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val peerTestProbe: TestProbe = TestProbe()(system)
 
     val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref)
-
-    time.advance(1.seconds)
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
@@ -692,11 +690,11 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     syncController.children.last ! MessageFromPeer(BlockHeaders(Seq()), peer.id)
 
     //wait for empty headers processing
-    Thread.sleep(1.seconds.toMillis)
+    Thread.sleep(Timeouts.shortTimeout.toMillis)
     syncController ! MinedBlock(Block(minedBlockHeader,BlockBody(Nil,Nil)))
 
     //wait for actor to insert data
-    Thread.sleep(3.seconds.toMillis)
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
     blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(minedBlockHeader, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(minedBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + minedBlockHeader.difficulty)
 
