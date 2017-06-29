@@ -1,19 +1,23 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.pattern.ask
 import akka.actor.ActorRef
-import akka.util.ByteString
+import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainStorages}
+import io.iohk.ethereum.domain.{Account, Address, Blockchain}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
-import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransactions
+import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, PendingTransactionsResponse}
+import io.iohk.ethereum.utils.MiningConfig
 
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Try
 
 object PersonalService {
 
@@ -56,7 +60,8 @@ class PersonalService(
   keyStore: KeyStore,
   blockchain: Blockchain,
   txPool: ActorRef,
-  appStateStorage: AppStateStorage) {
+  appStateStorage: AppStateStorage,
+  miningConfig: MiningConfig) {
 
   private val unlockedWallets: mutable.Map[Address, Wallet] = mutable.Map.empty
 
@@ -114,32 +119,47 @@ class PersonalService(
     }.getOrElse(Left(InvalidParams("unable to recover address")))
   }
 
-  def sendTransaction(request: SendTransactionWithPassphraseRequest): ServiceResponse[SendTransactionWithPassphraseResponse] = Future {
-    keyStore.unlockAccount(request.tx.from, request.passphrase).left.map(handleError).map { wallet =>
-      val hash = sendTransaction(request.tx, wallet)
-      SendTransactionWithPassphraseResponse(hash)
+  def sendTransaction(request: SendTransactionWithPassphraseRequest): ServiceResponse[SendTransactionWithPassphraseResponse] = {
+    val maybeWalletUnlocked = Future { keyStore.unlockAccount(request.tx.from, request.passphrase).left.map(handleError) }
+    maybeWalletUnlocked.flatMap {
+      case Right(wallet) =>
+        val futureTxHash = sendTransaction(request.tx, wallet)
+        futureTxHash.map(txHash => Right(SendTransactionWithPassphraseResponse(txHash)))
+      case Left(err) => Future.successful(Left(err))
     }
   }
 
 
-  def sendTransaction(request: SendTransactionRequest): ServiceResponse[SendTransactionResponse] = Future {
+  def sendTransaction(request: SendTransactionRequest): ServiceResponse[SendTransactionResponse] = {
     unlockedWallets.get(request.tx.from) match {
       case Some(wallet) =>
-        Right(SendTransactionResponse(sendTransaction(request.tx, wallet)))
+        val futureTxHash = sendTransaction(request.tx, wallet)
+        futureTxHash.map(txHash => Right(SendTransactionResponse(txHash)))
 
       case None =>
-        Left(AccountLocked)
+        Future.successful(Left(AccountLocked))
     }
   }
 
-  private def sendTransaction(request: TransactionRequest, wallet: Wallet): ByteString = {
-    val defaultNonce = getCurrentAccount(request.from).getOrElse(Account.Empty).nonce
-    val tx = request.toTransaction(defaultNonce)
-    val stx = wallet.signTx(tx)
+  private def sendTransaction(request: TransactionRequest, wallet: Wallet): Future[ByteString] = {
+    implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
 
-    txPool ! AddTransactions(stx)
+    val pendingTxsFuture = (txPool ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
+    val latestPendingTxNonceFuture: Future[Option[BigInt]] = pendingTxsFuture.map { pendingTxs =>
+      val senderTxsNonces = pendingTxs.pendingTransactions
+        .collect { case ptx if ptx.stx.senderAddress == wallet.address => ptx.stx.tx.nonce }
+      Try(senderTxsNonces.max).toOption
+    }
+    latestPendingTxNonceFuture.map{ maybeLatestPendingTxNonce =>
+      val maybeCurrentNonce = getCurrentAccount(request.from).map(_.nonce.toBigInt)
+      val maybeNextTxNonce = maybeLatestPendingTxNonce.map(_ + 1) orElse maybeCurrentNonce
+      val tx = request.toTransaction(maybeNextTxNonce.getOrElse(Account.Empty.nonce))
+      val stx = wallet.signTx(tx)
 
-    stx.hash
+      txPool ! AddTransactions(stx)
+
+      stx.hash
+    }
   }
 
   private def getCurrentAccount(address: Address): Option[Account] =

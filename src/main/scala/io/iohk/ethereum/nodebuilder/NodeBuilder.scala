@@ -229,10 +229,14 @@ trait EthServiceBuilder {
 }
 
 trait PersonalServiceBuilder {
-  self: KeyStoreBuilder with BlockChainBuilder with PendingTransactionsManagerBuilder with StorageBuilder =>
+  self: KeyStoreBuilder with
+    BlockChainBuilder with
+    PendingTransactionsManagerBuilder with
+    StorageBuilder with
+    MiningConfigBuilder =>
 
   lazy val personalService = new PersonalService(keyStore, blockchain, pendingTransactionsManager,
-    storagesInstance.storages.appStateStorage)
+    storagesInstance.storages.appStateStorage, miningConfig)
 }
 
 trait KeyStoreBuilder {
