@@ -4,8 +4,8 @@ import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
-import akka.util.{ByteString, Timeout}
-import io.iohk.ethereum.{DefaultPatience, crypto}
+import akka.util.ByteString
+import io.iohk.ethereum.{NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
@@ -21,9 +21,7 @@ import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
 
-class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience {
-
-  implicit val timeout = Timeout(10.seconds)
+class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience {
 
   "PendingTransactionsManager" should "store pending transactions received from peers" in new TestSetup {
     val msg = SignedTransactions(Seq.fill(10)(newStx()))
@@ -117,7 +115,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
       override val coinbase: Address = Address(2)
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
-      override val poolingServicesTimeout: FiniteDuration = 30.seconds
+      override val poolingServicesTimeout: FiniteDuration = Timeouts.veryLongTimeout
     }
 
     val peerManager = TestProbe()

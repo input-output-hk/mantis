@@ -5,17 +5,16 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.agent.Agent
 import akka.testkit.TestProbe
-import io.iohk.ethereum.crypto
+import io.iohk.ethereum.{NormalPatience, crypto}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class NetServiceSpec extends FlatSpec with Matchers {
+class NetServiceSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience {
 
   "NetService" should "return handshaked peer count" in new TestSetup {
     val resF = netService.peerCount(PeerCountRequest())
@@ -26,15 +25,15 @@ class NetServiceSpec extends FlatSpec with Matchers {
       Peer(new InetSocketAddress(2), testRef) -> PeerActor.Status.Handshaked,
       Peer(new InetSocketAddress(3), testRef) -> PeerActor.Status.Connecting)))
 
-    Await.result(resF, 3.seconds) shouldBe Right(PeerCountResponse(2))
+    resF.futureValue shouldBe Right(PeerCountResponse(2))
   }
 
   it should "return listening response" in new TestSetup {
-    Await.result(netService.listening(ListeningRequest()), 3.seconds) shouldBe Right(ListeningResponse(true))
+    netService.listening(ListeningRequest()).futureValue shouldBe Right(ListeningResponse(true))
   }
 
   it should "return version response" in new TestSetup {
-    Await.result(netService.version(VersionRequest()), 3.seconds) shouldBe Right(VersionResponse("1"))
+    netService.version(VersionRequest()).futureValue shouldBe Right(VersionResponse("1"))
   }
 
   trait TestSetup {
