@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.DefaultPatience
+import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Account, Address, Blockchain}
@@ -19,7 +19,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 
-class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures with DefaultPatience {
+class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures with NormalPatience {
 
   "PersonalService" should "import private keys" in new TestSetup {
     (keyStore.importPrivateKey _).expects(prvKey, passphrase).returning(Right(address))

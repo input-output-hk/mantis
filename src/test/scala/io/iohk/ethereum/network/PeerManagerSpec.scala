@@ -12,12 +12,11 @@ import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.utils.Config
 import org.scalatest.{FlatSpec, Matchers}
 import PeerActor.Status
+import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
 
-class PeerManagerSpec extends FlatSpec with Matchers with Eventually {
-
-  override implicit val patienceConfig = PatienceConfig(Span(5, Seconds), Span(100, Milliseconds))
+class PeerManagerSpec extends FlatSpec with Matchers with Eventually with NormalPatience {
 
   "PeerManager" should "try to connect to bootstrap nodes on startup" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,

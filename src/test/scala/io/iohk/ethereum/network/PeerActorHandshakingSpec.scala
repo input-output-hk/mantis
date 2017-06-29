@@ -6,7 +6,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.{Fixtures, Timeouts}
 import io.iohk.ethereum.Mocks.{MockHandshakerAlwaysFails, MockHandshakerAlwaysSucceeds}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.BlockchainImpl
@@ -183,7 +183,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
       listenPort = 0,
       nodeId = ByteString.empty
     )
-    val defaultTimeout = 3.seconds
+    val defaultTimeout = Timeouts.normalTimeout
   }
 
   case class MockHandshakerRequiresHello private (handshakerState: HandshakerState[PeerInfo]) extends Handshaker[PeerInfo] {
