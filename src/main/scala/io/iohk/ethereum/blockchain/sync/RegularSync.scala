@@ -72,6 +72,7 @@ trait RegularSync extends BlockBroadcast {
     case Done =>
       if (waitingForActor == Option(sender())) {
         //actor is done and we did not get response
+        waitingForActor = None
         scheduleResume()
       }
   }
