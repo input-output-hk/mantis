@@ -15,6 +15,9 @@ import PeerActor.Status
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+
+import scala.concurrent.duration.FiniteDuration
 
 class PeerManagerSpec extends FlatSpec with Matchers with Eventually with NormalPatience {
 
@@ -141,6 +144,40 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     time.advance(800) // connect to 2 bootstrap peers
 
     peerEventBus.expectMsg(Publish(PeerDisconnected(PeerId(createdPeers.head.ref.path.name))))
+  }
+
+  it should "not handle the connection from a peer that's already connected" in new TestSetup {
+    val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
+      peerConfiguration, peerFactory, Some(time.scheduler))))(system)
+    peerManager ! PeerManagerActor.StartConnecting
+
+    time.advance(800) // wait for bootstrap nodes scan
+
+    eventually {
+      peerManager.underlyingActor.peers.size shouldBe 1
+    }
+
+    peerManager ! "trigger stash..."
+
+    createdPeers.head.expectMsgClass(classOf[PeerActor.ConnectTo])
+    respondWithStatus(createdPeers.head, Handshaking(0))
+
+    eventually {
+      peerManager.underlyingActor.peers.size shouldBe 2
+    }
+
+    val connection = TestProbe()
+
+    val watcher = TestProbe()
+    watcher.watch(connection.ref)
+
+    peerManager ! PeerManagerActor.HandlePeerConnection(connection.ref, new InetSocketAddress("127.0.0.1", 30340))
+
+    respondWithStatus(createdPeers.head, Handshaking(0))
+    createdPeers.last.expectMsgClass(classOf[PeerActor.ConnectTo])
+    respondWithStatus(createdPeers.last, Handshaking(0))
+
+    watcher.expectMsgClass(classOf[Terminated])
   }
 
   trait TestSetup {

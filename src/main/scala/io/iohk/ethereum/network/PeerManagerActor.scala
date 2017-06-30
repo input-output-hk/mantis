@@ -72,15 +72,18 @@ class PeerManagerActor(
         .pipeTo(self)
 
     case ScanBootstrapNodes =>
-      val peerAddresses = peers.values.map(_.remoteAddress).toSet
       val nodesToConnect = bootstrapNodes
         .map(new URI(_))
-        .filterNot(uri => peerAddresses.contains(new InetSocketAddress(uri.getHost, uri.getPort)))
+        .filterNot { uri => isConnectionHandled(new InetSocketAddress(uri.getHost, uri.getPort)) }
 
       if (nodesToConnect.nonEmpty) {
         log.info("Trying to connect to {} bootstrap nodes", nodesToConnect.size)
         nodesToConnect.foreach(self ! ConnectToPeer(_))
       }
+  }
+
+  def isConnectionHandled(addr: InetSocketAddress): Boolean = {
+    peers.values.map(_.remoteAddress).toSet.contains(addr)
   }
 
   def handleCommonMessages: Receive = {
@@ -104,10 +107,15 @@ class PeerManagerActor(
       stash()
 
     case (HandlePeerConnection(connection, remoteAddress), Success(_)) =>
-      context.unbecome()
-      val peer = createPeer(remoteAddress)
-      peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
-      unstashAll()
+      if (!isConnectionHandled(remoteAddress)) {
+        context.unbecome()
+        val peer = createPeer(remoteAddress)
+        peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
+        unstashAll()
+      } else {
+        log.info("Another connection with {} is already opened. Disconnecting.", remoteAddress)
+        connection ! PoisonPill
+      }
 
     case (HandlePeerConnection(connection, remoteAddress), Failure(_)) =>
       log.info("Maximum number of connected peers reached. Peer {} will be disconnected.", remoteAddress)
@@ -118,10 +126,15 @@ class PeerManagerActor(
       unstashAll()
 
     case (ConnectToPeer(uri), Success(_)) =>
-      context.unbecome()
-      val peer = createPeer(new InetSocketAddress(uri.getHost, uri.getPort))
-      peer.ref ! PeerActor.ConnectTo(uri)
-      unstashAll()
+      val addr = new InetSocketAddress(uri.getHost, uri.getPort)
+      if (!isConnectionHandled(addr)) {
+        context.unbecome()
+        val peer = createPeer(addr)
+        peer.ref ! PeerActor.ConnectTo(uri)
+        unstashAll()
+      } else {
+        log.info("Already connected to {}", uri)
+      }
 
     case (ConnectToPeer(uri), Failure(_)) =>
       log.info("Maximum number of connected peers reached. Not connecting to {}", uri)
