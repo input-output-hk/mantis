@@ -1,5 +1,22 @@
 dependencies:
   pre:
     - sudo add-apt-repository -y ppa:ethereum/ethereum; sudo apt-get update; sudo apt-get install -y solc
+
+  # We want override the dependency steps inferred by CircleCI, which happens to be `sbt test:compile`. This is redundant
+  # because tests need to be recompiled anyway, with coverage. Note that an empty list doesn't work here.
   override:
     - echo "OK, let's go!"
+
+test:
+  override:
+    - sbt scalastyle
+    - sbt test:scalastyle
+    - sbt coverage test
+    - sbt coverage evm:test
+    - sbt coverageOff it:test
+    - sbt coverageReport coverageAggregate coveralls
+    - sbt dist
+  post:
+    - mkdir -p $CIRCLE_ARTIFACTS/scala-2.12
+    - mv target/scala-2.12/coverage-report  $CIRCLE_ARTIFACTS/scala-2.12/coverage-report
+    - mv target/scala-2.12/scoverage-report $CIRCLE_ARTIFACTS/scala-2.12/scoverage-report
