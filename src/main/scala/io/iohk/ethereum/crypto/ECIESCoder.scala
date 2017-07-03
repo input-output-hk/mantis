@@ -84,7 +84,7 @@ object ECIESCoder {
 
     val gParam = new ECKeyGenerationParameters(curve, secureRandom)
 
-    val IV = ByteUtils.secureRandomBytes(secureRandom, KeySize / 8)
+    val IV = secureRandomByteArray(secureRandom, KeySize / 8)
 
     val eGen = new ECKeyPairGenerator
     eGen.init(gParam)

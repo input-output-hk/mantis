@@ -1,7 +1,6 @@
 package io.iohk.ethereum.network.rlpx
 
 import java.net.{InetSocketAddress, URI}
-import java.security.SecureRandom
 
 import akka.actor._
 import akka.io.Tcp._
@@ -30,7 +29,7 @@ class RLPxConnectionHandler(
     nodeKey: AsymmetricCipherKeyPair,
     messageDecoder: MessageDecoder,
     protocolVersion: Message.Version,
-    secureRandom: SecureRandom)
+    authHandshaker: AuthHandshaker)
   extends Actor with ActorLogging {
 
   import AuthHandshaker.{InitiatePacketLength, ResponsePacketLength}
@@ -48,16 +47,15 @@ class RLPxConnectionHandler(
 
     case HandleConnection(connection) =>
       connection ! Register(self)
-      val handshaker = AuthHandshaker(nodeKey, secureRandom)
       val timeout = system.scheduler.scheduleOnce(3.seconds, self, AuthHandshakeTimeout)
-      context become new ConnectedHandler(connection).waitingForAuthHandshakeInit(handshaker, timeout)
+      context become new ConnectedHandler(connection).waitingForAuthHandshakeInit(authHandshaker, timeout)
   }
 
   def waitingForConnectionResult(uri: URI): Receive = {
     case Connected(_, _) =>
       val connection = sender()
       connection ! Register(self)
-      val (initPacket, handshaker) = AuthHandshaker(nodeKey, secureRandom).initiate(uri, secureRandom)
+      val (initPacket, handshaker) = authHandshaker.initiate(uri)
       connection ! Write(initPacket)
       val timeout = system.scheduler.scheduleOnce(3.seconds, self, AuthHandshakeTimeout)
       context become new ConnectedHandler(connection).waitingForAuthHandshakeResponse(handshaker, timeout)
@@ -74,7 +72,7 @@ class RLPxConnectionHandler(
       handleTimeout orElse handleConnectionClosed orElse {
         case Received(data) =>
           timeout.cancel()
-          Try(handshaker.handleInitialMessage(data.take(InitiatePacketLength), secureRandom)) match {
+          Try(handshaker.handleInitialMessage(data.take(InitiatePacketLength))) match {
             case Success((responsePacket, result)) =>
               // process pre-eip8 message
               val remainingData = data.drop(InitiatePacketLength)
@@ -85,7 +83,7 @@ class RLPxConnectionHandler(
               // process as eip8 message
               val encryptedPayloadSize = ByteUtils.bigEndianToShort(data.take(2).toArray)
               val (packetData, remainingData) = data.splitAt(encryptedPayloadSize + 2)
-              val (responsePacket, result) = handshaker.handleInitialMessageV4(packetData, secureRandom)
+              val (responsePacket, result) = handshaker.handleInitialMessageV4(packetData)
               connection ! Write(responsePacket)
               processHandshakeResult(result, remainingData)
           }
@@ -174,8 +172,8 @@ class RLPxConnectionHandler(
 }
 
 object RLPxConnectionHandler {
-  def props(nodeKey: AsymmetricCipherKeyPair, messageDecoder: MessageDecoder, protocolVersion: Int, secureRandom: SecureRandom): Props =
-    Props(new RLPxConnectionHandler(nodeKey, messageDecoder, protocolVersion, secureRandom))
+  def props(nodeKey: AsymmetricCipherKeyPair, messageDecoder: MessageDecoder, protocolVersion: Int, authHandshaker: AuthHandshaker): Props =
+    Props(new RLPxConnectionHandler(nodeKey, messageDecoder, protocolVersion, authHandshaker))
 
   case class ConnectTo(uri: URI)
 

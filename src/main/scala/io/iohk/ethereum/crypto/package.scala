@@ -44,6 +44,15 @@ package object crypto {
     generator.generateKeyPair()
   }
 
+  def secureRandomByteString(secureRandom: SecureRandom, length: Int): ByteString =
+    ByteString(secureRandomByteArray(secureRandom, length))
+
+  def secureRandomByteArray(secureRandom: SecureRandom, length: Int): Array[Byte] = {
+    val bytes = Array.ofDim[Byte](length)
+    secureRandom.nextBytes(bytes)
+    bytes
+  }
+
   /** @return (privateKey, publicKey) pair */
   def keyPairToByteArrays(keyPair: AsymmetricCipherKeyPair): (Array[Byte], Array[Byte]) = {
     val prvKey = keyPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD.toByteArray

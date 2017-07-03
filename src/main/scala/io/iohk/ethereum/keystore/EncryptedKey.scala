@@ -8,7 +8,6 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.SymmetricCipher
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.EncryptedKey._
-import io.iohk.ethereum.utils.ByteUtils
 
 object EncryptedKey {
   val AES128CTR = "aes-128-ctr"
@@ -33,12 +32,12 @@ object EncryptedKey {
     val pubKey = crypto.pubKeyFromPrvKey(prvKey)
     val address = Address(crypto.kec256(pubKey))
 
-    val salt = ByteUtils.secureRandomByteString(secureRandom, 32)
+    val salt = crypto.secureRandomByteString(secureRandom, 32)
     val kdfParams = ScryptParams(salt, 1 << 18, 8, 1, 32) //params used by Geth
     val dk = deriveKey(passphrase, kdfParams)
 
     val cipherName = AES128CTR
-    val iv = ByteUtils.secureRandomByteString(secureRandom, 16)
+    val iv = crypto.secureRandomByteString(secureRandom, 16)
     val secret = dk.take(16)
     val ciphertext = getCipher(cipherName).encrypt(secret, iv, prvKey)
 

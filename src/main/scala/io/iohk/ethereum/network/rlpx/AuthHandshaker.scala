@@ -41,8 +41,8 @@ object AuthHandshaker {
   val Version = 4
 
   def apply(nodeKey: AsymmetricCipherKeyPair, secureRandom: SecureRandom): AuthHandshaker = {
-    val nonce = secureRandomBytes(secureRandom, NonceSize)
-    AuthHandshaker(nodeKey, ByteString(nonce), generateKeyPair(secureRandom))
+    val nonce = secureRandomByteArray(secureRandom, NonceSize)
+    AuthHandshaker(nodeKey, ByteString(nonce), generateKeyPair(secureRandom), secureRandom)
   }
 }
 
@@ -50,13 +50,14 @@ case class AuthHandshaker(
     nodeKey: AsymmetricCipherKeyPair,
     nonce: ByteString,
     ephemeralKey: AsymmetricCipherKeyPair,
+    secureRandom: SecureRandom,
     isInitiator: Boolean = false,
     initiatePacketOpt: Option[ByteString] = None,
     responsePacketOpt: Option[ByteString] = None) {
 
   import AuthHandshaker._
 
-  def initiate(uri: URI, secureRandom: SecureRandom): (ByteString, AuthHandshaker) = {
+  def initiate(uri: URI): (ByteString, AuthHandshaker) = {
     val remotePubKey = publicKeyFromNodeId(uri.getUserInfo)
     val message = createAuthInitiateMessageV4(remotePubKey)
     val encoded: Array[Byte] = message.toBytes
@@ -90,7 +91,7 @@ case class AuthHandshaker(
     copy(responsePacketOpt = Some(data)).finalizeHandshake(message.ephemeralPublicKey, message.nonce)
   }
 
-  def handleInitialMessage(data: ByteString, secureRandom: SecureRandom): (ByteString, AuthHandshakeResult) = {
+  def handleInitialMessage(data: ByteString): (ByteString, AuthHandshakeResult) = {
     val plaintext = ECIESCoder.decrypt(nodeKey.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD, data.toArray)
     val message = AuthInitiateMessage.decode(plaintext)
 
@@ -109,7 +110,7 @@ case class AuthHandshaker(
     (encryptedPacket, handshakeResult)
   }
 
-  def handleInitialMessageV4(data: ByteString, secureRandom: SecureRandom): (ByteString, AuthHandshakeResult) = {
+  def handleInitialMessageV4(data: ByteString): (ByteString, AuthHandshakeResult) = {
     val sizeBytes = data.take(2)
     val encryptedPayload = data.drop(2)
 

@@ -42,7 +42,7 @@ class AuthHandshakerSpec extends FlatSpec with Matchers with SecureRandomProvide
   val nonce = ByteString(Array.fill[Byte](AuthHandshaker.NonceSize)(1.toByte))
 
   "AuthHandshaker" should "handle init response" in {
-    val (_, authHandshaker) = AuthHandshaker(nodeKey, nonce, ephemeralKey).initiate(remoteUri, secureRandom)
+    val (_, authHandshaker) = AuthHandshaker(nodeKey, nonce, ephemeralKey, secureRandom).initiate(remoteUri)
 
     val response = AuthResponseMessage(
       ephemeralPublicKey = remoteEphemeralKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ,
@@ -64,11 +64,11 @@ class AuthHandshakerSpec extends FlatSpec with Matchers with SecureRandomProvide
   }
 
   it should "handle both incoming packet and a response" in {
-    val thisHandshaker = AuthHandshaker(nodeKey, nonce, ephemeralKey)
-    val remoteHandshaker = AuthHandshaker(remoteNodeKey, remoteNonce, remoteEphemeralKey)
+    val thisHandshaker = AuthHandshaker(nodeKey, nonce, ephemeralKey, secureRandom)
+    val remoteHandshaker = AuthHandshaker(remoteNodeKey, remoteNonce, remoteEphemeralKey, secureRandom)
 
-    val (initPacket, thisHandshakerInitiated) = thisHandshaker.initiate(remoteUri, secureRandom)
-    val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets)) = remoteHandshaker.handleInitialMessageV4(initPacket, secureRandom)
+    val (initPacket, thisHandshakerInitiated) = thisHandshaker.initiate(remoteUri)
+    val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets)) = remoteHandshaker.handleInitialMessageV4(initPacket)
     val AuthHandshakeSuccess(thisSecrets: Secrets) = thisHandshakerInitiated.handleResponseMessageV4(responsePacket)
 
     remoteSecrets.token shouldBe thisSecrets.token

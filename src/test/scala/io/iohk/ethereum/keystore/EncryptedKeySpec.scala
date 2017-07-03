@@ -3,7 +3,6 @@ package io.iohk.ethereum.keystore
 import org.scalatest.{FlatSpec, Matchers}
 import io.iohk.ethereum.{SecureRandomProvider, crypto}
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.utils.ByteUtils
 
 class EncryptedKeySpec extends FlatSpec with Matchers with SecureRandomProvider {
 
@@ -57,7 +56,7 @@ class EncryptedKeySpec extends FlatSpec with Matchers with SecureRandomProvider 
 
 
   "EncryptedKey" should "securely store private keys" in {
-    val prvKey = ByteUtils.secureRandomByteString(secureRandom, 32)
+    val prvKey = crypto.secureRandomByteString(secureRandom, 32)
     val passphrase = "P4S5W0rd"
     val encKey = EncryptedKey(prvKey, passphrase, secureRandom)
 

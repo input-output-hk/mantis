@@ -1,7 +1,6 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
-import java.security.SecureRandom
 
 import akka.util.Timeout
 import io.iohk.ethereum.network.PeerActor.Status.{Handshaked, Handshaking}
@@ -19,6 +18,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.MessageSerializable
+import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 import scala.util.{Failure, Success}
@@ -180,18 +180,18 @@ object PeerManagerActor {
                                   peerConfiguration: PeerConfiguration,
                                   peerEventBus: ActorRef,
                                   handshaker: Handshaker[R],
-                                  secureRandom: SecureRandom): Props =
+                                  authHandshaker: AuthHandshaker): Props =
     Props(new PeerManagerActor(peerEventBus, peerConfiguration,
-      peerFactory(nodeStatusHolder, peerConfiguration, peerEventBus, handshaker, secureRandom)))
+      peerFactory(nodeStatusHolder, peerConfiguration, peerEventBus, handshaker, authHandshaker)))
 
   def props[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
                                   peerConfiguration: PeerConfiguration,
                                   bootstrapNodes: Set[String],
                                   peerMessageBus: ActorRef,
                                   handshaker: Handshaker[R],
-                                  secureRandom: SecureRandom): Props =
+                                  authHandshaker: AuthHandshaker): Props =
     Props(new PeerManagerActor(peerMessageBus, peerConfiguration,
-      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, handshaker, secureRandom),
+      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, handshaker, authHandshaker),
       bootstrapNodes = bootstrapNodes)
     )
 
@@ -199,11 +199,11 @@ object PeerManagerActor {
                                         peerConfiguration: PeerConfiguration,
                                         peerEventBus: ActorRef,
                                         handshaker: Handshaker[R],
-                                        secureRandom: SecureRandom): (ActorContext, InetSocketAddress) => ActorRef = {
+                                        authHandshaker: AuthHandshaker): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
       ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, peerEventBus,
-        handshaker, secureRandom), id)
+        handshaker, authHandshaker), id)
   }
 
   trait PeerConfiguration {

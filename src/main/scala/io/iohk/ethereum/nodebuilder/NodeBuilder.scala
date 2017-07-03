@@ -23,6 +23,7 @@ import io.iohk.ethereum.utils._
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
+import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
@@ -99,6 +100,13 @@ trait HandshakerBuilder {
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
 }
 
+trait AuthHandshakerBuilder {
+  self: NodeKeyBuilder
+  with SecureRandomBuilder =>
+
+  lazy val authHandshaker: AuthHandshaker = AuthHandshaker(nodeKey, secureRandom)
+}
+
 trait PeerEventBusBuilder {
   self: ActorSystemBuilder =>
 
@@ -111,7 +119,7 @@ trait PeerManagerActorBuilder {
     with NodeStatusBuilder
     with HandshakerBuilder
     with PeerEventBusBuilder
-    with SecureRandomBuilder =>
+    with AuthHandshakerBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
@@ -120,7 +128,7 @@ trait PeerManagerActorBuilder {
     Config.Network.peer,
     peerEventBus,
     handshaker,
-    secureRandom), "peer-manager")
+    authHandshaker), "peer-manager")
 
 }
 
@@ -364,3 +372,4 @@ trait Node extends NodeKeyBuilder
   with FilterManagerBuilder
   with FilterConfigBuilder
   with SecureRandomBuilder
+  with AuthHandshakerBuilder
