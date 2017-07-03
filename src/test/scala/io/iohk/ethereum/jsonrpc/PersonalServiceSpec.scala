@@ -12,7 +12,7 @@ import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, GetPendingTransactions, PendingTransaction, PendingTransactionsResponse}
-import io.iohk.ethereum.utils.MiningConfig
+import io.iohk.ethereum.utils.{MiningConfig, TxPoolConfig}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
@@ -294,19 +294,16 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     implicit val system = ActorSystem("personal-service-test")
 
-    val miningConfig = new MiningConfig {
-      override val coinbase: Address = Address(42)
-      override val blockCacheSize: Int = 30
-      override val ommersPoolSize: Int = 30
+    val txPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 30
-      override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val keyStore = mock[KeyStore]
     val blockchain = mock[Blockchain]
     val txPool = TestProbe()
     val appStateStorage = mock[AppStateStorage]
-    val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, miningConfig)
+    val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, txPoolConfig)
 
     def array[T](arr: Array[T]): Matcher[Array[T]] =
       argThat((_: Array[T]) sameElements arr)

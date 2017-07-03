@@ -12,7 +12,7 @@ import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, PendingTransactionsResponse}
-import io.iohk.ethereum.utils.MiningConfig
+import io.iohk.ethereum.utils.TxPoolConfig
 
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -61,7 +61,7 @@ class PersonalService(
   blockchain: Blockchain,
   txPool: ActorRef,
   appStateStorage: AppStateStorage,
-  miningConfig: MiningConfig) {
+  txPoolConfig: TxPoolConfig) {
 
   private val unlockedWallets: mutable.Map[Address, Wallet] = mutable.Map.empty
 
@@ -142,7 +142,7 @@ class PersonalService(
   }
 
   private def sendTransaction(request: TransactionRequest, wallet: Wallet): Future[ByteString] = {
-    implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
+    implicit val timeout = Timeout(txPoolConfig.pendingTxManagerQueryTimeout)
 
     val pendingTxsFuture = (txPool ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
     val latestPendingTxNonceFuture: Future[Option[BigInt]] = pendingTxsFuture.map { pendingTxs =>

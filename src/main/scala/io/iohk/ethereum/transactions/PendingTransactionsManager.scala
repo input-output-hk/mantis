@@ -9,14 +9,14 @@ import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
-import io.iohk.ethereum.utils.MiningConfig
+import io.iohk.ethereum.utils.TxPoolConfig
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object PendingTransactionsManager {
-  def props(miningConfig: MiningConfig, peerManager: ActorRef, etcPeerManager: ActorRef, peerMessageBus: ActorRef): Props =
-    Props(new PendingTransactionsManager(miningConfig, peerManager, etcPeerManager, peerMessageBus))
+  def props(txPoolConfig: TxPoolConfig, peerManager: ActorRef, etcPeerManager: ActorRef, peerMessageBus: ActorRef): Props =
+    Props(new PendingTransactionsManager(txPoolConfig, peerManager, etcPeerManager, peerMessageBus))
 
   case class AddTransactions(signedTransactions: List[SignedTransaction])
 
@@ -34,7 +34,7 @@ object PendingTransactionsManager {
   case class PendingTransaction(stx: SignedTransaction, addTimestamp: Long)
 }
 
-class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorRef,
+class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorRef,
                                  etcPeerManager: ActorRef, peerMessageBus: ActorRef) extends Actor {
 
   import PendingTransactionsManager._
@@ -60,7 +60,7 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
       val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.map(_.stx).contains(t))
       if (transactionsToAdd.nonEmpty) {
         val timestamp = System.currentTimeMillis()
-        pendingTransactions = (pendingTransactions ++ transactionsToAdd.map(PendingTransaction(_, timestamp))).takeRight(miningConfig.txPoolSize)
+        pendingTransactions = (pendingTransactions ++ transactionsToAdd.map(PendingTransaction(_, timestamp))).takeRight(txPoolConfig.txPoolSize)
         (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
           peers.handshaked.foreach { peer => self ! NotifyPeer(transactionsToAdd, peer) }
         }
