@@ -487,7 +487,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val (refund, _) = stateIn.stack.pop
       val world = stateIn.world.saveAccount(
         Address(refund),
-        Account.Empty)
+        Account.empty(UInt256.Zero))
       val updatedStateIn = stateIn.withWorld(world)
       val stateOut = op.execute(updatedStateIn)
       verifyGas(G_selfdestruct, updatedStateIn, stateOut)

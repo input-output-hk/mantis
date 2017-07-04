@@ -10,6 +10,7 @@ import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransactions
+import io.iohk.ethereum.utils.BlockchainConfig
 
 import scala.collection.mutable
 import scala.concurrent.Future
@@ -56,7 +57,8 @@ class PersonalService(
   keyStore: KeyStore,
   blockchain: Blockchain,
   txPool: ActorRef,
-  appStateStorage: AppStateStorage) {
+  appStateStorage: AppStateStorage,
+  blockchainConfig: BlockchainConfig) {
 
   private val unlockedWallets: mutable.Map[Address, Wallet] = mutable.Map.empty
 
@@ -133,7 +135,7 @@ class PersonalService(
   }
 
   private def sendTransaction(request: TransactionRequest, wallet: Wallet): ByteString = {
-    val defaultNonce = getCurrentAccount(request.from).getOrElse(Account.Empty).nonce
+    val defaultNonce = getCurrentAccount(request.from).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).nonce
     val tx = request.toTransaction(defaultNonce)
     val stx = wallet.signTx(tx)
 

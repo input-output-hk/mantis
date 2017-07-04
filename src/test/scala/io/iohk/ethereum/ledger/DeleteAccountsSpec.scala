@@ -1,9 +1,10 @@
 package io.iohk.ethereum.ledger
 
-import io.iohk.ethereum.utils.{Config, BlockchainConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.vm.UInt256
 import org.scalatest.{FlatSpec, Matchers}
 
 class DeleteAccountsSpec extends FlatSpec with Matchers {
@@ -50,7 +51,8 @@ class DeleteAccountsSpec extends FlatSpec with Matchers {
     val accountAddresses = Set(validAccountAddress, validAccountAddress2, validAccountAddress3)
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
-      storagesInstance.storages
+      storagesInstance.storages,
+      UInt256.Zero
     ).saveAccount(validAccountAddress, Account(balance = 10))
       .saveAccount(validAccountAddress2, Account(balance = 20))
       .saveAccount(validAccountAddress3, Account(balance = 30))

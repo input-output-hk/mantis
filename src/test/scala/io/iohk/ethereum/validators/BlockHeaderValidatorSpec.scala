@@ -34,6 +34,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     override val blockReward: UInt256 = 5
     override val daoForkBlockTotalDifficulty: BigInt = 0
     override val customGenesisFileOpt: Option[String] = None
+    override val accountStartNonce: UInt256 = UInt256.Zero
   }
 
   val blockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)

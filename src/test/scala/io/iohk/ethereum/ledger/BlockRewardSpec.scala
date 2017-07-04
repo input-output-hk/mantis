@@ -4,6 +4,7 @@ import io.iohk.ethereum.{Fixtures, Mocks}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Account, Address, Block}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import io.iohk.ethereum.vm.UInt256
 import org.scalatest.{FlatSpec, Matchers}
 
 class BlockRewardSpec extends FlatSpec with Matchers {
@@ -56,7 +57,8 @@ class BlockRewardSpec extends FlatSpec with Matchers {
     val ommerFiveBlocksDifferenceReward = BigInt("1875000000000000000")
 
     val worldState: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
-      storagesInstance.storages
+      storagesInstance.storages,
+      UInt256.Zero
     ).saveAccount(validAccountAddress, Account(balance = 10))
       .saveAccount(validAccountAddress2, Account(balance = 20))
       .saveAccount(validAccountAddress3, Account(balance = 30))
