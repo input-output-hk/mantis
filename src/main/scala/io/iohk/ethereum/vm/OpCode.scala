@@ -159,7 +159,7 @@ object OpCodes {
       SELFDESTRUCT)
 
   val HomesteadOpCodes: List[OpCode] =
-    FrontierOpCodes :+ DELEGATECALL
+    DELEGATECALL +: FrontierOpCodes
 }
 
 object OpCode {
