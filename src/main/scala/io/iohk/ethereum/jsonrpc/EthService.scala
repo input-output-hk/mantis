@@ -528,7 +528,7 @@ class EthService(
       case Success(signedTransaction) =>
         pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(signedTransaction)
         Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
-      case Failure(ex) =>
+      case Failure(_) =>
         Future.successful(Left(JsonRpcErrors.InvalidRequest))
     }
   }
