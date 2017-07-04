@@ -301,13 +301,13 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
       val ommersAddresses = (0 until ommersSize).map(i => Address(i.toByte +: Hex.decode("10")))
 
-      val blockReward = ledger.rewardTeller.calcBlockMinerReward(validBlockHeader.number, ommersSize)
+      val blockReward = ledger.blockRewardCalculator.calcBlockMinerReward(validBlockHeader.number, ommersSize)
 
 
       val changes = Seq(
         minerAddress -> UpdateBalance(UInt256(blockReward))
       ) ++ ommersAddresses.map { ommerAddress =>
-        val ommerReward = ledger.rewardTeller.calcOmmerMinerReward(validBlockHeader.number, validBlockHeader.number - ommersBlockDifference)
+        val ommerReward = ledger.blockRewardCalculator.calcOmmerMinerReward(validBlockHeader.number, validBlockHeader.number - ommersBlockDifference)
         ommerAddress -> UpdateBalance(UInt256(ommerReward))
       }
 
@@ -353,7 +353,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     )), blockchainConfig)
 
 
-    val blockReward = ledger.rewardTeller.calcBlockMinerReward(validBlockHeader.number, 0)
+    val blockReward = ledger.blockRewardCalculator.calcBlockMinerReward(validBlockHeader.number, 0)
 
     val changes = Seq(
       minerAddress -> UpdateBalance(UInt256(blockReward)) //Paying miner for block processing
@@ -391,7 +391,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       error = Some(OutOfGas)
     )), blockchainConfig)
 
-    val blockReward = ledger.rewardTeller.calcBlockMinerReward(validBlockHeader.number, 0)
+    val blockReward = ledger.blockRewardCalculator.calcBlockMinerReward(validBlockHeader.number, 0)
     val changes = Seq(
       minerAddress -> UpdateBalance(UInt256(blockReward)) //Paying miner for block processing
     )
@@ -504,7 +504,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       //Check world
       InMemoryWorldStateProxy.persistState(resultingWorldState).stateRootHash shouldBe expectedStateRootTx2
 
-      val blockReward = ledger.rewardTeller.calcBlockMinerReward(block.header.number, 0)
+      val blockReward = ledger.blockRewardCalculator.calcBlockMinerReward(block.header.number, 0)
       val changes = Seq(
         minerAddress -> UpdateBalance(UInt256(blockReward))
       )

@@ -7,7 +7,7 @@ import io.iohk.ethereum.utils.MonetaryPolicyConfig
   * Avoids floating point arithmetic. Because of that the formulas may look a bit unintuitive, but the important
   * thing here is that we want to defer any division to be a single and final operation
   */
-class RewardTeller(config: MonetaryPolicyConfig) {
+class BlockRewardCalculator(config: MonetaryPolicyConfig) {
   /** Era duration in blocks */
   val eraDuration: BigInt = config.eraDuration
 
@@ -44,8 +44,8 @@ class RewardTeller(config: MonetaryPolicyConfig) {
     val eraMultiplier = rewardReductionRateNumer.pow(era)
     val eraDivisor = rewardReductionRateDenom.pow(era)
 
-    val baseReward = firstEraBlockReward * eraMultiplier / eraDivisor
-    val ommersReward = firstEraBlockReward * ommersCount * ommerInclusionRewardNumer * eraMultiplier /
+    val baseReward = (firstEraBlockReward * eraMultiplier) / eraDivisor
+    val ommersReward = (firstEraBlockReward * ommersCount * ommerInclusionRewardNumer * eraMultiplier) /
       (ommerInclusionRewardDenom * eraDivisor)
     baseReward + ommersReward
   }
@@ -55,11 +55,11 @@ class RewardTeller(config: MonetaryPolicyConfig) {
 
     if (era == 0) {
       val numer = firstEraOmmerMiningRewardMaxNumer - (blockNumber - ommerNumber - 1)
-      firstEraBlockReward * numer / firstEraOmmerMiningRewardDenom
+      (firstEraBlockReward * numer) / firstEraOmmerMiningRewardDenom
     } else {
       val eraMultiplier = rewardReductionRateNumer.pow(era)
       val eraDivisor = rewardReductionRateDenom.pow(era)
-      firstEraBlockReward * ommerMiningRewardNumer * eraMultiplier / (ommerMiningRewardDenom * eraDivisor)
+      (firstEraBlockReward * ommerMiningRewardNumer * eraMultiplier) / (ommerMiningRewardDenom * eraDivisor)
     }
   }
 

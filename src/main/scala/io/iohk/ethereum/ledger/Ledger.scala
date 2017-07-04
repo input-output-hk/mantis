@@ -24,7 +24,7 @@ trait Ledger {
 
 class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with Logger {
 
-  val rewardTeller = new RewardTeller(blockchainConfig.monetaryPolicyConfig)
+  val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
 
   def executeBlock(
     block: Block,
@@ -257,14 +257,14 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
     val minerAddress = Address(block.header.beneficiary)
     val minerAccount = getAccountToPay(minerAddress, worldStateProxy)
-    val minerReward = rewardTeller.calcBlockMinerReward(block.header.number, block.body.uncleNodesList.size)
+    val minerReward = blockRewardCalculator.calcBlockMinerReward(block.header.number, block.body.uncleNodesList.size)
     val afterMinerReward = worldStateProxy.saveAccount(minerAddress, minerAccount.increaseBalance(UInt256(minerReward)))
     log.debug(s"Paying block ${block.header.number} reward of $minerReward to miner with account address $minerAddress")
 
     block.body.uncleNodesList.foldLeft(afterMinerReward) { (ws, ommer) =>
       val ommerAddress = Address(ommer.beneficiary)
       val account = getAccountToPay(ommerAddress, ws)
-      val ommerReward = rewardTeller.calcOmmerMinerReward(block.header.number, ommer.number)
+      val ommerReward = blockRewardCalculator.calcOmmerMinerReward(block.header.number, ommer.number)
       log.debug(s"Paying block ${block.header.number} reward of $ommerReward to ommer with account address $ommerAddress")
       ws.saveAccount(ommerAddress, account.increaseBalance(UInt256(ommerReward)))
     }

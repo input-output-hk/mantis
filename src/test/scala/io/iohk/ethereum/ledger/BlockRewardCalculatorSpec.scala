@@ -4,9 +4,9 @@ import io.iohk.ethereum.utils.MonetaryPolicyConfig
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 
-class RewardTellerSpec extends FlatSpec with Matchers with PropertyChecks {
+class BlockRewardCalculatorSpec extends FlatSpec with Matchers with PropertyChecks {
 
-  "RewardTeller" should "correctly calculate block and ommer rewards" in {
+  "BlockRewardCalculator" should "correctly calculate block and ommer rewards" in {
     val standardMP = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L)
 
     val testMP = MonetaryPolicyConfig(10, 0.5, 5000000)
@@ -16,6 +16,7 @@ class RewardTellerSpec extends FlatSpec with Matchers with PropertyChecks {
       (standardMP, 1, Nil, 5000000000000000000L, Nil),
       (standardMP, 1000000, List(999999), 5156250000000000000L, List(4375000000000000000L)),
       (standardMP, 5000000, List(4999998, 4999997), 5312500000000000000L, List(3750000000000000000L, 3125000000000000000L)),
+      (standardMP, 5000000, Nil, 5000000000000000000L, Nil),
       (standardMP, 5000001, Nil, 4000000000000000000L, Nil),
       (standardMP, 7000000, List(6999999), 4125000000000000000L, List(125000000000000000L)),
       (standardMP, 10000000, List(9999998, 9999997), 4250000000000000000L, List(125000000000000000L, 125000000000000000L)),
@@ -32,10 +33,10 @@ class RewardTellerSpec extends FlatSpec with Matchers with PropertyChecks {
     )
 
     forAll(table) { (config, blockNumber, ommersNumbers, expectedBlockReward, expectedOmmersRewards) =>
-      val teller = new RewardTeller(config)
+      val calculator = new BlockRewardCalculator(config)
 
-      val blockReward = teller.calcBlockMinerReward(blockNumber, ommersNumbers.size)
-      val ommersRewards = ommersNumbers.map(teller.calcOmmerMinerReward(blockNumber, _))
+      val blockReward = calculator.calcBlockMinerReward(blockNumber, ommersNumbers.size)
+      val ommersRewards = ommersNumbers.map(calculator.calcOmmerMinerReward(blockNumber, _))
 
       blockReward shouldEqual expectedBlockReward
       ommersRewards shouldEqual expectedOmmersRewards

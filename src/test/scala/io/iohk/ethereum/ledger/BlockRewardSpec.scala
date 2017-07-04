@@ -23,7 +23,7 @@ class BlockRewardSpec extends FlatSpec with Matchers {
   "Reward" should "be paid to the miner even if the account doesn't exist" in new TestSetup {
     val block = sampleBlock(Address(0xdeadbeef))
     val afterRewardWorldState: InMemoryWorldStateProxy = ledger.payBlockReward(block, worldState)
-    val expectedReward = UInt256(ledger.rewardTeller.calcBlockMinerReward(block.header.number, 0))
+    val expectedReward = UInt256(ledger.blockRewardCalculator.calcBlockMinerReward(block.header.number, 0))
     afterRewardWorldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance shouldEqual expectedReward
   }
 
