@@ -7,7 +7,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor, PeerId, PeerManagerActor}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.utils.MiningConfig
 
@@ -55,9 +55,8 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
   peerMessageBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
   override def receive: Receive = {
+    // TODO: we should check whether a transaction with the same address and nonce exists, and if so replace it with the new version
     case AddTransactions(signedTransactions) =>
-      // TODO: we should check whether a transaction with the same header and nonce exists, and if so replace it with the
-      // new version
       val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.map(_.stx).contains(t))
       if (transactionsToAdd.nonEmpty) {
         val timestamp = System.currentTimeMillis()
@@ -85,14 +84,8 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
       knownTransactions = knownTransactions.filterNot(signedTransactions.map(_.hash).contains)
 
     case MessageFromPeer(SignedTransactions(signedTransactions), peerId) =>
-      // TODO: we should check whether a transaction with the same header and nonce exists, and if so replace it with the
-      // new version
-      val timestamp = System.currentTimeMillis()
-      pendingTransactions = (pendingTransactions ++ signedTransactions.map(PendingTransaction(_, timestamp))).takeRight(miningConfig.txPoolSize)
+      self ! AddTransactions(signedTransactions.toList)
       signedTransactions.foreach(setTxKnown(_, peerId))
-      (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
-        peers.handshaked.foreach { p => self ! NotifyPeer(signedTransactions, p) }
-      }
   }
 
   private def isTxKnown(signedTransaction: SignedTransaction, peerId: PeerId): Boolean =

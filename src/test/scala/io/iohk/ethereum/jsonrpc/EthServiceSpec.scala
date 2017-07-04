@@ -3,7 +3,8 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.{DefaultPatience, Fixtures, crypto}
+import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -23,7 +24,7 @@ import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
-import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.validators.Validators
@@ -31,10 +32,8 @@ import io.iohk.ethereum.vm.UInt256
 import org.scalamock.scalatest.MockFactory
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.duration._
-
 // scalastyle:off file.size.limit
-class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockFactory with DefaultPatience {
+class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockFactory with NormalPatience {
 
   behavior of "EthService"
 
@@ -107,19 +106,33 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.transactionResponse shouldBe Some(expectedTxResponse)
   }
 
-  //FIXME: This test should be changed once the pending block doesn't equal to the latest one
-  it should "answer eth_getBlockByNumber with the correct parameters in None when the pending block is requested" in new TestSetup {
-    val bestBlockNumber = 10
+  it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {
 
-    blockchain.save(blockToRequest.copy(header = blockToRequest.header.copy(number = bestBlockNumber)))
-    blockchain.save(blockToRequestHash, blockTd)
-    (appStateStorage.getBestBlockNumber _).expects().returning(bestBlockNumber)
+    (blockGenerator.getPending _).expects().returns(Some(PendingBlock(blockToRequest, Nil)))
 
     val request = BlockByNumberRequest(BlockParam.Pending, fullTxs = true)
-    val response = Await.result(ethService.getBlockByNumber(request), Duration.Inf).right.get
-    response.blockResponse.get.hash shouldBe None
-    response.blockResponse.get.nonce shouldBe None
-    response.blockResponse.get.miner shouldBe None
+    val response = ethService.getBlockByNumber(request).futureValue.right.get
+
+    response.blockResponse.isDefined should be (true)
+    val blockResponse = response.blockResponse.get
+
+    blockResponse.hash shouldBe None
+    blockResponse.nonce shouldBe None
+    blockResponse.miner shouldBe None
+    blockResponse.number shouldBe blockToRequest.header.number
+  }
+
+  it should "answer eth_getBlockByNumber with the latest block pending block is requested and there are no pending ones" in new TestSetup {
+
+    blockchain.save(blockToRequest)
+    blockchain.save(blockToRequestHash, blockTd)
+
+    (blockGenerator.getPending _).expects().returns(None)
+    (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
+
+    val request = BlockByNumberRequest(BlockParam.Pending, fullTxs = true)
+    val response = ethService.getBlockByNumber(request).futureValue.right.get
+    response.blockResponse.get.hash.get shouldEqual blockToRequest.header.hash
   }
 
   it should "answer eth_getBlockByNumber with None when the requested block isn't in the blockchain" in new TestSetup {
@@ -355,7 +368,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "return requested work" in new TestSetup {
-    (blockGenerator.generateBlockForMining _).expects(BigInt(1), Nil, *, *).returning(Right(block))
+    (blockGenerator.generateBlockForMining _).expects(BigInt(1), Nil, *, *).returning(Right(PendingBlock(block, Nil)))
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
 
     val response: ServiceResponse[GetWorkResponse] = ethService.getWork(GetWorkRequest())
@@ -371,7 +384,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   it should "accept submitted correct PoW" in new TestSetup {
     val headerHash = ByteString(Hex.decode("01" * 32))
 
-    (blockGenerator.getPrepared _).expects(headerHash).returning(Some(block))
+    (blockGenerator.getPrepared _).expects(headerHash).returning(Some(PendingBlock(block, Nil)))
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
 
     val req = SubmitWorkRequest(ByteString("nonce"), headerHash, ByteString(Hex.decode("01" * 32)))
@@ -495,13 +508,13 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val id2 = ByteString("id2")
 
     ethService.submitHashRate(SubmitHashRateRequest(rate, id1)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
-    Thread.sleep(2.seconds.toMillis)
+    Thread.sleep(ethService.minerTimeOut / 2)
     ethService.submitHashRate(SubmitHashRateRequest(rate, id2)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
 
     val response1 = ethService.getHashRate(GetHashRateRequest())
     response1.futureValue shouldEqual Right(GetHashRateResponse(rate * 2))
 
-    Thread.sleep(4.seconds.toMillis)
+    Thread.sleep(ethService.minerTimeOut / 2)
     val response2 = ethService.getHashRate(GetHashRateRequest())
     response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
   }
@@ -509,11 +522,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   it should "return if node is mining base on getWork" in new TestSetup {
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
-    (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(block))
+    (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(PendingBlock(block, Nil)))
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
     ethService.getWork(GetWorkRequest())
-
-    Thread.sleep(1.seconds.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -523,11 +534,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   it should "return if node is mining base on submitWork" in new TestSetup {
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
-    (blockGenerator.getPrepared _).expects(*).returning(Some(block))
+    (blockGenerator.getPrepared _).expects(*).returning(Some(PendingBlock(block, Nil)))
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
     ethService.submitWork(SubmitWorkRequest(ByteString("nonce"), ByteString(Hex.decode("01" * 32)), ByteString(Hex.decode("01" * 32))))
-
-    Thread.sleep(1.seconds.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -539,19 +548,17 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     ethService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
 
-    Thread.sleep(1.seconds.toMillis)
-
     val response = ethService.getMining(GetMiningRequest())
 
     response.futureValue shouldEqual Right(GetMiningResponse(true))
   }
 
   it should "return if node is mining after time out" in new TestSetup {
-    (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(block))
+    (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(PendingBlock(block, Nil)))
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
     ethService.getWork(GetWorkRequest())
 
-    Thread.sleep(6.seconds.toMillis)
+    Thread.sleep(ethService.minerTimeOut)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -771,17 +778,19 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
       override val txPoolSize: Int = 30
-      override val poolingServicesTimeout: FiniteDuration = 3.seconds
+      override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val filterConfig = new FilterConfig {
-      override val filterTimeout: FiniteDuration = 3.seconds
-      override val filterManagerQueryTimeout: FiniteDuration = 3.seconds
-      override val pendingTransactionsManagerQueryTimeout: FiniteDuration = 3.seconds
+      override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val pendingTransactionsManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig)
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig) {
+      override val minerTimeOut: Long = Timeouts.shortTimeout.toMillis
+    }
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number

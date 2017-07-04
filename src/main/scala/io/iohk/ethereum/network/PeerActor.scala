@@ -10,7 +10,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.rlpx.{AuthHandshaker, RLPxConnectionHandler}
 import io.iohk.ethereum.network.PeerActor.Status._
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerHandshakeSuccessful}
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.utils.NodeStatus
 import io.iohk.ethereum.network.handshaker.Handshaker
@@ -101,9 +101,7 @@ class PeerActor[R <: HandshakeResult](
           timeout.cancel()
           processHandshakerNextMessage(newHandshaker, rlpxConnection, numRetries)
         }
-        handshaker.respondToRequest(msg).foreach{
-          case msgToSend => rlpxConnection.sendMessage(msgToSend)
-        }
+        handshaker.respondToRequest(msg).foreach(msgToSend => rlpxConnection.sendMessage(msgToSend))
 
       case ResponseTimeout =>
         timeout.cancel()

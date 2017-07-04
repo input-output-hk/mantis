@@ -12,10 +12,11 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import akka.pattern.ask
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.DefaultPatience
+import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.ledger.BloomFilter
+import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
@@ -24,12 +25,9 @@ import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
 
-class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience {
-
-  implicit val timeout = Timeout(5.seconds)
+class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience {
 
   "FilterManager" should "handle log filter logs and changes" in new TestSetup {
-    val filterManager = TestActorRef[FilterManager](Props(new FilterManager(blockchain, appStateStorage, keyStore, pendingTransactionsManager.ref, config, Some(time.scheduler))))
 
     val address = Address("0x1234")
     val topics = Seq(Seq(), Seq(ByteString(Hex.decode("4567"))))
@@ -55,9 +53,9 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
       logsBloom = BloomFilter.create(Nil))
 
     (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
-    (blockchain.getBlockHeaderByNumber _).expects(BigInt(1)).returning(Some(bh1))
-    (blockchain.getBlockHeaderByNumber _).expects(BigInt(2)).returning(Some(bh2))
-    (blockchain.getBlockHeaderByNumber _).expects(BigInt(3)).returning(Some(bh3))
+    (blockchain.getBlockHeaderByNumber _).expects(bh1.number).returning(Some(bh1))
+    (blockchain.getBlockHeaderByNumber _).expects(bh2.number).returning(Some(bh2))
+    (blockchain.getBlockHeaderByNumber _).expects(bh3.number).returning(Some(bh3))
 
     val bb2 = BlockBody(
       transactionList = Seq(SignedTransaction(
@@ -159,8 +157,102 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
     changesResp2.logs.size shouldBe 1
   }
 
+  it should "handle pending block filter" in new TestSetup {
+
+    val address = Address("0x1234")
+    val topics = Seq(Seq(), Seq(ByteString(Hex.decode("4567"))))
+
+    (appStateStorage.getBestBlockNumber _).expects().returning(3)
+
+    val createResp =
+      (filterManager ? FilterManager.NewLogFilter(Some(BlockParam.WithNumber(1)), Some(BlockParam.Pending), Some(address), topics))
+        .mapTo[FilterManager.NewFilterResponse].futureValue
+
+    val logs = Seq(TxLogEntry(Address("0x1234"), Seq(ByteString("can be any"), ByteString(Hex.decode("4567"))), ByteString(Hex.decode("99aaff"))))
+    val bh = blockHeader.copy(
+      number = 1,
+      logsBloom = BloomFilter.create(logs))
+
+    (appStateStorage.getBestBlockNumber _).expects().returning(1).anyNumberOfTimes()
+    (blockchain.getBlockHeaderByNumber _).expects(bh.number).returning(Some(bh))
+    val bb = BlockBody(
+      transactionList = Seq(SignedTransaction(
+        tx = Transaction(
+          nonce = 0,
+          gasPrice = 123,
+          gasLimit = 123,
+          receivingAddress = Address("0x1234"),
+          value = 0,
+          payload = ByteString()),
+        signature = ECDSASignature(0, 0, 0.toByte),
+        senderAddress = Address("0x0099"))),
+      uncleNodesList = Nil)
+
+    (blockchain.getBlockBodyByHash _).expects(bh.hash).returning(Some(bb))
+    (blockchain.getReceiptsByHash _).expects(bh.hash).returning(Some(Seq(Receipt(
+      postTransactionStateHash = ByteString(),
+      cumulativeGasUsed = 0,
+      logsBloomFilter = BloomFilter.create(logs),
+      logs = logs))))
+
+
+
+    val logs2 = Seq(TxLogEntry(Address("0x1234"), Seq(ByteString("another log"), ByteString(Hex.decode("4567"))), ByteString(Hex.decode("99aaff"))))
+    val bh2 = blockHeader.copy(
+      number = 2,
+      logsBloom = BloomFilter.create(logs2))
+    val blockTransactions2 = Seq(SignedTransaction(
+      tx = Transaction(
+        nonce = 0,
+        gasPrice = 321,
+        gasLimit = 321,
+        receivingAddress = Address("0x1234"),
+        value = 0,
+        payload = ByteString()),
+      signature = ECDSASignature(0, 0, 0.toByte),
+      senderAddress = Address("0x9900"))
+    )
+    val block2 = Block(bh2, BlockBody(blockTransactions2, Nil))
+    (blockGenerator.getPending _).expects().returning(Some(
+      PendingBlock(
+        block2,
+        Seq(Receipt(
+            postTransactionStateHash = ByteString(),
+            cumulativeGasUsed = 0,
+            logsBloomFilter = BloomFilter.create(logs2),
+            logs = logs2)
+          )
+        )
+      )
+    )
+
+    val logsResp =
+      (filterManager ? FilterManager.GetFilterLogs(createResp.id))
+        .mapTo[FilterManager.LogFilterLogs].futureValue
+
+    logsResp.logs.size shouldBe 2
+    logsResp.logs.head shouldBe FilterManager.TxLog(
+      logIndex = 0,
+      transactionIndex = 0,
+      transactionHash = bb.transactionList.head.hash,
+      blockHash = bh.hash,
+      blockNumber = bh.number,
+      address = Address(0x1234),
+      data = ByteString(Hex.decode("99aaff")),
+      topics = logs.head.logTopics)
+
+    logsResp.logs(1) shouldBe FilterManager.TxLog(
+      logIndex = 0,
+      transactionIndex = 0,
+      transactionHash = block2.body.transactionList.head.hash,
+      blockHash = block2.header.hash,
+      blockNumber = block2.header.number,
+      address = Address(0x1234),
+      data = ByteString(Hex.decode("99aaff")),
+      topics = logs2.head.logTopics)
+  }
+
   it should "handle block filter" in new TestSetup {
-    val filterManager = TestActorRef[FilterManager](Props(new FilterManager(blockchain, appStateStorage, keyStore, pendingTransactionsManager.ref, config, Some(time.scheduler))))
 
     (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
 
@@ -194,7 +286,6 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
   }
 
   it should "handle pending transactions filter" in new TestSetup {
-    val filterManager = TestActorRef[FilterManager](Props(new FilterManager(blockchain, appStateStorage, keyStore, pendingTransactionsManager.ref, config, Some(time.scheduler))))
 
     (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
 
@@ -232,7 +323,6 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
   }
 
   it should "timeout unused filter" in new TestSetup {
-    val filterManager = TestActorRef[FilterManager](Props(new FilterManager(blockchain, appStateStorage, keyStore, pendingTransactionsManager.ref, config, Some(time.scheduler))))
 
     (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
 
@@ -295,6 +385,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
     val blockchain = mock[Blockchain]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
+    val blockGenerator = mock[BlockGenerator]
     val pendingTransactionsManager = TestProbe()
 
     val blockHeader = BlockHeader(
@@ -313,6 +404,18 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with De
       extraData = ByteString(Hex.decode("426974636f696e2069732054484520426c6f636b636861696e2e")),
       mixHash = ByteString(Hex.decode("c6d695926546d3d679199303a6d1fc983fe3f09f44396619a24c4271830a7b95")),
       nonce = ByteString(Hex.decode("62bc3dca012c1b27")))
+
+    val filterManager = TestActorRef[FilterManager](Props(
+      new FilterManager(
+        blockchain,
+        blockGenerator,
+        appStateStorage,
+        keyStore,
+        pendingTransactionsManager.ref,
+        config,
+        Some(time.scheduler))
+      )
+    )
   }
 
 }

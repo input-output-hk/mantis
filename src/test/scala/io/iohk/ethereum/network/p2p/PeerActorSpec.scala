@@ -12,7 +12,7 @@ import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.{Fixtures, Mocks, SecureRandomProvider, crypto}
+import io.iohk.ethereum.{Fixtures, Mocks, SecureRandomProvider, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
@@ -189,7 +189,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished)
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     time.advance(5.seconds)
-    rlpxConnection.expectMsg(5.seconds, RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage)))
+    rlpxConnection.expectMsg(Timeouts.normalTimeout, RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage)))
   }
 
   it should "respond to fork block request during the handshake" in new TestSetup {

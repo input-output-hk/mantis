@@ -4,8 +4,8 @@ import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
-import akka.util.{ByteString, Timeout}
-import io.iohk.ethereum.{DefaultPatience, SecureRandomProvider, crypto}
+import akka.util.ByteString
+import io.iohk.ethereum.{NormalPatience, SecureRandomProvider, Timeouts, crypto}
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
@@ -21,15 +21,27 @@ import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
 
-class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFutures with DefaultPatience {
-
-  implicit val timeout = Timeout(10.seconds)
+class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience {
 
   "PendingTransactionsManager" should "store pending transactions received from peers" in new TestSetup {
-    val msg = SignedTransactions(Seq.fill(10)(newStx()))
+    val msg = SignedTransactions((1 to 10).map(e => newStx(e)))
     pendingTransactionsManager ! MessageFromPeer(msg, PeerId("1"))
 
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
+
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    pendingTxs.pendingTransactions.map(_.stx).toSet shouldBe msg.txs.toSet
+  }
+
+  it should "ignore known transaction" in new TestSetup {
+    val msg = SignedTransactions(Seq(newStx(1)))
+    pendingTransactionsManager ! MessageFromPeer(msg, PeerId("1"))
+    pendingTransactionsManager ! MessageFromPeer(msg, PeerId("2"))
+
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
+
+    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    pendingTxs.pendingTransactions.map(_.stx).length shouldBe 1
     pendingTxs.pendingTransactions.map(_.stx).toSet shouldBe msg.txs.toSet
   }
 
@@ -80,9 +92,9 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
   }
 
   it should "not add pending transaction again when it was removed while waiting for peers" in new TestSetup {
-    val msg1 = SignedTransactions(Seq.fill(1)(newStx()))
+    val msg1 = SignedTransactions(Seq(newStx(1)))
     pendingTransactionsManager ! MessageFromPeer(msg1, peer1.id)
-
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
     pendingTransactionsManager ! RemoveTransactions(msg1.txs)
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
@@ -97,10 +109,10 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
   trait TestSetup extends SecureRandomProvider {
     implicit val system = ActorSystem("test-system")
 
-    def newStx(): SignedTransaction = {
+    def newStx(nonce: BigInt = 0): SignedTransaction = {
       val keyPair1 = crypto.generateKeyPair(secureRandom)
       val addr1 = Address(Hex.decode("1c51bf013add0857c5d9cf2f71a7f15ca93d4816"))
-      val tx = Transaction(0, 1, 1, Some(addr1), 0, ByteString(""))
+      val tx = Transaction(nonce, 1, 1, Some(addr1), 0, ByteString(""))
       SignedTransaction.sign(tx, keyPair1, Some(0x3d))
     }
 
@@ -117,7 +129,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
       override val coinbase: Address = Address(2)
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
-      override val poolingServicesTimeout: FiniteDuration = 30.seconds
+      override val poolingServicesTimeout: FiniteDuration = Timeouts.veryLongTimeout
     }
 
     val peerManager = TestProbe()
