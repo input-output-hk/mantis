@@ -124,7 +124,9 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
       case Seq(stx, otherStxs@_*) =>
         val (senderAccount, worldForTx) = world.getAccount(stx.senderAddress).map(a => (a, world))
-          .getOrElse ((Account.empty(blockchainConfig.accountStartNonce), world.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce))))
+          .getOrElse(
+            (Account.empty(blockchainConfig.accountStartNonce), world.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce)))
+          )
         val upfrontCost = calculateUpfrontCost(stx.tx)
         val validatedStx = signedTransactionValidator.validate(stx, senderAccount, blockHeader, upfrontCost, acumGas)
 
