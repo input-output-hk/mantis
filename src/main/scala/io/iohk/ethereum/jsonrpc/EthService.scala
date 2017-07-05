@@ -525,7 +525,7 @@ class EthService(
 
     Try(req.data.toArray.toSignedTransaction) match {
       case Success(signedTransaction) =>
-        pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(signedTransaction)
+        pendingTransactionsManager ! PendingTransactionsManager.AddOrOverrideTransaction(signedTransaction)
         Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
       case Failure(_) =>
         Future.successful(Left(JsonRpcErrors.InvalidRequest))

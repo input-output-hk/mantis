@@ -11,7 +11,7 @@ import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, GetPendingTransactions, PendingTransaction, PendingTransactionsResponse}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, GetPendingTransactions, PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils.{MiningConfig, TxPoolConfig}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
@@ -96,7 +96,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     txPool.reply(PendingTransactionsResponse(Nil))
 
     res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
-    txPool.expectMsg(AddTransactions(stx))
+    txPool.expectMsg(AddOrOverrideTransaction(stx))
   }
 
   it should "send a transaction when having pending txs from the same sender" in new TestSetup {
@@ -115,7 +115,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     txPool.reply(PendingTransactionsResponse(Seq(PendingTransaction(stx, 0))))
 
     res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(newTx.hash))
-    txPool.expectMsg(AddTransactions(newTx))
+    txPool.expectMsg(AddOrOverrideTransaction(newTx))
   }
 
   it should "fail to send a transaction given a wrong passphrase" in new TestSetup {
@@ -145,7 +145,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     txPool.reply(PendingTransactionsResponse(Nil))
 
     res.futureValue shouldEqual Right(SendTransactionResponse(stx.hash))
-    txPool.expectMsg(AddTransactions(stx))
+    txPool.expectMsg(AddOrOverrideTransaction(stx))
   }
 
   it should "fail to send a transaction when account is locked" in new TestSetup {
