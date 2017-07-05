@@ -3,8 +3,9 @@ package io.iohk.ethereum.keystore
 import org.scalatest.{FlatSpec, Matchers}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 
-class EncryptedKeySpec extends FlatSpec with Matchers {
+class EncryptedKeySpec extends FlatSpec with Matchers with SecureRandomBuilder {
 
   val gethKey =
     """{
@@ -56,9 +57,9 @@ class EncryptedKeySpec extends FlatSpec with Matchers {
 
 
   "EncryptedKey" should "securely store private keys" in {
-    val prvKey = crypto.secureRandomByteString(32)
+    val prvKey = crypto.secureRandomByteString(secureRandom, 32)
     val passphrase = "P4S5W0rd"
-    val encKey = EncryptedKey(prvKey, passphrase)
+    val encKey = EncryptedKey(prvKey, passphrase, secureRandom)
 
     val json = EncryptedKeyJsonCodec.toJson(encKey)
     val decoded = EncryptedKeyJsonCodec.fromJson(json)

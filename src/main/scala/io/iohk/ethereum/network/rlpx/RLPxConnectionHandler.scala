@@ -25,7 +25,11 @@ import scala.util.{Failure, Success, Try}
   *    (depending on who initiated the connection)
   * 4. once handshake is done (and secure connection established) actor can send/receive messages (`handshaked` state)
   */
-class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair, messageDecoder: MessageDecoder, protocolVersion: Message.Version)
+class RLPxConnectionHandler(
+    nodeKey: AsymmetricCipherKeyPair,
+    messageDecoder: MessageDecoder,
+    protocolVersion: Message.Version,
+    authHandshaker: AuthHandshaker)
   extends Actor with ActorLogging {
 
   import AuthHandshaker.{InitiatePacketLength, ResponsePacketLength}
@@ -43,16 +47,15 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair, messageDecoder: Me
 
     case HandleConnection(connection) =>
       connection ! Register(self)
-      val handshaker = AuthHandshaker(nodeKey)
       val timeout = system.scheduler.scheduleOnce(3.seconds, self, AuthHandshakeTimeout)
-      context become new ConnectedHandler(connection).waitingForAuthHandshakeInit(handshaker, timeout)
+      context become new ConnectedHandler(connection).waitingForAuthHandshakeInit(authHandshaker, timeout)
   }
 
   def waitingForConnectionResult(uri: URI): Receive = {
     case Connected(_, _) =>
       val connection = sender()
       connection ! Register(self)
-      val (initPacket, handshaker) = AuthHandshaker(nodeKey).initiate(uri)
+      val (initPacket, handshaker) = authHandshaker.initiate(uri)
       connection ! Write(initPacket)
       val timeout = system.scheduler.scheduleOnce(3.seconds, self, AuthHandshakeTimeout)
       context become new ConnectedHandler(connection).waitingForAuthHandshakeResponse(handshaker, timeout)
@@ -169,17 +172,21 @@ class RLPxConnectionHandler(nodeKey: AsymmetricCipherKeyPair, messageDecoder: Me
 }
 
 object RLPxConnectionHandler {
-  def props(nodeKey: AsymmetricCipherKeyPair, messageDecoder: MessageDecoder, protocolVersion: Int): Props =
-    Props(new RLPxConnectionHandler(nodeKey, messageDecoder, protocolVersion))
+  def props(nodeKey: AsymmetricCipherKeyPair, messageDecoder: MessageDecoder, protocolVersion: Int, authHandshaker: AuthHandshaker): Props =
+    Props(new RLPxConnectionHandler(nodeKey, messageDecoder, protocolVersion, authHandshaker))
 
   case class ConnectTo(uri: URI)
+
   case class HandleConnection(connection: ActorRef)
 
   case object ConnectionEstablished
+
   case object ConnectionFailed
 
   case class MessageReceived(message: Message)
+
   case class SendMessage(serializable: MessageSerializable)
 
   private case object AuthHandshakeTimeout
+
 }

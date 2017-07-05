@@ -1,5 +1,7 @@
 package io.iohk.ethereum.nodebuilder
 
+import java.security.SecureRandom
+
 import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
@@ -21,6 +23,7 @@ import io.iohk.ethereum.utils._
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
+import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
@@ -43,7 +46,8 @@ trait FilterConfigBuilder {
 }
 
 trait NodeKeyBuilder {
-  lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile)
+  self: SecureRandomBuilder =>
+  lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile, secureRandom)
 }
 
 trait ActorSystemBuilder {
@@ -100,6 +104,13 @@ trait HandshakerBuilder {
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
 }
 
+trait AuthHandshakerBuilder {
+  self: NodeKeyBuilder
+  with SecureRandomBuilder =>
+
+  lazy val authHandshaker: AuthHandshaker = AuthHandshaker(nodeKey, secureRandom)
+}
+
 trait PeerEventBusBuilder {
   self: ActorSystemBuilder =>
 
@@ -111,7 +122,8 @@ trait PeerManagerActorBuilder {
   self: ActorSystemBuilder
     with NodeStatusBuilder
     with HandshakerBuilder
-    with PeerEventBusBuilder =>
+    with PeerEventBusBuilder
+    with AuthHandshakerBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
@@ -119,7 +131,8 @@ trait PeerManagerActorBuilder {
     nodeStatusHolder,
     Config.Network.peer,
     peerEventBus,
-    handshaker), "peer-manager")
+    handshaker,
+    authHandshaker), "peer-manager")
 
 }
 
@@ -248,7 +261,8 @@ trait PersonalServiceBuilder {
 }
 
 trait KeyStoreBuilder {
-  lazy val keyStore: KeyStore = new KeyStoreImpl(Config.keyStoreDir)
+  self: SecureRandomBuilder =>
+  lazy val keyStore: KeyStore = new KeyStoreImpl(Config.keyStoreDir, secureRandom)
 }
 
 trait JSONRpcControllerBuilder {
@@ -344,6 +358,10 @@ trait GenesisDataLoaderBuilder {
   lazy val genesisDataLoader = new GenesisDataLoader(storagesInstance.dataSource, blockchain, blockchainConfig)
 }
 
+trait SecureRandomBuilder {
+  val secureRandom: SecureRandom = SecureRandom.getInstance(Config.secureRandomAlgo)
+}
+
 trait Node extends NodeKeyBuilder
   with ActorSystemBuilder
   with StorageBuilder
@@ -376,3 +394,5 @@ trait Node extends NodeKeyBuilder
   with FilterManagerBuilder
   with FilterConfigBuilder
   with TxPoolConfigBuilder
+  with SecureRandomBuilder
+  with AuthHandshakerBuilder

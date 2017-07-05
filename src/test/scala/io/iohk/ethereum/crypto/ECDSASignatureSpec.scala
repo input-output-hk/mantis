@@ -1,6 +1,7 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.scalacheck.Arbitrary
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.prop.PropertyChecks
@@ -8,7 +9,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
 
-class ECDSASignatureSpec extends FlatSpec with Matchers with PropertyChecks {
+class ECDSASignatureSpec extends FlatSpec with Matchers with PropertyChecks with SecureRandomBuilder {
   "ECDSASignature" should "recover public key correctly for go ethereum transaction" in {
     val bytesToSign = Hex.decode("5a1465f4683bf2c18fc72c0789239c0f52b3ceac666ca9551cf265a11abe912c")
     val signatureRandom = ByteString(Hex.decode("f3af65a23fbf207b933d3c962381aa50e0ac19649c59c1af1655e592a8d95401"))
@@ -32,7 +33,7 @@ class ECDSASignatureSpec extends FlatSpec with Matchers with PropertyChecks {
   }
 
   it should "sign message and recover public key" in {
-    forAll(arbitrary[Array[Byte]], Arbitrary.arbitrary[Unit].map(_ => generateKeyPair())) {
+    forAll(arbitrary[Array[Byte]], Arbitrary.arbitrary[Unit].map(_ => generateKeyPair(secureRandom))) {
       (message, keys) =>
 
         val pubKey = keys.getPublic.asInstanceOf[ECPublicKeyParameters].getQ

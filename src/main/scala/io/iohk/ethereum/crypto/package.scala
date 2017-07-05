@@ -38,10 +38,19 @@ package object crypto {
     digest.digest
   }
 
-  def generateKeyPair(secureRandom: SecureRandom = new SecureRandom): AsymmetricCipherKeyPair = {
+  def generateKeyPair(secureRandom: SecureRandom): AsymmetricCipherKeyPair = {
     val generator = new ECKeyPairGenerator
     generator.init(new ECKeyGenerationParameters(curve, secureRandom))
     generator.generateKeyPair()
+  }
+
+  def secureRandomByteString(secureRandom: SecureRandom, length: Int): ByteString =
+    ByteString(secureRandomByteArray(secureRandom, length))
+
+  def secureRandomByteArray(secureRandom: SecureRandom, length: Int): Array[Byte] = {
+    val bytes = Array.ofDim[Byte](length)
+    secureRandom.nextBytes(bytes)
+    bytes
   }
 
   /** @return (privateKey, publicKey) pair */
@@ -94,13 +103,6 @@ package object crypto {
 
   def sha256(input: ByteString): ByteString =
     ByteString(sha256(input.toArray))
-
-  def secureRandomByteString(length: Int): ByteString = {
-    val random = new SecureRandom()
-    val bytes = Array.ofDim[Byte](length)
-    random.nextBytes(bytes)
-    ByteString(bytes)
-  }
 
   def pbkdf2HMacSha256(passphrase: String, salt: ByteString, c: Int, dklen: Int): ByteString = {
     val generator = new PKCS5S2ParametersGenerator(new SHA256Digest())
