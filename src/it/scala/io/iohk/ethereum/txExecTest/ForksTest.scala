@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.{UInt256, VM}
 import org.scalatest.{FlatSpec, Matchers}
@@ -18,7 +18,7 @@ class ForksTest extends FlatSpec with Matchers {
     override val eip160BlockNumber: BigInt = 7
 
     override val chainId: Byte = 0x3d
-    override val blockReward: UInt256 = UInt256(BigInt("4563918244F40000", 16))
+    override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L)
 
     // unused
     override val customGenesisFileOpt: Option[String] = None

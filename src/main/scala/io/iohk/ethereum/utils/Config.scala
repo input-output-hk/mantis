@@ -3,7 +3,7 @@ package io.iohk.ethereum.utils
 import java.net.InetSocketAddress
 
 import akka.util.ByteString
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
@@ -136,7 +136,7 @@ trait FilterConfig {
 }
 
 object FilterConfig {
-  def apply(etcClientConfig: com.typesafe.config.Config): FilterConfig = {
+  def apply(etcClientConfig: TypesafeConfig): FilterConfig = {
     val filterConfig = etcClientConfig.getConfig("filter")
 
     new FilterConfig {
@@ -170,7 +170,7 @@ trait MiningConfig {
 }
 
 object MiningConfig {
-  def apply(etcClientConfig: com.typesafe.config.Config): MiningConfig = {
+  def apply(etcClientConfig: TypesafeConfig): MiningConfig = {
     val miningConfig = etcClientConfig.getConfig("mining")
 
     new MiningConfig {
@@ -199,11 +199,11 @@ trait BlockchainConfig {
 
   val chainId: Byte
 
-  val blockReward: UInt256
+  val monetaryPolicyConfig: MonetaryPolicyConfig
 }
 
 object BlockchainConfig {
-  def apply(etcClientConfig: com.typesafe.config.Config): BlockchainConfig = {
+  def apply(etcClientConfig: TypesafeConfig): BlockchainConfig = {
     val blockchainConfig = etcClientConfig.getConfig("blockchain")
 
     new BlockchainConfig {
@@ -223,7 +223,21 @@ object BlockchainConfig {
 
       override val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
 
-      override val blockReward: UInt256 = UInt256(BigInt(blockchainConfig.getString("block-reward")))
+      override val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
     }
   }
+}
+
+case class MonetaryPolicyConfig(
+  eraDuration: Int,
+  rewardRedutionRate: Double,
+  firstEraBlockReward: BigInt
+)
+
+object MonetaryPolicyConfig {
+  def apply(mpConfig: TypesafeConfig): MonetaryPolicyConfig = MonetaryPolicyConfig(
+    mpConfig.getInt("era-duration"),
+    mpConfig.getDouble("reward-reduction-rate"),
+    BigInt(mpConfig.getString("first-era-block-reward"))
+  )
 }
