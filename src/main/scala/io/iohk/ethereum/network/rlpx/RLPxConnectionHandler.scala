@@ -11,6 +11,7 @@ import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
 
+import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -29,7 +30,8 @@ class RLPxConnectionHandler(
     nodeKey: AsymmetricCipherKeyPair,
     messageDecoder: MessageDecoder,
     protocolVersion: Message.Version,
-    authHandshaker: AuthHandshaker)
+    authHandshaker: AuthHandshaker,
+    messageCodecFactory: (Secrets, MessageDecoder, Message.Version) => MessageCodec)
   extends Actor with ActorLogging {
 
   import AuthHandshaker.{InitiatePacketLength, ResponsePacketLength}
@@ -120,7 +122,7 @@ class RLPxConnectionHandler(
         case AuthHandshakeSuccess(secrets) =>
           log.debug(s"Auth handshake succeeded for peer $peerId")
           context.parent ! ConnectionEstablished
-          val messageCodec = new MessageCodec(new FrameCodec(secrets), messageDecoder, protocolVersion)
+          val messageCodec = messageCodecFactory(secrets, messageDecoder, protocolVersion)
           val messagesSoFar = messageCodec.readMessages(remainingData)
           messagesSoFar foreach processMessage
           context become handshaked(messageCodec)
@@ -136,20 +138,52 @@ class RLPxConnectionHandler(
         context.parent ! MessageReceived(message)
 
       case Failure(ex) =>
-        log.error(ex, "Cannot decode message")
+        log.error(ex, s"Cannot decode message from $peerId")
     }
 
-    def handshaked(messageCodec: MessageCodec): Receive =
+    /**
+      * Handles sending and receiving messages from the Akka TCP connection, while also handling acknowledgement of
+      * messages sent. Messages are only sent when all Ack from previous messages were received.
+      *
+      * @param messageCodec
+      * @param messagesNotSent, messages not yet sent
+      * @param messageAwaitingAck, message sent for which we are awaiting an acknowledgement by Akka TCP
+      */
+    def handshaked(messageCodec: MessageCodec,
+                   messagesNotSent: Queue[MessageSerializable] = Queue.empty,
+                   messageAwaitingAck: Option[MessageSerializable] = None): Receive =
       handleWriteFailed orElse handleConnectionClosed orElse {
         case sm: SendMessage =>
-          val out = messageCodec.encodeMessage(sm.serializable)
-          connection ! Write(out)
-          log.debug("Sent message: {}", sm.serializable)
+          if(messageAwaitingAck.isEmpty) {
+            sendMessage(messageCodec, sm.serializable)
+            context become handshaked(messageCodec, messagesNotSent, Some(sm.serializable))
+          } else
+            context become handshaked(messageCodec, messagesNotSent :+ sm.serializable, messageAwaitingAck)
 
         case Received(data) =>
           val messages = messageCodec.readMessages(data)
           messages foreach processMessage
+
+        case Ack if messageAwaitingAck.nonEmpty =>
+          if(messagesNotSent.nonEmpty) {
+            sendMessage(messageCodec, messagesNotSent.head)
+            context become handshaked(messageCodec, messagesNotSent.tail, Some(messagesNotSent.head))
+          } else
+            context become handshaked(messageCodec, Queue.empty, None)
       }
+
+    /**
+      * Sends an encoded message through the TCP connection, an Ack will be received when the message was
+      * successfully queued for delivery.
+      *
+      * @param messageCodec
+      * @param messageSerializable, message to be sent
+      */
+    private def sendMessage(messageCodec: MessageCodec, messageSerializable: MessageSerializable): Unit = {
+      val out = messageCodec.encodeMessage(messageSerializable)
+      connection ! Write(out, Ack)
+      log.debug(s"Sent message: $messageSerializable from $peerId")
+    }
 
     def handleWriteFailed: Receive = {
       case CommandFailed(cmd: Write) =>
@@ -173,7 +207,11 @@ class RLPxConnectionHandler(
 
 object RLPxConnectionHandler {
   def props(nodeKey: AsymmetricCipherKeyPair, messageDecoder: MessageDecoder, protocolVersion: Int, authHandshaker: AuthHandshaker): Props =
-    Props(new RLPxConnectionHandler(nodeKey, messageDecoder, protocolVersion, authHandshaker))
+    Props(new RLPxConnectionHandler(nodeKey, messageDecoder, protocolVersion, authHandshaker, messageCodecFactory))
+
+  def messageCodecFactory(secrets: Secrets, messageDecoder: MessageDecoder,
+                          protocolVersion: Message.Version): MessageCodec =
+    new MessageCodec(new FrameCodec(secrets), messageDecoder, protocolVersion)
 
   case class ConnectTo(uri: URI)
 
@@ -188,5 +226,7 @@ object RLPxConnectionHandler {
   case class SendMessage(serializable: MessageSerializable)
 
   private case object AuthHandshakeTimeout
+
+  case object Ack extends Tcp.Event
 
 }

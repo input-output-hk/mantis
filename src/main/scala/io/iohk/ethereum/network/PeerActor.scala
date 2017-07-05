@@ -201,7 +201,7 @@ class PeerActor[R <: HandshakeResult](
       handleTerminated(rlpxConnection) orElse {
 
         case RLPxConnectionHandler.MessageReceived(message) =>
-          log.debug("Received message: {}", message)
+          log.debug(s"Received message: {} from $peerId", message)
           peerEventBus ! Publish(MessageFromPeer(message, peer.id))
 
         case DisconnectPeer(reason) =>
