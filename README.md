@@ -8,9 +8,9 @@
 
 ## A Scala based client for Ethereum Classic 
 
-### Milestone 1 - blockSync
+### Milestone 3 & 4 - JSON RPC and Miner Integration
 
-**This version of the code only supports downloading the blockchain from remote peers.**
+**This version of the code supports almost all the functionality for a first release.**
 
 For the curious ...
 
@@ -33,14 +33,14 @@ This creates a distribution zip. Unzip that file to create a folder structure st
  ```
 
 The client attempts to contact the remote peers configured in the configuration file and begin a 
-`fast-sync` download. The [configuration file](https://github.com/input-output-hk/etc-client/blob/master/src/main/resources/reference.conf)
+`fast-sync` download. The [configuration file](https://github.com/input-output-hk/etc-client/blob/master/src/main/resources/application.conf)
 settings can all be overriden in 
 
-`./config/application.conf`
+`./config/production.conf`
 
-The client has not been run on Windows.
+The client has been run on Windows 8 and seems to work however it has not been extensively tested.
  
-The [next milestone](https://iohk.io/projects/ethereum-classic/#roadmap) involves executing the transactions with our new Ethereum Virtual Machine!
+The [next milestone](https://iohk.io/projects/ethereum-classic/#roadmap) is our early Beta release!!
   
   
 
