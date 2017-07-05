@@ -173,10 +173,6 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
     peerManager ! PeerManagerActor.HandlePeerConnection(connection.ref, new InetSocketAddress("127.0.0.1", 30340))
 
-    respondWithStatus(createdPeers.head, Handshaking(0))
-    createdPeers.last.expectMsgClass(classOf[PeerActor.ConnectTo])
-    respondWithStatus(createdPeers.last, Handshaking(0))
-
     watcher.expectMsgClass(classOf[Terminated])
   }
 
