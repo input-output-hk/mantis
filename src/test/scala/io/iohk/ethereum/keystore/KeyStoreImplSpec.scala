@@ -3,15 +3,15 @@ package io.iohk.ethereum.keystore
 import java.io.File
 
 import akka.util.ByteString
-import io.iohk.ethereum.SecureRandomProvider
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyNotFound}
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import org.apache.commons.io.FileUtils
 
-class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with SecureRandomProvider {
+class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with SecureRandomBuilder {
 
   before(clearKeyStore())
 

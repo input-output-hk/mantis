@@ -4,15 +4,15 @@ import java.math.BigInteger
 import java.net.URI
 
 import akka.util.ByteString
-import io.iohk.ethereum.SecureRandomProvider
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.rlpx.{AuthHandshakeSuccess, AuthHandshaker, AuthResponseMessage, Secrets}
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
 
-class AuthHandshakerSpec extends FlatSpec with Matchers with SecureRandomProvider {
+class AuthHandshakerSpec extends FlatSpec with Matchers with SecureRandomBuilder {
 
   val remoteNodeKey = new AsymmetricCipherKeyPair(
     new ECPublicKeyParameters(curve.getCurve.decodePoint(

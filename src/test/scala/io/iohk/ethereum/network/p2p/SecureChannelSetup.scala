@@ -3,15 +3,16 @@ package io.iohk.ethereum.network.p2p
 import java.net.URI
 
 import akka.util.ByteString
-import io.iohk.ethereum.{SecureRandomProvider, crypto}
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network._
 import io.iohk.ethereum.network.rlpx.{AuthHandshakeSuccess, AuthHandshaker, Secrets}
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
 
-trait SecureChannelSetup extends SecureRandomProvider {
+trait SecureChannelSetup extends SecureRandomBuilder {
 
   val remoteNodeKey: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
   val remoteEphemeralKey: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)

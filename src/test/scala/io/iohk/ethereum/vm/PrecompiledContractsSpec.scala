@@ -6,10 +6,10 @@ import io.iohk.ethereum.domain.Address
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
 import MockWorldState._
-import io.iohk.ethereum.SecureRandomProvider
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteUtils
 
-class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyChecks with SecureRandomProvider {
+class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyChecks with SecureRandomBuilder {
 
   def buildContext(recipient: Address, inputData: ByteString, gas: UInt256 = 1000000): PC = {
     val origin = Address(0xcafebabe)

@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.{NormalPatience, SecureRandomProvider, Timeouts, crypto}
+import io.iohk.ethereum.{NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
@@ -16,6 +16,7 @@ import akka.pattern.ask
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerManagerActor.Peers
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{MiningConfig, TxPoolConfig}
 import org.scalatest.concurrent.ScalaFutures
 
@@ -106,7 +107,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTxs.pendingTransactions.size shouldBe 0
   }
 
-  trait TestSetup extends SecureRandomProvider {
+  trait TestSetup extends SecureRandomBuilder {
     implicit val system = ActorSystem("test-system")
 
     def newStx(nonce: BigInt = 0): SignedTransaction = {

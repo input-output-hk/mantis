@@ -1,7 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.{SecureRandomProvider, crypto}
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.SignedTransaction.{FirstByteOfAddress, LastByteOfAddress}
 import io.iohk.ethereum.vm.utils.EvmTestEnv

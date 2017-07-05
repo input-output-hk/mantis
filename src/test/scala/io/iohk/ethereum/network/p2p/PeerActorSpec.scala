@@ -12,7 +12,7 @@ import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.{Fixtures, Mocks, SecureRandomProvider, Timeouts, crypto}
+import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
@@ -28,6 +28,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -318,7 +319,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
         nonce = ByteString("unused"))
   }
 
-  trait NodeStatusSetup extends SecureRandomProvider {
+  trait NodeStatusSetup extends SecureRandomBuilder {
     val nodeKey = crypto.generateKeyPair(secureRandom)
 
     val nodeStatus = NodeStatus(

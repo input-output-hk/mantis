@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.handshaker
 
 import akka.agent.Agent
 import akka.util.ByteString
-import io.iohk.ethereum.{Fixtures, SecureRandomProvider}
+import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -18,6 +18,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnect, Hello}
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.vm.UInt256
 import org.scalatest.{FlatSpec, Matchers}
@@ -119,7 +120,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     handshakerAfterForkBlockOpt.get.nextMessage.leftSide shouldBe Left(HandshakeFailure(Disconnect.Reasons.UselessPeer))
   }
 
-  trait TestSetup extends SecureRandomProvider {
+  trait TestSetup extends SecureRandomBuilder {
 
     val genesisBlock = Block(
       Fixtures.Blocks.Genesis.header,

@@ -3,13 +3,13 @@ package io.iohk.ethereum.crypto
 import java.math.BigInteger
 import java.security.SecureRandom
 
-import io.iohk.ethereum.SecureRandomProvider
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.generators.ECKeyPairGenerator
 import org.spongycastle.crypto.params.{ECKeyGenerationParameters, ECPrivateKeyParameters, ECPublicKeyParameters}
 import org.spongycastle.util.encoders.Hex
 
-class ECIESCoderSpec extends FlatSpec with Matchers with SecureRandomProvider {
+class ECIESCoderSpec extends FlatSpec with Matchers with SecureRandomBuilder {
 
   "ECIESCoder" should "decrypt encrypted message" in {
 
