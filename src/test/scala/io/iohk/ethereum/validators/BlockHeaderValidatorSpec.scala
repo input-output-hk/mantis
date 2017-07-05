@@ -4,8 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}
 import io.iohk.ethereum.validators.BlockHeaderError._
 import io.iohk.ethereum.vm.UInt256
 import org.scalatest.prop.PropertyChecks
@@ -31,7 +30,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     override val eip150BlockNumber: BigInt = Long.MaxValue
     override val chainId: Byte = 0x3d.toByte
     override val daoForkBlockHash: ByteString = ByteString("unused")
-    override val blockReward: UInt256 = 5
+    override val monetaryPolicyConfig: MonetaryPolicyConfig = null
     override val daoForkBlockTotalDifficulty: BigInt = 0
     override val customGenesisFileOpt: Option[String] = None
   }

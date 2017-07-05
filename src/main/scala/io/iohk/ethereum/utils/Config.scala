@@ -3,13 +3,12 @@ package io.iohk.ethereum.utils
 import java.net.InetSocketAddress
 
 import akka.util.ByteString
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
-import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 import scala.collection.JavaConverters._
@@ -135,23 +134,36 @@ object Config {
 trait FilterConfig {
   val filterTimeout: FiniteDuration
   val filterManagerQueryTimeout: FiniteDuration
-  val pendingTransactionsManagerQueryTimeout: FiniteDuration
 }
 
 object FilterConfig {
-  def apply(etcClientConfig: com.typesafe.config.Config): FilterConfig = {
+  def apply(etcClientConfig: TypesafeConfig): FilterConfig = {
     val filterConfig = etcClientConfig.getConfig("filter")
 
     new FilterConfig {
       val filterTimeout: FiniteDuration = filterConfig.getDuration("filter-timeout").toMillis.millis
       val filterManagerQueryTimeout: FiniteDuration = filterConfig.getDuration("filter-manager-query-timeout").toMillis.millis
-      val pendingTransactionsManagerQueryTimeout: FiniteDuration = filterConfig.getDuration("pending-transactions-manager-query-timeout").toMillis.millis
+    }
+  }
+}
+
+trait TxPoolConfig {
+  val txPoolSize: Int
+  val pendingTxManagerQueryTimeout: FiniteDuration
+}
+
+object TxPoolConfig {
+  def apply(etcClientConfig: com.typesafe.config.Config): TxPoolConfig = {
+    val txPoolConfig = etcClientConfig.getConfig("txPool")
+
+    new TxPoolConfig {
+      val txPoolSize: Int = txPoolConfig.getInt("tx-pool-size")
+      val pendingTxManagerQueryTimeout: FiniteDuration = txPoolConfig.getDuration("pending-tx-manager-query-timeout").toMillis.millis
     }
   }
 }
 
 trait MiningConfig {
-  val txPoolSize: Int
   val ommersPoolSize: Int
   val blockCacheSize: Int
   val coinbase: Address
@@ -159,14 +171,13 @@ trait MiningConfig {
 }
 
 object MiningConfig {
-  def apply(etcClientConfig: com.typesafe.config.Config): MiningConfig = {
+  def apply(etcClientConfig: TypesafeConfig): MiningConfig = {
     val miningConfig = etcClientConfig.getConfig("mining")
 
     new MiningConfig {
       val coinbase: Address = Address(Hex.decode(miningConfig.getString("coinbase")))
       val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
       val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
-      val txPoolSize: Int = miningConfig.getInt("tx-pool-size")
       val poolingServicesTimeout: FiniteDuration = miningConfig.getDuration("pooling-services-timeout").toMillis.millis
     }
   }
@@ -188,11 +199,11 @@ trait BlockchainConfig {
 
   val chainId: Byte
 
-  val blockReward: UInt256
+  val monetaryPolicyConfig: MonetaryPolicyConfig
 }
 
 object BlockchainConfig {
-  def apply(etcClientConfig: com.typesafe.config.Config): BlockchainConfig = {
+  def apply(etcClientConfig: TypesafeConfig): BlockchainConfig = {
     val blockchainConfig = etcClientConfig.getConfig("blockchain")
 
     new BlockchainConfig {
@@ -211,7 +222,21 @@ object BlockchainConfig {
 
       override val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
 
-      override val blockReward: UInt256 = UInt256(BigInt(blockchainConfig.getString("block-reward")))
+      override val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
     }
   }
+}
+
+case class MonetaryPolicyConfig(
+  eraDuration: Int,
+  rewardRedutionRate: Double,
+  firstEraBlockReward: BigInt
+)
+
+object MonetaryPolicyConfig {
+  def apply(mpConfig: TypesafeConfig): MonetaryPolicyConfig = MonetaryPolicyConfig(
+    mpConfig.getInt("era-duration"),
+    mpConfig.getDouble("reward-reduction-rate"),
+    BigInt(mpConfig.getString("first-era-block-reward"))
+  )
 }

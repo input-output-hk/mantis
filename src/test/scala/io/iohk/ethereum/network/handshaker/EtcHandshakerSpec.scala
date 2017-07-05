@@ -18,7 +18,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnect, Hello}
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils._
 import io.iohk.ethereum.vm.UInt256
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -158,7 +158,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val customGenesisFileOpt: Option[String] = None
       override val daoForkBlockTotalDifficulty: BigInt = 0
       override val chainId: Byte = 0.toByte
-      override val blockReward: UInt256 = UInt256(0)
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = null
     }
 
     val etcHandshakerConfigurationWithResolver = new MockEtcHandshakerConfiguration {
