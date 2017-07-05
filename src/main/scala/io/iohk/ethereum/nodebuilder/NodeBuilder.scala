@@ -359,7 +359,7 @@ trait GenesisDataLoaderBuilder {
 }
 
 trait SecureRandomBuilder {
-  val secureRandom: SecureRandom = SecureRandom.getInstance(Config.secureRandomAlgo)
+  lazy val secureRandom: SecureRandom = SecureRandom.getInstance(Config.secureRandomAlgo)
 }
 
 trait Node extends NodeKeyBuilder
