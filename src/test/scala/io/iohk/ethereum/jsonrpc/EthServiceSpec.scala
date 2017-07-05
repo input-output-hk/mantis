@@ -777,14 +777,12 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val coinbase: Address = Address(42)
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
-      override val txPoolSize: Int = 30
       override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
-      override val pendingTransactionsManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,

@@ -12,7 +12,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import akka.pattern.ask
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.{NormalPatience, Timeouts}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.ledger.BloomFilter
@@ -20,7 +20,7 @@ import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.utils.FilterConfig
+import io.iohk.ethereum.utils.{FilterConfig, TxPoolConfig}
 import org.scalatest.concurrent.ScalaFutures
 
 import scala.concurrent.duration._
@@ -375,9 +375,13 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     implicit val system = ActorSystem("FilterManagerSpec_System")
 
     val config = new FilterConfig {
-      override val filterTimeout = 10.seconds
-      override val filterManagerQueryTimeout: FiniteDuration = 10.seconds
-      override val pendingTransactionsManagerQueryTimeout: FiniteDuration = 10.seconds
+      override val filterTimeout = Timeouts.longTimeout
+      override val filterManagerQueryTimeout: FiniteDuration = Timeouts.longTimeout
+    }
+
+    val txPoolConfig = new TxPoolConfig {
+      override val txPoolSize: Int = 30
+      override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.longTimeout
     }
 
     val time = new VirtualTime
@@ -413,6 +417,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
         keyStore,
         pendingTransactionsManager.ref,
         config,
+        txPoolConfig,
         Some(time.scheduler))
       )
     )
