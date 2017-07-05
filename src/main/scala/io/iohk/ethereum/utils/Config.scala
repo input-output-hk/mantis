@@ -132,7 +132,6 @@ object Config {
 trait FilterConfig {
   val filterTimeout: FiniteDuration
   val filterManagerQueryTimeout: FiniteDuration
-  val pendingTransactionsManagerQueryTimeout: FiniteDuration
 }
 
 object FilterConfig {
@@ -142,13 +141,27 @@ object FilterConfig {
     new FilterConfig {
       val filterTimeout: FiniteDuration = filterConfig.getDuration("filter-timeout").toMillis.millis
       val filterManagerQueryTimeout: FiniteDuration = filterConfig.getDuration("filter-manager-query-timeout").toMillis.millis
-      val pendingTransactionsManagerQueryTimeout: FiniteDuration = filterConfig.getDuration("pending-transactions-manager-query-timeout").toMillis.millis
+    }
+  }
+}
+
+trait TxPoolConfig {
+  val txPoolSize: Int
+  val pendingTxManagerQueryTimeout: FiniteDuration
+}
+
+object TxPoolConfig {
+  def apply(etcClientConfig: com.typesafe.config.Config): TxPoolConfig = {
+    val txPoolConfig = etcClientConfig.getConfig("txPool")
+
+    new TxPoolConfig {
+      val txPoolSize: Int = txPoolConfig.getInt("tx-pool-size")
+      val pendingTxManagerQueryTimeout: FiniteDuration = txPoolConfig.getDuration("pending-tx-manager-query-timeout").toMillis.millis
     }
   }
 }
 
 trait MiningConfig {
-  val txPoolSize: Int
   val ommersPoolSize: Int
   val blockCacheSize: Int
   val coinbase: Address
@@ -163,7 +176,6 @@ object MiningConfig {
       val coinbase: Address = Address(Hex.decode(miningConfig.getString("coinbase")))
       val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
       val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
-      val txPoolSize: Int = miningConfig.getInt("tx-pool-size")
       val poolingServicesTimeout: FiniteDuration = miningConfig.getDuration("pooling-services-timeout").toMillis.millis
     }
   }

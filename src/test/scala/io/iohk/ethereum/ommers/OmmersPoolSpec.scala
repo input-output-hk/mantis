@@ -56,7 +56,6 @@ class OmmersPoolSpec extends FlatSpec with Matchers with MockFactory {
 
     val miningConfig = new MiningConfig {
       override val ommersPoolSize: Int = 3
-      override val txPoolSize: Int = 30
       override val coinbase: Address = Address(2)
       override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
       override val blockCacheSize: Int = 4

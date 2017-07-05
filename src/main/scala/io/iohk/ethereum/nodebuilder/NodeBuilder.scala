@@ -30,6 +30,10 @@ trait BlockchainConfigBuilder {
   lazy val blockchainConfig = BlockchainConfig(Config.config)
 }
 
+trait TxPoolConfigBuilder {
+  lazy val txPoolConfig = TxPoolConfig(Config.config)
+}
+
 trait MiningConfigBuilder {
   lazy val miningConfig = MiningConfig(Config.config)
 }
@@ -171,10 +175,10 @@ trait PendingTransactionsManagerBuilder {
     with PeerManagerActorBuilder
     with EtcPeerManagerActorBuilder
     with PeerEventBusBuilder
-    with MiningConfigBuilder =>
+    with TxPoolConfigBuilder =>
 
   lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(
-    miningConfig, peerManager, etcPeerManager, peerEventBus))
+    txPoolConfig, peerManager, etcPeerManager, peerEventBus))
 }
 
 trait FilterManagerBuilder {
@@ -184,7 +188,8 @@ trait FilterManagerBuilder {
     with StorageBuilder
     with KeyStoreBuilder
     with PendingTransactionsManagerBuilder
-    with FilterConfigBuilder =>
+    with FilterConfigBuilder
+    with TxPoolConfigBuilder =>
 
   lazy val filterManager: ActorRef =
     actorSystem.actorOf(
@@ -194,7 +199,8 @@ trait FilterManagerBuilder {
         storagesInstance.storages.appStateStorage,
         keyStore,
         pendingTransactionsManager,
-        filterConfig
+        filterConfig,
+        txPoolConfig
       )
     )
 }
@@ -229,10 +235,14 @@ trait EthServiceBuilder {
 }
 
 trait PersonalServiceBuilder {
-  self: KeyStoreBuilder with BlockChainBuilder with PendingTransactionsManagerBuilder with StorageBuilder =>
+  self: KeyStoreBuilder with
+    BlockChainBuilder with
+    PendingTransactionsManagerBuilder with
+    StorageBuilder with
+    TxPoolConfigBuilder =>
 
   lazy val personalService = new PersonalService(keyStore, blockchain, pendingTransactionsManager,
-    storagesInstance.storages.appStateStorage)
+    storagesInstance.storages.appStateStorage, txPoolConfig)
 }
 
 trait KeyStoreBuilder {
@@ -363,3 +373,4 @@ trait Node extends NodeKeyBuilder
   with BlockchainHostBuilder
   with FilterManagerBuilder
   with FilterConfigBuilder
+  with TxPoolConfigBuilder
