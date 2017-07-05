@@ -58,18 +58,27 @@ class PeerManagerActor(
 
   def listening: Receive = handleCommonMessages orElse {
     case msg: HandlePeerConnection =>
-      context become(tryingToConnect, false)
-      tryDiscardPeersToFreeUpLimit()
-        .map(_ => (msg, Success(())))
-        .recover { case ex => (msg, Failure(ex)) }
-        .pipeTo(self)
+      if (!isConnectionHandled(msg.remoteAddress)) {
+        context become(tryingToConnect, false)
+        tryDiscardPeersToFreeUpLimit()
+          .map(_ => (msg, Success(())))
+          .recover { case ex => (msg, Failure(ex)) }
+          .pipeTo(self)
+      } else {
+        log.info("Another connection with {} is already opened. Disconnecting.", msg.remoteAddress)
+        msg.connection ! PoisonPill
+      }
 
     case msg: ConnectToPeer =>
-      context become(tryingToConnect, false)
-      tryDiscardPeersToFreeUpLimit()
-        .map(_ => (msg, Success(())))
-        .recover { case ex => (msg, Failure(ex)) }
-        .pipeTo(self)
+      if (!isConnectionHandled(new InetSocketAddress(msg.uri.getHost, msg.uri.getPort))) {
+        context become(tryingToConnect, false)
+        tryDiscardPeersToFreeUpLimit()
+          .map(_ => (msg, Success(())))
+          .recover { case ex => (msg, Failure(ex)) }
+          .pipeTo(self)
+      } else {
+        log.info("Maximum number of connected peers reached. Not connecting to {}", msg.uri)
+      }
 
     case ScanBootstrapNodes =>
       val nodesToConnect = bootstrapNodes
