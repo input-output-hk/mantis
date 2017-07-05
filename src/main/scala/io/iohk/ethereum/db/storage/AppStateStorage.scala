@@ -25,11 +25,22 @@ class AppStateStorage(val dataSource: DataSource) extends KeyValueStorage[Key, V
     put(Keys.BestBlockNumber, bestBlockNumber.toString)
 
   def isFastSyncDone(): Boolean =
-    get(Keys.FastSyncDone).map(_.toBoolean).getOrElse(false)
+    get(Keys.FastSyncDone).exists(_.toBoolean)
 
   def fastSyncDone(): AppStateStorage =
     put(Keys.FastSyncDone, true.toString)
 
+  def getEstimatedHighestBlock(): BigInt =
+    BigInt(get(Keys.EstimatedHighestBlock).getOrElse("0"))
+
+  def putEstimatedHighestBlock(n: BigInt): AppStateStorage =
+    put(Keys.EstimatedHighestBlock, n.toString)
+
+  def getSyncStartingBlock(): BigInt =
+    BigInt(get(Keys.SyncStartingBlock).getOrElse("0"))
+
+  def putSyncStartingBlock(n: BigInt): AppStateStorage =
+    put(Keys.SyncStartingBlock, n.toString)
 }
 
 object AppStateStorage {
@@ -40,5 +51,7 @@ object AppStateStorage {
   object Keys {
     val BestBlockNumber = Key("BestBlockNumber")
     val FastSyncDone = Key("FastSyncDone")
+    val EstimatedHighestBlock = Key("EstimatedHighestBlock")
+    val SyncStartingBlock = Key("SyncStartingBlock")
   }
 }

@@ -14,9 +14,11 @@ The scala build tool [sbt](http://www.scala-sbt.org/) must be installed.
 
 A recent [java sdk](http://www.oracle.com/technetwork/java/javase/downloads/index.html#close) must be installed.
 
-### Milestone 3 - transaction execution
 
-**This version of the code supports downloading the blockchain from remote peers and executing the transactions in the blocks. When all transactions up to and including the latest have been executed the client will continue to stay synchronized.**
+### Milestone 3 & 4 - JSON RPC and Miner Integration
+
+**This version of the code supports almost all the functionality for a first release.**
+
 
 For the curious ...
 
@@ -42,11 +44,13 @@ The client attempts to contact the remote peers configured in the configuration 
 `fast-sync` download. The [configuration file](https://github.com/input-output-hk/etc-client/blob/master/src/main/resources/application.conf)
 settings can all be overriden in 
 
-`./config/application.conf`
+`./config/production.conf`
 
-The client has not been run on Windows.
+The client has been run on Windows 8 and seems to work however it has not been extensively tested.
  
-The next milestone involves integrating our client with Mist browser!
+
+The next milestone is our early Beta release!!
+
   
   
 

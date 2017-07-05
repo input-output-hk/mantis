@@ -2,81 +2,94 @@ package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorSystem, PoisonPill, Props}
+import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.{Fixtures, Mocks}
+import io.iohk.ethereum.{Mocks, Timeouts}
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.domain.{Account, Block, BlockHeader, BlockchainStorages}
-import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.{BlockExecutionError, BloomFilter, Ledger}
-import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.PeerActor.Unsubscribe
-import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peer, Peers}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
+import io.iohk.ethereum.domain.{Account, Block, BlockHeader}
+import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
+import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
-import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
-import io.iohk.ethereum.validators._
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
+import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
+import io.iohk.ethereum.utils.Config
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 
+// scalastyle:off file.size.limit
 class SyncControllerSpec extends FlatSpec with Matchers {
 
-  "FastSyncController" should "download target block and request state nodes" in new TestSetup() {
+  "SyncController" should "download target block and request state nodes" in new TestSetup() {
 
-    val peer1: TestProbe = TestProbe()(system)
-    val peer2: TestProbe = TestProbe()(system)
+    val peer1TestProbe: TestProbe = TestProbe("peer1")(system)
+    val peer2TestProbe: TestProbe = TestProbe("peer2")(system)
+
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref)
+    val peer2 = Peer(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref)
 
     time.advance(1.seconds)
 
     val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
 
-    peerManager.expectMsg(GetPeers)
-    peerManager.reply(Peers(Map(
-      Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref) -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty),
-      Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref) -> PeerActor.Status.Handshaked(peer2Status, true, peer1Status.totalDifficulty))))
+    etcPeerManager.send(syncController, HandshakedPeers(Map(
+      peer1 -> PeerInfo(peer1Status, peer1Status.totalDifficulty, forkAccepted = true, maxBlockNumber = 0),
+      peer2 -> PeerInfo(peer2Status, peer1Status.totalDifficulty, forkAccepted = true, maxBlockNumber = 0))))
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
-    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))
-    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq(baseBlockHeader.copy(number = 300000)))))
-    peer1.expectMsg(PeerActor.Unsubscribe)
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
 
-    peer2.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer2.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer2_bestHash")), 1, 0, reverse = false)))
-    peer2.reply(PeerActor.MessageReceived(BlockHeaders(Seq(baseBlockHeader.copy(number = 400000)))))
-    peer2.expectMsg(PeerActor.Unsubscribe)
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false), peer1.id))
+    syncController ! MessageFromPeer(BlockHeaders(Seq(baseBlockHeader.copy(number = 300000))), peer1.id)
+
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer2_bestHash")), 1, 0, reverse = false), peer2.id))
+    syncController ! MessageFromPeer(BlockHeaders(Seq(baseBlockHeader.copy(number = 400000))), peer2.id)
+
+    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
+    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
 
     val expectedTargetBlock = 399500
-
-    peer1.expectNoMsg()
-
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
-    peer2.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer2.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedTargetBlock), 1, 0, reverse = false)))
-    peer2.reply(PeerActor.MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(expectedTargetBlock), 1, 0, reverse = false), peer2.id))
+    syncController ! MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer2.id)
 
     storagesInstance.storages.appStateStorage.putBestBlockNumber(targetBlockHeader.number)
 
-    peer1.ref ! PoisonPill
+    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(1), 10, 0, reverse = false), peer1.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
 
-    peer2.expectMsg(PeerActor.Unsubscribe)
+    val blockHeadersRequestHandler = peerMessageBus.sender()
+    peerMessageBus.send(syncController, PeerDisconnected(peer1.id))
+    peerMessageBus.send(blockHeadersRequestHandler, PeerDisconnected(peer1.id))
 
-    peer2.expectMsg(PeerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot))))
-    peer2.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer2.id))
+    peerMessageBus.expectMsgAllOf(
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
   }
 
   it should "download target block, request state, blocks and finish when downloaded" in new TestSetup() {
-    val peer2: TestProbe = TestProbe()(system)
+    val peer2TestProbe: TestProbe = TestProbe()(system)
+    val peer2 = Peer(new InetSocketAddress("127.0.0.1", 0), peer2TestProbe.ref)
 
     val expectedTargetBlock = 399500
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(
@@ -91,57 +104,60 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     val peer2Status = Status(1, 1, 20, ByteString("peer2_bestHash"), ByteString("unused"))
 
-    peerManager.expectMsg(GetPeers)
-    peerManager.reply(Peers(Map(
-      Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref) -> PeerActor.Status.Handshaked(peer2Status, true, peer2Status.totalDifficulty))))
+    etcPeerManager.send(syncController, HandshakedPeers(Map(
+      peer2 -> PeerInfo(peer2Status, forkAccepted = true, totalDifficulty = peer2Status.totalDifficulty, maxBlockNumber = 0))))
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
-    peer2.expectMsgAllOf(
-      PeerActor.SendMessage(GetBlockHeaders(Left(targetBlockHeader.number), expectedTargetBlock - bestBlockHeaderNumber, 0, reverse = false)),
-      PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer2.reply(PeerActor.MessageReceived(BlockHeaders(Seq(targetBlockHeader))))
-    peer2.expectMsg(PeerActor.Unsubscribe)
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(targetBlockHeader.number), expectedTargetBlock - bestBlockHeaderNumber, 0, reverse = false),
+      peer2.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer2.id))
+    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
 
-    peer2.expectMsgAllOf(
-      PeerActor.SendMessage(GetReceipts(Seq(targetBlockHeader.hash))),
-      PeerActor.Subscribe(Set(Receipts.code)))
-    peer2.reply(PeerActor.MessageReceived(Receipts(Seq(Nil))))
-    peer2.expectMsg(PeerActor.Unsubscribe)
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetReceipts(Seq(targetBlockHeader.hash)), peer2.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.reply(MessageFromPeer(Receipts(Seq(Nil)), peer2.id))
+    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer2.id))))
 
-    peer2.expectMsgAllOf(
-      PeerActor.SendMessage(GetBlockBodies(Seq(targetBlockHeader.hash))),
-      PeerActor.Subscribe(Set(BlockBodies.code)))
-    peer2.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil)))))
-    peer2.expectMsg(PeerActor.Unsubscribe)
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(targetBlockHeader.hash)), peer2.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.reply(MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil))), peer2.id))
+    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer2.id))))
 
     val stateMptLeafWithAccount =
       ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 
     val watcher = TestProbe()
-    watcher.watch(fastSyncController)
+    watcher.watch(syncController)
 
-    peer2.expectMsgAllOf(
-      PeerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot))),
-      PeerActor.Subscribe(Set(NodeData.code)))
-    peer2.reply(PeerActor.MessageReceived(NodeData(Seq(stateMptLeafWithAccount))))
-    peer2.expectMsg(PeerActor.Unsubscribe)
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer2.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.reply(MessageFromPeer(NodeData(Seq(stateMptLeafWithAccount)), peer2.id))
+    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
 
     //switch to regular download
-    peer2.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(targetBlockHeader.number + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
-    peer2.expectMsgAllOf(PeerActor.Subscribe(Set(BlockHeaders.code)))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(targetBlockHeader.number + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      peer2.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
   }
 
   it should "not use (blacklist) a peer that fails to respond within time limit" in new TestSetup() {
-    val peer2: TestProbe = TestProbe()(system)
+    val peer2TestProbe: TestProbe = TestProbe()(system)
+
+    val peer2 = Peer(new InetSocketAddress("127.0.0.1", 0), peer2TestProbe.ref)
 
     time.advance(1.seconds)
 
     val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
 
-    peerManager.expectMsg(GetPeers)
-    peerManager.reply(Peers(Map(
-      Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref) -> PeerActor.Status.Handshaked(peer2Status, true, peer2Status.totalDifficulty))))
+    etcPeerManager.send(syncController, HandshakedPeers(Map(
+      peer2 -> PeerInfo(peer2Status, forkAccepted = true, totalDifficulty = peer2Status.totalDifficulty, maxBlockNumber = 0))))
 
     val expectedTargetBlock = 399500
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
@@ -150,38 +166,39 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       .copy(bestBlockHeaderNumber = targetBlockHeader.number,
         mptNodesQueue = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
-    peer2.expectMsg(PeerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot))))
-    peer2.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer2.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
 
     // response timeout
     time.advance(2.seconds)
-    peer2.expectMsg(PeerActor.Unsubscribe)
-    peer2.expectNoMsg()
+    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
+    etcPeerManager.expectNoMsg()
 
     // wait for blacklist timeout
     time.advance(6.seconds)
-    peer2.expectNoMsg()
+    etcPeerManager.expectNoMsg()
 
     // wait for next sync retry
     time.advance(3.seconds)
 
     // peer should not be blacklisted anymore
-    peer2.expectMsg(PeerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot))))
-    peer2.expectMsg(PeerActor.Subscribe(Set(NodeData.code)))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer2.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
   }
 
   it should "start regular download " in new TestSetup() {
-    val peer: TestProbe = TestProbe()(system)
+    val peerTestProbe: TestProbe = TestProbe()(system)
+
+    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref)
 
     time.advance(1.seconds)
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
-    peerManager.expectMsg(GetPeers)
-    peerManager.reply(Peers(Map(
-      Peer(new InetSocketAddress("127.0.0.1", 0), peer.ref) -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty))))
+    etcPeerManager.send(syncController, HandshakedPeers(Map(
+      peer -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0))))
 
     val expectedMaxBlock = 399500
     val newBlockDifficulty = 23
@@ -198,36 +215,53 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     storagesInstance.storages.appStateStorage.fastSyncDone()
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
-    peer.ignoreMsg { case u => u == Unsubscribe }
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      peer.id))
+    syncController.children.last ! MessageFromPeer(BlockHeaders(Seq(newBlockHeader)), peer.id)
 
-    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeader))))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash)), peer.id))
+    syncController.children.last ! MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil))), peer.id)
 
-    peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash))))
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
-    peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil)))))
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
+      Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))),
+      Unsubscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))),
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
+    )
 
-    peer.expectMsgAllOf(10.seconds,
-      PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
-      PeerActor.Subscribe(Set(BlockHeaders.code)))
+    etcPeerManager.expectMsgAllOf(Timeouts.normalTimeout,
+      EtcPeerManagerActor.SendMessage(
+        GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+        peer.id),
+      EtcPeerManagerActor.SendMessage(
+        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer.id)
+    )
+    etcPeerManager.expectNoMsg()
 
     blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(newBlockHeader, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(newBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + newBlockHeader.difficulty)
+
+    ommersPool.expectMsg(RemoveOmmers(newBlockHeader))
+    pendingTransactionsManager.expectMsg(AddTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectNoMsg()
   }
 
   it should "resolve branch conflict" in new TestSetup() {
-    val peer: TestProbe = TestProbe()(system)
+    val peerTestProbe: TestProbe = TestProbe()(system)
+    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref)
 
     time.advance(1.seconds)
 
-    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
-    peerManager.expectMsg(GetPeers)
-    peerManager.reply(Peers(Map(
-      Peer(new InetSocketAddress("127.0.0.1", 0), peer.ref) -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty))))
+    etcPeerManager.send(syncController, HandshakedPeers(Map(
+      peer -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0))))
 
     val expectedMaxBlock = 399500
     val newBlockDifficulty = 23
@@ -258,33 +292,59 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     storagesInstance.storages.appStateStorage.fastSyncDone()
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
-    peer.ignoreMsg { case u => u == Unsubscribe }
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      peer.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
+    peerMessageBus.reply(MessageFromPeer(BlockHeaders(Queue(newBlockHeader)), peer.id))
 
-    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeader))))
+    peerMessageBus.expectMsgAllOf(
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
+    syncController.children.last ! MessageFromPeer(BlockHeaders(Queue(newBlockHeaderParent)), peer.id)
 
-    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(newBlockHeader.parentHash), Config.FastSync.blockResolveDepth, 0, reverse = true)))
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeaderParent))))
+    peerMessageBus.expectMsgAllOf(
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
+      Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))))
 
-    peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeaderParent.hash, newBlockHeader.hash))))
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
-    peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil)))))
+    syncController.children.last ! MessageFromPeer(BlockBodies(Queue(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer.id)
+
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Right(newBlockHeader.parentHash), Config.FastSync.blockResolveDepth, 0, reverse = true),
+      peer.id))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockBodies(Queue(newBlockHeaderParent.hash, newBlockHeader.hash)),
+      peer.id))
+
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
+      Unsubscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))))
+    syncController.children.last ! MessageFromPeer(BlockHeaders(Queue(nextNewBlockHeader)), peer.id)
+
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))),
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
+    syncController.children.last ! MessageFromPeer(BlockBodies(Queue(BlockBody(Nil, Nil))), peer.id)
 
     //start next download cycle
 
-    peer.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer.reply(PeerActor.MessageReceived(BlockHeaders(Seq(nextNewBlockHeader))))
-    peer.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(nextNewBlockHeader.hash))))
-    peer.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
-    peer.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil)))))
+    etcPeerManager.expectMsgAllOf(
+      EtcPeerManagerActor.SendMessage(
+        GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+        peer.id),
+      EtcPeerManagerActor.SendMessage(
+        NewBlock(Block(newBlockHeaderParent, BlockBody(Nil, Nil)), commonRootTotalDifficulty + newBlockDifficulty),
+        peer.id),
+      EtcPeerManagerActor.SendMessage(
+        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), commonRootTotalDifficulty + 2 * newBlockDifficulty),
+        peer.id)
+    )
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(nextNewBlockHeader.hash)), peer.id))
 
     //wait for actor to insert data
-    Thread.sleep(3.seconds.toMillis)
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     blockchain.getBlockByNumber(expectedMaxBlock) shouldBe Some(Block(newBlockHeaderParent, BlockBody(Nil, Nil)))
     blockchain.getTotalDifficultyByHash(newBlockHeaderParent.hash) shouldBe Some(commonRootTotalDifficulty + newBlockHeaderParent.difficulty)
@@ -300,13 +360,33 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     blockchain.getBlockHeaderByHash(maxBlockHeader.hash) shouldBe None
     blockchain.getBlockBodyByHash(maxBlockHeader.hash) shouldBe None
     blockchain.getTotalDifficultyByHash(maxBlockHeader.hash) shouldBe None
+
+    ommersPool.expectMsg(AddOmmers(maxBlockHeader))
+    ommersPool.expectMsg(RemoveOmmers(newBlockHeaderParent))
+    ommersPool.expectMsg(RemoveOmmers(newBlockHeader))
+    ommersPool.expectMsg(RemoveOmmers(nextNewBlockHeader))
+
+    pendingTransactionsManager.expectMsg(AddTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+
+    pendingTransactionsManager.expectMsg(AddTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectNoMsg()
   }
 
   it should "only use ETC peer to choose target block" in new TestSetup() {
-    val peer1: TestProbe = TestProbe()(system)
-    val peer2: TestProbe = TestProbe()(system)
-    val peer3: TestProbe = TestProbe()(system)
-    val peer4: TestProbe = TestProbe()(system)
+    val peer1TestProbe: TestProbe = TestProbe()(system)
+    val peer2TestProbe: TestProbe = TestProbe()(system)
+    val peer3TestProbe: TestProbe = TestProbe()(system)
+    val peer4TestProbe: TestProbe = TestProbe()(system)
+
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref)
+    val peer2 = Peer(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref)
+    val peer3 = Peer(new InetSocketAddress("127.0.0.3", 0), peer3TestProbe.ref)
+    val peer4 = Peer(new InetSocketAddress("127.0.0.4", 0), peer4TestProbe.ref)
 
     time.advance(1.seconds)
 
@@ -315,43 +395,49 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val peer3Status= Status(1, 1, 1, ByteString("peer3_bestHash"), ByteString("unused"))
     val peer4Status= Status(1, 1, 1, ByteString("peer4_bestHash"), ByteString("unused"))
 
-    peerManager.expectMsg(GetPeers)
-    peerManager.reply(Peers(Map(
-      Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref) -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty),
-      Peer(new InetSocketAddress("127.0.0.1", 0), peer2.ref) -> PeerActor.Status.Handshaked(peer2Status, false, peer1Status.totalDifficulty),
-      Peer(new InetSocketAddress("127.0.0.1", 0), peer3.ref) -> PeerActor.Status.Handshaked(peer3Status, false, peer1Status.totalDifficulty),
-      Peer(new InetSocketAddress("127.0.0.1", 0), peer4.ref) -> PeerActor.Status.Handshaked(peer4Status, true, peer1Status.totalDifficulty))))
+    etcPeerManager.send(syncController, HandshakedPeers(Map(
+      peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
+      peer2 -> PeerInfo(peer2Status, forkAccepted = false, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
+      peer3 -> PeerInfo(peer3Status, forkAccepted = false, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
+      peer4 -> PeerInfo(peer4Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0))))
 
     val expectedTargetBlock = 399500
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
     storagesInstance.storages.appStateStorage.putBestBlockNumber(targetBlockHeader.number)
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
-    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false)))
-    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq(baseBlockHeader.copy(number = 300000)))))
-    peer1.expectMsg(PeerActor.Unsubscribe)
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer4.id))))
 
-    peer2.expectNoMsg()
-    peer3.expectNoMsg()
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Right(ByteString("peer1_bestHash")), 1, 0, reverse = false),
+      peer1.id))
+    syncController ! MessageFromPeer(BlockHeaders(Seq(baseBlockHeader.copy(number = 300000))), peer1.id)
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Right(ByteString("peer4_bestHash")), 1, 0, reverse = false),
+      peer4.id))
+    etcPeerManager.expectNoMsg()
 
-    peer4.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer4.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer4_bestHash")), 1, 0, reverse = false)))
-    peer4.reply(PeerActor.MessageReceived(BlockHeaders(Seq(baseBlockHeader.copy(number = 300000)))))
-    peer4.expectMsg(PeerActor.Unsubscribe)
+    syncController ! MessageFromPeer(BlockHeaders(Seq(baseBlockHeader.copy(number = 300000))), peer4.id)
+
+    peerMessageBus.expectMsgAllOf(
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer4.id))),
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
   }
 
   it should "broadcast all blocks if they were all valid" in new TestSetup() {
-    val peer1: TestProbe = TestProbe()(system)
+    val peer1TestProbe: TestProbe = TestProbe()(system)
+
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref)
 
     time.advance(1.seconds)
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
-    peerManager.expectMsg(GetPeers)
-    peerManager.reply(Peers(Map(
-      Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref) -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty)
+    etcPeerManager.send(syncController, HandshakedPeers(Map(
+      peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)
     )))
 
     val expectedMaxBlock = 399500
@@ -372,52 +458,77 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     storagesInstance.storages.appStateStorage.fastSyncDone()
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
     //Turn broadcasting on the RegularSync on by sending an empty BlockHeaders message:
-    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
-    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq())))
-    peer1.expectMsg(Unsubscribe)
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      peer1.id))
+
+    syncController.children.last ! MessageFromPeer(BlockHeaders(Seq()), peer1.id)
+
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
+
     time.advance(Config.FastSync.checkForNewBlockInterval)
 
-    peer1.ignoreMsg { case u => u == Unsubscribe }
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      peer1.id))
 
-    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
-    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeader, nextNewBlockHeader))))
+    syncController.children.last ! MessageFromPeer(BlockHeaders(Seq(newBlockHeader, nextNewBlockHeader)), peer1.id)
 
-    peer1.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash, nextNewBlockHeader.hash))))
-    peer1.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
-    peer1.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil)))))
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer1.id))))
+
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockBodies(Seq(newBlockHeader.hash, nextNewBlockHeader.hash)),
+      peer1.id))
+
+    syncController.children.last ! MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer1.id)
 
     //TODO: investigate why such a long timeout is required
-    peer1.expectMsgAllOf(20.seconds,
-      PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 3), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
-      PeerActor.Subscribe(Set(BlockHeaders.code)),
-      PeerActor.BroadcastBlocks(Seq(
-        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty),
-        NewBlock(Block(nextNewBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + 2 * newBlockDifficulty)
-      ))
+    etcPeerManager.expectMsgAllOf(Timeouts.veryLongTimeout,
+      EtcPeerManagerActor.SendMessage(
+        GetBlockHeaders(Left(expectedMaxBlock + 3), Config.FastSync.blockHeadersPerRequest, 0, reverse = false), peer1.id),
+      EtcPeerManagerActor.SendMessage(
+        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer1.id),
+      EtcPeerManagerActor.SendMessage(
+        NewBlock(Block(nextNewBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + 2 * newBlockDifficulty), peer1.id)
     )
+
+    ommersPool.expectMsg(RemoveOmmers(newBlockHeader))
+    ommersPool.expectMsg(RemoveOmmers(nextNewBlockHeader))
+
+    pendingTransactionsManager.expectMsg(AddTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectNoMsg()
   }
 
   val invalidBlockNumber = 399502
 
   it should "only broadcast blocks that it was able to successfully execute" in new TestSetup(Seq(invalidBlockNumber)) {
 
-    val peer1: TestProbe = TestProbe()(system)
-    val peer2: TestProbe = TestProbe()(system)
+    val peer1TestProbe: TestProbe = TestProbe()(system)
+    val peer2TestProbe: TestProbe = TestProbe()(system)
+
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref)
+    val peer2 = Peer(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref)
 
     time.advance(1.seconds)
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     val peer2Status= Status(1, 1, totalDifficulty = 0, ByteString("peer2_bestHash"), ByteString("unused"))
 
-    peerManager.expectMsg(GetPeers)
-    peerManager.reply(Peers(Map(
-      Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref) -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty),
-      Peer(new InetSocketAddress("127.0.0.2", 0), peer2.ref) -> PeerActor.Status.Handshaked(peer2Status, true, peer2Status.totalDifficulty)
+    etcPeerManager.send(syncController, HandshakedPeers(Map(
+      peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
+      peer2 -> PeerInfo(peer2Status, forkAccepted = true, totalDifficulty = peer2Status.totalDifficulty, maxBlockNumber = 0)
     )))
 
     val expectedMaxBlock = 399500
@@ -437,48 +548,69 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     storagesInstance.storages.appStateStorage.fastSyncDone()
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
     //Turn broadcasting on the RegularSync on by sending an empty BlockHeaders message:
-    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
-    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq())))
-    peer1.expectMsg(Unsubscribe)
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      peer1.id))
+
+    syncController.children.last ! MessageFromPeer(BlockHeaders(Seq()), peer1.id)
+
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
+
     time.advance(Config.FastSync.checkForNewBlockInterval)
 
-    peer1.ignoreMsg { case u => u == Unsubscribe }
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      peer1.id))
+    syncController.children.last ! MessageFromPeer(BlockHeaders(Seq(newBlockHeader, invalidNextNewBlockHeader)), peer1.id)
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer1.id))))
 
-    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
-    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeader, invalidNextNewBlockHeader))))
-
-    peer1.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash, invalidNextNewBlockHeader.hash))))
-    peer1.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
-    peer1.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil)))))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockBodies(Seq(newBlockHeader.hash, invalidNextNewBlockHeader.hash)), peer1.id))
+    syncController.children.last ! MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer1.id)
 
     //TODO: investigate why such a long timeout is required
-    peer2.expectMsgAllOf(20.seconds,
-      PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
-      PeerActor.Subscribe(Set(BlockHeaders.code)),
-      PeerActor.BroadcastBlocks(Seq(NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty)))
+    etcPeerManager.expectMsgAllOf(Timeouts.veryLongTimeout,
+      EtcPeerManagerActor.SendMessage(
+        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer1.id),
+      EtcPeerManagerActor.SendMessage(
+        GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false), peer2.id),
+      EtcPeerManagerActor.SendMessage(
+        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer2.id)
     )
+
+    ommersPool.expectMsg(RemoveOmmers(newBlockHeader))
+    pendingTransactionsManager.expectMsg(AddTransactions(Nil))
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectNoMsg()
+
   }
 
   val invalidBlock = 399501
-  it should "should only ask a peer once for BlockHeaders in case execution of a block were to fail" in new TestSetup(Seq(invalidBlock)) {
+  it should "only ask a peer once for BlockHeaders in case execution of a block were to fail" in new TestSetup(Seq(invalidBlock)) {
+    val peer1TestProbe: TestProbe = TestProbe()(system)
+    val peer2TestProbe: TestProbe = TestProbe()(system)
 
-    val peer1: TestProbe = TestProbe()(system)
-    val peer2: TestProbe = TestProbe()(system)
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref)
+    val peer2 = Peer(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref)
 
     time.advance(1.seconds)
 
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     val peer2Status= Status(1, 1, totalDifficulty = 0, ByteString("peer2_bestHash"), ByteString("unused"))
 
-    peerManager.expectMsg(GetPeers)
-    peerManager.reply(Peers(Map(
-      Peer(new InetSocketAddress("127.0.0.1", 0), peer1.ref) -> PeerActor.Status.Handshaked(peer1Status, true, peer1Status.totalDifficulty),
-      Peer(new InetSocketAddress("127.0.0.2", 0), peer2.ref) -> PeerActor.Status.Handshaked(peer2Status, true, peer2Status.totalDifficulty)
+    etcPeerManager.send(syncController, HandshakedPeers(Map(
+      peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
+      peer2 -> PeerInfo(peer2Status, forkAccepted = true, totalDifficulty = peer2Status.totalDifficulty, maxBlockNumber = 0)
     )))
 
     val expectedMaxBlock = 399500
@@ -495,48 +627,210 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     storagesInstance.storages.appStateStorage.fastSyncDone()
 
-    fastSyncController ! SyncController.StartSync
+    syncController ! SyncController.StartSync
 
-    peer1.ignoreMsg { case u => u == Unsubscribe }
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false), peer1.id))
+    syncController.children.last ! MessageFromPeer(BlockHeaders(Seq(newBlockHeader)), peer1.id)
 
-    peer1.expectMsg(PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)))
-    peer1.expectMsg(PeerActor.Subscribe(Set(BlockHeaders.code)))
-    peer1.reply(PeerActor.MessageReceived(BlockHeaders(Seq(newBlockHeader))))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash)), peer1.id))
+    syncController.children.last ! MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil))), peer1.id)
 
-    peer1.expectMsg(PeerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash))))
-    peer1.expectMsg(PeerActor.Subscribe(Set(BlockBodies.code)))
-    peer1.reply(PeerActor.MessageReceived(BlockBodies(Seq(BlockBody(Nil, Nil)))))
+    peerMessageBus.expectMsgAllOf(Timeouts.normalTimeout,
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer1.id))),
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))),
+      Unsubscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer1.id))))
 
     //As block execution failed for a block received from peer1, the same block is asked to peer2
-    peer2.expectMsgAllOf(10.seconds,
-      PeerActor.SendMessage(GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false)),
-      PeerActor.Subscribe(Set(BlockHeaders.code)))
+    etcPeerManager.expectMsg(Timeouts.longTimeout, EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      peer2.id))
 
     //No other message should be received as no response was sent to peer2
-    peer2.expectNoMsg()
+    peerMessageBus.expectNoMsg()
+    etcPeerManager.expectNoMsg()
+
+    pendingTransactionsManager.expectMsg(AddTransactions(Nil))
+
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectNoMsg()
+  }
+
+  it should "accept mined blocks" in new TestSetup() {
+    val peerTestProbe: TestProbe = TestProbe()(system)
+
+    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref)
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+
+    etcPeerManager.send(syncController, HandshakedPeers(Map(
+      peer -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0))))
+
+    val expectedMaxBlock = 399500
+    val newBlockDifficulty = 23
+    val maxBlocTotalDifficulty = 12340
+    val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock)
+    val minedBlockHeader: BlockHeader = baseBlockHeader
+      .copy(number = expectedMaxBlock + 1, parentHash = maxBlockHeader.hash, difficulty = newBlockDifficulty,
+        stateRoot = ByteString(Hex.decode("d0aedc3838a3d7f9a526bdd642b55fb1b6292596985cfab2eedb751da19b8bb4")))
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
+    storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
+    storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
+    storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, maxBlocTotalDifficulty)
+
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    syncController ! SyncController.StartSync
+
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      peer.id))
+    syncController.children.last ! MessageFromPeer(BlockHeaders(Seq()), peer.id)
+
+    //wait for empty headers processing
+    Thread.sleep(Timeouts.shortTimeout.toMillis)
+    syncController ! MinedBlock(Block(minedBlockHeader,BlockBody(Nil,Nil)))
+
+    //wait for actor to insert data
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
+    blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(minedBlockHeader, BlockBody(Nil, Nil)))
+    blockchain.getTotalDifficultyByHash(minedBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + minedBlockHeader.difficulty)
+
+    ommersPool.expectMsg(RemoveOmmers(minedBlockHeader))
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+    pendingTransactionsManager.expectNoMsg()
+  }
+
+  it should "accept mined blocks after request timed-out" in new TestSetup() {
+    val peerTestProbe: TestProbe = TestProbe()(system)
+
+    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref)
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+
+    etcPeerManager.send(syncController, HandshakedPeers(Map(
+      peer -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0))))
+
+    val expectedMaxBlock = 399500
+    val newBlockDifficulty = 23
+    val maxBlocTotalDifficulty = 12340
+    val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock)
+    val minedBlockHeader: BlockHeader = baseBlockHeader
+      .copy(number = expectedMaxBlock + 1, parentHash = maxBlockHeader.hash, difficulty = newBlockDifficulty,
+        stateRoot = ByteString(Hex.decode("d0aedc3838a3d7f9a526bdd642b55fb1b6292596985cfab2eedb751da19b8bb4")))
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
+    storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
+    storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
+    storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, maxBlocTotalDifficulty)
+
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    peerMessageBus.ignoreNoMsg()
+
+    syncController ! SyncController.StartSync
+
+    //Send block headers request
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      peer.id))
+    peerMessageBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
+
+    //wait for timeout
+    time.advance(2 * Config.FastSync.peerResponseTimeout)
+    peerMessageBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
+
+    //wait for Done msg processing
+    Thread.sleep(1.seconds.toMillis)
+    syncController ! MinedBlock(Block(minedBlockHeader,BlockBody(Nil,Nil)))
+
+    //wait for actor to insert data
+    Thread.sleep(3.seconds.toMillis)
+
+    //Check that the mined block was inserted into the blockchain
+    blockchain.getBlockByNumber(expectedMaxBlock + 1) shouldBe Some(Block(minedBlockHeader, BlockBody(Nil, Nil)))
+    blockchain.getTotalDifficultyByHash(minedBlockHeader.hash) shouldBe Some(maxBlocTotalDifficulty + minedBlockHeader.difficulty)
+
+    ommersPool.expectMsg(RemoveOmmers(minedBlockHeader))
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectMsg(RemoveTransactions(Nil))
+    pendingTransactionsManager.expectNoMsg()
+  }
+
+  it should "accept add mined blocks as ommers when doing sync" in new TestSetup() {
+    val peerTestProbe: TestProbe = TestProbe()(system)
+
+    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref)
+
+    time.advance(1.seconds)
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+
+    etcPeerManager.send(syncController, HandshakedPeers(Map(
+      peer -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0))))
+
+    val expectedMaxBlock = 399500
+    val newBlockDifficulty = 23
+    val maxBlocTotalDifficulty = 12340
+    val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock)
+    val minedBlockHeader: BlockHeader = baseBlockHeader
+      .copy(number = expectedMaxBlock + 1, parentHash = maxBlockHeader.hash, difficulty = newBlockDifficulty,
+        stateRoot = ByteString(Hex.decode("d0aedc3838a3d7f9a526bdd642b55fb1b6292596985cfab2eedb751da19b8bb4")))
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
+    storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
+    storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
+    storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, maxBlocTotalDifficulty)
+
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    syncController ! SyncController.StartSync
+
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false), peer.id))
+
+    syncController ! MinedBlock(Block(minedBlockHeader,BlockBody(Nil,Nil)))
+    blockchain.getBlockByHash(minedBlockHeader.hash) shouldBe None
+    blockchain.getTotalDifficultyByHash(minedBlockHeader.hash) shouldBe None
+
+    ommersPool.expectMsg(AddOmmers(minedBlockHeader))
+    ommersPool.expectNoMsg()
+    pendingTransactionsManager.expectNoMsg()
   }
 
   class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil) extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("FastSyncControllerSpec_System")
 
     val time = new VirtualTime
-    val peerManager = TestProbe()
-
-    val dataSource = EphemDataSource()
+    val etcPeerManager = TestProbe()
+    etcPeerManager.ignoreMsg{ case GetHandshakedPeers => true }
 
     val ledger: Ledger = new Mocks.MockLedger((block, _, _) => !blocksForWhichLedgerFails.contains(block.header.number))
 
-    val fastSyncController = TestActorRef(Props(new SyncController(peerManager.ref,
+    val peerMessageBus = TestProbe()
+    peerMessageBus.ignoreMsg{
+      case Subscribe(PeerDisconnectedClassifier(_)) => true
+      case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
+    }
+    val pendingTransactionsManager = TestProbe()
+    val ommersPool = TestProbe()
+
+    val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       new Mocks.MockValidatorsAlwaysSucceed,
+      peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
       externalSchedulerOpt = Some(time.scheduler))))
 
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
-
     val baseBlockHeader = BlockHeader(
       parentHash = ByteString("unused"),
       ommersHash = ByteString("unused"),

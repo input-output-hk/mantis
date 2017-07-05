@@ -4,33 +4,27 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.EvmCodeStorage.Code
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, _}
-import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits._
-import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.vm.{Storage, UInt256, WorldStateProxy}
 
 object InMemoryWorldStateProxy {
 
-  val byteArrayUInt256Serializer = new ByteArrayEncoder[UInt256] {
-    override def toBytes(input: UInt256): Array[Byte] = input.bytes.toArray[Byte]
-  }
-
-  val rlpUInt256Serializer = new RLPByteArraySerializable[UInt256]
-  implicit val accountSerializer = new RLPByteArraySerializable[Account]
+  import Account._
 
   def apply(
     storages: BlockchainStorages,
-    stateStorage: NodeStorage,
     stateRootHash: Option[ByteString] = None): InMemoryWorldStateProxy = {
 
     val accountsStateTrieProxy = createProxiedAccountsStateTrie(
-      stateStorage,
+      storages.nodeStorage,
       stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.calculateEmptyRootHash(kec256(_: Array[Byte]))))
     )
+    //todo why do we create blockchain every time we are calling this function?
     val getBlockHashByNumber = (number: BigInt) => BlockchainImpl(storages).getBlockHeaderByNumber(number).map(_.hash)
 
-    new InMemoryWorldStateProxy(stateStorage, accountsStateTrieProxy, Map.empty, storages.evmCodeStorage, Map.empty, getBlockHashByNumber)
+    new InMemoryWorldStateProxy(storages.nodeStorage, accountsStateTrieProxy, Map.empty, storages.evmCodeStorage, Map.empty, getBlockHashByNumber)
   }
 
   /**
@@ -89,6 +83,7 @@ object InMemoryWorldStateProxy {
   private def createProxiedAccountsStateTrie(accountsStorage: NodeStorage, stateRootHash: ByteString)
   : InMemorySimpleMapProxy[ByteString, Account, MerklePatriciaTrie[ByteString, Account]] = {
     InMemorySimpleMapProxy.wrap[ByteString, Account, MerklePatriciaTrie[ByteString, Account]](
+      //TODO: change to MerklePatriciaTree[Address, Account] and use an Address seraializer that is defined in one place
       MerklePatriciaTrie[ByteString, Account](
         stateRootHash.toArray[Byte],
         accountsStorage,
@@ -108,14 +103,7 @@ object InMemoryWorldStateProxy {
     */
   private def createProxiedContractStorageTrie(contractStorage: NodeStorage, storageRoot: ByteString):
   InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]] =
-    InMemorySimpleMapProxy.wrap[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]](
-      MerklePatriciaTrie[UInt256, UInt256](
-        storageRoot.toArray[Byte],
-        contractStorage,
-        kec256(_: Array[Byte]))(
-        HashByteArraySerializable(byteArrayUInt256Serializer),
-        rlpUInt256Serializer)
-    )
+    InMemorySimpleMapProxy.wrap[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]](domain.storageMpt(storageRoot, contractStorage))
 }
 
 class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]])

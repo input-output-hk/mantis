@@ -1,14 +1,12 @@
 package io.iohk.ethereum.validators
 
+import akka.serialization.ByteArraySerializer
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction}
 import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.mpt.RLPByteArraySerializable
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+import io.iohk.ethereum.mpt.ByteArraySerializable
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits.headerRlpEncDec
-import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits.receiptRlpEncDec
 import io.iohk.ethereum.rlp.RLPImplicitConversions.toRlpList
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.ByteUtils.or
@@ -26,7 +24,7 @@ trait BlockValidator {
 object BlockValidator extends BlockValidator {
   /**
     * Validates [[io.iohk.ethereum.domain.BlockHeader.transactionsRoot]] matches [[BlockBody.transactionList]]
-    * based on validations stated in section 4.2.2 of http://paper.gavwood.com/
+    * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param block Block to validate
     * @return Block if valid, a Some otherwise
@@ -34,7 +32,7 @@ object BlockValidator extends BlockValidator {
   private def validateTransactionRoot(block: Block): Either[BlockError, Block] = {
     val isValid = MptListValidator.isValid[SignedTransaction](block.header.transactionsRoot.toArray[Byte],
       block.body.transactionList,
-      new RLPByteArraySerializable[SignedTransaction]
+      SignedTransaction.byteArraySerializable
     )
     if (isValid) Right(block)
     else Left(BlockTransactionsHashError)
@@ -42,21 +40,22 @@ object BlockValidator extends BlockValidator {
 
   /**
     * Validates [[BlockBody.uncleNodesList]] against [[io.iohk.ethereum.domain.BlockHeader.ommersHash]]
-    * based on validations stated in section 4.2.2 of http://paper.gavwood.com/
+    * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param block Block to validate
     * @return Block if valid, a Some otherwise
     */
   private def validateOmmersHash(block: Block): Either[BlockError, Block] = {
     // FIXME Can we avoid encoding ommers again?
-    val encodedOmmers = encode(toRlpList(block.body.uncleNodesList))
+    import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
+    val encodedOmmers: Array[Byte] = block.body.uncleNodesList.toBytes
     if (kec256(encodedOmmers) sameElements block.header.ommersHash) Right(block)
     else Left(BlockOmmersHashError)
   }
 
   /**
     * Validates [[Receipt]] against [[io.iohk.ethereum.domain.BlockHeader.receiptsRoot]]
-    * based on validations stated in section 4.2.2 of http://paper.gavwood.com/
+    * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param block    Block to validate
     * @param receipts Receipts to use
@@ -66,7 +65,7 @@ object BlockValidator extends BlockValidator {
 
     val isValid = MptListValidator.isValid[Receipt](block.header.receiptsRoot.toArray[Byte],
       receipts,
-      new RLPByteArraySerializable[Receipt]
+      Receipt.byteArraySerializable
     )
     if (isValid) Right(block)
     else Left(BlockReceiptsHashError)
@@ -74,7 +73,7 @@ object BlockValidator extends BlockValidator {
 
   /**
     * Validates [[io.iohk.ethereum.domain.BlockHeader.logsBloom]] against [[Receipt.logsBloomFilter]]
-    * based on validations stated in section 4.2.2 of http://paper.gavwood.com/
+    * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param block    Block to validate
     * @param receipts Receipts to use
@@ -90,7 +89,7 @@ object BlockValidator extends BlockValidator {
 
   /**
     * This method allows validate a Block. It only perfoms the following validations (stated on
-    * section 4.2.2 of http://paper.gavwood.com/):
+    * section 4.4.2 of http://paper.gavwood.com/):
     *   - BlockValidator.validateTransactionRoot
     *   - BlockValidator.validateOmmersHash
     *   - BlockValidator.validateReceipts
@@ -109,7 +108,7 @@ object BlockValidator extends BlockValidator {
 
   /**
     * This method allows validate that a BlockHeader matches a BlockBody. It only perfoms the following validations (stated on
-    * section 4.2.2 of http://paper.gavwood.com/):
+    * section 4.4.2 of http://paper.gavwood.com/):
     *   - BlockValidator.validateTransactionRoot
     *   - BlockValidator.validateOmmersHash
     *
@@ -127,7 +126,7 @@ object BlockValidator extends BlockValidator {
 
   /**
     * This method allows validations of the block with its associated receipts.
-    * It only perfoms the following validations (stated on section 4.2.2 of http://paper.gavwood.com/):
+    * It only perfoms the following validations (stated on section 4.4.2 of http://paper.gavwood.com/):
     *   - BlockValidator.validateReceipts
     *   - BlockValidator.validateLogBloom
     *

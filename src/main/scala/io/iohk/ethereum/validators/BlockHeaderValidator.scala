@@ -1,9 +1,10 @@
 package io.iohk.ethereum.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.crypto.{kec256, kec512}
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain, DifficultyCalculator}
 import io.iohk.ethereum.utils.BlockchainConfig
+import org.spongycastle.util.encoders.Hex
 
 trait BlockHeaderValidator {
 
@@ -15,12 +16,9 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
 
   val MaxExtraDataSize: Int = 32
   val GasLimitBoundDivisor: Int = 1024
+  //todo should we report this?
   val MinGasLimit: BigInt = 5000 //Although the paper states this value is 125000, on the different clients 5000 is used
-  val DifficultyBoundDivision: Int = 2048
-  val FrontierTimestampDiffLimit: Int = -99
-  val ExpDifficultyPeriod: Int = 100000
-  val MinimumDifficulty: BigInt = 131072
-
+  val difficulty = new DifficultyCalculator(blockchainConfig)
   import BlockHeaderError._
 
   /** This method allows validate a BlockHeader (stated on
@@ -86,7 +84,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @return BlockHeader if valid, an [[HeaderDifficultyError]] otherwise
     */
   private def validateDifficulty(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] =
-    if (calculateDifficulty(blockHeader, parentHeader) == blockHeader.difficulty) Right(blockHeader)
+    if (difficulty.calculateDifficulty(blockHeader.number, blockHeader.unixTimestamp, parentHeader) == blockHeader.difficulty) Right(blockHeader)
     else Left(HeaderDifficultyError)
 
   /**
@@ -140,37 +138,6 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     val powValue = BigInt(1, calculatePoWValue(blockHeader).toArray)
     if(powValue <= powBoundary) Right(blockHeader)
     else Left(HeaderPoWError)
-  }
-
-  def calculateDifficulty(blockHeader: BlockHeader, parentHeader: BlockHeader): BigInt = {
-    import blockchainConfig.{homesteadBlockNumber, difficultyBombPauseBlockNumber, difficultyBombContinueBlockNumber}
-
-    val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision
-    val c: BigInt =
-      if (blockHeader.number < homesteadBlockNumber) {
-        if (blockHeader.unixTimestamp < parentHeader.unixTimestamp + 13) 1 else -1
-      } else {
-        val timestampDiff = blockHeader.unixTimestamp - parentHeader.unixTimestamp
-        math.max(1 - timestampDiff / 10, FrontierTimestampDiffLimit)
-      }
-
-    val difficultyBombExponent: Int =
-      if (blockHeader.number < difficultyBombPauseBlockNumber)
-        (blockHeader.number / ExpDifficultyPeriod - 2).toInt
-      else if (blockHeader.number < difficultyBombContinueBlockNumber)
-        ((difficultyBombPauseBlockNumber / ExpDifficultyPeriod) - 2).toInt
-      else {
-        val delay = (difficultyBombContinueBlockNumber - difficultyBombPauseBlockNumber) / ExpDifficultyPeriod
-        ((blockHeader.number / ExpDifficultyPeriod) - delay - 2).toInt
-      }
-
-    val difficultyBomb: BigInt =
-      if(difficultyBombExponent >= 0)
-        BigInt(2).pow(difficultyBombExponent)
-      else 0
-
-    val difficultyWithoutBomb = MinimumDifficulty.max(parentHeader.difficulty + x * c)
-    difficultyWithoutBomb + difficultyBomb
   }
 
   private def calculatePoWValue(blockHeader: BlockHeader): ByteString = {

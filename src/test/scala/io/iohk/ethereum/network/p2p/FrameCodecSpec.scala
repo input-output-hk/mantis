@@ -1,66 +1,49 @@
 package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.Message.PV63
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Hello, Ping, Pong}
-import io.iohk.ethereum.network.rlpx.{Header, Frame, FrameCodec}
-import io.iohk.ethereum.rlp
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.network.rlpx.{Frame, FrameCodec, Header}
+import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 import org.scalatest.{FlatSpec, Matchers}
 
 class FrameCodecSpec extends FlatSpec with Matchers {
 
-  "FrameCodec" should "send and receive Ping message" in new SecureChannelSetup {
-    val frameCodec = new FrameCodec(secrets)
-    val remoteFrameCodec = new FrameCodec(remoteSecrets)
-
-    val msg = Ping()
-    val encoded = ByteString(rlp.encode(msg))
-    val frame = Frame(Header(encoded.length, 0, None, Some(encoded.length)), msg.code, encoded)
-    val data = frameCodec.writeFrames(Seq(frame))
-
-    val readFrames = remoteFrameCodec.readFrames(data)
-    val firstFrame = readFrames.head
-    val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload.toArray, PV63)
-
-    readMessage shouldBe Ping()
-  }
-
-  it should "send and receive Hello message" in new SecureChannelSetup {
-    val frameCodec = new FrameCodec(secrets)
-    val remoteFrameCodec = new FrameCodec(remoteSecrets)
-
-    val msg = Hello(1, "test-client", Seq(Capability("foo", 1)), 3000, ByteString("123456"))
-    val encoded = ByteString(rlp.encode(msg))
-    val frame = Frame(Header(encoded.length, 0, None, Some(encoded.length)), msg.code, encoded)
-    val data = frameCodec.writeFrames(Seq(frame))
-
-    val readFrames = remoteFrameCodec.readFrames(data)
-    val firstFrame = readFrames.head
-    val readMessage = Message.decode(firstFrame.`type`, firstFrame.payload.toArray, PV63)
-
-    readMessage shouldBe msg
-  }
+  import DummyMsg._
 
   it should "send message and receive a response" in new SecureChannelSetup {
     val frameCodec = new FrameCodec(secrets)
     val remoteFrameCodec = new FrameCodec(remoteSecrets)
 
-    val ping = Ping()
-    val pingEncoded = ByteString(rlp.encode(ping))
-    val pingFrame = Frame(Header(pingEncoded.length, 0, None, Some(pingEncoded.length)), ping.code, pingEncoded)
-    val pingData = frameCodec.writeFrames(Seq(pingFrame))
-    val pingReadFrames = remoteFrameCodec.readFrames(pingData)
-    val pingReadMessage = Message.decode(pingReadFrames.head.`type`, pingReadFrames.head.payload.toArray, PV63)
+    val sampleMessage = DummyMsg(2310, ByteString("Sample Message"))
+    val sampleMessageEncoded: ByteString = sampleMessage.toBytes
+    val sampleMessageFrame = Frame(Header(sampleMessageEncoded.length, 0, None, Some(sampleMessageEncoded.length)), sampleMessage.code, sampleMessageEncoded)
+    val sampleMessageData = remoteFrameCodec.writeFrames(Seq(sampleMessageFrame))
+    val sampleMessageReadFrames = frameCodec.readFrames(sampleMessageData)
+    val sampleMessageReadMessage = sampleMessageReadFrames.head.payload.toArray[Byte].toSample
 
-    val pong = Pong()
-    val pongEncoded = ByteString(rlp.encode(pong))
-    val pongFrame = Frame(Header(pongEncoded.length, 0, None, Some(pongEncoded.length)), pong.code, pongEncoded)
-    val pongData = remoteFrameCodec.writeFrames(Seq(pongFrame))
-    val pongReadFrames = frameCodec.readFrames(pongData)
-    val pongReadMessage = Message.decode(pongReadFrames.head.`type`, pongReadFrames.head.payload.toArray, PV63)
+    sampleMessageReadMessage shouldBe sampleMessage
+  }
 
-    pingReadMessage shouldBe ping
-    pongReadMessage shouldBe pong
+  object DummyMsg {
+    val code: Int = 2323
+
+    implicit class DummyMsgEnc(val underlyingMsg: DummyMsg) extends MessageSerializable with RLPSerializable {
+      override def code: Int = DummyMsg.code
+
+      override def toRLPEncodable: RLPEncodeable = RLPList(underlyingMsg.aField, underlyingMsg.anotherField)
+    }
+
+    implicit class DummyMsgDec(val bytes: Array[Byte]) {
+      def toSample: DummyMsg = rawDecode(bytes) match {
+        case RLPList(aField, anotherField) => DummyMsg(aField, anotherField)
+        case _ => throw new RuntimeException("Cannot decode Status")
+      }
+    }
+  }
+
+  case class DummyMsg(aField: Int, anotherField: ByteString) extends Message {
+    override def code: Int = DummyMsg.code
   }
 
 }

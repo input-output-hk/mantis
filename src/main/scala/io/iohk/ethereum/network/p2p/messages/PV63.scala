@@ -4,29 +4,33 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address, Receipt, TxLogEntry}
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
-import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode, _}
+import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
 import org.spongycastle.util.encoders.Hex
+
+import scala.language.implicitConversions
 
 
 object PV63 {
 
   object GetNodeData {
-    implicit val rlpEncDec = new RLPEncoder[GetNodeData] with RLPDecoder[GetNodeData] {
-      override def encode(obj: GetNodeData): RLPEncodeable = {
-        import obj._
-        toRlpList(mptElementsHashes)
-      }
 
-      override def decode(rlp: RLPEncodeable): GetNodeData = rlp match {
+    val code: Int = Versions.SubProtocolOffset + 0x0d
+
+    implicit class GetNodeDataEnc(val underlyingMsg: GetNodeData) extends MessageSerializableImplicit[GetNodeData](underlyingMsg) with RLPSerializable {
+      override def code: Int = GetNodeData.code
+
+      override def toRLPEncodable: RLPEncodeable = toRlpList(msg.mptElementsHashes)
+    }
+
+    implicit class GetNodeDataDec(val bytes: Array[Byte]) extends AnyVal {
+      def toGetNodeData: GetNodeData = rawDecode(bytes) match {
         case rlpList: RLPList => GetNodeData(fromRlpList[ByteString](rlpList))
         case _ => throw new RuntimeException("Cannot decode GetNodeData")
       }
     }
-
-    val code: Int = Message.SubProtocolOffset + 0x0d
   }
 
   case class GetNodeData(mptElementsHashes: Seq[ByteString]) extends Message {
@@ -41,15 +45,19 @@ object PV63 {
   }
 
   object AccountImplicits {
-    implicit val rlpEncDec = new RLPEncoder[Account] with RLPDecoder[Account] {
-      override def encode(obj: Account): RLPEncodeable = {
-        import obj._
-        RLPList(nonce, balance, storageRoot, codeHash)
-      }
+    import UInt256RLPImplicits._
 
-      override def decode(rlp: RLPEncodeable): Account = rlp match {
+    implicit class AccountEnc(val account: Account) extends RLPSerializable {
+      override def toRLPEncodable: RLPEncodeable = {
+        import account._
+        RLPList(nonce.toRLPEncodable, balance.toRLPEncodable, storageRoot, codeHash)
+      }
+    }
+
+    implicit class AccountDec(val bytes: Array[Byte]) extends AnyVal {
+      def toAccount: Account = rawDecode(bytes) match {
         case RLPList(nonce, balance, storageRoot, codeHash) =>
-          Account(nonce, balance, storageRoot, codeHash)
+          Account(nonce.toUInt256, balance.toUInt256, storageRoot, codeHash)
         case _ => throw new RuntimeException("Cannot decode Account")
       }
     }
@@ -63,26 +71,31 @@ object PV63 {
     val MaxNodeValueSize = 31
     val HashLength = 32
 
-    implicit val rlpEncDec = new RLPEncoder[MptNode] with RLPDecoder[MptNode] {
-      override def encode(obj: MptNode): RLPEncodeable = {
-        obj match {
-          case n: MptLeaf =>
-            import n._
-            RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = true)), value)
-          case n: MptExtension =>
-            import n._
-            RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = false)),
-              child.fold(hash => hash.hash, node => encode(node))
-            )
-          case n: MptBranch =>
-            import n._
-            RLPList(children.map { e =>
-              e.fold(mptHash => toEncodeable(mptHash.hash), node => encode(node))
-            } :+ (value: RLPEncodeable): _*)
-        }
-      }
+    implicit class MptNodeEnc(obj: MptNode) extends RLPSerializable {
 
-      override def decode(rlp: RLPEncodeable): MptNode = rlp match {
+      def toRLPEncodable: RLPEncodeable = obj match {
+        case n: MptLeaf =>
+          import n._
+          RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = true)), value)
+        case n: MptExtension =>
+          import n._
+          RLPList(RLPValue(hpEncode(keyNibbles.toArray[Byte], isLeaf = false)),
+            child.fold(hash => hash.hash, node => node.toRLPEncodable)
+          )
+        case n: MptBranch =>
+          import n._
+          RLPList(children.map { e =>
+            e.fold(mptHash => toEncodeable(mptHash.hash), node => node.toRLPEncodable)
+          } :+ (value: RLPEncodeable): _*)
+      }
+    }
+
+    implicit class MptNodeDec(val bytes: Array[Byte]) extends AnyVal {
+      def toMptNode: MptNode = MptNodeRLPEncodableDec(rawDecode(bytes)).toMptNode
+    }
+
+    implicit class MptNodeRLPEncodableDec(val rlp: RLPEncodeable) extends AnyVal {
+      def toMptNode: MptNode = rlp match {
         case rlpList: RLPList if rlpList.items.length == BranchNodeChildLength + 1 =>
           MptBranch(rlpList.items.take(BranchNodeChildLength).map(decodeChild), byteStringEncDec.decode(rlpList.items(BranchNodeIndexOfValue)))
         case RLPList(hpEncoded, value) =>
@@ -104,10 +117,10 @@ object PV63 {
             Left(MptHash(bytes))
 
           case list: RLPList if (list.items.length == ExtensionNodeLength || list.items.length == LeafNodeLength) && encodedLength <= MaxNodeValueSize =>
-            Right(decode(list))
+            Right(list.toMptNode)
 
           case list: RLPList if list.items.length == BranchNodeChildLength + 1 && encodedLength <= MaxNodeValueSize =>
-            Right(decode(list))
+            Right(list.toMptNode)
 
           case _ => throw new RuntimeException("unexpected value in node")
         }
@@ -116,31 +129,35 @@ object PV63 {
   }
 
   sealed trait MptNode {
-    lazy val hash: ByteString = ByteString(kec256(rlpEncode(this)))
+    lazy val hash: ByteString = ByteString(kec256(this.toBytes: Array[Byte]))
   }
 
   object NodeData {
-    implicit val rlpEncDec = new RLPEncoder[NodeData] with RLPDecoder[NodeData] {
-      override def encode(obj: NodeData): RLPEncodeable = {
-        import obj._
-        values
-      }
 
-      override def decode(rlp: RLPEncodeable): NodeData = rlp match {
-        case rlpList: RLPList =>
-          NodeData(rlpList.items.map { e => e: ByteString })
+    val code: Int = Versions.SubProtocolOffset + 0x0e
+
+    implicit class NodeDataEnc(val underlyingMsg: NodeData) extends MessageSerializableImplicit[NodeData](underlyingMsg) with RLPSerializable {
+
+      import io.iohk.ethereum.network.p2p.messages.PV63.MptNode._
+
+      override def code: Int = NodeData.code
+      override def toRLPEncodable: RLPEncodeable = msg.values
+
+      @throws[RLPException]
+      def getMptNode(index: Int): MptNode = msg.values(index).toArray[Byte].toMptNode
+    }
+
+    implicit class NodeDataDec(val bytes: Array[Byte]) extends AnyVal {
+      def toNodeData: NodeData = rawDecode(bytes) match {
+        case rlpList: RLPList => NodeData(rlpList.items.map { e => e: ByteString })
         case _ => throw new RuntimeException("Cannot decode NodeData")
       }
     }
-
-    val code: Int = Message.SubProtocolOffset + 0x0e
   }
 
   case class NodeData(values: Seq[ByteString]) extends Message {
-    override def code: Int = NodeData.code
 
-    @throws[RLPException]
-    def getMptNode(index: Int): MptNode = rlpDecode[MptNode](values(index).toArray[Byte])
+    override def code: Int = NodeData.code
 
     override def toString: String = {
       s"""NodeData{
@@ -184,7 +201,7 @@ object PV63 {
 
     import AccountImplicits._
 
-    def getAccount: Account = rlpDecode[Account](value.toArray[Byte])
+    def getAccount: Account = value.toArray[Byte].toAccount
 
     override def toString: String = {
       s"""MptLeaf{
@@ -200,19 +217,20 @@ object PV63 {
   case class MptHash(hash: ByteString)
 
   object GetReceipts {
-    implicit val rlpEncDec = new RLPEncoder[GetReceipts] with RLPDecoder[GetReceipts] {
-      override def encode(obj: GetReceipts): RLPEncodeable = {
-        import obj._
-        blockHashes: RLPList
-      }
+    val code: Int = Versions.SubProtocolOffset + 0x0f
 
-      override def decode(rlp: RLPEncodeable): GetReceipts = rlp match {
+    implicit class GetReceiptsEnc(val underlyingMsg: GetReceipts) extends MessageSerializableImplicit[GetReceipts](underlyingMsg) with RLPSerializable {
+      override def code: Int = GetReceipts.code
+
+      override def toRLPEncodable: RLPEncodeable = msg.blockHashes: RLPList
+    }
+
+    implicit class GetReceiptsDec(val bytes: Array[Byte]) extends AnyVal {
+      def toGetReceipts: GetReceipts = rawDecode(bytes) match {
         case rlpList: RLPList => GetReceipts(fromRlpList[ByteString](rlpList))
         case _ => throw new RuntimeException("Cannot decode GetReceipts")
       }
     }
-
-    val code: Int = Message.SubProtocolOffset + 0x0f
   }
 
   case class GetReceipts(blockHashes: Seq[ByteString]) extends Message {
@@ -227,13 +245,16 @@ object PV63 {
   }
 
   object TxLogEntryImplicits {
-    implicit val rlpEncDec = new RLPEncoder[TxLogEntry] with RLPDecoder[TxLogEntry] {
-      override def encode(obj: TxLogEntry): RLPEncodeable = {
-        import obj._
+
+    implicit class TxLogEntryEnc(logEntry: TxLogEntry) extends RLPSerializable {
+      override def toRLPEncodable: RLPEncodeable = {
+        import logEntry._
         RLPList(loggerAddress.bytes, logTopics, data)
       }
+    }
 
-      override def decode(rlp: RLPEncodeable): TxLogEntry = rlp match {
+    implicit class TxLogEntryDec(rlp: RLPEncodeable) {
+      def toTxLogEntry: TxLogEntry = rlp match {
         case RLPList(loggerAddress, logTopics: RLPList, data) =>
           TxLogEntry(Address(loggerAddress: ByteString), fromRlpList[ByteString](logTopics), data)
 
@@ -243,36 +264,61 @@ object PV63 {
   }
 
   object ReceiptImplicits {
-    implicit val receiptRlpEncDec = new RLPEncoder[Receipt] with RLPDecoder[Receipt] {
-      override def encode(obj: Receipt): RLPEncodeable = {
-        import obj._
-        RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, toRlpList[TxLogEntry](logs)(TxLogEntryImplicits.rlpEncDec))
-      }
+    import TxLogEntryImplicits._
 
-      override def decode(rlp: RLPEncodeable): Receipt = rlp match {
+    implicit class ReceiptEnc(msg: Receipt) extends RLPSerializable {
+      override def toRLPEncodable: RLPEncodeable = {
+        import msg._
+        RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, RLPList(logs.map(_.toRLPEncodable): _*))
+      }
+    }
+
+    implicit class ReceiptSeqEnc(receipts: Seq[Receipt]) extends RLPSerializable {
+      override def toRLPEncodable: RLPEncodeable = RLPList(receipts.map(_.toRLPEncodable): _*)
+    }
+
+    implicit class ReceiptDec(val bytes: Array[Byte]) extends AnyVal {
+      def toReceipt: Receipt = ReceiptRLPEncodableDec(rawDecode(bytes)).toReceipt
+
+      def toReceipts: Seq[Receipt] = rawDecode(bytes) match {
+        case RLPList(items@_*) => items.map(_.toReceipt)
+        case _ => throw new RuntimeException("Cannot decode Receipts")
+      }
+    }
+
+    implicit class ReceiptRLPEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
+      def toReceipt: Receipt = rlpEncodeable match {
         case RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs: RLPList) =>
-          Receipt(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, fromRlpList[TxLogEntry](logs)(TxLogEntryImplicits.rlpEncDec))
+          Receipt(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs.items.map(_.toTxLogEntry))
         case _ => throw new RuntimeException("Cannot decode Receipt")
       }
     }
   }
 
   object Receipts {
-    import ReceiptImplicits.receiptRlpEncDec
 
-    implicit val rlpEncDec = new RLPEncoder[Receipts] with RLPDecoder[Receipts] {
-      override def encode(obj: Receipts): RLPEncodeable = {
-        import obj._
-        RLPList(receiptsForBlocks.map(toRlpList[Receipt](_)(receiptRlpEncDec)): _*)
-      }
+    val code: Int = Versions.SubProtocolOffset + 0x10
 
-      override def decode(rlp: RLPEncodeable): Receipts = rlp match {
-        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => fromRlpList[Receipt](r)(receiptRlpEncDec) })
+    implicit class ReceiptsEnc(val underlyingMsg: Receipts) extends MessageSerializableImplicit[Receipts](underlyingMsg) with RLPSerializable {
+      import ReceiptImplicits._
+
+      override def code: Int = Receipts.code
+
+      override def toRLPEncodable: RLPEncodeable = RLPList(
+        msg.receiptsForBlocks.map( (rs: Seq[Receipt]) =>
+          RLPList(rs.map((r: Receipt) => r.toRLPEncodable): _*)
+        ): _*
+      )
+    }
+
+    implicit class ReceiptsDec(val bytes: Array[Byte]) extends AnyVal {
+      import ReceiptImplicits._
+
+      def toReceipts: Receipts = rawDecode(bytes) match {
+        case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => r.items.map(_.toReceipt) })
         case _ => throw new RuntimeException("Cannot decode Receipts")
       }
     }
-
-    val code: Int = Message.SubProtocolOffset + 0x10
   }
 
   case class Receipts(receiptsForBlocks: Seq[Seq[Receipt]]) extends Message {

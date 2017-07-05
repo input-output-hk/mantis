@@ -3,24 +3,25 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor._
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.SyncRequestHandler.Done
-import io.iohk.ethereum.blockchain.sync.SyncController.{BlockBodiesReceived, BlockHeadersReceived, BlockHeadersToResolve, PrintStatus}
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.blockchain.sync.SyncController._
+import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError
-import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerActor._
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor}
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 
-trait RegularSync {
+trait RegularSync extends BlockBroadcast {
   selfSyncController: SyncController =>
 
   private var headersQueue: Seq[BlockHeader] = Nil
-  private var broadcasting = false
   private var waitingForActor: Option[ActorRef] = None
 
   import Config.FastSync._
@@ -48,9 +49,22 @@ trait RegularSync {
       waitingForActor = None
       handleBlockBodies(peer, blockBodies)
 
-    case block: BroadcastBlocks if broadcasting =>
-      //FIXME: Decide block propagation algorithm (for now we send block to every peer) [EC-87]
-      peersToDownloadFrom.keys.foreach(_ ! block)
+    //todo improve mined block handling - add info that block was not included because of syncing
+    //we allow inclusion of mined block only if we are not syncing / reorganising chain
+    case MinedBlock(block) =>
+      if (headersQueue.isEmpty && waitingForActor.isEmpty) {
+        //we are at the top of chain we can insert new block
+        blockchain.getBlockHeaderByHash(block.header.parentHash)
+          .flatMap(b => blockchain.getTotalDifficultyByHash(b.hash)) match {
+          case Some(parentTd) if appStateStorage.getBestBlockNumber() < block.header.number =>
+            //just insert block and let resolve it with regular download
+            insertMinedBlock(block, parentTd)
+          case _ =>
+            log.error("fail to add mined block")
+        }
+      } else {
+        ommersPool ! AddOmmers(block.header)
+      }
 
     case PrintStatus =>
       log.info(s"Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).")
@@ -58,8 +72,30 @@ trait RegularSync {
     case Done =>
       if (waitingForActor == Option(sender())) {
         //actor is done and we did not get response
+        waitingForActor = None
         scheduleResume()
       }
+  }
+
+  private def insertMinedBlock(block: Block, parentTd: BigInt) = {
+    val result: Either[BlockExecutionError, Seq[Receipt]] = ledger.executeBlock(block, blockchainStorages, validators)
+
+    result match {
+      case Right(receipts) =>
+        blockchain.save(block)
+        blockchain.save(block.header.hash, receipts)
+        appStateStorage.putBestBlockNumber(block.header.number)
+        val newTd = parentTd + block.header.difficulty
+        blockchain.save(block.header.hash, newTd)
+
+        handshakedPeers.keys.foreach(peer => etcPeerManager ! EtcPeerManagerActor.SendMessage(NewBlock(block, newTd), peer.id))
+        ommersPool ! new RemoveOmmers((block.header +: block.body.uncleNodesList).toList)
+        pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
+
+        log.info(s"added new block $block")
+      case Left(err) =>
+        log.info(s"fail to execute mined block because of $err")
+    }
   }
 
   private def askForHeaders() = {
@@ -67,14 +103,15 @@ trait RegularSync {
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
         val request = GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false)
-        waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = false)))
+        waitingForActor = Some(context.actorOf(
+          SyncBlockHeadersRequestHandler.props(peer, etcPeerManager, peerEventBus, request, resolveBranches = false)))
       case None =>
         log.warning("no peers to download from")
         scheduleResume()
     }
   }
 
-  private def handleBlockBranchResolution(peer: ActorRef, message: Seq[BlockHeader]) =
+  private def handleBlockBranchResolution(peer: Peer, message: Seq[BlockHeader]) =
     //todo limit max branch depth?
     if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
       headersQueue = message ++ headersQueue
@@ -84,27 +121,43 @@ trait RegularSync {
       resumeWithDifferentPeer(peer)
     }
 
-  private def handleDownload(peer: ActorRef, message: Seq[BlockHeader]) = if (message.nonEmpty) {
+  private def handleDownload(peer: Peer, message: Seq[BlockHeader]) = if (message.nonEmpty) {
     headersQueue = message
     processBlockHeaders(peer, message)
   } else {
     //no new headers to process, schedule to ask again in future, we are at the top of chain
-    broadcasting = true
     scheduleResume()
   }
 
-  private def processBlockHeaders(peer: ActorRef, headers: Seq[BlockHeader]) = {
+  private def processBlockHeaders(peer: Peer, headers: Seq[BlockHeader]) = {
     val parentByNumber = blockchain.getBlockHeaderByNumber(headers.head.number - 1)
 
     parentByNumber match {
       case Some(parent) if checkHeaders(headers) =>
-        //we have same chain
+        //we have same chain prefix
         if (parent.hash == headers.head.parentHash) {
-          val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-          waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
+
+          val oldBranch: Seq[Block] = getOldBlocks(headersQueue)
+          val currentBranchTotalDifficulty: BigInt = oldBranch.map(_.header.difficulty).sum
+
+          val newBranchTotalDifficulty = headersQueue.map(_.difficulty).sum
+
+          if (currentBranchTotalDifficulty < newBranchTotalDifficulty) {
+            val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
+            pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(transactionsToAdd.toList)
+            val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
+            waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, etcPeerManager, peerEventBus, hashes)))
+            //add first block from branch as ommer
+            oldBranch.headOption.foreach { h => ommersPool ! AddOmmers(h.header) }
+          } else {
+            //add first block from branch as ommer
+            headersQueue.headOption.foreach { h => ommersPool ! AddOmmers(h) }
+            scheduleResume()
+          }
         } else {
           val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true)
-          waitingForActor = Some(context.actorOf(SyncBlockHeadersRequestHandler.props(peer, request, resolveBranches = true)))
+          waitingForActor = Some(context.actorOf(
+            SyncBlockHeadersRequestHandler.props(peer, etcPeerManager, peerEventBus, request, resolveBranches = true)))
         }
       case _ =>
         log.warning("got header that does not have parent")
@@ -112,7 +165,14 @@ trait RegularSync {
     }
   }
 
-  private def handleBlockBodies(peer: ActorRef, m: Seq[BlockBody]) = {
+  def getOldBlocks(headers: Seq[BlockHeader]): List[Block] = headers match {
+    case Seq(h, tail @ _*) =>
+      blockchain.getBlockByNumber(h.number).map(_ :: getOldBlocks(tail)).getOrElse(Nil)
+    case Seq() =>
+      Nil
+  }
+
+  private def handleBlockBodies(peer: Peer, m: Seq[BlockBody]) = {
     if (m.nonEmpty && headersQueue.nonEmpty) {
       val blocks = headersQueue.zip(m).map{ case (header, body) => Block(header, body) }
 
@@ -122,7 +182,7 @@ trait RegularSync {
           val (newBlocks, errorOpt) = processBlocks(blocks, blockParentTd)
 
           if(newBlocks.nonEmpty){
-            context.self ! BroadcastBlocks(newBlocks)
+            broadcastNewBlocks(newBlocks, handshakedPeers)
             log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
           }
@@ -135,7 +195,7 @@ trait RegularSync {
               headersQueue = headersQueue.drop(blocks.length)
               if (headersQueue.nonEmpty) {
                 val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
-                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, hashes)))
+                waitingForActor = Some(context.actorOf(SyncBlockBodiesRequestHandler.props(peer, etcPeerManager, peerEventBus, hashes)))
               } else {
                 context.self ! ResumeRegularSync
               }
@@ -172,14 +232,18 @@ trait RegularSync {
       val blockHashToDelete = blockchain.getBlockHeaderByNumber(block.header.number).map(_.hash).filter(_ != block.header.hash)
       val blockExecResult = ledger.executeBlock(block, blockchainStorages, validators)
       blockExecResult match {
-        case Right(_) =>
+        case Right(receipts) =>
           blockchain.save(block)
+          blockchain.save(block.header.hash, receipts)
           appStateStorage.putBestBlockNumber(block.header.number)
           val newTd = blockParentTd + block.header.difficulty
           blockchain.save(block.header.hash, newTd)
           blockHashToDelete.foreach(blockchain.removeBlock)
-          processBlocks(otherBlocks, newTd, newBlocks :+ NewBlock(block, newTd))
 
+          pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
+          ommersPool ! new RemoveOmmers((block.header +: block.body.uncleNodesList).toList)
+
+          processBlocks(otherBlocks, newTd, newBlocks :+ NewBlock(block, newTd))
         case Left(error) =>
           newBlocks -> Some(error)
       }
@@ -190,8 +254,8 @@ trait RegularSync {
     scheduler.scheduleOnce(checkForNewBlockInterval, context.self, ResumeRegularSync)
   }
 
-  private def resumeWithDifferentPeer(currentPeer: ActorRef, reason: String = "error in response") = {
-    self ! BlacklistPeer(currentPeer, "because of " + reason)
+  private def resumeWithDifferentPeer(currentPeer: Peer, reason: String = "error in response") = {
+    self ! BlacklistPeer(currentPeer.id, "because of " + reason)
     headersQueue = Nil
     context.self ! ResumeRegularSync
   }
@@ -199,10 +263,10 @@ trait RegularSync {
   private def checkHeaders(headers: Seq[BlockHeader]): Boolean =
     headers.zip(headers.tail).forall { case (parent, child) => parent.hash == child.parentHash && parent.number + 1 == child.number }
 
-  private def bestPeer: Option[ActorRef] = {
+  private def bestPeer: Option[Peer] = {
     val peersToUse = peersToDownloadFrom
       .collect {
-        case (ref, Handshaked(_, true, totalDifficulty)) => (ref, totalDifficulty)
+        case (ref, PeerInfo(_, totalDifficulty, true, _)) => (ref, totalDifficulty)
       }
 
     if (peersToUse.nonEmpty) Some(peersToUse.maxBy { case (_, td) => td }._1)

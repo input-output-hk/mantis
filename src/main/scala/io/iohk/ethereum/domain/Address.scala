@@ -1,13 +1,19 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.vm.UInt256
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.mpt.ByteArrayEncoder
 import io.iohk.ethereum.utils.ByteUtils.padLeft
+import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 object Address {
 
   val Length = 20
+
+  implicit val hashedAddressEncoder = new ByteArrayEncoder[Address] {
+    override def toBytes(addr: Address): Array[Byte] = crypto.kec256(addr.toArray)
+  }
 
   def apply(bytes: ByteString): Address = {
     val truncated = bytes.takeRight(Length)
@@ -21,6 +27,11 @@ object Address {
 
   def apply(addr: Long): Address = Address(UInt256(addr))
 
+  def apply(hexString: String): Address = {
+    val bytes = Hex.decode(hexString.replaceFirst("^0x", ""))
+    require(bytes.length <= Length)
+    Address(bytes)
+  }
 }
 
 class Address private(val bytes: ByteString) {
@@ -38,6 +49,9 @@ class Address private(val bytes: ByteString) {
     bytes.hashCode
 
   override def toString: String =
-    s"0x${Hex.toHexString(toArray)}"
+    s"0x$toUnprefixedString"
+
+  def toUnprefixedString: String =
+    Hex.toHexString(toArray)
 
 }

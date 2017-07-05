@@ -154,7 +154,7 @@ object SignedTransactionError {
   case class TransactionSyntaxError(reason: String) extends SignedTransactionError
   case class TransactionNonceError(txNonce: UInt256, senderNonce: UInt256) extends SignedTransactionError {
     override def toString: String =
-      s"${getClass.getSimpleName}(Expected nonce $txNonce but got $senderNonce)"
+      s"${getClass.getSimpleName}(Got tx nonce $txNonce but sender in mpt is: $senderNonce)"
   }
   case class TransactionNotEnoughGasForIntrinsicError(txGasLimit: BigInt, txIntrinsicGas: BigInt) extends SignedTransactionError {
     override def toString: String =

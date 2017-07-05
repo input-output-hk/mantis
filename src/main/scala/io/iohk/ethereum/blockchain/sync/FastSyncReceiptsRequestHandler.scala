@@ -4,15 +4,18 @@ import akka.actor.{ActorRef, Props, Scheduler}
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts}
 import org.spongycastle.util.encoders.Hex
 
 class FastSyncReceiptsRequestHandler(
-    peer: ActorRef,
+    peer: Peer,
+    etcPeerManager: ActorRef,
+    peerMessageBus: ActorRef,
     requestedHashes: Seq[ByteString],
     appStateStorage: AppStateStorage,
     blockchain: Blockchain)(implicit scheduler: Scheduler)
-  extends SyncRequestHandler[GetReceipts, Receipts](peer) {
+  extends SyncRequestHandler[GetReceipts, Receipts](peer, etcPeerManager, peerMessageBus) {
 
   override val requestMsg = GetReceipts(requestedHashes)
   override val responseMsgCode: Int = Receipts.code
@@ -27,7 +30,7 @@ class FastSyncReceiptsRequestHandler(
 
     if (receipts.receiptsForBlocks.isEmpty) {
       val reason = s"got empty receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
-      syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
+      syncController ! BlacklistSupport.BlacklistPeer(peer.id, reason)
     }
 
     val remainingReceipts = requestedHashes.drop(receipts.receiptsForBlocks.size)
@@ -57,7 +60,7 @@ class FastSyncReceiptsRequestHandler(
 
   override def handleTimeout(): Unit = {
     val reason = s"time out on receipts response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
-    syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
+    syncController ! BlacklistSupport.BlacklistPeer(peer.id, reason)
     syncController ! FastSync.EnqueueReceipts(requestedHashes)
     cleanupAndStop()
   }
@@ -69,7 +72,8 @@ class FastSyncReceiptsRequestHandler(
 }
 
 object FastSyncReceiptsRequestHandler {
-  def props(peer: ActorRef, requestedHashes: Seq[ByteString], appStateStorage: AppStateStorage, blockchain: Blockchain)
+  def props(peer: Peer, etcPeerManager: ActorRef, peerMessageBus: ActorRef,
+            requestedHashes: Seq[ByteString], appStateStorage: AppStateStorage, blockchain: Blockchain)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncReceiptsRequestHandler(peer, requestedHashes, appStateStorage, blockchain))
+    Props(new FastSyncReceiptsRequestHandler(peer, etcPeerManager, peerMessageBus, requestedHashes, appStateStorage, blockchain))
 }

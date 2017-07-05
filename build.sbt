@@ -8,7 +8,7 @@ val commonSettings = Seq(
 
 val dep = {
   val akkaVersion = "2.4.17"
-  val akkaHttpVersion = "10.0.3"
+  val akkaHttpVersion = "10.0.6"
   val circeVersion = "0.7.0"
 
   Seq(
@@ -17,15 +17,18 @@ val dep = {
     "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
     "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
     "com.typesafe.akka" %% "akka-http" % akkaHttpVersion,
-    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion,
+    "ch.megard" %% "akka-http-cors" % "0.2.1",
+    "org.json4s" %% "json4s-native" % "3.5.1",
+    "de.heikoseeberger" %% "akka-http-json4s" % "1.11.0",
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpVersion % "it,test",
     "io.suzaku" %% "boopickle" % "1.2.6",
     "org.consensusresearch" %% "scrypto" % "1.2.0-RC3",
-    "com.madgag.spongycastle" % "core" % "1.54.0.0",
+    "com.madgag.spongycastle" % "core" % "1.56.0.0",
     "org.iq80.leveldb" % "leveldb" % "0.9",
     "org.scorexfoundation" %% "iodb" % "0.3.0",
     "ch.qos.logback" % "logback-classic" % "1.1.9",
     "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
+    "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % "test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
     "ch.qos.logback" % "logback-classic" % "1.1.9",
@@ -35,7 +38,8 @@ val dep = {
     "io.circe" %% "circe-generic" % circeVersion,
     "io.circe" %% "circe-parser" % circeVersion,
     "io.circe" %% "circe-generic-extras" % circeVersion,
-    "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test"
+    "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test",
+    "commons-io" % "commons-io" % "2.5"
   )
 }
 
@@ -58,6 +62,8 @@ scalacOptions := Seq(
   "-Xfatal-warnings"
 )
 
+parallelExecution in Test := false
+
 testOptions in Test += Tests.Argument("-oD")
 
 (test in Evm) := (test in Evm).dependsOn(solidityCompile).value
@@ -67,5 +73,3 @@ testOptions in Test += Tests.Argument("-oD")
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}
 
 mainClass in Compile := Some("io.iohk.ethereum.App")
-
-coverageExcludedPackages := "io.iohk.ethereum.vmrunner.*"

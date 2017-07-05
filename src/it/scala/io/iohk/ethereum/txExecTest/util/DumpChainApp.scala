@@ -5,17 +5,22 @@ import akka.agent.Agent
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{Blockchain, _}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.messages.{PV62, PV63}
-import io.iohk.ethereum.network.{PeerManagerActor, loadAsymmetricCipherKeyPair}
+import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
+import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 
-object DumpChainApp extends App{
+object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
     val conf = ConfigFactory.load("txExecTest/chainDump.conf")
     val node = conf.getString("node")
     val genesisHash = ByteString(Hex.decode(conf.getString("genesisHash")))
@@ -29,6 +34,7 @@ object DumpChainApp extends App{
       override val connectRetryDelay: FiniteDuration = Config.Network.peer.connectRetryDelay
       override val connectMaxRetries: Int = Config.Network.peer.connectMaxRetries
       override val disconnectPoisonPillTimeout: FiniteDuration = Config.Network.peer.disconnectPoisonPillTimeout
+      override val waitForHelloTimeout: FiniteDuration = Config.Network.peer.waitForHelloTimeout
       override val waitForStatusTimeout: FiniteDuration = Config.Network.peer.waitForStatusTimeout
       override val waitForChainCheckTimeout: FiniteDuration = Config.Network.peer.waitForChainCheckTimeout
       override val fastSyncHostConfiguration: PeerManagerActor.FastSyncHostConfiguration = Config.Network.peer.fastSyncHostConfiguration
@@ -41,8 +47,6 @@ object DumpChainApp extends App{
 
     val blockchain: Blockchain = new BlockchainMock(genesisHash)
 
-    val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile)
-
     val nodeStatus =
       NodeStatus(
         key = nodeKey,
@@ -50,14 +54,31 @@ object DumpChainApp extends App{
 
     lazy val nodeStatusHolder = Agent(nodeStatus)
 
+    lazy val forkResolverOpt =
+      if (blockchainConfig.customGenesisFileOpt.isDefined) None
+      else Some(new ForkResolver.EtcForkResolver(blockchainConfig))
+
+    private val handshakerConfiguration: EtcHandshakerConfiguration =
+      new EtcHandshakerConfiguration {
+        override val forkResolverOpt: Option[ForkResolver] = DumpChainApp.forkResolverOpt
+        override val nodeStatusHolder: Agent[NodeStatus] = DumpChainApp.nodeStatusHolder
+        override val peerConfiguration: PeerConfiguration = peerConfig
+        override val blockchain: Blockchain = DumpChainApp.blockchain
+        override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
+      }
+
+    lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
+
+    val peerMessageBus = actorSystem.actorOf(PeerEventBusActor.props)
+
     val peerManager = actorSystem.actorOf(PeerManagerActor.props(
       nodeStatusHolder = nodeStatusHolder,
       peerConfiguration = peerConfig,
-      appStateStorage = storagesInstance.storages.appStateStorage,
-      blockchain = blockchain,
-      blockchainConfig = blockchainConfig,
-      bootstrapNodes = Set(node)), "peer-manager")
-    actorSystem.actorOf(DumpChainActor.props(peerManager,startBlock,maxBlocks), "dumper")
+      bootstrapNodes = Set(node),
+      peerMessageBus,
+      handshaker = handshaker,
+      authHandshaker = authHandshaker), "peer-manager")
+    actorSystem.actorOf(DumpChainActor.props(peerManager,peerMessageBus,startBlock,maxBlocks), "dumper")
   }
 
   class BlockchainMock(genesisHash: ByteString) extends Blockchain {
@@ -94,4 +115,10 @@ object DumpChainApp extends App{
     override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = ???
 
     override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = ???
-}
+
+    def getAccount(address: Address, blockNumber: BigInt): Option[Account] = ???
+
+    override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = ???
+
+    override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = ???
+  }

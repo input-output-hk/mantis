@@ -2,13 +2,16 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{ActorRef, Props, Scheduler}
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 
 class SyncBlockHeadersRequestHandler(
-    peer: ActorRef,
+    peer: Peer,
+    etcPeerManager: ActorRef,
+    peerMessageBus: ActorRef,
     val requestMsg: GetBlockHeaders,
     resolveBranches: Boolean)(implicit scheduler: Scheduler)
-  extends SyncRequestHandler[GetBlockHeaders, BlockHeaders](peer) {
+  extends SyncRequestHandler[GetBlockHeaders, BlockHeaders](peer, etcPeerManager, peerMessageBus) {
 
   override val responseMsgCode: Int = BlockHeaders.code
 
@@ -33,7 +36,7 @@ class SyncBlockHeadersRequestHandler(
       }
     } else {
       val reason = s"got error in block headers response for requested: ${requestMsg.block}"
-      syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
+      syncController ! BlacklistSupport.BlacklistPeer(peer.id, reason)
     }
 
     cleanupAndStop()
@@ -41,7 +44,7 @@ class SyncBlockHeadersRequestHandler(
 
   override def handleTimeout(): Unit = {
     val reason = s"got time out waiting for block headers response for requested: ${requestMsg.block}"
-    syncController ! BlacklistSupport.BlacklistPeer(peer, reason)
+    syncController ! BlacklistSupport.BlacklistPeer(peer.id, reason)
     cleanupAndStop()
   }
 
@@ -57,7 +60,7 @@ class SyncBlockHeadersRequestHandler(
 }
 
 object SyncBlockHeadersRequestHandler {
-  def props(peer: ActorRef, requestMsg: GetBlockHeaders, resolveBranches: Boolean)
+  def props(peer: Peer, etcPeerManager: ActorRef, peerMessageBus: ActorRef, requestMsg: GetBlockHeaders, resolveBranches: Boolean)
            (implicit scheduler: Scheduler): Props =
-    Props(new SyncBlockHeadersRequestHandler(peer, requestMsg, resolveBranches))
+    Props(new SyncBlockHeadersRequestHandler(peer, etcPeerManager, peerMessageBus, requestMsg, resolveBranches))
 }

@@ -1,9 +1,9 @@
 package io.iohk.ethereum
 
 import java.io.{File, PrintWriter}
+import java.security.SecureRandom
 
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.utils.AsymmetricCipherKeyPairSerializable
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.math.ec.ECPoint
@@ -25,17 +25,17 @@ package object network {
     curve.getCurve.decodePoint(bytes)
   }
 
-  def loadAsymmetricCipherKeyPair(filePath: String): AsymmetricCipherKeyPair = {
+  def loadAsymmetricCipherKeyPair(filePath: String, secureRandom: SecureRandom): AsymmetricCipherKeyPair = {
     val file = new File(filePath)
     if(!file.exists()){
-      val keysValuePair = generateKeyPair()
+      val keysValuePair = generateKeyPair(secureRandom)
 
       //Write keys to file
-      val (pub, priv) = AsymmetricCipherKeyPairSerializable.toHexStrings(keysValuePair)
+      val (_, priv) = keyPairToByteArrays(keysValuePair)
       file.getParentFile.mkdirs()
       val writer = new PrintWriter(filePath)
       try {
-        writer.write(pub ++ System.getProperty("line.separator") ++ priv)
+        writer.write(Hex.toHexString(priv))
       } finally {
         writer.close()
       }
@@ -44,8 +44,8 @@ package object network {
     } else {
       val reader = Source.fromFile(filePath)
       try {
-        val List(pub, priv) = reader.getLines().toList
-        AsymmetricCipherKeyPairSerializable.fromHexStrings(pub, priv)
+        val privHex = reader.mkString
+        keyPairFromPrvKey(Hex.decode(privHex))
       } finally {
         reader.close()
       }
