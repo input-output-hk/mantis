@@ -4,11 +4,12 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.SignedTransaction.{FirstByteOfAddress, LastByteOfAddress}
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.vm.utils.EvmTestEnv
 import org.scalatest.{FunSuite, Matchers}
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 
-class PrecompiledContractsSpecEvm extends FunSuite with Matchers with SecureRandomProvider {
+class PrecompiledContractsSpecEvm extends FunSuite with Matchers with SecureRandomBuilder {
 
   test("Precompiled Contracts") {
     val keyPair = generateKeyPair(secureRandom)
