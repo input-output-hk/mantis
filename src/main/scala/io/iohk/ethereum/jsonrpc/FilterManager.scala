@@ -8,15 +8,13 @@ import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.mining.BlockGenerator
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.utils.FilterConfig
+import io.iohk.ethereum.utils.{FilterConfig, TxPoolConfig}
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration._
 import scala.util.Random
 
 class FilterManager(
@@ -25,7 +23,8 @@ class FilterManager(
     appStateStorage: AppStateStorage,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
-    config: FilterConfig,
+    filterConfig: FilterConfig,
+    txPoolConfig: TxPoolConfig,
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor {
 
@@ -45,7 +44,7 @@ class FilterManager(
 
   var filterTimeouts: Map[BigInt, Cancellable] = Map.empty
 
-  implicit val timeout = Timeout(config.pendingTransactionsManagerQueryTimeout)
+  implicit val timeout = Timeout(txPoolConfig.pendingTxManagerQueryTimeout)
 
   override def receive: Receive = {
     case NewLogFilter(fromBlock, toBlock, address, topics) => addFilterAndSendResponse(LogFilter(generateId(), fromBlock, toBlock, address, topics))
@@ -62,7 +61,7 @@ class FilterManager(
 
   private def resetTimeout(id: BigInt): Unit = {
     filterTimeouts.get(id).foreach(_.cancel())
-    val timeoutCancellable = scheduler.scheduleOnce(config.filterTimeout, self, FilterTimeout(id))
+    val timeoutCancellable = scheduler.scheduleOnce(filterConfig.filterTimeout, self, FilterTimeout(id))
     filterTimeouts += (id -> timeoutCancellable)
   }
 
@@ -180,7 +179,7 @@ class FilterManager(
   private def getLogsFromBlock(filter: LogFilter, block: Block, receipts: Seq[Receipt]): Seq[TxLog] = {
     val bytesToCheckInBloomFilter = filter.address.map(a => Seq(a.bytes)).getOrElse(Nil) ++ filter.topics.flatten
 
-    receipts.zipWithIndex.foldLeft(Seq[TxLog]()) { case (logsSoFar, (receipt, txIndex)) =>
+    receipts.zipWithIndex.foldLeft(Nil: Seq[TxLog]) { case (logsSoFar, (receipt, txIndex)) =>
       if (bytesToCheckInBloomFilter.isEmpty || BloomFilter.containsAnyOf(receipt.logsBloomFilter, bytesToCheckInBloomFilter)) {
         logsSoFar ++ receipt.logs.zipWithIndex
         .filter { case (log, _) => filter.address.forall(_ == log.loggerAddress) && topicsMatch(log.logTopics, filter.topics) }
@@ -233,7 +232,7 @@ class FilterManager(
       }
   }
 
-  private def generateId(): BigInt = Math.abs(Random.nextLong())
+  private def generateId(): BigInt = BigInt(Random.nextLong()).abs
 
   private def resolveBlockNumber(blockParam: BlockParam, bestBlockNumber: BigInt): BigInt = {
     blockParam match {
@@ -251,8 +250,9 @@ object FilterManager {
             appStateStorage: AppStateStorage,
             keyStore: KeyStore,
             pendingTransactionsManager: ActorRef,
-            config: FilterConfig): Props =
-    Props(new FilterManager(blockchain, blockGenerator, appStateStorage, keyStore, pendingTransactionsManager, config))
+            filterConfig: FilterConfig,
+            txPoolConfig: TxPoolConfig): Props =
+    Props(new FilterManager(blockchain, blockGenerator, appStateStorage, keyStore, pendingTransactionsManager, filterConfig, txPoolConfig))
 
   sealed trait Filter {
     def id: BigInt
