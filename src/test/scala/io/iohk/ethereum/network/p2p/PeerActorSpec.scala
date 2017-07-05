@@ -28,6 +28,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -318,8 +319,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
         nonce = ByteString("unused"))
   }
 
-  trait NodeStatusSetup {
-    val nodeKey = crypto.generateKeyPair()
+  trait NodeStatusSetup extends SecureRandomBuilder {
+    val nodeKey = crypto.generateKeyPair(secureRandom)
 
     val nodeStatus = NodeStatus(
       key = nodeKey,

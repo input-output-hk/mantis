@@ -4,19 +4,20 @@ import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.network.rlpx.{AuthInitiateMessage, AuthHandshaker}
+import io.iohk.ethereum.network.rlpx.{AuthHandshaker, AuthInitiateMessage}
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteUtils
-import org.scalatest.{Matchers, FlatSpec}
+import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.generators.ECKeyPairGenerator
-import org.spongycastle.crypto.params.{ECPublicKeyParameters, ECKeyGenerationParameters}
+import org.spongycastle.crypto.params.{ECKeyGenerationParameters, ECPublicKeyParameters}
 import org.spongycastle.util.encoders.Hex
 
-class AuthInitiateMessageSpec extends FlatSpec with Matchers {
+class AuthInitiateMessageSpec extends FlatSpec with Matchers with SecureRandomBuilder {
 
   "AuthInitiateMessage" should "encode and decode itself" in {
     val keyPair = {
       val generator = new ECKeyPairGenerator
-      generator.init(new ECKeyGenerationParameters(curve, new SecureRandom))
+      generator.init(new ECKeyGenerationParameters(curve, secureRandom))
       generator.generateKeyPair()
     }
 

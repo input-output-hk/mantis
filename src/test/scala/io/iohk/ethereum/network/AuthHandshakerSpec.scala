@@ -5,13 +5,14 @@ import java.net.URI
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.network.rlpx.{AuthHandshakeSuccess, AuthResponseMessage, Secrets, AuthHandshaker}
+import io.iohk.ethereum.network.rlpx.{AuthHandshakeSuccess, AuthHandshaker, AuthResponseMessage, Secrets}
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
 
-class AuthHandshakerSpec extends FlatSpec with Matchers {
+class AuthHandshakerSpec extends FlatSpec with Matchers with SecureRandomBuilder {
 
   val remoteNodeKey = new AsymmetricCipherKeyPair(
     new ECPublicKeyParameters(curve.getCurve.decodePoint(
@@ -41,7 +42,7 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
   val nonce = ByteString(Array.fill[Byte](AuthHandshaker.NonceSize)(1.toByte))
 
   "AuthHandshaker" should "handle init response" in {
-    val (_, authHandshaker) = AuthHandshaker(nodeKey, nonce, ephemeralKey).initiate(remoteUri)
+    val (_, authHandshaker) = AuthHandshaker(nodeKey, nonce, ephemeralKey, secureRandom).initiate(remoteUri)
 
     val response = AuthResponseMessage(
       ephemeralPublicKey = remoteEphemeralKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ,
@@ -49,7 +50,7 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
       knownPeer = false)
 
     val encodedResponse = response.encoded
-    val encryptedResponse = ECIESCoder.encrypt(nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ, encodedResponse.toArray)
+    val encryptedResponse = ECIESCoder.encrypt(nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ, secureRandom, encodedResponse.toArray)
 
     val AuthHandshakeSuccess(secrets: Secrets) = authHandshaker.handleResponseMessage(ByteString(encryptedResponse))
 
@@ -63,8 +64,8 @@ class AuthHandshakerSpec extends FlatSpec with Matchers {
   }
 
   it should "handle both incoming packet and a response" in {
-    val thisHandshaker = AuthHandshaker(nodeKey, nonce, ephemeralKey)
-    val remoteHandshaker = AuthHandshaker(remoteNodeKey, remoteNonce, remoteEphemeralKey)
+    val thisHandshaker = AuthHandshaker(nodeKey, nonce, ephemeralKey, secureRandom)
+    val remoteHandshaker = AuthHandshaker(remoteNodeKey, remoteNonce, remoteEphemeralKey, secureRandom)
 
     val (initPacket, thisHandshakerInitiated) = thisHandshaker.initiate(remoteUri)
     val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets)) = remoteHandshaker.handleInitialMessageV4(initPacket)

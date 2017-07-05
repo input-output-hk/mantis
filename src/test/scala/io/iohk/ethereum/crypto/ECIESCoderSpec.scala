@@ -3,17 +3,18 @@ package io.iohk.ethereum.crypto
 import java.math.BigInteger
 import java.security.SecureRandom
 
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.generators.ECKeyPairGenerator
 import org.spongycastle.crypto.params.{ECKeyGenerationParameters, ECPrivateKeyParameters, ECPublicKeyParameters}
 import org.spongycastle.util.encoders.Hex
 
-class ECIESCoderSpec extends FlatSpec with Matchers {
+class ECIESCoderSpec extends FlatSpec with Matchers with SecureRandomBuilder {
 
   "ECIESCoder" should "decrypt encrypted message" in {
 
     val generator = new ECKeyPairGenerator
-    generator.init(new ECKeyGenerationParameters(curve, new SecureRandom))
+    generator.init(new ECKeyGenerationParameters(curve, secureRandom))
 
     val pub = curve.getCurve.decodePoint(Hex.decode("0395e5903e0e732f8db854d63314ef1926ccadda6cf77c5052638d5ccb00d74af5"))
     val prv = new BigInteger(1, Hex.decode("00bc9551eeccd2b1189e24e18ca1482ed69080ac69b67c2a17bc1e44e79a1390c3"))
@@ -23,7 +24,7 @@ class ECIESCoderSpec extends FlatSpec with Matchers {
 
     val resultForProvidedCryptogram = ECIESCoder.decrypt(prv, providedCryptogram)
 
-    val cryptogram = ECIESCoder.encrypt(pub, plainText)
+    val cryptogram = ECIESCoder.encrypt(pub, secureRandom, plainText)
     val result = ECIESCoder.decrypt(prv, cryptogram)
 
     plainText shouldBe resultForProvidedCryptogram
@@ -33,7 +34,7 @@ class ECIESCoderSpec extends FlatSpec with Matchers {
   "ECIESCoder" should "decryptSimple encryptSimple message" in {
 
     val generator = new ECKeyPairGenerator
-    generator.init(new ECKeyGenerationParameters(curve, new SecureRandom))
+    generator.init(new ECKeyGenerationParameters(curve, secureRandom))
 
     val keyPair = generator.generateKeyPair()
     val prv = keyPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD
@@ -41,7 +42,7 @@ class ECIESCoderSpec extends FlatSpec with Matchers {
 
     val charSet = "utf-8"
     val plainText = "some test message".getBytes(charSet)
-    val cryptogram = ECIESCoder.encryptSimple(pub, plainText)
+    val cryptogram = ECIESCoder.encryptSimple(pub, secureRandom, plainText)
     val result = ECIESCoder.decryptSimple(prv, cryptogram)
 
     plainText shouldBe result
@@ -54,7 +55,7 @@ class ECIESCoderSpec extends FlatSpec with Matchers {
     val pub = curve.getCurve.decodePoint(
       Hex.decode("04bd27a63c91fe3233c5777e6d3d7b39204d398c8f92655947eb5a373d46e1688f022a1632d264725cbc7dc43ee1cfebde42fa0a86d08b55d2acfbb5e9b3b48dc5"))
     val plain1 = ECIESCoder.decryptSimple(priv, cipherText1)
-    val cipherText2 = ECIESCoder.encryptSimple(pub, plain1)
+    val cipherText2 = ECIESCoder.encryptSimple(pub, secureRandom, plain1)
     val plain2 = ECIESCoder.decryptSimple(priv, cipherText2)
 
     val expected = Array[Byte](0, 91, 34, 48, 120, 52, 56, 54, 53, 54, 99, 54, 99, 54, 102, 34, 93)
@@ -78,7 +79,7 @@ class ECIESCoderSpec extends FlatSpec with Matchers {
     val privKey = new BigInteger("5e173f6ac3c669587538e7727cf19b782a4f2fda07c1eaa662c593e5e85e3051", 16)
     val payload = Hex.decode("1122334455")
     val pubKeyPoint = curve.getG.multiply(privKey)
-    val cipher = ECIESCoder.encrypt(pubKeyPoint, payload)
+    val cipher = ECIESCoder.encrypt(pubKeyPoint, secureRandom, payload)
     val decryptedPayload = ECIESCoder.decrypt(privKey, cipher)
 
     decryptedPayload shouldBe payload

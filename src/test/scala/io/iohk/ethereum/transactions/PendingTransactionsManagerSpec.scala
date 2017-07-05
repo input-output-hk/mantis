@@ -16,6 +16,7 @@ import akka.pattern.ask
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerManagerActor.Peers
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{MiningConfig, TxPoolConfig}
 import org.scalatest.concurrent.ScalaFutures
 
@@ -106,11 +107,11 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTxs.pendingTransactions.size shouldBe 0
   }
 
-  trait TestSetup {
+  trait TestSetup extends SecureRandomBuilder {
     implicit val system = ActorSystem("test-system")
 
     def newStx(nonce: BigInt = 0): SignedTransaction = {
-      val keyPair1 = crypto.generateKeyPair()
+      val keyPair1 = crypto.generateKeyPair(secureRandom)
       val addr1 = Address(Hex.decode("1c51bf013add0857c5d9cf2f71a7f15ca93d4816"))
       val tx = Transaction(nonce, 1, 1, Some(addr1), 0, ByteString(""))
       SignedTransaction.sign(tx, keyPair1, Some(0x3d))
