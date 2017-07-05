@@ -291,7 +291,7 @@ trait OmmersPoolBuilder {
 trait ValidatorsBuilder {
   self: BlockchainConfigBuilder =>
 
-  val validators = new Validators {
+  lazy val validators = new Validators {
     val blockValidator: BlockValidator = BlockValidator
     val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
     val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig)
