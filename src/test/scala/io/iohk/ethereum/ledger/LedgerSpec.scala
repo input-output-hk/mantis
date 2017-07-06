@@ -53,14 +53,14 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
   case object DeleteAccount extends Changes
 
   def applyChanges(stateRootHash: ByteString, blockchainStorages: BlockchainStorages, changes: Seq[(Address, Changes)]): ByteString = {
-    val initialWorld = InMemoryWorldStateProxy(blockchainStorages, Some(stateRootHash))
+    val initialWorld = InMemoryWorldStateProxy(blockchainStorages, UInt256.Zero, Some(stateRootHash))
     val newWorld = changes.foldLeft[InMemoryWorldStateProxy](initialWorld){ case (recWorld, (address, change)) =>
         change match {
           case UpdateBalance(balanceIncrease) =>
-            val accountWithBalanceIncrease = recWorld.getAccount(address).getOrElse(Account.Empty).increaseBalance(balanceIncrease)
+            val accountWithBalanceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseBalance(balanceIncrease)
             recWorld.saveAccount(address, accountWithBalanceIncrease)
           case IncreaseNonce =>
-            val accountWithNonceIncrease = recWorld.getAccount(address).getOrElse(Account.Empty).increaseNonce
+            val accountWithNonceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseNonce
             recWorld.saveAccount(address, accountWithNonceIncrease)
           case DeleteAccount =>
             recWorld.deleteAccount(address)
@@ -750,7 +750,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     val defaultGasLimit: UInt256 = 1000000
     val defaultValue: BigInt = 1000
 
-    val emptyWorld = InMemoryWorldStateProxy(storagesInstance.storages)
+    val emptyWorld = InMemoryWorldStateProxy(storagesInstance.storages, UInt256.Zero)
 
     val worldWithMinerAndOriginAccounts = InMemoryWorldStateProxy.persistState(emptyWorld
       .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
@@ -759,7 +759,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
     val initialWorld = InMemoryWorldStateProxy.persistState(
       defaultAddressesToDelete.foldLeft(worldWithMinerAndOriginAccounts){
-        (recWorld, address) => recWorld.saveAccount(address, Account.Empty)
+        (recWorld, address) => recWorld.saveAccount(address, Account.empty())
       }
     )
   }

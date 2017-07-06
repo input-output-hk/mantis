@@ -9,6 +9,7 @@ import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 import scala.collection.JavaConverters._
@@ -196,6 +197,7 @@ trait BlockchainConfig {
   val daoForkBlockNumber: BigInt
   val daoForkBlockTotalDifficulty: BigInt
   val daoForkBlockHash: ByteString
+  val accountStartNonce: UInt256
 
   val chainId: Byte
 
@@ -219,6 +221,7 @@ object BlockchainConfig {
       override val daoForkBlockNumber: BigInt = BigInt(blockchainConfig.getString("dao-fork-block-number"))
       override val daoForkBlockTotalDifficulty: BigInt = BigInt(blockchainConfig.getString("dao-fork-block-total-difficulty"))
       override val daoForkBlockHash: ByteString = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
+      override val accountStartNonce: UInt256 = UInt256(BigInt(blockchainConfig.getString("account-start-nonce")))
 
       override val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
 

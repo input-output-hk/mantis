@@ -276,7 +276,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
       addr = Address(stateIn.stack.pop._1)
       hash = kec256(extCode)
-      world = if (doSave) stateIn.world.saveAccount(addr, Account.Empty.copy(codeHash = hash)) else stateIn.world
+      world = if (doSave) stateIn.world.saveAccount(addr, Account.empty().copy(codeHash = hash)) else stateIn.world
     } yield stateIn.withWorld(world)
 
     forAll(stateGen) { stateIn =>
@@ -657,7 +657,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         val (refundDW, stack1) = stateIn.stack.pop
         val world1 = stateIn.world
           .transfer(stateIn.ownAddress, Address(refundDW), stateIn.ownBalance)
-          .saveAccount(Address(refundDW), Account.Empty)
+          .saveAccount(Address(refundDW), Account.empty())
         val expectedState = stateIn
           .withWorld(world1)
           .withAddressToDelete(stateIn.context.env.ownerAddr)
