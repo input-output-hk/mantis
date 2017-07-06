@@ -23,14 +23,22 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.{PV61 => pv61, PV62 => pv62, PV63 => pv63}
 import io.iohk.ethereum.network.p2p.messages.Versions._
 
+object NetworkMessageDecoder extends MessageDecoder {
+
+  override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Version): Message = (protocolVersion, `type`) match {
+    case (_, Disconnect.code) => payload.toDisconnect
+    case (_, Ping.code) => payload.toPing
+    case (_, Pong.code) => payload.toPong
+    case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
+  }
+
+}
+
 object EthereumMessageDecoder extends MessageDecoder {
 
   override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Version): Message = (protocolVersion, `type`) match {
     //wire protocol
     case (_, Hello.code) => payload.toHello
-    case (_, Disconnect.code) => payload.toDisconnect
-    case (_, Ping.code) => payload.toPing
-    case (_, Pong.code) => payload.toPong
 
     //common
     case (_, Status.code) => payload.toStatus
