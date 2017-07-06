@@ -104,18 +104,18 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     val sstoreWithClearProgram = sstoreWithClearCode.program
 
     val worldWithoutExtAccount = MockWorldState().saveAccount(ownerAddr, initialOwnerAccount)
-    val worldWithExtAccount = worldWithoutExtAccount.saveAccount(extAddr, Account.empty(UInt256.Zero))
+    val worldWithExtAccount = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
       .saveCode(extAddr, extProgram.code)
-    val worldWithInvalidProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty(UInt256.Zero))
+    val worldWithInvalidProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
       .saveCode(extAddr, invalidProgram.code)
 
-    val worldWithSelfDestructProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty(UInt256.Zero))
+    val worldWithSelfDestructProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
       .saveCode(extAddr, selfDestructProgram.code)
 
-    val worldWithSstoreWithClearProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty(UInt256.Zero))
+    val worldWithSstoreWithClearProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
       .saveCode(extAddr, sstoreWithClearProgram.code)
 
-    val worldWithReturnSingleByteCode = worldWithoutExtAccount.saveAccount(extAddr, Account.empty(UInt256.Zero))
+    val worldWithReturnSingleByteCode = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
       .saveCode(extAddr, returnSingleByteProgram.code)
 
     val env = ExecEnv(ownerAddr, callerAddr, callerAddr, 1, ByteString.empty, 123, Program(ByteString.empty), null, 0)

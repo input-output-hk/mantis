@@ -41,7 +41,7 @@ trait EvmTestEnv {
 
   def createAccount(balance: BigInt = 0): Address = {
     val newAddress = Address(Random.nextLong())
-    internalWorld = world.saveAccount(newAddress, Account.empty(UInt256.Zero).copy(balance = UInt256(balance)))
+    internalWorld = world.saveAccount(newAddress, Account.empty().copy(balance = UInt256(balance)))
     newAddress
   }
 

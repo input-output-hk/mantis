@@ -47,5 +47,5 @@ case class MockWorldState(
   def saveStorage(address: Address, storage: MockStorage): MockWorldState =
     copy(storages = storages + (address -> storage))
 
-  def getEmptyAccount: Account = Account.empty(UInt256.Zero)
+  def getEmptyAccount: Account = Account.empty()
 }

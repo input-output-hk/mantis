@@ -40,6 +40,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
         val transactionsForBlock = transactions
           .filter(_.tx.gasLimit < header.gasLimit)
           //if we have 2 transactions from same address we want first one with lower nonce
+          .sortBy(_.tx.gasPrice)
           .sortBy(_.tx.nonce)
           .scanLeft(BigInt(0), None: Option[SignedTransaction]) { case ((accumulatedGas, _), stx) => (accumulatedGas + stx.tx.gasLimit, Some(stx)) }
           .collect{case (gas,Some(stx)) => (gas,stx)}

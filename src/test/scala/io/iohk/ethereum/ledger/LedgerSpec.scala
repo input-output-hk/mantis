@@ -57,10 +57,10 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     val newWorld = changes.foldLeft[InMemoryWorldStateProxy](initialWorld){ case (recWorld, (address, change)) =>
         change match {
           case UpdateBalance(balanceIncrease) =>
-            val accountWithBalanceIncrease = recWorld.getAccount(address).getOrElse(Account.empty(UInt256.Zero)).increaseBalance(balanceIncrease)
+            val accountWithBalanceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseBalance(balanceIncrease)
             recWorld.saveAccount(address, accountWithBalanceIncrease)
           case IncreaseNonce =>
-            val accountWithNonceIncrease = recWorld.getAccount(address).getOrElse(Account.empty(UInt256.Zero)).increaseNonce
+            val accountWithNonceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseNonce
             recWorld.saveAccount(address, accountWithNonceIncrease)
           case DeleteAccount =>
             recWorld.deleteAccount(address)
@@ -759,7 +759,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
     val initialWorld = InMemoryWorldStateProxy.persistState(
       defaultAddressesToDelete.foldLeft(worldWithMinerAndOriginAccounts){
-        (recWorld, address) => recWorld.saveAccount(address, Account.empty(UInt256.Zero))
+        (recWorld, address) => recWorld.saveAccount(address, Account.empty())
       }
     )
   }
