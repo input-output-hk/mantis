@@ -92,7 +92,26 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
 
-  it should "include transaction with higher gas price if nonce is the same"in new TestSetup {
+  it should "include consecutive transactions from single sender" in new TestSetup {
+    val nextTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(nonce = signedTransaction.tx.nonce + 1), keyPair, Some(0x3d.toByte))
+
+    val result: Either[BlockPreparationError, PendingBlock] =
+      blockGenerator.generateBlockForMining(1, Seq(nextTransaction, signedTransaction), Nil, Address(testAddress))
+    result shouldBe a[Right[_, Block]]
+
+    //mined with etc-client + ethminer
+    val minedNonce = ByteString(Hex.decode("8f88ec20f1be482f"))
+    val minedMixHash = ByteString(Hex.decode("247a206abc088487edc1697fcaceb33ad87b55666e438129b7048bb08c8ed88f"))
+    val miningTimestamp = 1499721182
+
+    val fullBlock: Either[BlockPreparationError, Block] = result.right
+      .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
+    fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
+    fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction, nextTransaction))
+  }
+
+  it should "include transaction with higher gas price if nonce is the same" in new TestSetup {
     val txWitSameNonceButLowerGasPrice: SignedTransaction = SignedTransaction.sign(
       transaction.copy(gasPrice = signedTransaction.tx.gasPrice - 1),
       keyPair,
@@ -111,6 +130,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction))
   }
 
   trait TestSetup {
