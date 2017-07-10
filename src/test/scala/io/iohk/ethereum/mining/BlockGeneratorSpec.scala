@@ -128,6 +128,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val eip150BlockNumber: BigInt = Long.MaxValue
       override val daoForkBlockHash: ByteString = ByteString("unused")
       override val daoForkBlockTotalDifficulty: BigInt = 0
+      override val accountStartNonce: UInt256 = UInt256.Zero
     }
     val ledger = new LedgerImpl(VM, blockchainConfig)
 

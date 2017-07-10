@@ -4,7 +4,6 @@ import java.io.FileNotFoundException
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.ByteStringJsonSerializer
-import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
@@ -97,7 +96,7 @@ class GenesisDataLoader(
       MerklePatriciaTrie[Array[Byte], Account](ephemNodeStorage, (input: Array[Byte]) => crypto.kec256(input))
     val stateMpt = genesisData.alloc.foldLeft(initialStateMpt) { case (mpt, (address, AllocAccount(balance))) =>
       val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
-      mpt.put(crypto.kec256(Hex.decode(paddedAddress)), Account(0, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash))
+      mpt.put(crypto.kec256(Hex.decode(paddedAddress)), Account(blockchainConfig.accountStartNonce, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash))
     }
 
     val header = BlockHeader(
@@ -116,6 +115,8 @@ class GenesisDataLoader(
       extraData = genesisData.extraData,
       mixHash = genesisData.mixHash.getOrElse(zeros(hashLength)),
       nonce = genesisData.nonce)
+
+    log.debug(s"prepared genesis header: $header")
 
     blockchain.getBlockHeaderByNumber(0) match {
       case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>

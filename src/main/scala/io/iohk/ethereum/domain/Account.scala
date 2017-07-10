@@ -13,7 +13,7 @@ object Account {
   val EmptyStorageRootHash = ByteString(kec256(rlp.encode(Array.empty[Byte])))
   val EmptyCodeHash: ByteString = kec256(ByteString())
 
-  val Empty = Account(0, 0, EmptyStorageRootHash, EmptyCodeHash)
+  def empty(startNonce: UInt256 = UInt256.Zero): Account = Account(nonce = startNonce, storageRoot = EmptyStorageRootHash, codeHash = EmptyCodeHash)
 
   implicit val accountSerializer = new ByteArraySerializable[Account] {
 

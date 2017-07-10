@@ -10,6 +10,8 @@ import io.iohk.ethereum.domain.{Account, Address, Blockchain}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
+import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransactions
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, PendingTransactionsResponse}
 import io.iohk.ethereum.utils.TxPoolConfig
@@ -61,6 +63,7 @@ class PersonalService(
   blockchain: Blockchain,
   txPool: ActorRef,
   appStateStorage: AppStateStorage,
+  blockchainConfig: BlockchainConfig,
   txPoolConfig: TxPoolConfig) {
 
   private val unlockedWallets: mutable.Map[Address, Wallet] = mutable.Map.empty
@@ -153,7 +156,7 @@ class PersonalService(
     latestPendingTxNonceFuture.map{ maybeLatestPendingTxNonce =>
       val maybeCurrentNonce = getCurrentAccount(request.from).map(_.nonce.toBigInt)
       val maybeNextTxNonce = maybeLatestPendingTxNonce.map(_ + 1) orElse maybeCurrentNonce
-      val tx = request.toTransaction(maybeNextTxNonce.getOrElse(Account.Empty.nonce))
+      val tx = request.toTransaction(maybeNextTxNonce.getOrElse(blockchainConfig.accountStartNonce))
       val stx = wallet.signTx(tx)
 
       txPool ! AddTransactions(stx)
