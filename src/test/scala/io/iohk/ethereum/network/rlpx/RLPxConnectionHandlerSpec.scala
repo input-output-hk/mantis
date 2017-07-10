@@ -4,14 +4,17 @@ import akka.actor.{ActorSystem, Props}
 import akka.io.Tcp
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.crypto
+import io.iohk.ethereum.{Timeouts, crypto}
 import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.Versions
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Ping, Pong}
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
+
+import scala.concurrent.duration.FiniteDuration
 
 class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory {
 
@@ -70,6 +73,23 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     connection.expectNoMsg()
   }
 
+  it should "close the connection when Ack timeout happens" in new TestSetup {
+    (mockMessageCodec.encodeMessage _).expects(Ping(): MessageSerializable).returning(ByteString("ping encoded")).anyNumberOfTimes()
+
+    setupRLPxConnection()
+
+    rlpxConnectionParent watch rlpxConnection
+
+    rlpxConnection ! RLPxConnectionHandler.SendMessage(Ping())
+    connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
+
+    //Wait for Ack timeout
+    Thread.sleep(rlpxConfiguration.waitForTcpAckTimeout.toMillis)
+
+    //The rlpx connection is closed
+    rlpxConnectionParent.expectTerminated(rlpxConnection)
+  }
+
   trait TestSetup extends MockFactory with SecureRandomBuilder {
     implicit val system = ActorSystem("RLPxHandlerSpec_System")
 
@@ -84,10 +104,15 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     val connection = TestProbe()
     val mockMessageCodec = mock[MessageCodec]
 
+    val rlpxConfiguration = new RLPxConfiguration {
+      override val waitForTcpAckTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val waitForHandshakeTimeout: FiniteDuration = Timeouts.normalTimeout
+    }
+
     val rlpxConnectionParent = TestProbe()
     val rlpxConnection = TestActorRef(
       Props(new RLPxConnectionHandler(
-        nodeKey, mockMessageDecoder, protocolVersion, mockHandshaker, (_, _, _) => mockMessageCodec)),
+        nodeKey, mockMessageDecoder, protocolVersion, mockHandshaker, (_, _, _) => mockMessageCodec, rlpxConfiguration)),
       rlpxConnectionParent.ref)
 
     //Setup for RLPxConnection, after it the RLPxConnectionHandler is in a handshaked state

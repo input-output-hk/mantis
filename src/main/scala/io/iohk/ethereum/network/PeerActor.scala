@@ -16,6 +16,7 @@ import io.iohk.ethereum.utils.NodeStatus
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 
@@ -227,14 +228,17 @@ object PeerActor {
                                   authHandshaker: AuthHandshaker): Props =
     Props(new PeerActor(
       peerAddress,
-      rlpxConnectionFactory(nodeStatusHolder().key, authHandshaker),
+      rlpxConnectionFactory(nodeStatusHolder().key, authHandshaker, peerConfiguration.rlpxConfiguration),
       peerConfiguration,
       peerEventBus,
       initHandshaker = handshaker))
 
-  def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair, authHandshaker: AuthHandshaker): ActorContext => ActorRef = { ctx =>
+  def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair, authHandshaker: AuthHandshaker,
+                            rlpxConfiguration: RLPxConfiguration): ActorContext => ActorRef = { ctx =>
     // FIXME This message decoder should be configurable
-    ctx.actorOf(RLPxConnectionHandler.props(nodeKey, EthereumMessageDecoder, Versions.PV63, authHandshaker), "rlpx-connection")
+    ctx.actorOf(
+      RLPxConnectionHandler.props(nodeKey, EthereumMessageDecoder, Versions.PV63, authHandshaker, rlpxConfiguration),
+      "rlpx-connection")
   }
 
   case class RLPxConnection(ref: ActorRef, remoteAddress: InetSocketAddress, uriOpt: Option[URI]) {

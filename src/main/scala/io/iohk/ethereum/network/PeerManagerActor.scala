@@ -19,6 +19,7 @@ import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.{Config, NodeStatus}
 
 import scala.util.{Failure, Success}
@@ -236,6 +237,7 @@ object PeerManagerActor {
     val waitForStatusTimeout: FiniteDuration
     val waitForChainCheckTimeout: FiniteDuration
     val fastSyncHostConfiguration: FastSyncHostConfiguration
+    val rlpxConfiguration: RLPxConfiguration
     val maxPeers: Int
     val networkId: Int
   }
