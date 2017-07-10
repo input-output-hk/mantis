@@ -5,6 +5,7 @@ import io.iohk.ethereum.{Fixtures, crypto}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.vm.UInt256
 import org.scalatest.{FlatSpec, Matchers}
 
 class BlockchainSpec extends FlatSpec with Matchers {
@@ -46,7 +47,7 @@ class BlockchainSpec extends FlatSpec with Matchers {
 
   it should "return an account given an address and a block number" in new EphemBlockchainTestSetup {
     val address = Address(42)
-    val account = Account.Empty.copy(nonce = 7)
+    val account = Account.empty(UInt256(7))
 
     val validHeader = Fixtures.Blocks.ValidBlock.header
 

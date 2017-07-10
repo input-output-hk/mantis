@@ -93,7 +93,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     signedTransactionValidator: SignedTransactionValidator):
   Either[BlockExecutionError, BlockResult] = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
-    val initialWorld = InMemoryWorldStateProxy(storages, parentStateRoot)
+    val initialWorld = InMemoryWorldStateProxy(storages, blockchainConfig.accountStartNonce, parentStateRoot)
 
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
     val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, signedTransactionValidator)
@@ -126,7 +126,9 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
       case Seq(stx, otherStxs@_*) =>
         val (senderAccount, worldForTx) = world.getAccount(stx.senderAddress).map(a => (a, world))
-          .getOrElse ((Account.Empty, world.saveAccount(stx.senderAddress, Account.Empty)))
+          .getOrElse(
+            (Account.empty(blockchainConfig.accountStartNonce), world.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce)))
+          )
         val upfrontCost = calculateUpfrontCost(stx.tx)
         val validatedStx = signedTransactionValidator.validate(stx, senderAccount, blockHeader, upfrontCost, acumGas)
 
@@ -154,10 +156,10 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val gasLimit = stx.tx.gasLimit
     val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
-    val world1 = InMemoryWorldStateProxy(storages, Some(stateRoot))
+    val world1 = InMemoryWorldStateProxy(storages, blockchainConfig.accountStartNonce, Some(stateRoot))
     val world2 =
       if (world1.getAccount(stx.senderAddress).isEmpty)
-        world1.saveAccount(stx.senderAddress, Account.Empty)
+        world1.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce))
       else
         world1
 
@@ -253,7 +255,8 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     */
   private[ledger] def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
 
-    def getAccountToPay(address: Address, ws: InMemoryWorldStateProxy): Account = ws.getAccount(address).getOrElse(Account.Empty)
+    def getAccountToPay(address: Address, ws: InMemoryWorldStateProxy): Account = ws.getAccount(address)
+      .getOrElse(Account.empty(blockchainConfig.accountStartNonce))
 
     val minerAddress = Address(block.header.beneficiary)
     val minerAccount = getAccountToPay(minerAddress, worldStateProxy)
@@ -349,7 +352,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
   }
 
   private def pay(address: Address, value: UInt256)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    val account = world.getAccount(address).getOrElse(Account.Empty).increaseBalance(value)
+    val account = world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
     world.saveAccount(address, account)
   }
 

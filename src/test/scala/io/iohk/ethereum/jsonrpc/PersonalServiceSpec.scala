@@ -3,16 +3,16 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.{NormalPatience, Timeouts}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Account, Address, Blockchain}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
+import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, GetPendingTransactions, PendingTransaction, PendingTransactionsResponse}
-import io.iohk.ethereum.utils.{MiningConfig, TxPoolConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, TxPoolConfig}
+import io.iohk.ethereum.{NormalPatience, Timeouts}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
@@ -301,9 +301,10 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     val keyStore = mock[KeyStore]
     val blockchain = mock[Blockchain]
+    val blockchainConfig = mock[BlockchainConfig]
     val txPool = TestProbe()
     val appStateStorage = mock[AppStateStorage]
-    val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, txPoolConfig)
+    val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig)
 
     def array[T](arr: Array[T]): Matcher[Array[T]] =
       argThat((_: Array[T]) sameElements arr)

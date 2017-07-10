@@ -15,6 +15,7 @@ object InMemoryWorldStateProxy {
 
   def apply(
     storages: BlockchainStorages,
+    accountStartNonce: UInt256,
     stateRootHash: Option[ByteString] = None): InMemoryWorldStateProxy = {
 
     val accountsStateTrieProxy = createProxiedAccountsStateTrie(
@@ -24,7 +25,8 @@ object InMemoryWorldStateProxy {
     //todo why do we create blockchain every time we are calling this function?
     val getBlockHashByNumber = (number: BigInt) => BlockchainImpl(storages).getBlockHeaderByNumber(number).map(_.hash)
 
-    new InMemoryWorldStateProxy(storages.nodeStorage, accountsStateTrieProxy, Map.empty, storages.evmCodeStorage, Map.empty, getBlockHashByNumber)
+    new InMemoryWorldStateProxy(storages.nodeStorage, accountsStateTrieProxy, Map.empty, storages.evmCodeStorage,
+      Map.empty, getBlockHashByNumber, accountStartNonce)
   }
 
   /**
@@ -130,12 +132,15 @@ class InMemoryWorldStateProxy private(
   val evmCodeStorage: EvmCodeStorage,
   // Account's code by Address
   val accountCodes: Map[Address, Code],
-  val getBlockByNumber: (BigInt) => Option[ByteString]
+  val getBlockByNumber: (BigInt) => Option[ByteString],
+  accountStartNonce: UInt256
 ) extends WorldStateProxy[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage] {
 
   import InMemoryWorldStateProxy._
 
   override def getAccount(address: Address): Option[Account] = accountsStateTrie.get(address.bytes)
+
+  override protected def getEmptyAccount: Account = Account.empty(accountStartNonce)
 
   override def getGuaranteedAccount(address: Address): Account = super.getGuaranteedAccount(address)
 
@@ -188,7 +193,8 @@ class InMemoryWorldStateProxy private(
       contractStorages,
       evmCodeStorage,
       accountCodes,
-      getBlockByNumber
+      getBlockByNumber,
+      accountStartNonce
     )
 
   override def getBlockHash(number: UInt256): Option[UInt256] = getBlockByNumber(number).map(UInt256(_))
