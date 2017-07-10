@@ -18,7 +18,7 @@ import scala.util.Try
 
 object Config {
 
-  val config = ConfigFactory.load().getConfig("etc-client")
+  val config = ConfigFactory.load().getConfig("grothendieck")
 
   val clientId: String = config.getString("client-id")
 
