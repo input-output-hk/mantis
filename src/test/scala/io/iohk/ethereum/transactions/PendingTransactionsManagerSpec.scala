@@ -130,7 +130,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTxs.map(_.stx) shouldEqual List(overrideTx, otherTx)
 
     // overriden TX will still be broadcast to peers
-    etcPeerManager.expectMsgAllOf(
+    etcPeerManager.expectMsgAllOf(Timeouts.normalTimeout,
       EtcPeerManagerActor.SendMessage(SignedTransactions(List(firstTx)), peer1.id),
       EtcPeerManagerActor.SendMessage(SignedTransactions(List(otherTx)), peer1.id),
       EtcPeerManagerActor.SendMessage(SignedTransactions(List(overrideTx)), peer1.id)
