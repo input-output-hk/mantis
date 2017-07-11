@@ -80,13 +80,13 @@ case class EvmConfig(
       G_memory * a + a * a / 512
     }
 
-    val memNeeded = if (dataSize.isZero) UInt256.Zero else offset + dataSize
+    val memNeeded = if (dataSize.isZero) BigInt(0) else offset.toBigInt + dataSize.toBigInt
     if (memNeeded > MaxMemory)
       UInt256.MaxValue / 2
     else if (memNeeded <= memSize)
       0
     else
-      c(memNeeded) - c(memSize)
+      c(UInt256(memNeeded)) - c(memSize)
   }
 
   /**
