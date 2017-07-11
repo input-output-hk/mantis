@@ -75,7 +75,7 @@ case class EvmConfig(
     */
   def calcMemCost(memSize: UInt256, offset: UInt256, dataSize: UInt256): BigInt = {
     /** See YP H.1 (222) */
-    def c(m: UInt256): BigInt = {
+    def c(m: BigInt): BigInt = {
       val a = wordsForBytes(m)
       G_memory * a + a * a / 512
     }
@@ -86,7 +86,7 @@ case class EvmConfig(
     else if (memNeeded <= memSize)
       0
     else
-      c(UInt256(memNeeded)) - c(memSize)
+      c(memNeeded) - c(memSize.toBigInt)
   }
 
   /**
