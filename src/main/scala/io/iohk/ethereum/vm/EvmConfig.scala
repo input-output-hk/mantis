@@ -83,7 +83,7 @@ case class EvmConfig(
     val memNeeded = if (dataSize.isZero) BigInt(0) else offset.toBigInt + dataSize.toBigInt
     if (memNeeded > MaxMemory)
       UInt256.MaxValue / 2
-    else if (memNeeded <= memSize)
+    else if (memNeeded <= memSize.toBigInt)
       0
     else
       c(memNeeded) - c(memSize.toBigInt)
