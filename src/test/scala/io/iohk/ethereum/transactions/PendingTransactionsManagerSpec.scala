@@ -115,14 +115,17 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTransactionsManager ! AddOrOverrideTransaction(firstTx)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked)))
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     pendingTransactionsManager ! AddOrOverrideTransaction(otherTx)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked)))
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     pendingTransactionsManager ! AddOrOverrideTransaction(overrideTx)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked)))
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .futureValue.pendingTransactions
