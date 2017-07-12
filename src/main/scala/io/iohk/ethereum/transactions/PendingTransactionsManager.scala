@@ -24,6 +24,8 @@ object PendingTransactionsManager {
     def apply(txs: SignedTransaction*): AddTransactions = AddTransactions(txs.toList)
   }
 
+  case class AddOrOverrideTransaction(signedTransaction: SignedTransaction)
+
   private case class NotifyPeer(signedTransactions: Seq[SignedTransaction], peer: Peer)
 
   case object GetPendingTransactions
@@ -43,7 +45,7 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
   /**
     * stores all pending transactions
    */
-  var pendingTransactions: Seq[PendingTransaction] = Nil
+  var pendingTransactions: List[PendingTransaction] = Nil
 
   /**
     * stores information which tx hashes are "known" by which peers
@@ -55,15 +57,25 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
   peerMessageBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
   override def receive: Receive = {
-    // TODO: we should check whether a transaction with the same address and nonce exists, and if so replace it with the new version
     case AddTransactions(signedTransactions) =>
       val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.map(_.stx).contains(t))
       if (transactionsToAdd.nonEmpty) {
         val timestamp = System.currentTimeMillis()
-        pendingTransactions = (pendingTransactions ++ transactionsToAdd.map(PendingTransaction(_, timestamp))).takeRight(txPoolConfig.txPoolSize)
+        pendingTransactions = (transactionsToAdd.map(PendingTransaction(_, timestamp)) ++ pendingTransactions).take(txPoolConfig.txPoolSize)
         (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
           peers.handshaked.foreach { peer => self ! NotifyPeer(transactionsToAdd, peer) }
         }
+      }
+
+    case AddOrOverrideTransaction(newStx) =>
+      val txsWithoutObsoletes = pendingTransactions.filterNot(ptx =>
+        ptx.stx.senderAddress == newStx.senderAddress &&
+        ptx.stx.tx.nonce == newStx.tx.nonce)
+      val timestamp = System.currentTimeMillis()
+      pendingTransactions = (PendingTransaction(newStx, timestamp) +: txsWithoutObsoletes).take(txPoolConfig.txPoolSize)
+
+      (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
+        peers.handshaked.foreach { peer => self ! NotifyPeer(List(newStx), peer) }
       }
 
     case NotifyPeer(signedTransactions, peer) =>

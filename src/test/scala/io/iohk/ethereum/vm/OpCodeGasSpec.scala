@@ -85,6 +85,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val testData = Table[UInt256, UInt256, UInt256, BigInt](
       ("memSize", "offset", "dataSize", "expectedCost"),
       (0, 0, 0, 0),
+      (0 , -15, 32, UInt256.MaxValue / 2),
       (256, 128, 128, 0),
       (128, 1024, 0, 0),
       (123, 122, 1, 0),

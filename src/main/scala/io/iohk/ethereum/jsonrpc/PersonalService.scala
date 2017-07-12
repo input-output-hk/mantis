@@ -13,7 +13,7 @@ import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransactions
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, PendingTransactionsResponse}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils.TxPoolConfig
 
 import scala.collection.mutable
@@ -159,7 +159,7 @@ class PersonalService(
       val tx = request.toTransaction(maybeNextTxNonce.getOrElse(blockchainConfig.accountStartNonce))
       val stx = wallet.signTx(tx)
 
-      txPool ! AddTransactions(stx)
+      txPool ! AddOrOverrideTransaction(stx)
 
       stx.hash
     }
