@@ -361,7 +361,9 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     * The contract storage should be cleared during pruning as nodes could be used in other tries.
     * The contract code is also not deleted as there can be contracts with the exact same code, making it risky to delete
     * the code of an account in case it is shared with another one.
-    * FIXME: Should we keep track of this for deletion? Maybe during pruning we can also prune contract code.
+    * FIXME: [EC-242]
+    *   Should we delete the storage associated with the deleted accounts?
+    *   Should we keep track of duplicated contracts for deletion?
     *
     * @param addressesToDelete
     * @param worldStateProxy

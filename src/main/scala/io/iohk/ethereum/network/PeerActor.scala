@@ -225,19 +225,19 @@ object PeerActor {
                                   peerConfiguration: PeerConfiguration,
                                   peerEventBus: ActorRef,
                                   handshaker: Handshaker[R],
-                                  authHandshaker: AuthHandshaker): Props =
+                                  authHandshaker: AuthHandshaker,
+                                  messageDecoder: MessageDecoder): Props =
     Props(new PeerActor(
       peerAddress,
-      rlpxConnectionFactory(nodeStatusHolder().key, authHandshaker, peerConfiguration.rlpxConfiguration),
+      rlpxConnectionFactory(nodeStatusHolder().key, authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration),
       peerConfiguration,
       peerEventBus,
       initHandshaker = handshaker))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair, authHandshaker: AuthHandshaker,
-                            rlpxConfiguration: RLPxConfiguration): ActorContext => ActorRef = { ctx =>
-    // FIXME This message decoder should be configurable
+                            messageDecoder: MessageDecoder, rlpxConfiguration: RLPxConfiguration): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(
-      RLPxConnectionHandler.props(nodeKey, EthereumMessageDecoder, Versions.PV63, authHandshaker, rlpxConfiguration),
+      RLPxConnectionHandler.props(nodeKey, NetworkMessageDecoder orElse messageDecoder, Versions.PV63, authHandshaker, rlpxConfiguration),
       "rlpx-connection")
   }
 

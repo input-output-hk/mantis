@@ -132,7 +132,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[HeaderPoWError]] otherwise
     */
-  //FIXME: Simple PoW validation without using DAG
+  //FIXME: Simple PoW validation without using DAG [EC-88]
   private def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
     val powBoundary = BigInt(2).pow(256) / blockHeader.difficulty
     val powValue = BigInt(1, calculatePoWValue(blockHeader).toArray)
