@@ -92,32 +92,13 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
 
-  trait TestSetup {
-
-    val testAddress = 42
-    val privateKey = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
-    val keyPair: AsymmetricCipherKeyPair = keyPairFromPrvKey(privateKey)
-    val pubKey: Array[Byte] = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
-    val address = Address(crypto.kec256(pubKey).drop(FirstByteOfAddress))
-
-    val txGasLimit = 21000
-    val txTransfer = 9000
-    val transaction = Transaction(
-      nonce = 0,
-      gasPrice = 1,
-      gasLimit = txGasLimit,
-      receivingAddress = Address(testAddress),
-      value = txTransfer,
-      payload = ByteString.empty)
-    val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
-    val duplicatedSignedTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
-
-    val blockchainStorages = new SharedEphemDataSources with Storages.DefaultStorages
-    val blockchainConfig = new BlockchainConfig {
+  it should "generate block before eip155 and filter out chain specific tx" in new TestSetup {
+    override lazy val blockchainConfig = new BlockchainConfig {
       override val frontierBlockNumber: BigInt = 0
       override val homesteadBlockNumber: BigInt = 1150000
       override val difficultyBombPauseBlockNumber: BigInt = 3000000
       override val difficultyBombContinueBlockNumber: BigInt = 5000000
+      override val eip155BlockNumber: BigInt = Long.MaxValue
       override val chainId: Byte = 0x3d.toByte
       override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
       override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
@@ -130,18 +111,96 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val daoForkBlockTotalDifficulty: BigInt = 0
       override val accountStartNonce: UInt256 = UInt256.Zero
     }
-    val ledger = new LedgerImpl(VM, blockchainConfig)
 
-    val validators = new Validators {
+    val generalTx = SignedTransaction.sign(transaction, keyPair, None)
+    val specificTx = SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, Some(0x3d.toByte))
+
+    val result: Either[BlockPreparationError, PendingBlock] =
+      blockGenerator.generateBlockForMining(1, Seq(generalTx, specificTx), Nil, Address(testAddress))
+    result shouldBe a[Right[_, Block]]
+
+    //mined with etc-client + ethminer
+    val minedNonce = ByteString(Hex.decode("48381cb0cd40936a"))
+    val minedMixHash = ByteString(Hex.decode("dacd96cf5dbc662fa113c73319fcdc7d6e7053571432345b936fd221c1e18d42"))
+    val miningTimestamp = 1499952002
+
+    val fullBlock: Either[BlockPreparationError, Block] = result.right
+      .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
+    fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
+    fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(generalTx))
+  }
+
+  it should "generate block after eip155 and allow both chain specific and general transactions" in new TestSetup {
+    val generalTx: SignedTransaction = SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, None)
+
+    val result: Either[BlockPreparationError, PendingBlock] =
+      blockGenerator.generateBlockForMining(1, Seq(generalTx, signedTransaction), Nil, Address(testAddress))
+    result shouldBe a[Right[_, Block]]
+
+    //mined with etc-client + ethminer
+    val minedNonce = ByteString(Hex.decode("39bd50fcbde30b18"))
+    val minedMixHash = ByteString(Hex.decode("c77dae7cef6c685896ed6b8026466a2e6338b8bc5f182e2dd7a64cf7da9c7d1b"))
+    val miningTimestamp = 1499951223
+
+    val fullBlock: Either[BlockPreparationError, Block] = result.right
+      .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
+    fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
+    fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction, generalTx))
+  }
+
+  trait TestSetup {
+
+    val testAddress = 42
+    val privateKey = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
+    lazy val keyPair: AsymmetricCipherKeyPair = keyPairFromPrvKey(privateKey)
+    lazy val pubKey: Array[Byte] = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
+    lazy val address = Address(crypto.kec256(pubKey).drop(FirstByteOfAddress))
+
+    val txGasLimit = 21000
+    val txTransfer = 9000
+    val transaction = Transaction(
+      nonce = 0,
+      gasPrice = 1,
+      gasLimit = txGasLimit,
+      receivingAddress = Address(testAddress),
+      value = txTransfer,
+      payload = ByteString.empty)
+    lazy val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
+    lazy val duplicatedSignedTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
+
+    val blockchainStorages = new SharedEphemDataSources with Storages.DefaultStorages
+    lazy val blockchainConfig = new BlockchainConfig {
+      override val frontierBlockNumber: BigInt = 0
+      override val homesteadBlockNumber: BigInt = 1150000
+      override val difficultyBombPauseBlockNumber: BigInt = 3000000
+      override val difficultyBombContinueBlockNumber: BigInt = 5000000
+      override val eip155BlockNumber: BigInt = 0
+      override val chainId: Byte = 0x3d.toByte
+      override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
+
+      // unused
+      override val daoForkBlockNumber: BigInt = Long.MaxValue
+      override val eip160BlockNumber: BigInt = Long.MaxValue
+      override val eip150BlockNumber: BigInt = Long.MaxValue
+      override val daoForkBlockHash: ByteString = ByteString("unused")
+      override val daoForkBlockTotalDifficulty: BigInt = 0
+      override val accountStartNonce: UInt256 = UInt256.Zero
+    }
+    lazy val ledger = new LedgerImpl(VM, blockchainConfig)
+
+    lazy val validators = new Validators {
       val blockValidator: BlockValidator = BlockValidator
       val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
       val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig)
       val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
     }
 
-    val blockchain = BlockchainImpl(blockchainStorages.storages)
+    lazy val blockchain = BlockchainImpl(blockchainStorages.storages)
 
-    val genesisDataLoader = new GenesisDataLoader(blockchainStorages.ephemDataSource, blockchain, blockchainConfig)
+    lazy val genesisDataLoader = new GenesisDataLoader(blockchainStorages.ephemDataSource, blockchain, blockchainConfig)
     genesisDataLoader.loadGenesisData()
 
     val miningConfig = new MiningConfig {
@@ -151,9 +210,9 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
-    val blockTimestampProvider = new FakeBlockTimestampProvider
+    lazy val blockTimestampProvider = new FakeBlockTimestampProvider
 
-    val blockGenerator = new BlockGenerator(blockchainStorages.storages, blockchainConfig, miningConfig, ledger, validators, blockTimestampProvider)
+    lazy val blockGenerator = new BlockGenerator(blockchainStorages.storages, blockchainConfig, miningConfig, ledger, validators, blockTimestampProvider)
   }
 }
 
