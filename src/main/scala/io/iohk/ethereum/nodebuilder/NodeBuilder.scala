@@ -20,6 +20,7 @@ import io.iohk.ethereum.utils._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, DiscoveryListener, PeerDiscoveryManager}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
@@ -50,6 +51,28 @@ trait StorageBuilder {
   lazy val storagesInstance =  new SharedLevelDBDataSources with Storages.DefaultStorages
 }
 
+trait DiscoveryConfigBuilder {
+  lazy val discoveryConfig = DiscoveryConfig(Config.config)
+}
+
+trait PeerDiscoveryManagerBuilder {
+  self: ActorSystemBuilder
+  with DiscoveryListenerBuilder
+  with NodeStatusBuilder
+  with DiscoveryConfigBuilder =>
+
+  lazy val peerDiscoveryManager =
+    actorSystem.actorOf(PeerDiscoveryManager.props(discoveryListener, discoveryConfig, nodeStatusHolder), "peer-discovery-manager")
+}
+
+trait DiscoveryListenerBuilder {
+  self: ActorSystemBuilder
+  with DiscoveryConfigBuilder
+  with NodeStatusBuilder =>
+
+  lazy val discoveryListener = actorSystem.actorOf(DiscoveryListener.props(discoveryConfig, nodeStatusHolder), "discovery-listener")
+}
+
 trait NodeStatusBuilder {
 
   self : NodeKeyBuilder =>
@@ -57,7 +80,8 @@ trait NodeStatusBuilder {
   private val nodeStatus =
     NodeStatus(
       key = nodeKey,
-      serverStatus = ServerStatus.NotListening)
+      serverStatus = ServerStatus.NotListening,
+      discoveryStatus = ServerStatus.NotListening)
 
   lazy val nodeStatusHolder = Agent(nodeStatus)
 }
@@ -107,7 +131,8 @@ trait PeerManagerActorBuilder {
   self: ActorSystemBuilder
     with NodeStatusBuilder
     with HandshakerBuilder
-    with PeerEventBusBuilder =>
+    with PeerEventBusBuilder
+    with PeerDiscoveryManagerBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
@@ -115,6 +140,7 @@ trait PeerManagerActorBuilder {
     nodeStatusHolder,
     Config.Network.peer,
     peerEventBus,
+    peerDiscoveryManager,
     handshaker), "peer-manager")
 
 }
@@ -363,3 +389,6 @@ trait Node extends NodeKeyBuilder
   with BlockchainHostBuilder
   with FilterManagerBuilder
   with FilterConfigBuilder
+  with DiscoveryConfigBuilder
+  with DiscoveryListenerBuilder
+  with PeerDiscoveryManagerBuilder

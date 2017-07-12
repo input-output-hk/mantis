@@ -323,7 +323,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val nodeStatus = NodeStatus(
       key = nodeKey,
-      serverStatus = ServerStatus.NotListening)
+      serverStatus = ServerStatus.NotListening,
+      discoveryStatus = ServerStatus.NotListening)
 
     val nodeStatusHolder = Agent(nodeStatus)
 

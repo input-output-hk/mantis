@@ -64,4 +64,17 @@ object ByteUtils {
     val fill = Seq.fill[Byte](l)(byte)
     fill ++: bytes
   }
+
+  def bytesToIp(bytesIp: ByteString): String = {
+    val sb = new StringBuilder()
+    sb.append(bytesIp(0) & 0xFF)
+    sb.append(".")
+    sb.append(bytesIp(1) & 0xFF)
+    sb.append(".")
+    sb.append(bytesIp(2) & 0xFF)
+    sb.append(".")
+    sb.append(bytesIp(3) & 0xFF)
+    sb.toString()
+  }
+
 }

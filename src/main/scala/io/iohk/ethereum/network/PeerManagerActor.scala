@@ -15,30 +15,32 @@ import akka.actor._
 import akka.agent.Agent
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
+import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.MessageSerializable
-import io.iohk.ethereum.utils.{Config, NodeStatus}
+import io.iohk.ethereum.utils.NodeStatus
 
 import scala.util.{Failure, Success}
 
 class PeerManagerActor(
     peerEventBus: ActorRef,
+    peerDiscoveryManager: ActorRef,
     peerConfiguration: PeerConfiguration,
     peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
-    externalSchedulerOpt: Option[Scheduler] = None,
-    bootstrapNodes: Set[String] = Config.Network.Discovery.bootstrapNodes)
+    externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging with Stash {
 
   import akka.pattern.{ask, pipe}
   import PeerManagerActor._
-  import Config.Network.Discovery._
 
   var peers: Map[PeerId, Peer] = Map.empty
 
   private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
-  scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
+  scheduler.schedule(5.seconds, 20.seconds) {
+    peerDiscoveryManager ! PeerDiscoveryManager.GetDiscoveredNodes
+  }
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
@@ -71,15 +73,18 @@ class PeerManagerActor(
         .recover { case ex => (msg, Failure(ex)) }
         .pipeTo(self)
 
-    case ScanBootstrapNodes =>
+    case PeerDiscoveryManager.DiscoveredNodes(nodes) =>
       val peerAddresses = peers.values.map(_.remoteAddress).toSet
-      val nodesToConnect = bootstrapNodes
-        .map(new URI(_))
-        .filterNot(uri => peerAddresses.contains(new InetSocketAddress(uri.getHost, uri.getPort)))
+
+      val nodesToConnect = nodes
+        .filterNot(n => peerAddresses.contains(n.addr)) // not already connected to
+        .toSeq
+        .sortBy(-_.addTimestamp)
+        .take(peerConfiguration.maxPeers - peerAddresses.size)
 
       if (nodesToConnect.nonEmpty) {
-        log.info("Trying to connect to {} bootstrap nodes", nodesToConnect.size)
-        nodesToConnect.foreach(self ! ConnectToPeer(_))
+        log.info("Trying to connect to {} nodes", nodesToConnect.size)
+        nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
       }
   }
 
@@ -100,7 +105,7 @@ class PeerManagerActor(
   }
 
   def tryingToConnect: Receive = handleCommonMessages orElse {
-    case _: HandlePeerConnection | _: ConnectToPeer | ScanBootstrapNodes =>
+    case _: HandlePeerConnection | _: ConnectToPeer | PeerDiscoveryManager.DiscoveredNodes =>
       stash()
 
     case (HandlePeerConnection(connection, remoteAddress), Success(_)) =>
@@ -177,20 +182,11 @@ class PeerManagerActor(
 object PeerManagerActor {
   def props[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
                                   peerConfiguration: PeerConfiguration,
-                                  peerEventBus: ActorRef,
-                                  handshaker: Handshaker[R]): Props =
-    Props(new PeerManagerActor(peerEventBus, peerConfiguration,
-      peerFactory(nodeStatusHolder, peerConfiguration, peerEventBus, handshaker)))
-
-  def props[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
-                                  peerConfiguration: PeerConfiguration,
-                                  bootstrapNodes: Set[String],
                                   peerMessageBus: ActorRef,
+                                  peerDiscoveryManager: ActorRef,
                                   handshaker: Handshaker[R]): Props =
-    Props(new PeerManagerActor(peerMessageBus, peerConfiguration,
-      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, handshaker),
-      bootstrapNodes = bootstrapNodes)
-    )
+    Props(new PeerManagerActor(peerMessageBus, peerDiscoveryManager, peerConfiguration,
+      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, handshaker)))
 
   def peerFactory[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
                                         peerConfiguration: PeerConfiguration,
@@ -231,8 +227,6 @@ object PeerManagerActor {
   case class Peers(peers: Map[Peer, PeerActor.Status]) {
     def handshaked: Seq[Peer] = peers.collect{ case (peer, Handshaked) => peer }.toSeq
   }
-
-  private case object ScanBootstrapNodes
 
   case class SendMessage(message: MessageSerializable, peerId: PeerId)
 }

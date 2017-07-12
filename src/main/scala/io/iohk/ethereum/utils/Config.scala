@@ -12,7 +12,6 @@ import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, Pee
 import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
-import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -41,13 +40,6 @@ object Config {
       val interface: String = serverConfig.getString("interface")
       val port: Int = serverConfig.getInt("port")
       val listenAddress = new InetSocketAddress(interface, port)
-    }
-
-    object Discovery {
-      private val discoveryConfig = networkConfig.getConfig("discovery")
-
-      val bootstrapNodes: Set[String] = discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet
-      val bootstrapNodesScanInterval = discoveryConfig.getDuration("bootstrap-nodes-scan-interval").toMillis.millis
     }
 
     val peer = new PeerConfiguration {
