@@ -83,11 +83,32 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     rlpxConnection ! RLPxConnectionHandler.SendMessage(Ping())
     connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
 
-    //Wait for Ack timeout
-    Thread.sleep(rlpxConfiguration.waitForTcpAckTimeout.toMillis)
+    //The rlpx connection is closed after a timeout happens (after rlpxConfiguration.waitForTcpAckTimeout) and it is processed
+    rlpxConnectionParent.expectTerminated(rlpxConnection, max = rlpxConfiguration.waitForTcpAckTimeout + Timeouts.normalTimeout)
+  }
 
-    //The rlpx connection is closed
-    rlpxConnectionParent.expectTerminated(rlpxConnection)
+  it should "ignore timeout of old messages" in new TestSetup {
+    (mockMessageCodec.encodeMessage _).expects(Ping(): MessageSerializable).returning(ByteString("ping encoded")).anyNumberOfTimes()
+
+    setupRLPxConnection()
+
+    rlpxConnection ! RLPxConnectionHandler.SendMessage(Ping()) //With SEQ number 0
+    rlpxConnection ! RLPxConnectionHandler.SendMessage(Ping()) //With SEQ number 1
+
+    //Only first Ping is sent
+    connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
+
+    //Upon Ack, the next message is sent
+    rlpxConnection ! RLPxConnectionHandler.Ack
+    connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
+
+    //AckTimeout for the first Ping is received
+    rlpxConnection ! RLPxConnectionHandler.AckTimeout(0) //AckTimeout for first Ping message
+
+    //Connection should continue to work perfectly
+    rlpxConnection ! RLPxConnectionHandler.SendMessage(Ping())
+    rlpxConnection ! RLPxConnectionHandler.Ack
+    connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
   }
 
   trait TestSetup extends MockFactory with SecureRandomBuilder {
