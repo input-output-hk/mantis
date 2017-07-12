@@ -105,7 +105,6 @@ class SyncController(
 }
 
 object SyncController {
-  //todo refactor to provide ActorRefs differently
   // scalastyle:off parameter.number
   def props(appStateStorage: AppStateStorage,
             blockchain: Blockchain,
@@ -116,9 +115,9 @@ object SyncController {
             peerEventBus: ActorRef,
             pendingTransactionsManager: ActorRef,
             ommersPool: ActorRef,
-            peersInfoHolder: ActorRef):
+            etcPeerManager: ActorRef):
   Props = Props(new SyncController(appStateStorage, blockchain, blockchainStorages, syncStateStorage, ledger, validators,
-    peerEventBus, pendingTransactionsManager, ommersPool, peersInfoHolder))
+    peerEventBus, pendingTransactionsManager, ommersPool, etcPeerManager))
 
   case class BlockHeadersToResolve(peer: Peer, headers: Seq[BlockHeader])
 

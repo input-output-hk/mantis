@@ -149,6 +149,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
       override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val activeTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val blockTimestampProvider = new FakeBlockTimestampProvider

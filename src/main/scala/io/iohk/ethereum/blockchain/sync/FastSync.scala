@@ -237,7 +237,7 @@ trait FastSync {
     }
 
     private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
-      //todo this is moved from FastSyncBlockBodiesRequestHandler.scala we should add block validation here
+      //todo this is moved from FastSyncBlockBodiesRequestHandler.scala we should add block validation here [EC-249]
       //load header from chain by hash and check consistency with BlockValidator.validateHeaderAndBody
       //if invalid blacklist peer
       (requestedHashes zip blockBodies).foreach { case (hash, body) =>

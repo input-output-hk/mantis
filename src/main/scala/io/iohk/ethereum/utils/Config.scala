@@ -169,6 +169,7 @@ trait MiningConfig {
   val blockCacheSize: Int
   val coinbase: Address
   val poolingServicesTimeout: FiniteDuration
+  val activeTimeout: FiniteDuration
 }
 
 object MiningConfig {
@@ -180,6 +181,7 @@ object MiningConfig {
       val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
       val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
       val poolingServicesTimeout: FiniteDuration = miningConfig.getDuration("pooling-services-timeout").toMillis.millis
+      val activeTimeout: FiniteDuration = miningConfig.getDuration("active-timeout").toMillis.millis
     }
   }
 }

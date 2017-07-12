@@ -57,8 +57,6 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val blockchain = BlockchainImpl(storages)
 
     val blockExecResult = for {
-      //todo why do we require in executeBlockTransactions separate blockchain and blockchain storage
-      //todo blockchain storage is part of blockchain
       execResult <- executeBlockTransactions(block, blockchain, storages, validators.signedTransactionValidator)
       BlockResult(resultingWorldStateProxy, _, _) = execResult
       worldToPersist = payBlockReward(block, resultingWorldStateProxy)

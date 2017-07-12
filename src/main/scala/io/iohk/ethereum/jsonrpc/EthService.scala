@@ -188,7 +188,6 @@ class EthService(
 
   lazy val blockchain = BlockchainImpl(blockchainStorages)
 
-  val minerTimeOut: Long = 5.seconds.toMillis // TODO: configure timeout
   val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] = new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
   val lastActive = new AtomicReference[Option[Date]](None)
 
@@ -408,7 +407,7 @@ class EthService(
   def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] = {
     val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
       override def apply(e: Option[Date]): Option[Date] = {
-        e.filter { time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < minerTimeOut }
+        e.filter { time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < miningConfig.activeTimeout.toMillis }
       }
     }).isDefined
     Future.successful(Right(GetMiningResponse(isMining)))
@@ -436,7 +435,7 @@ class EthService(
 
   private def removeObsoleteHashrates(now: Date, rates: Map[ByteString, (BigInt, Date)]):Map[ByteString, (BigInt, Date)]={
     rates.filter { case (_, (_, reported)) =>
-      Duration.between(reported.toInstant, now.toInstant).toMillis < minerTimeOut
+      Duration.between(reported.toInstant, now.toInstant).toMillis < miningConfig.activeTimeout.toMillis
     }
   }
 

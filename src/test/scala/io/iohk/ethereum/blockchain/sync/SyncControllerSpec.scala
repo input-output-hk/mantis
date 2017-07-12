@@ -490,15 +490,10 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     syncController.children.last ! MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer1.id)
 
-    //TODO: investigate why such a long timeout is required
-    etcPeerManager.expectMsgAllOf(Timeouts.veryLongTimeout,
-      EtcPeerManagerActor.SendMessage(
-        GetBlockHeaders(Left(expectedMaxBlock + 3), Config.FastSync.blockHeadersPerRequest, 0, reverse = false), peer1.id),
-      EtcPeerManagerActor.SendMessage(
-        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer1.id),
-      EtcPeerManagerActor.SendMessage(
-        NewBlock(Block(nextNewBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + 2 * newBlockDifficulty), peer1.id)
-    )
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer1.id))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+        NewBlock(Block(nextNewBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + 2 * newBlockDifficulty), peer1.id))
 
     ommersPool.expectMsg(RemoveOmmers(newBlockHeader))
     ommersPool.expectMsg(RemoveOmmers(nextNewBlockHeader))
@@ -576,15 +571,10 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       GetBlockBodies(Seq(newBlockHeader.hash, invalidNextNewBlockHeader.hash)), peer1.id))
     syncController.children.last ! MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer1.id)
 
-    //TODO: investigate why such a long timeout is required
-    etcPeerManager.expectMsgAllOf(Timeouts.veryLongTimeout,
-      EtcPeerManagerActor.SendMessage(
-        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer1.id),
-      EtcPeerManagerActor.SendMessage(
-        GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false), peer2.id),
-      EtcPeerManagerActor.SendMessage(
-        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer2.id)
-    )
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer1.id))
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer2.id))
 
     ommersPool.expectMsg(RemoveOmmers(newBlockHeader))
     pendingTransactionsManager.expectMsg(AddTransactions(Nil))
