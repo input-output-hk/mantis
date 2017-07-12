@@ -1,6 +1,7 @@
 package io.iohk.ethereum
 
 import java.math.BigInteger
+import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
@@ -101,12 +102,20 @@ trait ObjectGenerators {
     }
   }
 
-  //FIXME: Add use of tx generator when we are able to sign txs
-  def newBlockGen: Gen[NewBlock] = for {
+  def signedTxSeqGen(length: Int, secureRandom: SecureRandom, chainId: Option[Byte]): Gen[Seq[SignedTransaction]] = {
+    val senderKeys = crypto.generateKeyPair(secureRandom)
+    val txsSeqGen = Gen.listOfN(length, transactionGen())
+    txsSeqGen.map { txs =>
+      txs.map { tx => SignedTransaction.sign(tx, senderKeys, chainId) }
+    }
+  }
+
+  def newBlockGen(secureRandom: SecureRandom, chainId: Option[Byte]): Gen[NewBlock] = for {
     blockHeader <- blockHeaderGen
+    stxs <- signedTxSeqGen(10, secureRandom, chainId)
     uncles <- seqBlockHeaderGen
     td <- bigIntGen
-  } yield NewBlock(Block(blockHeader, BlockBody(Seq(), uncles)), td)
+  } yield NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), td)
 
   def blockHeaderGen: Gen[BlockHeader] = for {
     parentHash <- byteStringOfLengthNGen(32)

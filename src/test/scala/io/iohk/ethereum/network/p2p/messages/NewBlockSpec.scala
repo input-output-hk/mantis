@@ -9,10 +9,14 @@ import org.scalatest.prop.PropertyChecks
 import org.scalatest.FunSuite
 import org.spongycastle.util.encoders.Hex
 import NewBlock._
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 
-class NewBlockSpec extends FunSuite with PropertyChecks  with ObjectGenerators {
+class NewBlockSpec extends FunSuite with PropertyChecks  with ObjectGenerators with SecureRandomBuilder {
+
+  val chainId = Hex.decode("3d").head
+
   test("NewBlock messages are encoded and decoded properly") {
-    forAll(newBlockGen) { newBlock =>
+    forAll(newBlockGen(secureRandom, Some(chainId))) { newBlock =>
       val encoded: Array[Byte] = newBlock.toBytes
       val decoded: NewBlock = encoded.toNewBlock
       assert(decoded == newBlock)
