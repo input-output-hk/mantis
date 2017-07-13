@@ -8,7 +8,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, Pe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
-import io.iohk.ethereum.utils.Config.FastSync._
+import io.iohk.ethereum.utils.Config.Sync._
 
 abstract class SyncRequestHandler[RequestMsg <: Message,
                                   ResponseMsg <: Message : ClassTag](peer: Peer, etcPeerManagerActor: ActorRef,

@@ -47,7 +47,7 @@ trait FilterConfigBuilder {
 
 trait NodeKeyBuilder {
   self: SecureRandomBuilder =>
-  lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile, secureRandom)
+  lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.nodeKeyFile, secureRandom)
 }
 
 trait ActorSystemBuilder {

@@ -24,7 +24,7 @@ trait RegularSync extends BlockBroadcast {
   private var headersQueue: Seq[BlockHeader] = Nil
   private var waitingForActor: Option[ActorRef] = None
 
-  import Config.FastSync._
+  import Config.Sync._
 
   def startRegularSync(): Unit = {
     log.info("Starting regular sync")
