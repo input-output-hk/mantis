@@ -386,6 +386,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val genesisHash = ByteString(Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"))
 
+    val daoForkBlockTotalDifficulty: BigInt = BigInt("39490964433395682584")
+
     def setupConnection(): Unit = {
       peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 

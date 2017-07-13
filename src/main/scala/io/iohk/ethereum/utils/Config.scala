@@ -174,7 +174,7 @@ trait MiningConfig {
   val ommersPoolSize: Int
   val blockCacheSize: Int
   val coinbase: Address
-  val poolingServicesTimeout: FiniteDuration
+  val ommerPoolQueryTimeout: FiniteDuration
 }
 
 object MiningConfig {
@@ -185,7 +185,7 @@ object MiningConfig {
       val coinbase: Address = Address(Hex.decode(miningConfig.getString("coinbase")))
       val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
       val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
-      val poolingServicesTimeout: FiniteDuration = miningConfig.getDuration("pooling-services-timeout").toMillis.millis
+      val ommerPoolQueryTimeout: FiniteDuration = miningConfig.getDuration("ommer-pool-query-timeout").toMillis.millis
     }
   }
 }
@@ -201,7 +201,6 @@ trait BlockchainConfig {
   val customGenesisFileOpt: Option[String]
 
   val daoForkBlockNumber: BigInt
-  val daoForkBlockTotalDifficulty: BigInt
   val daoForkBlockHash: ByteString
   val accountStartNonce: UInt256
 
@@ -225,7 +224,6 @@ object BlockchainConfig {
       override val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
 
       override val daoForkBlockNumber: BigInt = BigInt(blockchainConfig.getString("dao-fork-block-number"))
-      override val daoForkBlockTotalDifficulty: BigInt = BigInt(blockchainConfig.getString("dao-fork-block-total-difficulty"))
       override val daoForkBlockHash: ByteString = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
       override val accountStartNonce: UInt256 = UInt256(BigInt(blockchainConfig.getString("account-start-nonce")))
 
@@ -240,18 +238,13 @@ case class MonetaryPolicyConfig(
   eraDuration: Int,
   rewardRedutionRate: Double,
   firstEraBlockReward: BigInt
-)
+) {
+  require(rewardRedutionRate >= 0.0 && rewardRedutionRate <= 1.0,
+    s"reward-reduction-rate should be a value in range [0.0, 1.0]")
+}
 
 object MonetaryPolicyConfig {
   def apply(mpConfig: TypesafeConfig): MonetaryPolicyConfig = {
-    val eraDuration = mpConfig.getInt("era-duration")
-
-    val reductionRate = mpConfig.getDouble("reward-reduction-rate")
-    require(reductionRate >= 0.0 && reductionRate <= 1.0,
-      s"reward-reduction-rate should be a value in range [0.0, 1.0]")
-
-    val reward = BigInt(mpConfig.getString("first-era-block-reward"))
-
     MonetaryPolicyConfig(
       mpConfig.getInt("era-duration"),
       mpConfig.getDouble("reward-reduction-rate"),

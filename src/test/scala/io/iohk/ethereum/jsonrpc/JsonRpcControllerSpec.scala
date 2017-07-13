@@ -1303,7 +1303,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override val coinbase: Address = Address(Hex.decode("42" * 20))
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
-      override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val filterConfig = new FilterConfig {

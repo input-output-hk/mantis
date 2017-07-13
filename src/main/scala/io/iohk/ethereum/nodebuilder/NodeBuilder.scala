@@ -241,11 +241,12 @@ trait EthServiceBuilder {
     SyncControllerBuilder with
     OmmersPoolBuilder with
     MiningConfigBuilder with
+    TxPoolConfigBuilder with
     FilterManagerBuilder with
     FilterConfigBuilder =>
 
   lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage, miningConfig,
-    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig, blockchainConfig)
+    txPoolConfig, ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig, blockchainConfig)
 }
 
 trait PersonalServiceBuilder {
