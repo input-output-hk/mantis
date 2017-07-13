@@ -13,10 +13,9 @@ import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
-import io.iohk.ethereum.utils.TxPoolConfig
 import io.iohk.ethereum.{NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.{MiningConfig, TxPoolConfig}
+import io.iohk.ethereum.utils.TxPoolConfig
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
@@ -116,14 +115,17 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTransactionsManager ! AddOrOverrideTransaction(firstTx)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked)))
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     pendingTransactionsManager ! AddOrOverrideTransaction(otherTx)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked)))
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     pendingTransactionsManager ! AddOrOverrideTransaction(overrideTx)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked)))
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
 
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .futureValue.pendingTransactions
@@ -131,7 +133,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTxs.map(_.stx) shouldEqual List(overrideTx, otherTx)
 
     // overriden TX will still be broadcast to peers
-    etcPeerManager.expectMsgAllOf(
+    etcPeerManager.expectMsgAllOf(Timeouts.normalTimeout,
       EtcPeerManagerActor.SendMessage(SignedTransactions(List(firstTx)), peer1.id),
       EtcPeerManagerActor.SendMessage(SignedTransactions(List(otherTx)), peer1.id),
       EtcPeerManagerActor.SendMessage(SignedTransactions(List(overrideTx)), peer1.id)

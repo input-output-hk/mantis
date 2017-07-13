@@ -23,6 +23,7 @@ import io.iohk.ethereum.utils._
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
+import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
@@ -132,7 +133,8 @@ trait PeerManagerActorBuilder {
     Config.Network.peer,
     peerEventBus,
     handshaker,
-    authHandshaker), "peer-manager")
+    authHandshaker,
+    EthereumMessageDecoder), "peer-manager")
 
 }
 
