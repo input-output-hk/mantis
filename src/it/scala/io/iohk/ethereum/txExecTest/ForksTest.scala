@@ -16,6 +16,7 @@ class ForksTest extends FlatSpec with Matchers {
     override val homesteadBlockNumber: BigInt = 3
     override val eip150BlockNumber: BigInt = 5
     override val eip160BlockNumber: BigInt = 7
+    override val eip155BlockNumber: BigInt = 0
 
     override val chainId: Byte = 0x3d
     override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L)
@@ -28,7 +29,6 @@ class ForksTest extends FlatSpec with Matchers {
     override val difficultyBombPauseBlockNumber: BigInt = Long.MaxValue
     override val difficultyBombContinueBlockNumber: BigInt = Long.MaxValue
     override val accountStartNonce: UInt256 = UInt256.Zero
-    override val eip155BlockNumber: BigInt = Long.MaxValue
   }
 
   val ledger = new LedgerImpl(VM, blockchainConfig)
