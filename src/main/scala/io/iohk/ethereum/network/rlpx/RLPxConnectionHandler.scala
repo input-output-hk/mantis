@@ -150,18 +150,18 @@ class RLPxConnectionHandler(
       * @param messageCodec, for encoding the messages sent
       * @param messagesNotSent, messages not yet sent
       * @param cancellableAckTimeout, timeout for the message sent for which we are awaiting an acknowledgement (if there is one)
-      * @param nextSeqNumber, sequence number for the next message to be sent
+      * @param seqNumber, sequence number for the next message to be sent
       */
     def handshaked(messageCodec: MessageCodec,
                    messagesNotSent: Queue[MessageSerializable] = Queue.empty,
                    cancellableAckTimeout: Option[CancellableAckTimeout] = None,
-                   nextSeqNumber: Int = 0): Receive =
+                   seqNumber: Int = 0): Receive =
       handleWriteFailed orElse handleConnectionClosed orElse {
         case sm: SendMessage =>
           if(cancellableAckTimeout.isEmpty)
-            sendMessage(messageCodec, sm.serializable, nextSeqNumber, messagesNotSent)
+            sendMessage(messageCodec, sm.serializable, seqNumber, messagesNotSent)
           else
-            context become handshaked(messageCodec, messagesNotSent :+ sm.serializable, cancellableAckTimeout, nextSeqNumber)
+            context become handshaked(messageCodec, messagesNotSent :+ sm.serializable, cancellableAckTimeout, seqNumber)
 
         case Received(data) =>
           val messages = messageCodec.readMessages(data)
@@ -173,9 +173,9 @@ class RLPxConnectionHandler(
 
           //Send next message if there is one
           if(messagesNotSent.nonEmpty)
-            sendMessage(messageCodec, messagesNotSent.head, nextSeqNumber, messagesNotSent.tail)
+            sendMessage(messageCodec, messagesNotSent.head, seqNumber, messagesNotSent.tail)
           else
-            context become handshaked(messageCodec, Queue.empty, None, nextSeqNumber)
+            context become handshaked(messageCodec, Queue.empty, None, seqNumber)
 
         case AckTimeout(ackSeqNumber) if cancellableAckTimeout.exists(_.seqNumber == ackSeqNumber) =>
           cancellableAckTimeout.foreach(_.cancellable.cancel())
@@ -203,7 +203,7 @@ class RLPxConnectionHandler(
         messageCodec = messageCodec,
         messagesNotSent = remainingMsgsToSend,
         cancellableAckTimeout = Some(CancellableAckTimeout(seqNumber, timeout)),
-        nextSeqNumber = increaseSeqNumber(seqNumber)
+        seqNumber = increaseSeqNumber(seqNumber)
       )
     }
 
