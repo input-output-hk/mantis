@@ -19,7 +19,7 @@ trait StoragesComponent {
 
     val mptNodeStorage: MptNodeStorage
 
-    val nodeStorage: NodeStorage //FIXME This storage is similar to MPTNodesStorage but
+    val nodeStorage: NodeStorage //FIXME This storage is similar to MPTNodesStorage, should we keep only one? [EC-147]
 
     val evmCodeStorage: EvmCodeStorage
 

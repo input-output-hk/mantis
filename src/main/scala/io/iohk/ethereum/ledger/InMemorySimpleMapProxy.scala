@@ -49,7 +49,7 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private(val inner: I
     * @param key
     * @return Option object with value if there exists one.
     */
-  def get(key: K): Option[V] = cache.getOrElse(key, inner.get(key)) //FIXME We can cache retrieved values too
+  def get(key: K): Option[V] = cache.getOrElse(key, inner.get(key))
 
   def wrapped: I = inner
 

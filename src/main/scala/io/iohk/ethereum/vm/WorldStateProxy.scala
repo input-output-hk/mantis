@@ -19,6 +19,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   protected def getAccount(address: Address): Option[Account]
   protected def saveAccount(address: Address, account: Account): WS
   protected def deleteAccount(address: Address): WS
+  protected def getEmptyAccount: Account
 
   /**
     * In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that
@@ -37,7 +38,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   def saveStorage(address: Address, storage: S): WS
 
   def newEmptyAccount(address: Address): WS =
-    saveAccount(address, Account.Empty)
+    saveAccount(address, getEmptyAccount)
 
   def accountExists(address: Address): Boolean =
     getAccount(address).isDefined
@@ -49,7 +50,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     if(from == to) this
     else {
       val debited = getGuaranteedAccount(from).increaseBalance(-value)
-      val credited = getAccount(to).getOrElse(Account.Empty).increaseBalance(value)
+      val credited = getAccount(to).getOrElse(getEmptyAccount).increaseBalance(value)
       saveAccount(from, debited).saveAccount(to, credited)
     }
   }

@@ -409,7 +409,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.save(blockToRequest)
     (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
 
-    val txResult = TxResult(InMemoryWorldStateProxy(storagesInstance.storages), 123, Nil, ByteString("return_value"))
+    val txResult = TxResult(InMemoryWorldStateProxy(storagesInstance.storages, UInt256.Zero), 123, Nil, ByteString("return_value"))
     (ledger.simulateTransaction _).expects(*, *, *).returning(txResult)
 
     val tx = CallTx(
@@ -425,7 +425,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.save(blockToRequest)
     (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
 
-    val txResult = TxResult(InMemoryWorldStateProxy(storagesInstance.storages), 123, Nil, ByteString("return_value"))
+    val txResult = TxResult(InMemoryWorldStateProxy(storagesInstance.storages, UInt256.Zero), 123, Nil, ByteString("return_value"))
     (ledger.simulateTransaction _).expects(*, *, *).returning(txResult)
 
     val tx = CallTx(
@@ -777,18 +777,16 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val coinbase: Address = Address(42)
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
-      override val txPoolSize: Int = 30
       override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
-      override val pendingTransactionsManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig) {
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig, blockchainConfig) {
       override val minerTimeOut: Long = Timeouts.shortTimeout.toMillis
     }
 

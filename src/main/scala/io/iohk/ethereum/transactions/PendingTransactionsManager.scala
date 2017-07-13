@@ -9,20 +9,22 @@ import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
-import io.iohk.ethereum.utils.MiningConfig
+import io.iohk.ethereum.utils.TxPoolConfig
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object PendingTransactionsManager {
-  def props(miningConfig: MiningConfig, peerManager: ActorRef, etcPeerManager: ActorRef, peerMessageBus: ActorRef): Props =
-    Props(new PendingTransactionsManager(miningConfig, peerManager, etcPeerManager, peerMessageBus))
+  def props(txPoolConfig: TxPoolConfig, peerManager: ActorRef, etcPeerManager: ActorRef, peerMessageBus: ActorRef): Props =
+    Props(new PendingTransactionsManager(txPoolConfig, peerManager, etcPeerManager, peerMessageBus))
 
   case class AddTransactions(signedTransactions: List[SignedTransaction])
 
   object AddTransactions{
     def apply(txs: SignedTransaction*): AddTransactions = AddTransactions(txs.toList)
   }
+
+  case class AddOrOverrideTransaction(signedTransaction: SignedTransaction)
 
   private case class NotifyPeer(signedTransactions: Seq[SignedTransaction], peer: Peer)
 
@@ -34,7 +36,7 @@ object PendingTransactionsManager {
   case class PendingTransaction(stx: SignedTransaction, addTimestamp: Long)
 }
 
-class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorRef,
+class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorRef,
                                  etcPeerManager: ActorRef, peerMessageBus: ActorRef) extends Actor {
 
   import PendingTransactionsManager._
@@ -43,7 +45,7 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
   /**
     * stores all pending transactions
    */
-  var pendingTransactions: Seq[PendingTransaction] = Nil
+  var pendingTransactions: List[PendingTransaction] = Nil
 
   /**
     * stores information which tx hashes are "known" by which peers
@@ -55,15 +57,25 @@ class PendingTransactionsManager(miningConfig: MiningConfig, peerManager: ActorR
   peerMessageBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
   override def receive: Receive = {
-    // TODO: we should check whether a transaction with the same address and nonce exists, and if so replace it with the new version
     case AddTransactions(signedTransactions) =>
       val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.map(_.stx).contains(t))
       if (transactionsToAdd.nonEmpty) {
         val timestamp = System.currentTimeMillis()
-        pendingTransactions = (pendingTransactions ++ transactionsToAdd.map(PendingTransaction(_, timestamp))).takeRight(miningConfig.txPoolSize)
+        pendingTransactions = (transactionsToAdd.map(PendingTransaction(_, timestamp)) ++ pendingTransactions).take(txPoolConfig.txPoolSize)
         (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
           peers.handshaked.foreach { peer => self ! NotifyPeer(transactionsToAdd, peer) }
         }
+      }
+
+    case AddOrOverrideTransaction(newStx) =>
+      val txsWithoutObsoletes = pendingTransactions.filterNot(ptx =>
+        ptx.stx.senderAddress == newStx.senderAddress &&
+        ptx.stx.tx.nonce == newStx.tx.nonce)
+      val timestamp = System.currentTimeMillis()
+      pendingTransactions = (PendingTransaction(newStx, timestamp) +: txsWithoutObsoletes).take(txPoolConfig.txPoolSize)
+
+      (peerManager ? PeerManagerActor.GetPeers).mapTo[Peers].foreach { peers =>
+        peers.handshaked.foreach { peer => self ! NotifyPeer(List(newStx), peer) }
       }
 
     case NotifyPeer(signedTransactions, peer) =>

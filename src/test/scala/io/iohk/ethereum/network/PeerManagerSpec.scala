@@ -160,6 +160,38 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     peerEventBus.expectMsg(Publish(PeerDisconnected(PeerId(createdPeers.head.ref.path.name))))
   }
 
+  it should "not handle the connection from a peer that's already connected" in new TestSetup {
+    val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
+      peerDiscoveryManager.ref, peerConfiguration, peerFactory, Some(time.scheduler))))(system)
+    peerManager ! PeerManagerActor.StartConnecting
+
+    time.advance(6000) // connect to 2 bootstrap peers
+
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodes)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodes(bootstrapNodes))
+
+    eventually {
+      peerManager.underlyingActor.peers.size shouldBe 1
+    }
+
+    peerManager ! "trigger stashed messages..."
+    createdPeers.head.expectMsgClass(classOf[PeerActor.ConnectTo])
+    respondWithStatus(createdPeers.head, Handshaking(0))
+
+    eventually {
+      peerManager.underlyingActor.peers.size shouldBe 2
+    }
+
+    val connection = TestProbe()
+
+    val watcher = TestProbe()
+    watcher.watch(connection.ref)
+
+    peerManager ! PeerManagerActor.HandlePeerConnection(connection.ref, new InetSocketAddress("127.0.0.1", 30340))
+
+    watcher.expectMsgClass(classOf[Terminated])
+  }
+
   trait TestSetup {
     implicit val system = ActorSystem("PeerManagerActorSpec_System")
 

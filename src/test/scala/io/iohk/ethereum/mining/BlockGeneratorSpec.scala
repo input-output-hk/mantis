@@ -8,7 +8,7 @@ import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, LedgerImpl}
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger, MiningConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger, MiningConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.{UInt256, VM}
 import org.scalatest.prop.PropertyChecks
@@ -119,8 +119,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val difficultyBombPauseBlockNumber: BigInt = 3000000
       override val difficultyBombContinueBlockNumber: BigInt = 5000000
       override val chainId: Byte = 0x3d.toByte
-      override val blockReward: UInt256 = UInt256(BigInt("5000000000000000000"))
       override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
 
       // unused
       override val daoForkBlockNumber: BigInt = Long.MaxValue
@@ -128,6 +128,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val eip150BlockNumber: BigInt = Long.MaxValue
       override val daoForkBlockHash: ByteString = ByteString("unused")
       override val daoForkBlockTotalDifficulty: BigInt = 0
+      override val accountStartNonce: UInt256 = UInt256.Zero
     }
     val ledger = new LedgerImpl(VM, blockchainConfig)
 
@@ -147,7 +148,6 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val coinbase: Address = Address(42)
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
-      override val txPoolSize: Int = 30
       override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 

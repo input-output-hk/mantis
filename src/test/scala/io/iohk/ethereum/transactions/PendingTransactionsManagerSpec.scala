@@ -3,21 +3,22 @@ package io.iohk.ethereum.transactions
 import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
+import akka.pattern.ask
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.{NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
-import io.iohk.ethereum.transactions.PendingTransactionsManager._
-import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
-import akka.pattern.ask
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerManagerActor.Peers
-import io.iohk.ethereum.utils.MiningConfig
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
+import io.iohk.ethereum.transactions.PendingTransactionsManager._
+import io.iohk.ethereum.{NormalPatience, Timeouts, crypto}
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.utils.TxPoolConfig
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.{FlatSpec, Matchers}
+import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 import scala.concurrent.duration._
 
@@ -88,7 +89,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
     pendingTxs.pendingTransactions.size shouldBe 6
-    pendingTxs.pendingTransactions.map(_.stx) shouldBe msg1.txs.takeRight(4) ++ msg2.txs.take(2)
+    pendingTxs.pendingTransactions.map(_.stx) shouldBe msg2.txs.take(2) ++ msg1.txs.takeRight(4)
   }
 
   it should "not add pending transaction again when it was removed while waiting for peers" in new TestSetup {
@@ -106,15 +107,49 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTxs.pendingTransactions.size shouldBe 0
   }
 
-  trait TestSetup {
+  it should "override transactions with the same sender and nonce" in new TestSetup {
+    val firstTx = newStx(1, tx, keyPair1)
+    val otherTx = newStx(1, tx, keyPair2)
+    val overrideTx = newStx(1, tx.copy(value = 2 * tx.value), keyPair1)
+
+    pendingTransactionsManager ! AddOrOverrideTransaction(firstTx)
+    peerManager.expectMsg(PeerManagerActor.GetPeers)
+    peerManager.reply(Peers(Map(peer1 -> Handshaked)))
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
+
+    pendingTransactionsManager ! AddOrOverrideTransaction(otherTx)
+    peerManager.expectMsg(PeerManagerActor.GetPeers)
+    peerManager.reply(Peers(Map(peer1 -> Handshaked)))
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
+
+    pendingTransactionsManager ! AddOrOverrideTransaction(overrideTx)
+    peerManager.expectMsg(PeerManagerActor.GetPeers)
+    peerManager.reply(Peers(Map(peer1 -> Handshaked)))
+    Thread.sleep(Timeouts.normalTimeout.toMillis)
+
+    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse]
+      .futureValue.pendingTransactions
+
+    pendingTxs.map(_.stx) shouldEqual List(overrideTx, otherTx)
+
+    // overriden TX will still be broadcast to peers
+    etcPeerManager.expectMsgAllOf(Timeouts.normalTimeout,
+      EtcPeerManagerActor.SendMessage(SignedTransactions(List(firstTx)), peer1.id),
+      EtcPeerManagerActor.SendMessage(SignedTransactions(List(otherTx)), peer1.id),
+      EtcPeerManagerActor.SendMessage(SignedTransactions(List(overrideTx)), peer1.id)
+    )
+  }
+
+  trait TestSetup extends SecureRandomBuilder {
     implicit val system = ActorSystem("test-system")
 
-    def newStx(nonce: BigInt = 0): SignedTransaction = {
-      val keyPair1 = crypto.generateKeyPair()
-      val addr1 = Address(Hex.decode("1c51bf013add0857c5d9cf2f71a7f15ca93d4816"))
-      val tx = Transaction(nonce, 1, 1, Some(addr1), 0, ByteString(""))
-      SignedTransaction.sign(tx, keyPair1, Some(0x3d))
-    }
+    val keyPair1 = crypto.generateKeyPair(secureRandom)
+    val keyPair2 = crypto.generateKeyPair(secureRandom)
+
+    val tx = Transaction(1, 1, 1, Some(Address(42)), 10, ByteString(""))
+
+    def newStx(nonce: BigInt = 0, tx: Transaction = tx, keyPair: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)): SignedTransaction =
+      SignedTransaction.sign(tx, keyPair, Some(0x3d))
 
     val peer1TestProbe = TestProbe()
     val peer1 = Peer(new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref)
@@ -123,20 +158,17 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val peer3TestProbe = TestProbe()
     val peer3 = Peer(new InetSocketAddress("127.0.0.3", 9000), peer3TestProbe.ref)
 
-    val miningConfig = new MiningConfig {
+    val txPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 300
       //unused
-      override val coinbase: Address = Address(2)
-      override val blockCacheSize: Int = 30
-      override val ommersPoolSize: Int = 30
-      override val poolingServicesTimeout: FiniteDuration = Timeouts.veryLongTimeout
+      override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.veryLongTimeout
     }
 
     val peerManager = TestProbe()
     val etcPeerManager = TestProbe()
     val peerMessageBus = TestProbe()
     val pendingTransactionsManager = system.actorOf(
-      PendingTransactionsManager.props(miningConfig, peerManager.ref, etcPeerManager.ref, peerMessageBus.ref))
+      PendingTransactionsManager.props(txPoolConfig, peerManager.ref, etcPeerManager.ref, peerMessageBus.ref))
   }
 
 }

@@ -8,13 +8,14 @@ import akka.testkit.TestProbe
 import io.iohk.ethereum.{NormalPatience, crypto}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
+import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class NetServiceSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience {
+class NetServiceSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience with SecureRandomBuilder {
 
   "NetService" should "return handshaked peer count" in new TestSetup {
     val resF = netService.peerCount(PeerCountRequest())
@@ -43,7 +44,7 @@ class NetServiceSpec extends FlatSpec with Matchers with ScalaFutures with Norma
 
     val peerManager = TestProbe()
 
-    val nodeStatus = NodeStatus(crypto.generateKeyPair(), ServerStatus.Listening(new InetSocketAddress(9000)),
+    val nodeStatus = NodeStatus(crypto.generateKeyPair(secureRandom), ServerStatus.Listening(new InetSocketAddress(9000)),
       discoveryStatus = ServerStatus.NotListening)
     val netService = new NetService(Agent(nodeStatus), peerManager.ref)
   }

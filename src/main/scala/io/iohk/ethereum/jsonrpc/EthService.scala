@@ -15,11 +15,11 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
-import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, TxLog, LogFilterLogs}
+import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
-import io.iohk.ethereum.utils.{FilterConfig, Logger, MiningConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, FilterConfig, Logger, MiningConfig}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.ommers.OmmersPool
@@ -180,7 +180,8 @@ class EthService(
     syncingController: ActorRef,
     ommersPool: ActorRef,
     filterManager: ActorRef,
-    filterConfig: FilterConfig)
+    filterConfig: FilterConfig,
+    blockchainConfig: BlockchainConfig)
   extends Logger {
 
   import EthService._
@@ -525,9 +526,9 @@ class EthService(
 
     Try(req.data.toArray.toSignedTransaction) match {
       case Success(signedTransaction) =>
-        pendingTransactionsManager ! PendingTransactionsManager.AddTransactions(signedTransaction)
+        pendingTransactionsManager ! PendingTransactionsManager.AddOrOverrideTransaction(signedTransaction)
         Future.successful(Right(SendRawTransactionResponse(signedTransaction.hash)))
-      case Failure(ex) =>
+      case Failure(_) =>
         Future.successful(Left(JsonRpcErrors.InvalidRequest))
     }
   }
@@ -547,7 +548,7 @@ class EthService(
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Future {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        val world = InMemoryWorldStateProxy(blockchainStorages, Some(block.header.stateRoot))
+        val world = InMemoryWorldStateProxy(blockchainStorages, blockchainConfig.accountStartNonce, Some(block.header.stateRoot))
         GetCodeResponse(world.getCode(req.address))
       }
     }
@@ -680,7 +681,7 @@ class EthService(
 
   private def withAccount[T](address: Address, blockParam: BlockParam)(f: Account => T): Either[JsonRpcError, T] = {
     resolveBlock(blockParam).map { case ResolvedBlock(block, _) =>
-      f(blockchain.getAccount(address, block.header.number).getOrElse(Account.Empty))
+      f(blockchain.getAccount(address, block.header.number).getOrElse(Account.empty(blockchainConfig.accountStartNonce)))
     }
   }
 

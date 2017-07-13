@@ -11,15 +11,17 @@ import io.iohk.ethereum.domain.{Blockchain, _}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
+import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.{PV62, PV63}
-import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor, loadAsymmetricCipherKeyPair}
+import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
+import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 
-object DumpChainApp extends App{
+object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
     val conf = ConfigFactory.load("txExecTest/chainDump.conf")
     val node = conf.getString("node")
     val genesisHash = ByteString(Hex.decode(conf.getString("genesisHash")))
@@ -45,8 +47,6 @@ object DumpChainApp extends App{
     val storagesInstance = new SharedLevelDBDataSources with Storages.DefaultStorages
 
     val blockchain: Blockchain = new BlockchainMock(genesisHash)
-
-    val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile)
 
     val nodeStatus =
       NodeStatus(
@@ -77,7 +77,9 @@ object DumpChainApp extends App{
       peerConfiguration = peerConfig,
       bootstrapNodes = Set(node),
       peerMessageBus,
-      handshaker = handshaker), "peer-manager")
+      handshaker = handshaker,
+      authHandshaker = authHandshaker,
+      messageDecoder = EthereumMessageDecoder), "peer-manager")
     actorSystem.actorOf(DumpChainActor.props(peerManager,peerMessageBus,startBlock,maxBlocks), "dumper")
   }
 

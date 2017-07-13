@@ -3,6 +3,7 @@ package io.iohk.ethereum.keystore
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
+import java.security.SecureRandom
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneOffset, ZonedDateTime}
 
@@ -34,19 +35,19 @@ trait KeyStore {
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet]
 }
 
-class KeyStoreImpl(keyStoreDir: String) extends KeyStore with Logger {
+class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyStore with Logger {
 
   init()
 
   def newAccount(passphrase: String): Either[KeyStoreError, Address] = {
-    val keyPair = generateKeyPair()
+    val keyPair = generateKeyPair(secureRandom)
     val (prvKey, _) = keyPairToByteStrings(keyPair)
-    val encKey = EncryptedKey(prvKey, passphrase)
+    val encKey = EncryptedKey(prvKey, passphrase, secureRandom)
     save(encKey).map(_ => encKey.address)
   }
 
   def importPrivateKey(prvKey: ByteString, passphrase: String): Either[KeyStoreError, Address] = {
-    val encKey = EncryptedKey(prvKey, passphrase)
+    val encKey = EncryptedKey(prvKey, passphrase, secureRandom)
     save(encKey).map(_ => encKey.address)
   }
 

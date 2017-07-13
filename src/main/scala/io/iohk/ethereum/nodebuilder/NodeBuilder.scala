@@ -1,5 +1,7 @@
 package io.iohk.ethereum.nodebuilder
 
+import java.security.SecureRandom
+
 import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
@@ -22,6 +24,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.network._
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, DiscoveryListener, PeerDiscoveryManager}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
+import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
@@ -29,6 +33,10 @@ import io.iohk.ethereum.ommers.OmmersPool
 
 trait BlockchainConfigBuilder {
   lazy val blockchainConfig = BlockchainConfig(Config.config)
+}
+
+trait TxPoolConfigBuilder {
+  lazy val txPoolConfig = TxPoolConfig(Config.config)
 }
 
 trait MiningConfigBuilder {
@@ -40,7 +48,8 @@ trait FilterConfigBuilder {
 }
 
 trait NodeKeyBuilder {
-  lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile)
+  self: SecureRandomBuilder =>
+  lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile, secureRandom)
 }
 
 trait ActorSystemBuilder {
@@ -120,6 +129,13 @@ trait HandshakerBuilder {
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
 }
 
+trait AuthHandshakerBuilder {
+  self: NodeKeyBuilder
+  with SecureRandomBuilder =>
+
+  lazy val authHandshaker: AuthHandshaker = AuthHandshaker(nodeKey, secureRandom)
+}
+
 trait PeerEventBusBuilder {
   self: ActorSystemBuilder =>
 
@@ -132,16 +148,19 @@ trait PeerManagerActorBuilder {
     with NodeStatusBuilder
     with HandshakerBuilder
     with PeerEventBusBuilder
+    with AuthHandshakerBuilder
     with PeerDiscoveryManagerBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
   lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props(
     nodeStatusHolder,
+    peerDiscoveryManager,
     Config.Network.peer,
     peerEventBus,
-    peerDiscoveryManager,
-    handshaker), "peer-manager")
+    handshaker,
+    authHandshaker,
+    EthereumMessageDecoder), "peer-manager")
 
 }
 
@@ -197,10 +216,10 @@ trait PendingTransactionsManagerBuilder {
     with PeerManagerActorBuilder
     with EtcPeerManagerActorBuilder
     with PeerEventBusBuilder
-    with MiningConfigBuilder =>
+    with TxPoolConfigBuilder =>
 
   lazy val pendingTransactionsManager: ActorRef = actorSystem.actorOf(PendingTransactionsManager.props(
-    miningConfig, peerManager, etcPeerManager, peerEventBus))
+    txPoolConfig, peerManager, etcPeerManager, peerEventBus))
 }
 
 trait FilterManagerBuilder {
@@ -210,7 +229,8 @@ trait FilterManagerBuilder {
     with StorageBuilder
     with KeyStoreBuilder
     with PendingTransactionsManagerBuilder
-    with FilterConfigBuilder =>
+    with FilterConfigBuilder
+    with TxPoolConfigBuilder =>
 
   lazy val filterManager: ActorRef =
     actorSystem.actorOf(
@@ -220,7 +240,8 @@ trait FilterManagerBuilder {
         storagesInstance.storages.appStateStorage,
         keyStore,
         pendingTransactionsManager,
-        filterConfig
+        filterConfig,
+        txPoolConfig
       )
     )
 }
@@ -239,6 +260,7 @@ trait EthServiceBuilder {
   self: StorageBuilder with
     BlockChainBuilder with
     BlockGeneratorBuilder with
+    BlockchainConfigBuilder with
     PendingTransactionsManagerBuilder with
     LedgerBuilder with
     ValidatorsBuilder with
@@ -251,18 +273,24 @@ trait EthServiceBuilder {
     FilterConfigBuilder =>
 
   lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage, miningConfig,
-    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig)
+    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig, blockchainConfig)
 }
 
 trait PersonalServiceBuilder {
-  self: KeyStoreBuilder with BlockChainBuilder with PendingTransactionsManagerBuilder with StorageBuilder =>
+  self: KeyStoreBuilder with
+    BlockChainBuilder with
+    BlockchainConfigBuilder with
+    PendingTransactionsManagerBuilder with
+    StorageBuilder with
+    TxPoolConfigBuilder =>
 
   lazy val personalService = new PersonalService(keyStore, blockchain, pendingTransactionsManager,
-    storagesInstance.storages.appStateStorage)
+    storagesInstance.storages.appStateStorage, blockchainConfig, txPoolConfig)
 }
 
 trait KeyStoreBuilder {
-  lazy val keyStore: KeyStore = new KeyStoreImpl(Config.keyStoreDir)
+  self: SecureRandomBuilder =>
+  lazy val keyStore: KeyStore = new KeyStoreImpl(Config.keyStoreDir, secureRandom)
 }
 
 trait JSONRpcControllerBuilder {
@@ -291,7 +319,7 @@ trait OmmersPoolBuilder {
 trait ValidatorsBuilder {
   self: BlockchainConfigBuilder =>
 
-  val validators = new Validators {
+  lazy val validators = new Validators {
     val blockValidator: BlockValidator = BlockValidator
     val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
     val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig)
@@ -358,6 +386,10 @@ trait GenesisDataLoaderBuilder {
   lazy val genesisDataLoader = new GenesisDataLoader(storagesInstance.dataSource, blockchain, blockchainConfig)
 }
 
+trait SecureRandomBuilder {
+  lazy val secureRandom: SecureRandom = SecureRandom.getInstance(Config.secureRandomAlgo)
+}
+
 trait Node extends NodeKeyBuilder
   with ActorSystemBuilder
   with StorageBuilder
@@ -389,6 +421,9 @@ trait Node extends NodeKeyBuilder
   with BlockchainHostBuilder
   with FilterManagerBuilder
   with FilterConfigBuilder
+  with TxPoolConfigBuilder
+  with SecureRandomBuilder
+  with AuthHandshakerBuilder
+  with PeerDiscoveryManagerBuilder
   with DiscoveryConfigBuilder
   with DiscoveryListenerBuilder
-  with PeerDiscoveryManagerBuilder

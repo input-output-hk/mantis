@@ -3,20 +3,23 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Account, Address, Blockchain}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
-import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransactions
+import io.iohk.ethereum.keystore.{KeyStore, Wallet}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, GetPendingTransactions, PendingTransaction, PendingTransactionsResponse}
+import io.iohk.ethereum.utils.{BlockchainConfig, TxPoolConfig}
+import io.iohk.ethereum.{NormalPatience, Timeouts}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
+
+import scala.concurrent.duration.FiniteDuration
 
 
 class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures with NormalPatience {
@@ -87,10 +90,32 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
-    val res = personal.sendTransaction(req).futureValue
+    val res = personal.sendTransaction(req)
 
-    res shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
-    txPool.expectMsg(AddTransactions(stx))
+    txPool.expectMsg(GetPendingTransactions)
+    txPool.reply(PendingTransactionsResponse(Nil))
+
+    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
+    txPool.expectMsg(AddOrOverrideTransaction(stx))
+  }
+
+  it should "send a transaction when having pending txs from the same sender" in new TestSetup {
+    val newTx = wallet.signTx(tx.toTransaction(nonce + 1))
+
+    (keyStore.unlockAccount _ ).expects(address, passphrase)
+      .returning(Right(wallet))
+
+    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
+
+    val req = SendTransactionWithPassphraseRequest(tx, passphrase)
+    val res = personal.sendTransaction(req)
+
+    txPool.expectMsg(GetPendingTransactions)
+    txPool.reply(PendingTransactionsResponse(Seq(PendingTransaction(stx, 0))))
+
+    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(newTx.hash))
+    txPool.expectMsg(AddOrOverrideTransaction(newTx))
   }
 
   it should "fail to send a transaction given a wrong passphrase" in new TestSetup {
@@ -114,10 +139,13 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
 
     val req = SendTransactionRequest(tx)
-    val res = personal.sendTransaction(req).futureValue
+    val res = personal.sendTransaction(req)
 
-    res shouldEqual Right(SendTransactionResponse(stx.hash))
-    txPool.expectMsg(AddTransactions(stx))
+    txPool.expectMsg(GetPendingTransactions)
+    txPool.reply(PendingTransactionsResponse(Nil))
+
+    res.futureValue shouldEqual Right(SendTransactionResponse(stx.hash))
+    txPool.expectMsg(AddOrOverrideTransaction(stx))
   }
 
   it should "fail to send a transaction when account is locked" in new TestSetup {
@@ -266,11 +294,17 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     implicit val system = ActorSystem("personal-service-test")
 
+    val txPoolConfig = new TxPoolConfig {
+      override val txPoolSize: Int = 30
+      override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
+    }
+
     val keyStore = mock[KeyStore]
     val blockchain = mock[Blockchain]
+    val blockchainConfig = mock[BlockchainConfig]
     val txPool = TestProbe()
     val appStateStorage = mock[AppStateStorage]
-    val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage)
+    val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig)
 
     def array[T](arr: Array[T]): Matcher[Array[T]] =
       argThat((_: Array[T]) sameElements arr)
