@@ -49,7 +49,6 @@ object PeerEventBusActor {
     override type Event = PeerEvent
     override type Classifier = SubscriptionClassifier
 
-    //FIXME Remove both var
     private var messageSubscriptions: Map[(Subscriber, PeerSelector), Set[Int]] = Map.empty
     private var connectionSubscriptions: Seq[Subscription] = Nil
 
