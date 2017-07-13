@@ -51,7 +51,8 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     val nodeStatus =
       NodeStatus(
         key = nodeKey,
-        serverStatus = ServerStatus.NotListening)
+        serverStatus = ServerStatus.NotListening,
+        discoveryStatus = ServerStatus.NotListening)
 
     lazy val nodeStatusHolder = Agent(nodeStatus)
 
@@ -73,10 +74,10 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     val peerMessageBus = actorSystem.actorOf(PeerEventBusActor.props)
 
     val peerManager = actorSystem.actorOf(PeerManagerActor.props(
+      peerDiscoveryManager = actorSystem.deadLetters, // TODO: fixme
       nodeStatusHolder = nodeStatusHolder,
       peerConfiguration = peerConfig,
-      bootstrapNodes = Set(node),
-      peerMessageBus,
+      peerMessageBus = peerMessageBus,
       handshaker = handshaker,
       authHandshaker = authHandshaker,
       messageDecoder = EthereumMessageDecoder), "peer-manager")
