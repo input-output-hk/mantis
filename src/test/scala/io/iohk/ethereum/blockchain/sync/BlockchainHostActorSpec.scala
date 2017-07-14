@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.{Fixtures, crypto}
+import io.iohk.ethereum.{Fixtures, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.mpt.HexPrefix
@@ -14,6 +14,7 @@ import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, Pee
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.{EtcPeerManagerActor, PeerId}
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -235,6 +236,10 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
         val maxBlocksBodiesPerMessage: Int = 200
         val maxReceiptsPerMessage: Int = 200
         val maxMptComponentsPerMessage: Int = 200
+      }
+      override val rlpxConfiguration: RLPxConfiguration = new RLPxConfiguration {
+        override val waitForTcpAckTimeout: FiniteDuration = Timeouts.normalTimeout
+        override val waitForHandshakeTimeout: FiniteDuration = Timeouts.normalTimeout
       }
       override val waitForHelloTimeout: FiniteDuration = 30 seconds
       override val waitForStatusTimeout: FiniteDuration = 30 seconds
