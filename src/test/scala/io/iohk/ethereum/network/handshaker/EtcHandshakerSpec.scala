@@ -157,7 +157,6 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val difficultyBombPauseBlockNumber: BigInt = 0
       override val difficultyBombContinueBlockNumber: BigInt = 0
       override val customGenesisFileOpt: Option[String] = None
-      override val daoForkBlockTotalDifficulty: BigInt = 0
       override val chainId: Byte = 0.toByte
       override val monetaryPolicyConfig: MonetaryPolicyConfig = null
       override val accountStartNonce: UInt256 = UInt256.Zero
