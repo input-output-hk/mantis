@@ -153,7 +153,6 @@ trait PersistentStorage {
   def withNodeStorage(testCode: NodeStorage => Unit): Unit = {
     val dbPath = Files.createTempDirectory("testdb").toAbsolutePath.toString
     val dataSource = LevelDBDataSource(new LevelDbConfig {
-      override val cacheSize: Int = 0
       override val verifyChecksums: Boolean = true
       override val paranoidChecks: Boolean = true
       override val createIfMissing: Boolean = true

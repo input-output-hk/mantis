@@ -130,7 +130,6 @@ object Config {
       override val createIfMissing: Boolean = levelDbConfig.getBoolean("create-if-missing")
       override val paranoidChecks: Boolean = levelDbConfig.getBoolean("paranoid-checks")
       override val verifyChecksums: Boolean = levelDbConfig.getBoolean("verify-checksums")
-      override val cacheSize: Int = levelDbConfig.getInt("cache-size")
       override val path: String = levelDbConfig.getString("path")
     }
 
