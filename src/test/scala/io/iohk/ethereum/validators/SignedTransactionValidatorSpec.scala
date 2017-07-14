@@ -220,4 +220,18 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
       case _ => fail
     }
   }
+
+  it should "report as valid a chain specific tx after eip155" in {
+    val keyPair = crypto.generateKeyPair(new SecureRandom)
+    signedTransactionValidator.validate(
+      stx = SignedTransaction.sign(txAfterHomestead, keyPair, Some(0x03.toByte)),
+      senderAccount = senderAccountAfterHomestead,
+      blockHeader = blockHeaderAfterHomestead.copy(number = blockchainConfig.eip155BlockNumber),
+      upfrontGasCost = upfrontGasCost,
+      accumGasUsed = accumGasUsed
+    ) match {
+      case Right(_) => succeed
+      case _ => fail
+    }
+  }
 }
