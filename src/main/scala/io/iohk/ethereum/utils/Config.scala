@@ -182,7 +182,7 @@ object MiningConfig {
     val miningConfig = etcClientConfig.getConfig("mining")
 
     new MiningConfig {
-      val coinbase: Address = Address(Hex.decode(miningConfig.getString("coinbase")))
+      val coinbase: Address = Address(miningConfig.getString("coinbase"))
       val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
       val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
       val ommerPoolQueryTimeout: FiniteDuration = miningConfig.getDuration("ommer-pool-query-timeout").toMillis.millis
