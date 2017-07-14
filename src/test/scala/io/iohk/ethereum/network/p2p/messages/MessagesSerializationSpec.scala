@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.p2p.{EthereumMessageDecoder, NetworkMessageDecoder}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, SignedTransactions, Status}
 import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -125,7 +125,9 @@ class MessagesSerializationSpec
     }
   }
 
+  val messageDecoder = NetworkMessageDecoder orElse EthereumMessageDecoder
+
   def verify[T](msg: T, encode: T => Array[Byte], code: Int, version: Int): Unit =
-    EthereumMessageDecoder.fromBytes(code, encode(msg), version) shouldEqual msg
+    messageDecoder.fromBytes(code, encode(msg), version) shouldEqual msg
 
 }

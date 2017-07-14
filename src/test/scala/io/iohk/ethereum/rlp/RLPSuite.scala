@@ -461,7 +461,6 @@ class RLPSuite extends FunSuite
     }
   }
 
-
   test("SimpleBlock encoding") {
     val tx0 = TestSimpleTransaction(1, "cat")
     val tx1 = TestSimpleTransaction(2, "dog")
@@ -618,7 +617,7 @@ class RLPSuite extends FunSuite
       -> "a1010000000000000000000000000000000000000000000000000000000000000000"
   )
 
-  //FIXME this is used to test nested objects encoding. We can think of replacing this with eth real implementation
+  //The following classes are used for a simplifying testing for nested objects (allowing using simple RLPEncoder and RLPDecoder)
   private case class TestSimpleTransaction(id: Int, name: String)
 
   private object TestSimpleTransaction {

@@ -691,8 +691,8 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
         callDepth = state.env.callDepth + 1
       )
 
-      //to avoid calculating this twice, we could adjust state.gas prior to execution in OpCode#execute
-      //not sure how this would affect other opcodes
+      //FIXME: to avoid calculating this twice, we could adjust state.gas prior to execution in OpCode#execute
+      //not sure how this would affect other opcodes [EC-243]
       val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
       val startGas = state.config.gasCap(availableGas)
 
@@ -826,7 +826,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
     val memCostOut = state.config.calcMemCost(state.memory.size, outOffset, outSize)
     val memCost: BigInt = memCostIn max memCostOut
 
-    // FIXME: these are calculated twice (for gas and exec), especially account existence. Can we do better?
+    // FIXME: these are calculated twice (for gas and exec), especially account existence. Can we do better? [EC-243]
     val gExtra: BigInt = gasExtra(state, endowment, Address(to))
     val gCap: BigInt = gasCap(state, gas, gExtra)
     memCost + gCap + gExtra

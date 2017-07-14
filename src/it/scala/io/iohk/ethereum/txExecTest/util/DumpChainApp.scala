@@ -11,7 +11,9 @@ import io.iohk.ethereum.domain.{Blockchain, _}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
+import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.{PV62, PV63}
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
@@ -31,6 +33,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     val blockchainConfig = BlockchainConfig(Config.config)
 
     val peerConfig = new PeerConfiguration {
+      override val rlpxConfiguration: RLPxConfiguration = Config.Network.peer.rlpxConfiguration
       override val connectRetryDelay: FiniteDuration = Config.Network.peer.connectRetryDelay
       override val connectMaxRetries: Int = Config.Network.peer.connectMaxRetries
       override val disconnectPoisonPillTimeout: FiniteDuration = Config.Network.peer.disconnectPoisonPillTimeout
@@ -77,7 +80,8 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       bootstrapNodes = Set(node),
       peerMessageBus,
       handshaker = handshaker,
-      authHandshaker = authHandshaker), "peer-manager")
+      authHandshaker = authHandshaker,
+      messageDecoder = EthereumMessageDecoder), "peer-manager")
     actorSystem.actorOf(DumpChainActor.props(peerManager,peerMessageBus,startBlock,maxBlocks), "dumper")
   }
 
