@@ -5,13 +5,14 @@ import java.nio.ByteBuffer
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.{TransactionLocation, TxHash}
+import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
 import boopickle.Default._
 
 class TransactionMappingStorage(val dataSource: DataSource) extends KeyValueStorage[TxHash, TransactionLocation, TransactionMappingStorage] {
 
   val namespace: IndexedSeq[Byte] = Namespaces.TransactionMappingNamespace
   def keySerializer: TxHash => IndexedSeq[Byte] = identity
-  def valueSerializer: TransactionLocation => IndexedSeq[Byte] = Pickle.intoBytes(_).array()
+  def valueSerializer: TransactionLocation => IndexedSeq[Byte] = tl => compactPickledBytes(Pickle.intoBytes(tl))
   def valueDeserializer: IndexedSeq[Byte] => TransactionLocation =
     bytes => Unpickle[TransactionLocation].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
 
