@@ -36,19 +36,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
       blockchain.getBlockByNumber(blockNumber - 1).map { parent =>
         val blockTimestamp = blockTimestampProvider.getEpochSecond
         val header: BlockHeader = prepareHeader(blockNumber, ommers, beneficiary, parent, blockTimestamp)
-
-        val sortedTransactions = transactions.groupBy(_.senderAddress).values.toList.flatMap { txsFromSender =>
-          val ordered = txsFromSender.sortBy(_.tx.gasPrice).reverse.sortBy(_.tx.nonce)
-            .takeWhile(_.tx.gasLimit <= header.gasLimit)
-          ordered.headOption.map(_.tx.gasPrice -> ordered)
-        }.sortBy { case (gasPrice, _) => gasPrice }.reverse.flatMap { case (_, txs) => txs }
-
-        val transactionsForBlock = sortedTransactions
-          .scanLeft(BigInt(0), None: Option[SignedTransaction]) { case ((accumulatedGas, _), stx) => (accumulatedGas + stx.tx.gasLimit, Some(stx)) }
-          .collect{case (gas,Some(stx)) => (gas,stx)}
-          .takeWhile{case (gas, _) => gas <= header.gasLimit}
-          .map{case (_, stx) => stx}
-
+        val transactionsForBlock: List[SignedTransaction] = prepareTransactions(transactions, header.gasLimit)
         val body = BlockBody(transactionsForBlock, ommers)
         val block = Block(header, body)
 
@@ -74,6 +62,32 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
     }))
 
     result
+  }
+
+  private def prepareTransactions(transactions: Seq[SignedTransaction], blockGasLimit: BigInt) = {
+    val sortedTransactions = transactions.groupBy(_.senderAddress).values.toList.flatMap { txsFromSender =>
+      val ordered = txsFromSender
+        .sortBy(-_.tx.gasPrice)
+        .sortBy(_.tx.nonce)
+        .scanLeft(None: Option[BigInt], None: Option[SignedTransaction]) { case ((prevNonce, _), stx) =>
+          prevNonce match {
+            case Some(nonce) if nonce ==stx.tx.nonce =>
+              (Some(stx.tx.nonce), None)
+            case _ =>
+              (Some(stx.tx.nonce), Some(stx))
+          }
+        }
+        .flatMap { case (_, stx) => stx }
+        .takeWhile(_.tx.gasLimit <= blockGasLimit)
+      ordered.headOption.map(_.tx.gasPrice -> ordered)
+    }.sortBy { case (gasPrice, _) => gasPrice }.reverse.flatMap { case (_, txs) => txs }
+
+    val transactionsForBlock = sortedTransactions
+      .scanLeft(BigInt(0), None: Option[SignedTransaction]) { case ((accumulatedGas, _), stx) => (accumulatedGas + stx.tx.gasLimit, Some(stx)) }
+      .collect { case (gas, Some(stx)) => (gas, stx) }
+      .takeWhile { case (gas, _) => gas <= blockGasLimit }
+      .map { case (_, stx) => stx }
+    transactionsForBlock
   }
 
   private def prepareHeader(blockNumber: BigInt, ommers: Seq[BlockHeader], beneficiary: Address, parent: Block, blockTimestamp: Long) = BlockHeader(

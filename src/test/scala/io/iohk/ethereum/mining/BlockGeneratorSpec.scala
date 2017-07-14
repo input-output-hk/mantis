@@ -1,10 +1,12 @@
 package io.iohk.ethereum.mining
 
+import java.security.SecureRandom
 import java.time.Instant
 
 import akka.util.ByteString
 import io.iohk.ethereum.{Timeouts, crypto}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
+import io.iohk.ethereum.crypto.ECIESCoder.KeySize
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, LedgerImpl}
@@ -17,7 +19,8 @@ import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.ECPublicKeyParameters
+import org.spongycastle.crypto.generators.ECKeyPairGenerator
+import org.spongycastle.crypto.params.{ECKeyGenerationParameters, ECPrivateKeyParameters, ECPublicKeyParameters}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
@@ -68,6 +71,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction))
   }
 
   it should "filter out transactions exceeding block gas limit and include correct transactions" in new TestSetup {
@@ -90,6 +94,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction))
   }
 
   it should "include consecutive transactions from single sender" in new TestSetup {
@@ -97,6 +102,43 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     val result: Either[BlockPreparationError, PendingBlock] =
       blockGenerator.generateBlockForMining(1, Seq(nextTransaction, signedTransaction), Nil, Address(testAddress))
+    result shouldBe a[Right[_, Block]]
+
+    //mined with etc-client + ethminer
+    val minedNonce = ByteString(Hex.decode("8f88ec20f1be482f"))
+    val minedMixHash = ByteString(Hex.decode("247a206abc088487edc1697fcaceb33ad87b55666e438129b7048bb08c8ed88f"))
+    val miningTimestamp = 1499721182
+
+    val fullBlock: Either[BlockPreparationError, Block] = result.right
+      .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
+    fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
+    fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction, nextTransaction))
+  }
+
+  it should "filter out failing transaction from the middle of tx list" in new TestSetup {
+    val nextTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(nonce = signedTransaction.tx.nonce + 1), keyPair, Some(0x3d.toByte))
+
+    val privateKeyWithNoEthere = BigInt(1, Hex.decode("584a31be275195585603ddd05a53d16fae9deafba67213b6060cec9f16e44cae"))
+
+
+//    val gParam = new ECKeyGenerationParameters(curve, new SecureRandom())
+//    val eGen = new ECKeyPairGenerator
+//    eGen.init(gParam)
+//    val ephemPair = eGen.generateKeyPair
+//    val v = Hex.toHexString(ephemPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD.toByteArray)
+
+    val failingTransaction = Transaction(
+      nonce = 0,
+      gasPrice = 1,
+      gasLimit = txGasLimit,
+      receivingAddress = Address(testAddress),
+      value = txTransfer,
+      payload = ByteString.empty)
+    val signedFailingTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPairFromPrvKey(privateKeyWithNoEthere), Some(0x3d.toByte))
+
+    val result: Either[BlockPreparationError, PendingBlock] =
+      blockGenerator.generateBlockForMining(1, Seq(nextTransaction, signedFailingTransaction, signedTransaction), Nil, Address(testAddress))
     result shouldBe a[Right[_, Block]]
 
     //mined with etc-client + ethminer

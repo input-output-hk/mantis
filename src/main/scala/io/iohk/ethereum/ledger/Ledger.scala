@@ -3,8 +3,8 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators._
-import io.iohk.ethereum.ledger.BlockExecutionError.{TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR, TxResult, BlockPreparationResult}
+import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
+import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult, PC, PR, TxResult}
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
 import io.iohk.ethereum.vm.UInt256._
@@ -56,26 +56,19 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
     val blockchain = BlockchainImpl(storages)
 
-    val blockExecResult = for {
-      //todo why do we require in executeBlockTransactions separate blockchain and blockchain storage
-      //todo blockchain storage is part of blockchain
-      execResult <- executeBlockTransactions(block, blockchain, storages, validators.signedTransactionValidator)
-      BlockResult(resultingWorldStateProxy, _, _) = execResult
+    val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
+    val initialWorld = InMemoryWorldStateProxy(storages, blockchainConfig.accountStartNonce, parentStateRoot)
+
+    val blockExecResult: Either[BlockExecutionError, BlockPreparationResult] = for {
+    //todo why do we require in executeBlockTransactions separate blockchain and blockchain storage
+    //todo blockchain storage is part of blockchain
+      prepared <- executePreparedTransactions(block.body.transactionList, initialWorld, block.header, validators.signedTransactionValidator)
+      (execResult@BlockResult(resultingWorldStateProxy, _, _), txExecuted) = prepared
       worldToPersist = payBlockReward(block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for prepared block
-    } yield BlockPreparationResult(block, execResult, worldPersisted.stateRootHash)
+    } yield BlockPreparationResult(block.copy(body = block.body.copy(transactionList = txExecuted)), execResult, worldPersisted.stateRootHash)
 
-    blockExecResult match {
-      case Right(result) =>
-        log.debug(s"Prepared for mining block with number ${block.header.number}")
-        Right(result)
-      case Left(TxsExecutionError(tx, reason)) =>
-        log.debug(s"failed to execute transaction $tx because: $reason")
-        val newBlock = block.copy(body = block.body.copy(transactionList = block.body.transactionList.filter(_.hash != tx.hash)))
-        prepareBlock(newBlock, storages, validators)
-      case Left(error: BlockExecutionError) =>
-        Left(TxError(error.reason))
-    }
+    blockExecResult.left.map(e => TxError(e.reason))
   }
 
   /**
@@ -102,6 +95,25 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
       case Left(error) => log.debug(s"Not all txs from block ${block.header.hashAsHexString} were executed correctly, due to ${error.reason}")
     }
     blockTxsExecResult
+  }
+
+
+  private[ledger] def executePreparedTransactions(
+    signedTransactions: Seq[SignedTransaction], world: InMemoryWorldStateProxy,
+    blockHeader: BlockHeader, signedTransactionValidator: SignedTransactionValidator,
+    acumGas: BigInt = 0, acumReceipts: Seq[Receipt] = Nil, executed: Seq[SignedTransaction] = Nil)
+  : Either[TxsExecutionError, (BlockResult, Seq[SignedTransaction])] = {
+
+    val result = executeTransactions(signedTransactions, world, blockHeader, signedTransactionValidator, acumGas, acumReceipts)
+
+    result match {
+      case Left(TxsExecutionError(stx, Some(StateBeforeFailure(worldState, gas, receipts)), reason)) if signedTransactions.length > 1 =>
+        log.debug(s"failure while preparing block because of $reason in transaction with hash ${}")
+        val txIndex = signedTransactions.indexWhere(tx => tx.hash == stx.hash)
+        executePreparedTransactions(signedTransactions.drop(txIndex + 1),
+          worldState, blockHeader, signedTransactionValidator, gas, receipts, signedTransactions.take(txIndex))
+      case r => r.right.map(br => (br, executed ++ signedTransactions))
+    }
   }
 
   /**
@@ -146,7 +158,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
             log.debug(s"Receipt generated for tx ${stx.hashAsHexString}, $receipt")
 
             executeTransactions(otherStxs, newWorld, blockHeader, signedTransactionValidator, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
-          case Left(error) => Left(TxsExecutionError(stx, error.toString))
+          case Left(error) => Left(TxsExecutionError(stx, Some(StateBeforeFailure(world, acumGas, acumReceipts)), error.toString))
         }
   }
 
@@ -389,7 +401,8 @@ sealed trait BlockExecutionError{
 
 object BlockExecutionError {
   case class ValidationBeforeExecError(reason: String) extends BlockExecutionError
-  case class TxsExecutionError(stx: SignedTransaction, reason: String) extends BlockExecutionError
+  case class StateBeforeFailure(worldState: InMemoryWorldStateProxy, acumGas: BigInt, acumReceipts: Seq[Receipt])
+  case class TxsExecutionError(stx: SignedTransaction, stateBeforeError: Option[StateBeforeFailure], reason: String) extends BlockExecutionError
   case class ValidationAfterExecError(reason: String) extends BlockExecutionError
 }
 

@@ -23,7 +23,7 @@ object Mocks {
       if(shouldExecuteCorrectly(block, storages, validators))
         Right(Nil)
       else
-        Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head, "StubLedger was set to fail for this case"))
+        Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head, None, "StubLedger was set to fail for this case"))
     }
 
     override def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators):
