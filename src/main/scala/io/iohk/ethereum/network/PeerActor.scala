@@ -16,6 +16,7 @@ import io.iohk.ethereum.utils.NodeStatus
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
 
@@ -201,7 +202,7 @@ class PeerActor[R <: HandshakeResult](
       handleTerminated(rlpxConnection) orElse {
 
         case RLPxConnectionHandler.MessageReceived(message) =>
-          log.debug("Received message: {}", message)
+          log.debug(s"Received message: {} from $peerId", message)
           peerEventBus ! Publish(MessageFromPeer(message, peer.id))
 
         case DisconnectPeer(reason) =>
@@ -228,15 +229,15 @@ object PeerActor {
                                   messageDecoder: MessageDecoder): Props =
     Props(new PeerActor(
       peerAddress,
-      rlpxConnectionFactory(nodeStatusHolder().key, authHandshaker, messageDecoder),
+      rlpxConnectionFactory(nodeStatusHolder().key, authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration),
       peerConfiguration,
       peerEventBus,
       initHandshaker = handshaker))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair, authHandshaker: AuthHandshaker,
-                            messageDecoder: MessageDecoder): ActorContext => ActorRef = { ctx =>
+                            messageDecoder: MessageDecoder, rlpxConfiguration: RLPxConfiguration): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(
-      RLPxConnectionHandler.props(nodeKey, NetworkMessageDecoder orElse messageDecoder, Versions.PV63, authHandshaker),
+      RLPxConnectionHandler.props(nodeKey, NetworkMessageDecoder orElse messageDecoder, Versions.PV63, authHandshaker, rlpxConfiguration),
       "rlpx-connection")
   }
 

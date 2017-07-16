@@ -28,6 +28,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.scalatest.{FlatSpec, Matchers}
@@ -358,6 +359,10 @@ class PeerActorSpec extends FlatSpec with Matchers {
         val maxBlocksBodiesPerMessage: Int = 200
         val maxReceiptsPerMessage: Int = 200
         val maxMptComponentsPerMessage: Int = 200
+      }
+      override val rlpxConfiguration: RLPxConfiguration = new RLPxConfiguration {
+        override val waitForTcpAckTimeout: FiniteDuration = Timeouts.normalTimeout
+        override val waitForHandshakeTimeout: FiniteDuration = Timeouts.normalTimeout
       }
       override val waitForHelloTimeout: FiniteDuration = 3 seconds
       override val waitForStatusTimeout: FiniteDuration = 30 seconds
