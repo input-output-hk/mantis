@@ -20,7 +20,7 @@ import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatu
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
     val conf = ConfigFactory.load("txExecTest/chainDump.conf")
@@ -43,6 +43,8 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val fastSyncHostConfiguration: PeerManagerActor.FastSyncHostConfiguration = Config.Network.peer.fastSyncHostConfiguration
       override val maxPeers: Int = Config.Network.peer.maxPeers
       override val networkId: Int = privateNetworkId
+      override val updateNodesInitialDelay: FiniteDuration = 5.seconds
+      override val updateNodesInterval: FiniteDuration = 20.seconds
     }
 
     val actorSystem = ActorSystem("etc-client_system")
