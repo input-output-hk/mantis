@@ -31,8 +31,6 @@ object Endpoint {
 case class Endpoint(address: ByteString, udpPort: Int, tcpPort: Int)
 
 object Ping {
-  def parse(data: ByteString): Try[Ping] = ???
-
   val packetType: Byte = 0x01
 
   implicit val rlpEncDec = new RLPEncoder[Ping] with RLPDecoder[Ping] {

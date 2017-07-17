@@ -13,6 +13,8 @@ import scala.io.Source
 
 package object network {
 
+  val ProtocolVersion = 4
+
   implicit class ECPublicKeyParametersNodeId(val pubKey: ECPublicKeyParameters) extends AnyVal {
     def toNodeId: Array[Byte] =
       pubKey.asInstanceOf[ECPublicKeyParameters].getQ

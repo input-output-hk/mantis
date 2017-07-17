@@ -2,6 +2,7 @@ package io.iohk.ethereum.network.discovery
 
 import java.net.{InetSocketAddress, URI}
 
+import io.iohk.ethereum.network._
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.agent.Agent
 import akka.util.ByteString
@@ -9,7 +10,6 @@ import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{ByteUtils, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class PeerDiscoveryManager(
@@ -19,8 +19,6 @@ class PeerDiscoveryManager(
 
   import PeerDiscoveryManager._
 
-  val nodesLimit = 200 // temporary limit until the whole protocol is implemented
-
   var nodes: Map[ByteString, Node] = discoveryConfig.bootstrapNodes.map { s =>
     val node = Node.parse(s)
     node.id -> node
@@ -28,7 +26,7 @@ class PeerDiscoveryManager(
 
   discoveryListener ! DiscoveryListener.Subscribe
 
-  context.system.scheduler.schedule(10.seconds, 1.minute) {
+  context.system.scheduler.schedule(discoveryConfig.scanInitialDelay, discoveryConfig.scanInterval) {
     scan()
   }
 
@@ -47,11 +45,11 @@ class PeerDiscoveryManager(
     case DiscoveryListener.MessageReceived(pong: Pong, from, packet) =>
       val newNode = Node(packet.nodeId, from, System.currentTimeMillis())
 
-      if (nodes.size < nodesLimit) {
+      if (nodes.size < discoveryConfig.nodesLimit) {
         nodes += newNode.id -> newNode
         sendMessage(FindNode(ByteString(nodeStatusHolder().nodeId), expirationTimestamp), from)
       } else {
-        val earliestNode = nodes.minBy(_._2.addTimestamp)._1
+        val (earliestNode, _) = nodes.minBy { case (_, node) => node.addTimestamp }
         nodes -= earliestNode
         nodes += newNode.id -> newNode
       }
@@ -62,7 +60,7 @@ class PeerDiscoveryManager(
     case DiscoveryListener.MessageReceived(neighbours: Neighbours, from, packet) =>
       val toPing = neighbours.nodes
         .filterNot(n => nodes.contains(n.nodeId)) // not already on the list
-        .take(nodesLimit - nodes.size)
+        .take(discoveryConfig.nodesLimit - nodes.size)
 
       toPing.foreach { n =>
         sendPing(n.nodeId, new InetSocketAddress(ByteUtils.bytesToIp(n.endpoint.address), n.endpoint.udpPort))
@@ -81,7 +79,7 @@ class PeerDiscoveryManager(
       case ServerStatus.Listening(address) =>
         val from = Endpoint(ByteString(address.getAddress.getAddress), address.getPort, tcpPort)
         val to = Endpoint(toNodeId, toAddr.getPort, toAddr.getPort)
-        sendMessage(Ping(4, from, to, expirationTimestamp), toAddr)
+        sendMessage(Ping(ProtocolVersion, from, to, expirationTimestamp), toAddr)
       case _ =>
         log.warning(s"UDP server not running. Not sending ping message.")
     }
@@ -96,7 +94,7 @@ class PeerDiscoveryManager(
     }
   }
 
-  private def expirationTimestamp = 90 * 60 + System.currentTimeMillis() / 1000 // now+90s
+  private def expirationTimestamp = discoveryConfig.messageExpiration.toSeconds + System.currentTimeMillis() / 1000
 }
 
 object PeerDiscoveryManager {

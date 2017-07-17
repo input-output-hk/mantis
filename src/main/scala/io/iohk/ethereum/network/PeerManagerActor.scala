@@ -21,7 +21,7 @@ import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.utils.{Config, NodeStatus}
+import io.iohk.ethereum.utils.NodeStatus
 
 import scala.util.{Failure, Success}
 
@@ -40,7 +40,7 @@ class PeerManagerActor(
 
   private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
-  scheduler.schedule(5.seconds, 20.seconds) {
+  scheduler.schedule(peerConfiguration.updateNodesInitialDelay, peerConfiguration.updateNodesInterval) {
     peerDiscoveryManager ! PeerDiscoveryManager.GetDiscoveredNodes
   }
 
@@ -238,6 +238,8 @@ object PeerManagerActor {
     val rlpxConfiguration: RLPxConfiguration
     val maxPeers: Int
     val networkId: Int
+    val updateNodesInitialDelay: FiniteDuration
+    val updateNodesInterval: FiniteDuration
   }
 
   trait FastSyncHostConfiguration {
