@@ -11,7 +11,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsu
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaders, GetBlockHeaders}
-import io.iohk.ethereum.utils.Config.FastSync._
+import io.iohk.ethereum.utils.Config.Sync._
 
 trait FastSync {
   selfSyncController: SyncController =>

@@ -31,8 +31,8 @@ package object network {
       val keysValuePair = generateKeyPair(secureRandom)
 
       //Write keys to file
-      val (_, priv) = keyPairToByteArrays(keysValuePair)
-      file.getParentFile.mkdirs()
+      val (priv, _) = keyPairToByteArrays(keysValuePair)
+      require(file.getParentFile.exists() || file.getParentFile.mkdirs(), "Key's file parent directory creation failed")
       val writer = new PrintWriter(filePath)
       try {
         writer.write(Hex.toHexString(priv))

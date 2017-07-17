@@ -142,7 +142,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     //switch to regular download
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(targetBlockHeader.number + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      GetBlockHeaders(Left(targetBlockHeader.number + 1), Config.Sync.blockHeadersPerRequest, 0, reverse = false),
       peer2.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
   }
@@ -218,7 +218,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     syncController ! SyncController.StartSync
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.Sync.blockHeadersPerRequest, 0, reverse = false),
       peer.id))
     syncController.children.last ! MessageFromPeer(BlockHeaders(Seq(newBlockHeader)), peer.id)
 
@@ -235,7 +235,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     etcPeerManager.expectMsgAllOf(Timeouts.normalTimeout,
       EtcPeerManagerActor.SendMessage(
-        GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+        GetBlockHeaders(Left(expectedMaxBlock + 2), Config.Sync.blockHeadersPerRequest, 0, reverse = false),
         peer.id),
       EtcPeerManagerActor.SendMessage(
         NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer.id)
@@ -295,7 +295,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     syncController ! SyncController.StartSync
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.Sync.blockHeadersPerRequest, 0, reverse = false),
       peer.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
     peerMessageBus.reply(MessageFromPeer(BlockHeaders(Queue(newBlockHeader)), peer.id))
@@ -312,7 +312,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     syncController.children.last ! MessageFromPeer(BlockBodies(Queue(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer.id)
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Right(newBlockHeader.parentHash), Config.FastSync.blockResolveDepth, 0, reverse = true),
+      GetBlockHeaders(Right(newBlockHeader.parentHash), Config.Sync.blockResolveDepth, 0, reverse = true),
       peer.id))
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
       GetBlockBodies(Queue(newBlockHeaderParent.hash, newBlockHeader.hash)),
@@ -332,7 +332,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     etcPeerManager.expectMsgAllOf(
       EtcPeerManagerActor.SendMessage(
-        GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+        GetBlockHeaders(Left(expectedMaxBlock + 2), Config.Sync.blockHeadersPerRequest, 0, reverse = false),
         peer.id),
       EtcPeerManagerActor.SendMessage(
         NewBlock(Block(newBlockHeaderParent, BlockBody(Nil, Nil)), commonRootTotalDifficulty + newBlockDifficulty),
@@ -462,7 +462,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     //Turn broadcasting on the RegularSync on by sending an empty BlockHeaders message:
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.Sync.blockHeadersPerRequest, 0, reverse = false),
       peer1.id))
 
     syncController.children.last ! MessageFromPeer(BlockHeaders(Seq()), peer1.id)
@@ -471,10 +471,10 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
       Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
 
-    time.advance(Config.FastSync.checkForNewBlockInterval)
+    time.advance(Config.Sync.checkForNewBlockInterval)
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.Sync.blockHeadersPerRequest, 0, reverse = false),
       peer1.id))
 
     syncController.children.last ! MessageFromPeer(BlockHeaders(Seq(newBlockHeader, nextNewBlockHeader)), peer1.id)
@@ -493,7 +493,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     //TODO: investigate why such a long timeout is required
     etcPeerManager.expectMsgAllOf(Timeouts.veryLongTimeout,
       EtcPeerManagerActor.SendMessage(
-        GetBlockHeaders(Left(expectedMaxBlock + 3), Config.FastSync.blockHeadersPerRequest, 0, reverse = false), peer1.id),
+        GetBlockHeaders(Left(expectedMaxBlock + 3), Config.Sync.blockHeadersPerRequest, 0, reverse = false), peer1.id),
       EtcPeerManagerActor.SendMessage(
         NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer1.id),
       EtcPeerManagerActor.SendMessage(
@@ -552,7 +552,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     //Turn broadcasting on the RegularSync on by sending an empty BlockHeaders message:
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.Sync.blockHeadersPerRequest, 0, reverse = false),
       peer1.id))
 
     syncController.children.last ! MessageFromPeer(BlockHeaders(Seq()), peer1.id)
@@ -561,10 +561,10 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
       Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
 
-    time.advance(Config.FastSync.checkForNewBlockInterval)
+    time.advance(Config.Sync.checkForNewBlockInterval)
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.Sync.blockHeadersPerRequest, 0, reverse = false),
       peer1.id))
     syncController.children.last ! MessageFromPeer(BlockHeaders(Seq(newBlockHeader, invalidNextNewBlockHeader)), peer1.id)
     peerMessageBus.expectMsgAllOf(
@@ -581,7 +581,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       EtcPeerManagerActor.SendMessage(
         NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer1.id),
       EtcPeerManagerActor.SendMessage(
-        GetBlockHeaders(Left(expectedMaxBlock + 2), Config.FastSync.blockHeadersPerRequest, 0, reverse = false), peer2.id),
+        GetBlockHeaders(Left(expectedMaxBlock + 2), Config.Sync.blockHeadersPerRequest, 0, reverse = false), peer2.id),
       EtcPeerManagerActor.SendMessage(
         NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer2.id)
     )
@@ -630,7 +630,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     syncController ! SyncController.StartSync
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false), peer1.id))
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.Sync.blockHeadersPerRequest, 0, reverse = false), peer1.id))
     syncController.children.last ! MessageFromPeer(BlockHeaders(Seq(newBlockHeader)), peer1.id)
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(newBlockHeader.hash)), peer1.id))
@@ -645,7 +645,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     //As block execution failed for a block received from peer1, the same block is asked to peer2
     etcPeerManager.expectMsg(Timeouts.longTimeout, EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.Sync.blockHeadersPerRequest, 0, reverse = false),
       peer2.id))
 
     //No other message should be received as no response was sent to peer2
@@ -686,7 +686,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     syncController ! SyncController.StartSync
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.Sync.blockHeadersPerRequest, 0, reverse = false),
       peer.id))
     syncController.children.last ! MessageFromPeer(BlockHeaders(Seq()), peer.id)
 
@@ -736,13 +736,13 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     //Send block headers request
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false),
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.Sync.blockHeadersPerRequest, 0, reverse = false),
       peer.id))
     peerMessageBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
 
     //wait for timeout
-    time.advance(2 * Config.FastSync.peerResponseTimeout)
+    time.advance(2 * Config.Sync.peerResponseTimeout)
     peerMessageBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
 
     //wait for Done msg processing
@@ -792,7 +792,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     syncController ! SyncController.StartSync
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.FastSync.blockHeadersPerRequest, 0, reverse = false), peer.id))
+      GetBlockHeaders(Left(expectedMaxBlock + 1), Config.Sync.blockHeadersPerRequest, 0, reverse = false), peer.id))
 
     syncController ! MinedBlock(Block(minedBlockHeader,BlockBody(Nil,Nil)))
     blockchain.getBlockByHash(minedBlockHeader.hash) shouldBe None
