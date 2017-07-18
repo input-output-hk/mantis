@@ -105,7 +105,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 0,
-      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
 
@@ -135,7 +135,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val header = BlockHeader(
       ByteString("unused"), ByteString("unused"), ByteString("unused"), ByteString("unused"),
       ByteString("unused"), ByteString("unused"), ByteString("unused"),
-      blockchainConfig.daoForkBlockTotalDifficulty + 100000, 3000000 ,0, 0, 0,
+      daoForkBlockTotalDifficulty + 100000, 3000000 ,0, 0, 0,
       ByteString("unused"),ByteString("unused"),ByteString("unused"))
     storagesInstance.storages.appStateStorage.putBestBlockNumber(3000000) // after the fork
     blockchain.save(header)
@@ -144,7 +144,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 0,
-      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
 
@@ -169,7 +169,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 0,
-      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
 
@@ -211,7 +211,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 0,
-      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
 
@@ -239,7 +239,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 0,
-      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
 
@@ -257,7 +257,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
       networkId = 0,
-      totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty - 2000000, // remote is before the fork
+      totalDifficulty = daoForkBlockTotalDifficulty - 2000000, // remote is before the fork
       bestHash = ByteString("blockhash"),
       genesisHash = Fixtures.Blocks.Genesis.header.hash)
 
@@ -391,6 +391,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val genesisHash = ByteString(Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"))
 
+    val daoForkBlockTotalDifficulty: BigInt = BigInt("39490964433395682584")
+
     def setupConnection(): Unit = {
       peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
@@ -404,7 +406,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       val remoteStatus = Status(
         protocolVersion = Versions.PV63,
         networkId = 0,
-        totalDifficulty = blockchainConfig.daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+        totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
         bestHash = ByteString("blockhash"),
         genesisHash = genesisHash)
 

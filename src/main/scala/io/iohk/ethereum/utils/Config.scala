@@ -19,13 +19,13 @@ import scala.util.Try
 
 object Config {
 
-  val config = ConfigFactory.load().getConfig("etc-client")
+  val config = ConfigFactory.load().getConfig("grothendieck")
 
   val clientId: String = config.getString("client-id")
 
   val clientVersion: String = config.getString("client-version")
 
-  val keysFile: String = config.getString("keys-file")
+  val nodeKeyFile: String = config.getString("node-key-file")
 
   val keyStoreDir: String = config.getString("keystore-dir")
 
@@ -85,35 +85,41 @@ object Config {
       val interface = rpcConfig.getString("interface")
       val port = rpcConfig.getInt("port")
 
-      val apis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
+      val apis = {
+        val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
+        val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal"))
+        require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
+        providedApis
+      }
+
     }
 
   }
 
-  object FastSync {
-    private val fastSyncConfig = config.getConfig("fast-sync")
+  object Sync {
+    private val syncConfig = config.getConfig("sync")
 
-    val doFastSync: Boolean = fastSyncConfig.getBoolean("do-fast-sync")
+    val doFastSync: Boolean = syncConfig.getBoolean("do-fast-sync")
 
-    val peersScanInterval: FiniteDuration = fastSyncConfig.getDuration("peers-scan-interval").toMillis.millis
-    val blacklistDuration: FiniteDuration = fastSyncConfig.getDuration("blacklist-duration").toMillis.millis
-    val startRetryInterval: FiniteDuration = fastSyncConfig.getDuration("start-retry-interval").toMillis.millis
-    val syncRetryInterval: FiniteDuration = fastSyncConfig.getDuration("sync-retry-interval").toMillis.millis
-    val peerResponseTimeout: FiniteDuration = fastSyncConfig.getDuration("peer-response-timeout").toMillis.millis
-    val printStatusInterval: FiniteDuration = fastSyncConfig.getDuration("print-status-interval").toMillis.millis
+    val peersScanInterval: FiniteDuration = syncConfig.getDuration("peers-scan-interval").toMillis.millis
+    val blacklistDuration: FiniteDuration = syncConfig.getDuration("blacklist-duration").toMillis.millis
+    val startRetryInterval: FiniteDuration = syncConfig.getDuration("start-retry-interval").toMillis.millis
+    val syncRetryInterval: FiniteDuration = syncConfig.getDuration("sync-retry-interval").toMillis.millis
+    val peerResponseTimeout: FiniteDuration = syncConfig.getDuration("peer-response-timeout").toMillis.millis
+    val printStatusInterval: FiniteDuration = syncConfig.getDuration("print-status-interval").toMillis.millis
 
-    val maxConcurrentRequests: Int = fastSyncConfig.getInt("max-concurrent-requests")
-    val blockHeadersPerRequest: Int = fastSyncConfig.getInt("block-headers-per-request")
-    val blockBodiesPerRequest: Int = fastSyncConfig.getInt("block-bodies-per-request")
-    val receiptsPerRequest: Int = fastSyncConfig.getInt("receipts-per-request")
-    val nodesPerRequest: Int = fastSyncConfig.getInt("nodes-per-request")
-    val minPeersToChooseTargetBlock: Int = fastSyncConfig.getInt("min-peers-to-choose-target-block")
-    val targetBlockOffset: Int = fastSyncConfig.getInt("target-block-offset")
+    val maxConcurrentRequests: Int = syncConfig.getInt("max-concurrent-requests")
+    val blockHeadersPerRequest: Int = syncConfig.getInt("block-headers-per-request")
+    val blockBodiesPerRequest: Int = syncConfig.getInt("block-bodies-per-request")
+    val receiptsPerRequest: Int = syncConfig.getInt("receipts-per-request")
+    val nodesPerRequest: Int = syncConfig.getInt("nodes-per-request")
+    val minPeersToChooseTargetBlock: Int = syncConfig.getInt("min-peers-to-choose-target-block")
+    val targetBlockOffset: Int = syncConfig.getInt("target-block-offset")
     val persistStateSnapshotInterval: FiniteDuration =
-      fastSyncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis
+      syncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis
 
-    val checkForNewBlockInterval: FiniteDuration = fastSyncConfig.getDuration("check-for-new-block-interval").toMillis.millis
-    val blockResolveDepth: Int = fastSyncConfig.getInt("block-resolving-depth")
+    val checkForNewBlockInterval: FiniteDuration = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis
+    val blockResolveDepth: Int = syncConfig.getInt("block-resolving-depth")
   }
 
   object Db {
@@ -130,7 +136,6 @@ object Config {
       override val createIfMissing: Boolean = levelDbConfig.getBoolean("create-if-missing")
       override val paranoidChecks: Boolean = levelDbConfig.getBoolean("paranoid-checks")
       override val verifyChecksums: Boolean = levelDbConfig.getBoolean("verify-checksums")
-      override val cacheSize: Int = levelDbConfig.getInt("cache-size")
       override val path: String = levelDbConfig.getString("path")
     }
 
@@ -174,7 +179,7 @@ trait MiningConfig {
   val ommersPoolSize: Int
   val blockCacheSize: Int
   val coinbase: Address
-  val poolingServicesTimeout: FiniteDuration
+  val ommerPoolQueryTimeout: FiniteDuration
 }
 
 object MiningConfig {
@@ -182,10 +187,10 @@ object MiningConfig {
     val miningConfig = etcClientConfig.getConfig("mining")
 
     new MiningConfig {
-      val coinbase: Address = Address(Hex.decode(miningConfig.getString("coinbase")))
+      val coinbase: Address = Address(miningConfig.getString("coinbase"))
       val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
       val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
-      val poolingServicesTimeout: FiniteDuration = miningConfig.getDuration("pooling-services-timeout").toMillis.millis
+      val ommerPoolQueryTimeout: FiniteDuration = miningConfig.getDuration("ommer-pool-query-timeout").toMillis.millis
     }
   }
 }
@@ -202,7 +207,6 @@ trait BlockchainConfig {
   val customGenesisFileOpt: Option[String]
 
   val daoForkBlockNumber: BigInt
-  val daoForkBlockTotalDifficulty: BigInt
   val daoForkBlockHash: ByteString
   val accountStartNonce: UInt256
 
@@ -227,7 +231,6 @@ object BlockchainConfig {
       override val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
 
       override val daoForkBlockNumber: BigInt = BigInt(blockchainConfig.getString("dao-fork-block-number"))
-      override val daoForkBlockTotalDifficulty: BigInt = BigInt(blockchainConfig.getString("dao-fork-block-total-difficulty"))
       override val daoForkBlockHash: ByteString = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
       override val accountStartNonce: UInt256 = UInt256(BigInt(blockchainConfig.getString("account-start-nonce")))
 
@@ -242,12 +245,17 @@ case class MonetaryPolicyConfig(
   eraDuration: Int,
   rewardRedutionRate: Double,
   firstEraBlockReward: BigInt
-)
+) {
+  require(rewardRedutionRate >= 0.0 && rewardRedutionRate <= 1.0,
+    s"reward-reduction-rate should be a value in range [0.0, 1.0]")
+}
 
 object MonetaryPolicyConfig {
-  def apply(mpConfig: TypesafeConfig): MonetaryPolicyConfig = MonetaryPolicyConfig(
-    mpConfig.getInt("era-duration"),
-    mpConfig.getDouble("reward-reduction-rate"),
-    BigInt(mpConfig.getString("first-era-block-reward"))
-  )
+  def apply(mpConfig: TypesafeConfig): MonetaryPolicyConfig = {
+    MonetaryPolicyConfig(
+      mpConfig.getInt("era-duration"),
+      mpConfig.getDouble("reward-reduction-rate"),
+      BigInt(mpConfig.getString("first-era-block-reward"))
+    )
+  }
 }

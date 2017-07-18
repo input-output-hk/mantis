@@ -48,7 +48,7 @@ trait FilterConfigBuilder {
 
 trait NodeKeyBuilder {
   self: SecureRandomBuilder =>
-  lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.keysFile, secureRandom)
+  lazy val nodeKey = loadAsymmetricCipherKeyPair(Config.nodeKeyFile, secureRandom)
 }
 
 trait ActorSystemBuilder {
@@ -243,11 +243,12 @@ trait EthServiceBuilder {
     SyncControllerBuilder with
     OmmersPoolBuilder with
     MiningConfigBuilder with
+    TxPoolConfigBuilder with
     FilterManagerBuilder with
     FilterConfigBuilder =>
 
   lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage, miningConfig,
-    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig, blockchainConfig)
+    txPoolConfig, ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig, blockchainConfig)
 }
 
 trait PersonalServiceBuilder {
