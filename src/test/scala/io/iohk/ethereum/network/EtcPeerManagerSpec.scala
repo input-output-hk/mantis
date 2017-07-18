@@ -8,7 +8,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Fixtures.Blocks.{DaoForkBlock, Genesis}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.{Archive, PruningMode}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.network.PeerActor.DisconnectPeer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
@@ -250,7 +250,7 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
     implicit val system = ActorSystem("PeersInfoHolderSpec_System")
 
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages {
-      override val pruningMode: PruningMode = Archive
+      override val pruningMode: PruningMode = ArchivePruning
     }
 
 

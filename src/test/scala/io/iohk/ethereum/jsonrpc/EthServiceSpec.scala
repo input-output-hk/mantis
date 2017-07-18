@@ -6,14 +6,15 @@ import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
-import io.iohk.ethereum.db.storage.{AppStateStorage, Archive, ArchiveNodeStorage, PruningMode}
+import io.iohk.ethereum.db.storage.{AppStateStorage, ArchiveNodeStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.utils.{BlockchainConfig, FilterConfig, MiningConfig, TxPoolConfig, PruningConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, FilterConfig, MiningConfig, PruningConfig, TxPoolConfig}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -758,7 +759,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   trait TestSetup extends MockFactory {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages {
-      override val pruningMode: PruningMode = Archive
+      override val pruningMode: PruningMode = ArchivePruning
     }
 
     val blockchain = BlockchainImpl(storagesInstance.storages)

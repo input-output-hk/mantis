@@ -8,9 +8,17 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
 
 /**
-  * This class is used to store Nodes (defined in mpt/Node.scala), by using:
-  * Key: hash of the RLP encoded node
-  * Value: the RLP encoded node
+  * This class helps to deal with two problems regarding MptNodes storage:
+  * 1) Define a way to delete ones that are no longer needed
+  * 2) Avoids removal of nodes that can be used in diferent trie branches because the hash it's the same
+  *
+  * To deal with (1) when a node is no longer needed it's tagged with the corresponding block number in order to be
+  * able to release disk space used (as it's not going to be accessed any more)
+  *
+  * In order to solve (2), before saving a node, its wrapped with the number of references it has. The inverse operation
+  * is done when getting a node.
+  *
+  *
   */
 class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[BigInt] = None) extends NodesKeyValueStorage {
 
@@ -65,11 +73,20 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
 
     this
   }
+}
 
-  def prune(): Int = {
-    require(blockNumber.isDefined)
+object ReferenceCountNodeStorage {
 
-    val key = pruneKey(blockNumber.get)
+  /**
+    * Based on a block number tag, looks for no longer needed nodes and deletes them if it corresponds (a node that was
+    * marked as unused in a certain block number tag, might be used later)
+    * @param blockNumber
+    * @param nodeStorage
+    * @return
+    */
+  def prune(blockNumber: BigInt, nodeStorage: NodeStorage): Int = {
+
+    val key = pruneKey(blockNumber)
 
     nodeStorage.get(key)
       .map(_.toPruneCandidates)
@@ -83,12 +100,17 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
       nodesToDelete.size
     }).getOrElse(0)
   }
-}
 
-object ReferenceCountNodeStorage {
-
+  /**
+    * Model to be used to store, by block number, which block keys are no longer needed (and can potentially be deleted)
+    */
   case class PruneCandidates(nodeKeys: Seq[ByteString])
 
+  /**
+    * Wrapper of MptNode in order to store number of references it has.
+    * @param nodeEncoded Encoded Mpt Node to be used in MerklePatriciaTrie
+    * @param references Number of references the node has. Each time it's updated references are increased and everytime it's deleted, decreased
+    */
   case class StoredNode(nodeEncoded: ByteString, references: Int) {
     def incrementReferences(amount: Int): StoredNode = copy(references = references + amount)
 
@@ -127,6 +149,11 @@ object ReferenceCountNodeStorage {
     def toPruneCandidates: PruneCandidates = decode(array)(pruneCandidatesEncDec)
   }
 
+  /**
+    * Key to be used to store PruneCandidates
+    * @param blockNumber Block Number Tag
+    * @return Key
+    */
   private def pruneKey(blockNumber: BigInt): ByteString = ByteString('d'.toByte +: blockNumber.toByteArray)
 
 }

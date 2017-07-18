@@ -1,6 +1,7 @@
 package io.iohk.ethereum.db.components
 
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.BlockchainStorages
 
 trait StoragesComponent {

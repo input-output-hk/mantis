@@ -1,6 +1,7 @@
 package io.iohk.ethereum.db.components
 
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.mpt.NodesKeyValueStorage
 
 object Storages {
 
@@ -33,7 +34,7 @@ object Storages {
 
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
 
-      override val nodesKeyValueStorageFactory: NodesKeyValueStorageFactory = new NodesKeyValueStorageFactory(pruningMode, nodeStorage)
+      override val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage = bn => pruningMode.nodesKeyValueStorage(nodeStorage, bn)
     }
 
   }
@@ -70,7 +71,8 @@ object Storages {
 
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
 
-      override val nodesKeyValueStorageFactory: NodesKeyValueStorageFactory = new NodesKeyValueStorageFactory(pruningMode, nodeStorage)
+      override val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage =
+        (bn: Option[BigInt]) => pruningMode.nodesKeyValueStorage(storages.nodeStorage, bn)
     }
   }
 }

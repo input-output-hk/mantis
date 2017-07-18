@@ -36,7 +36,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     trie2.get(key3).getOrElse(ByteString.empty) shouldEqual value
     dataSource.storage.size shouldEqual 6 // 3 nodes + 1 previous root + 2 with PruneCandidates
 
-    storage.prune
+    ReferenceCountNodeStorage.prune(1, nodeStorage)
 
     dataSource.storage.size shouldEqual 4 // previous root and 1 PruneCandidate is now gone
 

@@ -10,10 +10,12 @@ import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.utils.Config.DbConfig
 import io.iohk.ethereum.vm.UInt256
 import org.json4s.{CustomSerializer, DefaultFormats, JString, JValue}
 import org.spongycastle.util.encoders.Hex
@@ -25,7 +27,8 @@ class GenesisDataLoader(
     dataSource: DataSource,
     blockchain: Blockchain,
     pruningMode: PruningMode,
-    blockchainConfig: BlockchainConfig)
+    blockchainConfig: BlockchainConfig,
+    dbConfig: DbConfig)
   extends Logger{
 
   private val bloomLength = 512
@@ -96,7 +99,7 @@ class GenesisDataLoader(
     val initalRootHash = MerklePatriciaTrie.calculateEmptyRootHash((input: Array[Byte]) => crypto.kec256(input))
 
     val stateMpt = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, (((address, AllocAccount(balance)), idx))) =>
-      val ephemNodeStorage = new NodesKeyValueStorageFactory(pruningMode, nodeStorage).create(idx - genesisData.alloc.size)
+      val ephemNodeStorage = pruningMode.nodesKeyValueStorage(nodeStorage, Some(idx - genesisData.alloc.size))
       val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, ephemNodeStorage, (input: Array[Byte]) => crypto.kec256(input))
       val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
       mpt.put(crypto.kec256(Hex.decode(paddedAddress)), Account(0, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash)).getRootHash
@@ -130,8 +133,7 @@ class GenesisDataLoader(
           " Use different directory for running private blockchains."))
       case None =>
         // using empty namespace because ephemDataSource.storage already has the namespace-prefixed keys
-        val chunkSize = 1000
-        ephemDataSource.storage.toSeq.grouped(chunkSize).foreach(toStore => dataSource.update(IndexedSeq(), Nil, toStore))
+        ephemDataSource.storage.toSeq.grouped(dbConfig.batchSize).foreach(toStore => dataSource.update(IndexedSeq(), Nil, toStore))
         blockchain.save(Block(header, BlockBody(Nil, Nil)))
         blockchain.save(header.hash, Nil)
         blockchain.save(header.hash, header.difficulty)

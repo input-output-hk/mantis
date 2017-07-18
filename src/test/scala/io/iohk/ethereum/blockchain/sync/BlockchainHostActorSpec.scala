@@ -5,7 +5,7 @@ import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.{Fixtures, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.{Archive, PruningMode}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.{BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.mpt.HexPrefix
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -216,7 +216,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     val exampleHash = ByteString(Hex.decode("ab"*32))
     val extensionNode: MptNode = MptExtension(exampleNibbles, Left(MptHash(exampleHash)))
 
-    storagesInstance.storages.nodesKeyValueStorageFactory.create(0).update(Nil, Seq(extensionNode.hash -> (extensionNode.toBytes: Array[Byte])))
+    storagesInstance.storages.nodesKeyValueStorageFor(Some(0)).update(Nil, Seq(extensionNode.hash -> (extensionNode.toBytes: Array[Byte])))
 
     //when
     blockchainHost ! MessageFromPeer(GetNodeData(Seq(extensionNode.hash)), peerId)
@@ -229,7 +229,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     implicit val system = ActorSystem("BlockchainHostActor_System")
 
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages {
-      override val pruningMode: PruningMode = Archive
+      override val pruningMode: PruningMode = ArchivePruning
     }
 
     val blockchain = BlockchainImpl(storagesInstance.storages)

@@ -2,7 +2,7 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.{Archive, PruningMode}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl}
 import io.iohk.ethereum.vm.{Generators, UInt256}
 import org.scalatest.{FlatSpec, Matchers}
@@ -144,7 +144,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
 
   trait TestSetup {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages {
-      override val pruningMode: PruningMode = Archive
+      override val pruningMode: PruningMode = ArchivePruning
     }
 
     val worldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)

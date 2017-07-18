@@ -5,7 +5,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.{AppStateStorage, Archive, PruningMode}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
@@ -130,7 +131,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     val forkBlockHeader = Fixtures.Blocks.DaoForkBlock.header
 
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages {
-      override val pruningMode: PruningMode = Archive
+      override val pruningMode: PruningMode = ArchivePruning
     }
 
     val blockchain = BlockchainImpl(storagesInstance.storages)

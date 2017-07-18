@@ -7,7 +7,8 @@ import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
-import io.iohk.ethereum.db.storage.{AppStateStorage, PruningMode}
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
@@ -29,6 +30,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.utils.Config.DbConfig
 
 trait BlockchainConfigBuilder {
   lazy val blockchainConfig = BlockchainConfig(Config.config)
@@ -363,7 +365,7 @@ trait GenesisDataLoaderBuilder {
     with StorageBuilder
     with BlockchainConfigBuilder =>
 
-  lazy val genesisDataLoader = new GenesisDataLoader(storagesInstance.dataSource, blockchain, storagesInstance.pruningMode, blockchainConfig)
+  lazy val genesisDataLoader = new GenesisDataLoader(storagesInstance.dataSource, blockchain, storagesInstance.pruningMode, blockchainConfig, Config.Db)
 }
 
 trait SecureRandomBuilder {

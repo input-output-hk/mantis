@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
-import io.iohk.ethereum.db.storage.{Archive, Basic, PruningMode}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
@@ -123,13 +123,19 @@ object Config {
     val blockResolveDepth: Int = syncConfig.getInt("block-resolving-depth")
   }
 
-  object Db {
+  trait DbConfig {
+    val batchSize: Int
+  }
+
+  object Db extends DbConfig {
 
     private val dbConfig = config.getConfig("db")
     private val iodbConfig = dbConfig.getConfig("iodb")
     private val levelDbConfig = dbConfig.getConfig("leveldb")
 
-    object Iodb {
+    val batchSize = dbConfig.getInt("batch-size")
+
+    object Iodb  {
       val path: String = iodbConfig.getString("path")
     }
 
@@ -268,8 +274,8 @@ object PruningConfig {
     val pruningConfig = etcClientConfig.getConfig("pruning")
 
     val pruningMode: PruningMode = pruningConfig.getString("mode") match {
-      case "basic" => Basic(pruningConfig.getInt("history"))
-      case "archive" => Archive
+      case "basic" => BasicPruning(pruningConfig.getInt("history"))
+      case "archive" => ArchivePruning
     }
 
     new PruningConfig {

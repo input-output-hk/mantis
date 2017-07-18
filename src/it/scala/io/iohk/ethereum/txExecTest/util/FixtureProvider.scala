@@ -12,6 +12,8 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import MptNode._
 import ReceiptImplicits._
+import io.iohk.ethereum.db.storage.pruning.ArchivePruning
+import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import org.spongycastle.util.encoders.Hex
 
 import scala.io.Source
@@ -40,9 +42,9 @@ object FixtureProvider {
       override val blockNumberMappingStorage: BlockNumberMappingStorage = new BlockNumberMappingStorage(EphemDataSource())
       override val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(EphemDataSource())
       override val totalDifficultyStorage: TotalDifficultyStorage = new TotalDifficultyStorage(EphemDataSource())
-      override val nodesKeyValueStorageFactory: NodesKeyValueStorageFactory = new NodesKeyValueStorageFactory(Archive, new NodeStorage(EphemDataSource()))
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(EphemDataSource())
-
+      override val nodeStorage: NodeStorage = new NodeStorage(EphemDataSource())
+      override val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage = bn => ArchivePruning.nodesKeyValueStorage(nodeStorage, bn)
     }
 
     val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile { case (number, _) => number <= blockNumber }
@@ -55,18 +57,18 @@ object FixtureProvider {
 
       def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
         case Some(m: MptBranch) =>
-          storages.nodesKeyValueStorageFactory.create(block.header.number).update(Nil, Seq(m.hash -> m.toBytes))
+          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(m.hash -> m.toBytes))
           m.children.collect { case Left(MptHash(hash)) if hash.nonEmpty => hash }.foreach(traverse)
 
         case Some(m: MptExtension) =>
-          storages.nodesKeyValueStorageFactory.create(block.header.number).update(Nil, Seq(m.hash -> m.toBytes))
+          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(m.hash -> m.toBytes))
           m.child match {
             case Left(MptHash(hash)) if hash.nonEmpty => traverse(hash)
             case _ =>
           }
 
         case Some(m: MptLeaf) =>
-          storages.nodesKeyValueStorageFactory.create(block.header.number).update(Nil, Seq(m.hash -> m.toBytes))
+          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(m.hash -> m.toBytes))
           Try(m.getAccount).toOption.foreach { account =>
             if (account.codeHash != DumpChainActor.emptyEvm) {
               storages.evmCodeStorage.put(account.codeHash, fixtures.evmCode(account.codeHash))
