@@ -1,3 +1,4 @@
+/*
 package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.ObjectGenerators
@@ -57,3 +58,4 @@ class MptNodeStorageSuite extends FunSuite with PropertyChecks with ObjectGenera
     }
   }
 }
+*/

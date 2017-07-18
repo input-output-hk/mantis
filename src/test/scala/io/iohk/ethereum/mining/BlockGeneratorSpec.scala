@@ -15,6 +15,7 @@ import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.db.storage.{Archive, PruningMode}
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
@@ -153,7 +154,10 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
     val duplicatedSignedTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
 
-    val blockchainStorages = new SharedEphemDataSources with Storages.DefaultStorages
+    val blockchainStorages = new SharedEphemDataSources with Storages.DefaultStorages {
+      override val pruningMode: PruningMode = Archive
+    }
+
     val blockchainConfig = new BlockchainConfig {
       override val frontierBlockNumber: BigInt = 0
       override val homesteadBlockNumber: BigInt = 1150000
@@ -181,7 +185,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     val blockchain = BlockchainImpl(blockchainStorages.storages)
 
-    val genesisDataLoader = new GenesisDataLoader(blockchainStorages.ephemDataSource, blockchain, blockchainConfig)
+    val genesisDataLoader = new GenesisDataLoader(blockchainStorages.ephemDataSource, blockchain, Archive, blockchainConfig)
     genesisDataLoader.loadGenesisData()
 
     val miningConfig = new MiningConfig {

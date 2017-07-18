@@ -8,6 +8,7 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
 import io.iohk.ethereum.vm.UInt256
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNode._
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
@@ -132,8 +133,6 @@ trait Blockchain {
 
   def save(hash: ByteString, evmCode: ByteString): Unit
 
-  def save(node: MptNode): Unit
-
   def save(blockhash: ByteString, totalDifficulty: BigInt): Unit
 
   /**
@@ -155,8 +154,7 @@ class BlockchainImpl(
                       protected val blockNumberMappingStorage: BlockNumberMappingStorage,
                       protected val receiptStorage: ReceiptStorage,
                       protected val evmCodeStorage: EvmCodeStorage,
-                      protected val mptNodeStorage: MptNodeStorage,
-                      protected val nodeStorage: NodeStorage,
+                      protected val nodesKeyValueStorageFactory: NodesKeyValueStorageFactory,
                       protected val totalDifficultyStorage: TotalDifficultyStorage,
                       protected val transactionMappingStorage: TransactionMappingStorage
                     ) extends Blockchain {
@@ -177,14 +175,17 @@ class BlockchainImpl(
     getBlockHeaderByNumber(blockNumber).flatMap { bh =>
       val mpt = MerklePatriciaTrie[Address, Account](
         bh.stateRoot.toArray,
-        nodeStorage,
+        nodesKeyValueStorageFactory.create(blockNumber),
         crypto.kec256(_: Array[Byte])
       )
       mpt.get(address)
     }
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = {
-    storageMpt(rootHash, nodeStorage).get(UInt256(position)).getOrElse(UInt256(0)).bytes
+    storageMpt(
+      rootHash,
+      nodesKeyValueStorageFactory.create
+    ).get(UInt256(position)).getOrElse(UInt256(0)).bytes
   }
 
   override def save(blockHeader: BlockHeader): Unit = {
@@ -193,7 +194,7 @@ class BlockchainImpl(
     saveBlockNumberMapping(blockHeader.number, hash)
   }
 
-  override def getMptNodeByHash(hash: ByteString): Option[MptNode] = mptNodeStorage.get(hash)
+  override def getMptNodeByHash(hash: ByteString): Option[MptNode] = nodesKeyValueStorageFactory.create.get(hash).map(_.toMptNode)
 
   override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = transactionMappingStorage.get(txHash)
 
@@ -207,8 +208,6 @@ class BlockchainImpl(
   override def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
 
   def save(blockhash: ByteString, td: BigInt): Unit = totalDifficultyStorage.put(blockhash, td)
-
-  override def save(node: MptNode): Unit = mptNodeStorage.put(node)
 
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     blockNumberMappingStorage.get(number)
@@ -239,8 +238,7 @@ trait BlockchainStorages {
   val blockNumberMappingStorage: BlockNumberMappingStorage
   val receiptStorage: ReceiptStorage
   val evmCodeStorage: EvmCodeStorage
-  val mptNodeStorage: MptNodeStorage
-  val nodeStorage: NodeStorage
+  val nodesKeyValueStorageFactory: NodesKeyValueStorageFactory
   val totalDifficultyStorage: TotalDifficultyStorage
   val transactionMappingStorage: TransactionMappingStorage
 }
@@ -253,8 +251,7 @@ object BlockchainImpl {
       blockNumberMappingStorage = storages.blockNumberMappingStorage,
       receiptStorage = storages.receiptStorage,
       evmCodeStorage = storages.evmCodeStorage,
-      mptNodeStorage = storages.mptNodeStorage,
-      nodeStorage = storages.nodeStorage,
+      nodesKeyValueStorageFactory = storages.nodesKeyValueStorageFactory,
       totalDifficultyStorage = storages.totalDifficultyStorage,
       transactionMappingStorage = storages.transactionMappingStorage
     )

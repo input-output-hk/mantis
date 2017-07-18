@@ -14,7 +14,7 @@ import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.{AppStateStorage, Archive, PruningMode}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerEventBusActor}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
@@ -329,7 +329,10 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val nodeStatusHolder = Agent(nodeStatus)
 
-    val storagesInstance =  new SharedEphemDataSources with Storages.DefaultStorages
+    val storagesInstance =  new SharedEphemDataSources with Storages.DefaultStorages {
+      override val pruningMode: PruningMode = Archive
+    }
+
     val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
 
     val testGenesisHeader = BlockHeader(

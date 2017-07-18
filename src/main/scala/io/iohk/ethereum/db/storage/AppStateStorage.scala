@@ -2,13 +2,14 @@ package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.AppStateStorage._
+import io.iohk.ethereum.db.storage.PruningMode.PruneFn
 
 /**
   * This class is used to store app state variables
   *   Key: see AppStateStorage.Keys
   *   Value: stored string value
   */
-class AppStateStorage(val dataSource: DataSource) extends KeyValueStorage[Key, Value, AppStateStorage]{
+class AppStateStorage(val dataSource: DataSource, pruneFn: PruneFn) extends KeyValueStorage[Key, Value, AppStateStorage]{
   type T = AppStateStorage
 
   val namespace: IndexedSeq[Byte] = Namespaces.AppStateNamespace
@@ -16,13 +17,17 @@ class AppStateStorage(val dataSource: DataSource) extends KeyValueStorage[Key, V
   def valueSerializer: String => IndexedSeq[Byte] = _.getBytes
   def valueDeserializer: IndexedSeq[Byte] => String = (valueBytes: IndexedSeq[Byte]) => new String(valueBytes.toArray)
 
-  protected def apply(dataSource: DataSource): AppStateStorage = new AppStateStorage(dataSource)
+  protected def apply(dataSource: DataSource): AppStateStorage = new AppStateStorage(dataSource, pruneFn)
 
   def getBestBlockNumber(): BigInt =
     BigInt(get(Keys.BestBlockNumber).getOrElse("0"))
 
-  def putBestBlockNumber(bestBlockNumber: BigInt): AppStateStorage =
+  def putBestBlockNumber(bestBlockNumber: BigInt): AppStateStorage = {
+    //FIXME
+    val pruneResult = pruneFn(getLastPrunedBlock(), bestBlockNumber)
+    putLastPrunedBlock(pruneResult.lastPrunedBlockNumber)
     put(Keys.BestBlockNumber, bestBlockNumber.toString)
+  }
 
   def isFastSyncDone(): Boolean =
     get(Keys.FastSyncDone).exists(_.toBoolean)
@@ -41,6 +46,12 @@ class AppStateStorage(val dataSource: DataSource) extends KeyValueStorage[Key, V
 
   def putSyncStartingBlock(n: BigInt): AppStateStorage =
     put(Keys.SyncStartingBlock, n.toString)
+
+  def putLastPrunedBlock(n: BigInt): AppStateStorage =
+    put(Keys.LastPrunedBlock, n.toString())
+
+  def getLastPrunedBlock(): BigInt =
+    BigInt(get(Keys.LastPrunedBlock).getOrElse("-1"))
 }
 
 object AppStateStorage {
@@ -53,5 +64,6 @@ object AppStateStorage {
     val FastSyncDone = Key("FastSyncDone")
     val EstimatedHighestBlock = Key("EstimatedHighestBlock")
     val SyncStartingBlock = Key("SyncStartingBlock")
+    val LastPrunedBlock = Key("LastPrunedBlock")
   }
 }

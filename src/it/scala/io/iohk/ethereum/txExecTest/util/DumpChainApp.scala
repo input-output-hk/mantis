@@ -5,7 +5,7 @@ import akka.agent.Agent
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.{AppStateStorage, Archive, PruningMode}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{Blockchain, _}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
@@ -46,7 +46,9 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     }
 
     val actorSystem = ActorSystem("etc-client_system")
-    val storagesInstance = new SharedLevelDBDataSources with Storages.DefaultStorages
+    val storagesInstance = new SharedLevelDBDataSources with Storages.DefaultStorages {
+      override val pruningMode: PruningMode = Archive
+    }
 
     val blockchain: Blockchain = new BlockchainMock(genesisHash)
 
@@ -107,8 +109,6 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     override def save(blockHash: ByteString, receipts: Seq[Receipt]): Unit = ???
 
     override def save(hash: ByteString, evmCode: ByteString): Unit = ???
-
-    override def save(node: PV63.MptNode): Unit = ???
 
     override def save(blockhash: ByteString, totalDifficulty: BigInt): Unit = ???
 

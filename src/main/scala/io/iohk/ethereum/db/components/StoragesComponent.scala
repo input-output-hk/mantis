@@ -5,6 +5,8 @@ import io.iohk.ethereum.domain.BlockchainStorages
 
 trait StoragesComponent {
 
+  val pruningMode: PruningMode
+
   val storages: Storages
 
   trait Storages extends BlockchainStorages {
@@ -17,9 +19,7 @@ trait StoragesComponent {
 
     val receiptStorage: ReceiptStorage
 
-    val mptNodeStorage: MptNodeStorage
-
-    val nodeStorage: NodeStorage //FIXME This storage is similar to MPTNodesStorage, should we keep only one? [EC-147]
+    val nodeStorage: NodeStorage
 
     val evmCodeStorage: EvmCodeStorage
 

@@ -7,7 +7,7 @@ import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.{AppStateStorage, PruningMode}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
@@ -55,8 +55,13 @@ trait ActorSystemBuilder {
   implicit lazy val actorSystem = ActorSystem("etc-client_system")
 }
 
+trait PruningConfigBuilder {
+  lazy val pruningConfig = PruningConfig(Config.config)
+  lazy val pruningMode: PruningMode = pruningConfig.mode
+}
+
 trait StorageBuilder {
-  lazy val storagesInstance =  new SharedLevelDBDataSources with Storages.DefaultStorages
+  lazy val storagesInstance =  new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
 }
 
 trait NodeStatusBuilder {
@@ -358,7 +363,7 @@ trait GenesisDataLoaderBuilder {
     with StorageBuilder
     with BlockchainConfigBuilder =>
 
-  lazy val genesisDataLoader = new GenesisDataLoader(storagesInstance.dataSource, blockchain, blockchainConfig)
+  lazy val genesisDataLoader = new GenesisDataLoader(storagesInstance.dataSource, blockchain, storagesInstance.pruningMode, blockchainConfig)
 }
 
 trait SecureRandomBuilder {
@@ -399,3 +404,4 @@ trait Node extends NodeKeyBuilder
   with TxPoolConfigBuilder
   with SecureRandomBuilder
   with AuthHandshakerBuilder
+  with PruningConfigBuilder

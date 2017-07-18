@@ -9,6 +9,7 @@ import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.{Fixtures, Timeouts}
 import io.iohk.ethereum.Mocks.{MockHandshakerAlwaysFails, MockHandshakerAlwaysSucceeds}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.{Archive, PruningMode}
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor.{ConnectTo, GetStatus, StatusResponse}
@@ -144,7 +145,10 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
 
     val time = new VirtualTime
 
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
+    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages {
+      override val pruningMode: PruningMode = Archive
+    }
+
     val blockchain = BlockchainImpl(storagesInstance.storages)
 
     val uri = new URI("enode://18a551bee469c2e02de660ab01dede06503c986f6b8520cb5a65ad122df88b17b285e3fef09a40a0d44f99e014f8616cf1ebc2e094f96c6e09e2f390f5d34857@47.90.36.129:30303")

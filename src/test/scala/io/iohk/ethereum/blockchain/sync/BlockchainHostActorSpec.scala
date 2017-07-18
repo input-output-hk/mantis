@@ -5,6 +5,7 @@ import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.{Fixtures, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.{Archive, PruningMode}
 import io.iohk.ethereum.domain.{BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.mpt.HexPrefix
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -15,6 +16,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.{EtcPeerManagerActor, PeerId}
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
+import io.iohk.ethereum.utils.PruningConfig
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -214,7 +216,7 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     val exampleHash = ByteString(Hex.decode("ab"*32))
     val extensionNode: MptNode = MptExtension(exampleNibbles, Left(MptHash(exampleHash)))
 
-    blockchain.save(extensionNode)
+    storagesInstance.storages.nodesKeyValueStorageFactory.create(0).update(Nil, Seq(extensionNode.hash -> (extensionNode.toBytes: Array[Byte])))
 
     //when
     blockchainHost ! MessageFromPeer(GetNodeData(Seq(extensionNode.hash)), peerId)
@@ -226,7 +228,10 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
   trait TestSetup {
     implicit val system = ActorSystem("BlockchainHostActor_System")
 
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
+    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages {
+      override val pruningMode: PruningMode = Archive
+    }
+
     val blockchain = BlockchainImpl(storagesInstance.storages)
     blockchain.save(Fixtures.Blocks.Genesis.header)
 

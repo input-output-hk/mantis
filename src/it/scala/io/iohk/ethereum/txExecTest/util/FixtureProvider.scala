@@ -38,11 +38,11 @@ object FixtureProvider {
       override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(EphemDataSource())
       override val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(EphemDataSource())
       override val blockNumberMappingStorage: BlockNumberMappingStorage = new BlockNumberMappingStorage(EphemDataSource())
-      override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(EphemDataSource())
       override val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(EphemDataSource())
       override val totalDifficultyStorage: TotalDifficultyStorage = new TotalDifficultyStorage(EphemDataSource())
-      override val nodeStorage: NodeStorage = new NodeStorage(EphemDataSource())
+      override val nodesKeyValueStorageFactory: NodesKeyValueStorageFactory = new NodesKeyValueStorageFactory(Archive, new NodeStorage(EphemDataSource()))
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(EphemDataSource())
+
     }
 
     val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile { case (number, _) => number <= blockNumber }
@@ -55,21 +55,18 @@ object FixtureProvider {
 
       def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
         case Some(m: MptBranch) =>
-          storages.mptNodeStorage.put(m)
-          storages.nodeStorage.put(m.hash, m.toBytes)
+          storages.nodesKeyValueStorageFactory.create(block.header.number).update(Nil, Seq(m.hash -> m.toBytes))
           m.children.collect { case Left(MptHash(hash)) if hash.nonEmpty => hash }.foreach(traverse)
 
         case Some(m: MptExtension) =>
-          storages.mptNodeStorage.put(m)
-          storages.nodeStorage.put(m.hash, m.toBytes)
+          storages.nodesKeyValueStorageFactory.create(block.header.number).update(Nil, Seq(m.hash -> m.toBytes))
           m.child match {
             case Left(MptHash(hash)) if hash.nonEmpty => traverse(hash)
             case _ =>
           }
 
         case Some(m: MptLeaf) =>
-          storages.mptNodeStorage.put(m)
-          storages.nodeStorage.put(m.hash, m.toBytes)
+          storages.nodesKeyValueStorageFactory.create(block.header.number).update(Nil, Seq(m.hash -> m.toBytes))
           Try(m.getAccount).toOption.foreach { account =>
             if (account.codeHash != DumpChainActor.emptyEvm) {
               storages.evmCodeStorage.put(account.codeHash, fixtures.evmCode(account.codeHash))

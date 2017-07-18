@@ -1,7 +1,6 @@
 package io.iohk.ethereum.db.components
 
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.utils.Config
 
 object Storages {
 
@@ -21,8 +20,6 @@ object Storages {
 
       override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
 
-      override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
-
       override val nodeStorage: NodeStorage = new NodeStorage(dataSources.mptDataSource)
 
       override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSources.fastSyncStateDataSource)
@@ -32,10 +29,11 @@ object Storages {
       override val totalDifficultyStorage: TotalDifficultyStorage =
         new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
 
-      override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
+      override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource, pruningMode.prune(nodeStorage))
 
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
 
+      override val nodesKeyValueStorageFactory: NodesKeyValueStorageFactory = new NodesKeyValueStorageFactory(pruningMode, nodeStorage)
     }
 
   }
@@ -59,8 +57,6 @@ object Storages {
 
       override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
 
-      override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
-
       override val nodeStorage: NodeStorage = new NodeStorage(dataSources.mptDataSource)
 
       override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSources.fastSyncStateDataSource)
@@ -70,9 +66,11 @@ object Storages {
       override val totalDifficultyStorage: TotalDifficultyStorage =
         new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
 
-      override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
+      override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource, pruningMode.prune(nodeStorage))
 
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
+
+      override val nodesKeyValueStorageFactory: NodesKeyValueStorageFactory = new NodesKeyValueStorageFactory(pruningMode, nodeStorage)
     }
   }
 }

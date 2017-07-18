@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
+import io.iohk.ethereum.db.storage.{Archive, Basic, PruningMode}
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
@@ -256,4 +257,24 @@ object MonetaryPolicyConfig {
       BigInt(mpConfig.getString("first-era-block-reward"))
     )
   }
+}
+
+trait PruningConfig {
+  val mode: PruningMode
+}
+
+object PruningConfig {
+  def apply(etcClientConfig: com.typesafe.config.Config): PruningConfig = {
+    val pruningConfig = etcClientConfig.getConfig("pruning")
+
+    val pruningMode: PruningMode = pruningConfig.getString("mode") match {
+      case "basic" => Basic(pruningConfig.getInt("history"))
+      case "archive" => Archive
+    }
+
+    new PruningConfig {
+      override val mode: PruningMode = pruningMode
+    }
+  }
+
 }

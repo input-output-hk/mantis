@@ -8,7 +8,7 @@ import java.security.MessageDigest
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.{EphemDataSource, LevelDBDataSource, LevelDbConfig}
-import io.iohk.ethereum.db.storage.NodeStorage
+import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage, ReferenceCountNodeStorage}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.utils.Logger
 import org.scalatest.FunSuite
@@ -94,7 +94,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
     }
   }
 
-  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced) and then remove half of them") {
+  test("EthereumJ compatibility - Insert of the first 20000   numbers hashed (with some sliced) and then remove half of them") {
     withNodeStorage { ns =>
       val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
       val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
@@ -106,6 +106,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
       }
       val keyValuePairs = slicedKeys.zip(keys)
 
+      val start: Long = System.currentTimeMillis
       val trie = Random.shuffle(keyValuePairs).foldLeft(EmptyTrie) { case (recTrie, (key, value)) => recTrie.put(key, value) }
 
       assert(Hex.toHexString(trie.getRootHash) == "46cde8656f3be6ce93ba9dcb1017548f44c65d1ea659ac827fac8c9ac77cf6b3")
@@ -114,6 +115,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
       val trieAfterDelete = Random.shuffle(keyValuePairs.take(20000 / 2)).foldLeft(trie) { case (recTrie, (key, _)) => recTrie.remove(key) }
 
       assert(Hex.toHexString(trieAfterDelete.getRootHash) == "ae7b65dddd3ac0428082160cf3ceff0276cf6e6deaa23b42c4c156b50a459822")
+      log.debug("Time taken(ms): " + (System.currentTimeMillis - start))
     }
   }
 
@@ -125,7 +127,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
       val Symmetric = true
 
       val start: Long = System.currentTimeMillis
-      val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new NodeStorage(EphemDataSource()), hashFn)
+      val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new ArchiveNodeStorage(new NodeStorage(EphemDataSource())), hashFn)
       var seed: Array[Byte] = Array.fill(32)(0.toByte)
 
       val trieResult = (0 until Rounds).foldLeft(emptyTrie) { case (recTrie, i) =>
@@ -150,7 +152,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 }
 
 trait PersistentStorage {
-  def withNodeStorage(testCode: NodeStorage => Unit): Unit = {
+  def withNodeStorage(testCode: NodesKeyValueStorage => Unit): Unit = {
     val dbPath = Files.createTempDirectory("testdb").toAbsolutePath.toString
     val dataSource = LevelDBDataSource(new LevelDbConfig {
       override val verifyChecksums: Boolean = true
@@ -160,7 +162,7 @@ trait PersistentStorage {
     })
 
     try {
-      testCode(new NodeStorage(dataSource))
+      testCode(new ArchiveNodeStorage(new NodeStorage(dataSource)))
     } finally {
       val dir = new File(dbPath)
       !dir.exists() || dir.delete()
