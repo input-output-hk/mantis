@@ -8,6 +8,7 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.{AppStateStorage, Archive, PruningMode}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{Blockchain, _}
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
@@ -17,6 +18,7 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -125,4 +127,9 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = ???
 
     override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = ???
+
+    override type S = InMemoryWorldStateProxyStorage
+    override type WS = InMemoryWorldStateProxy
+
+    override def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy = ???
   }

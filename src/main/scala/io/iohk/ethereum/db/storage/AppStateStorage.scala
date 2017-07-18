@@ -23,9 +23,12 @@ class AppStateStorage(val dataSource: DataSource, pruneFn: PruneFn) extends KeyV
     BigInt(get(Keys.BestBlockNumber).getOrElse("0"))
 
   def putBestBlockNumber(bestBlockNumber: BigInt): AppStateStorage = {
-    //FIXME
-    val pruneResult = pruneFn(getLastPrunedBlock(), bestBlockNumber)
-    putLastPrunedBlock(pruneResult.lastPrunedBlockNumber)
+    // FIXME We need to decouple pruning from best block number storing in this fn
+    pruneFn(getLastPrunedBlock(), bestBlockNumber) match {
+      case PruneResult(_, 0) =>
+      case PruneResult(lastPrunedBlockNumber, _) => putLastPrunedBlock(lastPrunedBlockNumber)
+    }
+
     put(Keys.BestBlockNumber, bestBlockNumber.toString)
   }
 

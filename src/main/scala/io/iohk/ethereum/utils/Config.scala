@@ -276,5 +276,4 @@ object PruningConfig {
       override val mode: PruningMode = pruningMode
     }
   }
-
 }

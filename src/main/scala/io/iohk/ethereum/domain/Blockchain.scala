@@ -4,16 +4,20 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
-import io.iohk.ethereum.vm.UInt256
+import io.iohk.ethereum.vm.{Storage, UInt256, WorldStateProxy}
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNode._
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
   */
 trait Blockchain {
+
+  type S <: Storage[S]
+  type WS <: WorldStateProxy[WS, S]
 
   /**
     * Allows to query a blockHeader by block hash
@@ -146,6 +150,8 @@ trait Blockchain {
   def genesisHeader: BlockHeader = getBlockHeaderByNumber(0).get
 
   def genesisBlock: Block = getBlockByNumber(0).get
+
+  def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None): WS
 }
 
 class BlockchainImpl(
@@ -230,6 +236,18 @@ class BlockchainImpl(
   private def removeTxsLocations(stxs: Seq[SignedTransaction]): Unit = {
     stxs.map(_.hash).foreach{ transactionMappingStorage.remove }
   }
+
+  override type S = InMemoryWorldStateProxyStorage
+  override type WS = InMemoryWorldStateProxy
+
+  override def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy =
+    InMemoryWorldStateProxy(
+      evmCodeStorage,
+      nodesKeyValueStorageFactory.create(blockNumber),
+      accountStartNonce,
+      (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
+      stateRootHash
+    )
 }
 
 trait BlockchainStorages {

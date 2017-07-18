@@ -17,18 +17,20 @@ class NodesKeyValueStorageFactory(pruningMode: PruningMode, nodeStorage: NodeSto
 }
 
 sealed trait PruningMode {
-  def prune(nodeStorage: NodeStorage)(lastPruned: BigInt, bestBlockNumber: BigInt): PruneResult
+  def prune(nodeStorage: NodeStorage)(lastPruned: => BigInt, bestBlockNumber: => BigInt): PruneResult
 }
 
 object PruningMode {
-  type PruneFn = (BigInt, BigInt) => PruneResult
+  /**
+    * A function that given the last pruned block and the best block number, determines and prunes nodes
+    */
+  type PruneFn = (=> BigInt, => BigInt) => PruneResult
 }
 
 trait RangePrune extends Logger {
   def pruneBetween(start: BigInt, end: BigInt, pruneFn: BigInt => Int): PruneResult = {
     log.debug(s"Pruning start for range $start - $end")
     val prunedCount = (start until end).foldLeft(0) { (acc, bn) =>
-      log.debug(s"Accumulated pruned node count for block number $bn is $acc")
       acc + pruneFn(bn)
     }
     val result = PruneResult(end - 1, prunedCount)
@@ -38,11 +40,11 @@ trait RangePrune extends Logger {
 }
 
 case object Archive extends PruningMode {
-  override def prune(nodeStorage: NodeStorage)(lastPruned: BigInt, bestBlockNumber: BigInt): PruneResult = PruneResult(lastPruned, 0)
+  override def prune(nodeStorage: NodeStorage)(lastPruned: => BigInt, bestBlockNumber: => BigInt): PruneResult = PruneResult(0, 0)
 }
 
 case class Basic(history: Int) extends PruningMode with RangePrune with Logger {
-  override def prune(nodeStorage: NodeStorage)(lastPruned: BigInt, bestBlockNumber: BigInt): PruneResult = {
+  override def prune(nodeStorage: NodeStorage)(lastPruned: => BigInt, bestBlockNumber: => BigInt): PruneResult = {
     val from = lastPruned + 1
     val to = from.max(bestBlockNumber - history)
     pruneBetween(from, to, bn => new ReferenceCountNodeStorage(nodeStorage, Some(bn)).prune())

@@ -125,11 +125,9 @@ class GenesisDataLoader(
       case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>
         log.info("Genesis data already in the database")
         Success(())
-
       case Some(_) =>
         Failure(new RuntimeException("Genesis data present in the database does not match genesis block from file." +
           " Use different directory for running private blockchains."))
-
       case None =>
         // using empty namespace because ephemDataSource.storage already has the namespace-prefixed keys
         val chunkSize = 1000

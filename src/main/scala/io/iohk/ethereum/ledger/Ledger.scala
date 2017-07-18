@@ -36,7 +36,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val blockExecResult = for {
       _ <- validateBlockBeforeExecution(block, blockchain, validators)
 
-      execResult <- executeBlockTransactions(block, blockchain, storages, validators.signedTransactionValidator)
+      execResult <- executeBlockTransactions(block, blockchain, validators.signedTransactionValidator)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
       worldToPersist = payBlockReward(block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
@@ -57,9 +57,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val blockchain = BlockchainImpl(storages)
 
     val blockExecResult = for {
-      //todo why do we require in executeBlockTransactions separate blockchain and blockchain storage
-      //todo blockchain storage is part of blockchain
-      execResult <- executeBlockTransactions(block, blockchain, storages, validators.signedTransactionValidator)
+      execResult <- executeBlockTransactions(block, blockchain, validators.signedTransactionValidator)
       BlockResult(resultingWorldStateProxy, _, _) = execResult
       worldToPersist = payBlockReward(block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for prepared block
@@ -83,17 +81,15 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     *
     * @param block
     * @param blockchain
-    * @param storages
     * @param signedTransactionValidator
     */
   private[ledger] def executeBlockTransactions(
     block: Block,
-    blockchain: Blockchain,
-    storages: BlockchainStorages,
+    blockchain: BlockchainImpl,
     signedTransactionValidator: SignedTransactionValidator):
   Either[BlockExecutionError, BlockResult] = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
-    val initialWorld = InMemoryWorldStateProxy(storages, blockchainConfig.accountStartNonce, parentStateRoot)
+    val initialWorld: blockchain.WS = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
 
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
     val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, signedTransactionValidator)
@@ -156,7 +152,8 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val gasLimit = stx.tx.gasLimit
     val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
-    val world1 = InMemoryWorldStateProxy(storages, blockchainConfig.accountStartNonce, Some(stateRoot))
+    //FIXME When mining we are setting block tag as -1 but this info won't be pruned
+    val world1 = BlockchainImpl(storages).getWorldStateProxy(-1, blockchainConfig.accountStartNonce, Some(stateRoot))
     val world2 =
       if (world1.getAccount(stx.senderAddress).isEmpty)
         world1.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce))

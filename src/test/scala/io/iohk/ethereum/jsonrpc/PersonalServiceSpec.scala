@@ -5,7 +5,7 @@ import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Account, Address, Blockchain}
+import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
@@ -300,7 +300,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     }
 
     val keyStore = mock[KeyStore]
-    val blockchain = mock[Blockchain]
+    val blockchain = mock[BlockchainImpl]
     val blockchainConfig = mock[BlockchainConfig]
     val txPool = TestProbe()
     val appStateStorage = mock[AppStateStorage]

@@ -54,7 +54,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
   case object DeleteAccount extends Changes
 
   def applyChanges(stateRootHash: ByteString, blockchainStorages: BlockchainStorages, changes: Seq[(Address, Changes)]): ByteString = {
-    val initialWorld = InMemoryWorldStateProxy(blockchainStorages, UInt256.Zero, Some(stateRootHash))
+    val initialWorld = BlockchainImpl(blockchainStorages).getWorldStateProxy(-1, UInt256.Zero, Some(stateRootHash))
     val newWorld = changes.foldLeft[InMemoryWorldStateProxy](initialWorld){ case (recWorld, (address, change)) =>
         change match {
           case UpdateBalance(balanceIncrease) =>
@@ -153,7 +153,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     val txsExecResult = ledger.executeBlockTransactions(
       block,
       blockchain,
-      storagesInstance.storages,
       (new Mocks.MockValidatorsAlwaysSucceed).signedTransactionValidator
     )
 
@@ -196,7 +195,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       val txsExecResult = ledger.executeBlockTransactions(
         block,
         blockchain,
-        blockchainStorages,
         if(txValidAccordingToValidators) (new Mocks.MockValidatorsAlwaysSucceed).signedTransactionValidator
         else Mocks.MockValidatorsAlwaysFail.signedTransactionValidator
       )
@@ -250,7 +248,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     val txsExecResult = ledger.executeBlockTransactions(
       block,
       blockchain,
-      blockchainStorages,
       (new Mocks.MockValidatorsAlwaysSucceed).signedTransactionValidator
     )
 
@@ -455,7 +452,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       val txsExecResult = ledger.executeBlockTransactions(
         block,
         blockchain,
-        blockchainStorages,
         (new Mocks.MockValidatorsAlwaysSucceed).signedTransactionValidator
       )
 
@@ -753,7 +749,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     val defaultGasLimit: UInt256 = 1000000
     val defaultValue: BigInt = 1000
 
-    val emptyWorld = InMemoryWorldStateProxy(storagesInstance.storages, UInt256.Zero)
+    val emptyWorld = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
 
     val worldWithMinerAndOriginAccounts = InMemoryWorldStateProxy.persistState(emptyWorld
       .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))

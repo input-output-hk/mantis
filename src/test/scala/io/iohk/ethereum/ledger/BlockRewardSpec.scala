@@ -3,7 +3,7 @@ package io.iohk.ethereum.ledger
 import io.iohk.ethereum.{Fixtures, Mocks}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.{Archive, PruningMode}
-import io.iohk.ethereum.domain.{Account, Address, Block}
+import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.vm.UInt256
 import org.scalatest.{FlatSpec, Matchers}
@@ -60,10 +60,8 @@ class BlockRewardSpec extends FlatSpec with Matchers {
     val minerTwoOmmersReward = BigInt("5312500000000000000")
     val ommerFiveBlocksDifferenceReward = BigInt("1875000000000000000")
 
-    val worldState: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
-      storagesInstance.storages,
-      UInt256.Zero
-    ).saveAccount(validAccountAddress, Account(balance = 10))
+    val worldState: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
+      .saveAccount(validAccountAddress, Account(balance = 10))
       .saveAccount(validAccountAddress2, Account(balance = 20))
       .saveAccount(validAccountAddress3, Account(balance = 30))
 

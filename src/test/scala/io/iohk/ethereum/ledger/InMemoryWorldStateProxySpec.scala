@@ -3,7 +3,7 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.{Archive, PruningMode}
-import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl}
 import io.iohk.ethereum.vm.{Generators, UInt256}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -112,7 +112,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     validateInitialWorld(persistedWorldState)
 
     // Create a new WS instance based on storages and new root state and check
-    val newWorldState = InMemoryWorldStateProxy(storagesInstance.storages, UInt256.Zero, Some(persistedWorldState.stateRootHash))
+    val newWorldState =  BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, Some(persistedWorldState.stateRootHash))
     validateInitialWorld(newWorldState)
 
     // Update this new WS check everything is ok
@@ -147,7 +147,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
       override val pruningMode: PruningMode = Archive
     }
 
-    val worldState = InMemoryWorldStateProxy(storagesInstance.storages, UInt256.Zero)
+    val worldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
 
     val address1 = Address(0x123456)
     val address2 = Address(0xabcdef)
