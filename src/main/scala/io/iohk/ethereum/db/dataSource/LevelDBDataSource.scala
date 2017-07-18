@@ -71,7 +71,6 @@ trait LevelDbConfig {
   val createIfMissing: Boolean
   val paranoidChecks: Boolean
   val verifyChecksums: Boolean
-  val cacheSize: Int
   val path: String
 }
 
@@ -84,7 +83,7 @@ object LevelDBDataSource {
       .createIfMissing(createIfMissing)
       .paranoidChecks(paranoidChecks) // raise an error as soon as it detects an internal corruption
       .verifyChecksums(verifyChecksums) // force checksum verification of all data that is read from the file system on behalf of a particular read
-      .cacheSize(cacheSize)
+
     Iq80DBFactory.factory.open(new File(path), options)
   }
 

@@ -24,7 +24,6 @@ class ForksTest extends FlatSpec with Matchers {
     override val customGenesisFileOpt: Option[String] = None
     override val daoForkBlockNumber: BigInt = 10000
     override val daoForkBlockHash: ByteString = ByteString("unused")
-    override val daoForkBlockTotalDifficulty: BigInt = 1000000
     override val difficultyBombPauseBlockNumber: BigInt = Long.MaxValue
     override val difficultyBombContinueBlockNumber: BigInt = Long.MaxValue
     override val accountStartNonce: UInt256 = UInt256.Zero

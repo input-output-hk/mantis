@@ -9,12 +9,12 @@ import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.FilterManager.{TxLog, LogFilterLogs}
+import io.iohk.ethereum.jsonrpc.FilterManager.{LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, FilterConfig, MiningConfig}
+import io.iohk.ethereum.utils._
 import org.json4s.{DefaultFormats, Extraction, Formats}
 import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
 import io.iohk.ethereum.keystore.KeyStore
@@ -70,7 +70,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(JString("etc-client/v0.1"))
+    response.result shouldBe Some(JString("grothendieck/v0.1"))
   }
 
   it should "Handle net_peerCount request" in new TestSetup {
@@ -156,7 +156,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val web3Response = jsonRpcController.handleRequest(web3RpcRequest).futureValue
 
     web3Response.error shouldBe None
-    web3Response.result shouldBe Some(JString("etc-client/v0.1"))
+    web3Response.result shouldBe Some(JString("grothendieck/v0.1"))
   }
 
   it should "handle eth_getBlockTransactionCountByHash request" in new TestSetup {
@@ -1303,7 +1303,12 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override val coinbase: Address = Address(Hex.decode("42" * 20))
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
-      override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
+    }
+
+    val txPoolConfig = new TxPoolConfig {
+      val txPoolSize: Int = 1000
+      val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val filterConfig = new FilterConfig {
@@ -1315,7 +1320,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
-    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, txPoolConfig, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig, blockchainConfig)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 
