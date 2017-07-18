@@ -36,7 +36,7 @@ class SyncController(
     with RegularSync {
 
   import BlacklistSupport._
-  import Config.FastSync._
+  import Config.Sync._
   import SyncController._
 
   override val supervisorStrategy: OneForOneStrategy =

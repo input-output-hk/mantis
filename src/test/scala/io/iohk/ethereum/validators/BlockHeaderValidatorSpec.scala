@@ -31,7 +31,6 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     override val chainId: Byte = 0x3d.toByte
     override val daoForkBlockHash: ByteString = ByteString("unused")
     override val monetaryPolicyConfig: MonetaryPolicyConfig = null
-    override val daoForkBlockTotalDifficulty: BigInt = 0
     override val customGenesisFileOpt: Option[String] = None
     override val accountStartNonce: UInt256 = UInt256.Zero
   }

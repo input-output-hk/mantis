@@ -19,7 +19,7 @@ import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFil
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
-import io.iohk.ethereum.utils.{BlockchainConfig, FilterConfig, Logger, MiningConfig}
+import io.iohk.ethereum.utils._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.ommers.OmmersPool
@@ -174,6 +174,7 @@ class EthService(
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
     miningConfig: MiningConfig,
+    txPoolConfig: TxPoolConfig,
     ledger: Ledger,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
@@ -462,7 +463,7 @@ class EthService(
   }
 
   private def getOmmersFromPool(blockNumber: BigInt) = {
-    implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
+    implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
     (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
       .recover { case ex =>
@@ -472,7 +473,7 @@ class EthService(
   }
 
   private def getTransactionsFromPool = {
-    implicit val timeout = Timeout(miningConfig.poolingServicesTimeout)
+    implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .recover { case ex =>
