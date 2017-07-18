@@ -1,6 +1,7 @@
 package io.iohk.ethereum.utils
 
 import java.math.BigInteger
+import java.nio.ByteBuffer
 import java.security.SecureRandom
 
 import akka.util.ByteString
@@ -59,6 +60,13 @@ object ByteUtils {
     fill ++: bytes
   }
 
+  def compactPickledBytes(buffer: ByteBuffer): ByteString = {
+    val data = Array.ofDim[Byte](buffer.limit)
+    buffer.rewind()
+    buffer.get(data)
+    ByteString(data)
+  }
+
   def bytesToIp(bytesIp: ByteString): String = {
     val sb = new StringBuilder()
     sb.append(bytesIp(0) & 0xFF)
@@ -70,5 +78,4 @@ object ByteUtils {
     sb.append(bytesIp(3) & 0xFF)
     sb.toString()
   }
-
 }

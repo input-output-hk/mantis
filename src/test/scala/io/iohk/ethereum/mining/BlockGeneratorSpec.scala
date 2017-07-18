@@ -168,7 +168,6 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
       override val daoForkBlockHash: ByteString = ByteString("unused")
-      override val daoForkBlockTotalDifficulty: BigInt = 0
       override val accountStartNonce: UInt256 = UInt256.Zero
     }
     val ledger = new LedgerImpl(VM, blockchainConfig)
@@ -189,7 +188,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val coinbase: Address = Address(42)
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
-      override val poolingServicesTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val blockTimestampProvider = new FakeBlockTimestampProvider
