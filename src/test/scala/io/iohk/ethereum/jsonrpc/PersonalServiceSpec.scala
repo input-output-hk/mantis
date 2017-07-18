@@ -342,7 +342,6 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val difficultyBombContinueBlockNumber: BigInt = 0
       override val customGenesisFileOpt: Option[String] = None
       override val daoForkBlockNumber: BigInt = 0
-      override val daoForkBlockTotalDifficulty: BigInt = 0
       override val daoForkBlockHash: ByteString = ByteString.empty
       override val accountStartNonce: UInt256 = UInt256.Zero
       override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
