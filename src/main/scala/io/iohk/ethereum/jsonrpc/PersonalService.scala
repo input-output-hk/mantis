@@ -158,7 +158,7 @@ class PersonalService(
       val maybeNextTxNonce = maybeLatestPendingTxNonce.map(_ + 1) orElse maybeCurrentNonce
       val tx = request.toTransaction(maybeNextTxNonce.getOrElse(blockchainConfig.accountStartNonce))
 
-      val stx = if(blockchain.getBlockByNumber(blockchainConfig.eip155BlockNumber).isDefined){
+      val stx = if (appStateStorage.getBestBlockNumber() >= blockchainConfig.eip155BlockNumber) {
         wallet.signTx(tx, Some(blockchainConfig.chainId))
       }else{
         wallet.signTx(tx, None)
