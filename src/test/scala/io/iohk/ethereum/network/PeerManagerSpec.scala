@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network
 
-import java.net.InetSocketAddress
+import java.net.{InetSocketAddress, URI}
 
 import io.iohk.ethereum.network.PeerActor.Status.Handshaking
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
@@ -21,7 +21,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
   "PeerManager" should "try to connect to bootstrap nodes on startup" in new TestSetup {
 
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
-      peerDiscoveryManager.ref, peerConfiguration, peerFactory, Some(time.scheduler))))(system)
+      peerDiscoveryManager.ref, peerConfiguration, knownNodesManager.ref, peerFactory, Some(time.scheduler))))(system)
     peerManager ! PeerManagerActor.StartConnecting
 
     time.advance(6000) // wait for bootstrap nodes scan
@@ -45,7 +45,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
   it should "retry connections to remaining bootstrap nodes" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
-      peerDiscoveryManager.ref, peerConfiguration, peerFactory, Some(time.scheduler))))(system)
+      peerDiscoveryManager.ref, peerConfiguration, knownNodesManager.ref, peerFactory, Some(time.scheduler))))(system)
     peerManager ! PeerManagerActor.StartConnecting
 
     time.advance(6000)
@@ -90,7 +90,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
   it should "disconnect the worst handshaking peer when limit is reached" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
-      peerDiscoveryManager.ref, peerConfiguration, peerFactory, Some(time.scheduler))))
+      peerDiscoveryManager.ref, peerConfiguration, knownNodesManager.ref, peerFactory, Some(time.scheduler))))
     peerManager ! PeerManagerActor.StartConnecting
 
     time.advance(6000) // connect to 2 bootstrap peers
@@ -141,7 +141,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
   it should "publish disconnect messages from peers" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
-      peerDiscoveryManager.ref, peerConfiguration, peerFactory, Some(time.scheduler))))
+      peerDiscoveryManager.ref, peerConfiguration, knownNodesManager.ref, peerFactory, Some(time.scheduler))))
     peerManager ! PeerManagerActor.StartConnecting
 
     time.advance(6000) // connect to 2 bootstrap peers
@@ -162,7 +162,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
   it should "not handle the connection from a peer that's already connected" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
-      peerDiscoveryManager.ref, peerConfiguration, peerFactory, Some(time.scheduler))))(system)
+      peerDiscoveryManager.ref, peerConfiguration, knownNodesManager.ref, peerFactory, Some(time.scheduler))))(system)
     peerManager ! PeerManagerActor.StartConnecting
 
     time.advance(6000) // connect to 2 bootstrap peers
@@ -202,10 +202,12 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     val peerConfiguration = Config.Network.peer
 
     val peerDiscoveryManager = TestProbe()
-    val bootstrapNodes = DiscoveryConfig(Config.config).bootstrapNodes.map(PeerDiscoveryManager.Node.parse)
+    val bootstrapNodes = DiscoveryConfig(Config.config).bootstrapNodes.map(s => PeerDiscoveryManager.Node.fromUri(new URI(s)))
 
     val peerEventBus = TestProbe()
 
+    val knownNodesManager = TestProbe()
+    
     val peerFactory: (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
       val peer = TestProbe()
       createdPeers :+= peer

@@ -8,38 +8,25 @@ import io.iohk.ethereum.db.dataSource.DataSource
   * This class is used to store discovered nodes
   *   Value: stored nodes list
   */
-class KnownNodesStorage(val dataSource: DataSource) extends KeyValueStorage[String, Seq[String], KnownNodesStorage]{
+class KnownNodesStorage(val dataSource: DataSource) extends KeyValueStorage[String, Set[String], KnownNodesStorage]{
   type T = KnownNodesStorage
 
-  val separator = "|"
   val key = "KnownNodes"
 
   val namespace: IndexedSeq[Byte] = Namespaces.KnownNodesNamespace
   def keySerializer: String => IndexedSeq[Byte] = _.getBytes
-  def valueSerializer: Seq[String] => IndexedSeq[Byte] = _.mkString(separator).getBytes
-  def valueDeserializer: IndexedSeq[Byte] => Seq[String] = (valueBytes: IndexedSeq[Byte]) => new String(valueBytes.toArray).split(separator)
+  def valueSerializer: Set[String] => IndexedSeq[Byte] = _.mkString(" ").getBytes
+  def valueDeserializer: IndexedSeq[Byte] => Set[String] = (valueBytes: IndexedSeq[Byte]) => new String(valueBytes.toArray).split(' ').toSet
 
   protected def apply(dataSource: DataSource): KnownNodesStorage = new KnownNodesStorage(dataSource)
 
-  def getKnownNodes(): Seq[URI] = {
-    get(key).getOrElse(Nil).map(uriFromString)
+  def getKnownNodes(): Set[URI] = synchronized {
+    get(key).getOrElse(Set.empty).filter(_.nonEmpty).map(new URI(_))
   }
 
-  def removeKnownNode(node: URI): KnownNodesStorage = {
-    val newNodes = getKnownNodes().filter(u => u.getHost == node.getHost && u.getPort == node.getPort)
-    put(key, newNodes.map(uriToString))
+  def updateKnownNodes(toAdd: Set[URI] = Set.empty, toRemove: Set[URI] = Set.empty): KnownNodesStorage = {
+    val updated = getKnownNodes() -- toRemove ++ toAdd
+    put(key, updated.map(_.toString))
   }
 
-  private def uriFromString(enodeStr: String): URI = {
-    new URI(enodeStr)
-  }
-
-  private def uriToString(uri: URI): String = {
-    s"${uri.getUserInfo}@${uri.getHost}:${uri.getPort}"
-  }
-
-  def addKnownNode(node: URI): KnownNodesStorage = {
-    val newNodes = getKnownNodes() :+ node
-    put(key, newNodes.map(uriToString))
-  }
 }

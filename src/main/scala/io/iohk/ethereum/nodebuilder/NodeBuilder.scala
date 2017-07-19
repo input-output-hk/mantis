@@ -64,14 +64,25 @@ trait DiscoveryConfigBuilder {
   lazy val discoveryConfig = DiscoveryConfig(Config.config)
 }
 
+trait KnownNodesManagerBuilder {
+  self: ActorSystemBuilder
+    with StorageBuilder =>
+
+  lazy val config = KnownNodesManager.KnownNodesManagerConfig(Config.config)
+
+  lazy val knownNodesManager = actorSystem.actorOf(KnownNodesManager.props(config, storagesInstance.storages.knownNodesStorage), "known-nodes-manager")
+}
+
 trait PeerDiscoveryManagerBuilder {
   self: ActorSystemBuilder
   with DiscoveryListenerBuilder
   with NodeStatusBuilder
-  with DiscoveryConfigBuilder =>
+  with DiscoveryConfigBuilder
+  with StorageBuilder =>
 
   lazy val peerDiscoveryManager =
-    actorSystem.actorOf(PeerDiscoveryManager.props(discoveryListener, discoveryConfig, nodeStatusHolder), "peer-discovery-manager")
+    actorSystem.actorOf(PeerDiscoveryManager.props(discoveryListener, discoveryConfig,
+      storagesInstance.storages.knownNodesStorage, nodeStatusHolder), "peer-discovery-manager")
 }
 
 trait DiscoveryListenerBuilder {
@@ -150,7 +161,8 @@ trait PeerManagerActorBuilder {
     with PeerEventBusBuilder
     with AuthHandshakerBuilder
     with PeerDiscoveryManagerBuilder
-    with StorageBuilder =>
+    with StorageBuilder
+    with KnownNodesManagerBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
@@ -159,7 +171,7 @@ trait PeerManagerActorBuilder {
     peerDiscoveryManager,
     Config.Network.peer,
     peerEventBus,
-    storagesInstance.storages.knownNodesStorage,
+    knownNodesManager,
     handshaker,
     authHandshaker,
     EthereumMessageDecoder), "peer-manager")
@@ -430,3 +442,4 @@ trait Node extends NodeKeyBuilder
   with PeerDiscoveryManagerBuilder
   with DiscoveryConfigBuilder
   with DiscoveryListenerBuilder
+  with KnownNodesManagerBuilder

@@ -199,7 +199,7 @@ case class AuthHandshaker(
         mac = kec256(agreedSecret, aesSecret),
         token = kec256(sharedSecret),
         egressMac = egressMacSecret,
-        ingressMac = ingressMacSecret), ByteString(remotePubKey.getEncoded(false)))
+        ingressMac = ingressMacSecret), ByteString(remotePubKey.getEncoded(false).tail))
     }
 
     successOpt getOrElse AuthHandshakeError

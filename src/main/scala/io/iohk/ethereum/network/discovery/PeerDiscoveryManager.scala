@@ -6,6 +6,7 @@ import io.iohk.ethereum.network._
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.agent.Agent
 import akka.util.ByteString
+import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{ByteUtils, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
@@ -15,14 +16,24 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class PeerDiscoveryManager(
     discoveryListener: ActorRef,
     discoveryConfig: DiscoveryConfig,
+    knownNodesStorage: KnownNodesStorage,
     nodeStatusHolder: Agent[NodeStatus]) extends Actor with ActorLogging {
 
   import PeerDiscoveryManager._
 
-  var nodes: Map[ByteString, Node] = discoveryConfig.bootstrapNodes.map { s =>
-    val node = Node.parse(s)
-    node.id -> node
-  }.toMap
+  var nodes: Map[ByteString, Node] = {
+    val bootstrap = discoveryConfig.bootstrapNodes.map { s =>
+      val node = Node.fromUri(new URI(s))
+      node.id -> node
+    }.toMap
+
+    val known = knownNodesStorage.getKnownNodes().map { n =>
+      val node = Node.fromUri(n)
+      node.id -> node
+    }.toMap
+
+    bootstrap ++ known
+  }
 
   discoveryListener ! DiscoveryListener.Subscribe
 
@@ -98,13 +109,15 @@ class PeerDiscoveryManager(
 }
 
 object PeerDiscoveryManager {
-  def props(discoveryListener: ActorRef, discoveryConfig: DiscoveryConfig, nodeStatusHolder: Agent[NodeStatus]): Props =
-    Props(new PeerDiscoveryManager(discoveryListener, discoveryConfig, nodeStatusHolder))
+  def props(discoveryListener: ActorRef,
+            discoveryConfig: DiscoveryConfig,
+            knownNodesStorage: KnownNodesStorage,
+            nodeStatusHolder: Agent[NodeStatus]): Props =
+    Props(new PeerDiscoveryManager(discoveryListener, discoveryConfig, knownNodesStorage, nodeStatusHolder))
 
   object Node {
 
-    def parse(enodeStr: String): Node = {
-      val uri = new URI(enodeStr)
+    def fromUri(uri: URI): Node = {
       val nodeId = ByteString(Hex.decode(uri.getUserInfo))
       Node(nodeId, new InetSocketAddress(uri.getHost, uri.getPort), System.currentTimeMillis())
     }

@@ -13,7 +13,6 @@ import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
-import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
@@ -30,6 +29,7 @@ class PeerManagerActor(
     peerEventBus: ActorRef,
     peerDiscoveryManager: ActorRef,
     peerConfiguration: PeerConfiguration,
+    knownNodesManager: ActorRef,
     peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging with Stash {
@@ -41,10 +41,6 @@ class PeerManagerActor(
 
   private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
-  scheduler.schedule(peerConfiguration.updateNodesInitialDelay, peerConfiguration.updateNodesInterval) {
-    peerDiscoveryManager ! PeerDiscoveryManager.GetDiscoveredNodes
-  }
-
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
       case _ => Stop
@@ -53,6 +49,8 @@ class PeerManagerActor(
   override def receive: Receive = {
 
     case StartConnecting =>
+      scheduleNodesUpdate()
+      knownNodesManager ! KnownNodesManager.GetKnownNodes
       context become listening
       unstashAll()
 
@@ -61,7 +59,23 @@ class PeerManagerActor(
 
   }
 
+  private def scheduleNodesUpdate(): Unit = {
+    scheduler.schedule(peerConfiguration.updateNodesInitialDelay, peerConfiguration.updateNodesInterval) {
+      peerDiscoveryManager ! PeerDiscoveryManager.GetDiscoveredNodes
+    }
+  }
+
   def listening: Receive = handleCommonMessages orElse {
+    case KnownNodesManager.KnownNodes(nodes) =>
+      val nodesToConnect = nodes.take(peerConfiguration.maxPeers)
+
+      println("[disco] Connectin to known nodes:: " + nodesToConnect)
+
+      if (nodesToConnect.nonEmpty) {
+        log.info("Trying to connect to {} known nodes", nodesToConnect.size)
+        nodesToConnect.foreach(n => self ! ConnectToPeer(n))
+      }
+
     case msg: HandlePeerConnection =>
       if (!isConnectionHandled(msg.remoteAddress)) {
         context become(tryingToConnect, false)
@@ -210,24 +224,25 @@ object PeerManagerActor {
                                   peerDiscoveryManager: ActorRef,
                                   peerConfiguration: PeerConfiguration,
                                   peerMessageBus: ActorRef,
-                                  knownNodesStorage: KnownNodesStorage,
+                                  knownNodesManager: ActorRef,
                                   handshaker: Handshaker[R],
                                   authHandshaker: AuthHandshaker,
                                   messageDecoder: MessageDecoder): Props =
     Props(new PeerManagerActor(peerMessageBus, peerDiscoveryManager, peerConfiguration,
-      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, knownNodesStorage, handshaker, authHandshaker, messageDecoder)))
+      knownNodesManager = knownNodesManager,
+      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, knownNodesManager, handshaker, authHandshaker, messageDecoder)))
 
   def peerFactory[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
                                         peerConfiguration: PeerConfiguration,
                                         peerEventBus: ActorRef,
-                                        knownNodesStorage: KnownNodesStorage,
+                                        knownNodesManager: ActorRef,
                                         handshaker: Handshaker[R],
                                         authHandshaker: AuthHandshaker,
                                         messageDecoder: MessageDecoder): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
       ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, peerEventBus,
-        knownNodesStorage, handshaker, authHandshaker, messageDecoder), id)
+        knownNodesManager, handshaker, authHandshaker, messageDecoder), id)
   }
 
   trait PeerConfiguration {
