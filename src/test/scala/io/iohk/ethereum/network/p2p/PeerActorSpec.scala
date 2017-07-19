@@ -325,7 +325,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val nodeStatus = NodeStatus(
       key = nodeKey,
-      serverStatus = ServerStatus.NotListening)
+      serverStatus = ServerStatus.NotListening,
+      discoveryStatus = ServerStatus.NotListening)
 
     val nodeStatusHolder = Agent(nodeStatus)
 
@@ -371,6 +372,9 @@ class PeerActorSpec extends FlatSpec with Matchers {
       override val disconnectPoisonPillTimeout: FiniteDuration = 5 seconds
       override val maxPeers = 10
       override val networkId: Int = 1
+
+      override val updateNodesInitialDelay: FiniteDuration = 5.seconds
+      override val updateNodesInterval: FiniteDuration = 20.seconds
     }
 
   }

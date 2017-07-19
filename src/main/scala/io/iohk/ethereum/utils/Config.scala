@@ -13,7 +13,6 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
-import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -46,13 +45,6 @@ object Config {
       val listenAddress = new InetSocketAddress(interface, port)
     }
 
-    object Discovery {
-      private val discoveryConfig = networkConfig.getConfig("discovery")
-
-      val bootstrapNodes: Set[String] = discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet
-      val bootstrapNodesScanInterval = discoveryConfig.getDuration("bootstrap-nodes-scan-interval").toMillis.millis
-    }
-
     val peer = new PeerConfiguration {
       private val peerConfig = networkConfig.getConfig("peer")
 
@@ -76,6 +68,8 @@ object Config {
         val maxReceiptsPerMessage: Int = peerConfig.getInt("max-receipts-per-message")
         val maxMptComponentsPerMessage: Int = peerConfig.getInt("max-mpt-components-per-message")
       }
+      override val updateNodesInitialDelay: FiniteDuration = peerConfig.getDuration("update-nodes-initial-delay").toMillis.millis
+      override val updateNodesInterval: FiniteDuration = peerConfig.getDuration("update-nodes-interval").toMillis.millis
     }
 
     object Rpc extends JsonRpcHttpServerConfig with JsonRpcConfig {
