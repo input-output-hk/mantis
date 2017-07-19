@@ -194,12 +194,14 @@ case class AuthHandshaker(
         if (isInitiator) macSecretSetup(agreedSecret, aesSecret, initiatePacket, nonce, responsePacket, remoteNonce)
         else macSecretSetup(agreedSecret, aesSecret, initiatePacket, remoteNonce, responsePacket, nonce)
 
-      AuthHandshakeSuccess(new Secrets(
-        aes = aesSecret,
-        mac = kec256(agreedSecret, aesSecret),
-        token = kec256(sharedSecret),
-        egressMac = egressMacSecret,
-        ingressMac = ingressMacSecret), ByteString(remotePubKey.getEncoded(false).tail))
+      AuthHandshakeSuccess(
+        secrets = new Secrets(
+          aes = aesSecret,
+          mac = kec256(agreedSecret, aesSecret),
+          token = kec256(sharedSecret),
+          egressMac = egressMacSecret,
+          ingressMac = ingressMacSecret),
+        remotePubKey = ByteString(remotePubKey.getEncoded(false).tail))
     }
 
     successOpt getOrElse AuthHandshakeError

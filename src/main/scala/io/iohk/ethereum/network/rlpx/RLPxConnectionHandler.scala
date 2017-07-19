@@ -252,7 +252,7 @@ object RLPxConnectionHandler {
 
   case class HandleConnection(connection: ActorRef)
 
-  case class ConnectionEstablished(peerId: ByteString)
+  case class ConnectionEstablished(nodeId: ByteString)
 
   case object ConnectionFailed
 
