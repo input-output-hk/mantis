@@ -193,6 +193,7 @@ trait BlockchainConfig {
   val frontierBlockNumber: BigInt
   val homesteadBlockNumber: BigInt
   val eip150BlockNumber: BigInt
+  val eip155BlockNumber: BigInt
   val eip160BlockNumber: BigInt
   val difficultyBombPauseBlockNumber: BigInt
   val difficultyBombContinueBlockNumber: BigInt
@@ -216,6 +217,7 @@ object BlockchainConfig {
       override val frontierBlockNumber: BigInt = BigInt(blockchainConfig.getString("frontier-block-number"))
       override val homesteadBlockNumber: BigInt = BigInt(blockchainConfig.getString("homestead-block-number"))
       override val eip150BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip150-block-number"))
+      override val eip155BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip155-block-number"))
       override val eip160BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip160-block-number"))
       override val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
       override val difficultyBombContinueBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-continue-block-number"))

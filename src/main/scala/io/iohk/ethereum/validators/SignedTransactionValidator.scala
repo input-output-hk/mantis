@@ -31,7 +31,7 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
                upfrontGasCost: UInt256, accumGasUsed: BigInt): Either[SignedTransactionError, Unit] = {
     for {
       _ <- checkSyntacticValidity(stx)
-      _ <- validateSignature(stx, fromBeforeHomestead = blockHeader.number < blockchainConfig.homesteadBlockNumber)
+      _ <- validateSignature(stx, blockHeader.number)
       _ <- validateNonce(stx, senderAccount.nonce)
       _ <- validateGasLimitEnoughForIntrinsicGas(stx, blockHeader.number)
       _ <- validateAccountHasEnoughGasToPayUpfrontCost(senderAccount.balance, upfrontGasCost)
@@ -76,18 +76,22 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     * Validates if the transaction signature is valid as stated in appendix F in YP
     *
     * @param stx                  Transaction to validate
-    * @param fromBeforeHomestead  Whether the block to which this transaction belongs is from
-    *                             before the homesteadBlockNumber
+    * @param blockNumber          Number of the block for this transaction
     * @return Either the validated transaction or TransactionSignatureError if an error was detected
     */
-  private def validateSignature(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, Unit] = {
+  private def validateSignature(stx: SignedTransaction, blockNumber: BigInt): Either[SignedTransactionError, Unit] = {
     val r = stx.signature.r
     val s = stx.signature.s
 
-    val validR = r > 0 && r < secp256k1n
-    val validS = s > 0 && s < (if(fromBeforeHomestead) secp256k1n else secp256k1n / 2)
 
-    if(validR && validS) Right(())
+    val beforeHomestead = blockNumber < blockchainConfig.homesteadBlockNumber
+    val beforeEIP155 = blockNumber < blockchainConfig.eip155BlockNumber
+
+    val validR = r > 0 && r < secp256k1n
+    val validS = s > 0 && s < (if(beforeHomestead) secp256k1n else secp256k1n / 2)
+    val validSigningSchema = if (beforeEIP155) !stx.isChainSpecific else true
+
+    if(validR && validS && validSigningSchema) Right(())
     else Left(TransactionSignatureError)
   }
 

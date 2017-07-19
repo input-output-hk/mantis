@@ -104,7 +104,9 @@ class TransactionSpec extends FlatSpec with Matchers {
         value = BigInt(31337),
         payload = ByteString.empty
       ),
-      signature = ECDSASignature(BigInt("61965845294689009770156372156374760022787886965323743865986648153755601564112").bigInteger, BigInt("31606574786494953692291101914709926755545765281581808821704454381804773090106").bigInteger,28.toByte),
+      pointSign = 28.toByte,
+      signatureRandom = ByteString(BigInt("61965845294689009770156372156374760022787886965323743865986648153755601564112").toByteArray),
+      signature = ByteString(BigInt("31606574786494953692291101914709926755545765281581808821704454381804773090106").toByteArray),
       chainId = blockchainConfig.chainId
     ).get
 

@@ -26,6 +26,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
 
     // unused
     override val daoForkBlockNumber: BigInt = Long.MaxValue
+    override val eip155BlockNumber: BigInt = Long.MaxValue
     override val eip160BlockNumber: BigInt = Long.MaxValue
     override val eip150BlockNumber: BigInt = Long.MaxValue
     override val chainId: Byte = 0x3d.toByte
