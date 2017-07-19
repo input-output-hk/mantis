@@ -102,6 +102,7 @@ object PeerDiscoveryManager {
     Props(new PeerDiscoveryManager(discoveryListener, discoveryConfig, nodeStatusHolder))
 
   object Node {
+
     def parse(enodeStr: String): Node = {
       val uri = new URI(enodeStr)
       val nodeId = ByteString(Hex.decode(uri.getUserInfo))

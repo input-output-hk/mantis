@@ -29,6 +29,8 @@ trait SharedLevelDBDataSources extends DataSourcesComponent {
 
     override val transactionMappingDataSource: DataSource = dataSource
 
+    override val knownNodesDataSource: DataSource = dataSource
+
     override def closeAll(): Unit = dataSource.close()
   }
 }

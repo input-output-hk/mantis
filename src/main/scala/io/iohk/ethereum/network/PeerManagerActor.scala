@@ -13,6 +13,7 @@ import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.agent.Agent
+import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
@@ -209,22 +210,24 @@ object PeerManagerActor {
                                   peerDiscoveryManager: ActorRef,
                                   peerConfiguration: PeerConfiguration,
                                   peerMessageBus: ActorRef,
+                                  knownNodesStorage: KnownNodesStorage,
                                   handshaker: Handshaker[R],
                                   authHandshaker: AuthHandshaker,
                                   messageDecoder: MessageDecoder): Props =
     Props(new PeerManagerActor(peerMessageBus, peerDiscoveryManager, peerConfiguration,
-      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, handshaker, authHandshaker, messageDecoder)))
+      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, knownNodesStorage, handshaker, authHandshaker, messageDecoder)))
 
   def peerFactory[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
                                         peerConfiguration: PeerConfiguration,
                                         peerEventBus: ActorRef,
+                                        knownNodesStorage: KnownNodesStorage,
                                         handshaker: Handshaker[R],
                                         authHandshaker: AuthHandshaker,
                                         messageDecoder: MessageDecoder): (ActorContext, InetSocketAddress) => ActorRef = {
     (ctx, addr) =>
       val id = addr.toString.filterNot(_ == '/')
       ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, peerEventBus,
-        handshaker, authHandshaker, messageDecoder), id)
+        knownNodesStorage, handshaker, authHandshaker, messageDecoder), id)
   }
 
   trait PeerConfiguration {

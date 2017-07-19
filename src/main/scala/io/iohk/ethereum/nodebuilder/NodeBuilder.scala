@@ -149,7 +149,8 @@ trait PeerManagerActorBuilder {
     with HandshakerBuilder
     with PeerEventBusBuilder
     with AuthHandshakerBuilder
-    with PeerDiscoveryManagerBuilder =>
+    with PeerDiscoveryManagerBuilder
+    with StorageBuilder =>
 
   lazy val peerConfiguration = Config.Network.peer
 
@@ -158,6 +159,7 @@ trait PeerManagerActorBuilder {
     peerDiscoveryManager,
     Config.Network.peer,
     peerEventBus,
+    storagesInstance.storages.knownNodesStorage,
     handshaker,
     authHandshaker,
     EthereumMessageDecoder), "peer-manager")

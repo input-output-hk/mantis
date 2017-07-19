@@ -121,9 +121,9 @@ class RLPxConnectionHandler(
 
     def processHandshakeResult(result: AuthHandshakeResult, remainingData: ByteString): Unit =
       result match {
-        case AuthHandshakeSuccess(secrets) =>
+        case AuthHandshakeSuccess(secrets, remotePubKey) =>
           log.debug(s"Auth handshake succeeded for peer $peerId")
-          context.parent ! ConnectionEstablished
+          context.parent ! ConnectionEstablished(remotePubKey)
           val messageCodec = messageCodecFactory(secrets, messageDecoder, protocolVersion)
           val messagesSoFar = messageCodec.readMessages(remainingData)
           messagesSoFar foreach processMessage
@@ -252,7 +252,7 @@ object RLPxConnectionHandler {
 
   case class HandleConnection(connection: ActorRef)
 
-  case object ConnectionEstablished
+  case class ConnectionEstablished(peerId: ByteString)
 
   case object ConnectionFailed
 
