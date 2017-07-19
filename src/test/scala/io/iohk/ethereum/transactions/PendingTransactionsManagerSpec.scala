@@ -115,17 +115,17 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTransactionsManager ! AddOrOverrideTransaction(firstTx)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked)))
-    Thread.sleep(Timeouts.normalTimeout.toMillis)
+    Thread.sleep(Timeouts.shortTimeout.toMillis)
 
     pendingTransactionsManager ! AddOrOverrideTransaction(otherTx)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked)))
-    Thread.sleep(Timeouts.normalTimeout.toMillis)
+    Thread.sleep(Timeouts.shortTimeout.toMillis)
 
     pendingTransactionsManager ! AddOrOverrideTransaction(overrideTx)
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(Peers(Map(peer1 -> Handshaked)))
-    Thread.sleep(Timeouts.normalTimeout.toMillis)
+    Thread.sleep(Timeouts.shortTimeout.toMillis)
 
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .futureValue.pendingTransactions
@@ -133,7 +133,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     pendingTxs.map(_.stx) shouldEqual List(overrideTx, otherTx)
 
     // overriden TX will still be broadcast to peers
-    etcPeerManager.expectMsgAllOf(Timeouts.normalTimeout,
+    etcPeerManager.expectMsgAllOf(
       EtcPeerManagerActor.SendMessage(SignedTransactions(List(firstTx)), peer1.id),
       EtcPeerManagerActor.SendMessage(SignedTransactions(List(otherTx)), peer1.id),
       EtcPeerManagerActor.SendMessage(SignedTransactions(List(overrideTx)), peer1.id)
