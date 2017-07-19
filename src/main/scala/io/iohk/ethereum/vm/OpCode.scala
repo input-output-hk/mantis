@@ -699,16 +699,20 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
       val context = ProgramContext[W, S](newEnv, newAddress, startGas, world2, state.config, state.addressesToDelete)
       val result = VM.run(context)
 
-      val codeDepositGas = state.config.calcCodeDepositCost(result.returnData)
+      val contractCode = result.returnData
+      val codeDepositGas = state.config.calcCodeDepositCost(contractCode)
       val gasUsedInVm = startGas - result.gasRemaining
       val totalGasRequired = gasUsedInVm + codeDepositGas
+
+      val maxCodeSizeExceeded = state.config.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
       val enoughGasForDeposit = totalGasRequired <= availableGas
 
       if (result.error.isDefined) {
         val stack2 = stack1.push(UInt256.Zero)
         state.withStack(stack2).spendGas(startGas)
 
-      } else if (!enoughGasForDeposit && state.config.exceptionalFailedCodeDeposit) {
+      } else if (maxCodeSizeExceeded || (!enoughGasForDeposit && state.config.exceptionalFailedCodeDeposit)) {
+        //FIXME: In this case we should react as when an error happened during execution and not result in an OOG exception
         state.withError(OutOfGas)
 
       } else {

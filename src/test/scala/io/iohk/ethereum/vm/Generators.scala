@@ -107,7 +107,7 @@ object Generators extends ObjectGenerators {
         .saveStorage(ownerAddr, storage)
         .saveAccount(ownerAddr, Account.empty())
 
-      context: PC = ProgramContext(env, ownerAddr, gas, world, EvmConfig.PostEIP160Config)
+      context: PC = ProgramContext(env, ownerAddr, gas, world, EvmConfig.PostEIP160ConfigBuilder(None))
     } yield ProgramState(context).withStack(stack).withMemory(memory)
 
 }

@@ -23,7 +23,7 @@ trait EvmTestEnv {
 
   import EvmTestEnv._
 
-  val config = EvmConfig.PostEIP160Config
+  val config = EvmConfig.PostEIP160ConfigBuilder(None)
 
   private var contractsAddresses: Map[String, Address] = Map.empty
   private var contractsAbis: Map[String, Seq[ABI]] = Map.empty

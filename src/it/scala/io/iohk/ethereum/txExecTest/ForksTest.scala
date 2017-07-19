@@ -22,6 +22,7 @@ class ForksTest extends FlatSpec with Matchers {
     override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L)
 
     // unused
+    override val maxCodeSize: Option[BigInt] = None
     override val customGenesisFileOpt: Option[String] = None
     override val daoForkBlockNumber: BigInt = 10000
     override val daoForkBlockHash: ByteString = ByteString("unused")

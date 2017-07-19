@@ -195,6 +195,7 @@ trait BlockchainConfig {
   val eip150BlockNumber: BigInt
   val eip155BlockNumber: BigInt
   val eip160BlockNumber: BigInt
+  val maxCodeSize: Option[BigInt]
   val difficultyBombPauseBlockNumber: BigInt
   val difficultyBombContinueBlockNumber: BigInt
 
@@ -219,6 +220,7 @@ object BlockchainConfig {
       override val eip150BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip150-block-number"))
       override val eip155BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip155-block-number"))
       override val eip160BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip160-block-number"))
+      override val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
       override val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
       override val difficultyBombContinueBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-continue-block-number"))
 

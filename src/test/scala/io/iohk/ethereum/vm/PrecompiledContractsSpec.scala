@@ -14,7 +14,7 @@ class PrecompiledContractsSpec extends FunSuite with Matchers with PropertyCheck
   def buildContext(recipient: Address, inputData: ByteString, gas: UInt256 = 1000000): PC = {
     val origin = Address(0xcafebabe)
     val env = ExecEnv(recipient, origin, origin, 1000, inputData, 0, Program(ByteString.empty), null, 0)
-    ProgramContext(env, recipient, gas, MockWorldState(), EvmConfig.PostEIP160Config)
+    ProgramContext(env, recipient, gas, MockWorldState(), EvmConfig.PostEIP160ConfigBuilder(None))
   }
 
   test("ECDSARECOVER") {

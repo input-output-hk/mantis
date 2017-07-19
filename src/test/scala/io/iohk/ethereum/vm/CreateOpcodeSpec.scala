@@ -6,7 +6,7 @@ import MockWorldState.{PC, PS}
 import akka.util.ByteString
 
 class CreateOpcodeSpec extends WordSpec with Matchers {
-  val config = EvmConfig.PostEIP160Config
+  val config = EvmConfig.PostEIP160ConfigBuilder(None)
   import config.feeSchedule._
 
   object fxt {
@@ -29,11 +29,11 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       RETURN
     )
 
-    val initPart = Assembly(
+    def initPart(contractCodeSize: Int): Assembly = Assembly(
       PUSH1, 42,
       PUSH1, 0,
       SSTORE, //store an arbitrary value
-      PUSH1, contractCode.code.size,
+      PUSH1, contractCodeSize,
       DUP1,
       PUSH1, 16,
       PUSH1, 0,
@@ -59,11 +59,11 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       SSTORE
     )
 
-    val createCode = Assembly(initPart.byteCode ++ contractCode.byteCode: _*)
+    val createCode = Assembly(initPart(contractCode.code.size).byteCode ++ contractCode.byteCode: _*)
 
     val copyCodeGas = G_copy * wordsForBytes(contractCode.code.size) + config.calcMemCost(0, 0, contractCode.code.size)
     val storeGas = G_sset
-    val gasRequiredForInit = initPart.linearConstGas(config) + copyCodeGas + storeGas
+    val gasRequiredForInit = initPart(contractCode.code.size).linearConstGas(config) + copyCodeGas + storeGas
     val depositGas = config.calcCodeDepositCost(contractCode.code)
     val gasRequiredForCreation = gasRequiredForInit + depositGas + G_create
 
@@ -198,6 +198,34 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
 
     "refund the correct amount of gas" in {
       call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
+    }
+
+  }
+
+  "maxCodeSize check is enabled" should {
+    val maxCodeSize = 30
+    val ethConfig = EvmConfig.PostEIP160ConfigBuilder(Some(maxCodeSize))
+
+    val startGas = Int.MaxValue
+    val context: PC = fxt.context.copy(startGas = startGas, config = ethConfig)
+
+    "result in an out of gas if the code is larger than the limit" in {
+      val codeSize = maxCodeSize + 1
+      val largeContractCode = Assembly((0 until codeSize).map(_ => Assembly.OpCodeAsByteCode(STOP)): _*)
+      val createCode = Assembly(fxt.initPart(largeContractCode.code.size).byteCode ++ largeContractCode.byteCode: _*)
+      val call = CreateResult(context = context, createCode = createCode)
+
+      call.stateOut.error shouldBe Some(OutOfGas) //FIXME: Remove when fixing issue in CREATE opcode
+    }
+
+    "not result in an out of gas if the code is smaller than the limit" in {
+      val codeSize = maxCodeSize - 1
+      val largeContractCode = Assembly((0 until codeSize).map(_ => Assembly.OpCodeAsByteCode(STOP)): _*)
+      val createCode = Assembly(fxt.initPart(largeContractCode.code.size).byteCode ++ largeContractCode.byteCode: _*)
+      val call = CreateResult(context = context, createCode = createCode)
+
+      call.stateOut.error shouldBe None
+      assert(call.stateOut.gasUsed != startGas)
     }
 
   }
