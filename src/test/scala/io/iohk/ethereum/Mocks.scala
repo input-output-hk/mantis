@@ -2,11 +2,11 @@ package io.iohk.ethereum
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
+import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
-import io.iohk.ethereum.ledger.{BlockExecutionError, BlockPreparationError, Ledger}
+import io.iohk.ethereum.ledger.{BlockExecutionError, BlockPreparationError, InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderNumberError
@@ -23,7 +23,9 @@ object Mocks {
       if(shouldExecuteCorrectly(block, storages, validators))
         Right(Nil)
       else
-        Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head, None, "StubLedger was set to fail for this case"))
+        Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head,
+          StateBeforeFailure(InMemoryWorldStateProxy(storages, UInt256.Zero),0,Nil),
+          "StubLedger was set to fail for this case"))
     }
 
     override def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators):

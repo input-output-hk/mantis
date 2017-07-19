@@ -97,8 +97,8 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     blockTxsExecResult
   }
 
-
-  private[ledger] def executePreparedTransactions(
+  @tailrec
+  private[ledger] final def executePreparedTransactions(
     signedTransactions: Seq[SignedTransaction], world: InMemoryWorldStateProxy,
     blockHeader: BlockHeader, signedTransactionValidator: SignedTransactionValidator,
     acumGas: BigInt = 0, acumReceipts: Seq[Receipt] = Nil, executed: Seq[SignedTransaction] = Nil)
@@ -107,11 +107,11 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val result = executeTransactions(signedTransactions, world, blockHeader, signedTransactionValidator, acumGas, acumReceipts)
 
     result match {
-      case Left(TxsExecutionError(stx, Some(StateBeforeFailure(worldState, gas, receipts)), reason)) if signedTransactions.length > 1 =>
-        log.debug(s"failure while preparing block because of $reason in transaction with hash ${}")
+      case Left(TxsExecutionError(stx, StateBeforeFailure(worldState, gas, receipts), reason)) if signedTransactions.length > 1 =>
+        log.debug(s"failure while preparing block because of $reason in transaction with hash ${stx.hashAsHexString}")
         val txIndex = signedTransactions.indexWhere(tx => tx.hash == stx.hash)
         executePreparedTransactions(signedTransactions.drop(txIndex + 1),
-          worldState, blockHeader, signedTransactionValidator, gas, receipts, signedTransactions.take(txIndex))
+          worldState, blockHeader, signedTransactionValidator, gas, receipts, executed ++ signedTransactions.take(txIndex))
       case r => r.right.map(br => (br, executed ++ signedTransactions))
     }
   }
@@ -158,7 +158,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
             log.debug(s"Receipt generated for tx ${stx.hashAsHexString}, $receipt")
 
             executeTransactions(otherStxs, newWorld, blockHeader, signedTransactionValidator, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
-          case Left(error) => Left(TxsExecutionError(stx, Some(StateBeforeFailure(world, acumGas, acumReceipts)), error.toString))
+          case Left(error) => Left(TxsExecutionError(stx, StateBeforeFailure(world, acumGas, acumReceipts), error.toString))
         }
   }
 
@@ -402,7 +402,7 @@ sealed trait BlockExecutionError{
 object BlockExecutionError {
   case class ValidationBeforeExecError(reason: String) extends BlockExecutionError
   case class StateBeforeFailure(worldState: InMemoryWorldStateProxy, acumGas: BigInt, acumReceipts: Seq[Receipt])
-  case class TxsExecutionError(stx: SignedTransaction, stateBeforeError: Option[StateBeforeFailure], reason: String) extends BlockExecutionError
+  case class TxsExecutionError(stx: SignedTransaction, stateBeforeError: StateBeforeFailure, reason: String) extends BlockExecutionError
   case class ValidationAfterExecError(reason: String) extends BlockExecutionError
 }
 

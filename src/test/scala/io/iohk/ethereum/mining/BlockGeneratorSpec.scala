@@ -1,12 +1,10 @@
 package io.iohk.ethereum.mining
 
-import java.security.SecureRandom
 import java.time.Instant
 
 import akka.util.ByteString
 import io.iohk.ethereum.{Timeouts, crypto}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.crypto.ECIESCoder.KeySize
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, LedgerImpl}
@@ -19,8 +17,7 @@ import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.generators.ECKeyPairGenerator
-import org.spongycastle.crypto.params.{ECKeyGenerationParameters, ECPrivateKeyParameters, ECPublicKeyParameters}
+import org.spongycastle.crypto.params.ECPublicKeyParameters
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -177,13 +174,6 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     val privateKeyWithNoEthere = BigInt(1, Hex.decode("584a31be275195585603ddd05a53d16fae9deafba67213b6060cec9f16e44cae"))
 
-
-//    val gParam = new ECKeyGenerationParameters(curve, new SecureRandom())
-//    val eGen = new ECKeyPairGenerator
-//    eGen.init(gParam)
-//    val ephemPair = eGen.generateKeyPair
-//    val v = Hex.toHexString(ephemPair.getPrivate.asInstanceOf[ECPrivateKeyParameters].getD.toByteArray)
-
     val failingTransaction = Transaction(
       nonce = 0,
       gasPrice = 1,
@@ -191,10 +181,12 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       receivingAddress = Address(testAddress),
       value = txTransfer,
       payload = ByteString.empty)
-    val signedFailingTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPairFromPrvKey(privateKeyWithNoEthere), Some(0x3d.toByte))
+    val signedFailingTransaction: SignedTransaction = SignedTransaction.sign(failingTransaction,
+      keyPairFromPrvKey(privateKeyWithNoEthere), Some(0x3d.toByte))
 
     val result: Either[BlockPreparationError, PendingBlock] =
-      blockGenerator.generateBlockForMining(1, Seq(nextTransaction, signedFailingTransaction, signedTransaction), Nil, Address(testAddress))
+      blockGenerator.generateBlockForMining(1, Seq(nextTransaction, signedFailingTransaction, signedTransaction),
+        Nil, Address(testAddress))
     result shouldBe a[Right[_, Block]]
 
     //mined with etc-client + ethminer
