@@ -15,32 +15,34 @@ import akka.actor._
 import akka.agent.Agent
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
+import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.utils.{Config, NodeStatus}
+import io.iohk.ethereum.utils.NodeStatus
 
 import scala.util.{Failure, Success}
 
 class PeerManagerActor(
     peerEventBus: ActorRef,
+    peerDiscoveryManager: ActorRef,
     peerConfiguration: PeerConfiguration,
     peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
-    externalSchedulerOpt: Option[Scheduler] = None,
-    bootstrapNodes: Set[String] = Config.Network.Discovery.bootstrapNodes)
+    externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging with Stash {
 
   import akka.pattern.{ask, pipe}
   import PeerManagerActor._
-  import Config.Network.Discovery._
 
   var peers: Map[PeerId, Peer] = Map.empty
 
   private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
-  scheduler.schedule(0.seconds, bootstrapNodesScanInterval, self, ScanBootstrapNodes)
+  scheduler.schedule(peerConfiguration.updateNodesInitialDelay, peerConfiguration.updateNodesInterval) {
+    peerDiscoveryManager ! PeerDiscoveryManager.GetDiscoveredNodes
+  }
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
@@ -82,14 +84,18 @@ class PeerManagerActor(
         log.info("Maximum number of connected peers reached. Not connecting to {}", msg.uri)
       }
 
-    case ScanBootstrapNodes =>
-      val nodesToConnect = bootstrapNodes
-        .map(new URI(_))
-        .filterNot { uri => isConnectionHandled(new InetSocketAddress(uri.getHost, uri.getPort)) }
+    case PeerDiscoveryManager.DiscoveredNodes(nodes) =>
+      val peerAddresses = peers.values.map(_.remoteAddress).toSet
+
+      val nodesToConnect = nodes
+        .filterNot(n => peerAddresses.contains(n.addr)) // not already connected to
+        .toSeq
+        .sortBy(-_.addTimestamp)
+        .take(peerConfiguration.maxPeers - peerAddresses.size)
 
       if (nodesToConnect.nonEmpty) {
-        log.info("Trying to connect to {} bootstrap nodes", nodesToConnect.size)
-        nodesToConnect.foreach(self ! ConnectToPeer(_))
+        log.info("Trying to connect to {} nodes", nodesToConnect.size)
+        nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
       }
   }
 
@@ -114,7 +120,7 @@ class PeerManagerActor(
   }
 
   def tryingToConnect: Receive = handleCommonMessages orElse {
-    case _: HandlePeerConnection | _: ConnectToPeer | ScanBootstrapNodes =>
+    case _: HandlePeerConnection | _: ConnectToPeer | PeerDiscoveryManager.DiscoveredNodes =>
       stash()
 
     case (HandlePeerConnection(connection, remoteAddress), Success(_)) =>
@@ -200,25 +206,14 @@ class PeerManagerActor(
 
 object PeerManagerActor {
   def props[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
+                                  peerDiscoveryManager: ActorRef,
                                   peerConfiguration: PeerConfiguration,
-                                  peerEventBus: ActorRef,
-                                  handshaker: Handshaker[R],
-                                  authHandshaker: AuthHandshaker,
-                                  messageDecoder: MessageDecoder): Props =
-    Props(new PeerManagerActor(peerEventBus, peerConfiguration,
-      peerFactory(nodeStatusHolder, peerConfiguration, peerEventBus, handshaker, authHandshaker, messageDecoder)))
-
-  def props[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
-                                  peerConfiguration: PeerConfiguration,
-                                  bootstrapNodes: Set[String],
                                   peerMessageBus: ActorRef,
                                   handshaker: Handshaker[R],
                                   authHandshaker: AuthHandshaker,
                                   messageDecoder: MessageDecoder): Props =
-    Props(new PeerManagerActor(peerMessageBus, peerConfiguration,
-      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, handshaker, authHandshaker, messageDecoder),
-      bootstrapNodes = bootstrapNodes)
-    )
+    Props(new PeerManagerActor(peerMessageBus, peerDiscoveryManager, peerConfiguration,
+      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, handshaker, authHandshaker, messageDecoder)))
 
   def peerFactory[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
                                         peerConfiguration: PeerConfiguration,
@@ -243,6 +238,8 @@ object PeerManagerActor {
     val rlpxConfiguration: RLPxConfiguration
     val maxPeers: Int
     val networkId: Int
+    val updateNodesInitialDelay: FiniteDuration
+    val updateNodesInterval: FiniteDuration
   }
 
   trait FastSyncHostConfiguration {
@@ -262,8 +259,6 @@ object PeerManagerActor {
   case class Peers(peers: Map[Peer, PeerActor.Status]) {
     def handshaked: Seq[Peer] = peers.collect{ case (peer, Handshaked) => peer }.toSeq
   }
-
-  private case object ScanBootstrapNodes
 
   case class SendMessage(message: MessageSerializable, peerId: PeerId)
 }

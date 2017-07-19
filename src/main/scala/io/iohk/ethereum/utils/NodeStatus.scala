@@ -14,7 +14,8 @@ object ServerStatus {
 
 case class NodeStatus(
     key: AsymmetricCipherKeyPair,
-    serverStatus: ServerStatus) {
+    serverStatus: ServerStatus,
+    discoveryStatus: ServerStatus) {
 
   val nodeId = key.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
 }

@@ -5,7 +5,6 @@ import java.net.InetSocketAddress
 import io.iohk.ethereum.network.PeerActor.Status.Handshaking
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import org.scalatest.concurrent.Eventually
-import org.scalatest.time.{Milliseconds, Seconds, Span}
 import akka.actor._
 import akka.testkit.{TestActorRef, TestProbe}
 import com.miguno.akka.testing.VirtualTime
@@ -15,18 +14,20 @@ import PeerActor.Status
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
-import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-
-import scala.concurrent.duration.FiniteDuration
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager}
 
 class PeerManagerSpec extends FlatSpec with Matchers with Eventually with NormalPatience {
 
   "PeerManager" should "try to connect to bootstrap nodes on startup" in new TestSetup {
+
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
-      peerConfiguration, peerFactory, Some(time.scheduler))))(system)
+      peerDiscoveryManager.ref, peerConfiguration, peerFactory, Some(time.scheduler))))(system)
     peerManager ! PeerManagerActor.StartConnecting
 
-    time.advance(800) // wait for bootstrap nodes scan
+    time.advance(6000) // wait for bootstrap nodes scan
+
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodes)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodes(bootstrapNodes))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 1
@@ -44,10 +45,13 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
   it should "retry connections to remaining bootstrap nodes" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
-      peerConfiguration, peerFactory, Some(time.scheduler))))(system)
+      peerDiscoveryManager.ref, peerConfiguration, peerFactory, Some(time.scheduler))))(system)
     peerManager ! PeerManagerActor.StartConnecting
 
-    time.advance(800)
+    time.advance(6000)
+
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodes)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodes(bootstrapNodes))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 1
@@ -70,9 +74,13 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
       peerManager.underlyingActor.peers.size shouldBe 1
     }
 
-    time.advance(1000) // wait for next scan
+    time.advance(21000) // wait for next scan
 
     peerManager ! "trigger stashed messages..."
+
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodes)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodes(bootstrapNodes))
+
     respondWithStatus(createdPeers(1), Handshaking(0))
 
     eventually {
@@ -82,10 +90,13 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
   it should "disconnect the worst handshaking peer when limit is reached" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
-      peerConfiguration, peerFactory, Some(time.scheduler))))
+      peerDiscoveryManager.ref, peerConfiguration, peerFactory, Some(time.scheduler))))
     peerManager ! PeerManagerActor.StartConnecting
 
-    time.advance(800) // connect to 2 bootstrap peers
+    time.advance(6000) // connect to 2 bootstrap peers
+
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodes)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodes(bootstrapNodes))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 1
@@ -130,10 +141,13 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
   it should "publish disconnect messages from peers" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
-      peerConfiguration, peerFactory, Some(time.scheduler))))
+      peerDiscoveryManager.ref, peerConfiguration, peerFactory, Some(time.scheduler))))
     peerManager ! PeerManagerActor.StartConnecting
 
-    time.advance(800) // connect to 2 bootstrap peers
+    time.advance(6000) // connect to 2 bootstrap peers
+
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodes)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodes(bootstrapNodes))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 1
@@ -141,24 +155,26 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
     createdPeers.head.ref ! PoisonPill
 
-    time.advance(800) // connect to 2 bootstrap peers
+    time.advance(21000) // connect to 2 bootstrap peers
 
     peerEventBus.expectMsg(Publish(PeerDisconnected(PeerId(createdPeers.head.ref.path.name))))
   }
 
   it should "not handle the connection from a peer that's already connected" in new TestSetup {
     val peerManager = TestActorRef[PeerManagerActor](Props(new PeerManagerActor(peerEventBus.ref,
-      peerConfiguration, peerFactory, Some(time.scheduler))))(system)
+      peerDiscoveryManager.ref, peerConfiguration, peerFactory, Some(time.scheduler))))(system)
     peerManager ! PeerManagerActor.StartConnecting
 
-    time.advance(800) // wait for bootstrap nodes scan
+    time.advance(6000) // connect to 2 bootstrap peers
+
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodes)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodes(bootstrapNodes))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 1
     }
 
-    peerManager ! "trigger stash..."
-
+    peerManager ! "trigger stashed messages..."
     createdPeers.head.expectMsgClass(classOf[PeerActor.ConnectTo])
     respondWithStatus(createdPeers.head, Handshaking(0))
 
@@ -184,6 +200,9 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     var createdPeers: Seq[TestProbe] = Nil
 
     val peerConfiguration = Config.Network.peer
+
+    val peerDiscoveryManager = TestProbe()
+    val bootstrapNodes = DiscoveryConfig(Config.config).bootstrapNodes.map(PeerDiscoveryManager.Node.parse)
 
     val peerEventBus = TestProbe()
 
