@@ -33,7 +33,7 @@ class PeerDiscoveryManager(
   def scan(): Unit = {
     nodes.values.toSeq
       .sortBy(_.addTimestamp) // take 10 most recent nodes
-      .takeRight(10)
+      .takeRight(discoveryConfig.scanMaxNodes)
       .foreach { node => sendPing(node.id, node.addr) }
   }
 
