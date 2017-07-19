@@ -1,6 +1,7 @@
 package io.iohk.ethereum
 
 import io.iohk.ethereum.blockchain.sync.SyncController
+import io.iohk.ethereum.network.discovery.DiscoveryListener
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.nodebuilder.Node
@@ -28,7 +29,10 @@ object App {
 
       peerManager ! PeerManagerActor.StartConnecting
       server ! ServerActor.StartServer(networkConfig.Server.listenAddress)
+      discoveryListener ! DiscoveryListener.Start
       syncController ! SyncController.StartSync
+
+      peerDiscoveryManager // unlazy
 
       if (jsonRpcHttpServerConfig.enabled) jsonRpcHttpServer.run()
     }

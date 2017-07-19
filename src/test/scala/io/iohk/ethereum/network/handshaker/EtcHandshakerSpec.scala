@@ -134,7 +134,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
 
     blockchain.save(genesisBlock)
 
-    val nodeStatus = NodeStatus(key = generateKeyPair(secureRandom), serverStatus = ServerStatus.NotListening)
+    val nodeStatus = NodeStatus(key = generateKeyPair(secureRandom), serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)
     lazy val nodeStatusHolder = Agent(nodeStatus)
 
     class MockEtcHandshakerConfiguration extends EtcHandshakerConfiguration {
@@ -192,7 +192,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
   }
 
   trait RemotePeerSetup extends TestSetup {
-    val remoteNodeStatus = NodeStatus(key = generateKeyPair(secureRandom), serverStatus = ServerStatus.NotListening)
+    val remoteNodeStatus = NodeStatus(key = generateKeyPair(secureRandom), serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)
     val remotePort = 8545
 
     val remoteHello = Hello(

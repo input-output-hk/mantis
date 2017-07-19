@@ -38,7 +38,6 @@ object AuthHandshaker {
   val SecretSize = 32
   val MinPadding = 100
   val MaxPadding = 300
-  val Version = 4
 
   def apply(nodeKey: AsymmetricCipherKeyPair, secureRandom: SecureRandom): AuthHandshaker = {
     val nonce = secureRandomByteArray(secureRandom, NonceSize)
@@ -124,7 +123,7 @@ case class AuthHandshaker(
     val response = AuthResponseMessageV4(
       ephemeralPublicKey = ephemeralKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ,
       nonce = nonce,
-      version = Version)
+      version = ProtocolVersion)
     val encodedResponse = rlp.encode(response)
 
     val encryptedSize = encodedResponse.length + ECIESCoder.OverheadSize
@@ -165,7 +164,7 @@ case class AuthHandshaker(
     val messageToSign = xor(sharedSecret, nonce.toArray)
     val signature = ECDSASignature.sign(messageToSign, ephemeralKey)
 
-    AuthInitiateMessageV4(signature, publicKey, nonce, Version)
+    AuthInitiateMessageV4(signature, publicKey, nonce, ProtocolVersion)
   }
 
   private def finalizeHandshake(remoteEphemeralKey: ECPoint, remoteNonce: ByteString): AuthHandshakeResult = {
