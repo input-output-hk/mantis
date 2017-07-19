@@ -11,6 +11,7 @@ import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.vm.UInt256
+import io.iohk.ethereum.utils.NumericUtils._
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
@@ -226,8 +227,12 @@ object BlockchainConfig {
       override val daoForkBlockHash: ByteString = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
       override val accountStartNonce: UInt256 = UInt256(BigInt(blockchainConfig.getString("account-start-nonce")))
 
-      //FIXME: support "normal" numbers like "1"
-      override val chainId: Byte = Hex.decode(blockchainConfig.getString("chain-id")).head
+      override val chainId: Byte = {
+        val s = blockchainConfig.getString("chain-id")
+        val n = parseHexOrDecNumber(s)
+        require(n >= 0 && n <= 127, "chain-id must be a number in range [0, 127]")
+        n.toByte
+      }
 
       override val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
     }

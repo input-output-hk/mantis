@@ -30,7 +30,7 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
         case Some(forkBlockHeader) =>
           val fork = forkResolver.recognizeFork(forkBlockHeader)
 
-          log.info("Peer is running the {} fork", fork)
+          log.info("Peer is running the {}", fork)
 
           if (forkResolver.isAccepted(fork)) {
             log.info("Fork is accepted")
