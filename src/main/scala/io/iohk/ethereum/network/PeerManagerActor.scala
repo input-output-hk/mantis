@@ -69,8 +69,6 @@ class PeerManagerActor(
     case KnownNodesManager.KnownNodes(nodes) =>
       val nodesToConnect = nodes.take(peerConfiguration.maxPeers)
 
-      println("[disco] Connectin to known nodes:: " + nodesToConnect)
-
       if (nodesToConnect.nonEmpty) {
         log.info("Trying to connect to {} known nodes", nodesToConnect.size)
         nodesToConnect.foreach(n => self ! ConnectToPeer(n))
@@ -107,6 +105,9 @@ class PeerManagerActor(
         .toSeq
         .sortBy(-_.addTimestamp)
         .take(peerConfiguration.maxPeers - peerAddresses.size)
+
+      log.debug(s"Discovered ${nodes.size} nodes, connected to ${peers.size}/${peerConfiguration.maxPeers}. " +
+        s"Trying to connect to ${nodesToConnect.size} more nodes.")
 
       if (nodesToConnect.nonEmpty) {
         log.info("Trying to connect to {} nodes", nodesToConnect.size)

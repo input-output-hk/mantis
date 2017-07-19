@@ -1,0 +1,310 @@
+[0m[[0minfo[0m] [0mLoading project definition from /home/lgasior/spaces/iohk/etc-client/project[0m
+[0m[[0minfo[0m] [0mSet current project to etc-client (in build file:/home/lgasior/spaces/iohk/etc-client/)[0m
+[0m[[0minfo[0m] [0mRunning io.iohk.ethereum.App [0m
+21:32:30.132 akka.event.slf4j.Slf4jLogger - Slf4jLogger started
+21:32:30.140 akka.event.EventStream - logger log1-Slf4jLogger started
+21:32:30.143 akka.event.EventStream - Default Loggers started
+[disco] scheudling ! config=KnownNodesManagerConfig(20000 milliseconds)
+21:32:30.195 i.i.e.b.data.GenesisDataLoader - Loading genesis data
+21:32:32.115 i.i.e.b.data.GenesisDataLoader - prepared genesis header: BlockHeader {
+parentHash: 0000000000000000000000000000000000000000000000000000000000000000
+ommersHash: 1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347
+beneficiary: 0000000000000000000000000000000000000000
+stateRoot: d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544
+transactionsRoot: 56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421
+receiptsRoot: 56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421
+logsBloom: 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+difficulty: 17179869184,
+number: 0,
+gasLimit: 5000,
+gasUsed: 0,
+unixTimestamp: 0,
+extraData: 11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa
+mixHash: 0000000000000000000000000000000000000000000000000000000000000000
+nonce: 0000000000000042
+}
+21:32:32.346 i.i.e.b.data.GenesisDataLoader - Genesis data successfully loaded
+[disco] Connectin to known nodes:: Set()
+21:32:32.407 i.i.e.blockchain.sync.SyncController - Starting fast sync
+21:32:32.413 akka.io.TcpListener - Successfully bound to /127.0.0.1:9076
+21:32:32.413 akka.io.UdpListener - Successfully bound to [/0:0:0:0:0:0:0:0:30303]
+21:32:32.417 i.i.e.blockchain.sync.SyncController - Cannot start fast sync, not enough peers to download from. Scheduling retry in 5000 milliseconds
+21:32:32.451 io.iohk.ethereum.network.ServerActor - Listening on /127.0.0.1:9076
+21:32:32.452 io.iohk.ethereum.network.ServerActor - Node address: enode://f00ae831b548f2e904b63863f6fb02822e2ea3a05b1ec79b4c3bb538165c6336faf9b7711792a5b483a0af0ea47fa30cfe66c98313ff55692f4f8d31a1079c49@127.0.0.1:9076
+21:32:32.734 c.t.sslconfig.akka.AkkaSSLConfig - Initializing AkkaSSLConfig extension...
+21:32:32.736 c.t.sslconfig.akka.AkkaSSLConfig - buildHostnameVerifier: created hostname verifier: com.typesafe.sslconfig.ssl.DefaultHostnameVerifier@28ec3538
+21:32:33.196 akka.io.TcpListener - Successfully bound to /127.0.0.1:8546
+21:32:33.200 i.i.e.jsonrpc.http.JsonRpcHttpServer - JSON RPC server listening on /127.0.0.1:8546
+21:32:37.372 i.i.e.network.PeerManagerActor - Trying to connect to 8 nodes
+21:32:37.402 akka.io.TcpOutgoingConnection - Attempting connection to [/41.135.121.6:30303]
+21:32:37.402 akka.io.TcpOutgoingConnection - Attempting connection to [/125.134.78.189:30303]
+21:32:37.403 akka.io.TcpOutgoingConnection - Attempting connection to [/159.203.78.75:30303]
+21:32:37.403 akka.io.TcpOutgoingConnection - Attempting connection to [/1.226.84.230:50303]
+21:32:37.404 akka.io.TcpOutgoingConnection - Attempting connection to [/47.90.36.129:30303]
+21:32:37.406 akka.io.TcpOutgoingConnection - Attempting connection to [/50.64.94.28:30303]
+21:32:37.407 akka.io.TcpOutgoingConnection - Attempting connection to [/118.178.57.121:30303]
+21:32:37.409 akka.io.TcpOutgoingConnection - Attempting connection to [/104.41.188.223:30303]
+21:32:37.436 i.i.e.blockchain.sync.SyncController - Starting fast sync
+21:32:37.436 i.i.e.blockchain.sync.SyncController - Cannot start fast sync, not enough peers to download from. Scheduling retry in 5000 milliseconds
+21:32:37.552 akka.io.TcpOutgoingConnection - Could not establish connection to [/159.203.78.75:30303] due to java.net.ConnectException: Connection refused
+21:32:37.557 i.i.e.n.rlpx.RLPxConnectionHandler - [Stopping Connection] Connection to enode://4fca8ecaf9bd12b805b2b99d2ed6a28e62223707d16c53dd746e2a70f067308b0d8d9a769412f9b323b3410083dfef3eeadd139fd6946535692c1b31467f1080@159.203.78.75:30303 failed
+21:32:37.557 io.iohk.ethereum.network.PeerActor - Failed to establish RLPx connection
+21:32:37.559 io.iohk.ethereum.network.PeerActor - Scheduling connection retry in 20000 milliseconds
+21:32:37.757 akka.io.TcpOutgoingConnection - Connection established to [/1.226.84.230:50303]
+21:32:37.758 akka.io.TcpOutgoingConnection - Connection established to [/118.178.57.121:30303]
+21:32:37.758 akka.io.TcpOutgoingConnection - Could not establish connection to [/104.41.188.223:30303] due to java.net.ConnectException: Connection refused
+21:32:37.758 akka.io.TcpOutgoingConnection - Connection established to [/47.90.36.129:30303]
+21:32:37.758 i.i.e.n.rlpx.RLPxConnectionHandler - [Stopping Connection] Connection to enode://57be9e74b22ff3ea1bd3fedeb2ced310387dd176866793e273c7712305d8e4677f8913c86f93dfa8810e1cdb4177e5f87112db8748199a7771baf8dced63688b@104.41.188.223:30303 failed
+21:32:37.759 io.iohk.ethereum.network.PeerActor - Failed to establish RLPx connection
+21:32:37.759 io.iohk.ethereum.network.PeerActor - Scheduling connection retry in 20000 milliseconds
+21:32:38.154 i.i.e.n.h.EtcHelloExchangeState - RLPx connection established, sending Hello
+21:32:38.158 i.i.e.n.h.EtcHelloExchangeState - Protocol handshake finished with peer (Hello {
+p2pVersion: 4
+clientId: Geth/v3.0.1-unstable/linux/go1.7.1/'KT-trustfarm-etcpool'
+capabilities: Queue(Capability(eth,63), Capability(eth,62))
+listenPort: 0
+nodeId: 94072bbbf1d3e5648afc573bbaf79b14a26ac48380f635fde32782631329263fe7a347251079f9abd3a2678f5bc5e672f8e6aff93a27f0f8f4e0e4f961dac68d
+})
+21:32:38.165 i.i.e.n.h.EtcNodeStatusExchangeState - sending status Status {
+protocolVersion: 63
+networkId: 1
+totalDifficulty: 17179869184
+bestHash: d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3
+genesisHash: d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3
+}
+21:32:38.483 i.i.e.n.h.EtcNodeStatusExchangeState - Peer returned status (Status {
+protocolVersion: 63
+networkId: 1
+totalDifficulty: 48657563104157247272
+bestHash: ddcd51e63e46e7a45978c3518b922b7ebcb69791071067b9d6695656222638e1
+genesisHash: d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3
+})
+21:32:38.484 i.i.e.n.h.EtcHelloExchangeState - RLPx connection established, sending Hello
+21:32:38.484 i.i.e.n.h.EtcHelloExchangeState - Protocol handshake finished with peer (Hello {
+p2pVersion: 4
+clientId: Geth/v3.2.3-unstable/linux/go1.6.3
+capabilities: Queue(Capability(eth,63), Capability(eth,62))
+listenPort: 0
+nodeId: 18a551bee469c2e02de660ab01dede06503c986f6b8520cb5a65ad122df88b17b285e3fef09a40a0d44f99e014f8616cf1ebc2e094f96c6e09e2f390f5d34857
+})
+21:32:38.485 i.i.e.n.h.EtcNodeStatusExchangeState - sending status Status {
+protocolVersion: 63
+networkId: 1
+totalDifficulty: 17179869184
+bestHash: d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3
+genesisHash: d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3
+}
+21:32:38.784 io.iohk.ethereum.network.PeerActor - Received Disconnect(Too many peers). Closing connection
+21:32:38.785 i.i.e.n.rlpx.RLPxConnectionHandler - [Stopping Connection] Connection with 47.90.36.129:30303 closed by peer
+21:32:38.813 i.i.e.n.h.EtcForkBlockExchangeState - Peer is running the Etc fork
+21:32:38.813 i.i.e.n.h.EtcForkBlockExchangeState - Fork is accepted
+21:32:39.597 i.i.e.n.h.EtcHelloExchangeState - RLPx connection established, sending Hello
+21:32:39.598 i.i.e.n.h.EtcHelloExchangeState - Protocol handshake finished with peer (Hello {
+p2pVersion: 4
+clientId: Geth/v3.2.3-unstable/linux/go1.7.1
+capabilities: Queue(Capability(eth,63), Capability(eth,62))
+listenPort: 0
+nodeId: 98b863da48ab8bef2339a823d552f3619fd8e892425ae40c6812c6f7e4a0afb4f9591b012183e89a63bb01c5085d0e96aa5f0812652335fb0ac946d6aaf15881
+})
+21:32:39.599 i.i.e.n.h.EtcNodeStatusExchangeState - sending status Status {
+protocolVersion: 63
+networkId: 1
+totalDifficulty: 17179869184
+bestHash: d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3
+genesisHash: d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3
+}
+21:32:40.010 i.i.e.n.h.EtcNodeStatusExchangeState - Peer returned status (Status {
+protocolVersion: 63
+networkId: 1
+totalDifficulty: 82145117132714502150
+bestHash: c598efa2437c9e9091511c98573ee390bdf67184e6e19daf86fa08b83290260d
+genesisHash: d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3
+})
+21:32:42.456 i.i.e.blockchain.sync.SyncController - Starting fast sync
+21:32:42.457 i.i.e.blockchain.sync.SyncController - Cannot start fast sync, not enough peers to download from. Scheduling retry in 5000 milliseconds
+21:32:47.477 i.i.e.blockchain.sync.SyncController - Starting fast sync
+21:32:47.478 i.i.e.blockchain.sync.SyncController - Cannot start fast sync, not enough peers to download from. Scheduling retry in 5000 milliseconds
+21:32:49.637 i.i.e.n.h.EtcForkBlockExchangeState - Peer is running the Etc fork
+21:32:49.638 i.i.e.n.h.EtcForkBlockExchangeState - Fork is accepted
+[disco] persist changes
+[disco] persist changes - inside if
+21:32:52.497 i.i.e.blockchain.sync.SyncController - Starting fast sync
+21:32:52.497 i.i.e.blockchain.sync.SyncController - Asking 2 peers for block headers
+21:32:52.917 i.i.e.blockchain.sync.SyncController - Trying to start fast sync. Received 2 block headers
+21:32:52.918 i.i.e.blockchain.sync.SyncController - Starting fast sync. Asking peer PeerId(118.178.57.121:30303) for target block header (4123573)
+21:32:53.324 i.i.e.blockchain.sync.SyncController - Received target block from peer, starting fast sync
+21:32:53.679 i.i.e.b.s.FastSyncNodesRequestHandler - Received 1 state nodes in 342 ms
+21:32:54.051 i.i.e.b.s.FastSyncNodesRequestHandler - Received 16 state nodes in 371 ms
+21:32:54.418 i.i.e.blockchain.sync.SyncController - Block: 0/4123573. Peers: 2/2 (0 blacklisted). State: 17/17 known nodes.
+21:32:54.527 i.i.e.b.s.SyncBlockHeadersRequestHandler - Received 192 block headers in 1191 ms
+21:32:54.916 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 361 ms
+21:32:55.272 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 355 ms
+21:32:55.682 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 409 ms
+21:32:56.190 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 12 receipts in 507 ms
+21:32:56.417 i.i.e.blockchain.sync.SyncController - Block: 0/4123573. Peers: 2/2 (0 blacklisted). State: 17/17 known nodes.
+21:32:56.626 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 128 block bodies in 433 ms
+21:32:57.012 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 64 block bodies in 374 ms
+21:32:57.367 i.i.e.network.PeerManagerActor - Trying to connect to 1 nodes
+21:32:57.372 akka.io.TcpOutgoingConnection - Attempting connection to [/47.90.36.129:30303]
+21:32:57.577 io.iohk.ethereum.network.PeerActor - Trying to reconnect
+21:32:57.580 akka.io.TcpOutgoingConnection - Attempting connection to [/159.203.78.75:30303]
+21:32:57.659 akka.io.TcpOutgoingConnection - Connection established to [/47.90.36.129:30303]
+21:32:57.694 akka.io.TcpOutgoingConnection - Could not establish connection to [/159.203.78.75:30303] due to java.net.ConnectException: Connection refused
+21:32:57.695 i.i.e.n.rlpx.RLPxConnectionHandler - [Stopping Connection] Connection to enode://4fca8ecaf9bd12b805b2b99d2ed6a28e62223707d16c53dd746e2a70f067308b0d8d9a769412f9b323b3410083dfef3eeadd139fd6946535692c1b31467f1080@159.203.78.75:30303 failed
+21:32:57.695 io.iohk.ethereum.network.PeerActor - Failed to establish RLPx connection
+21:32:57.695 io.iohk.ethereum.network.PeerActor - Scheduling connection retry in 20000 milliseconds
+21:32:57.777 io.iohk.ethereum.network.PeerActor - Trying to reconnect
+21:32:57.778 akka.io.TcpOutgoingConnection - Attempting connection to [/104.41.188.223:30303]
+21:32:57.842 i.i.e.b.s.FastSyncNodesRequestHandler - Received 256 state nodes in 3790 ms
+21:32:58.042 i.i.e.b.s.SyncBlockHeadersRequestHandler - Received 192 block headers in 1028 ms
+21:32:58.055 akka.io.TcpOutgoingConnection - Could not establish connection to [/104.41.188.223:30303] due to java.net.ConnectException: Connection refused
+21:32:58.055 i.i.e.n.rlpx.RLPxConnectionHandler - [Stopping Connection] Connection to enode://57be9e74b22ff3ea1bd3fedeb2ced310387dd176866793e273c7712305d8e4677f8913c86f93dfa8810e1cdb4177e5f87112db8748199a7771baf8dced63688b@104.41.188.223:30303 failed
+21:32:58.055 io.iohk.ethereum.network.PeerActor - Failed to establish RLPx connection
+21:32:58.055 io.iohk.ethereum.network.PeerActor - Scheduling connection retry in 20000 milliseconds
+21:32:58.336 i.i.e.n.h.EtcHelloExchangeState - RLPx connection established, sending Hello
+21:32:58.336 i.i.e.n.h.EtcHelloExchangeState - Protocol handshake finished with peer (Hello {
+p2pVersion: 4
+clientId: Geth/v3.2.3-unstable/linux/go1.6.3
+capabilities: Queue(Capability(eth,63), Capability(eth,62))
+listenPort: 0
+nodeId: 18a551bee469c2e02de660ab01dede06503c986f6b8520cb5a65ad122df88b17b285e3fef09a40a0d44f99e014f8616cf1ebc2e094f96c6e09e2f390f5d34857
+})
+21:32:58.337 i.i.e.n.h.EtcNodeStatusExchangeState - sending status Status {
+protocolVersion: 63
+networkId: 1
+totalDifficulty: 18739422847
+bestHash: 723899e82d352c6eabd21e34942f868687203ca14b3d5a23aeb47c555c123390
+genesisHash: d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3
+}
+21:32:58.417 i.i.e.blockchain.sync.SyncController - Block: 192/4123573. Peers: 2/2 (0 blacklisted). State: 273/3369 known nodes.
+21:32:58.437 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 383 ms
+21:32:58.646 i.i.e.n.h.EtcNodeStatusExchangeState - Peer returned status (Status {
+protocolVersion: 63
+networkId: 1
+totalDifficulty: 82145214311125960832
+bestHash: ef42dc22be516960eb8d37a3618ce225d43c8c146e34804ec87787930a4468ea
+genesisHash: d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3
+})
+21:32:58.780 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 342 ms
+21:32:58.953 i.i.e.n.h.EtcForkBlockExchangeState - Peer is running the Etc fork
+21:32:58.953 i.i.e.n.h.EtcForkBlockExchangeState - Fork is accepted
+21:32:59.131 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 350 ms
+21:32:59.466 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 12 receipts in 334 ms
+21:32:59.798 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 128 block bodies in 331 ms
+21:33:00.080 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 64 block bodies in 613 ms
+21:33:00.416 i.i.e.blockchain.sync.SyncController - Block: 384/4123573. Peers: 3/3 (0 blacklisted). State: 273/2369 known nodes.
+21:33:01.125 i.i.e.b.s.SyncBlockHeadersRequestHandler - Received 192 block headers in 1315 ms
+21:33:01.477 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 345 ms
+21:33:01.818 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 339 ms
+21:33:02.077 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 1992 ms
+21:33:02.157 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 339 ms
+21:33:02.417 i.i.e.blockchain.sync.SyncController - Block: 384/4123573. Peers: 3/3 (0 blacklisted). State: 657/9513 known nodes.
+21:33:02.437 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 12 receipts in 360 ms
+21:33:02.491 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 128 block bodies in 333 ms
+21:33:02.744 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 64 block bodies in 305 ms
+21:33:04.247 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 1501 ms
+21:33:04.417 i.i.e.blockchain.sync.SyncController - Block: 576/4123573. Peers: 3/3 (0 blacklisted). State: 1041/14657 known nodes.
+21:33:04.520 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 6676 ms
+21:33:04.555 i.i.e.b.s.SyncBlockHeadersRequestHandler - Received 192 block headers in 2060 ms
+21:33:04.901 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 341 ms
+21:33:05.308 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 407 ms
+21:33:06.417 i.i.e.blockchain.sync.SyncController - Block: 576/4123573. Peers: 3/3 (0 blacklisted). State: 1425/20801 known nodes.
+21:33:06.570 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 2322 ms
+21:33:06.942 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 12 receipts in 371 ms
+21:33:06.943 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 1634 ms
+21:33:07.254 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 128 block bodies in 312 ms
+21:33:07.662 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 64 block bodies in 719 ms
+21:33:08.417 i.i.e.blockchain.sync.SyncController - Block: 768/4123573. Peers: 3/3 (0 blacklisted). State: 1809/24367 known nodes.
+21:33:08.497 akka.actor.LocalActorRef - Message [io.iohk.ethereum.network.PeerActor$ResponseTimeout$] from Actor[akka://etc-client_system/user/peer-manager/47.90.36.129:30303#2081702203] to Actor[akka://etc-client_system/user/peer-manager/47.90.36.129:30303#2081702203] was not delivered. [1] dead letters encountered. This logging can be turned off or adjusted with configuration settings 'akka.log-dead-letters' and 'akka.log-dead-letters-during-shutdown'.
+21:33:08.603 i.i.e.b.s.SyncBlockHeadersRequestHandler - Received 192 block headers in 1346 ms
+21:33:09.000 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 392 ms
+21:33:09.341 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 340 ms
+21:33:09.369 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 1703 ms
+21:33:09.707 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 366 ms
+21:33:09.710 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 12 receipts in 341 ms
+21:33:10.017 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 128 block bodies in 309 ms
+21:33:10.060 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 64 block bodies in 350 ms
+[disco] persist changes
+[disco] persist changes - inside if
+21:33:10.417 i.i.e.blockchain.sync.SyncController - Block: 960/4123573. Peers: 3/3 (0 blacklisted). State: 2193/24675 known nodes.
+21:33:11.359 i.i.e.b.s.SyncBlockHeadersRequestHandler - Received 192 block headers in 1335 ms
+21:33:11.411 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 6890 ms
+21:33:11.755 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 388 ms
+21:33:11.756 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 344 ms
+21:33:11.809 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 1741 ms
+21:33:12.060 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 12 receipts in 304 ms
+21:33:12.187 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 431 ms
+21:33:12.355 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 64 block bodies in 294 ms
+21:33:12.407 i.i.e.blockchain.sync.SyncController - Block: 1152/4123573. Peers: 3/3 (0 blacklisted). State: 2961/31911 known nodes.
+21:33:12.574 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 128 block bodies in 765 ms
+21:33:13.360 i.i.e.b.s.SyncBlockHeadersRequestHandler - Received 192 block headers in 1171 ms
+21:33:13.705 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 338 ms
+21:33:13.927 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 1569 ms
+21:33:14.045 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 339 ms
+21:33:14.265 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 337 ms
+21:33:14.409 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 12 receipts in 363 ms
+21:33:14.416 i.i.e.blockchain.sync.SyncController - Block: 1152/4123573. Peers: 3/3 (0 blacklisted). State: 3345/32202 known nodes.
+21:33:14.564 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 128 block bodies in 299 ms
+21:33:14.829 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 64 block bodies in 419 ms
+21:33:14.930 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 2353 ms
+21:33:15.872 i.i.e.b.s.SyncBlockHeadersRequestHandler - Received 192 block headers in 1304 ms
+21:33:16.260 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 383 ms
+21:33:16.283 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 1351 ms
+21:33:16.417 i.i.e.blockchain.sync.SyncController - Block: 1344/4123573. Peers: 3/3 (0 blacklisted). State: 4113/36049 known nodes.
+21:33:16.566 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 306 ms
+21:33:16.623 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 340 ms
+21:33:16.873 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 12 receipts in 306 ms
+21:33:16.989 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 128 block bodies in 366 ms
+21:33:17.183 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 64 block bodies in 310 ms
+21:33:17.707 io.iohk.ethereum.network.PeerActor - Trying to reconnect
+21:33:17.708 akka.io.TcpOutgoingConnection - Attempting connection to [/159.203.78.75:30303]
+21:33:17.826 akka.io.TcpOutgoingConnection - Could not establish connection to [/159.203.78.75:30303] due to java.net.ConnectException: Connection refused
+21:33:17.827 i.i.e.n.rlpx.RLPxConnectionHandler - [Stopping Connection] Connection to enode://4fca8ecaf9bd12b805b2b99d2ed6a28e62223707d16c53dd746e2a70f067308b0d8d9a769412f9b323b3410083dfef3eeadd139fd6946535692c1b31467f1080@159.203.78.75:30303 failed
+21:33:17.827 io.iohk.ethereum.network.PeerActor - Failed to establish RLPx connection
+21:33:17.827 io.iohk.ethereum.network.PeerActor - Scheduling connection retry in 20000 milliseconds
+21:33:18.066 io.iohk.ethereum.network.PeerActor - Trying to reconnect
+21:33:18.068 akka.io.TcpOutgoingConnection - Attempting connection to [/104.41.188.223:30303]
+21:33:18.342 akka.io.TcpOutgoingConnection - Could not establish connection to [/104.41.188.223:30303] due to java.net.ConnectException: Connection refused
+21:33:18.343 i.i.e.n.rlpx.RLPxConnectionHandler - [Stopping Connection] Connection to enode://57be9e74b22ff3ea1bd3fedeb2ced310387dd176866793e273c7712305d8e4677f8913c86f93dfa8810e1cdb4177e5f87112db8748199a7771baf8dced63688b@104.41.188.223:30303 failed
+21:33:18.343 io.iohk.ethereum.network.PeerActor - Failed to establish RLPx connection
+21:33:18.343 io.iohk.ethereum.network.PeerActor - Scheduling connection retry in 20000 milliseconds
+21:33:18.416 i.i.e.b.s.SyncBlockHeadersRequestHandler - Received 192 block headers in 1422 ms
+21:33:18.421 i.i.e.blockchain.sync.SyncController - Block: 1536/4123573. Peers: 3/3 (0 blacklisted). State: 4113/35049 known nodes.
+21:33:18.820 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 399 ms
+21:33:18.934 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 1749 ms
+21:33:19.229 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 408 ms
+21:33:19.270 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 336 ms
+21:33:19.311 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 4480 ms
+21:33:19.639 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 12 receipts in 408 ms
+21:33:19.641 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 128 block bodies in 370 ms
+21:33:19.671 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 64 block bodies in 360 ms
+21:33:20.417 i.i.e.blockchain.sync.SyncController - Block: 1728/4123573. Peers: 3/3 (0 blacklisted). State: 4881/36045 known nodes.
+21:33:21.100 i.i.e.b.s.SyncBlockHeadersRequestHandler - Received 192 block headers in 1461 ms
+21:33:21.402 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 1756 ms
+21:33:21.448 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 340 ms
+21:33:21.790 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 386 ms
+21:33:21.791 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 342 ms
+21:33:22.096 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 12 receipts in 306 ms
+21:33:22.119 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 128 block bodies in 328 ms
+21:33:22.404 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 64 block bodies in 307 ms
+21:33:22.417 i.i.e.blockchain.sync.SyncController - Block: 1920/4123573. Peers: 3/3 (0 blacklisted). State: 5265/36347 known nodes.
+21:33:23.744 i.i.e.b.s.SyncBlockHeadersRequestHandler - Received 192 block headers in 1620 ms
+21:33:24.151 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 390 ms
+21:33:24.179 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 1772 ms
+21:33:24.416 i.i.e.blockchain.sync.SyncController - Block: 1920/4123573. Peers: 3/3 (0 blacklisted). State: 5649/38108 known nodes.
+21:33:24.559 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 407 ms
+21:33:24.560 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 381 ms
+21:33:24.863 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 128 block bodies in 303 ms
+21:33:24.884 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 12 receipts in 324 ms
+21:33:24.984 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 5311 ms
+21:33:25.170 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 64 block bodies in 304 ms
+21:33:26.417 i.i.e.blockchain.sync.SyncController - Block: 2112/4123573. Peers: 3/3 (0 blacklisted). State: 6033/38012 known nodes.
+21:33:26.832 i.i.e.b.s.SyncBlockHeadersRequestHandler - Received 192 block headers in 1948 ms
+21:33:26.846 i.i.e.b.s.FastSyncNodesRequestHandler - Received 384 state nodes in 1674 ms
+21:33:27.144 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 298 ms
+21:33:27.180 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 340 ms
+21:33:27.441 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 60 receipts in 296 ms
+21:33:27.505 i.i.e.b.s.FastSyncReceiptsRequestHandler - Received 12 receipts in 325 ms
+21:33:27.834 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 64 block bodies in 328 ms
+21:33:28.117 i.i.e.b.s.SyncBlockBodiesRequestHandler - Received 128 block bodies in 676 ms
+21:33:28.417 i.i.e.blockchain.sync.SyncController - Block: 2304/4123573. Peers: 3/3 (0 blacklisted). State: 6417/38270 known nodes.

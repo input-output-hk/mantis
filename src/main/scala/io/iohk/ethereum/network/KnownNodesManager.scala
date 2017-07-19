@@ -25,8 +25,6 @@ class KnownNodesManager(
 
   var toRemove: Set[URI] = Set.empty
 
-  println("[disco] scheudling ! config=" + config)
-
   scheduler.schedule(config.persistInterval, config.persistInterval) {
     persistChanges()
   }
@@ -51,10 +49,7 @@ class KnownNodesManager(
   }
 
   private def persistChanges(): Unit = {
-    println("[disco] persist changes")
     if (toAdd.nonEmpty || toRemove.nonEmpty) {
-      println("[disco] persist changes - inside if")
-
       knownNodesStorage.updateKnownNodes(
         toAdd = toAdd,
         toRemove = toRemove)
