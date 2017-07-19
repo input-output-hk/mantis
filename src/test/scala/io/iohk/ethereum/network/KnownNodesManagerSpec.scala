@@ -14,34 +14,42 @@ import org.scalatest.{FlatSpec, Matchers}
 class KnownNodesManagerSpec extends FlatSpec with Matchers {
 
   "KnownNodesManager" should "keep a list of nodes and persist changes" in new TestSetup {
-    val uri1 = new URI("enode://test1@test1.com:9000")
-    val uri2 = new URI("enode://test2@test2.com:9000")
-    val uri3 = new URI("enode://test3@test3.com:9000")
-    val uri4 = new URI("enode://test4@test4.com:9000")
-
     knownNodesManager.tell(KnownNodesManager.GetKnownNodes, client.ref)
     client.expectMsg(KnownNodesManager.KnownNodes(Set.empty))
 
-    knownNodesManager.tell(KnownNodesManager.AddKnownNode(uri1), client.ref)
-    knownNodesManager.tell(KnownNodesManager.AddKnownNode(uri2), client.ref)
+    knownNodesManager.tell(KnownNodesManager.AddKnownNode(uri(1)), client.ref)
+    knownNodesManager.tell(KnownNodesManager.AddKnownNode(uri(2)), client.ref)
     knownNodesManager.tell(KnownNodesManager.GetKnownNodes, client.ref)
-    client.expectMsg(KnownNodesManager.KnownNodes(Set(uri1, uri2)))
+    client.expectMsg(KnownNodesManager.KnownNodes(Set(uri(1), uri(2))))
     storagesInstance.storages.knownNodesStorage.getKnownNodes() shouldBe Set.empty
 
     time.advance(config.persistInterval + 1.seconds)
 
-    storagesInstance.storages.knownNodesStorage.getKnownNodes() shouldBe Set(uri1, uri2)
+    storagesInstance.storages.knownNodesStorage.getKnownNodes() shouldBe Set(uri(1), uri(2))
 
-    knownNodesManager.tell(KnownNodesManager.AddKnownNode(uri3), client.ref)
-    knownNodesManager.tell(KnownNodesManager.AddKnownNode(uri4), client.ref)
-    knownNodesManager.tell(KnownNodesManager.RemoveKnownNode(uri1), client.ref)
-    knownNodesManager.tell(KnownNodesManager.RemoveKnownNode(uri4), client.ref)
+    knownNodesManager.tell(KnownNodesManager.AddKnownNode(uri(3)), client.ref)
+    knownNodesManager.tell(KnownNodesManager.AddKnownNode(uri(4)), client.ref)
+    knownNodesManager.tell(KnownNodesManager.RemoveKnownNode(uri(1)), client.ref)
+    knownNodesManager.tell(KnownNodesManager.RemoveKnownNode(uri(4)), client.ref)
     knownNodesManager.tell(KnownNodesManager.GetKnownNodes, client.ref)
-    client.expectMsg(KnownNodesManager.KnownNodes(Set(uri2, uri3)))
+    client.expectMsg(KnownNodesManager.KnownNodes(Set(uri(2), uri(3))))
 
     time.advance(config.persistInterval + 1.seconds)
 
-    storagesInstance.storages.knownNodesStorage.getKnownNodes() shouldBe Set(uri2, uri3)
+    storagesInstance.storages.knownNodesStorage.getKnownNodes() shouldBe Set(uri(2), uri(3))
+  }
+
+  it should "respect max nodes limit" in new TestSetup {
+    knownNodesManager.tell(KnownNodesManager.GetKnownNodes, client.ref)
+    client.expectMsg(KnownNodesManager.KnownNodes(Set.empty))
+
+    (0 to 10).foreach { n =>
+      knownNodesManager.tell(KnownNodesManager.AddKnownNode(uri(n)), client.ref)
+    }
+    time.advance(config.persistInterval + 1.seconds)
+
+    storagesInstance.storages.knownNodesStorage.getKnownNodes() shouldBe Set(uri(1), uri(2), uri(3), uri(4), uri(5))
+    storagesInstance.storages.knownNodesStorage.getKnownNodes() shouldBe Set(uri(1), uri(2), uri(3), uri(4), uri(5))
   }
 
   trait TestSetup {
@@ -50,9 +58,11 @@ class KnownNodesManagerSpec extends FlatSpec with Matchers {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
 
     val time = new VirtualTime
-    val config = KnownNodesManagerConfig(5.seconds)
+    val config = KnownNodesManagerConfig(persistInterval = 5.seconds, maxPersistedNodes = 5)
 
     val client = TestProbe()
+
+    def uri(n: Int): URI = new URI(s"enode://test$n@test$n.com:9000")
 
     val knownNodesManager = system.actorOf(Props(new KnownNodesManager(config, storagesInstance.storages.knownNodesStorage, Some(time.scheduler))))
   }

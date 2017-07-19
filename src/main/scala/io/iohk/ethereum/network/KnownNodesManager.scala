@@ -50,6 +50,9 @@ class KnownNodesManager(
 
   private def persistChanges(): Unit = {
     log.debug(s"Persisting ${knownNodes.size} known nodes.")
+    if (knownNodes.size > config.maxPersistedNodes) {
+      toRemove ++= knownNodes.take(knownNodes.size - config.maxPersistedNodes)
+    }
     if (toAdd.nonEmpty || toRemove.nonEmpty) {
       knownNodesStorage.updateKnownNodes(
         toAdd = toAdd,
@@ -70,13 +73,14 @@ object KnownNodesManager {
   case object GetKnownNodes
   case class KnownNodes(nodes: Set[URI])
 
-  case class KnownNodesManagerConfig(persistInterval: FiniteDuration)
+  case class KnownNodesManagerConfig(persistInterval: FiniteDuration, maxPersistedNodes: Int)
 
   object KnownNodesManagerConfig {
     def apply(etcClientConfig: com.typesafe.config.Config): KnownNodesManagerConfig = {
       val knownNodesManagerConfig = etcClientConfig.getConfig("network.known-nodes")
       KnownNodesManagerConfig(
-        persistInterval = knownNodesManagerConfig.getDuration("persist-interval").toMillis.millis)
+        persistInterval = knownNodesManagerConfig.getDuration("persist-interval").toMillis.millis,
+        maxPersistedNodes = knownNodesManagerConfig.getInt("max-persisted-nodes"))
     }
   }
 }
