@@ -2,7 +2,7 @@ package io.iohk.ethereum.network
 
 import java.net.URI
 
-import akka.actor.{Actor, Props, Scheduler}
+import akka.actor.{Actor, ActorLogging, Props, Scheduler}
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.network.KnownNodesManager.KnownNodesManagerConfig
 
@@ -13,7 +13,7 @@ class KnownNodesManager(
     config: KnownNodesManagerConfig,
     knownNodesStorage: KnownNodesStorage,
     externalSchedulerOpt: Option[Scheduler] = None)
-  extends Actor {
+  extends Actor with ActorLogging {
 
   import KnownNodesManager._
 
@@ -49,6 +49,7 @@ class KnownNodesManager(
   }
 
   private def persistChanges(): Unit = {
+    log.debug(s"Persisting ${knownNodes.size} known nodes.")
     if (toAdd.nonEmpty || toRemove.nonEmpty) {
       knownNodesStorage.updateKnownNodes(
         toAdd = toAdd,
