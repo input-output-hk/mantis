@@ -51,7 +51,9 @@ class KnownNodesManager(
   private def persistChanges(): Unit = {
     log.debug(s"Persisting ${knownNodes.size} known nodes.")
     if (knownNodes.size > config.maxPersistedNodes) {
-      toRemove ++= knownNodes.take(knownNodes.size - config.maxPersistedNodes)
+      val toAbandon = knownNodes.take(knownNodes.size - config.maxPersistedNodes)
+      toRemove ++= toAbandon
+      toAdd --= toAbandon
     }
     if (toAdd.nonEmpty || toRemove.nonEmpty) {
       knownNodesStorage.updateKnownNodes(

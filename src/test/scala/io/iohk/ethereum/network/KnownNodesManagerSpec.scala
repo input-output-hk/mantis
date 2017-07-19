@@ -43,13 +43,12 @@ class KnownNodesManagerSpec extends FlatSpec with Matchers {
     knownNodesManager.tell(KnownNodesManager.GetKnownNodes, client.ref)
     client.expectMsg(KnownNodesManager.KnownNodes(Set.empty))
 
-    (0 to 10).foreach { n =>
+    (1 to 10).foreach { n =>
       knownNodesManager.tell(KnownNodesManager.AddKnownNode(uri(n)), client.ref)
     }
     time.advance(config.persistInterval + 1.seconds)
 
-    storagesInstance.storages.knownNodesStorage.getKnownNodes() shouldBe Set(uri(1), uri(2), uri(3), uri(4), uri(5))
-    storagesInstance.storages.knownNodesStorage.getKnownNodes() shouldBe Set(uri(1), uri(2), uri(3), uri(4), uri(5))
+    storagesInstance.storages.knownNodesStorage.getKnownNodes().size shouldBe 5
   }
 
   trait TestSetup {
