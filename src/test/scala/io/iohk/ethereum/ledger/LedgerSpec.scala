@@ -26,6 +26,7 @@ import io.iohk.ethereum.validators._
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
 
+// scalastyle:off file.size.limit
 class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
   val blockchainConfig = BlockchainConfig(Config.config)
