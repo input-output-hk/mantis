@@ -69,15 +69,13 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
       val ordered = txsFromSender
         .sortBy(-_.tx.gasPrice)
         .sortBy(_.tx.nonce)
-        .scanLeft(None: Option[BigInt], None: Option[SignedTransaction]) { case ((prevNonce, _), stx) =>
-          prevNonce match {
-            case Some(nonce) if nonce ==stx.tx.nonce =>
-              (Some(stx.tx.nonce), None)
-            case _ =>
-              (Some(stx.tx.nonce), Some(stx))
+        .foldLeft(Seq.empty[SignedTransaction]) { case (txs, tx) =>
+          if (txs.exists(_.tx.nonce == tx.tx.nonce)) {
+            txs
+          } else {
+            txs :+ tx
           }
         }
-        .flatMap { case (_, stx) => stx }
         .takeWhile(_.tx.gasLimit <= blockGasLimit)
       ordered.headOption.map(_.tx.gasPrice -> ordered)
     }.sortBy { case (gasPrice, _) => gasPrice }.reverse.flatMap { case (_, txs) => txs }
