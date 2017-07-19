@@ -82,6 +82,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       nodeStatusHolder = nodeStatusHolder,
       peerConfiguration = peerConfig,
       peerMessageBus = peerMessageBus,
+      knownNodesManager = actorSystem.deadLetters, // TODO: fixme
       handshaker = handshaker,
       authHandshaker = authHandshaker,
       messageDecoder = EthereumMessageDecoder), "peer-manager")

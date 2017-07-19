@@ -206,6 +206,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     time.advance(5.seconds)
     rlpxConnection.expectMsg(Timeouts.normalTimeout, RLPxConnectionHandler.SendMessage(Disconnect(Disconnect.Reasons.TimeoutOnReceivingAMessage)))
+
   }
 
   it should "respond to fork block request during the handshake" in new TestSetup {
