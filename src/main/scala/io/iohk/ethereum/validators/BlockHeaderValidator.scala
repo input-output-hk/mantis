@@ -16,7 +16,6 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
 
   val MaxExtraDataSize: Int = 32
   val GasLimitBoundDivisor: Int = 1024
-  //todo should we report this?
   val MinGasLimit: BigInt = 5000 //Although the paper states this value is 125000, on the different clients 5000 is used
   val difficulty = new DifficultyCalculator(blockchainConfig)
   import BlockHeaderError._

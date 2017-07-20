@@ -67,6 +67,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction))
   }
 
   it should "filter out transactions exceeding block gas limit and include correct transactions" in new TestSetup {
@@ -89,6 +90,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction))
   }
 
   it should "generate block before eip155 and filter out chain specific tx" in new TestSetup {
@@ -153,6 +155,38 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     val result: Either[BlockPreparationError, PendingBlock] =
       blockGenerator.generateBlockForMining(1, Seq(nextTransaction, signedTransaction), Nil, Address(testAddress))
+    result shouldBe a[Right[_, Block]]
+
+    //mined with etc-client + ethminer
+    val minedNonce = ByteString(Hex.decode("8f88ec20f1be482f"))
+    val minedMixHash = ByteString(Hex.decode("247a206abc088487edc1697fcaceb33ad87b55666e438129b7048bb08c8ed88f"))
+    val miningTimestamp = 1499721182
+
+    val fullBlock: Either[BlockPreparationError, Block] = result.right
+      .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
+    fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
+    fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction, nextTransaction))
+  }
+
+  it should "filter out failing transaction from the middle of tx list" in new TestSetup {
+    val nextTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(nonce = signedTransaction.tx.nonce + 1), keyPair, Some(0x3d.toByte))
+
+    val privateKeyWithNoEthere = BigInt(1, Hex.decode("584a31be275195585603ddd05a53d16fae9deafba67213b6060cec9f16e44cae"))
+
+    val failingTransaction = Transaction(
+      nonce = 0,
+      gasPrice = 1,
+      gasLimit = txGasLimit,
+      receivingAddress = Address(testAddress),
+      value = txTransfer,
+      payload = ByteString.empty)
+    val signedFailingTransaction: SignedTransaction = SignedTransaction.sign(failingTransaction,
+      keyPairFromPrvKey(privateKeyWithNoEthere), Some(0x3d.toByte))
+
+    val result: Either[BlockPreparationError, PendingBlock] =
+      blockGenerator.generateBlockForMining(1, Seq(nextTransaction, signedFailingTransaction, signedTransaction),
+        Nil, Address(testAddress))
     result shouldBe a[Right[_, Block]]
 
     //mined with etc-client + ethminer
@@ -248,6 +282,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val coinbase: Address = Address(42)
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
+      override val activeTimeout: FiniteDuration = Timeouts.normalTimeout
       override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
