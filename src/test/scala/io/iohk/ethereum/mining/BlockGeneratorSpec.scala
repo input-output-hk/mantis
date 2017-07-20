@@ -279,6 +279,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val coinbase: Address = Address(42)
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
+      override val activeTimeout: FiniteDuration = Timeouts.normalTimeout
       override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 

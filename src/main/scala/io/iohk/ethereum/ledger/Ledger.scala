@@ -36,6 +36,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val blockExecResult = for {
       _ <- validateBlockBeforeExecution(block, blockchain, validators)
 
+      //TODO: Investigate removing passing both blockchain and storages as parameters [EC-253]
       execResult <- executeBlockTransactions(block, blockchain, storages, validators.signedTransactionValidator)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
       worldToPersist = payBlockReward(block, resultingWorldStateProxy)

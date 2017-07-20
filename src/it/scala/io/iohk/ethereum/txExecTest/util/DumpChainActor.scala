@@ -45,7 +45,6 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
   // scalastyle:off
   override def receive: Receive = {
     case Peers(p) =>
-      //TODO ask for block headers
       peers = p.keys.toSeq
       peers.headOption.foreach { peer =>
         peerMessageBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code, BlockBodies.code, Receipts.code, NodeData.code), PeerSelector.WithId(peer.id)))
