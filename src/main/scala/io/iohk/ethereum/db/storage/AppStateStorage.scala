@@ -55,7 +55,7 @@ class AppStateStorage(val dataSource: DataSource, pruneFn: PruneFn) extends KeyV
     put(Keys.LastPrunedBlock, n.toString())
 
   def getLastPrunedBlock(): BigInt =
-    BigInt(get(Keys.LastPrunedBlock).getOrElse("-1"))
+    BigInt(get(Keys.LastPrunedBlock).getOrElse("0"))
 }
 
 object AppStateStorage {
