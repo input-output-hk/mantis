@@ -36,23 +36,11 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
       blockchain.getBlockByNumber(blockNumber - 1).map { parent =>
         val blockTimestamp = blockTimestampProvider.getEpochSecond
         val header: BlockHeader = prepareHeader(blockNumber, ommers, beneficiary, parent, blockTimestamp)
-
-        val sortedTransactions = transactions.groupBy(_.senderAddress).values.toList.flatMap { txsFromSender =>
-          val ordered = txsFromSender.sortBy(_.tx.gasPrice).reverse.sortBy(_.tx.nonce)
-            .takeWhile(_.tx.gasLimit <= header.gasLimit)
-          ordered.headOption.map(_.tx.gasPrice -> ordered)
-        }.sortBy { case (gasPrice, _) => gasPrice }.reverse.flatMap { case (_, txs) => txs }
-
-        val transactionsForBlock = sortedTransactions
-          .scanLeft(BigInt(0), None: Option[SignedTransaction]) { case ((accumulatedGas, _), stx) => (accumulatedGas + stx.tx.gasLimit, Some(stx)) }
-          .collect{case (gas,Some(stx)) => (gas,stx)}
-          .takeWhile{case (gas, _) => gas <= header.gasLimit}
-          .map{case (_, stx) => stx}
-
+        val transactionsForBlock: List[SignedTransaction] = prepareTransactions(transactions, header.gasLimit)
         val body = BlockBody(transactionsForBlock, ommers)
         val block = Block(header, body)
 
-        ledger.prepareBlock(block, blockchainStorages, validators).right.map {
+        val prepared = ledger.prepareBlock(block, blockchainStorages, validators) match {
           case BlockPreparationResult(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot) =>
             val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
             val bloomFilter = ByteString(or(receiptsLogs: _*))
@@ -65,6 +53,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
               gasUsed = gasUsed),
               body = prepareBlock.body), receipts)
         }
+        Right(prepared)
       }.getOrElse(Left(NoParent))
     }
 
@@ -74,6 +63,30 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
     }))
 
     result
+  }
+
+  private def prepareTransactions(transactions: Seq[SignedTransaction], blockGasLimit: BigInt) = {
+    val sortedTransactions = transactions.groupBy(_.senderAddress).values.toList.flatMap { txsFromSender =>
+      val ordered = txsFromSender
+        .sortBy(-_.tx.gasPrice)
+        .sortBy(_.tx.nonce)
+        .foldLeft(Seq.empty[SignedTransaction]) { case (txs, tx) =>
+          if (txs.exists(_.tx.nonce == tx.tx.nonce)) {
+            txs
+          } else {
+            txs :+ tx
+          }
+        }
+        .takeWhile(_.tx.gasLimit <= blockGasLimit)
+      ordered.headOption.map(_.tx.gasPrice -> ordered)
+    }.sortBy { case (gasPrice, _) => gasPrice }.reverse.flatMap { case (_, txs) => txs }
+
+    val transactionsForBlock = sortedTransactions
+      .scanLeft(BigInt(0), None: Option[SignedTransaction]) { case ((accumulatedGas, _), stx) => (accumulatedGas + stx.tx.gasLimit, Some(stx)) }
+      .collect { case (gas, Some(stx)) => (gas, stx) }
+      .takeWhile { case (gas, _) => gas <= blockGasLimit }
+      .map { case (_, stx) => stx }
+    transactionsForBlock
   }
 
   private def prepareHeader(blockNumber: BigInt, ommers: Seq[BlockHeader], beneficiary: Address, parent: Block, blockTimestamp: Long) = BlockHeader(
