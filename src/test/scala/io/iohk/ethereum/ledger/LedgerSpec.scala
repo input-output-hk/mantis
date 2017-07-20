@@ -718,7 +718,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     val stx3: SignedTransaction = SignedTransaction.sign(tx3, newAccountKeyPair, Some(blockchainConfig.chainId))
     val stx4: SignedTransaction = SignedTransaction.sign(tx4, newAccountKeyPair, Some(blockchainConfig.chainId))
 
-    val result: Either[BlockExecutionError.TxsExecutionError, (BlockResult, Seq[SignedTransaction])] = ledger.executePreparedTransactions(
+    val result: (BlockResult, Seq[SignedTransaction]) = ledger.executePreparedTransactions(
       Seq(stx1, stx2, stx3, stx4),
       initialWorld,
       defaultBlockHeader,
@@ -730,8 +730,33 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
         }
       })
 
-    result shouldBe a[Right[_, (BlockResult, Seq[SignedTransaction])]]
-    result.right.foreach { case (_, executedTxs) => executedTxs shouldBe Seq(stx1, stx4) }
+    result match { case (_, executedTxs) => executedTxs shouldBe Seq(stx1, stx4) }
+  }
+
+  it should "produce empty block if all txs fail" in new TestSetup {
+    val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
+    val newAccountAddress = Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
+
+    val mockVM = new MockVM((pc: Ledger.PC) => {
+      createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
+    })
+
+    val ledger = new LedgerImpl(mockVM, blockchainConfig)
+
+    val tx1: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
+    val tx2: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
+    val stx1: SignedTransaction = SignedTransaction.sign(tx1, newAccountKeyPair, Some(blockchainConfig.chainId))
+    val stx2: SignedTransaction = SignedTransaction.sign(tx2, newAccountKeyPair, Some(blockchainConfig.chainId))
+
+    val result: (BlockResult, Seq[SignedTransaction]) = ledger.executePreparedTransactions(
+      Seq(stx1, stx2),
+      initialWorld,
+      defaultBlockHeader,
+      (_: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => {
+        Left(TransactionSignatureError)
+      })
+
+    result match { case (_, executedTxs) => executedTxs shouldBe Seq.empty }
   }
 
   trait TestSetup extends SecureRandomBuilder {

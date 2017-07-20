@@ -17,7 +17,7 @@ trait Ledger {
 
   def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockExecutionError, Seq[Receipt]]
 
-  def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockPreparationError, BlockPreparationResult]
+  def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators): BlockPreparationResult
 
   def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): TxResult
 }
@@ -52,23 +52,19 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
   def prepareBlock(
     block: Block,
     storages: BlockchainStorages,
-    validators: Validators): Either[BlockPreparationError, BlockPreparationResult] = {
+    validators: Validators): BlockPreparationResult = {
 
     val blockchain = BlockchainImpl(storages)
-
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = InMemoryWorldStateProxy(storages, blockchainConfig.accountStartNonce, parentStateRoot)
+    val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header, validators.signedTransactionValidator)
 
-    val blockExecResult: Either[BlockExecutionError, BlockPreparationResult] = for {
-    //todo why do we require in executeBlockTransactions separate blockchain and blockchain storage
-    //todo blockchain storage is part of blockchain
-      prepared <- executePreparedTransactions(block.body.transactionList, initialWorld, block.header, validators.signedTransactionValidator)
-      (execResult@BlockResult(resultingWorldStateProxy, _, _), txExecuted) = prepared
-      worldToPersist = payBlockReward(block, resultingWorldStateProxy)
-      worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for prepared block
-    } yield BlockPreparationResult(block.copy(body = block.body.copy(transactionList = txExecuted)), execResult, worldPersisted.stateRootHash)
-
-    blockExecResult.left.map(e => TxError(e.reason))
+    prepared match {
+      case (execResult@BlockResult(resultingWorldStateProxy, _, _), txExecuted) =>
+        val worldToPersist = payBlockReward(block, resultingWorldStateProxy)
+        val worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
+        BlockPreparationResult(block.copy(body = block.body.copy(transactionList = txExecuted)), execResult, worldPersisted.stateRootHash)
+    }
   }
 
   /**
@@ -101,18 +97,17 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
   private[ledger] final def executePreparedTransactions(
     signedTransactions: Seq[SignedTransaction], world: InMemoryWorldStateProxy,
     blockHeader: BlockHeader, signedTransactionValidator: SignedTransactionValidator,
-    acumGas: BigInt = 0, acumReceipts: Seq[Receipt] = Nil, executed: Seq[SignedTransaction] = Nil)
-  : Either[TxsExecutionError, (BlockResult, Seq[SignedTransaction])] = {
+    acumGas: BigInt = 0, acumReceipts: Seq[Receipt] = Nil, executed: Seq[SignedTransaction] = Nil): (BlockResult, Seq[SignedTransaction]) = {
 
     val result = executeTransactions(signedTransactions, world, blockHeader, signedTransactionValidator, acumGas, acumReceipts)
 
     result match {
-      case Left(TxsExecutionError(stx, StateBeforeFailure(worldState, gas, receipts), reason)) if signedTransactions.length > 1 =>
+      case Left(TxsExecutionError(stx, StateBeforeFailure(worldState, gas, receipts), reason)) =>
         log.debug(s"failure while preparing block because of $reason in transaction with hash ${stx.hashAsHexString}")
         val txIndex = signedTransactions.indexWhere(tx => tx.hash == stx.hash)
         executePreparedTransactions(signedTransactions.drop(txIndex + 1),
           worldState, blockHeader, signedTransactionValidator, gas, receipts, executed ++ signedTransactions.take(txIndex))
-      case r => r.right.map(br => (br, executed ++ signedTransactions))
+      case Right(br) => (br, executed ++ signedTransactions)
     }
   }
 

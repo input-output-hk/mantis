@@ -40,7 +40,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
         val body = BlockBody(transactionsForBlock, ommers)
         val block = Block(header, body)
 
-        ledger.prepareBlock(block, blockchainStorages, validators).right.map {
+        val prepared = ledger.prepareBlock(block, blockchainStorages, validators) match {
           case BlockPreparationResult(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot) =>
             val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
             val bloomFilter = ByteString(or(receiptsLogs: _*))
@@ -53,6 +53,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
               gasUsed = gasUsed),
               body = prepareBlock.body), receipts)
         }
+        Right(prepared)
       }.getOrElse(Left(NoParent))
     }
 

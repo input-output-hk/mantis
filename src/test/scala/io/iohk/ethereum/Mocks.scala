@@ -28,8 +28,7 @@ object Mocks {
           "StubLedger was set to fail for this case"))
     }
 
-    override def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators):
-    Either[BlockPreparationError, BlockPreparationResult] = {
+    override def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators): BlockPreparationResult = {
       ???
     }
 
