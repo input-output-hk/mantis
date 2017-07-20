@@ -57,7 +57,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val blockchain = BlockchainImpl(storages)
 
     val blockExecResult = for {
-      execResult <- executeBlockTransactions(block, blockchain, validators.signedTransactionValidator)
+      execResult <- executeBlockTransactions(block, blockchain, validators.signedTransactionValidator, readOnly = true)
       BlockResult(resultingWorldStateProxy, _, _) = execResult
       worldToPersist = payBlockReward(block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for prepared block
@@ -86,10 +86,17 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
   private[ledger] def executeBlockTransactions(
     block: Block,
     blockchain: BlockchainImpl,
-    signedTransactionValidator: SignedTransactionValidator):
+    signedTransactionValidator: SignedTransactionValidator,
+    readOnly: Boolean = false):
   Either[BlockExecutionError, BlockResult] = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
-    val initialWorld: blockchain.WS = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
+    val getWorldStateProxyFn =
+        if(readOnly) blockchain.getReadOnlyWorldStateProxy _
+        else blockchain.getWorldStateProxy _
+    val initialWorld: blockchain.WS = getWorldStateProxyFn(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
+
+      //if(readOnly) blockchain.getReadOnlyWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
+      //else blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
 
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
     val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, signedTransactionValidator)

@@ -105,10 +105,7 @@ object MerklePatriciaTrie {
   }
 }
 
-trait NodesKeyValueStorage {
-  def get(key: NodeHash): Option[NodeEncoded]
-  def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesKeyValueStorage
-}
+trait NodesKeyValueStorage extends SimpleMap[NodeHash, NodeEncoded, NodesKeyValueStorage]
 
 class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]],
   val nodeStorage: NodesKeyValueStorage,
