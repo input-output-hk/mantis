@@ -334,7 +334,6 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val chainId: Byte = 0x03.toByte
 
       //unused
-      override val maxCodeSize: Option[BigInt] = None
       override val frontierBlockNumber: BigInt = 0
       override val homesteadBlockNumber: BigInt = 0
       override val eip150BlockNumber: BigInt = 0

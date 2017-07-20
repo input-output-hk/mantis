@@ -4,12 +4,16 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
-import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig, VMConfig}
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.{UInt256, VM}
 import org.scalatest.{FlatSpec, Matchers}
 
 class ForksTest extends FlatSpec with Matchers {
+
+  val vmConfig = new VMConfig {
+    override val maxCodeSize: Option[BigInt] = None
+  }
 
   val blockchainConfig = new BlockchainConfig {
     override val frontierBlockNumber: BigInt = 0
@@ -22,7 +26,6 @@ class ForksTest extends FlatSpec with Matchers {
     override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L)
 
     // unused
-    override val maxCodeSize: Option[BigInt] = None
     override val customGenesisFileOpt: Option[String] = None
     override val daoForkBlockNumber: BigInt = 10000
     override val daoForkBlockHash: ByteString = ByteString("unused")
@@ -31,7 +34,7 @@ class ForksTest extends FlatSpec with Matchers {
     override val accountStartNonce: UInt256 = UInt256.Zero
   }
 
-  val ledger = new LedgerImpl(VM, blockchainConfig)
+  val ledger = new LedgerImpl(VM, blockchainConfig, vmConfig)
 
   val noErrors = a[Right[_, Seq[Receipt]]]
 
@@ -39,7 +42,7 @@ class ForksTest extends FlatSpec with Matchers {
     val blockValidator: BlockValidator = BlockValidator
     val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
     val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig)
-    val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
+    val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig, vmConfig)
   }
 
   "Ledger" should "execute blocks with respect to forks" in {

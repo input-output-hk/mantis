@@ -3,7 +3,7 @@ package io.iohk.ethereum.validators
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators.SignedTransactionError._
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, VMConfig}
 import io.iohk.ethereum.vm.{EvmConfig, UInt256}
 
 trait SignedTransactionValidator {
@@ -13,7 +13,7 @@ trait SignedTransactionValidator {
 
 }
 
-class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends SignedTransactionValidator {
+class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig, vmConfig: VMConfig) extends SignedTransactionValidator {
 
   val secp256k1n: BigInt = BigInt("115792089237316195423570985008687907852837564279074904382605163141518161494337")
 
@@ -116,7 +116,7 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     */
   private def validateGasLimitEnoughForIntrinsicGas(stx: SignedTransaction, blockHeaderNumber: BigInt): Either[SignedTransactionError, Unit] = {
     import stx.tx
-    val config = EvmConfig.forBlock(blockHeaderNumber, blockchainConfig)
+    val config = EvmConfig.forBlock(blockHeaderNumber, blockchainConfig, vmConfig)
     val txIntrinsicGas = config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
     if (stx.tx.gasLimit >= txIntrinsicGas) Right(())
     else Left(TransactionNotEnoughGasForIntrinsicError(stx.tx.gasLimit, txIntrinsicGas))
