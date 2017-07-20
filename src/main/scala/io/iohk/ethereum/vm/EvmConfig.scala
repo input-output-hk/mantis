@@ -8,6 +8,8 @@ import io.iohk.ethereum.utils.BlockchainConfig
 // scalastyle:off magic.number
 object EvmConfig {
 
+  type EvmConfigBuilder = Option[BigInt] => EvmConfig
+
   val MaxCallDepth: Int = 1024
 
   val MaxMemory: UInt256 = UInt256(Int.MaxValue) /* used to artificially limit memory usage by incurring maximum gas cost */
@@ -30,9 +32,7 @@ object EvmConfig {
     evmConfigBuilder(blockchainConfig.maxCodeSize)
   }
 
-  type EvmConfigBuilder = Option[BigInt] => EvmConfig
-
-  def FrontierConfigBuilder(maxCodeSize: Option[BigInt]): EvmConfig = EvmConfig(
+  val FrontierConfigBuilder: EvmConfigBuilder = maxCodeSize => EvmConfig(
     feeSchedule = new FeeSchedule.FrontierFeeSchedule,
     opCodes = OpCodes.FrontierOpCodes,
     exceptionalFailedCodeDeposit = false,
@@ -40,7 +40,7 @@ object EvmConfig {
     chargeSelfDestructForNewAccount = false,
     maxCodeSize = maxCodeSize)
 
-  def HomesteadConfigBuilder(maxCodeSize: Option[BigInt]): EvmConfig = EvmConfig(
+  val HomesteadConfigBuilder: EvmConfigBuilder = maxCodeSize => EvmConfig(
     feeSchedule = new FeeSchedule.HomesteadFeeSchedule,
     opCodes = OpCodes.HomesteadOpCodes,
     exceptionalFailedCodeDeposit = true,
@@ -48,12 +48,12 @@ object EvmConfig {
     chargeSelfDestructForNewAccount = false,
     maxCodeSize = maxCodeSize)
 
-  def PostEIP150ConfigBuilder(maxCodeSize: Option[BigInt]): EvmConfig = HomesteadConfigBuilder(maxCodeSize).copy(
+  val PostEIP150ConfigBuilder: EvmConfigBuilder = maxCodeSize => HomesteadConfigBuilder(maxCodeSize).copy(
     feeSchedule = new FeeSchedule.PostEIP150FeeSchedule,
     subGasCapDivisor = Some(64),
     chargeSelfDestructForNewAccount = true)
 
-  def PostEIP160ConfigBuilder(maxCodeSize: Option[BigInt]): EvmConfig = PostEIP150ConfigBuilder(maxCodeSize).copy(
+  val PostEIP160ConfigBuilder: EvmConfigBuilder = maxCodeSize => PostEIP150ConfigBuilder(maxCodeSize).copy(
     feeSchedule = new FeeSchedule.PostEIP160FeeSchedule)
 }
 
