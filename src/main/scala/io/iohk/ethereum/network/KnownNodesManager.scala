@@ -25,9 +25,7 @@ class KnownNodesManager(
 
   var toRemove: Set[URI] = Set.empty
 
-  scheduler.schedule(config.persistInterval, config.persistInterval) {
-    persistChanges()
-  }
+  scheduler.schedule(config.persistInterval, config.persistInterval, self, PersistChanges)
 
   override def receive: Receive = {
     case AddKnownNode(uri) =>
@@ -46,6 +44,9 @@ class KnownNodesManager(
 
     case GetKnownNodes =>
       sender() ! KnownNodes(knownNodes)
+
+    case PersistChanges =>
+      persistChanges()
   }
 
   private def persistChanges(): Unit = {
@@ -74,6 +75,8 @@ object KnownNodesManager {
   case class RemoveKnownNode(uri: URI)
   case object GetKnownNodes
   case class KnownNodes(nodes: Set[URI])
+
+  private case object PersistChanges
 
   case class KnownNodesManagerConfig(persistInterval: FiniteDuration, maxPersistedNodes: Int)
 

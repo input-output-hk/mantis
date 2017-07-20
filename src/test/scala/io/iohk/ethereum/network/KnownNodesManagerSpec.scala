@@ -23,18 +23,21 @@ class KnownNodesManagerSpec extends FlatSpec with Matchers {
     client.expectMsg(KnownNodesManager.KnownNodes(Set(uri(1), uri(2))))
     storagesInstance.storages.knownNodesStorage.getKnownNodes() shouldBe Set.empty
 
-    time.advance(config.persistInterval + 1.seconds)
+    time.advance(config.persistInterval + 10.seconds)
 
+    knownNodesManager.tell(KnownNodesManager.GetKnownNodes, client.ref)
+    client.expectMsg(KnownNodesManager.KnownNodes(Set(uri(1), uri(2))))
     storagesInstance.storages.knownNodesStorage.getKnownNodes() shouldBe Set(uri(1), uri(2))
 
     knownNodesManager.tell(KnownNodesManager.AddKnownNode(uri(3)), client.ref)
     knownNodesManager.tell(KnownNodesManager.AddKnownNode(uri(4)), client.ref)
     knownNodesManager.tell(KnownNodesManager.RemoveKnownNode(uri(1)), client.ref)
     knownNodesManager.tell(KnownNodesManager.RemoveKnownNode(uri(4)), client.ref)
+
+    time.advance(config.persistInterval + 10.seconds)
+
     knownNodesManager.tell(KnownNodesManager.GetKnownNodes, client.ref)
     client.expectMsg(KnownNodesManager.KnownNodes(Set(uri(2), uri(3))))
-
-    time.advance(config.persistInterval + 1.seconds)
 
     storagesInstance.storages.knownNodesStorage.getKnownNodes() shouldBe Set(uri(2), uri(3))
   }
@@ -47,6 +50,9 @@ class KnownNodesManagerSpec extends FlatSpec with Matchers {
       knownNodesManager.tell(KnownNodesManager.AddKnownNode(uri(n)), client.ref)
     }
     time.advance(config.persistInterval + 1.seconds)
+
+    knownNodesManager.tell(KnownNodesManager.GetKnownNodes, client.ref)
+    client.expectMsgClass(classOf[KnownNodesManager.KnownNodes])
 
     storagesInstance.storages.knownNodesStorage.getKnownNodes().size shouldBe 5
   }

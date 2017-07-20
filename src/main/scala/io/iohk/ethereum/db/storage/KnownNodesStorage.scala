@@ -20,7 +20,7 @@ class KnownNodesStorage(val dataSource: DataSource) extends KeyValueStorage[Stri
 
   protected def apply(dataSource: DataSource): KnownNodesStorage = new KnownNodesStorage(dataSource)
 
-  def getKnownNodes(): Set[URI] = synchronized {
+  def getKnownNodes(): Set[URI] = {
     get(key).getOrElse(Set.empty).filter(_.nonEmpty).map(new URI(_))
   }
 

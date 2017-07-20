@@ -197,7 +197,7 @@ class PeerActor[R <: HandshakeResult](
     case RLPxConnectionHandler.MessageReceived(d: Disconnect) =>
       import Disconnect.Reasons._
       d.reason match {
-        case IncompatibleP2pProtocolVersion | UselessPeer | Other =>
+        case IncompatibleP2pProtocolVersion | UselessPeer | NullNodeIdentityReceived | UnexpectedIdentity | IdentityTheSame | Other =>
           rlpxConnection.uriOpt.foreach(uri => knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri))
         case _ => // nothing
       }
