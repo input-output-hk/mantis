@@ -708,7 +708,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
     })
 
-    val ledger = new LedgerImpl(mockVM, blockchainConfig)
+    val ledger = new LedgerImpl(mockVM, blockchainConfig, vmConfig)
 
     val tx1: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
     val tx2: Transaction = defaultTx.copy(gasPrice = 43, receivingAddress = Some(Address(43)))
@@ -742,7 +742,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
     })
 
-    val ledger = new LedgerImpl(mockVM, blockchainConfig)
+    val ledger = new LedgerImpl(mockVM, blockchainConfig, vmConfig)
 
     val tx1: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
     val tx2: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
