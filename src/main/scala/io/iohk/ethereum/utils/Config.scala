@@ -173,6 +173,7 @@ trait MiningConfig {
   val ommersPoolSize: Int
   val blockCacheSize: Int
   val coinbase: Address
+  val activeTimeout: FiniteDuration
   val ommerPoolQueryTimeout: FiniteDuration
 }
 
@@ -184,6 +185,7 @@ object MiningConfig {
       val coinbase: Address = Address(miningConfig.getString("coinbase"))
       val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
       val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
+      val activeTimeout: FiniteDuration = miningConfig.getDuration("active-timeout").toMillis.millis
       val ommerPoolQueryTimeout: FiniteDuration = miningConfig.getDuration("ommer-pool-query-timeout").toMillis.millis
     }
   }
