@@ -2,6 +2,7 @@ package io.iohk.ethereum.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.{kec256, kec512}
+import io.iohk.ethereum.daoFork.DaoForkConfiguration
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, DifficultyCalculator}
 import io.iohk.ethereum.utils.BlockchainConfig
 import org.spongycastle.util.encoders.Hex
@@ -58,9 +59,18 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[HeaderExtraDataError]] otherwise
     */
-  private def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] =
-    if(blockHeader.extraData.length <= MaxExtraDataSize) Right(blockHeader)
-    else Left(HeaderExtraDataError)
+  private def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
+    if (blockchainConfig.proDaoFork &&
+      blockchainConfig.daoForkBlockNumber <= blockHeader.number &&
+      blockchainConfig.daoForkBlockNumber + DaoForkConfiguration.range > blockHeader.number &&
+      blockHeader.extraData != DaoForkConfiguration.blockExtraData) {
+      Left(DaoHeaderExtraDataError)
+    } else if (blockHeader.extraData.length <= MaxExtraDataSize) {
+      Right(blockHeader)
+    } else {
+      Left(HeaderExtraDataError)
+    }
+  }
 
   /**
     * Validates [[io.iohk.ethereum.domain.BlockHeader.unixTimestamp]] is greater than the one of its parent
@@ -168,6 +178,7 @@ sealed trait BlockHeaderError
 object BlockHeaderError {
   case object HeaderParentNotFoundError extends BlockHeaderError
   case object HeaderExtraDataError extends BlockHeaderError
+  case object DaoHeaderExtraDataError extends BlockHeaderError
   case object HeaderTimestampError extends BlockHeaderError
   case object HeaderDifficultyError extends BlockHeaderError
   case object HeaderGasUsedError extends BlockHeaderError

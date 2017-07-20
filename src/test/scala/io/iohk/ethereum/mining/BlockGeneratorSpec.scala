@@ -115,6 +115,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val eip150BlockNumber: BigInt = Long.MaxValue
       override val daoForkBlockHash: ByteString = ByteString("unused")
       override val accountStartNonce: UInt256 = UInt256.Zero
+      override val proDaoFork: Boolean = false
     }
 
     val generalTx = SignedTransaction.sign(transaction, keyPair, None)
@@ -264,6 +265,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val eip150BlockNumber: BigInt = Long.MaxValue
       override val daoForkBlockHash: ByteString = ByteString("unused")
       override val accountStartNonce: UInt256 = UInt256.Zero
+      override val proDaoFork: Boolean = false
     }
     lazy val ledger = new LedgerImpl(VM, blockchain, blockchainConfig)
 

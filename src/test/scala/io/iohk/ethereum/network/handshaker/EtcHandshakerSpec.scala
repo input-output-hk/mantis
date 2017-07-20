@@ -160,6 +160,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val chainId: Byte = 0.toByte
       override val monetaryPolicyConfig: MonetaryPolicyConfig = null
       override val accountStartNonce: UInt256 = UInt256.Zero
+      override val proDaoFork: Boolean = false
     }
 
     val etcHandshakerConfigurationWithResolver = new MockEtcHandshakerConfiguration {

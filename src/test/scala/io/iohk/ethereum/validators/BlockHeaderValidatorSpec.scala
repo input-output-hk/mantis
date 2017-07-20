@@ -33,6 +33,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     override val monetaryPolicyConfig: MonetaryPolicyConfig = null
     override val customGenesisFileOpt: Option[String] = None
     override val accountStartNonce: UInt256 = UInt256.Zero
+    override val proDaoFork: Boolean = false
   }
 
   val blockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
