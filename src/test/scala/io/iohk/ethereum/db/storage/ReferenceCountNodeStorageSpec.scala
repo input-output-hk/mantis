@@ -1,14 +1,11 @@
 package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.pruning.PruneResult
 import org.scalatest.{FlatSpec, Matchers}
 
 class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
-
-  val hashFn = kec256(_: Array[Byte])
 
   "ReferenceCountNodeStorage" should "prune nodes releasing dataSource space" in new TestSetup {
     val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
@@ -50,16 +47,17 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage.get(key2).get sameElements val2 // Data after pruning
     dataSource.storage.size shouldEqual 4
   }
-}
 
-trait TestSetup {
-  val dataSource = EphemDataSource()
-  val nodeStorage = new NodeStorage(dataSource)
+  trait TestSetup {
+    val dataSource = EphemDataSource()
+    val nodeStorage = new NodeStorage(dataSource)
 
-
-  def insertRangeKeys(n: Int, storage: ReferenceCountNodeStorage): Seq[(ByteString, Array[Byte])] = {
-    val toInsert = (1 to n).map(i => ByteString(s"key$i") -> ByteString(s"value$i").toArray[Byte])
-    toInsert.foreach(i => storage.put(i._1, i._2))
-    toInsert
+    def insertRangeKeys(n: Int, storage: ReferenceCountNodeStorage): Seq[(ByteString, Array[Byte])] = {
+      val toInsert = (1 to n).map(i => ByteString(s"key$i") -> ByteString(s"value$i").toArray[Byte])
+      toInsert.foreach(i => storage.put(i._1, i._2))
+      toInsert
+    }
   }
 }
+
+
