@@ -1,57 +1,65 @@
-/*package io.iohk.ethereum.db.storage
+package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie}
+import io.iohk.ethereum.db.storage.pruning.PruneResult
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
 
 class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
 
   val hashFn = kec256(_: Array[Byte])
 
-  "ReferenceCountNodeStorageSpec" should "allow to prune unused entries in order" in new TestSetup {
+  "ReferenceCountNodeStorage" should "prune nodes releasing dataSource space" in new TestSetup {
+    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
 
-    val storage: ReferenceCountNodeStorage = new ReferenceCountNodeStorage(nodeStorage, 1, Some(1))
-    val EmptyTrie = MerklePatriciaTrie[ByteString, ByteString](storage, hashFn)
+    val inserted = insertRangeKeys(4, storage)
+    val (key1, val1) = inserted.head
 
-    val key1 = ByteString(Hex.decode("ba"))
-    val key2 = ByteString(Hex.decode("aa"))
-    val key3 = ByteString(Hex.decode(""))
-    val value = ByteString(
-      Hex.decode("012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789")
-    )
-    val trie = EmptyTrie.put(key1, value).put(key2, value)
+    dataSource.storage.size shouldEqual 4
 
-    trie.get(key1).getOrElse(ByteString.empty) shouldEqual value
-    trie.get(key2).getOrElse(ByteString.empty) shouldEqual value
-    dataSource.storage.size shouldEqual 4 // 2 nodes (leaf are the same) + previous root node + 1 with PruneCandidates
+    storage.remove(key1)
+    storage.get(key1).get sameElements val1.toArray[Byte] // Data exists until pruning
 
-    val storage2 = new ReferenceCountNodeStorage(new NodeStorage(dataSource), 1, Some(2))
-    val trie2 = MerklePatriciaTrie[ByteString, ByteString](trie.getRootHash, storage2 , hashFn).put(key3, value)
+    storage.prune(0, 2) shouldEqual PruneResult(1, pruned = 1)
+    storage.get(key1) shouldBe None // Data exists until pruning
+    dataSource.storage.size shouldEqual 3
+  }
 
-    trie2.get(key1).getOrElse(ByteString.empty) shouldEqual value
-    trie2.get(key2).getOrElse(ByteString.empty) shouldEqual value
-    trie2.get(key3).getOrElse(ByteString.empty) shouldEqual value
-    dataSource.storage.size shouldEqual 6 // 3 nodes + 1 previous root + 2 with PruneCandidates
+  it should "not prune any data if no values were removed" in new TestSetup {
+    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
 
-    new ReferenceCountNodeStorage(nodeStorage, 1, None).prune(0, 2) //FIXME
+    insertRangeKeys(3, storage)
+    storage.prune(0, 2) shouldEqual PruneResult(1, pruned = 0)
+  }
 
-    dataSource.storage.size shouldEqual 4 // previous root and 1 PruneCandidate is now gone
+  it should "not delete a key that's still referenced" in new TestSetup {
+    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
 
-    val storage3 = new ReferenceCountNodeStorage(new NodeStorage(dataSource), 1, Some(3))
-    val trie3 = MerklePatriciaTrie[ByteString, ByteString](trie2.getRootHash, storage3 , hashFn)
+    val inserted = insertRangeKeys(4, storage)
+    val (key1, val1) :: (key2, val2) :: xs = inserted.toList
 
-    trie3.get(key1).getOrElse(ByteString.empty) shouldEqual value
-    trie3.get(key2).getOrElse(ByteString.empty) shouldEqual value
-    trie3.get(key3).getOrElse(ByteString.empty) shouldEqual value
+    storage.put(key1, val1).remove(key1) // add key1 again and remove it
+    storage.remove(key2).put(key2, val2) // remove and add key2
+
+    storage.get(key1).get sameElements val1.toArray[Byte] // Data exists until pruning
+    storage.get(key2).get sameElements val2.toArray[Byte] // Data exists until pruning
+
+    storage.prune(0, 2) shouldEqual PruneResult(1, pruned = 0)
+    storage.get(key1).get sameElements val1 // Data after pruning
+    storage.get(key2).get sameElements val2 // Data after pruning
+    dataSource.storage.size shouldEqual 4
   }
 }
 
 trait TestSetup {
-
   val dataSource = EphemDataSource()
   val nodeStorage = new NodeStorage(dataSource)
 
-}*/
+
+  def insertRangeKeys(n: Int, storage: ReferenceCountNodeStorage): Seq[(ByteString, Array[Byte])] = {
+    val toInsert = (1 to n).map(i => ByteString(s"key$i") -> ByteString(s"value$i").toArray[Byte])
+    toInsert.foreach(i => storage.put(i._1, i._2))
+    toInsert
+  }
+}

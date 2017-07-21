@@ -86,7 +86,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
     */
   override def prune(lastPruned: => BigInt, bestBlockNumber: => BigInt): PruneResult = {
     val from = lastPruned + 1
-    val to = from.max(bestBlockNumber - pruningOffset) // FIXME History
+    val to = from.max(bestBlockNumber - pruningOffset)
     pruneBetween(from, to, bn => ReferenceCountNodeStorage.prune(bn, nodeStorage))
   }
 }
@@ -109,13 +109,14 @@ object ReferenceCountNodeStorage {
       .map(_.toPruneCandidates)
       .map { pruneCandidates: PruneCandidates =>
         // Get Node from storage and filter ones which have references = 0 now (maybe they were added again after blockNumber)
-        pruneCandidates.nodeKeys.map(nodeStorage.get).zip(pruneCandidates.nodeKeys)
-          .filter(n => n._1.isDefined && n._1.get.toStoredNode.references == 0)
-          .map(_._2)
-      }.map(nodesToDelete => {
-      nodeStorage.update(key +: nodesToDelete, Nil)
-      nodesToDelete.size
-    }).getOrElse(0)
+        val pruneCandidateNodes = pruneCandidates.nodeKeys.map(nodeStorage.get)
+        val pruneCandidateNodesWithKeys = pruneCandidateNodes.zip(pruneCandidates.nodeKeys)
+        val nodesToDelete = pruneCandidateNodesWithKeys.filter(n => n._1.isDefined && n._1.get.toStoredNode.references == 0)
+        nodesToDelete.map(_._2)
+      }.map(nodeKeysToDelete => {
+        nodeStorage.update(key +: nodeKeysToDelete, Nil)
+        nodeKeysToDelete.size
+      }).getOrElse(0)
   }
 
   /**
