@@ -6,6 +6,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
@@ -57,9 +58,8 @@ trait ActorSystemBuilder {
   implicit lazy val actorSystem = ActorSystem("etc-client_system")
 }
 
-trait PruningConfigBuilder {
-  lazy val pruningConfig = PruningConfig(Config.config)
-  lazy val pruningMode: PruningMode = pruningConfig.mode
+trait PruningConfigBuilder extends PruningModeComponent {
+  lazy val pruningMode: PruningMode = PruningConfig(Config.config).mode
 }
 
 trait StorageBuilder {

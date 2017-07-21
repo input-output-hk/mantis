@@ -12,6 +12,8 @@ import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.agent.Agent
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
@@ -321,7 +323,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
         nonce = ByteString("unused"))
   }
 
-  trait NodeStatusSetup extends SecureRandomBuilder {
+  trait NodeStatusSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     val nodeKey = crypto.generateKeyPair(secureRandom)
 
     val nodeStatus = NodeStatus(
@@ -329,12 +331,6 @@ class PeerActorSpec extends FlatSpec with Matchers {
       serverStatus = ServerStatus.NotListening)
 
     val nodeStatusHolder = Agent(nodeStatus)
-
-    val storagesInstance =  new SharedEphemDataSources with Storages.DefaultStorages {
-      override val pruningMode: PruningMode = ArchivePruning
-    }
-
-    val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
 
     val testGenesisHeader = BlockHeader(
       parentHash = ByteString("0"),

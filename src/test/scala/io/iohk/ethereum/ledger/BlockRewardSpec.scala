@@ -1,5 +1,7 @@
 package io.iohk.ethereum.ledger
 
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.{Fixtures, Mocks}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
@@ -48,10 +50,7 @@ class BlockRewardSpec extends FlatSpec with Matchers {
   }
 
 
-  trait TestSetup {
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages {
-      override val pruningMode: PruningMode = ArchivePruning
-    }
+  trait TestSetup extends EphemBlockchainTestSetup {
 
     val validAccountAddress = Address(0xababab)
     val validAccountAddress2 = Address(0xcdcdcd)

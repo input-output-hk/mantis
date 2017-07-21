@@ -4,6 +4,8 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
@@ -757,12 +759,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         ))))))
   }
 
-  trait TestSetup extends MockFactory {
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages {
-      override val pruningMode: PruningMode = ArchivePruning
-    }
-
-    val blockchain = BlockchainImpl(storagesInstance.storages)
+  trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     val blockGenerator = mock[BlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]

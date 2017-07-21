@@ -4,7 +4,9 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain._
@@ -694,7 +696,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     result.map(br => br.worldState.getAccount(newAccountAddress)) shouldBe Right(Some(Account(nonce = 1)))
   }
 
-  trait TestSetup extends SecureRandomBuilder {
+  trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
@@ -734,10 +736,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       data = ByteString(Hex.decode("1" * 128))
     )
 
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages {
-      override val pruningMode: PruningMode = ArchivePruning
-    }
-
     val initialOriginBalance: UInt256 = 100000000
     val initialMinerBalance: UInt256 = 2000000
 
@@ -764,7 +762,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
   }
 
   trait BlockchainSetup extends TestSetup {
-    val blockchain = BlockchainImpl(storagesInstance.storages)
     val blockchainStorages = storagesInstance.storages
 
     val validBlockParentHeader: BlockHeader = defaultBlockHeader.copy(

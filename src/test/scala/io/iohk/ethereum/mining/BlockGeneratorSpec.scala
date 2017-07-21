@@ -5,6 +5,7 @@ import java.time.Instant
 import akka.util.ByteString
 import io.iohk.ethereum.{Timeouts, crypto}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, LedgerImpl}
@@ -15,6 +16,7 @@ import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.utils.Config.DbConfig
@@ -38,7 +40,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val fullBlock: Either[BlockPreparationError, Block] = result.right
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
-    fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => ledger.executeBlock(b, storagesInstance.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
 
   it should "generate correct block with transactions" in new TestSetup {
@@ -53,7 +55,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val fullBlock: Either[BlockPreparationError, Block] = result.right
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
-    fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => ledger.executeBlock(b, storagesInstance.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
 
   it should "filter out failing transactions" in new TestSetup {
@@ -69,7 +71,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val fullBlock: Either[BlockPreparationError, Block] = result.right
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
-    fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => ledger.executeBlock(b, storagesInstance.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
 
   it should "filter out transactions exceeding block gas limit and include correct transactions" in new TestSetup {
@@ -91,7 +93,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val fullBlock: Either[BlockPreparationError, Block] = result.right
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
-    fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => ledger.executeBlock(b, storagesInstance.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
   }
 
   it should "include consecutive transactions from single sender" in new TestSetup {
@@ -109,7 +111,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val fullBlock: Either[BlockPreparationError, Block] = result.right
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
-    fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => ledger.executeBlock(b, storagesInstance.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
     fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction, nextTransaction))
   }
 
@@ -131,11 +133,11 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     val fullBlock: Either[BlockPreparationError, Block] = result.right
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
-    fullBlock.right.foreach(b => ledger.executeBlock(b, blockchainStorages.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => ledger.executeBlock(b, storagesInstance.storages, validators) shouldBe a[Right[_, Seq[Receipt]]])
     fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction))
   }
 
-  trait TestSetup {
+  trait TestSetup extends EphemBlockchainTestSetup {
 
     val testAddress = 42
     val privateKey = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
@@ -154,10 +156,6 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       payload = ByteString.empty)
     val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
     val duplicatedSignedTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
-
-    val blockchainStorages = new SharedEphemDataSources with Storages.DefaultStorages {
-      override val pruningMode: PruningMode = ArchivePruning
-    }
 
     val blockchainConfig = new BlockchainConfig {
       override val frontierBlockNumber: BigInt = 0
@@ -184,9 +182,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
     }
 
-    val blockchain = BlockchainImpl(blockchainStorages.storages)
-
-    val genesisDataLoader = new GenesisDataLoader(blockchainStorages.ephemDataSource, blockchain, ArchivePruning, blockchainConfig, new DbConfig {
+    val genesisDataLoader = new GenesisDataLoader(storagesInstance.ephemDataSource, blockchain, ArchivePruning, blockchainConfig, new DbConfig {
       override val batchSize: Int = 1000
     })
     genesisDataLoader.loadGenesisData()
@@ -200,7 +196,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     val blockTimestampProvider = new FakeBlockTimestampProvider
 
-    val blockGenerator = new BlockGenerator(blockchainStorages.storages, blockchainConfig, miningConfig, ledger, validators, blockTimestampProvider)
+    val blockGenerator = new BlockGenerator(storagesInstance.storages, blockchainConfig, miningConfig, ledger, validators, blockTimestampProvider)
   }
 }
 

@@ -3,6 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.{Fixtures, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
@@ -225,14 +226,9 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(NodeData(Seq(extensionNode.toBytes)), peerId))
   }
 
-  trait TestSetup {
+  trait TestSetup extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("BlockchainHostActor_System")
 
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages {
-      override val pruningMode: PruningMode = ArchivePruning
-    }
-
-    val blockchain = BlockchainImpl(storagesInstance.storages)
     blockchain.save(Fixtures.Blocks.Genesis.header)
 
     val peerConf = new PeerConfiguration {

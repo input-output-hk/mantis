@@ -2,6 +2,7 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.db.storage.pruning.{PruningNodesKeyValueStorage, PruneResult, RangePrune}
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.rlp.RLPImplicitConversions.{toRlpList, _}
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -20,7 +21,9 @@ import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
   *
   *
   */
-class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[BigInt] = None) extends NodesKeyValueStorage {
+class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt, blockNumber: Option[BigInt] = None)
+  extends PruningNodesKeyValueStorage
+  with RangePrune {
 
   import ReferenceCountNodeStorage._
 
@@ -73,6 +76,19 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
 
     this
   }
+
+  /**
+    * Determines and prunes mpt nodes based on last pruned block number tag and the current best block number
+    *
+    * @param lastPruned      Last pruned block number tag
+    * @param bestBlockNumber Current best block number
+    * @return PruneResult
+    */
+  override def prune(lastPruned: => BigInt, bestBlockNumber: => BigInt): PruneResult = {
+    val from = lastPruned + 1
+    val to = from.max(bestBlockNumber - pruningOffset) // FIXME History
+    pruneBetween(from, to, bn => ReferenceCountNodeStorage.prune(bn, nodeStorage))
+  }
 }
 
 object ReferenceCountNodeStorage {
@@ -80,11 +96,12 @@ object ReferenceCountNodeStorage {
   /**
     * Based on a block number tag, looks for no longer needed nodes and deletes them if it corresponds (a node that was
     * marked as unused in a certain block number tag, might be used later)
+    *
     * @param blockNumber
     * @param nodeStorage
     * @return
     */
-  def prune(blockNumber: BigInt, nodeStorage: NodeStorage): Int = {
+  private def prune(blockNumber: BigInt, nodeStorage: NodeStorage): Int = {
 
     val key = pruneKey(blockNumber)
 
@@ -108,8 +125,9 @@ object ReferenceCountNodeStorage {
 
   /**
     * Wrapper of MptNode in order to store number of references it has.
+    *
     * @param nodeEncoded Encoded Mpt Node to be used in MerklePatriciaTrie
-    * @param references Number of references the node has. Each time it's updated references are increased and everytime it's deleted, decreased
+    * @param references  Number of references the node has. Each time it's updated references are increased and everytime it's deleted, decreased
     */
   case class StoredNode(nodeEncoded: ByteString, references: Int) {
     def incrementReferences(amount: Int): StoredNode = copy(references = references + amount)
@@ -151,6 +169,7 @@ object ReferenceCountNodeStorage {
 
   /**
     * Key to be used to store PruneCandidates
+    *
     * @param blockNumber Block Number Tag
     * @return Key
     */

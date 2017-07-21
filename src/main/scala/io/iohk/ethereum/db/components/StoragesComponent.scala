@@ -6,8 +6,6 @@ import io.iohk.ethereum.domain.BlockchainStorages
 
 trait StoragesComponent {
 
-  val pruningMode: PruningMode
-
   val storages: Storages
 
   trait Storages extends BlockchainStorages {
@@ -31,5 +29,7 @@ trait StoragesComponent {
     val fastSyncStateStorage: FastSyncStateStorage
 
     val transactionMappingStorage: TransactionMappingStorage
+
+    val pruningMode: PruningMode
   }
 }

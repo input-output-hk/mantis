@@ -12,8 +12,9 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import MptNode._
 import ReceiptImplicits._
-import io.iohk.ethereum.db.storage.pruning.ArchivePruning
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
+import io.iohk.ethereum.utils.PruningConfig
 import org.spongycastle.util.encoders.Hex
 
 import scala.io.Source
@@ -44,7 +45,7 @@ object FixtureProvider {
       override val totalDifficultyStorage: TotalDifficultyStorage = new TotalDifficultyStorage(EphemDataSource())
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(EphemDataSource())
       override val nodeStorage: NodeStorage = new NodeStorage(EphemDataSource())
-      override val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage = bn => ArchivePruning.nodesKeyValueStorage(nodeStorage, bn)
+      override val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage = bn => PruningMode.nodesKeyValueStorage(ArchivePruning, nodeStorage)(bn)
     }
 
     val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile { case (number, _) => number <= blockNumber }
