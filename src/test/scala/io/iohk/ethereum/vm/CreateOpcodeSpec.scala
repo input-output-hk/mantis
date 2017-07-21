@@ -71,9 +71,9 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val context: PC = ProgramContext(env, Address(0), 2 * gasRequiredForCreation, initWorld, config)
   }
 
-  case class CreateResult(context: PC = fxt.context, value: UInt256 = fxt.endowment, createCode: Assembly = fxt.createCode) {
-    val mem = Memory.empty.store(0, createCode.code)
-    val stack = Stack.empty().push(Seq[UInt256](createCode.code.size, 0, value))
+  case class CreateResult(context: PC = fxt.context, value: UInt256 = fxt.endowment, createCode: ByteString = fxt.createCode.code) {
+    val mem = Memory.empty.store(0, createCode)
+    val stack = Stack.empty().push(Seq[UInt256](createCode.size, 0, value))
     val stateIn: PS = ProgramState(context).withStack(stack).withMemory(mem)
     val stateOut: PS = CREATE.execute(stateIn)
 
@@ -131,11 +131,30 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     }
 
     "initialization code runs normally but there's not enough gas to deposit code" should {
-      val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit + fxt.depositGas / 2)
+      val depositGas = fxt.depositGas * 101 / 100
+      val availableGasDepth0 = fxt.gasRequiredForInit + depositGas
+      val availableGasDepth1 = config.gasCap(availableGasDepth0)
+      val gasUsedInInit = fxt.gasRequiredForInit + fxt.depositGas
+
+      require(
+        gasUsedInInit < availableGasDepth0 && gasUsedInInit > availableGasDepth1,
+        "Regression: capped startGas in the VM at depth 1, should be used a base for code deposit gas check"
+      )
+
+      val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit + depositGas)
       val result = CreateResult(context = context)
 
-      "throw OOG" in {
-        result.stateOut.error shouldEqual Some(OutOfGas)
+      "consume all gas passed to the init code" in {
+        val expectedGas = G_create + config.gasCap(context.startGas - G_create)
+        result.stateOut.gasUsed shouldEqual expectedGas
+      }
+
+      "not modify world state" in {
+        result.world shouldEqual context.world
+      }
+
+      "return 0" in {
+        result.returnValue shouldEqual 0
       }
     }
 
@@ -179,7 +198,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val gasRequiredForCreation = gasRequiredForInit + G_create
 
     val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation)
-    val result = CreateResult(context = context, createCode = fxt.initWithSelfDestruct)
+    val result = CreateResult(context = context, createCode = fxt.initWithSelfDestruct.code)
 
     "refund the correct amount of gas" in {
       result.stateOut.gasRefund shouldBe result.stateOut.config.feeSchedule.R_selfdestruct
@@ -194,7 +213,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val gasRequiredForCreation = gasRequiredForInit + G_create
 
     val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation)
-    val call = CreateResult(context = context, createCode = fxt.initWithSstoreWithClear)
+    val call = CreateResult(context = context, createCode = fxt.initWithSstoreWithClear.code)
 
     "refund the correct amount of gas" in {
       call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
@@ -206,26 +225,28 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val maxCodeSize = 30
     val ethConfig = EvmConfig.PostEIP160ConfigBuilder(Some(maxCodeSize))
 
-    val startGas = Int.MaxValue
-    val context: PC = fxt.context.copy(startGas = startGas, config = ethConfig)
+    val context: PC = fxt.context.copy(startGas = Int.MaxValue, config = ethConfig)
+
+    val gasConsumedIfError = G_create + config.gasCap(context.startGas - G_create) //Gas consumed by CREATE opcode if an error happens
 
     "result in an out of gas if the code is larger than the limit" in {
       val codeSize = maxCodeSize + 1
       val largeContractCode = Assembly((0 until codeSize).map(_ => Assembly.OpCodeAsByteCode(STOP)): _*)
-      val createCode = Assembly(fxt.initPart(largeContractCode.code.size).byteCode ++ largeContractCode.byteCode: _*)
+      val createCode = Assembly(fxt.initPart(largeContractCode.code.size).byteCode ++ largeContractCode.byteCode: _*).code
       val call = CreateResult(context = context, createCode = createCode)
 
-      call.stateOut.error shouldBe Some(OutOfGas) //FIXME: Remove when fixing issue in CREATE opcode
+      call.stateOut.error shouldBe None
+      call.stateOut.gasUsed shouldBe gasConsumedIfError
     }
 
     "not result in an out of gas if the code is smaller than the limit" in {
       val codeSize = maxCodeSize - 1
       val largeContractCode = Assembly((0 until codeSize).map(_ => Assembly.OpCodeAsByteCode(STOP)): _*)
-      val createCode = Assembly(fxt.initPart(largeContractCode.code.size).byteCode ++ largeContractCode.byteCode: _*)
+      val createCode = Assembly(fxt.initPart(largeContractCode.code.size).byteCode ++ largeContractCode.byteCode: _*).code
       val call = CreateResult(context = context, createCode = createCode)
 
       call.stateOut.error shouldBe None
-      assert(call.stateOut.gasUsed != startGas)
+      call.stateOut.gasUsed shouldNot be(gasConsumedIfError)
     }
 
   }
