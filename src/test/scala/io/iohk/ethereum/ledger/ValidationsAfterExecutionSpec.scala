@@ -4,14 +4,14 @@ import akka.util.ByteString
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, VMConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.validators.BlockValidator
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 class ValidationsAfterExecutionSpec extends FlatSpec with Matchers {
 
-  val ledger = new LedgerImpl(new Mocks.MockVM(), BlockchainConfig(Config.config), VMConfig(Config.config))
+  val ledger = new LedgerImpl(new Mocks.MockVM(), BlockchainConfig(Config.config))
 
   val block: Block = Block(
     BlockHeader(

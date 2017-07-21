@@ -7,7 +7,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Account, Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.{Fixtures, crypto}
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, VMConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.validators.SignedTransactionError.{TransactionSignatureError, _}
 import io.iohk.ethereum.vm.{EvmConfig, UInt256}
 import org.scalatest.{FlatSpec, Matchers}
@@ -16,9 +16,8 @@ import org.spongycastle.util.encoders.Hex
 class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
 
   val blockchainConfig = BlockchainConfig(Config.config)
-  val vmConfig = VMConfig(Config.config)
 
-  val signedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig, vmConfig)
+  val signedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
 
   //From block 0x228943f4ef720ac91ca09c08056d7764c2a1650181925dfaeb484f27e544404e with number 1100000 (tx index 0)
   val txBeforeHomestead = Transaction(
@@ -175,7 +174,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
   }
 
   it should "report as invalid a tx with too low gas limit for intrinsic gas" in {
-    val txIntrinsicGas = EvmConfig.forBlock(blockHeaderAfterHomestead.number, blockchainConfig, vmConfig)
+    val txIntrinsicGas = EvmConfig.forBlock(blockHeaderAfterHomestead.number, blockchainConfig)
       .calcTransactionIntrinsicGas(txAfterHomestead.payload, txAfterHomestead.isContractInit)
     val txWithInvalidGasLimit = txAfterHomestead.copy(gasLimit = txIntrinsicGas / 2)
     val signedTxWithInvalidGasLimit = signedTxAfterHomestead.copy(tx = txWithInvalidGasLimit)

@@ -10,7 +10,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.{Mocks, rlp}
 import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, VMConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
@@ -30,7 +30,6 @@ import org.spongycastle.util.encoders.Hex
 class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
   val blockchainConfig = BlockchainConfig(Config.config)
-  val vmConfig = VMConfig(Config.config)
 
   def createResult(context: PC,
                    gasUsed: BigInt,
@@ -99,7 +98,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
         gasRefund = gasRefundFromVM,
         error = error
       ))
-      val ledger = new LedgerImpl(mockVM, blockchainConfig, vmConfig)
+      val ledger = new LedgerImpl(mockVM, blockchainConfig)
 
       val execResult = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts)
       val postTxWorld = execResult.worldState
@@ -118,7 +117,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-    val ledger = new LedgerImpl(new MockVM(), blockchainConfig, vmConfig)
+    val ledger = new LedgerImpl(new MockVM(), blockchainConfig)
 
     val postTxWorld = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts).worldState
 
@@ -136,7 +135,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
     val header = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
-    val ledger = new LedgerImpl(new MockVM(), blockchainConfig, vmConfig)
+    val ledger = new LedgerImpl(new MockVM(), blockchainConfig)
 
     val postTxWorld = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts).worldState
 
@@ -149,7 +148,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
     val ledger = new LedgerImpl(
       new MockVM(c => createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)),
-      blockchainConfig, vmConfig
+      blockchainConfig
     )
 
     val txsExecResult = ledger.executeBlockTransactions(
@@ -193,7 +192,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
         gasRefund = UInt256.Zero,
         logs = logs,
         addressesToDelete = addressesToDelete
-      )), blockchainConfig, vmConfig)
+      )), blockchainConfig)
 
       val txsExecResult = ledger.executeBlockTransactions(
         block,
@@ -247,7 +246,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       logs = defaultLogs,
       addressesToDelete = defaultAddressesToDelete,
       error = Some(OutOfGas)
-    )), blockchainConfig, vmConfig)
+    )), blockchainConfig)
 
     val txsExecResult = ledger.executeBlockTransactions(
       block,
@@ -301,7 +300,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
         logs = defaultLogs,
         addressesToDelete = defaultAddressesToDelete,
         error = Some(OutOfGas)
-      )), blockchainConfig, vmConfig)
+      )), blockchainConfig)
 
       val ommersAddresses = (0 until ommersSize).map(i => Address(i.toByte +: Hex.decode("10")))
 
@@ -354,7 +353,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       logs = defaultLogs,
       addressesToDelete = defaultAddressesToDelete,
       error = Some(OutOfGas)
-    )), blockchainConfig, vmConfig)
+    )), blockchainConfig)
 
 
     val blockReward = ledger.blockRewardCalculator.calcBlockMinerReward(validBlockHeader.number, 0)
@@ -393,7 +392,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       logs = defaultLogs,
       addressesToDelete = defaultAddressesToDelete,
       error = Some(OutOfGas)
-    )), blockchainConfig, vmConfig)
+    )), blockchainConfig)
 
     val blockReward = ledger.blockRewardCalculator.calcBlockMinerReward(validBlockHeader.number, 0)
     val changes = Seq(
@@ -452,7 +451,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
         gasUsed = UInt256(defaultGasLimit),
         gasLimit = UInt256(defaultGasLimit),
         gasRefund = UInt256.Zero
-      )), blockchainConfig, vmConfig)
+      )), blockchainConfig)
 
       val txsExecResult = ledger.executeBlockTransactions(
         block,
@@ -535,7 +534,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       gasLimit = defaultGasLimit,
       gasRefund = 0,
       error = None, returnData = ByteString("contract code")
-    )), blockchainConfig, vmConfig)
+    )), blockchainConfig)
 
     val txResult = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts)
     val postTxWorld = txResult.worldState
@@ -563,7 +562,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       gasRefund = 0,
       error = None,
       returnData = ByteString("contract code")
-    )), blockchainConfig, vmConfig)
+    )), blockchainConfig)
 
     val txResult = ledger.executeTransaction(stx, header, worldWithMinerAndOriginAccounts)
     val postTxWorld = txResult.worldState
@@ -602,7 +601,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       val stx = SignedTransaction.sign(defaultTx, originKeyPair, Some(blockchainConfig.chainId))
 
       val mockVM = new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, maybeError, bEmpty, defaultsLogs))
-      val ledger = new LedgerImpl(mockVM, blockchainConfig, vmConfig)
+      val ledger = new LedgerImpl(mockVM, blockchainConfig)
 
       val txResult = ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
 
@@ -629,7 +628,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
         pc.env.inputData shouldEqual inputData
         createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
       })
-      val ledger = new LedgerImpl(mockVM, blockchainConfig, vmConfig)
+      val ledger = new LedgerImpl(mockVM, blockchainConfig)
 
       val tx = defaultTx.copy(receivingAddress = maybeReceivingAddress, payload = txPayload)
       val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
@@ -668,7 +667,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
         pc.world.getGuaranteedAccount(contractAddress).balance shouldEqual contractAccountBalance
         createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
       })
-      val ledger = new LedgerImpl(mockVM, blockchainConfig, vmConfig)
+      val ledger = new LedgerImpl(mockVM, blockchainConfig)
 
       ledger.executeTransaction(stx, defaultBlockHeader, initialWorld)
     }
@@ -685,7 +684,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       pc.env.inputData shouldEqual ByteString.empty
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
     })
-    val ledger = new LedgerImpl(mockVM, blockchainConfig, vmConfig)
+    val ledger = new LedgerImpl(mockVM, blockchainConfig)
 
     val tx: Transaction = defaultTx.copy(gasPrice = 0, receivingAddress = None, payload = inputData)
     val stx: SignedTransaction = SignedTransaction.sign(tx, newAccountKeyPair, Some(blockchainConfig.chainId))
@@ -708,7 +707,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
     })
 
-    val ledger = new LedgerImpl(mockVM, blockchainConfig, vmConfig)
+    val ledger = new LedgerImpl(mockVM, blockchainConfig)
 
     val tx1: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
     val tx2: Transaction = defaultTx.copy(gasPrice = 43, receivingAddress = Some(Address(43)))
@@ -742,7 +741,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
     })
 
-    val ledger = new LedgerImpl(mockVM, blockchainConfig, vmConfig)
+    val ledger = new LedgerImpl(mockVM, blockchainConfig)
 
     val tx1: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
     val tx2: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))

@@ -35,10 +35,6 @@ trait BlockchainConfigBuilder {
   lazy val blockchainConfig = BlockchainConfig(Config.config)
 }
 
-trait VMConfigBuilder {
-  lazy val vmConfig = VMConfig(Config.config)
-}
-
 trait TxPoolConfigBuilder {
   lazy val txPoolConfig = TxPoolConfig(Config.config)
 }
@@ -322,22 +318,20 @@ trait OmmersPoolBuilder {
 }
 
 trait ValidatorsBuilder {
-  self: BlockchainConfigBuilder with
-    VMConfigBuilder =>
+  self: BlockchainConfigBuilder =>
 
   lazy val validators = new Validators {
     val blockValidator: BlockValidator = BlockValidator
     val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
     val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig)
-    val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig, vmConfig)
+    val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
   }
 }
 
 trait LedgerBuilder {
-  self: BlockchainConfigBuilder with
-    VMConfigBuilder=>
+  self: BlockchainConfigBuilder =>
 
-  lazy val ledger: Ledger = new LedgerImpl(VM, blockchainConfig, vmConfig)
+  lazy val ledger: Ledger = new LedgerImpl(VM, blockchainConfig)
 }
 
 trait SyncControllerBuilder {
@@ -420,7 +414,6 @@ trait Node extends NodeKeyBuilder
   with ShutdownHookBuilder
   with GenesisDataLoaderBuilder
   with BlockchainConfigBuilder
-  with VMConfigBuilder
   with PeerEventBusBuilder
   with PendingTransactionsManagerBuilder
   with OmmersPoolBuilder

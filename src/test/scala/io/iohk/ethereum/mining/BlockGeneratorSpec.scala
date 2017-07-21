@@ -105,6 +105,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
 
       // unused
+      override val maxCodeSize: Option[BigInt] = None
       override val daoForkBlockNumber: BigInt = Long.MaxValue
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
@@ -244,9 +245,6 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     lazy val duplicatedSignedTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
 
     val blockchainStorages = new SharedEphemDataSources with Storages.DefaultStorages
-    lazy val vmConfig = new VMConfig {
-      override val maxCodeSize: Option[BigInt] = None
-    }
     lazy val blockchainConfig = new BlockchainConfig {
       override val frontierBlockNumber: BigInt = 0
       override val homesteadBlockNumber: BigInt = 1150000
@@ -258,19 +256,20 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
 
       // unused
+      override val maxCodeSize: Option[BigInt] = None
       override val daoForkBlockNumber: BigInt = Long.MaxValue
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
       override val daoForkBlockHash: ByteString = ByteString("unused")
       override val accountStartNonce: UInt256 = UInt256.Zero
     }
-    lazy val ledger = new LedgerImpl(VM, blockchainConfig, vmConfig)
+    lazy val ledger = new LedgerImpl(VM, blockchainConfig)
 
     lazy val validators = new Validators {
       val blockValidator: BlockValidator = BlockValidator
       val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
       val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig)
-      val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig, vmConfig)
+      val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
     }
 
     lazy val blockchain = BlockchainImpl(blockchainStorages.storages)

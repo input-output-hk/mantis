@@ -1,7 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.{BlockchainConfig, VMConfig}
+import io.iohk.ethereum.utils.BlockchainConfig
 
 // scalastyle:off number.of.methods
 // scalastyle:off number.of.types
@@ -17,7 +17,7 @@ object EvmConfig {
   /**
     * returns the evm config that should be used for given block
     */
-  def forBlock(blockNumber: BigInt, blockchainConfig: BlockchainConfig, vmConfig: VMConfig): EvmConfig = {
+  def forBlock(blockNumber: BigInt, blockchainConfig: BlockchainConfig): EvmConfig = {
     val transitionBlockToConfigMapping: Map[BigInt, EvmConfigBuilder] = Map(
       blockchainConfig.frontierBlockNumber -> FrontierConfigBuilder,
       blockchainConfig.homesteadBlockNumber -> HomesteadConfigBuilder,
@@ -29,7 +29,7 @@ object EvmConfig {
       .filterKeys(_ <= blockNumber)
       .maxBy(_._1)
       ._2
-    evmConfigBuilder(vmConfig.maxCodeSize)
+    evmConfigBuilder(blockchainConfig.maxCodeSize)
   }
 
   val FrontierConfigBuilder: EvmConfigBuilder = maxCodeSize => EvmConfig(

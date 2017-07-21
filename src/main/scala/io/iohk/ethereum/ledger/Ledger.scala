@@ -5,7 +5,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult, PC, PR, TxResult}
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VMConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
 import io.iohk.ethereum.vm.UInt256._
 import io.iohk.ethereum.vm._
@@ -22,7 +22,7 @@ trait Ledger {
   def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): TxResult
 }
 
-class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig, vmConfig: VMConfig) extends Ledger with Logger {
+class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with Logger {
 
   val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
 
@@ -162,7 +162,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig, vmConfig: VMConfig)
     val stateRoot = blockHeader.stateRoot
 
     val gasLimit = stx.tx.gasLimit
-    val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig, vmConfig)
+    val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
     val world1 = InMemoryWorldStateProxy(storages, blockchainConfig.accountStartNonce, Some(stateRoot))
     val world2 =
@@ -185,7 +185,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig, vmConfig: VMConfig)
     log.debug(s"Transaction ${stx.hashAsHexString} execution start")
     val gasPrice = UInt256(stx.tx.gasPrice)
     val gasLimit = stx.tx.gasLimit
-    val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig, vmConfig)
+    val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
     val checkpointWorldState = updateSenderAccountBeforeExecution(stx, world)
     val context = prepareProgramContext(stx, blockHeader, checkpointWorldState, config)
@@ -336,7 +336,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig, vmConfig: VMConfig)
     val contractCode = result.returnData
     val codeDepositCost = config.calcCodeDepositCost(contractCode)
 
-    val maxCodeSizeExceeded = vmConfig.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
+    val maxCodeSizeExceeded = blockchainConfig.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
     val codeStoreOutOfGas = result.gasRemaining < codeDepositCost
 
     if (maxCodeSizeExceeded || (codeStoreOutOfGas && config.exceptionalFailedCodeDeposit)) {

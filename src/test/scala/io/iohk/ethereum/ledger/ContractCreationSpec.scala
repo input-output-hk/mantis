@@ -8,7 +8,7 @@ import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain.{Address, TxLogEntry}
 import io.iohk.ethereum.ledger.Ledger.PR
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig, VMConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}
 import io.iohk.ethereum.vm._
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
@@ -40,7 +40,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     val resultBeforeSaving = createResult(emptyWorld, gasUsed = defaultGasLimit / 2,
       gasLimit = defaultGasLimit, gasRefund = 0, error = None, returnData = longContractCode)
 
-    val ledger = new LedgerImpl(new MockVM(), defaultBlockchainConfig, vmConfig)
+    val ledger = new LedgerImpl(new MockVM(), blockchainConfig)
     val resultAfterSaving = ledger.saveNewContract(contractAddress, resultBeforeSaving, config)
     resultAfterSaving.error shouldBe Some(OutOfGas)
   }
@@ -50,7 +50,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     val resultBeforeSaving = createResult(emptyWorld, gasUsed = defaultGasLimit / 2,
       gasLimit = defaultGasLimit, gasRefund = 0, error = None, returnData = shortContractCode)
 
-    val ledger = new LedgerImpl(new MockVM(), defaultBlockchainConfig, vmConfig)
+    val ledger = new LedgerImpl(new MockVM(), blockchainConfig)
     val resultAfterSaving = ledger.saveNewContract(contractAddress, resultBeforeSaving, config)
     resultAfterSaving.error shouldBe None
   }
@@ -66,9 +66,24 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
     val emptyWorld = InMemoryWorldStateProxy(storagesInstance.storages, UInt256.Zero)
 
-    val vmConfig = new VMConfig {
-      override val maxCodeSize: Option[BigInt] = Some(codeSizeLimit)
-    }
     val defaultBlockchainConfig = BlockchainConfig(Config.config)
+    val blockchainConfig = new BlockchainConfig {
+      override val maxCodeSize: Option[BigInt] = Some(codeSizeLimit)
+
+      //unused
+      override val customGenesisFileOpt: Option[String] = defaultBlockchainConfig.customGenesisFileOpt
+      override val daoForkBlockNumber: BigInt = defaultBlockchainConfig.daoForkBlockNumber
+      override val difficultyBombContinueBlockNumber: BigInt = defaultBlockchainConfig.difficultyBombContinueBlockNumber
+      override val eip160BlockNumber: BigInt = defaultBlockchainConfig.eip160BlockNumber
+      override val eip150BlockNumber: BigInt = defaultBlockchainConfig.eip150BlockNumber
+      override val eip155BlockNumber: BigInt = defaultBlockchainConfig.eip155BlockNumber
+      override val chainId: Byte = defaultBlockchainConfig.chainId
+      override val frontierBlockNumber: BigInt = defaultBlockchainConfig.frontierBlockNumber
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = defaultBlockchainConfig.monetaryPolicyConfig
+      override val daoForkBlockHash: ByteString = defaultBlockchainConfig.daoForkBlockHash
+      override val difficultyBombPauseBlockNumber: BigInt = defaultBlockchainConfig.difficultyBombPauseBlockNumber
+      override val homesteadBlockNumber: BigInt = defaultBlockchainConfig.homesteadBlockNumber
+      override val accountStartNonce: UInt256 = defaultBlockchainConfig.accountStartNonce
+    }
   }
 }
