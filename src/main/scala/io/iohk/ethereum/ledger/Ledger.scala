@@ -95,9 +95,6 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
         else blockchain.getWorldStateProxy _
     val initialWorld: blockchain.WS = getWorldStateProxyFn(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
 
-      //if(readOnly) blockchain.getReadOnlyWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
-      //else blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
-
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
     val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, signedTransactionValidator)
     blockTxsExecResult match {
@@ -160,7 +157,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
     //FIXME When mining we are setting block tag as -1 but this info won't be pruned
-    val world1 = BlockchainImpl(storages).getWorldStateProxy(-1, blockchainConfig.accountStartNonce, Some(stateRoot))
+    val world1 = BlockchainImpl(storages).getReadOnlyWorldStateProxy(-1, blockchainConfig.accountStartNonce, Some(stateRoot))
     val world2 =
       if (world1.getAccount(stx.senderAddress).isEmpty)
         world1.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce))

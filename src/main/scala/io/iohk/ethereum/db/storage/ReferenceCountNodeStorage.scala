@@ -63,9 +63,8 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
     }
 
     val toUpsertUpdated = changes._1.map {
-      case (nodeKey: NodeHash, storedNode: StoredNode) =>
-        Seq(nodeKey -> storedNode.toBytes)
-    }.toSeq.flatten
+      case (nodeKey: NodeHash, storedNode: StoredNode) => nodeKey -> storedNode.toBytes
+    }.toSeq
 
     val toMarkAsDeleted =
       if (changes._2.nodeKeys.nonEmpty) Seq(toPruneInThisBlockKey -> changes._2.toBytes)

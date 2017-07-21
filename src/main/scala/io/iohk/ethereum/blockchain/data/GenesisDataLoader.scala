@@ -95,14 +95,15 @@ class GenesisDataLoader(
 
     val ephemDataSource = EphemDataSource()
     val nodeStorage = new NodeStorage(ephemDataSource)
-
     val initalRootHash = MerklePatriciaTrie.calculateEmptyRootHash((input: Array[Byte]) => crypto.kec256(input))
 
     val stateMptRootHash = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, (((address, AllocAccount(balance)), idx))) =>
       val ephemNodeStorage =  PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(Some(idx - genesisData.alloc.size))
       val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, ephemNodeStorage, (input: Array[Byte]) => crypto.kec256(input))
       val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
-      mpt.put(crypto.kec256(Hex.decode(paddedAddress)), Account(blockchainConfig.accountStartNonce, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash)).getRootHash
+      mpt.put(crypto.kec256(Hex.decode(paddedAddress)),
+        Account(blockchainConfig.accountStartNonce, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash)
+      ).getRootHash
     }
 
     val header = BlockHeader(
