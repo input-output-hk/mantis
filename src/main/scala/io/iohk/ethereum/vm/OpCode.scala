@@ -708,7 +708,10 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
 
       if (creationFailed) {
         val stack2 = stack1.push(UInt256.Zero)
-        state.withStack(stack2).spendGas(startGas).step()
+        state
+          .withWorld(world1) // if creation fails at this point we still leave the creators nonce incremented
+          .withStack(stack2)
+          .spendGas(startGas).step()
 
       } else {
         val stack2 = stack1.push(newAddress.toUInt256)
