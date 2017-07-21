@@ -49,7 +49,7 @@ trait RegularSync extends BlockBroadcast {
       waitingForActor = None
       handleBlockBodies(peer, blockBodies)
 
-    //todo improve mined block handling - add info that block was not included because of syncing
+    //todo improve mined block handling - add info that block was not included because of syncing [EC-250]
     //we allow inclusion of mined block only if we are not syncing / reorganising chain
     case MinedBlock(block) =>
       if (headersQueue.isEmpty && waitingForActor.isEmpty) {
@@ -112,7 +112,7 @@ trait RegularSync extends BlockBroadcast {
   }
 
   private def handleBlockBranchResolution(peer: Peer, message: Seq[BlockHeader]) =
-    //todo limit max branch depth?
+    //todo limit max branch depth? [EC-248]
     if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
       headersQueue = message ++ headersQueue
       processBlockHeaders(peer, headersQueue)

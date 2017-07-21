@@ -1,13 +1,14 @@
 package io.iohk.ethereum.validators
 
 import java.math.BigInteger
+import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Account, Address, SignedTransaction, Transaction}
-import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.{Fixtures, crypto}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.validators.SignedTransactionError._
+import io.iohk.ethereum.validators.SignedTransactionError.{TransactionSignatureError, _}
 import io.iohk.ethereum.vm.{EvmConfig, UInt256}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -202,6 +203,34 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
     val signedTxWithInvalidGasLimit = signedTxAfterHomestead.copy(tx = txWithInvalidGasLimit)
     validateStx(signedTxWithInvalidGasLimit, fromBeforeHomestead = false) match {
       case Left(_: TransactionGasLimitTooBigError) => succeed
+      case _ => fail
+    }
+  }
+
+  it should "report as invalid a chain specific tx before eip155" in {
+    val keyPair = crypto.generateKeyPair(new SecureRandom)
+    signedTransactionValidator.validate(
+      stx = SignedTransaction.sign(txBeforeHomestead, keyPair, Some(0x03.toByte)),
+      senderAccount = senderAccountAfterHomestead,
+      blockHeader = blockHeaderAfterHomestead,
+      upfrontGasCost = upfrontGasCost,
+      accumGasUsed = accumGasUsed
+    ) match {
+      case Left(SignedTransactionError.TransactionSignatureError) => succeed
+      case _ => fail
+    }
+  }
+
+  it should "report as valid a chain specific tx after eip155" in {
+    val keyPair = crypto.generateKeyPair(new SecureRandom)
+    signedTransactionValidator.validate(
+      stx = SignedTransaction.sign(txAfterHomestead, keyPair, Some(0x03.toByte)),
+      senderAccount = senderAccountAfterHomestead,
+      blockHeader = blockHeaderAfterHomestead.copy(number = blockchainConfig.eip155BlockNumber),
+      upfrontGasCost = upfrontGasCost,
+      accumGasUsed = accumGasUsed
+    ) match {
+      case Right(_) => succeed
       case _ => fail
     }
   }

@@ -14,7 +14,6 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
-import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -47,13 +46,6 @@ object Config {
       val listenAddress = new InetSocketAddress(interface, port)
     }
 
-    object Discovery {
-      private val discoveryConfig = networkConfig.getConfig("discovery")
-
-      val bootstrapNodes: Set[String] = discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet
-      val bootstrapNodesScanInterval = discoveryConfig.getDuration("bootstrap-nodes-scan-interval").toMillis.millis
-    }
-
     val peer = new PeerConfiguration {
       private val peerConfig = networkConfig.getConfig("peer")
 
@@ -77,6 +69,8 @@ object Config {
         val maxReceiptsPerMessage: Int = peerConfig.getInt("max-receipts-per-message")
         val maxMptComponentsPerMessage: Int = peerConfig.getInt("max-mpt-components-per-message")
       }
+      override val updateNodesInitialDelay: FiniteDuration = peerConfig.getDuration("update-nodes-initial-delay").toMillis.millis
+      override val updateNodesInterval: FiniteDuration = peerConfig.getDuration("update-nodes-interval").toMillis.millis
     }
 
     object Rpc extends JsonRpcHttpServerConfig with JsonRpcConfig {
@@ -186,6 +180,7 @@ trait MiningConfig {
   val ommersPoolSize: Int
   val blockCacheSize: Int
   val coinbase: Address
+  val activeTimeout: FiniteDuration
   val ommerPoolQueryTimeout: FiniteDuration
 }
 
@@ -197,6 +192,7 @@ object MiningConfig {
       val coinbase: Address = Address(miningConfig.getString("coinbase"))
       val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
       val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
+      val activeTimeout: FiniteDuration = miningConfig.getDuration("active-timeout").toMillis.millis
       val ommerPoolQueryTimeout: FiniteDuration = miningConfig.getDuration("ommer-pool-query-timeout").toMillis.millis
     }
   }
@@ -206,6 +202,7 @@ trait BlockchainConfig {
   val frontierBlockNumber: BigInt
   val homesteadBlockNumber: BigInt
   val eip150BlockNumber: BigInt
+  val eip155BlockNumber: BigInt
   val eip160BlockNumber: BigInt
   val difficultyBombPauseBlockNumber: BigInt
   val difficultyBombContinueBlockNumber: BigInt
@@ -229,6 +226,7 @@ object BlockchainConfig {
       override val frontierBlockNumber: BigInt = BigInt(blockchainConfig.getString("frontier-block-number"))
       override val homesteadBlockNumber: BigInt = BigInt(blockchainConfig.getString("homestead-block-number"))
       override val eip150BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip150-block-number"))
+      override val eip155BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip155-block-number"))
       override val eip160BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip160-block-number"))
       override val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
       override val difficultyBombContinueBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-continue-block-number"))

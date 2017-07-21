@@ -9,6 +9,6 @@ import org.spongycastle.crypto.AsymmetricCipherKeyPair
 case class Wallet(address: Address, prvKey: ByteString) {
   lazy val keyPair: AsymmetricCipherKeyPair = keyPairFromPrvKey(prvKey.toArray)
 
-  def signTx(tx: Transaction): SignedTransaction =
-    SignedTransaction.sign(tx, keyPair, None)
+  def signTx(tx: Transaction, chainId: Option[Byte]): SignedTransaction =
+    SignedTransaction.sign(tx, keyPair, chainId)
 }

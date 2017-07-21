@@ -24,7 +24,7 @@ import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
     val conf = ConfigFactory.load("txExecTest/chainDump.conf")
@@ -47,6 +47,8 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val fastSyncHostConfiguration: PeerManagerActor.FastSyncHostConfiguration = Config.Network.peer.fastSyncHostConfiguration
       override val maxPeers: Int = Config.Network.peer.maxPeers
       override val networkId: Int = privateNetworkId
+      override val updateNodesInitialDelay: FiniteDuration = 5.seconds
+      override val updateNodesInterval: FiniteDuration = 20.seconds
     }
 
     val actorSystem = ActorSystem("etc-client_system")
@@ -60,7 +62,8 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     val nodeStatus =
       NodeStatus(
         key = nodeKey,
-        serverStatus = ServerStatus.NotListening)
+        serverStatus = ServerStatus.NotListening,
+        discoveryStatus = ServerStatus.NotListening)
 
     lazy val nodeStatusHolder = Agent(nodeStatus)
 
@@ -82,10 +85,10 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     val peerMessageBus = actorSystem.actorOf(PeerEventBusActor.props)
 
     val peerManager = actorSystem.actorOf(PeerManagerActor.props(
+      peerDiscoveryManager = actorSystem.deadLetters, // TODO: fixme
       nodeStatusHolder = nodeStatusHolder,
       peerConfiguration = peerConfig,
-      bootstrapNodes = Set(node),
-      peerMessageBus,
+      peerMessageBus = peerMessageBus,
       handshaker = handshaker,
       authHandshaker = authHandshaker,
       messageDecoder = EthereumMessageDecoder), "peer-manager")

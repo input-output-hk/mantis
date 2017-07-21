@@ -44,7 +44,8 @@ class NetServiceSpec extends FlatSpec with Matchers with ScalaFutures with Norma
 
     val peerManager = TestProbe()
 
-    val nodeStatus = NodeStatus(crypto.generateKeyPair(secureRandom), ServerStatus.Listening(new InetSocketAddress(9000)))
+    val nodeStatus = NodeStatus(crypto.generateKeyPair(secureRandom), ServerStatus.Listening(new InetSocketAddress(9000)),
+      discoveryStatus = ServerStatus.NotListening)
     val netService = new NetService(Agent(nodeStatus), peerManager.ref)
   }
 
