@@ -110,6 +110,10 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       "consume correct gas" in {
         result.stateOut.gasUsed shouldEqual fxt.gasRequiredForCreation
       }
+
+      "step forward" in {
+        result.stateOut.pc shouldEqual result.stateIn.pc + 1
+      }
     }
 
     "initialization code fails" should {
@@ -127,6 +131,10 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       "consume correct gas" in {
         val expectedGas = G_create + config.gasCap(context.startGas - G_create)
         result.stateOut.gasUsed shouldEqual expectedGas
+      }
+
+      "step forward" in {
+        result.stateOut.pc shouldEqual result.stateIn.pc + 1
       }
     }
 
