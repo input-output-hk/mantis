@@ -94,7 +94,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
     }
   }
 
-  test("EthereumJ compatibility - Insert of the first 20000   numbers hashed (with some sliced) and then remove half of them") {
+  test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced) and then remove half of them") {
     withNodeStorage { ns =>
       val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
       val keys = (0 to 20000).map(intByteArraySerializable.toBytes)

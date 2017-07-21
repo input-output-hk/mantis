@@ -77,7 +77,7 @@ class FastSyncNodesRequestHandler(
       val evm = n.getAccount.codeHash
       val storage = n.getAccount.storageRoot
 
-      nodesKeyValueStorage.update(Nil, Seq(n.hash -> n.toBytes))
+      nodesKeyValueStorage.put(n.hash, n.toBytes)
 
       val evmRequests =
         if (evm != Account.EmptyCodeHash) Seq(EvmCodeHash(evm))
@@ -91,11 +91,11 @@ class FastSyncNodesRequestHandler(
 
     case n: MptBranch =>
       val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-      nodesKeyValueStorage.update(Nil, Seq(n.hash -> n.toBytes))
+      nodesKeyValueStorage.put(n.hash, n.toBytes)
       hashes.map(StateMptNodeHash)
 
     case n: MptExtension =>
-      nodesKeyValueStorage.update(Nil, Seq(n.hash -> n.toBytes))
+      nodesKeyValueStorage.put(n.hash, n.toBytes)
       n.child.fold(
         mptHash => Seq(StateMptNodeHash(mptHash.hash)),
         _ => Nil)
@@ -104,16 +104,16 @@ class FastSyncNodesRequestHandler(
   private def handleContractMptNode(mptNode: MptNode): Seq[HashType] = {
     mptNode match {
       case n: MptLeaf =>
-        nodesKeyValueStorage.update(Nil, Seq(n.hash -> n.toBytes))
+        nodesKeyValueStorage.put(n.hash, n.toBytes)
         Nil
 
       case n: MptBranch =>
         val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-        nodesKeyValueStorage.update(Nil, Seq(n.hash -> n.toBytes))
+        nodesKeyValueStorage.put(n.hash, n.toBytes)
         hashes.map(ContractStorageMptNodeHash)
 
       case n: MptExtension =>
-        nodesKeyValueStorage.update(Nil, Seq(n.hash -> n.toBytes))
+        nodesKeyValueStorage.put(n.hash, n.toBytes)
         n.child.fold(
           mptHash => Seq(ContractStorageMptNodeHash(mptHash.hash)),
           _ => Nil)
