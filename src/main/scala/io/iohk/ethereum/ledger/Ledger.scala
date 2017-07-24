@@ -77,14 +77,10 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
   private[ledger] def executeBlockTransactions(
     block: Block,
     blockchain: BlockchainImpl,
-    signedTransactionValidator: SignedTransactionValidator,
-    readOnly: Boolean = false):
+    signedTransactionValidator: SignedTransactionValidator):
   Either[BlockExecutionError, BlockResult] = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
-    val getWorldStateProxyFn =
-        if(readOnly) blockchain.getReadOnlyWorldStateProxy _
-        else blockchain.getWorldStateProxy _
-    val initialWorld: blockchain.WS = getWorldStateProxyFn(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
+    val initialWorld = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
 
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
     val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, signedTransactionValidator)
