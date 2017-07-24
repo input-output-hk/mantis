@@ -4,9 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.pruning.{PruningNodesKeyValueStorage, PruneResult, RangePrune}
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
-import io.iohk.ethereum.rlp.RLPImplicitConversions.{toRlpList, _}
-import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
+import encoding._
 
 /**
   * This class helps to deal with two problems regarding MptNodes storage:
@@ -30,7 +28,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
 
   import ReferenceCountNodeStorage._
 
-  override def get(key: ByteString): Option[NodeEncoded] = nodeStorage.get(key).map(_.toStoredNode).map(_.nodeEncoded.toArray)
+  override def get(key: ByteString): Option[NodeEncoded] = nodeStorage.get(key).map(storedNodeFromBytes).map(_.nodeEncoded.toArray)
 
   override def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesKeyValueStorage = {
 
@@ -42,7 +40,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
     val upsertChanges = toUpsert.foldLeft(Map.empty[NodeHash, StoredNode]) { (storedNodes, toUpsertItem) =>
       val (nodeKey, nodeEncoded) = toUpsertItem
       val storedNode: StoredNode = storedNodes.get(nodeKey) // get from current changes
-        .orElse(nodeStorage.get(nodeKey).map(_.toStoredNode)) // or get from DB
+        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes)) // or get from DB
         .getOrElse(StoredNode(ByteString(nodeEncoded), 0)) // if it's new, return an empty stored node
         .incrementReferences(1)
 
@@ -51,12 +49,12 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
 
     // Look for block_number -> key prune candidates in order to update it if some node reaches 0 references
     val toPruneInThisBlockKey = pruneKey(bn)
-    val pruneCandidates = nodeStorage.get(toPruneInThisBlockKey).map(_.toPruneCandidates).getOrElse(PruneCandidates(Nil))
+    val pruneCandidates = nodeStorage.get(toPruneInThisBlockKey).map(pruneCandidatesFromBytes).getOrElse(PruneCandidates(Nil))
 
     val changes = toRemove.foldLeft(upsertChanges, pruneCandidates) { (acc, nodeKey) =>
       val (storedNodes, toDeleteInBlock) = acc
       val storedNode: Option[StoredNode] = storedNodes.get(nodeKey) // get from current changes
-        .orElse(nodeStorage.get(nodeKey).map(_.toStoredNode)) // or db
+        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes)) // or db
         .map(_.decrementReferences(1))
 
       if (storedNode.isDefined) {
@@ -71,12 +69,12 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
 
     // map stored nodes to bytes in order to save them
     val toUpsertUpdated = changes._1.map {
-      case (nodeKey: NodeHash, storedNode: StoredNode) => nodeKey -> storedNode.toBytes
+      case (nodeKey: NodeHash, storedNode: StoredNode) => nodeKey -> storedNodeToBytes(storedNode)
     }.toSeq
 
     val toMarkAsDeleted =
       // Update prune candidates for current block tag if it references at least one block that should be removed
-      if (changes._2.nodeKeys.nonEmpty) Seq(toPruneInThisBlockKey -> changes._2.toBytes)
+      if (changes._2.nodeKeys.nonEmpty) Seq(toPruneInThisBlockKey -> pruneCandiatesToBytes(changes._2))
       else Nil
 
     nodeStorage.update(Nil, toUpsertUpdated ++ toMarkAsDeleted)
@@ -113,12 +111,12 @@ object ReferenceCountNodeStorage {
     val key = pruneKey(blockNumber)
 
     nodeStorage.get(key)
-      .map(_.toPruneCandidates)
+      .map(pruneCandidatesFromBytes)
       .map { pruneCandidates: PruneCandidates =>
         // Get Node from storage and filter ones which have references = 0 now (maybe they were added again after blockNumber)
         val pruneCandidateNodes = pruneCandidates.nodeKeys.map(nodeStorage.get)
         val pruneCandidateNodesWithKeys = pruneCandidateNodes.zip(pruneCandidates.nodeKeys)
-        val nodesToDelete = pruneCandidateNodesWithKeys.filter(n => n._1.isDefined && n._1.get.toStoredNode.references == 0)
+        val nodesToDelete = pruneCandidateNodesWithKeys.filter(n => n._1.isDefined && storedNodeFromBytes(n._1.get).references == 0)
         nodesToDelete.map(_._2)
       }.map(nodeKeysToDelete => {
         // Update nodestorage removing all nodes that are no longer being used
@@ -142,38 +140,6 @@ object ReferenceCountNodeStorage {
     def incrementReferences(amount: Int): StoredNode = copy(references = references + amount)
 
     def decrementReferences(amount: Int): StoredNode = copy(references = references - amount)
-  }
-
-  private implicit val storedNodeEncDec = new RLPDecoder[StoredNode] with RLPEncoder[StoredNode] {
-    override def decode(rlp: RLPEncodeable): StoredNode = rlp match {
-      case RLPList(nodeEncoded, references) => StoredNode(nodeEncoded, references)
-      case _ => throw new RuntimeException("Error when decoding stored node")
-    }
-
-    override def encode(obj: StoredNode): RLPEncodeable = rlpEncode(RLPList(obj.nodeEncoded, obj.references))
-  }
-
-  private implicit val pruneCandidatesEncDec = new RLPEncoder[PruneCandidates] with RLPDecoder[PruneCandidates] {
-    override def encode(obj: PruneCandidates): RLPEncodeable = rlpEncode(toRlpList(obj.nodeKeys))
-
-    override def decode(rlp: RLPEncodeable): PruneCandidates = rlp match {
-      case RLPList(candidates@_*) => PruneCandidates(candidates.map(b => b: ByteString))
-      case _ => throw new RuntimeException("Error when decoding pruning candidate")
-    }
-  }
-
-  private implicit class StoredToBytes(val storedNode: StoredNode) extends AnyVal {
-    def toBytes: Array[Byte] = storedNodeEncDec.encode(storedNode)
-  }
-
-  private implicit class PruneCandidatesToBytes(val pruneCanidates: PruneCandidates) extends AnyVal {
-    def toBytes: Array[Byte] = pruneCandidatesEncDec.encode(pruneCanidates)
-  }
-
-  private implicit class BytesToStoredNode(val array: Array[Byte]) extends AnyVal {
-    def toStoredNode: StoredNode = decode(array)(storedNodeEncDec)
-
-    def toPruneCandidates: PruneCandidates = decode(array)(pruneCandidatesEncDec)
   }
 
   /**
