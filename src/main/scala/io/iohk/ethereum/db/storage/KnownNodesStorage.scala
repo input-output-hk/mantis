@@ -25,7 +25,7 @@ class KnownNodesStorage(val dataSource: DataSource) extends KeyValueStorage[Stri
   }
 
   def updateKnownNodes(toAdd: Set[URI] = Set.empty, toRemove: Set[URI] = Set.empty): KnownNodesStorage = {
-    val updated = getKnownNodes() -- toRemove ++ toAdd
+    val updated = (getKnownNodes() ++ toAdd) -- toRemove
     put(key, updated.map(_.toString))
   }
 
