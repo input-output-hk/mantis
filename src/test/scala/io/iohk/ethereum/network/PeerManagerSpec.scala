@@ -129,7 +129,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
     val knownNodesManager = TestProbe()
 
-    val peerFactory: (ActorContext, InetSocketAddress) => ActorRef = { (ctx, addr) =>
+    val peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (ctx, addr, _) =>
       val peer = TestProbe()
       createdPeers :+= peer
       peer.ref

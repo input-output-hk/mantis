@@ -45,7 +45,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     val request = GetBlockHeaders(Left(block), maxHeaders, skip = 0, reverse = true)
     val resolverPeerTestProbe = TestProbe()
-    val resolverPeer = Peer(new InetSocketAddress("127.0.0.2", 9000), resolverPeerTestProbe.ref)
+    val resolverPeer = Peer(new InetSocketAddress("127.0.0.2", 9000), resolverPeerTestProbe.ref, false)
 
     val resolver: ActorRef = {
       parent.childActorOf(SyncBlockHeadersRequestHandler.props(
@@ -101,7 +101,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     val peerTestProbe = TestProbe()
 
-    val peer = Peer(new InetSocketAddress("127.0.0.1", 8000), peerTestProbe.ref)
+    val peer = Peer(new InetSocketAddress("127.0.0.1", 8000), peerTestProbe.ref, false)
 
     val etcPeerManager = TestProbe()
 

@@ -83,7 +83,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
     val peer = TestActorRef(Props(new PeerActor(new InetSocketAddress("127.0.0.1", 0), _ => {
         rlpxConnection = TestProbe()
         rlpxConnection.ref
-      }, peerConf, peerMessageBus, knownNodesManager.ref, Some(time.scheduler),
+      }, peerConf, peerMessageBus, knownNodesManager.ref, false, Some(time.scheduler),
       handshaker)))
 
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
@@ -282,6 +282,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       peerConf,
       peerMessageBus,
       knownNodesManager.ref,
+      false,
       None,
       Mocks.MockHandshakerAlwaysSucceeds(remoteStatus, 0, false)
     )))
@@ -387,6 +388,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       override val connectRetryDelay: FiniteDuration = 1 second
       override val disconnectPoisonPillTimeout: FiniteDuration = 5 seconds
       override val maxPeers = 10
+      override val maxIncomingPeers = 5
       override val networkId: Int = 1
 
       override val updateNodesInitialDelay: FiniteDuration = 5.seconds
@@ -457,6 +459,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       peerConf,
       peerMessageBus,
       knownNodesManager.ref,
+      false,
       Some(time.scheduler),
       handshaker)))
   }

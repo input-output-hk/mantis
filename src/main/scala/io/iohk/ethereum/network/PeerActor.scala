@@ -35,6 +35,7 @@ class PeerActor[R <: HandshakeResult](
     val peerConfiguration: PeerConfiguration,
     peerEventBus: ActorRef,
     knownNodesManager: ActorRef,
+    incomingConnection: Boolean,
     externalSchedulerOpt: Option[Scheduler] = None,
     initHandshaker: Handshaker[R])
   extends Actor with ActorLogging with Stash {
@@ -44,10 +45,9 @@ class PeerActor[R <: HandshakeResult](
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
 
-  val P2pVersion = 4
-
   val peerId: PeerId = PeerId(self.path.name)
-  val peer: Peer = Peer(peerAddress, self)
+
+  val peer: Peer = Peer(peerAddress, self, incomingConnection)
 
   override def receive: Receive = waitingForInitialCommand
 
@@ -241,11 +241,13 @@ class PeerActor[R <: HandshakeResult](
 }
 
 object PeerActor {
+  // scalastyle:off parameter.number
   def props[R <: HandshakeResult](peerAddress: InetSocketAddress,
                                   nodeStatusHolder: Agent[NodeStatus],
                                   peerConfiguration: PeerConfiguration,
                                   peerEventBus: ActorRef,
                                   knownNodesManager: ActorRef,
+                                  incomingConnection: Boolean,
                                   handshaker: Handshaker[R],
                                   authHandshaker: AuthHandshaker,
                                   messageDecoder: MessageDecoder): Props =
@@ -255,6 +257,7 @@ object PeerActor {
       peerConfiguration,
       peerEventBus,
       knownNodesManager,
+      incomingConnection,
       initHandshaker = handshaker))
 
   def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair, authHandshaker: AuthHandshaker,

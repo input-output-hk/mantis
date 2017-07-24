@@ -28,7 +28,7 @@ class PeerManagerActor(
     peerDiscoveryManager: ActorRef,
     peerConfiguration: PeerConfiguration,
     knownNodesManager: ActorRef,
-    peerFactory: (ActorContext, InetSocketAddress) => ActorRef,
+    peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef,
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging with Stash {
 
@@ -36,6 +36,8 @@ class PeerManagerActor(
   import PeerManagerActor._
 
   var peers: Map[PeerId, Peer] = Map.empty
+  private def incomingPeers = peers.filter { case (_, p) => p.incomingConnection }
+  private def outgoingPeers = peers.filter { case (_, p) => !p.incomingConnection }
 
   private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
@@ -72,14 +74,14 @@ class PeerManagerActor(
         nodesToConnect.foreach(n => self ! ConnectToPeer(n))
       }
 
-    case msg: HandlePeerConnection =>
-      handleConnection(msg.connection, msg.remoteAddress)
+    case HandlePeerConnection(connection, remoteAddress) =>
+      handleConnection(connection, remoteAddress)
 
     case msg: ConnectToPeer =>
       connect(msg.uri)
 
     case PeerDiscoveryManager.DiscoveredNodes(nodes) =>
-      val peerAddresses = peers.values.map(_.remoteAddress).toSet
+      val peerAddresses = outgoingPeers.values.map(_.remoteAddress).toSet
 
       val nodesToConnect = nodes
         .filterNot(n => peerAddresses.contains(n.addr)) // not already connected to
@@ -87,7 +89,7 @@ class PeerManagerActor(
         .sortBy(-_.addTimestamp)
         .take(peerConfiguration.maxPeers - peerAddresses.size)
 
-      log.debug(s"Discovered ${nodes.size} nodes, connected to ${peers.size}/${peerConfiguration.maxPeers}. " +
+      log.debug(s"Discovered ${nodes.size} nodes, connected to ${peers.size}/${peerConfiguration.maxPeers + peerConfiguration.maxIncomingPeers}. " +
         s"Trying to connect to ${nodesToConnect.size} more nodes.")
 
       if (nodesToConnect.nonEmpty) {
@@ -98,12 +100,12 @@ class PeerManagerActor(
 
   def handleConnection(connection: ActorRef, remoteAddress: InetSocketAddress): Unit = {
     if (!isConnectionHandled(remoteAddress)) {
-      val peer = createPeer(remoteAddress)
+      val peer = createPeer(remoteAddress, incomingConnection = true)
       peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
 
-      if (peers.size >= peerConfiguration.maxPeers) {
+      if (incomingPeers.size >= peerConfiguration.maxPeers) {
         peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
-        log.info("Maximum number of connected peers reached.")
+        log.info("Maximum number of incoming peer connections reached.")
       }
     } else {
       log.info("Another connection with {} is already opened. Disconnecting.", remoteAddress)
@@ -113,9 +115,9 @@ class PeerManagerActor(
 
   def connect(uri: URI): Unit = {
     if (!isConnectionHandled(new InetSocketAddress(uri.getHost, uri.getPort))) {
-      if (peers.size < peerConfiguration.maxPeers) {
+      if (outgoingPeers.size < peerConfiguration.maxPeers) {
         val addr = new InetSocketAddress(uri.getHost, uri.getPort)
-        val peer = createPeer(addr)
+        val peer = createPeer(addr, incomingConnection = false)
         peer.ref ! PeerActor.ConnectTo(uri)
       } else {
         log.info("Maximum number of connected peers reached.")
@@ -138,17 +140,17 @@ class PeerManagerActor(
       peer.ref ! PeerActor.SendMessage(message)
 
     case Terminated(ref) =>
-      val maybePeerId = peers.collect{ case (id, Peer(_, peerRef)) if peerRef == ref => id }
+      val maybePeerId = peers.collect{ case (id, Peer(_, peerRef, _)) if peerRef == ref => id }
       maybePeerId.foreach{ peerId =>
         peerEventBus ! Publish(PeerDisconnected(peerId))
         peers -= peerId
       }
   }
 
-  def createPeer(addr: InetSocketAddress): Peer = {
-    val ref = peerFactory(context, addr)
+  def createPeer(addr: InetSocketAddress, incomingConnection: Boolean): Peer = {
+    val ref = peerFactory(context, addr, incomingConnection)
     context watch ref
-    val peer = Peer(addr, ref)
+    val peer = Peer(addr, ref, incomingConnection)
     peers += peer.id -> peer
     peer
   }
@@ -184,11 +186,11 @@ object PeerManagerActor {
                                         knownNodesManager: ActorRef,
                                         handshaker: Handshaker[R],
                                         authHandshaker: AuthHandshaker,
-                                        messageDecoder: MessageDecoder): (ActorContext, InetSocketAddress) => ActorRef = {
-    (ctx, addr) =>
+                                        messageDecoder: MessageDecoder): (ActorContext, InetSocketAddress, Boolean) => ActorRef = {
+    (ctx, addr, incomingConnection) =>
       val id = addr.toString.filterNot(_ == '/')
       ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, peerEventBus,
-        knownNodesManager, handshaker, authHandshaker, messageDecoder), id)
+        knownNodesManager, incomingConnection, handshaker, authHandshaker, messageDecoder), id)
   }
 
   trait PeerConfiguration {
@@ -201,6 +203,7 @@ object PeerManagerActor {
     val fastSyncHostConfiguration: FastSyncHostConfiguration
     val rlpxConfiguration: RLPxConfiguration
     val maxPeers: Int
+    val maxIncomingPeers: Int
     val networkId: Int
     val updateNodesInitialDelay: FiniteDuration
     val updateNodesInterval: FiniteDuration

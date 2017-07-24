@@ -158,6 +158,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
       peerConfiguration = Config.Network.peer,
       peerEventBus = peerMessageBus.ref,
       knownNodesManager = knownNodesManager.ref,
+      incomingConnection = false,
       externalSchedulerOpt = Some(time.scheduler),
       initHandshaker = handshaker
     )))
