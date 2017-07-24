@@ -110,14 +110,20 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       "consume correct gas" in {
         result.stateOut.gasUsed shouldEqual fxt.gasRequiredForCreation
       }
+
+      "step forward" in {
+        result.stateOut.pc shouldEqual result.stateIn.pc + 1
+      }
     }
 
     "initialization code fails" should {
       val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit / 2)
       val result = CreateResult(context = context)
 
-      "not modify world state" in {
-        result.world shouldEqual context.world
+      "not modify world state except for the creator's nonce" in {
+        val creatorsAccount = context.world.getGuaranteedAccount(fxt.creatorAddr)
+        val expectedWorld = context.world.saveAccount(fxt.creatorAddr, creatorsAccount.copy(nonce = creatorsAccount.nonce + 1))
+        result.world shouldEqual expectedWorld
       }
 
       "return 0" in {
@@ -127,6 +133,10 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       "consume correct gas" in {
         val expectedGas = G_create + config.gasCap(context.startGas - G_create)
         result.stateOut.gasUsed shouldEqual expectedGas
+      }
+
+      "step forward" in {
+        result.stateOut.pc shouldEqual result.stateIn.pc + 1
       }
     }
 
@@ -149,8 +159,10 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
         result.stateOut.gasUsed shouldEqual expectedGas
       }
 
-      "not modify world state" in {
-        result.world shouldEqual context.world
+      "not modify world state except for the creator's nonce" in {
+        val creatorsAccount = context.world.getGuaranteedAccount(fxt.creatorAddr)
+        val expectedWorld = context.world.saveAccount(fxt.creatorAddr, creatorsAccount.copy(nonce = creatorsAccount.nonce + 1))
+        result.world shouldEqual expectedWorld
       }
 
       "return 0" in {
