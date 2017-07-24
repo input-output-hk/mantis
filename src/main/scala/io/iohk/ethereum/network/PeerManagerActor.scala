@@ -103,7 +103,7 @@ class PeerManagerActor(
       val peer = createPeer(remoteAddress, incomingConnection = true)
       peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
 
-      if (incomingPeers.size >= peerConfiguration.maxPeers) {
+      if (incomingPeers.size >= peerConfiguration.maxIncomingPeers) {
         peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
         log.info("Maximum number of incoming peer connections reached.")
       }
