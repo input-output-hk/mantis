@@ -48,6 +48,14 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     dataSource.storage.size shouldEqual 4
   }
 
+  it should "not throw an error when deleting a key that does not exist" in new TestSetup {
+    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
+
+    storage.remove(ByteString("doesnotexist"))
+
+    dataSource.storage.size shouldEqual 0
+  }
+
   trait TestSetup {
     val dataSource = EphemDataSource()
     val nodeStorage = new NodeStorage(dataSource)
