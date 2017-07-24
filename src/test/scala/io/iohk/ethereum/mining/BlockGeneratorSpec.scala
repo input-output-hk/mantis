@@ -18,6 +18,7 @@ import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
+import io.iohk.ethereum.daoFork.DaoForkConfiguration
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.utils.Config.DbConfig
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
@@ -41,6 +42,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => b.header.extraData shouldBe miningConfig.headerExtraData)
   }
 
   it should "generate correct block with transactions" in new TestSetup {
@@ -56,6 +58,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, validators) shouldBe a[Right[_, Seq[Receipt]]])
+    fullBlock.right.foreach(b => b.header.extraData shouldBe miningConfig.headerExtraData)
   }
 
   it should "filter out failing transactions" in new TestSetup {
@@ -73,6 +76,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, validators) shouldBe a[Right[_, Seq[Receipt]]])
     fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction))
+    fullBlock.right.foreach(b => b.header.extraData shouldBe miningConfig.headerExtraData)  
   }
 
   it should "filter out transactions exceeding block gas limit and include correct transactions" in new TestSetup {
@@ -96,6 +100,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, validators) shouldBe a[Right[_, Seq[Receipt]]])
     fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction))
+    fullBlock.right.foreach(b => b.header.extraData shouldBe miningConfig.headerExtraData)
   }
 
   it should "generate block before eip155 and filter out chain specific tx" in new TestSetup {
@@ -135,6 +140,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, validators) shouldBe a[Right[_, Seq[Receipt]]])
     fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(generalTx))
+    fullBlock.right.foreach(b => b.header.extraData shouldBe miningConfig.headerExtraData)
   }
 
   it should "generate block after eip155 and allow both chain specific and general transactions" in new TestSetup {
@@ -154,6 +160,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, validators) shouldBe a[Right[_, Seq[Receipt]]])
     fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction, generalTx))
+    fullBlock.right.foreach(b => b.header.extraData shouldBe miningConfig.headerExtraData)
   }
 
   it should "include consecutive transactions from single sender" in new TestSetup {
@@ -173,6 +180,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, validators) shouldBe a[Right[_, Seq[Receipt]]])
     fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction, nextTransaction))
+    fullBlock.right.foreach(b => b.header.extraData shouldBe miningConfig.headerExtraData)
   }
 
   it should "filter out failing transaction from the middle of tx list" in new TestSetup {
@@ -205,6 +213,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, validators) shouldBe a[Right[_, Seq[Receipt]]])
     fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction, nextTransaction))
+    fullBlock.right.foreach(b => b.header.extraData shouldBe miningConfig.headerExtraData)
   }
 
   it should "include transaction with higher gas price if nonce is the same" in new TestSetup {
@@ -227,6 +236,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, validators) shouldBe a[Right[_, Seq[Receipt]]])
     fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction))
+    fullBlock.right.foreach(b => b.header.extraData shouldBe miningConfig.headerExtraData)
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
@@ -287,6 +297,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val ommersPoolSize: Int = 30
       override val activeTimeout: FiniteDuration = Timeouts.normalTimeout
       override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
+      override val headerExtraData: ByteString = ByteString("mined with etc scala")
     }
 
     lazy val blockTimestampProvider = new FakeBlockTimestampProvider

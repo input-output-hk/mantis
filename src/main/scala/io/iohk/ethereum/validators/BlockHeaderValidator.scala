@@ -5,7 +5,6 @@ import io.iohk.ethereum.crypto.{kec256, kec512}
 import io.iohk.ethereum.daoFork.DaoForkConfiguration
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, DifficultyCalculator}
 import io.iohk.ethereum.utils.BlockchainConfig
-import org.spongycastle.util.encoders.Hex
 
 trait BlockHeaderValidator {
 
@@ -59,18 +58,21 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[HeaderExtraDataError]] otherwise
     */
-  private def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
-    if (blockchainConfig.proDaoFork &&
-      blockchainConfig.daoForkBlockNumber <= blockHeader.number &&
-      blockchainConfig.daoForkBlockNumber + DaoForkConfiguration.range > blockHeader.number &&
-      blockHeader.extraData != DaoForkConfiguration.blockExtraData) {
-      Left(DaoHeaderExtraDataError)
-    } else if (blockHeader.extraData.length <= MaxExtraDataSize) {
-      Right(blockHeader)
+  private def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] =
+    if (blockHeader.extraData.length <= MaxExtraDataSize) {
+      val inInRange = blockchainConfig.daoForkBlockNumber <= blockHeader.number &&
+        blockchainConfig.daoForkBlockNumber + DaoForkConfiguration.range > blockHeader.number
+      val daoForkData = blockHeader.extraData == DaoForkConfiguration.blockExtraData
+
+      (inInRange, daoForkData, blockchainConfig.proDaoFork) match {
+        case (false, _, _) | (true, true, true) | (true, false, false) =>
+          Right(blockHeader)
+        case _ =>
+          Left(DaoHeaderExtraDataError)
+      }
     } else {
       Left(HeaderExtraDataError)
     }
-  }
 
   /**
     * Validates [[io.iohk.ethereum.domain.BlockHeader.unixTimestamp]] is greater than the one of its parent
