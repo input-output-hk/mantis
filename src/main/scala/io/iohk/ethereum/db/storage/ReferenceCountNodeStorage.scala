@@ -19,7 +19,10 @@ import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
   * In order to solve (2), before saving a node, its wrapped with the number of references it has. The inverse operation
   * is done when getting a node.
   *
-  *
+  * Using this storage will change data to be stored in nodeStorage in two ways (and it will, as consequence, make
+  * different pruning mechanisms incompatible):
+  * - Instead of saving KEY -> VALUE, it will store KEY -> (VALUE, REFERENCE_COUNT)
+  * - Also, the following index will be appended: BLOCK_NUMBER_TAG -> Seq(KEY1, KEY2, ..., KEYn)
   */
 class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt, blockNumber: Option[BigInt] = None)
   extends PruningNodesKeyValueStorage
@@ -34,27 +37,31 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
     require(blockNumber.isDefined)
 
     val bn = blockNumber.get
+    // Process upsert changes. As the same node might be changed twice within the same update, we need to keep changes
+    // within a map
     val upsertChanges = toUpsert.foldLeft(Map.empty[NodeHash, StoredNode]) { (storedNodes, toUpsertItem) =>
       val (nodeKey, nodeEncoded) = toUpsertItem
-      val storedNode: StoredNode = storedNodes.get(nodeKey)
-        .orElse(nodeStorage.get(nodeKey).map(_.toStoredNode))
-        .getOrElse(StoredNode(ByteString(nodeEncoded), 0))
+      val storedNode: StoredNode = storedNodes.get(nodeKey) // get from current changes
+        .orElse(nodeStorage.get(nodeKey).map(_.toStoredNode)) // or get from DB
+        .getOrElse(StoredNode(ByteString(nodeEncoded), 0)) // if it's new, return an empty stored node
         .incrementReferences(1)
 
       storedNodes + (nodeKey -> storedNode)
     }
 
+    // Look for block_number -> key prune candidates in order to update it if some node reaches 0 references
     val toPruneInThisBlockKey = pruneKey(bn)
     val pruneCandidates = nodeStorage.get(toPruneInThisBlockKey).map(_.toPruneCandidates).getOrElse(PruneCandidates(Nil))
 
     val changes = toRemove.foldLeft(upsertChanges, pruneCandidates) { (acc, nodeKey) =>
       val (storedNodes, toDeleteInBlock) = acc
-      val storedNode: Option[StoredNode] = storedNodes.get(nodeKey)
-        .orElse(nodeStorage.get(nodeKey).map(_.toStoredNode))
+      val storedNode: Option[StoredNode] = storedNodes.get(nodeKey) // get from current changes
+        .orElse(nodeStorage.get(nodeKey).map(_.toStoredNode)) // or db
         .map(_.decrementReferences(1))
 
       if (storedNode.isDefined) {
         val pruneCanditatesUpdated =
+          // if references is 0, mark it as prune candidate for current block tag
           if (storedNode.get.references == 0) toDeleteInBlock.copy(nodeKeys = nodeKey +: toDeleteInBlock.nodeKeys)
           else toDeleteInBlock
         (storedNodes + (nodeKey -> storedNode.get), pruneCanditatesUpdated)
@@ -62,14 +69,15 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
       else acc
     }
 
+    // map stored nodes to bytes in order to save them
     val toUpsertUpdated = changes._1.map {
       case (nodeKey: NodeHash, storedNode: StoredNode) => nodeKey -> storedNode.toBytes
     }.toSeq
 
     val toMarkAsDeleted =
+      // Update prune candidates for current block tag if it references at least one block that should be removed
       if (changes._2.nodeKeys.nonEmpty) Seq(toPruneInThisBlockKey -> changes._2.toBytes)
       else Nil
-
 
     nodeStorage.update(Nil, toUpsertUpdated ++ toMarkAsDeleted)
 
@@ -113,6 +121,7 @@ object ReferenceCountNodeStorage {
         val nodesToDelete = pruneCandidateNodesWithKeys.filter(n => n._1.isDefined && n._1.get.toStoredNode.references == 0)
         nodesToDelete.map(_._2)
       }.map(nodeKeysToDelete => {
+        // Update nodestorage removing all nodes that are no longer being used
         nodeStorage.update(key +: nodeKeysToDelete, Nil)
         nodeKeysToDelete.size
       }).getOrElse(0)
@@ -168,7 +177,7 @@ object ReferenceCountNodeStorage {
   }
 
   /**
-    * Key to be used to store PruneCandidates
+    * Key to be used to store PruneCandidates index. PruneKey -> PruneCandidates
     *
     * @param blockNumber Block Number Tag
     * @return Key
