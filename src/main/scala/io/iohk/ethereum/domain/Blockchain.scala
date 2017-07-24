@@ -154,7 +154,7 @@ trait Blockchain {
 
   def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None): WS
 
-  def getReadOnlyWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None): WS
+  def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt], accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None): WS
 }
 
 class BlockchainImpl(
@@ -253,10 +253,10 @@ class BlockchainImpl(
     )
 
   //FIXME Maybe we can use this one in regular execution too and persist underlying storage when block execution is successful
-  override def getReadOnlyWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy =
+  override def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt], accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
-      ReadOnlyNodeStorage(nodesKeyValueStorageFor(Some(blockNumber))),
+      ReadOnlyNodeStorage(nodesKeyValueStorageFor(blockNumber)),
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash

@@ -139,5 +139,9 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     override def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy = ???
 
-    override def getReadOnlyWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy = ???
+    override def getReadOnlyWorldStateProxy(
+      blockNumber: Option[BigInt],
+      accountStartNonce: UInt256,
+      stateRootHash: Option[ByteString]
+    ): InMemoryWorldStateProxy = ???
   }

@@ -33,11 +33,13 @@ package object pruning {
     def nodesKeyValueStorage(pruningMode: PruningMode, nodeStorage: NodeStorage)(blockNumber: Option[BigInt]): PruningNodesKeyValueStorage =
       pruningMode match {
         case ArchivePruning => new ArchiveNodeStorage(nodeStorage)
-        case BasicPruning(history) => new ReferenceCountNodeStorage(nodeStorage, history, blockNumber) //FIXME
+        case BasicPruning(history) => new ReferenceCountNodeStorage(nodeStorage, history, blockNumber)
       }
 
   }
 
-  case class PruneResult(lastPrunedBlockNumber: BigInt, pruned: Int)
+  case class PruneResult(lastPrunedBlockNumber: BigInt, pruned: Int) {
+    override def toString: String = s"Number of mpt nodes deleted: $pruned. Last Pruned Block: $lastPrunedBlockNumber"
+  }
 
 }

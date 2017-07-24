@@ -56,7 +56,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
     val blockchain = BlockchainImpl(storages)
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
-    val initialWorld = blockchain.getReadOnlyWorldStateProxy(-1, blockchainConfig.accountStartNonce, parentStateRoot)
+    val initialWorld = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, parentStateRoot)
     val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header, validators.signedTransactionValidator)
 
     prepared match {
@@ -161,8 +161,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     val gasLimit = stx.tx.gasLimit
     val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
-    //FIXME When mining we are setting block tag as -1 but this info won't be pruned
-    val world1 = BlockchainImpl(storages).getReadOnlyWorldStateProxy(-1, blockchainConfig.accountStartNonce, Some(stateRoot))
+    val world1 = BlockchainImpl(storages).getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(stateRoot))
     val world2 =
       if (world1.getAccount(stx.senderAddress).isEmpty)
         world1.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce))
