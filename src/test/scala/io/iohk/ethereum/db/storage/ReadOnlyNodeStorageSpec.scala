@@ -22,6 +22,7 @@ class ReadOnlyNodeStorageSpec extends FlatSpec with Matchers {
     readOnlyNodeStorage.remove(key1)
 
     dataSource.storage.size shouldEqual 1
+    readOnlyNodeStorage.get(key1).get shouldEqual val1
   }
 
   trait TestSetup {
