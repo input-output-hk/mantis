@@ -28,6 +28,8 @@ trait DataSourcesComponent {
 
     val transactionMappingDataSource: DataSource
 
+    val knownNodesDataSource: DataSource
+
     def closeAll(): Unit
 
   }

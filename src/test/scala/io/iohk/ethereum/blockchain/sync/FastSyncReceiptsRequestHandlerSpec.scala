@@ -67,7 +67,7 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     val time = new VirtualTime
 
     val peerTestProbe = TestProbe()
-    val peer = Peer(new InetSocketAddress("127.0.0.1", 8900), peerTestProbe.ref)
+    val peer = Peer(new InetSocketAddress("127.0.0.1", 8900), peerTestProbe.ref, false)
 
     val requestedHashes = Seq(ByteString("1"), ByteString("2"))
 

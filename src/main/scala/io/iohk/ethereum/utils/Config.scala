@@ -56,6 +56,7 @@ object Config {
       val waitForStatusTimeout: FiniteDuration = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
       val waitForChainCheckTimeout: FiniteDuration = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
       val maxPeers: Int = peerConfig.getInt("max-peers")
+      val maxIncomingPeers: Int = peerConfig.getInt("max-incoming-peers")
       val networkId: Int = peerConfig.getInt("network-id")
 
       val rlpxConfiguration = new RLPxConfiguration {

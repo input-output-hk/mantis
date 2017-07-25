@@ -271,13 +271,13 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
     )
 
     val peer1Probe = TestProbe()
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref)
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false)
     val peer1Info = initialPeerInfo.withForkAccepted(false)
     val peer2Probe = TestProbe()
-    val peer2 = Peer(new InetSocketAddress("127.0.0.1", 2), peer2Probe.ref)
+    val peer2 = Peer(new InetSocketAddress("127.0.0.1", 2), peer2Probe.ref, false)
     val peer2Info = initialPeerInfo.withForkAccepted(false)
     val peer3Probe = TestProbe()
-    val peer3 = Peer(new InetSocketAddress("127.0.0.1", 3), peer3Probe.ref)
+    val peer3 = Peer(new InetSocketAddress("127.0.0.1", 3), peer3Probe.ref, false)
 
     val peerManager = TestProbe()
     val peerEventBus = TestProbe()

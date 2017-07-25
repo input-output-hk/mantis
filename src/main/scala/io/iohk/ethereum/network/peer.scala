@@ -6,6 +6,6 @@ import akka.actor.ActorRef
 
 case class PeerId(value: String) extends AnyVal
 
-case class Peer(remoteAddress: InetSocketAddress, ref: ActorRef) {
+case class Peer(remoteAddress: InetSocketAddress, ref: ActorRef, incomingConnection: Boolean) {
   def id: PeerId = PeerId(ref.path.name)
 }
