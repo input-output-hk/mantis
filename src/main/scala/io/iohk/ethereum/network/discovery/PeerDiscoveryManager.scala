@@ -21,11 +21,16 @@ class PeerDiscoveryManager(
 
   import PeerDiscoveryManager._
 
-  var nodes: Map[ByteString, Node] =
-    (discoveryConfig.bootstrapNodes.map(new URI(_)) ++ knownNodesStorage.getKnownNodes()).map { uri =>
+  var nodes: Map[ByteString, Node] = {
+    val uris = discoveryConfig.bootstrapNodes.map(new URI(_)) ++
+      (if (discoveryConfig.discoveryEnabled) knownNodesStorage.getKnownNodes()
+      else Set.empty)
+
+    uris.map { uri =>
       val node = Node.fromUri(uri)
       node.id -> node
     }.toMap
+  }
 
   if (discoveryConfig.discoveryEnabled) {
     discoveryListener ! DiscoveryListener.Subscribe
