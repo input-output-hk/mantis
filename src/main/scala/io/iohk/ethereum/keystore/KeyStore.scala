@@ -66,8 +66,8 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
 
   private def init(): Unit = {
     val dir = new File(keyStoreDir)
-    val res = Try(dir.mkdirs()).filter(identity)
-    res.failed.foreach(ex => log.error(s"Could not initialise keystore directory ($dir): $ex"))
+    val res = Try(dir.isDirectory || dir.mkdirs()).filter(identity)
+    require(res.isSuccess, s"Could not initialise keystore directory ($dir): ${res.failed.get}")
   }
 
   private def save(encKey: EncryptedKey): Either[KeyStoreError, Unit] = {
