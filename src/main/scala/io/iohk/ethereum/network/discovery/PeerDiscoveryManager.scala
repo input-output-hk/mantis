@@ -27,10 +27,12 @@ class PeerDiscoveryManager(
       node.id -> node
     }.toMap
 
-  discoveryListener ! DiscoveryListener.Subscribe
+  if (discoveryConfig.discoveryEnabled) {
+    discoveryListener ! DiscoveryListener.Subscribe
 
-  context.system.scheduler.schedule(discoveryConfig.scanInitialDelay, discoveryConfig.scanInterval) {
-    scan()
+    context.system.scheduler.schedule(discoveryConfig.scanInitialDelay, discoveryConfig.scanInterval) {
+      scan()
+    }
   }
 
   def scan(): Unit = {
