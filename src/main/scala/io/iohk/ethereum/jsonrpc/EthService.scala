@@ -17,7 +17,7 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -33,7 +33,6 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
-import scala.concurrent.duration._
 
 // scalastyle:off number.of.methods number.of.types
 object EthService {
@@ -174,7 +173,6 @@ class EthService(
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
     miningConfig: MiningConfig,
-    txPoolConfig: TxPoolConfig,
     ledger: Ledger,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,

@@ -4,7 +4,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.io.Tcp
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.{Timeouts, crypto}
+import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.Versions
@@ -115,7 +115,6 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     implicit val system = ActorSystem("RLPxHandlerSpec_System")
 
     //Mock parameters for RLPxConnectionHandler
-    val nodeKey = crypto.generateKeyPair(secureRandom)
     val mockMessageDecoder = new MessageDecoder {
       override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Version) =
         throw new Exception("Mock message decoder fails to decode all messages")
@@ -133,7 +132,7 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     val rlpxConnectionParent = TestProbe()
     val rlpxConnection = TestActorRef(
       Props(new RLPxConnectionHandler(
-        nodeKey, mockMessageDecoder, protocolVersion, mockHandshaker, (_, _, _) => mockMessageCodec, rlpxConfiguration)),
+        mockMessageDecoder, protocolVersion, mockHandshaker, (_, _, _) => mockMessageCodec, rlpxConfiguration)),
       rlpxConnectionParent.ref)
 
     //Setup for RLPxConnection, after it the RLPxConnectionHandler is in a handshaked state

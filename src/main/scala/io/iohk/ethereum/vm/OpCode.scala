@@ -653,7 +653,7 @@ sealed abstract class LogOp(code: Int, val i: Int) extends OpCode(code, i + 2, 0
   }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
-    val (Seq(offset, size, _*), stack1) = state.stack.pop(delta)
+    val (Seq(offset, size, _*), _) = state.stack.pop(delta)
     val memCost = state.config.calcMemCost(state.memory.size, offset, size)
     val logCost = state.config.feeSchedule.G_logdata * size + i * state.config.feeSchedule.G_logtopic
     memCost + logCost

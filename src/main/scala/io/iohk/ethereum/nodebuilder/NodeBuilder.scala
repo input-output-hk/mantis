@@ -32,7 +32,6 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.ommers.OmmersPool
-import io.iohk.ethereum.utils.Config.DbConfig
 
 trait BlockchainConfigBuilder {
   lazy val blockchainConfig = BlockchainConfig(Config.config)
@@ -163,7 +162,6 @@ trait PeerEventBusBuilder {
 trait PeerManagerActorBuilder {
 
   self: ActorSystemBuilder
-    with NodeStatusBuilder
     with HandshakerBuilder
     with PeerEventBusBuilder
     with AuthHandshakerBuilder
@@ -174,7 +172,6 @@ trait PeerManagerActorBuilder {
   lazy val peerConfiguration = Config.Network.peer
 
   lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props(
-    nodeStatusHolder,
     peerDiscoveryManager,
     Config.Network.peer,
     peerEventBus,
@@ -290,12 +287,11 @@ trait EthServiceBuilder {
     SyncControllerBuilder with
     OmmersPoolBuilder with
     MiningConfigBuilder with
-    TxPoolConfigBuilder with
     FilterManagerBuilder with
     FilterConfigBuilder =>
 
   lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage, miningConfig,
-    txPoolConfig, ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig, blockchainConfig)
+    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig, blockchainConfig)
 }
 
 trait PersonalServiceBuilder {

@@ -241,9 +241,7 @@ class PeerActor[R <: HandshakeResult](
 }
 
 object PeerActor {
-  // scalastyle:off parameter.number
   def props[R <: HandshakeResult](peerAddress: InetSocketAddress,
-                                  nodeStatusHolder: Agent[NodeStatus],
                                   peerConfiguration: PeerConfiguration,
                                   peerEventBus: ActorRef,
                                   knownNodesManager: ActorRef,
@@ -253,17 +251,17 @@ object PeerActor {
                                   messageDecoder: MessageDecoder): Props =
     Props(new PeerActor(
       peerAddress,
-      rlpxConnectionFactory(nodeStatusHolder().key, authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration),
+      rlpxConnectionFactory(authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration),
       peerConfiguration,
       peerEventBus,
       knownNodesManager,
       incomingConnection,
       initHandshaker = handshaker))
 
-  def rlpxConnectionFactory(nodeKey: AsymmetricCipherKeyPair, authHandshaker: AuthHandshaker,
-                            messageDecoder: MessageDecoder, rlpxConfiguration: RLPxConfiguration): ActorContext => ActorRef = { ctx =>
+  def rlpxConnectionFactory(authHandshaker: AuthHandshaker, messageDecoder: MessageDecoder,
+                            rlpxConfiguration: RLPxConfiguration): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(
-      RLPxConnectionHandler.props(nodeKey, NetworkMessageDecoder orElse messageDecoder, Versions.PV63, authHandshaker, rlpxConfiguration),
+      RLPxConnectionHandler.props(NetworkMessageDecoder orElse messageDecoder, Versions.PV63, authHandshaker, rlpxConfiguration),
       "rlpx-connection")
   }
 
