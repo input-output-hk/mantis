@@ -37,7 +37,7 @@ case class MockWorldState(
 
   def getBlockHash(number: UInt256): Option[UInt256] =
     if (numberOfHashes >= number && number >= 0)
-      Some(UInt256(kec256(number.bytes.toArray)))
+      Some(UInt256(kec256(number.toString.getBytes)))
     else
       None
 
