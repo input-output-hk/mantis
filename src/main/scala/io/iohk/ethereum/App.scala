@@ -29,7 +29,11 @@ object App {
 
       peerManager ! PeerManagerActor.StartConnecting
       server ! ServerActor.StartServer(networkConfig.Server.listenAddress)
-      discoveryListener ! DiscoveryListener.Start
+
+      if (discoveryConfig.discoveryEnabled) {
+        discoveryListener ! DiscoveryListener.Start
+      }
+
       syncController ! SyncController.StartSync
 
       peerDiscoveryManager // unlazy

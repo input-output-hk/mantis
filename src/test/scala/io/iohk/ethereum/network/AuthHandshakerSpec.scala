@@ -52,7 +52,7 @@ class AuthHandshakerSpec extends FlatSpec with Matchers with SecureRandomBuilder
     val encodedResponse = response.encoded
     val encryptedResponse = ECIESCoder.encrypt(nodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].getQ, secureRandom, encodedResponse.toArray)
 
-    val AuthHandshakeSuccess(secrets: Secrets) = authHandshaker.handleResponseMessage(ByteString(encryptedResponse))
+    val AuthHandshakeSuccess(secrets: Secrets, _) = authHandshaker.handleResponseMessage(ByteString(encryptedResponse))
 
     val expectedMacSecret = Hex.decode("50a782c6fedf88b829a6e5798da721dcbf5b46c117704e2ada985d5235ac192c")
     val expectedSharedToken = Hex.decode("b1960fa5d529ee89f8032c8aeb0e4fda2bbf4d7eff0c5695173e27f382d8f5bb")
@@ -68,8 +68,8 @@ class AuthHandshakerSpec extends FlatSpec with Matchers with SecureRandomBuilder
     val remoteHandshaker = AuthHandshaker(remoteNodeKey, remoteNonce, remoteEphemeralKey, secureRandom)
 
     val (initPacket, thisHandshakerInitiated) = thisHandshaker.initiate(remoteUri)
-    val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets)) = remoteHandshaker.handleInitialMessageV4(initPacket)
-    val AuthHandshakeSuccess(thisSecrets: Secrets) = thisHandshakerInitiated.handleResponseMessageV4(responsePacket)
+    val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets, _)) = remoteHandshaker.handleInitialMessageV4(initPacket)
+    val AuthHandshakeSuccess(thisSecrets: Secrets, _) = thisHandshakerInitiated.handleResponseMessageV4(responsePacket)
 
     remoteSecrets.token shouldBe thisSecrets.token
     remoteSecrets.aes shouldBe thisSecrets.aes

@@ -4,6 +4,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 
 case class DiscoveryConfig(
+    discoveryEnabled: Boolean,
     interface: String,
     port: Int,
     bootstrapNodes: Set[String],
@@ -19,6 +20,7 @@ object DiscoveryConfig {
     val discoveryConfig = etcClientConfig.getConfig("network.discovery")
     val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet
     DiscoveryConfig(
+      discoveryEnabled = discoveryConfig.getBoolean("discovery-enabled"),
       interface = discoveryConfig.getString("interface"),
       port = discoveryConfig.getInt("port"),
       bootstrapNodes = bootstrapNodes,

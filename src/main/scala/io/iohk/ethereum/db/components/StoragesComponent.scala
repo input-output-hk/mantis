@@ -30,5 +30,7 @@ trait StoragesComponent {
     val fastSyncStateStorage: FastSyncStateStorage
 
     val transactionMappingStorage: TransactionMappingStorage
+
+    val knownNodesStorage: KnownNodesStorage
   }
 }

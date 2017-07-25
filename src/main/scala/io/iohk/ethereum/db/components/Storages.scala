@@ -36,6 +36,8 @@ object Storages {
 
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
 
+      override val knownNodesStorage: KnownNodesStorage = new KnownNodesStorage(dataSources.knownNodesDataSource)
+
     }
 
   }
@@ -73,6 +75,8 @@ object Storages {
       override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
 
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
+
+      override val knownNodesStorage: KnownNodesStorage = new KnownNodesStorage(dataSources.knownNodesDataSource)
     }
   }
 }

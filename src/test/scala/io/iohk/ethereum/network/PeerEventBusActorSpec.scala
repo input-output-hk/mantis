@@ -83,7 +83,7 @@ class PeerEventBusActorSpec extends FlatSpec with Matchers {
     peerEventBusActor.tell(PeerEventBusActor.Subscribe(PeerHandshaked), probe1.ref)
     peerEventBusActor.tell(PeerEventBusActor.Subscribe(PeerHandshaked), probe2.ref)
 
-    val peerHandshaked = new Peer(new InetSocketAddress("127.0.0.1", 0), TestProbe().ref)
+    val peerHandshaked = new Peer(new InetSocketAddress("127.0.0.1", 0), TestProbe().ref, false)
     val msgPeerHandshaked = PeerHandshakeSuccessful(peerHandshaked, initialPeerInfo)
     peerEventBusActor ! PeerEventBusActor.Publish(msgPeerHandshaked)
 

@@ -42,6 +42,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val waitForChainCheckTimeout: FiniteDuration = Config.Network.peer.waitForChainCheckTimeout
       override val fastSyncHostConfiguration: PeerManagerActor.FastSyncHostConfiguration = Config.Network.peer.fastSyncHostConfiguration
       override val maxPeers: Int = Config.Network.peer.maxPeers
+      override val maxIncomingPeers: Int = Config.Network.peer.maxIncomingPeers
       override val networkId: Int = privateNetworkId
       override val updateNodesInitialDelay: FiniteDuration = 5.seconds
       override val updateNodesInterval: FiniteDuration = 20.seconds
@@ -82,6 +83,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       nodeStatusHolder = nodeStatusHolder,
       peerConfiguration = peerConfig,
       peerMessageBus = peerMessageBus,
+      knownNodesManager = actorSystem.deadLetters, // TODO: fixme
       handshaker = handshaker,
       authHandshaker = authHandshaker,
       messageDecoder = EthereumMessageDecoder), "peer-manager")
