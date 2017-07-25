@@ -14,19 +14,25 @@ object InMemoryWorldStateProxy {
   import Account._
 
   def apply(
-    storages: BlockchainStorages,
+    evmCodeStorage: EvmCodeStorage,
+    nodesKeyValueStorage: NodesKeyValueStorage,
     accountStartNonce: UInt256,
-    stateRootHash: Option[ByteString] = None): InMemoryWorldStateProxy = {
-
+    getBlockHashByNumber: BigInt => Option[ByteString],
+    stateRootHash: Option[ByteString] = None
+  ): InMemoryWorldStateProxy = {
     val accountsStateTrieProxy = createProxiedAccountsStateTrie(
-      storages.nodeStorage,
+      nodesKeyValueStorage,
       stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.calculateEmptyRootHash(kec256(_: Array[Byte]))))
     )
-    val blockchain = BlockchainImpl(storages)
-    val getBlockHashByNumber = (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash)
-
-    new InMemoryWorldStateProxy(storages.nodeStorage, accountsStateTrieProxy, Map.empty, storages.evmCodeStorage,
-      Map.empty, getBlockHashByNumber, accountStartNonce)
+    new InMemoryWorldStateProxy(
+      nodesKeyValueStorage,
+      accountsStateTrieProxy,
+      Map.empty,
+      evmCodeStorage,
+      Map.empty,
+      getBlockHashByNumber,
+      accountStartNonce
+    )
   }
 
   /**
@@ -82,7 +88,7 @@ object InMemoryWorldStateProxy {
     * @param stateRootHash   State trie root hash
     * @return Proxied Accounts State Trie
     */
-  private def createProxiedAccountsStateTrie(accountsStorage: NodeStorage, stateRootHash: ByteString)
+  private def createProxiedAccountsStateTrie(accountsStorage: NodesKeyValueStorage, stateRootHash: ByteString)
   : InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] = {
     InMemorySimpleMapProxy.wrap[Address, Account, MerklePatriciaTrie[Address, Account]](
       MerklePatriciaTrie[Address, Account](
@@ -102,7 +108,7 @@ object InMemoryWorldStateProxy {
     * @param storageRoot     Trie root
     * @return Proxied Contract Storage Trie
     */
-  private def createProxiedContractStorageTrie(contractStorage: NodeStorage, storageRoot: ByteString):
+  private def createProxiedContractStorageTrie(contractStorage: NodesKeyValueStorage, storageRoot: ByteString):
   InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]] =
     InMemorySimpleMapProxy.wrap[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]](domain.storageMpt(storageRoot, contractStorage))
 }
@@ -123,7 +129,7 @@ class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[UInt256
 class InMemoryWorldStateProxy private(
   // State MPT proxied nodes storage needed to construct the storage MPT when calling [[getStorage]].
   // Accounts state and accounts storage states are saved within the same storage
-  val stateStorage: NodeStorage,
+  val stateStorage: NodesKeyValueStorage,
   val accountsStateTrie: InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]],
   // Contract Storage Proxies by Address
   val contractStorages: Map[Address, InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]]],
@@ -172,7 +178,7 @@ class InMemoryWorldStateProxy private(
     */
   def stateRootHash: ByteString = ByteString(accountsStateTrie.inner.getRootHash)
 
-  private def getStorageForAddress(address: Address, stateStorage: NodeStorage) = {
+  private def getStorageForAddress(address: Address, stateStorage: NodesKeyValueStorage) = {
     val storageRoot = getAccount(address)
       .map(account => account.storageRoot)
       .getOrElse(Account.EmptyStorageRootHash)
@@ -180,7 +186,7 @@ class InMemoryWorldStateProxy private(
   }
 
   private def copyWith(
-    stateStorage: NodeStorage = stateStorage,
+    stateStorage: NodesKeyValueStorage = stateStorage,
     accountsStateTrie: InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] = accountsStateTrie,
     contractStorages: Map[Address, InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]]] = contractStorages,
     evmCodeStorage: EvmCodeStorage = evmCodeStorage,

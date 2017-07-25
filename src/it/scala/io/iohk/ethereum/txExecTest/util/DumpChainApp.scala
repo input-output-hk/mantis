@@ -4,10 +4,13 @@ import akka.actor.ActorSystem
 import akka.agent.Agent
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.{Blockchain, _}
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
@@ -17,6 +20,7 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -49,7 +53,10 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     }
 
     val actorSystem = ActorSystem("etc-client_system")
-    val storagesInstance = new SharedLevelDBDataSources with Storages.DefaultStorages
+    trait PruningConfig extends PruningModeComponent {
+      override val pruningMode: PruningMode = ArchivePruning
+    }
+    val storagesInstance = new SharedLevelDBDataSources with PruningConfig with Storages.DefaultStorages
 
     val blockchain: Blockchain = new BlockchainMock(genesisHash)
 
@@ -113,8 +120,6 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     override def save(hash: ByteString, evmCode: ByteString): Unit = ???
 
-    override def save(node: PV63.MptNode): Unit = ???
-
     override def save(blockhash: ByteString, totalDifficulty: BigInt): Unit = ???
 
     override def removeBlock(hash: ByteString): Unit = ???
@@ -130,4 +135,15 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = ???
 
     override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = ???
+
+    override type S = InMemoryWorldStateProxyStorage
+    override type WS = InMemoryWorldStateProxy
+
+    override def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy = ???
+
+    override def getReadOnlyWorldStateProxy(
+      blockNumber: Option[BigInt],
+      accountStartNonce: UInt256,
+      stateRootHash: Option[ByteString]
+    ): InMemoryWorldStateProxy = ???
   }

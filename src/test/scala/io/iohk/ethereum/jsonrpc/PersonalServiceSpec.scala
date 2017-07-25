@@ -360,7 +360,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     }
 
     val keyStore = mock[KeyStore]
-    val blockchain = mock[Blockchain]
+    val blockchain = mock[BlockchainImpl]
     val txPool = TestProbe()
     val appStateStorage = mock[AppStateStorage]
     val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig)

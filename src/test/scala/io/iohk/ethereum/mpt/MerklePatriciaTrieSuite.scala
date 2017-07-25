@@ -7,7 +7,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.NodeStorage
+import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
@@ -21,7 +21,7 @@ class MerklePatriciaTrieSuite extends FunSuite
   with ObjectGenerators {
   val hashFn = kec256(_: Array[Byte])
 
-  val EmptyEphemNodeStorage: NodeStorage = new NodeStorage(EphemDataSource())
+  val EmptyEphemNodeStorage: NodesKeyValueStorage = new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))
 
   val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](EmptyEphemNodeStorage, hashFn)
 
@@ -306,7 +306,7 @@ class MerklePatriciaTrieSuite extends FunSuite
       toRemove = Seq(),
       toUpsert = Seq(ByteString(trie.getRootHash) -> ByteString(trie.nodeStorage.get(ByteString(trie.getRootHash)).get))
     )
-    val trieWithWrongSource = MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, new NodeStorage(wrongSource), hashFn)
+    val trieWithWrongSource = MerklePatriciaTrie[Array[Byte], Array[Byte]](trie.getRootHash, new ArchiveNodeStorage(new NodeStorage(wrongSource)), hashFn)
     val trieAfterDelete = Try {
       trieWithWrongSource.remove(key1)
     }

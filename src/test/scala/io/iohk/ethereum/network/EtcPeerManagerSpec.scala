@@ -7,7 +7,10 @@ import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Fixtures.Blocks.{DaoForkBlock, Genesis}
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.network.PeerActor.DisconnectPeer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
@@ -245,11 +248,9 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
     requestSender.expectMsg(HandshakedPeers(Map.empty))
   }
 
-  trait TestSetup {
+  trait TestSetup extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("PeersInfoHolderSpec_System")
 
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
-    val blockchain = BlockchainImpl(storagesInstance.storages)
     blockchain.save(Fixtures.Blocks.Genesis.header)
 
     val blockchainConfig = BlockchainConfig(Config.config)

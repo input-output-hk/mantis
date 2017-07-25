@@ -9,11 +9,13 @@ import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
-import io.iohk.ethereum.db.storage.NodeStorage
+import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.utils.Config.DbConfig
 import io.iohk.ethereum.vm.UInt256
 import org.json4s.{CustomSerializer, DefaultFormats, JString, JValue}
 import org.spongycastle.util.encoders.Hex
@@ -24,7 +26,9 @@ import scala.util.{Failure, Success, Try}
 class GenesisDataLoader(
     dataSource: DataSource,
     blockchain: Blockchain,
-    blockchainConfig: BlockchainConfig)
+    pruningMode: PruningMode,
+    blockchainConfig: BlockchainConfig,
+    dbConfig: DbConfig)
   extends Logger{
 
   private val bloomLength = 512
@@ -90,20 +94,23 @@ class GenesisDataLoader(
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     val ephemDataSource = EphemDataSource()
-    val ephemNodeStorage = new NodeStorage(ephemDataSource)
+    val nodeStorage = new NodeStorage(ephemDataSource)
+    val initalRootHash = MerklePatriciaTrie.calculateEmptyRootHash((input: Array[Byte]) => crypto.kec256(input))
 
-    val initialStateMpt =
-      MerklePatriciaTrie[Array[Byte], Account](ephemNodeStorage, (input: Array[Byte]) => crypto.kec256(input))
-    val stateMpt = genesisData.alloc.foldLeft(initialStateMpt) { case (mpt, (address, AllocAccount(balance))) =>
+    val stateMptRootHash = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, (((address, AllocAccount(balance)), idx))) =>
+      val ephemNodeStorage =  PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(Some(idx - genesisData.alloc.size))
+      val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, ephemNodeStorage, (input: Array[Byte]) => crypto.kec256(input))
       val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
-      mpt.put(crypto.kec256(Hex.decode(paddedAddress)), Account(blockchainConfig.accountStartNonce, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash))
+      mpt.put(crypto.kec256(Hex.decode(paddedAddress)),
+        Account(blockchainConfig.accountStartNonce, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash)
+      ).getRootHash
     }
 
     val header = BlockHeader(
       parentHash = zeros(hashLength),
       ommersHash = ByteString(crypto.kec256(rlp.encode(RLPList()))),
       beneficiary = genesisData.coinbase,
-      stateRoot = ByteString(stateMpt.getRootHash),
+      stateRoot = ByteString(stateMptRootHash),
       transactionsRoot = emptyTrieRootHash,
       receiptsRoot = emptyTrieRootHash,
       logsBloom = zeros(bloomLength),
@@ -122,14 +129,12 @@ class GenesisDataLoader(
       case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>
         log.info("Genesis data already in the database")
         Success(())
-
       case Some(_) =>
         Failure(new RuntimeException("Genesis data present in the database does not match genesis block from file." +
           " Use different directory for running private blockchains."))
-
       case None =>
         // using empty namespace because ephemDataSource.storage already has the namespace-prefixed keys
-        dataSource.update(IndexedSeq(), Nil, ephemDataSource.storage.toSeq)
+        ephemDataSource.storage.toSeq.grouped(dbConfig.batchSize).foreach(toStore => dataSource.update(IndexedSeq(), Nil, toStore))
         blockchain.save(Block(header, BlockBody(Nil, Nil)))
         blockchain.save(header.hash, Nil)
         blockchain.save(header.hash, header.difficulty)
