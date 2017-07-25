@@ -1,5 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
+import java.net.InetSocketAddress
+
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
@@ -222,11 +224,20 @@ trait FastSync {
         cleanupRequestedMaps(ref)
 
       case PrintStatus =>
-        val totalNodesCount = downloadedNodesCount + mptNodesQueue.size + nonMptNodesQueue.size
-        log.info(
-          s"""|Block: ${appStateStorage.getBestBlockNumber()}/${initialSyncState.targetBlock.number}.
-              |Peers: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
-              |State: $downloadedNodesCount/$totalNodesCount known nodes.""".stripMargin.replace("\n", " "))
+        printStatus()
+    }
+
+    private def printStatus() = {
+      val totalNodesCount = downloadedNodesCount + mptNodesQueue.size + nonMptNodesQueue.size
+      val formatPeer: (Peer) => String = peer => s"${peer.remoteAddress.getAddress.getHostAddress}:${peer.remoteAddress.getPort}"
+      log.info(
+        s"""|Block: ${appStateStorage.getBestBlockNumber()}/${initialSyncState.targetBlock.number}.
+            |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
+            |State: $downloadedNodesCount/$totalNodesCount nodes.
+            |Details: connected(${assignedHandlers.values.map(formatPeer).toSeq.sorted})/
+            |handshaked(${handshakedPeers.keys.map(formatPeer).toSeq.sorted})
+            | blacklisted(${blacklistedPeers.map { case (id, _) => id }})
+            |""".stripMargin.replace("\n", " "))
     }
 
     private def cleanupRequestedMaps(handler: ActorRef): Unit = {
@@ -298,8 +309,8 @@ trait FastSync {
           log.warning("There are no available peers, waiting for responses")
         } else {
           log.warning("There are no peers to download from, scheduling a retry in {}", syncRetryInterval)
-          scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
+        scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
       } else {
         unassignedPeers
           .take(maxConcurrentRequests - assignedHandlers.size)
