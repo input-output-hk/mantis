@@ -1,13 +1,11 @@
 package io.iohk.ethereum.blockchain.sync
 
-import java.net.InetSocketAddress
-
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
@@ -181,6 +179,8 @@ trait FastSync {
           bestBlockHeaderNumber)
       }
 
+    private val heartBeat = scheduler.schedule(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
+
     def receive: Receive = handlePeerUpdates orElse {
       case EnqueueNodes(hashes) =>
         hashes.foreach {
@@ -298,6 +298,7 @@ trait FastSync {
     }
 
     def cleanup(): Unit = {
+      heartBeat.cancel()
       syncStatePersistCancellable.cancel()
       syncStateStorageActor ! PoisonPill
       fastSyncStateStorage.purge()
@@ -309,8 +310,8 @@ trait FastSync {
           log.warning("There are no available peers, waiting for responses")
         } else {
           log.warning("There are no peers to download from, scheduling a retry in {}", syncRetryInterval)
+          scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
-        scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
       } else {
         unassignedPeers
           .take(maxConcurrentRequests - assignedHandlers.size)
