@@ -6,6 +6,7 @@ import io.iohk.ethereum.network._
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.agent.Agent
 import akka.util.ByteString
+import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{ByteUtils, NodeStatus, ServerStatus}
 import org.spongycastle.util.encoders.Hex
@@ -15,19 +16,28 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class PeerDiscoveryManager(
     discoveryListener: ActorRef,
     discoveryConfig: DiscoveryConfig,
+    knownNodesStorage: KnownNodesStorage,
     nodeStatusHolder: Agent[NodeStatus]) extends Actor with ActorLogging {
 
   import PeerDiscoveryManager._
 
-  var nodes: Map[ByteString, Node] = discoveryConfig.bootstrapNodes.map { s =>
-    val node = Node.parse(s)
-    node.id -> node
-  }.toMap
+  var nodes: Map[ByteString, Node] = {
+    val uris = discoveryConfig.bootstrapNodes.map(new URI(_)) ++
+      (if (discoveryConfig.discoveryEnabled) knownNodesStorage.getKnownNodes()
+      else Set.empty)
 
-  discoveryListener ! DiscoveryListener.Subscribe
+    uris.map { uri =>
+      val node = Node.fromUri(uri)
+      node.id -> node
+    }.toMap
+  }
 
-  context.system.scheduler.schedule(discoveryConfig.scanInitialDelay, discoveryConfig.scanInterval) {
-    scan()
+  if (discoveryConfig.discoveryEnabled) {
+    discoveryListener ! DiscoveryListener.Subscribe
+
+    context.system.scheduler.schedule(discoveryConfig.scanInitialDelay, discoveryConfig.scanInterval) {
+      scan()
+    }
   }
 
   def scan(): Unit = {
@@ -81,7 +91,7 @@ class PeerDiscoveryManager(
         val to = Endpoint(toNodeId, toAddr.getPort, toAddr.getPort)
         sendMessage(Ping(ProtocolVersion, from, to, expirationTimestamp), toAddr)
       case _ =>
-        log.warning(s"UDP server not running. Not sending ping message.")
+        log.warning("UDP server not running. Not sending ping message.")
     }
   }
 
@@ -98,12 +108,15 @@ class PeerDiscoveryManager(
 }
 
 object PeerDiscoveryManager {
-  def props(discoveryListener: ActorRef, discoveryConfig: DiscoveryConfig, nodeStatusHolder: Agent[NodeStatus]): Props =
-    Props(new PeerDiscoveryManager(discoveryListener, discoveryConfig, nodeStatusHolder))
+  def props(discoveryListener: ActorRef,
+            discoveryConfig: DiscoveryConfig,
+            knownNodesStorage: KnownNodesStorage,
+            nodeStatusHolder: Agent[NodeStatus]): Props =
+    Props(new PeerDiscoveryManager(discoveryListener, discoveryConfig, knownNodesStorage, nodeStatusHolder))
 
   object Node {
-    def parse(enodeStr: String): Node = {
-      val uri = new URI(enodeStr)
+
+    def fromUri(uri: URI): Node = {
       val nodeId = ByteString(Hex.decode(uri.getUserInfo))
       Node(nodeId, new InetSocketAddress(uri.getHost, uri.getPort), System.currentTimeMillis())
     }

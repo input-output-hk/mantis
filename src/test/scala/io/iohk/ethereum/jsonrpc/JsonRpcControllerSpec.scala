@@ -4,8 +4,11 @@ import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.EthService._
@@ -1281,11 +1284,9 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     ))
   }
 
-  trait TestSetup extends MockFactory {
+  trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     def config: JsonRpcConfig = Config.Network.Rpc
 
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
-    val blockchain = BlockchainImpl(storagesInstance.storages)
     val blockGenerator: BlockGenerator = mock[BlockGenerator]
     implicit val system = ActorSystem("JsonRpcControllerSpec_System")
 
@@ -1307,11 +1308,6 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
-    val txPoolConfig = new TxPoolConfig {
-      val txPoolSize: Int = 1000
-      val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
-    }
-
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -1321,7 +1317,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
-    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, txPoolConfig, ledger,
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig, blockchainConfig)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 

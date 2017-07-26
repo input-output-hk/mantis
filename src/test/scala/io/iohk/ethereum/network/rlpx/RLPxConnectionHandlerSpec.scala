@@ -4,11 +4,11 @@ import akka.actor.{ActorSystem, Props}
 import akka.io.Tcp
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.{Timeouts, crypto}
+import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.Versions
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Ping, Pong}
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.scalamock.scalatest.MockFactory
@@ -115,7 +115,6 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     implicit val system = ActorSystem("RLPxHandlerSpec_System")
 
     //Mock parameters for RLPxConnectionHandler
-    val nodeKey = crypto.generateKeyPair(secureRandom)
     val mockMessageDecoder = new MessageDecoder {
       override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Version) =
         throw new Exception("Mock message decoder fails to decode all messages")
@@ -133,7 +132,7 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
     val rlpxConnectionParent = TestProbe()
     val rlpxConnection = TestActorRef(
       Props(new RLPxConnectionHandler(
-        nodeKey, mockMessageDecoder, protocolVersion, mockHandshaker, (_, _, _) => mockMessageCodec, rlpxConfiguration)),
+        mockMessageDecoder, protocolVersion, mockHandshaker, (_, _, _) => mockMessageCodec, rlpxConfiguration)),
       rlpxConnectionParent.ref)
 
     //Setup for RLPxConnection, after it the RLPxConnectionHandler is in a handshaked state
@@ -145,14 +144,14 @@ class RLPxConnectionHandlerSpec extends FlatSpec with Matchers with MockFactory 
       //AuthHandshaker handles initial message
       val data = ByteString((0 until AuthHandshaker.InitiatePacketLength).map(_.toByte).toArray)
       val response = ByteString("response data")
-      (mockHandshaker.handleInitialMessage _).expects(data).returning((response, AuthHandshakeSuccess(mock[Secrets])))
+      (mockHandshaker.handleInitialMessage _).expects(data).returning((response, AuthHandshakeSuccess(mock[Secrets], ByteString())))
       (mockMessageCodec.readMessages _).expects(ByteString.empty).returning(Nil) //For processing of messages after handshaking finishes
 
       rlpxConnection ! Tcp.Received(data)
       connection.expectMsg(Tcp.Write(response))
 
       //Connection fully established
-      rlpxConnectionParent.expectMsg(RLPxConnectionHandler.ConnectionEstablished)
+      rlpxConnectionParent.expectMsgClass(classOf[RLPxConnectionHandler.ConnectionEstablished])
     }
   }
 

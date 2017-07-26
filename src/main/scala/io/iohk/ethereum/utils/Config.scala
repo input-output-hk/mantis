@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
@@ -55,6 +56,7 @@ object Config {
       val waitForStatusTimeout: FiniteDuration = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
       val waitForChainCheckTimeout: FiniteDuration = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
       val maxPeers: Int = peerConfig.getInt("max-peers")
+      val maxIncomingPeers: Int = peerConfig.getInt("max-incoming-peers")
       val networkId: Int = peerConfig.getInt("network-id")
 
       val rlpxConfiguration = new RLPxConfiguration {
@@ -116,13 +118,19 @@ object Config {
     val blockResolveDepth: Int = syncConfig.getInt("block-resolving-depth")
   }
 
-  object Db {
+  trait DbConfig {
+    val batchSize: Int
+  }
+
+  object Db extends DbConfig {
 
     private val dbConfig = config.getConfig("db")
     private val iodbConfig = dbConfig.getConfig("iodb")
     private val levelDbConfig = dbConfig.getConfig("leveldb")
 
-    object Iodb {
+    val batchSize = dbConfig.getInt("batch-size")
+
+    object Iodb  {
       val path: String = iodbConfig.getString("path")
     }
 
@@ -245,7 +253,7 @@ case class MonetaryPolicyConfig(
   firstEraBlockReward: BigInt
 ) {
   require(rewardRedutionRate >= 0.0 && rewardRedutionRate <= 1.0,
-    s"reward-reduction-rate should be a value in range [0.0, 1.0]")
+    "reward-reduction-rate should be a value in range [0.0, 1.0]")
 }
 
 object MonetaryPolicyConfig {
@@ -255,5 +263,24 @@ object MonetaryPolicyConfig {
       mpConfig.getDouble("reward-reduction-rate"),
       BigInt(mpConfig.getString("first-era-block-reward"))
     )
+  }
+}
+
+trait PruningConfig {
+  val mode: PruningMode
+}
+
+object PruningConfig {
+  def apply(etcClientConfig: com.typesafe.config.Config): PruningConfig = {
+    val pruningConfig = etcClientConfig.getConfig("pruning")
+
+    val pruningMode: PruningMode = pruningConfig.getString("mode") match {
+      case "basic" => BasicPruning(pruningConfig.getInt("history"))
+      case "archive" => ArchivePruning
+    }
+
+    new PruningConfig {
+      override val mode: PruningMode = pruningMode
+    }
   }
 }

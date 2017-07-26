@@ -9,7 +9,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.ByteUtils
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
 
 import scala.collection.immutable.Queue
@@ -28,7 +27,6 @@ import scala.util.{Failure, Success, Try}
   * 4. once handshake is done (and secure connection established) actor can send/receive messages (`handshaked` state)
   */
 class RLPxConnectionHandler(
-    nodeKey: AsymmetricCipherKeyPair,
     messageDecoder: MessageDecoder,
     protocolVersion: Message.Version,
     authHandshaker: AuthHandshaker,
@@ -121,9 +119,9 @@ class RLPxConnectionHandler(
 
     def processHandshakeResult(result: AuthHandshakeResult, remainingData: ByteString): Unit =
       result match {
-        case AuthHandshakeSuccess(secrets) =>
+        case AuthHandshakeSuccess(secrets, remotePubKey) =>
           log.debug(s"Auth handshake succeeded for peer $peerId")
-          context.parent ! ConnectionEstablished
+          context.parent ! ConnectionEstablished(remotePubKey)
           val messageCodec = messageCodecFactory(secrets, messageDecoder, protocolVersion)
           val messagesSoFar = messageCodec.readMessages(remainingData)
           messagesSoFar foreach processMessage
@@ -239,9 +237,9 @@ class RLPxConnectionHandler(
 }
 
 object RLPxConnectionHandler {
-  def props(nodeKey: AsymmetricCipherKeyPair, messageDecoder: MessageDecoder, protocolVersion: Int,
+  def props(messageDecoder: MessageDecoder, protocolVersion: Int,
             authHandshaker: AuthHandshaker, rlpxConfiguration: RLPxConfiguration): Props =
-    Props(new RLPxConnectionHandler(nodeKey, messageDecoder, protocolVersion, authHandshaker,
+    Props(new RLPxConnectionHandler(messageDecoder, protocolVersion, authHandshaker,
       messageCodecFactory, rlpxConfiguration))
 
   def messageCodecFactory(secrets: Secrets, messageDecoder: MessageDecoder,
@@ -252,7 +250,7 @@ object RLPxConnectionHandler {
 
   case class HandleConnection(connection: ActorRef)
 
-  case object ConnectionEstablished
+  case class ConnectionEstablished(nodeId: ByteString)
 
   case object ConnectionFailed
 
