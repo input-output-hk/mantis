@@ -251,7 +251,7 @@ case class MonetaryPolicyConfig(
   firstEraBlockReward: BigInt
 ) {
   require(rewardRedutionRate >= 0.0 && rewardRedutionRate <= 1.0,
-    s"reward-reduction-rate should be a value in range [0.0, 1.0]")
+    "reward-reduction-rate should be a value in range [0.0, 1.0]")
 }
 
 object MonetaryPolicyConfig {

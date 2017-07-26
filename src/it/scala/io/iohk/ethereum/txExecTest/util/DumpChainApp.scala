@@ -87,7 +87,6 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     val peerManager = actorSystem.actorOf(PeerManagerActor.props(
       peerDiscoveryManager = actorSystem.deadLetters, // TODO: fixme
-      nodeStatusHolder = nodeStatusHolder,
       peerConfiguration = peerConfig,
       peerMessageBus = peerMessageBus,
       knownNodesManager = actorSystem.deadLetters, // TODO: fixme
