@@ -39,17 +39,23 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
     listOfNewAccounts.length shouldEqual 2
   }
 
+  it should "return an error when the keystore dir cannot be initialized" in new TestSetup {
+    intercept[IllegalArgumentException] {
+      new KeyStoreImpl("/root/keystore", secureRandom)
+    }
+  }
+
   it should "return an error when the keystore dir cannot be read or written" in new TestSetup {
-    val badKeyStore = new KeyStoreImpl("/root/keystore", secureRandom)
+    clearKeyStore()
 
     val key = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
-    val res1 = badKeyStore.importPrivateKey(key, "aaa")
+    val res1 = keyStore.importPrivateKey(key, "aaa")
     res1 should matchPattern { case Left(IOError(_)) => }
 
-    val res2 = badKeyStore.newAccount("aaa")
+    val res2 = keyStore.newAccount("aaa")
     res2 should matchPattern { case Left(IOError(_)) => }
 
-    val res3 = badKeyStore.listAccounts()
+    val res3 = keyStore.listAccounts()
     res3 should matchPattern { case Left(IOError(_)) => }
   }
 
