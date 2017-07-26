@@ -1308,11 +1308,6 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
-    val txPoolConfig = new TxPoolConfig {
-      val txPoolSize: Int = 1000
-      val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
-    }
-
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -1322,7 +1317,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
-    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, txPoolConfig, ledger,
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig, blockchainConfig)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 

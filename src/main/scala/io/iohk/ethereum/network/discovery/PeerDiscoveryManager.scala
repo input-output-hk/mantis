@@ -91,7 +91,7 @@ class PeerDiscoveryManager(
         val to = Endpoint(toNodeId, toAddr.getPort, toAddr.getPort)
         sendMessage(Ping(ProtocolVersion, from, to, expirationTimestamp), toAddr)
       case _ =>
-        log.warning(s"UDP server not running. Not sending ping message.")
+        log.warning("UDP server not running. Not sending ping message.")
     }
   }
 
