@@ -8,7 +8,10 @@ import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.{Fixtures, Timeouts}
 import io.iohk.ethereum.Mocks.{MockHandshakerAlwaysFails, MockHandshakerAlwaysSucceeds}
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor.{ConnectTo, GetStatus, StatusResponse}
@@ -36,7 +39,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     //Establish probe rlpxconnection
     peerActorHandshakeSucceeds ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished)
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
 
     //Test that the handshake succeeded
     val sender = TestProbe()(system)
@@ -53,7 +56,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     //Establish probe rlpxconnection
     peerActorHandshakeFails ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished)
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
 
     //Test that the handshake failed
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(defaultReasonDisconnect)))
@@ -69,7 +72,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished)
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(defaultHello)
@@ -89,7 +92,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished)
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     time.advance(defaultTimeout * 2)
@@ -107,7 +110,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished)
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(defaultStatus)
@@ -125,7 +128,7 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished)
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(Pong()) //Ignored
@@ -139,23 +142,23 @@ class PeerActorHandshakingSpec extends FlatSpec with Matchers {
     sender.expectMsg(StatusResponse(Handshaked))
   }
 
-  trait TestSetup {
+  trait TestSetup extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("PeerActorSpec_System")
 
     val time = new VirtualTime
 
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
-    val blockchain = BlockchainImpl(storagesInstance.storages)
-
     val uri = new URI("enode://18a551bee469c2e02de660ab01dede06503c986f6b8520cb5a65ad122df88b17b285e3fef09a40a0d44f99e014f8616cf1ebc2e094f96c6e09e2f390f5d34857@47.90.36.129:30303")
     val rlpxConnectionProbe = TestProbe()
     val peerMessageBus = TestProbe()
+    val knownNodesManager = TestProbe()
 
     def peerActor(handshaker: Handshaker[PeerInfo]): TestActorRef[PeerActor[PeerInfo]] = TestActorRef(Props(new PeerActor(
       new InetSocketAddress("127.0.0.1", 0),
       rlpxConnectionFactory = _ => rlpxConnectionProbe.ref,
       peerConfiguration = Config.Network.peer,
       peerEventBus = peerMessageBus.ref,
+      knownNodesManager = knownNodesManager.ref,
+      incomingConnection = false,
       externalSchedulerOpt = Some(time.scheduler),
       initHandshaker = handshaker
     )))

@@ -76,7 +76,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     )
 
     val peerProbe = TestProbe()
-    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerProbe.ref)
+    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerProbe.ref, false)
   }
 
 }

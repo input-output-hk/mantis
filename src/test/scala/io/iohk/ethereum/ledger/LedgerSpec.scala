@@ -4,8 +4,11 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.{Mocks, rlp}
@@ -55,7 +58,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
   case object DeleteAccount extends Changes
 
   def applyChanges(stateRootHash: ByteString, blockchainStorages: BlockchainStorages, changes: Seq[(Address, Changes)]): ByteString = {
-    val initialWorld = InMemoryWorldStateProxy(blockchainStorages, UInt256.Zero, Some(stateRootHash))
+    val initialWorld = BlockchainImpl(blockchainStorages).getWorldStateProxy(-1, UInt256.Zero, Some(stateRootHash))
     val newWorld = changes.foldLeft[InMemoryWorldStateProxy](initialWorld){ case (recWorld, (address, change)) =>
         change match {
           case UpdateBalance(balanceIncrease) =>
@@ -154,7 +157,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     val txsExecResult = ledger.executeBlockTransactions(
       block,
       blockchain,
-      storagesInstance.storages,
       (new Mocks.MockValidatorsAlwaysSucceed).signedTransactionValidator
     )
 
@@ -197,7 +199,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       val txsExecResult = ledger.executeBlockTransactions(
         block,
         blockchain,
-        blockchainStorages,
         if(txValidAccordingToValidators) (new Mocks.MockValidatorsAlwaysSucceed).signedTransactionValidator
         else Mocks.MockValidatorsAlwaysFail.signedTransactionValidator
       )
@@ -251,7 +252,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     val txsExecResult = ledger.executeBlockTransactions(
       block,
       blockchain,
-      blockchainStorages,
       (new Mocks.MockValidatorsAlwaysSucceed).signedTransactionValidator
     )
 
@@ -456,7 +456,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       val txsExecResult = ledger.executeBlockTransactions(
         block,
         blockchain,
-        blockchainStorages,
         (new Mocks.MockValidatorsAlwaysSucceed).signedTransactionValidator
       )
 
@@ -759,7 +758,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     result match { case (_, executedTxs) => executedTxs shouldBe Seq.empty }
   }
 
-  trait TestSetup extends SecureRandomBuilder {
+  trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of spongycastle encoding
@@ -799,8 +798,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       data = ByteString(Hex.decode("1" * 128))
     )
 
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
-
     val initialOriginBalance: UInt256 = 100000000
     val initialMinerBalance: UInt256 = 2000000
 
@@ -812,7 +809,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     val defaultGasLimit: UInt256 = 1000000
     val defaultValue: BigInt = 1000
 
-    val emptyWorld = InMemoryWorldStateProxy(storagesInstance.storages, UInt256.Zero)
+    val emptyWorld = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
 
     val worldWithMinerAndOriginAccounts = InMemoryWorldStateProxy.persistState(emptyWorld
       .saveAccount(originAddress, Account(nonce = UInt256(initialOriginNonce), balance = initialOriginBalance))
@@ -827,7 +824,6 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
   }
 
   trait BlockchainSetup extends TestSetup {
-    val blockchain = BlockchainImpl(storagesInstance.storages)
     val blockchainStorages = storagesInstance.storages
 
     val validBlockParentHeader: BlockHeader = defaultBlockHeader.copy(

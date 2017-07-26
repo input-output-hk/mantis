@@ -6,7 +6,7 @@ import java.util.function.UnaryOperator
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.NodeStorage
+import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction, _}
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
 import io.iohk.ethereum.ledger.{BlockPreparationError, BloomFilter, Ledger}
@@ -136,7 +136,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
 
   private def buildMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString = {
     val mpt = MerklePatriciaTrie[Int, K](
-      source = new NodeStorage(EphemDataSource()),
+      source = new ArchiveNodeStorage(new NodeStorage(EphemDataSource())),
       hashFn = (input: Array[Byte]) => kec256(input)
     )(intByteArraySerializable, vSerializable)
     val hash = entities.zipWithIndex.foldLeft(mpt) { case (trie, (value, key)) => trie.put(key, value) }.getRootHash

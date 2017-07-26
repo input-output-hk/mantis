@@ -59,7 +59,7 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
         blockHeadersStorage = blockHeadersStorage + (h.hash -> h)
       }
 
-      peers.headOption.foreach { case Peer(_, actor) =>
+      peers.headOption.foreach { case Peer(_, actor, _) =>
         actor ! SendMessage(GetBlockBodies(m.headers.map(_.hash)))
         actor ! SendMessage(GetReceipts(blockHeadersHashes.filter { case (n, _) => n > 0 }.map { case (_, h) => h }))
         actor ! SendMessage(GetNodeData(mptRoots))
@@ -103,13 +103,13 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
       nodes.foreach {
         case n: MptLeaf =>
           if (n.getAccount.codeHash != DumpChainActor.emptyEvm) {
-            peers.headOption.foreach { case Peer(_, actor) =>
+            peers.headOption.foreach { case Peer(_, actor, _) =>
               evmTorequest = evmTorequest :+ n.getAccount.codeHash
               evmCodeHashes = evmCodeHashes + n.getAccount.codeHash
             }
           }
           if (n.getAccount.storageRoot != DumpChainActor.emptyStorage) {
-            peers.headOption.foreach { case Peer(_, actor) =>
+            peers.headOption.foreach { case Peer(_, actor, _) =>
               contractChildren = contractChildren :+ n.getAccount.storageRoot
               contractNodesHashes = contractNodesHashes + n.getAccount.storageRoot
             }
@@ -160,7 +160,7 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
         evmCodeFile.close()
         println("chain dumped to file")
       } else {
-        peers.headOption.foreach { case Peer(_, actor) =>
+        peers.headOption.foreach { case Peer(_, actor, _) =>
           actor ! SendMessage(GetNodeData(children ++ contractChildren ++ evmTorequest))
         }
       }

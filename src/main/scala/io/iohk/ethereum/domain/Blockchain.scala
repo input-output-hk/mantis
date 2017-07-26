@@ -4,15 +4,21 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
+import io.iohk.ethereum.mpt.{MerklePatriciaTrie, NodesKeyValueStorage}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
-import io.iohk.ethereum.vm.UInt256
+import io.iohk.ethereum.vm.{Storage, UInt256, WorldStateProxy}
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNode._
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
   */
 trait Blockchain {
+
+  type S <: Storage[S]
+  type WS <: WorldStateProxy[WS, S]
 
   /**
     * Allows to query a blockHeader by block hash
@@ -132,8 +138,6 @@ trait Blockchain {
 
   def save(hash: ByteString, evmCode: ByteString): Unit
 
-  def save(node: MptNode): Unit
-
   def save(blockhash: ByteString, totalDifficulty: BigInt): Unit
 
   /**
@@ -147,6 +151,10 @@ trait Blockchain {
   def genesisHeader: BlockHeader = getBlockHeaderByNumber(0).get
 
   def genesisBlock: Block = getBlockByNumber(0).get
+
+  def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None): WS
+
+  def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt], accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None): WS
 }
 
 class BlockchainImpl(
@@ -155,8 +163,7 @@ class BlockchainImpl(
                       protected val blockNumberMappingStorage: BlockNumberMappingStorage,
                       protected val receiptStorage: ReceiptStorage,
                       protected val evmCodeStorage: EvmCodeStorage,
-                      protected val mptNodeStorage: MptNodeStorage,
-                      protected val nodeStorage: NodeStorage,
+                      protected val nodesKeyValueStorageFor: Option[BigInt] => NodesKeyValueStorage,
                       protected val totalDifficultyStorage: TotalDifficultyStorage,
                       protected val transactionMappingStorage: TransactionMappingStorage
                     ) extends Blockchain {
@@ -177,14 +184,17 @@ class BlockchainImpl(
     getBlockHeaderByNumber(blockNumber).flatMap { bh =>
       val mpt = MerklePatriciaTrie[Address, Account](
         bh.stateRoot.toArray,
-        nodeStorage,
+        nodesKeyValueStorageFor(Some(blockNumber)),
         crypto.kec256(_: Array[Byte])
       )
       mpt.get(address)
     }
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = {
-    storageMpt(rootHash, nodeStorage).get(UInt256(position)).getOrElse(UInt256(0)).bytes
+    storageMpt(
+      rootHash,
+      nodesKeyValueStorageFor(None)
+    ).get(UInt256(position)).getOrElse(UInt256(0)).bytes
   }
 
   override def save(blockHeader: BlockHeader): Unit = {
@@ -193,7 +203,7 @@ class BlockchainImpl(
     saveBlockNumberMapping(blockHeader.number, hash)
   }
 
-  override def getMptNodeByHash(hash: ByteString): Option[MptNode] = mptNodeStorage.get(hash)
+  override def getMptNodeByHash(hash: ByteString): Option[MptNode] = nodesKeyValueStorageFor(None).get(hash).map(_.toMptNode)
 
   override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = transactionMappingStorage.get(txHash)
 
@@ -207,8 +217,6 @@ class BlockchainImpl(
   override def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
 
   def save(blockhash: ByteString, td: BigInt): Unit = totalDifficultyStorage.put(blockhash, td)
-
-  override def save(node: MptNode): Unit = mptNodeStorage.put(node)
 
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     blockNumberMappingStorage.get(number)
@@ -231,6 +239,28 @@ class BlockchainImpl(
   private def removeTxsLocations(stxs: Seq[SignedTransaction]): Unit = {
     stxs.map(_.hash).foreach{ transactionMappingStorage.remove }
   }
+
+  override type S = InMemoryWorldStateProxyStorage
+  override type WS = InMemoryWorldStateProxy
+
+  override def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy =
+    InMemoryWorldStateProxy(
+      evmCodeStorage,
+      nodesKeyValueStorageFor(Some(blockNumber)),
+      accountStartNonce,
+      (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
+      stateRootHash
+    )
+
+  //FIXME Maybe we can use this one in regular execution too and persist underlying storage when block execution is successful
+  override def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt], accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy =
+    InMemoryWorldStateProxy(
+      evmCodeStorage,
+      ReadOnlyNodeStorage(nodesKeyValueStorageFor(blockNumber)),
+      accountStartNonce,
+      (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
+      stateRootHash
+    )
 }
 
 trait BlockchainStorages {
@@ -239,10 +269,10 @@ trait BlockchainStorages {
   val blockNumberMappingStorage: BlockNumberMappingStorage
   val receiptStorage: ReceiptStorage
   val evmCodeStorage: EvmCodeStorage
-  val mptNodeStorage: MptNodeStorage
-  val nodeStorage: NodeStorage
   val totalDifficultyStorage: TotalDifficultyStorage
   val transactionMappingStorage: TransactionMappingStorage
+  val nodeStorage: NodeStorage
+  val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage
 }
 
 object BlockchainImpl {
@@ -253,8 +283,7 @@ object BlockchainImpl {
       blockNumberMappingStorage = storages.blockNumberMappingStorage,
       receiptStorage = storages.receiptStorage,
       evmCodeStorage = storages.evmCodeStorage,
-      mptNodeStorage = storages.mptNodeStorage,
-      nodeStorage = storages.nodeStorage,
+      nodesKeyValueStorageFor = storages.nodesKeyValueStorageFor,
       totalDifficultyStorage = storages.totalDifficultyStorage,
       transactionMappingStorage = storages.transactionMappingStorage
     )

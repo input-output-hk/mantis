@@ -28,8 +28,8 @@ trait SecureChannelSetup extends SecureRandomBuilder {
   val remoteHandshaker = AuthHandshaker(remoteNodeKey, remoteNonce, remoteEphemeralKey, secureRandom)
 
   val (initPacket, handshakerInitiated) = handshaker.initiate(remoteUri)
-  val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets)) = remoteHandshaker.handleInitialMessageV4(initPacket)
-  val AuthHandshakeSuccess(secrets: Secrets) = handshakerInitiated.handleResponseMessageV4(responsePacket)
+  val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets, _)) = remoteHandshaker.handleInitialMessageV4(initPacket)
+  val AuthHandshakeSuccess(secrets: Secrets, _) = handshakerInitiated.handleResponseMessageV4(responsePacket)
 
   def randomNonce(): ByteString = crypto.secureRandomByteString(secureRandom, AuthHandshaker.NonceSize)
 

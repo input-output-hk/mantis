@@ -20,7 +20,7 @@ import scala.util.Random
 
 sealed trait AuthHandshakeResult
 case object AuthHandshakeError extends AuthHandshakeResult
-case class AuthHandshakeSuccess(secrets: Secrets) extends AuthHandshakeResult
+case class AuthHandshakeSuccess(secrets: Secrets, remotePubKey: ByteString) extends AuthHandshakeResult
 
 class Secrets(
     val aes: Array[Byte],
@@ -52,7 +52,8 @@ case class AuthHandshaker(
     secureRandom: SecureRandom,
     isInitiator: Boolean = false,
     initiatePacketOpt: Option[ByteString] = None,
-    responsePacketOpt: Option[ByteString] = None) {
+    responsePacketOpt: Option[ByteString] = None,
+    remotePubKeyOpt: Option[ECPoint] = None) {
 
   import AuthHandshaker._
 
@@ -66,7 +67,7 @@ case class AuthHandshaker(
     val encryptedPayload = ECIESCoder.encrypt(remotePubKey, secureRandom, padded, Some(sizePrefix))
     val packet = ByteString(sizePrefix ++ encryptedPayload)
 
-    (packet, copy(isInitiator = true, initiatePacketOpt = Some(packet)))
+    (packet, copy(isInitiator = true, initiatePacketOpt = Some(packet), remotePubKeyOpt = Some(remotePubKey)))
   }
 
   def handleResponseMessage(data: ByteString): AuthHandshakeResult = {
@@ -104,7 +105,8 @@ case class AuthHandshaker(
     val remoteEphemeralKey = extractEphemeralKey(message.signature, message.nonce, message.publicKey)
     val handshakeResult = copy(
       initiatePacketOpt = Some(data),
-      responsePacketOpt = Some(encryptedPacket)).finalizeHandshake(remoteEphemeralKey, message.nonce)
+      responsePacketOpt = Some(encryptedPacket),
+      remotePubKeyOpt = Some(message.publicKey)).finalizeHandshake(remoteEphemeralKey, message.nonce)
 
     (encryptedPacket, handshakeResult)
   }
@@ -134,7 +136,8 @@ case class AuthHandshaker(
     val remoteEphemeralKey = extractEphemeralKey(message.signature, message.nonce, message.publicKey)
     val handshakeResult = copy(
       initiatePacketOpt = Some(data),
-      responsePacketOpt = Some(packet)).finalizeHandshake(remoteEphemeralKey, message.nonce)
+      responsePacketOpt = Some(packet),
+      remotePubKeyOpt = Some(message.publicKey)).finalizeHandshake(remoteEphemeralKey, message.nonce)
 
     (packet, handshakeResult)
   }
@@ -171,6 +174,7 @@ case class AuthHandshaker(
     val successOpt = for {
       initiatePacket <- initiatePacketOpt
       responsePacket <- responsePacketOpt
+      remotePubKey <- remotePubKeyOpt
     } yield {
       val secretScalar = {
         val agreement = new ECDHBasicAgreement
@@ -190,12 +194,14 @@ case class AuthHandshaker(
         if (isInitiator) macSecretSetup(agreedSecret, aesSecret, initiatePacket, nonce, responsePacket, remoteNonce)
         else macSecretSetup(agreedSecret, aesSecret, initiatePacket, remoteNonce, responsePacket, nonce)
 
-      AuthHandshakeSuccess(new Secrets(
-        aes = aesSecret,
-        mac = kec256(agreedSecret, aesSecret),
-        token = kec256(sharedSecret),
-        egressMac = egressMacSecret,
-        ingressMac = ingressMacSecret))
+      AuthHandshakeSuccess(
+        secrets = new Secrets(
+          aes = aesSecret,
+          mac = kec256(agreedSecret, aesSecret),
+          token = kec256(sharedSecret),
+          egressMac = egressMacSecret,
+          ingressMac = ingressMacSecret),
+        remotePubKey = ByteString(remotePubKey.getEncoded(false).tail))
     }
 
     successOpt getOrElse AuthHandshakeError

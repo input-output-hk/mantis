@@ -1,17 +1,22 @@
 package io.iohk.ethereum.db.components
 
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.mpt.NodesKeyValueStorage
 
 object Storages {
 
+  trait PruningModeComponent {
+    val pruningMode: PruningMode
+  }
+
   trait DefaultStorages extends StoragesComponent {
 
-    dataSourcesComp: DataSourcesComponent =>
+    dataSourcesComp: DataSourcesComponent with PruningModeComponent =>
 
-    override val storages: Storages = new DefaultStorages
+    override val storages: Storages = new DefaultStorages(pruningMode)
 
-    class DefaultStorages extends Storages {
+    class DefaultStorages(override val pruningMode: PruningMode) extends Storages {
 
       override val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(dataSources.blockHeadersDataSource)
 
@@ -20,8 +25,6 @@ object Storages {
       override val blockNumberMappingStorage: BlockNumberMappingStorage = new BlockNumberMappingStorage(dataSources.blockHeightsHashesDataSource)
 
       override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
-
-      override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
 
       override val nodeStorage: NodeStorage = new NodeStorage(dataSources.mptDataSource)
 
@@ -32,9 +35,16 @@ object Storages {
       override val totalDifficultyStorage: TotalDifficultyStorage =
         new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
 
-      override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
+      override val appStateStorage: AppStateStorage = new AppStateStorage(
+        dataSources.appStateDataSource,
+        PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(None).prune
+      )
 
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
+
+      override val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage = bn => PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(bn)
+
+      override val knownNodesStorage: KnownNodesStorage = new KnownNodesStorage(dataSources.knownNodesDataSource)
 
     }
 
@@ -45,11 +55,11 @@ object Storages {
     * keccak keys. See [[io.iohk.ethereum.db.storage.IodbBlockNumberMappingStorage]]
     */
   trait IodbStorages extends StoragesComponent {
-    dataSourcesComp: DataSourcesComponent =>
+    dataSourcesComp: DataSourcesComponent with PruningModeComponent =>
 
-    override val storages = new DefaultBlockchainStorages
+    override val storages = new DefaultBlockchainStorages(pruningMode)
 
-    class DefaultBlockchainStorages extends Storages {
+    class DefaultBlockchainStorages(override val pruningMode: PruningMode) extends Storages {
 
       override val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(dataSources.blockHeadersDataSource)
 
@@ -58,8 +68,6 @@ object Storages {
       override val blockNumberMappingStorage: BlockNumberMappingStorage = new IodbBlockNumberMappingStorage(dataSources.blockHeightsHashesDataSource)
 
       override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
-
-      override val mptNodeStorage: MptNodeStorage = new MptNodeStorage(dataSources.mptDataSource)
 
       override val nodeStorage: NodeStorage = new NodeStorage(dataSources.mptDataSource)
 
@@ -70,9 +78,17 @@ object Storages {
       override val totalDifficultyStorage: TotalDifficultyStorage =
         new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
 
-      override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
+      override val appStateStorage: AppStateStorage = new AppStateStorage(
+        dataSources.appStateDataSource,
+        PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(None).prune
+      )
 
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
+
+      override val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage =
+        (bn: Option[BigInt]) => PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(bn)
+
+      override val knownNodesStorage: KnownNodesStorage = new KnownNodesStorage(dataSources.knownNodesDataSource)
     }
   }
 }

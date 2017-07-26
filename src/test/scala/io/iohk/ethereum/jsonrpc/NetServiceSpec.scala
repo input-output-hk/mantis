@@ -22,9 +22,9 @@ class NetServiceSpec extends FlatSpec with Matchers with ScalaFutures with Norma
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(PeerManagerActor.Peers(Map(
-      Peer(new InetSocketAddress(1), testRef) -> PeerActor.Status.Handshaked,
-      Peer(new InetSocketAddress(2), testRef) -> PeerActor.Status.Handshaked,
-      Peer(new InetSocketAddress(3), testRef) -> PeerActor.Status.Connecting)))
+      Peer(new InetSocketAddress(1), testRef, false) -> PeerActor.Status.Handshaked,
+      Peer(new InetSocketAddress(2), testRef, false) -> PeerActor.Status.Handshaked,
+      Peer(new InetSocketAddress(3), testRef, false) -> PeerActor.Status.Connecting)))
 
     resF.futureValue shouldBe Right(PeerCountResponse(2))
   }

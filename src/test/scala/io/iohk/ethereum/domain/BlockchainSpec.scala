@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.{Fixtures, crypto}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage.ArchiveNodeStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.vm.UInt256
 import org.scalatest.{FlatSpec, Matchers}
@@ -52,7 +53,7 @@ class BlockchainSpec extends FlatSpec with Matchers {
     val validHeader = Fixtures.Blocks.ValidBlock.header
 
     val emptyMpt = MerklePatriciaTrie[Address, Account](
-      storagesInstance.storages.nodeStorage,
+      new ArchiveNodeStorage(storagesInstance.storages.nodeStorage),
       crypto.kec256(_: Array[Byte])
     )
 

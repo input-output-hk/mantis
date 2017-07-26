@@ -1,6 +1,7 @@
 package io.iohk.ethereum.db.components
 
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.BlockchainStorages
 
 trait StoragesComponent {
@@ -17,9 +18,7 @@ trait StoragesComponent {
 
     val receiptStorage: ReceiptStorage
 
-    val mptNodeStorage: MptNodeStorage
-
-    val nodeStorage: NodeStorage //FIXME This storage is similar to MPTNodesStorage, should we keep only one? [EC-147]
+    val nodeStorage: NodeStorage
 
     val evmCodeStorage: EvmCodeStorage
 
@@ -30,5 +29,9 @@ trait StoragesComponent {
     val fastSyncStateStorage: FastSyncStateStorage
 
     val transactionMappingStorage: TransactionMappingStorage
+
+    val knownNodesStorage: KnownNodesStorage
+
+    val pruningMode: PruningMode
   }
 }
