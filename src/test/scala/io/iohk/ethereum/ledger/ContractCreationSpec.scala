@@ -3,9 +3,10 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.domain.{Address, TxLogEntry}
+import io.iohk.ethereum.domain.{Address, BlockchainImpl, TxLogEntry}
 import io.iohk.ethereum.ledger.Ledger.PR
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}
@@ -55,7 +56,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     resultAfterSaving.error shouldBe None
   }
 
-  trait TestSetup extends SecureRandomBuilder {
+  trait TestSetup extends EphemBlockchainTestSetup with SecureRandomBuilder {
     val keyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val contractAddress = Address(kec256(keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
@@ -63,8 +64,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     val defaultGasLimit = 5000
     val config = EvmConfig.FrontierConfigBuilder(None)
 
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
-    val emptyWorld = InMemoryWorldStateProxy(storagesInstance.storages, UInt256.Zero)
+    val emptyWorld = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
 
     val defaultBlockchainConfig = BlockchainConfig(Config.config)
     val blockchainConfig = new BlockchainConfig {
