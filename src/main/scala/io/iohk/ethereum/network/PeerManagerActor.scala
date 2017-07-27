@@ -70,7 +70,7 @@ class PeerManagerActor(
       val nodesToConnect = nodes.take(peerConfiguration.maxPeers)
 
       if (nodesToConnect.nonEmpty) {
-        log.info("Trying to connect to {} known nodes", nodesToConnect.size)
+        log.debug("Trying to connect to {} known nodes", nodesToConnect.size)
         nodesToConnect.foreach(n => self ! ConnectToPeer(n))
       }
 
@@ -93,7 +93,7 @@ class PeerManagerActor(
         s"Trying to connect to ${nodesToConnect.size} more nodes.")
 
       if (nodesToConnect.nonEmpty) {
-        log.info("Trying to connect to {} nodes", nodesToConnect.size)
+        log.debug("Trying to connect to {} nodes", nodesToConnect.size)
         nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
       }
   }
@@ -105,10 +105,10 @@ class PeerManagerActor(
 
       if (incomingPeers.size > peerConfiguration.maxIncomingPeers) {
         peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
-        log.info("Maximum number of incoming peer connections reached.")
+        log.debug("Maximum number of incoming peer connections reached.")
       }
     } else {
-      log.info("Another connection with {} is already opened. Disconnecting.", remoteAddress)
+      log.debug("Another connection with {} is already opened. Disconnecting.", remoteAddress)
       connection ! PoisonPill
     }
   }
@@ -120,10 +120,10 @@ class PeerManagerActor(
         val peer = createPeer(addr, incomingConnection = false)
         peer.ref ! PeerActor.ConnectTo(uri)
       } else {
-        log.info("Maximum number of connected peers reached.")
+        log.debug("Maximum number of connected peers reached.")
       }
     } else {
-      log.info("Maximum number of connected peers reached. Not connecting to {}", uri)
+      log.debug("Maximum number of connected peers reached. Not connecting to {}", uri)
     }
   }
 

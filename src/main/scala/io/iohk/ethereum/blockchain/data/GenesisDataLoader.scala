@@ -41,15 +41,15 @@ class GenesisDataLoader(
   private val emptyEvmHash: ByteString = crypto.kec256(ByteString.empty)
 
   def loadGenesisData(): Unit = {
-    log.info("Loading genesis data")
+    log.debug("Loading genesis data")
 
     val genesisJson = blockchainConfig.customGenesisFileOpt match {
       case Some(customGenesisFile) =>
         log.debug(s"Trying to load custom genesis data from file: $customGenesisFile")
 
         Try(Source.fromFile(customGenesisFile)).recoverWith { case _: FileNotFoundException =>
-          log.info(s"Cannot load custom genesis data from file: $customGenesisFile")
-          log.info(s"Trying to load from resources: $customGenesisFile")
+          log.debug(s"Cannot load custom genesis data from file: $customGenesisFile")
+          log.debug(s"Trying to load from resources: $customGenesisFile")
           Try(Source.fromResource(customGenesisFile))
         } match {
           case Success(customGenesis) =>
@@ -64,6 +64,7 @@ class GenesisDataLoader(
             throw ex
         }
       case None =>
+        log.info(s"Using default genesis data")
         val src = Source.fromResource("blockchain/default-genesis.json")
         try {
           src.getLines().mkString
@@ -127,7 +128,7 @@ class GenesisDataLoader(
 
     blockchain.getBlockHeaderByNumber(0) match {
       case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>
-        log.info("Genesis data already in the database")
+        log.debug("Genesis data already in the database")
         Success(())
       case Some(_) =>
         Failure(new RuntimeException("Genesis data present in the database does not match genesis block from file." +
