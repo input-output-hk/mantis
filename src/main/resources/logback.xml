@@ -9,14 +9,6 @@
         </encoder>
     </appender>
 
-    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>etc-client_full.log</file>
-        <append>true</append>
-        <encoder>
-            <pattern>${fileEncoderPattern}</pattern>
-        </encoder>
-    </appender>
-
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>etc-client.log</file>
         <append>true</append>
