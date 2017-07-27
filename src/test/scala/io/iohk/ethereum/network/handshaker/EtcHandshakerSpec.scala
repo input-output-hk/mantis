@@ -3,8 +3,11 @@ package io.iohk.ethereum.network.handshaker
 import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.generateKeyPair
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.network.ForkResolver
@@ -120,7 +123,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     handshakerAfterForkBlockOpt.get.nextMessage.leftSide shouldBe Left(HandshakeFailure(Disconnect.Reasons.UselessPeer))
   }
 
-  trait TestSetup extends SecureRandomBuilder {
+  trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
 
     val genesisBlock = Block(
       Fixtures.Blocks.Genesis.header,
@@ -128,9 +131,6 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     )
 
     val forkBlockHeader = Fixtures.Blocks.DaoForkBlock.header
-
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
-    val blockchain = BlockchainImpl(storagesInstance.storages)
 
     blockchain.save(genesisBlock)
 

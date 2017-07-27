@@ -168,8 +168,7 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
-  def props[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
-                                  peerDiscoveryManager: ActorRef,
+  def props[R <: HandshakeResult](peerDiscoveryManager: ActorRef,
                                   peerConfiguration: PeerConfiguration,
                                   peerMessageBus: ActorRef,
                                   knownNodesManager: ActorRef,
@@ -178,10 +177,9 @@ object PeerManagerActor {
                                   messageDecoder: MessageDecoder): Props =
     Props(new PeerManagerActor(peerMessageBus, peerDiscoveryManager, peerConfiguration,
       knownNodesManager = knownNodesManager,
-      peerFactory = peerFactory(nodeStatusHolder, peerConfiguration, peerMessageBus, knownNodesManager, handshaker, authHandshaker, messageDecoder)))
+      peerFactory = peerFactory(peerConfiguration, peerMessageBus, knownNodesManager, handshaker, authHandshaker, messageDecoder)))
 
-  def peerFactory[R <: HandshakeResult](nodeStatusHolder: Agent[NodeStatus],
-                                        peerConfiguration: PeerConfiguration,
+  def peerFactory[R <: HandshakeResult](peerConfiguration: PeerConfiguration,
                                         peerEventBus: ActorRef,
                                         knownNodesManager: ActorRef,
                                         handshaker: Handshaker[R],
@@ -189,7 +187,7 @@ object PeerManagerActor {
                                         messageDecoder: MessageDecoder): (ActorContext, InetSocketAddress, Boolean) => ActorRef = {
     (ctx, addr, incomingConnection) =>
       val id = addr.toString.filterNot(_ == '/')
-      ctx.actorOf(PeerActor.props(addr, nodeStatusHolder, peerConfiguration, peerEventBus,
+      ctx.actorOf(PeerActor.props(addr, peerConfiguration, peerEventBus,
         knownNodesManager, incomingConnection, handshaker, authHandshaker, messageDecoder), id)
   }
 

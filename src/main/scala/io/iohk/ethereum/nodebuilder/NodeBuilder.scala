@@ -6,8 +6,10 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
@@ -56,8 +58,12 @@ trait ActorSystemBuilder {
   implicit lazy val actorSystem = ActorSystem("etc-client_system")
 }
 
+trait PruningConfigBuilder extends PruningModeComponent {
+  lazy val pruningMode: PruningMode = PruningConfig(Config.config).mode
+}
+
 trait StorageBuilder {
-  lazy val storagesInstance =  new SharedLevelDBDataSources with Storages.DefaultStorages
+  lazy val storagesInstance =  new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
 }
 
 trait DiscoveryConfigBuilder {
@@ -156,7 +162,6 @@ trait PeerEventBusBuilder {
 trait PeerManagerActorBuilder {
 
   self: ActorSystemBuilder
-    with NodeStatusBuilder
     with HandshakerBuilder
     with PeerEventBusBuilder
     with AuthHandshakerBuilder
@@ -167,7 +172,6 @@ trait PeerManagerActorBuilder {
   lazy val peerConfiguration = Config.Network.peer
 
   lazy val peerManager = actorSystem.actorOf(PeerManagerActor.props(
-    nodeStatusHolder,
     peerDiscoveryManager,
     Config.Network.peer,
     peerEventBus,
@@ -283,12 +287,11 @@ trait EthServiceBuilder {
     SyncControllerBuilder with
     OmmersPoolBuilder with
     MiningConfigBuilder with
-    TxPoolConfigBuilder with
     FilterManagerBuilder with
     FilterConfigBuilder =>
 
   lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage, miningConfig,
-    txPoolConfig, ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig, blockchainConfig)
+    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig, blockchainConfig)
 }
 
 trait PersonalServiceBuilder {
@@ -398,7 +401,7 @@ trait GenesisDataLoaderBuilder {
     with StorageBuilder
     with BlockchainConfigBuilder =>
 
-  lazy val genesisDataLoader = new GenesisDataLoader(storagesInstance.dataSource, blockchain, blockchainConfig)
+  lazy val genesisDataLoader = new GenesisDataLoader(storagesInstance.dataSource, blockchain, storagesInstance.pruningMode, blockchainConfig, Config.Db)
 }
 
 trait SecureRandomBuilder {
@@ -439,6 +442,7 @@ trait Node extends NodeKeyBuilder
   with TxPoolConfigBuilder
   with SecureRandomBuilder
   with AuthHandshakerBuilder
+  with PruningConfigBuilder
   with PeerDiscoveryManagerBuilder
   with DiscoveryConfigBuilder
   with DiscoveryListenerBuilder

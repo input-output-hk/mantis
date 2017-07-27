@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import io.iohk.ethereum.Fixtures.Blocks.Block3125369
 import io.iohk.ethereum.Timeouts
-import io.iohk.ethereum.domain.{Address, Blockchain}
+import io.iohk.ethereum.domain.{Address, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers, RemoveOmmers}
 import io.iohk.ethereum.utils.MiningConfig
 import org.scalamock.scalatest.MockFactory
@@ -64,7 +64,7 @@ class OmmersPoolSpec extends FlatSpec with Matchers with MockFactory {
 
     val testProbe = TestProbe()
 
-    val blockchain = mock[Blockchain]
+    val blockchain = mock[BlockchainImpl]
     val ommersPool = system.actorOf(OmmersPool.props(blockchain, miningConfig))
   }
 }

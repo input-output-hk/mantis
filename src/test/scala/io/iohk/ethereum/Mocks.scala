@@ -24,7 +24,7 @@ object Mocks {
         Right(Nil)
       else
         Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head,
-          StateBeforeFailure(InMemoryWorldStateProxy(storages, UInt256.Zero),0,Nil),
+          StateBeforeFailure(BlockchainImpl(storages).getWorldStateProxy(0, UInt256.Zero),0,Nil),
           "StubLedger was set to fail for this case"))
     }
 

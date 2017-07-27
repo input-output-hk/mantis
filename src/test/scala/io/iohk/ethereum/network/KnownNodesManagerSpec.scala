@@ -5,6 +5,7 @@ import java.net.URI
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.TestProbe
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.network.KnownNodesManager.KnownNodesManagerConfig
 
@@ -57,10 +58,8 @@ class KnownNodesManagerSpec extends FlatSpec with Matchers {
     storagesInstance.storages.knownNodesStorage.getKnownNodes().size shouldBe 5
   }
 
-  trait TestSetup {
+  trait TestSetup extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("KnownNodesManagerSpec_System")
-
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
 
     val time = new VirtualTime
     val config = KnownNodesManagerConfig(persistInterval = 5.seconds, maxPersistedNodes = 5)
