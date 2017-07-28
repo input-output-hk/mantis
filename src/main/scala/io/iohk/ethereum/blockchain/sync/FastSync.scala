@@ -167,6 +167,8 @@ trait FastSync {
 
     syncStateStorageActor ! fastSyncStateStorage
 
+    private var blockChainOnlyPeers = Set.empty[Peer]
+
     private val syncStatePersistCancellable =
       scheduler.schedule(persistStateSnapshotInterval, persistStateSnapshotInterval) {
         syncStateStorageActor ! SyncState(
@@ -181,7 +183,7 @@ trait FastSync {
 
     private val heartBeat = scheduler.schedule(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
 
-    def receive: Receive = handlePeerUpdates orElse {
+    def receive: Receive = handlePeerUpdates orElse handleFailingMptPeers orElse {
       case EnqueueNodes(hashes) =>
         hashes.foreach {
           case h: EvmCodeHash => nonMptNodesQueue = h +: nonMptNodesQueue
@@ -225,6 +227,11 @@ trait FastSync {
 
       case PrintStatus =>
         printStatus()
+    }
+
+    private def handleFailingMptPeers: Receive ={
+      case BlockChainOnlyDownload(peer) =>
+        blockChainOnlyPeers = blockChainOnlyPeers + peer
     }
 
     private def printStatus() = {
@@ -316,13 +323,26 @@ trait FastSync {
           scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
       } else {
-        unassignedPeers
+        val peers = unassignedPeers
+        (peers -- blockChainOnlyPeers)
           .take(maxConcurrentRequests - assignedHandlers.size)
           .foreach(assignWork)
+        peers
+          .intersect(blockChainOnlyPeers)
+          .take(maxConcurrentRequests - assignedHandlers.size)
+          .foreach(assignBlockChainWork)
       }
     }
 
     def assignWork(peer: Peer): Unit = {
+      if (nonMptNodesQueue.nonEmpty || mptNodesQueue.nonEmpty) {
+        requestNodes(peer)
+      } else {
+        assignBlockChainWork(peer)
+      }
+    }
+
+    def assignBlockChainWork(peer: Peer): Unit = {
       if (receiptsQueue.nonEmpty) {
         requestReceipts(peer)
       } else if (blockBodiesQueue.nonEmpty) {
@@ -330,8 +350,6 @@ trait FastSync {
       } else if (context.child(blockHeadersHandlerName).isEmpty &&
         initialSyncState.targetBlock.number > bestBlockHeaderNumber) {
         requestBlockHeaders(peer)
-      } else if (nonMptNodesQueue.nonEmpty || mptNodesQueue.nonEmpty) {
-        requestNodes(peer)
       }
     }
 
@@ -423,6 +441,7 @@ object FastSync {
   private case object TargetBlockTimeout
 
   private case object ProcessSyncing
+  case class BlockChainOnlyDownload(peer: Peer)
 
   case class SyncState(
     targetBlock: BlockHeader,
