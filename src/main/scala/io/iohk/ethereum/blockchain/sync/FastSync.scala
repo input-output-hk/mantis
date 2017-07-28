@@ -234,10 +234,13 @@ trait FastSync {
         s"""|Block: ${appStateStorage.getBestBlockNumber()}/${initialSyncState.targetBlock.number}.
             |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
             |State: $downloadedNodesCount/$totalNodesCount nodes.
-            |Details: connected(${assignedHandlers.values.map(formatPeer).toSeq.sorted})/
-            |handshaked(${handshakedPeers.keys.map(formatPeer).toSeq.sorted})
-            | blacklisted(${blacklistedPeers.map { case (id, _) => id }})
             |""".stripMargin.replace("\n", " "))
+      log.debug(
+        s"""|Connection status: connected(${assignedHandlers.values.map(formatPeer).toSeq.sorted.mkString(", ")})/
+            |handshaked(${handshakedPeers.keys.map(formatPeer).toSeq.sorted.mkString(", ")})
+            | blacklisted(${blacklistedPeers.map { case (id, _) => id.value }.mkString(", ")})
+            |""".stripMargin.replace("\n", " ")
+      )
     }
 
     private def cleanupRequestedMaps(handler: ActorRef): Unit = {
