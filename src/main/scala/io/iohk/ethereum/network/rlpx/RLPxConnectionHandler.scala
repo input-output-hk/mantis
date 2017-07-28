@@ -137,8 +137,11 @@ class RLPxConnectionHandler(
       case Success(message) =>
         context.parent ! MessageReceived(message)
 
-      case Failure(ex) =>
+      case Failure(ex) => if (log.isDebugEnabled) {
+        log.error(ex, s"Cannot decode message from $peerId")
+      } else {
         log.error(s"Cannot decode message from $peerId because ${ex.getMessage}")
+      }
     }
 
     /**
