@@ -183,6 +183,8 @@ trait FastSync {
           bestBlockHeaderNumber)
       }
 
+    private val heartBeat = scheduler.schedule(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
+
     def receive: Receive = handlePeerUpdates orElse {
       case EnqueueNodes(hashes) =>
         hashes.foreach {
@@ -226,11 +228,23 @@ trait FastSync {
         cleanupRequestedMaps(ref)
 
       case PrintStatus =>
-        val totalNodesCount = downloadedNodesCount + mptNodesQueue.size + nonMptNodesQueue.size
-        log.info(
-          s"""|Block: ${appStateStorage.getBestBlockNumber()}/${initialSyncState.targetBlock.number}.
-              |Peers: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
-              |State: $downloadedNodesCount/$totalNodesCount known nodes""".stripMargin.replace("\n", " "))
+        printStatus()
+    }
+
+    private def printStatus() = {
+      val totalNodesCount = downloadedNodesCount + mptNodesQueue.size + nonMptNodesQueue.size
+      val formatPeer: (Peer) => String = peer => s"${peer.remoteAddress.getAddress.getHostAddress}:${peer.remoteAddress.getPort}"
+      log.info(
+        s"""|Block: ${appStateStorage.getBestBlockNumber()}/${initialSyncState.targetBlock.number}.
+            |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
+            |State: $downloadedNodesCount/$totalNodesCount nodes.
+            |""".stripMargin.replace("\n", " "))
+      log.debug(
+        s"""|Connection status: connected(${assignedHandlers.values.map(formatPeer).toSeq.sorted.mkString(", ")})/
+            |handshaked(${handshakedPeers.keys.map(formatPeer).toSeq.sorted.mkString(", ")})
+            | blacklisted(${blacklistedPeers.map { case (id, _) => id.value }.mkString(", ")})
+            |""".stripMargin.replace("\n", " ")
+      )
     }
 
     private def cleanupRequestedMaps(handler: ActorRef): Unit = {
@@ -291,6 +305,7 @@ trait FastSync {
     }
 
     def cleanup(): Unit = {
+      heartBeat.cancel()
       syncStatePersistCancellable.cancel()
       syncStateStorageActor ! PoisonPill
       fastSyncStateStorage.purge()

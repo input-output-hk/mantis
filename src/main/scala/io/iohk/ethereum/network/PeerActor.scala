@@ -201,7 +201,7 @@ class PeerActor[R <: HandshakeResult](
           rlpxConnection.uriOpt.foreach(uri => knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri))
         case _ => // nothing
       }
-      log.debug("Received {}. Closing connection", d)
+      log.debug(s"Received {}. Closing connection with peer ${peerAddress.getHostString}:${peerAddress.getPort}", d)
       context unwatch rlpxConnection.ref
       context stop self
   }
