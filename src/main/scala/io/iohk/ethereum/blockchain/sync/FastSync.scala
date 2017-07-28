@@ -304,6 +304,7 @@ trait FastSync {
       cleanup()
       appStateStorage.fastSyncDone()
       context become idle
+      blockChainOnlyPeers = Set.empty
       self ! FastSyncDone
     }
 
