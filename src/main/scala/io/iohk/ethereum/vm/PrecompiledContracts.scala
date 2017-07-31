@@ -50,6 +50,7 @@ object PrecompiledContracts {
         context.world,
         Set.empty,
         Nil,
+        Nil,
         0,
         error
       )

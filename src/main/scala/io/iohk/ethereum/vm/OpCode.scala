@@ -177,7 +177,7 @@ object OpCode {
   * @param delta number of words to be popped from stack
   * @param alpha number of words to be pushed to stack
   */
-sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constGasFn: FeeSchedule => BigInt) {
+abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constGasFn: FeeSchedule => BigInt) extends Product with Serializable {
   def this(code: Int, pop: Int, push: Int, constGasFn: FeeSchedule => BigInt) = this(code.toByte, pop, push, constGasFn)
 
   def execute[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -667,7 +667,7 @@ case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
 
-case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
+abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(endowment, inOffset, inSize), stack1) = state.stack.pop(3)
 
@@ -721,7 +721,8 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
             state.withWorld(result.world).spendGas(gasUsedInVm)
           else {
             val world3 = result.world.saveCode(newAddress, result.returnData)
-            state.withWorld(world3).spendGas(totalGasRequired)
+            val internalTx = InternalTransaction(CREATE, state.env.ownerAddr, None, startGas, initCode, endowment)
+            state.withWorld(world3).spendGas(totalGasRequired).withInternalTxs(internalTx +: result.internalTxs)
           }
 
         state1
@@ -741,19 +742,16 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
   }
 }
 
+case object CREATE extends CreateOp
 
-sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, alpha, _.G_zero) {
+abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, alpha, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
 
     val (inputData, mem1) = state.memory.load(inOffset, inSize)
     val endowment = if (this == DELEGATECALL) UInt256.Zero else callValue
 
-    val startGas = {
-      val gExtra = gasExtra(state, endowment, Address(to))
-      val gCap = gasCap(state, gas, gExtra)
-      if (endowment.isZero) gCap else gCap + state.config.feeSchedule.G_callstipend
-    }
+    val startGas = calcStartGas(state, gas, endowment, to)
 
     lazy val result = {
       val toAddr = Address(to)
@@ -807,6 +805,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
       val sizeCap = outSize.min(result.returnData.size).toInt
       val output = result.returnData.take(sizeCap)
       val mem2 = mem1.store(outOffset, output).expand(outOffset, outSize)
+      val internalTx = InternalTransaction(this, state.env.ownerAddr, Some(Address(to)), startGas, inputData, endowment)
 
       state
         .spendGas(-result.gasRemaining)
@@ -815,6 +814,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
         .withMemory(mem2)
         .withWorld(result.world)
         .withAddressesToDelete(result.addressesToDelete)
+        .withInternalTxs(internalTx +: result.internalTxs)
         .withLogs(result.logs)
         .step()
     }
@@ -834,11 +834,17 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
     memCost + gCap + gExtra
   }
 
-  private def getParams[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): (Seq[UInt256], Stack) = {
+  protected def getParams[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): (Seq[UInt256], Stack) = {
     val (Seq(gas, to), stack1) = state.stack.pop(2)
     val (value, stack2) = if (this == DELEGATECALL) (state.env.value, stack1) else stack1.pop
     val (Seq(inOffset, inSize, outOffset, outSize), stack3) = stack2.pop(4)
     Seq(gas, to, value, inOffset, inSize, outOffset, outSize) -> stack3
+  }
+
+  protected def calcStartGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], gas: UInt256, endowment: UInt256, to: UInt256): BigInt = {
+    val gExtra = gasExtra(state, endowment, Address(to))
+    val gCap = gasCap(state, gas, gExtra)
+    if (endowment.isZero) gCap else gCap + state.config.feeSchedule.G_callstipend
   }
 
   private def gasCap[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], g: BigInt, gExtra: BigInt): BigInt = {
