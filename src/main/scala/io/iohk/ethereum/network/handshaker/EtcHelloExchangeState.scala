@@ -14,7 +14,7 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
   import handshakerConfiguration._
 
   override def nextMessage: NextMessage = {
-    log.info("RLPx connection established, sending Hello")
+    log.debug("RLPx connection established, sending Hello")
     NextMessage(
       messageToSend = createHelloMsg(),
       timeout = peerConfiguration.waitForHelloTimeout
@@ -24,18 +24,18 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
   override def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = {
 
     case hello: Hello =>
-      log.info("Protocol handshake finished with peer ({})", hello)
+      log.debug("Protocol handshake finished with peer ({})", hello)
       if (hello.capabilities.contains(Capability("eth", Versions.PV63.toByte)))
         EtcNodeStatusExchangeState(handshakerConfiguration)
       else {
-        log.warn("Connected peer does not support eth {} protocol. Disconnecting.", Versions.PV63.toByte)
+        log.debug("Connected peer does not support eth {} protocol. Disconnecting.", Versions.PV63.toByte)
         DisconnectedState(Disconnect.Reasons.IncompatibleP2pProtocolVersion)
       }
 
   }
 
   override def processTimeout: HandshakerState[PeerInfo] = {
-    log.warn("Timeout while waiting for Hello")
+    log.debug("Timeout while waiting for Hello")
     DisconnectedState(Disconnect.Reasons.TimeoutOnReceivingAMessage)
   }
 

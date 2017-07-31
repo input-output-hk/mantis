@@ -153,10 +153,10 @@ class EtcPeerManagerActor(peerManagerActor: ActorRef, peerEventBusActor: ActorRe
           forkBlockHeader <- blockHeaders.find(_.number == forkResolver.forkBlockNumber)
         } yield {
           val newFork = forkResolver.recognizeFork(forkBlockHeader)
-          log.info("Received fork block header with fork: {}", newFork)
+          log.debug("Received fork block header with fork: {}", newFork)
 
           if (!forkResolver.isAccepted(newFork)) {
-            log.warning("Peer is not running the accepted fork, disconnecting")
+            log.debug("Peer is not running the accepted fork, disconnecting")
             peer.ref ! DisconnectPeer(Disconnect.Reasons.UselessPeer)
             initialPeerInfo
           } else
