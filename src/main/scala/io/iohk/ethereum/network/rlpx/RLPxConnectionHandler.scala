@@ -93,7 +93,7 @@ class RLPxConnectionHandler(
               processHandshakeResult(result, remainingData)
 
             case Failure(ex) =>
-              log.warning(s"[Stopping Connection] Init AuthHandshaker message handling failed for peer $peerId due to ${ex.getMessage}")
+              log.debug(s"[Stopping Connection] Init AuthHandshaker message handling failed for peer $peerId due to ${ex.getMessage}")
               context.parent ! ConnectionFailed
               context stop self
           }
@@ -116,7 +116,7 @@ class RLPxConnectionHandler(
           maybePreEIP8Result orElse maybePostEIP8Result match {
             case Success((result, remainingData)) => processHandshakeResult(result, remainingData)
             case Failure(ex) =>
-              log.warning(s"[Stopping Connection] Response AuthHandshaker message handling failed for peer $peerId due to ${ex.getMessage}")
+              log.debug(s"[Stopping Connection] Response AuthHandshaker message handling failed for peer $peerId due to ${ex.getMessage}")
               context.parent ! ConnectionFailed
               context stop self
           }
