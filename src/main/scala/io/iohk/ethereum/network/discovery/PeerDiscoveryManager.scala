@@ -34,10 +34,7 @@ class PeerDiscoveryManager(
 
   if (discoveryConfig.discoveryEnabled) {
     discoveryListener ! DiscoveryListener.Subscribe
-
-    context.system.scheduler.schedule(discoveryConfig.scanInitialDelay, discoveryConfig.scanInterval) {
-      scan()
-    }
+    context.system.scheduler.schedule(discoveryConfig.scanInitialDelay, discoveryConfig.scanInterval, self, Scan)
   }
 
   def scan(): Unit = {
@@ -78,6 +75,8 @@ class PeerDiscoveryManager(
 
     case GetDiscoveredNodes =>
       sender() ! DiscoveredNodes(nodes.values.toSet)
+
+    case Scan => scan()
   }
 
   private def sendPing(toNodeId: ByteString, toAddr: InetSocketAddress): Unit = {
@@ -130,4 +129,6 @@ object PeerDiscoveryManager {
 
   case object GetDiscoveredNodes
   case class DiscoveredNodes(nodes: Set[Node])
+
+  private case object Scan
 }
