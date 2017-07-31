@@ -21,7 +21,7 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
   def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = {
 
     case remoteStatus: Status =>
-      log.info("Peer returned status ({})", remoteStatus)
+      log.debug("Peer returned status ({})", remoteStatus)
 
       forkResolverOpt match {
         case Some(forkResolver) =>
@@ -33,7 +33,7 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
   }
 
   def processTimeout: HandshakerState[PeerInfo] = {
-    log.warn("Timeout while waiting status")
+    log.debug("Timeout while waiting status")
     DisconnectedState(Disconnect.Reasons.TimeoutOnReceivingAMessage)
   }
 

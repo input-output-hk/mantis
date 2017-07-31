@@ -27,7 +27,7 @@ trait RegularSync extends BlockBroadcast {
   import Config.Sync._
 
   def startRegularSync(): Unit = {
-    log.info("Starting regular sync")
+    log.info("Starting block synchronization")
     appStateStorage.fastSyncDone()
     context become (handlePeerUpdates orElse regularSync())
     askForHeaders()
@@ -60,14 +60,14 @@ trait RegularSync extends BlockBroadcast {
             //just insert block and let resolve it with regular download
             insertMinedBlock(block, parentTd)
           case _ =>
-            log.error("fail to add mined block")
+            log.error("Failed to add mined block")
         }
       } else {
         ommersPool ! AddOmmers(block.header)
       }
 
     case PrintStatus =>
-      log.info(s"Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).")
+      log.info(s"Block: ${appStateStorage.getBestBlockNumber()}. Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted)")
 
     case Done =>
       if (waitingForActor == Option(sender())) {
@@ -92,9 +92,9 @@ trait RegularSync extends BlockBroadcast {
         ommersPool ! new RemoveOmmers((block.header +: block.body.uncleNodesList).toList)
         pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(block.body.transactionList)
 
-        log.info(s"added new block $block")
+        log.debug(s"Added new block $block")
       case Left(err) =>
-        log.info(s"fail to execute mined block because of $err")
+        log.warning(s"Failed to execute mined block because of $err")
     }
   }
 
@@ -106,7 +106,7 @@ trait RegularSync extends BlockBroadcast {
         waitingForActor = Some(context.actorOf(
           SyncBlockHeadersRequestHandler.props(peer, etcPeerManager, peerEventBus, request, resolveBranches = false)))
       case None =>
-        log.warning("no peers to download from")
+        log.debug("No peers to download from")
         scheduleResume()
     }
   }
@@ -160,7 +160,7 @@ trait RegularSync extends BlockBroadcast {
             SyncBlockHeadersRequestHandler.props(peer, etcPeerManager, peerEventBus, request, resolveBranches = true)))
         }
       case _ =>
-        log.warning("got header that does not have parent")
+        log.debug("Got block header that does not have parent")
         resumeWithDifferentPeer(peer)
     }
   }
@@ -183,7 +183,7 @@ trait RegularSync extends BlockBroadcast {
 
           if(newBlocks.nonEmpty){
             broadcastNewBlocks(newBlocks, handshakedPeers)
-            log.info(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
+            log.debug(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
           }
 

@@ -16,7 +16,7 @@ trait BlacklistSupport {
 
   def blacklist(peerId: PeerId, duration: FiniteDuration, reason: String): Unit = {
     undoBlacklist(peerId)
-    log.info(s"Blacklisting peer ($peerId), $reason")
+    log.debug(s"Blacklisting peer ($peerId), $reason")
     val unblacklistCancellable = scheduler.scheduleOnce(duration, self, UnblacklistPeer(peerId))
     blacklistedPeers :+= (peerId, unblacklistCancellable)
   }
