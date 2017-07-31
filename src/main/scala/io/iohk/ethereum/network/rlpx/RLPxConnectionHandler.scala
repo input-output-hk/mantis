@@ -65,7 +65,7 @@ class RLPxConnectionHandler(
       context become new ConnectedHandler(connection).waitingForAuthHandshakeResponse(handshaker, timeout)
 
     case CommandFailed(_: Connect) =>
-      log.warning("[Stopping Connection] Connection to {} failed", uri)
+      log.debug("[Stopping Connection] Connection to {} failed", uri)
       context.parent ! ConnectionFailed
       context stop self
   }
@@ -136,7 +136,7 @@ class RLPxConnectionHandler(
 
     def handleTimeout: Receive = {
       case AuthHandshakeTimeout =>
-        log.warning(s"[Stopping Connection] Auth handshake timeout for peer $peerId")
+        log.debug(s"[Stopping Connection] Auth handshake timeout for peer $peerId")
         context.parent ! ConnectionFailed
         context stop self
     }
@@ -152,7 +152,7 @@ class RLPxConnectionHandler(
           context become handshaked(messageCodec)
 
         case AuthHandshakeError =>
-          log.warning(s"[Stopping Connection] Auth handshake failed for peer $peerId")
+          log.debug(s"[Stopping Connection] Auth handshake failed for peer $peerId")
           context.parent ! ConnectionFailed
           context stop self
       }
@@ -161,11 +161,8 @@ class RLPxConnectionHandler(
       case Success(message) =>
         context.parent ! MessageReceived(message)
 
-      case Failure(ex) => if (log.isDebugEnabled) {
-        log.error(ex, s"Cannot decode message from $peerId")
-      } else {
-        log.error(s"Cannot decode message from $peerId because ${ex.getMessage}")
-      }
+      case Failure(ex) =>
+        log.debug(s"Cannot decode message from $peerId, because of ${ex.getMessage}")
     }
 
     /**
@@ -204,7 +201,7 @@ class RLPxConnectionHandler(
 
         case AckTimeout(ackSeqNumber) if cancellableAckTimeout.exists(_.seqNumber == ackSeqNumber) =>
           cancellableAckTimeout.foreach(_.cancellable.cancel())
-          log.warning(s"[Stopping Connection] Write to $peerId failed")
+          log.debug(s"[Stopping Connection] Write to $peerId failed")
           context stop self
       }
 
@@ -245,17 +242,17 @@ class RLPxConnectionHandler(
 
     def handleWriteFailed: Receive = {
       case CommandFailed(cmd: Write) =>
-        log.warning(s"[Stopping Connection] Write to peer $peerId failed, trying to send ${Hex.toHexString(cmd.data.toArray[Byte])}")
+        log.debug(s"[Stopping Connection] Write to peer $peerId failed, trying to send ${Hex.toHexString(cmd.data.toArray[Byte])}")
         context stop self
     }
 
     def handleConnectionClosed: Receive = {
       case msg: ConnectionClosed =>
         if (msg.isPeerClosed) {
-          log.warning(s"[Stopping Connection] Connection with $peerId closed by peer")
+          log.debug(s"[Stopping Connection] Connection with $peerId closed by peer")
         }
         if(msg.isErrorClosed){
-          log.warning(s"[Stopping Connection] Connection with $peerId closed because of error ${msg.getErrorCause}")
+          log.debug(s"[Stopping Connection] Connection with $peerId closed because of error ${msg.getErrorCause}")
         }
 
         context stop self

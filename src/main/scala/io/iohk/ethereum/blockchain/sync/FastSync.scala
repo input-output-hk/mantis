@@ -5,7 +5,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
@@ -20,7 +20,7 @@ trait FastSync {
   import SyncController._
 
   def startFastSync(): Unit = {
-    log.info("Starting fast sync")
+    log.info("Trying to start block synchronization (fast mode)")
     fastSyncStateStorage.getSyncState() match {
       case Some(syncState) => startFastSync(syncState)
       case None => startFastSyncFromScratch()
@@ -44,11 +44,12 @@ trait FastSync {
         peerEventBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
         etcPeerManager ! EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(status.bestHash), 1, 0, reverse = false), peer.id)
       }
-      log.info("Asking {} peers for block headers", peersUsedToChooseTarget.size)
+      log.debug("Asking {} peers for block headers", peersUsedToChooseTarget.size)
       val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, BlockHeadersTimeout)
       context become waitingForBlockHeaders(peersUsedToChooseTarget.keySet, Map.empty, timeout)
     } else {
-      log.warning("Cannot start fast sync, not enough peers to download from. Scheduling retry in {}", startRetryInterval)
+      log.info("Block synchronization (fast mode) not started. Need at least {} peers, but there are only {} available at the moment. Retrying in {}",
+        minPeersToChooseTargetBlock, peersUsedToChooseTarget.size, startRetryInterval)
       scheduleStartRetry(startRetryInterval)
       context become startingFastSync
     }
@@ -87,18 +88,18 @@ trait FastSync {
   }
 
   private def tryStartFastSync(receivedHeaders: Map[Peer, BlockHeader]): Unit = {
-    log.info("Trying to start fast sync. Received {} block headers", receivedHeaders.size)
+    log.debug("Trying to start fast sync. Received {} block headers", receivedHeaders.size)
     if (receivedHeaders.size >= minPeersToChooseTargetBlock) {
       val (mostUpToDatePeer, mostUpToDateBlockHeader) = receivedHeaders.maxBy(_._2.number)
       val targetBlock = mostUpToDateBlockHeader.number - targetBlockOffset
 
       if (targetBlock < 1) {
-        log.info("Target block is less than 1, starting regular sync")
+        log.debug("Target block is less than 1, starting regular sync")
         appStateStorage.fastSyncDone()
         context become idle
         self ! FastSyncDone
       } else {
-        log.info("Starting fast sync. Asking peer {} for target block header ({})", mostUpToDatePeer.id, targetBlock)
+        log.debug("Starting fast sync. Asking peer {} for target block header ({})", mostUpToDatePeer.id, targetBlock)
 
         peerEventBus ! Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(mostUpToDatePeer.id)))
         etcPeerManager ! EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(targetBlock), 1, 0, reverse = false), mostUpToDatePeer.id)
@@ -107,7 +108,8 @@ trait FastSync {
       }
 
     } else {
-      log.info("Did not receive enough status block headers to start fast sync. Retry in {}", startRetryInterval)
+      log.info("Block synchronization (fast mode) not started. Need to receive block headers from at least {} peers, but received only from {}. Retrying in {}",
+        minPeersToChooseTargetBlock, receivedHeaders.size, startRetryInterval)
       scheduleStartRetry(startRetryInterval)
       context become startingFastSync
     }
@@ -123,19 +125,21 @@ trait FastSync {
       val targetBlockHeaderOpt = blockHeaders.headers.find(header => header.number == targetBlockNumber)
       targetBlockHeaderOpt match {
         case Some(targetBlockHeader) =>
-          log.info("Received target block from peer, starting fast sync")
+          log.info("Starting block synchronization (fast mode)")
           val initialSyncState = SyncState(targetBlockHeader,
             mptNodesQueue = Seq(StateMptNodeHash(targetBlockHeader.stateRoot)))
           startFastSync(initialSyncState)
 
         case None =>
-          blacklist(peer.id, blacklistDuration,s"did not respond with target block header, blacklisting and scheduling retry in $startRetryInterval")
+          blacklist(peer.id, blacklistDuration, s"did not respond with target block header, blacklisting and scheduling retry in $startRetryInterval")
+          log.info("Block synchronization (fast mode) not started. Target block header not received. Retrying in {}", startRetryInterval)
           scheduleStartRetry(startRetryInterval)
           context become startingFastSync
       }
 
     case TargetBlockTimeout =>
       blacklist(peer.id, blacklistDuration, s"did not respond with target block header (timeout), blacklisting and scheduling retry in $startRetryInterval")
+      log.info("Block synchronization (fast mode) not started. Target block header receive timeout. Retrying in {}", startRetryInterval)
       peerEventBus ! Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
       scheduleStartRetry(startRetryInterval)
       context become startingFastSync
@@ -288,12 +292,12 @@ trait FastSync {
         finishFastSync()
       } else {
         if (anythingToDownload) processDownloads()
-        else log.info("No more items to request, waiting for {} responses", assignedHandlers.size)
+        else log.debug("No more items to request, waiting for {} responses", assignedHandlers.size)
       }
     }
 
     def finishFastSync(): Unit = {
-      log.info("Fast sync finished")
+      log.info("Block synchronization in fast mode finished, switching to regular mode")
       cleanup()
       appStateStorage.fastSyncDone()
       context become idle
@@ -310,9 +314,9 @@ trait FastSync {
     def processDownloads(): Unit = {
       if (unassignedPeers.isEmpty) {
         if (assignedHandlers.nonEmpty) {
-          log.warning("There are no available peers, waiting for responses")
+          log.debug("There are no available peers, waiting for responses")
         } else {
-          log.warning("There are no peers to download from, scheduling a retry in {}", syncRetryInterval)
+          log.debug("There are no peers to download from, scheduling a retry in {}", syncRetryInterval)
           scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
       } else {
