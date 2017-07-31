@@ -82,8 +82,7 @@ class RLPxConnectionHandler(
             (responsePacket, result, remainingData)
           }
           lazy val maybePostEIP8Result = Try {
-            val encryptedPayloadSize = ByteUtils.bigEndianToShort(data.take(2).toArray)
-            val (packetData, remainingData) = data.splitAt(encryptedPayloadSize + 2)
+            val (packetData, remainingData) = decodeV4Packet(data)
             val (responsePacket, result) = handshaker.handleInitialMessageV4(packetData)
             (responsePacket, result, remainingData)
           }
@@ -110,8 +109,7 @@ class RLPxConnectionHandler(
             (result, remainingData)
           }
           val maybePostEIP8Result = Try {
-            val size = ByteUtils.bigEndianToShort(data.take(2).toArray)
-            val (packetData, remainingData) = data.splitAt(size + 2)
+            val (packetData, remainingData) = decodeV4Packet(data)
             val result = handshaker.handleResponseMessageV4(packetData)
             (result, remainingData)
           }
@@ -123,6 +121,18 @@ class RLPxConnectionHandler(
               context stop self
           }
       }
+
+    /**
+      * Decode V4 packet
+      *
+      * @param data, includes both the V4 packet with bytes from next messages
+      * @return data of the packet and the remaining data
+      */
+    private def decodeV4Packet(data: ByteString): (ByteString, ByteString) =  {
+      val encryptedPayloadSize = ByteUtils.bigEndianToShort(data.take(2).toArray)
+      val (packetData, remainingData) = data.splitAt(encryptedPayloadSize + 2)
+      packetData -> remainingData
+    }
 
     def handleTimeout: Receive = {
       case AuthHandshakeTimeout =>

@@ -2,6 +2,7 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
+import akka.actor.SupervisorStrategy.Stop
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import akka.actor._
 import akka.agent.Agent
@@ -41,6 +42,11 @@ class PeerActor[R <: HandshakeResult](
 
   import PeerActor._
   import context.{dispatcher, system}
+
+  override val supervisorStrategy: OneForOneStrategy =
+    OneForOneStrategy() {
+      case _ => Stop
+    }
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
 
