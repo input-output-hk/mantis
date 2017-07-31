@@ -259,9 +259,7 @@ trait FilterManagerBuilder {
         keyStore,
         pendingTransactionsManager,
         filterConfig,
-        txPoolConfig
-      )
-    )
+        txPoolConfig), "filter-manager")
 }
 
 trait BlockGeneratorBuilder {

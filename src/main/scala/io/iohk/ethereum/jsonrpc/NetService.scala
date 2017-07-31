@@ -42,7 +42,7 @@ class NetService(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) {
 
   def peerCount(req: PeerCountRequest): ServiceResponse[PeerCountResponse] = {
     import akka.pattern.ask
-    implicit val timeout = Timeout(2.seconds)
+    implicit val timeout = Timeout(5.seconds)
 
     (peerManager ? PeerManagerActor.GetPeers)
       .mapTo[PeerManagerActor.Peers]
