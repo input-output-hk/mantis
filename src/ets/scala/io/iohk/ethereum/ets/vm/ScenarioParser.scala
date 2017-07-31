@@ -42,6 +42,11 @@ object ScenarioParser {
   private implicit val decodeAddress: Decoder[Address] =
     (c: HCursor) => c.as[String].map(Address(_))
 
+  private implicit val decodeOptionalAddress: Decoder[Option[Address]] =
+    (c: HCursor) => c.as[String].map { s =>
+      if (s.isEmpty) None else Some(Address(s))
+    }
+
   private implicit val decodeAddressKey: KeyDecoder[Address] =
     (key: String) => Some(Address(key))
 

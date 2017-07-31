@@ -27,7 +27,7 @@ case class MockWorldState(
     copy(accounts = accounts + (address -> account))
 
   def deleteAccount(address: Address): MockWorldState =
-    copy(accounts = accounts - address)
+    copy(accounts = accounts - address, codeRepo - address, storages - address)
 
   def getCode(address: Address): ByteString =
     codeRepo.getOrElse(address, ByteString.empty)

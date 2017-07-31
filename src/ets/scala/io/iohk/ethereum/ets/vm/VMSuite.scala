@@ -32,7 +32,7 @@ class VMSuite extends FreeSpec with Matchers with Logger {
 
   private def runScenario(scenario: Scenario): Unit = {
     val context = ScenarioBuilder.prepareContext(scenario)
-    val result = VM.run(context)
+    val result = deleteAccounts(VM.run(context))
     verifyResult(result, scenario)
   }
 
@@ -68,4 +68,10 @@ class VMSuite extends FreeSpec with Matchers with Logger {
     else
       Some(CallCreate(itx.data, itx.to, itx.gasLimit, itx.value))
   }
+
+  private def deleteAccounts(result: PR): PR = {
+    val worldAfterDel = result.addressesToDelete.foldLeft(result.world)(_ deleteAccount _)
+    result.copy(world = worldAfterDel)
+  }
+
 }

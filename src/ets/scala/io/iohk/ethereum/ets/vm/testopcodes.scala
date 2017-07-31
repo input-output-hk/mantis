@@ -17,7 +17,7 @@ case object TestCREATE extends CreateOp {
       val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
       val startGas = state.config.gasCap(availableGas)
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
-      val internalTx = InternalTransaction(CREATE, state.env.ownerAddr, None, startGas, initCode, endowment)
+      val internalTx = InternalTransaction(this, state.env.ownerAddr, None, startGas, initCode, endowment)
       val stack2 = stack1.push(newAddress.toUInt256)
 
       state
@@ -53,4 +53,7 @@ case object TestCALL extends CallOp(0xf1, 7, 1) {
         .step()
     }
   }
+
+  override protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt =
+    state.config.feeSchedule.G_call
 }
