@@ -30,4 +30,8 @@
         <appender-ref ref="FILE" />
     </root>
 
+    <logger name="io.iohk.ethereum.network.rlpx.RLPxConnectionHandler" level="INFO" />
+    <logger name="io.iohk.ethereum.blockchain.sync.SyncController" level="INFO" />
+    <logger name="io.iohk.ethereum.network.PeerActor" level="INFO" />
+
 </configuration>
