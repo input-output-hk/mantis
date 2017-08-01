@@ -42,10 +42,16 @@ case class MockWorldState(
       None
 
   def saveCode(address: Address, code: ByteString): MockWorldState =
-    copy(codeRepo = codeRepo + (address -> code))
+    if (code.isEmpty)
+      copy(codeRepo = codeRepo - address)
+    else
+      copy(codeRepo = codeRepo + (address -> code))
 
   def saveStorage(address: Address, storage: MockStorage): MockWorldState =
-    copy(storages = storages + (address -> storage))
+    if (storage.isEmpty)
+      copy(storages = storages - address)
+    else
+      copy(storages = storages + (address -> storage))
 
   def getEmptyAccount: Account = Account.empty()
 
