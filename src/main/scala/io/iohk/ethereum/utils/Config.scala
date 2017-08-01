@@ -116,6 +116,7 @@ object Config {
 
     val checkForNewBlockInterval: FiniteDuration = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis
     val blockResolveDepth: Int = syncConfig.getInt("block-resolving-depth")
+    val blockChainOnlyPeersPoolSize: Int = syncConfig.getInt("fastsync-block-chain-only-peers-pool")
   }
 
   trait DbConfig {

@@ -5,7 +5,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
@@ -235,7 +235,7 @@ trait FastSync {
 
     private def handleFailingMptPeers: Receive ={
       case BlockChainOnlyDownload(peer) =>
-        blockChainOnlyPeers = blockChainOnlyPeers + peer
+        blockChainOnlyPeers = (blockChainOnlyPeers + peer).take(blockChainOnlyPeersPoolSize)
     }
 
     private def printStatus() = {
