@@ -173,20 +173,10 @@ trait FastSync {
 
     private var blockChainOnlyPeers = Set.empty[Peer]
 
-    private val syncStatePersistCancellable =
-      scheduler.schedule(persistStateSnapshotInterval, persistStateSnapshotInterval) {
-        syncStateStorageActor ! SyncState(
-          initialSyncState.targetBlock,
-          requestedMptNodes.values.flatten.toSeq.distinct ++ mptNodesQueue,
-          requestedNonMptNodes.values.flatten.toSeq.distinct ++ nonMptNodesQueue,
-          requestedBlockBodies.values.flatten.toSeq.distinct ++ blockBodiesQueue,
-          requestedReceipts.values.flatten.toSeq.distinct ++ receiptsQueue,
-          downloadedNodesCount,
-          bestBlockHeaderNumber)
-      }
-
+    private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotInterval, persistStateSnapshotInterval, self, PersistSyncState)
     private val heartBeat = scheduler.schedule(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
 
+    // scalastyle:off cyclomatic.complexity
     def receive: Receive = handlePeerUpdates orElse handleFailingMptPeers orElse {
       case EnqueueNodes(hashes) =>
         hashes.foreach {
@@ -231,6 +221,20 @@ trait FastSync {
 
       case PrintStatus =>
         printStatus()
+
+      case PersistSyncState =>
+        persistSyncState()
+    }
+
+    private def persistSyncState(): Unit = {
+      syncStateStorageActor ! SyncState(
+        initialSyncState.targetBlock,
+        requestedMptNodes.values.flatten.toSeq.distinct ++ mptNodesQueue,
+        requestedNonMptNodes.values.flatten.toSeq.distinct ++ nonMptNodesQueue,
+        requestedBlockBodies.values.flatten.toSeq.distinct ++ blockBodiesQueue,
+        requestedReceipts.values.flatten.toSeq.distinct ++ receiptsQueue,
+        downloadedNodesCount,
+        bestBlockHeaderNumber)
     }
 
     private def handleFailingMptPeers: Receive ={
@@ -448,6 +452,7 @@ object FastSync {
   private case object TargetBlockTimeout
 
   private case object ProcessSyncing
+  private case object PersistSyncState
   case class BlockChainOnlyDownload(peer: Peer)
 
   case class SyncState(

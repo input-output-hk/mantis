@@ -12,7 +12,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
-import akka.agent.Agent
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
@@ -21,7 +20,8 @@ import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.utils.NodeStatus
+
+import scala.util.{Failure, Success}
 
 class PeerManagerActor(
     peerEventBus: ActorRef,
@@ -161,8 +161,9 @@ class PeerManagerActor(
     Future.traverse(peers.values) { peer =>
       (peer.ref ? PeerActor.GetStatus)
         .mapTo[PeerActor.StatusResponse]
-        .map(sr => (peer, sr.status))
-    }.map(r => Peers.apply(r.toMap))
+        .map { sr => Success((peer, sr.status)) }
+        .recover { case ex => Failure(ex) }
+    }.map(r => Peers.apply(r.collect { case Success(v) => v }.toMap))
   }
 
 }
