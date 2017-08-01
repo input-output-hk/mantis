@@ -42,9 +42,11 @@ class RLPxConnectionHandler(
 
   override def receive: Receive = waitingForCommand
 
+  def tcpActor: ActorRef = IO(Tcp)
+
   def waitingForCommand: Receive = {
     case ConnectTo(uri) =>
-      IO(Tcp) ! Connect(new InetSocketAddress(uri.getHost, uri.getPort))
+      tcpActor ! Connect(new InetSocketAddress(uri.getHost, uri.getPort))
       context become waitingForConnectionResult(uri)
 
     case HandleConnection(connection) =>
@@ -74,20 +76,26 @@ class RLPxConnectionHandler(
       handleTimeout orElse handleConnectionClosed orElse {
         case Received(data) =>
           timeout.cancel()
-          Try(handshaker.handleInitialMessage(data.take(InitiatePacketLength))) match {
-            case Success((responsePacket, result)) =>
-              // process pre-eip8 message
-              val remainingData = data.drop(InitiatePacketLength)
+          val maybePreEIP8Result = Try {
+            val (responsePacket, result) = handshaker.handleInitialMessage(data.take(InitiatePacketLength))
+            val remainingData = data.drop(InitiatePacketLength)
+            (responsePacket, result, remainingData)
+          }
+          lazy val maybePostEIP8Result = Try {
+            val (packetData, remainingData) = decodeV4Packet(data)
+            val (responsePacket, result) = handshaker.handleInitialMessageV4(packetData)
+            (responsePacket, result, remainingData)
+          }
+
+          maybePreEIP8Result orElse maybePostEIP8Result match {
+            case Success((responsePacket, result, remainingData)) =>
               connection ! Write(responsePacket)
               processHandshakeResult(result, remainingData)
 
-            case Failure(_) =>
-              // process as eip8 message
-              val encryptedPayloadSize = ByteUtils.bigEndianToShort(data.take(2).toArray)
-              val (packetData, remainingData) = data.splitAt(encryptedPayloadSize + 2)
-              val (responsePacket, result) = handshaker.handleInitialMessageV4(packetData)
-              connection ! Write(responsePacket)
-              processHandshakeResult(result, remainingData)
+            case Failure(ex) =>
+              log.debug(s"[Stopping Connection] Init AuthHandshaker message handling failed for peer $peerId due to ${ex.getMessage}")
+              context.parent ! ConnectionFailed
+              context stop self
           }
       }
 
@@ -95,20 +103,36 @@ class RLPxConnectionHandler(
       handleWriteFailed orElse handleTimeout orElse handleConnectionClosed orElse {
         case Received(data) =>
           timeout.cancel()
-          Try(handshaker.handleResponseMessage(data.take(ResponsePacketLength))) match {
-            case Success(result) =>
-              // process pre-eip8 message
-              val remainingData = data.drop(ResponsePacketLength)
-              processHandshakeResult(result, remainingData)
-
-            case Failure(_) =>
-              // process as eip8 message
-              val size = ByteUtils.bigEndianToShort(data.take(2).toArray)
-              val (packetData, remainingData) = data.splitAt(size + 2)
-              val result = handshaker.handleResponseMessageV4(packetData)
-              processHandshakeResult(result, remainingData)
+          val maybePreEIP8Result = Try {
+            val result = handshaker.handleResponseMessage(data.take(ResponsePacketLength))
+            val remainingData = data.drop(ResponsePacketLength)
+            (result, remainingData)
+          }
+          val maybePostEIP8Result = Try {
+            val (packetData, remainingData) = decodeV4Packet(data)
+            val result = handshaker.handleResponseMessageV4(packetData)
+            (result, remainingData)
+          }
+          maybePreEIP8Result orElse maybePostEIP8Result match {
+            case Success((result, remainingData)) => processHandshakeResult(result, remainingData)
+            case Failure(ex) =>
+              log.debug(s"[Stopping Connection] Response AuthHandshaker message handling failed for peer $peerId due to ${ex.getMessage}")
+              context.parent ! ConnectionFailed
+              context stop self
           }
       }
+
+    /**
+      * Decode V4 packet
+      *
+      * @param data, includes both the V4 packet with bytes from next messages
+      * @return data of the packet and the remaining data
+      */
+    private def decodeV4Packet(data: ByteString): (ByteString, ByteString) =  {
+      val encryptedPayloadSize = ByteUtils.bigEndianToShort(data.take(2).toArray)
+      val (packetData, remainingData) = data.splitAt(encryptedPayloadSize + 2)
+      packetData -> remainingData
+    }
 
     def handleTimeout: Receive = {
       case AuthHandshakeTimeout =>
