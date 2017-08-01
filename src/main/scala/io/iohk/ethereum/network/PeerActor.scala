@@ -2,11 +2,9 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
-import akka.actor.SupervisorStrategy.Stop
+import akka.actor.SupervisorStrategy.Escalate
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import akka.actor._
-import akka.agent.Agent
-import akka.util.ByteString
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.Versions
@@ -14,12 +12,10 @@ import io.iohk.ethereum.network.rlpx.{AuthHandshaker, RLPxConnectionHandler}
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerHandshakeSuccessful}
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
-import io.iohk.ethereum.utils.NodeStatus
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
 
 
@@ -46,7 +42,7 @@ class PeerActor[R <: HandshakeResult](
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
-      case _ => Stop
+      case _ => Escalate
     }
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
