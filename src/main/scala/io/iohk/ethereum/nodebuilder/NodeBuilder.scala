@@ -11,6 +11,7 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
+import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.jsonrpc._
@@ -226,7 +227,9 @@ trait Web3ServiceBuilder {
 trait NetServiceBuilder {
   this: PeerManagerActorBuilder with NodeStatusBuilder =>
 
-  lazy val netService = new NetService(nodeStatusHolder, peerManager)
+  lazy val netServiceConfig = NetServiceConfig(Config.config)
+
+  lazy val netService = new NetService(nodeStatusHolder, peerManager, netServiceConfig)
 }
 
 trait PendingTransactionsManagerBuilder {
