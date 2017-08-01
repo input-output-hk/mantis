@@ -824,14 +824,20 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
     val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), _) = getParams(state)
     val endowment = if (this == DELEGATECALL) UInt256.Zero else callValue
 
-    val memCostIn = state.config.calcMemCost(state.memory.size, inOffset, inSize)
-    val memCostOut = state.config.calcMemCost(state.memory.size, outOffset, outSize)
-    val memCost: BigInt = memCostIn max memCostOut
+    val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
 
     // FIXME: these are calculated twice (for gas and exec), especially account existence. Can we do better? [EC-243]
     val gExtra: BigInt = gasExtra(state, endowment, Address(to))
     val gCap: BigInt = gasCap(state, gas, gExtra)
     memCost + gCap + gExtra
+  }
+
+  protected def calcMemCost[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S],
+      inOffset: UInt256, inSize: UInt256, outOffset: UInt256, outSize: UInt256): BigInt = {
+
+    val memCostIn = state.config.calcMemCost(state.memory.size, inOffset, inSize)
+    val memCostOut = state.config.calcMemCost(state.memory.size, outOffset, outSize)
+    memCostIn max memCostOut
   }
 
   protected def getParams[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): (Seq[UInt256], Stack) = {

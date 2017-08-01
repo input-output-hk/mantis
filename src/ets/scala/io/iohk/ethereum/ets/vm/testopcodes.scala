@@ -34,7 +34,9 @@ case object TestCALL extends CallOp(0xf1, 7, 1) {
   override protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(gas, to, endowment, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
 
-    val validCall = state.env.callDepth < EvmConfig.MaxCallDepth && endowment <= state.ownBalance
+    val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
+
+    val validCall = state.env.callDepth < EvmConfig.MaxCallDepth && endowment <= state.ownBalance && memCost < state.gas
 
     if (!validCall) {
       val stack2 = stack1.push(UInt256.Zero)
