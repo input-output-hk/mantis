@@ -12,8 +12,7 @@ case object TestCREATE extends CreateOp {
       val stack2 = stack1.push(UInt256.Zero)
       state.withStack(stack2).step()
     } else {
-      val (newAddress, world1) = state.world.createAddressWithOpCode(state.env.ownerAddr)
-      //val world2 = world1.transfer(state.env.ownerAddr, newAddress, endowment)
+      val (newAddress, _) = state.world.createAddressWithOpCode(state.env.ownerAddr)
       val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
       val startGas = state.config.gasCap(availableGas)
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
@@ -22,7 +21,6 @@ case object TestCREATE extends CreateOp {
 
       state
         .withStack(stack2)
-        .withWorld(world1)
         .withMemory(memory1)
         .withInternalTxs(internalTx :: Nil)
         .step()
@@ -56,6 +54,11 @@ case object TestCALL extends CallOp(0xf1, 7, 1) {
     }
   }
 
-  override protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt =
-    state.config.feeSchedule.G_call
+  override protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+    val (Seq(_, _, endowment, _, _, _, _), _) = getParams(state)
+    val fs = state.config.feeSchedule
+    import fs._
+
+    G_call + (if (endowment.isZero) 0 else G_callvalue - G_callstipend)
+  }
 }
