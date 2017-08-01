@@ -81,8 +81,10 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     )
     etcPeerManager.expectNoMsg()
 
-    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
-    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer1.id))))
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))),
+      Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer1.id)))
+    )
   }
 
   it should "download target block, request state, blocks and finish when downloaded" in new TestSetup() {
