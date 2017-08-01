@@ -13,6 +13,8 @@ class LevelDBDataSource(
                        )
   extends DataSource {
 
+  def iterator() = db.iterator()
+
   /**
     * This function obtains the associated value to a key, if there exists one.
     *

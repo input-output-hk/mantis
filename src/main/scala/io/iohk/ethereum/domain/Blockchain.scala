@@ -171,6 +171,9 @@ class BlockchainImpl(
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
     blockHeadersStorage.get(hash)
 
+  def hasBlockBodyByHash(hash: ByteString): Boolean =
+    blockBodiesStorage.has(hash)
+
   override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] =
     blockBodiesStorage.get(hash)
 

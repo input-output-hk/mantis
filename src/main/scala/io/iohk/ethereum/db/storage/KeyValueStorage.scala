@@ -21,6 +21,8 @@ trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, 
     */
   def get(key: K): Option[V] = dataSource.get(namespace, keySerializer(key)).map(valueDeserializer)
 
+  def has(key: K): Boolean = dataSource.get(namespace, keySerializer(key)).isDefined
+
   /**
     * This function updates the KeyValueStorage by deleting, updating and inserting new (key-value) pairs
     * in the current namespace.
