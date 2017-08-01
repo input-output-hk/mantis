@@ -69,21 +69,17 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(expectedTargetBlock), 1, 0, reverse = false), peer2.id))
-    syncController ! MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer2.id)
 
     storagesInstance.storages.appStateStorage.putBestBlockNumber(targetBlockHeader.number)
+    syncController ! MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer2.id)
 
     peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(1), 10, 0, reverse = false), peer2.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
 
-    val blockHeadersRequestHandler: ActorRef = peerMessageBus.sender()
-    peerMessageBus.send(syncController, PeerDisconnected(peer1.id))
-    peerMessageBus.send(blockHeadersRequestHandler, PeerDisconnected(peer1.id))
-
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer1.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer1.id))))
-    peerMessageBus.expectNoMsg()
+    etcPeerManager.expectNoMsg()
   }
 
   it should "download target block, request state, blocks and finish when downloaded" in new TestSetup() {

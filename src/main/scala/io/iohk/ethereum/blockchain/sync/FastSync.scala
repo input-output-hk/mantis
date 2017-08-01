@@ -331,10 +331,12 @@ trait FastSync {
         val peers = unassignedPeers
         (peers -- blockChainOnlyPeers)
           .take(maxConcurrentRequests - assignedHandlers.size)
+          .toSeq.sortBy(_.ref.toString())
           .foreach(assignWork)
         peers
           .intersect(blockChainOnlyPeers)
           .take(maxConcurrentRequests - assignedHandlers.size)
+          .toSeq.sortBy(_.ref.toString())
           .foreach(assignBlockChainWork)
       }
     }
