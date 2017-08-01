@@ -3,6 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorRef
 import akka.agent.Agent
 import akka.util.Timeout
+import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.utils.ServerStatus.{Listening, NotListening}
 import io.iohk.ethereum.utils.{Config, NodeStatus}
@@ -20,9 +21,19 @@ object NetService {
 
   case class PeerCountRequest()
   case class PeerCountResponse(value: Int)
+
+  case class NetServiceConfig(peerManagerTimeout: FiniteDuration)
+
+  object NetServiceConfig {
+    def apply(etcClientConfig: com.typesafe.config.Config): NetServiceConfig = {
+      val netServiceConfig = etcClientConfig.getConfig("network.rpc.net")
+      NetServiceConfig(
+        peerManagerTimeout = netServiceConfig.getDuration("peer-manager-timeout").toMillis.millis)
+    }
+  }
 }
 
-class NetService(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) {
+class NetService(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef, config: NetServiceConfig) {
   import NetService._
 
   def version(req: VersionRequest): ServiceResponse[VersionResponse] = {
@@ -42,7 +53,7 @@ class NetService(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) {
 
   def peerCount(req: PeerCountRequest): ServiceResponse[PeerCountResponse] = {
     import akka.pattern.ask
-    implicit val timeout = Timeout(2.seconds)
+    implicit val timeout = Timeout(config.peerManagerTimeout)
 
     (peerManager ? PeerManagerActor.GetPeers)
       .mapTo[PeerManagerActor.Peers]
