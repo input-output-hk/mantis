@@ -31,7 +31,9 @@ object Config {
 
   val shutdownTimeout: Duration = config.getDuration("shutdown-timeout").toMillis.millis
 
-  val secureRandomAlgo: String = config.getString("secure-random-algo")
+  val secureRandomAlgo: Option[String] =
+    if(config.hasPath("secure-random-algo")) Some(config.getString("secure-random-algo"))
+    else None
 
   object Network {
     private val networkConfig = config.getConfig("network")
