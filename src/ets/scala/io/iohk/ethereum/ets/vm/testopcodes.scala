@@ -40,6 +40,9 @@ case object TestCALL extends CallOp(0xf1, 7, 1) {
       val stack2 = stack1.push(UInt256.Zero)
       state.withStack(stack2).step()
 
+    } else if (varGas(state) + gas > state.gas) {
+      state.withError(OutOfGas)
+
     } else {
       val stack2 = stack1.push(UInt256.One)
       val startGas = calcStartGas(state, gas, endowment, to)
