@@ -34,13 +34,13 @@ case object TestCALL extends CallOp(0xf1, 7, 1) {
 
     val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
 
-    val validCall = state.env.callDepth < EvmConfig.MaxCallDepth && endowment <= state.ownBalance && memCost < state.gas
+    val validCall = state.env.callDepth < EvmConfig.MaxCallDepth && endowment <= state.ownBalance
 
     if (!validCall) {
       val stack2 = stack1.push(UInt256.Zero)
       state.withStack(stack2).step()
 
-    } else if (varGas(state) + gas > state.gas) {
+    } else if (varGas(state) + gas + memCost > state.gas) {
       state.withError(OutOfGas)
 
     } else {
