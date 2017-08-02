@@ -21,6 +21,7 @@ class SyncBlockBodiesRequestHandler(
     if (blockBodies.bodies.isEmpty) {
       val reason = s"got empty block bodies response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
       syncController ! BlacklistSupport.BlacklistPeer(peer.id, reason)
+      syncController ! FastSync.EnqueueBlockBodies(requestedHashes)
     } else {
       syncController ! BlockBodiesReceived(peer, requestedHashes, blockBodies.bodies)
     }
