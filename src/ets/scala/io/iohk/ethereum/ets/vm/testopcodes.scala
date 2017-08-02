@@ -36,12 +36,18 @@ case object TestCALL extends CallOp(0xf1, 7, 1) {
 
     val validCall = state.env.callDepth < EvmConfig.MaxCallDepth && endowment <= state.ownBalance
 
-    if (!validCall) {
+    /* TODO:
+      Gas requirements are checked before checking call validity.
+      This is different than the current CALL implementation and should be checked against existing implementations.
+      YP is vague on the subject. However, because memory expansion or code execution are not required for
+      validity checks, one might assume that the behaviour expected in the VMTests is wrong.
+    */
+    if (varGas(state) + gas + memCost > state.gas) {
+      state.withError(OutOfGas)
+
+    } else if (!validCall) {
       val stack2 = stack1.push(UInt256.Zero)
       state.withStack(stack2).step()
-
-    } else if (varGas(state) + gas + memCost > state.gas) {
-      state.withError(OutOfGas)
 
     } else {
       val stack2 = stack1.push(UInt256.One)
