@@ -73,7 +73,9 @@ class VMSuite extends FreeSpec with Matchers with Logger {
       result.internalTxs.flatMap(internalTxToCallCreate) shouldEqual callcreates
     }
 
-    //TODO: when no expectations, expect error
+    if (scenario.gas.isEmpty && scenario.out.isEmpty && scenario.callcreates.isEmpty && scenario.post.isEmpty && scenario.logs.isEmpty) {
+      result.error.isDefined shouldBe true
+    }
   }
 
   private def internalTxToCallCreate(itx: InternalTransaction): Option[CallCreate] = {
