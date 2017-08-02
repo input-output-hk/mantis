@@ -125,7 +125,7 @@ trait FastSync {
       val targetBlockHeaderOpt = blockHeaders.headers.find(header => header.number == targetBlockNumber)
       targetBlockHeaderOpt match {
         case Some(targetBlockHeader) =>
-          log.info("Starting block synchronization (fast mode)")
+          log.info(s"Starting block synchronization (fast mode), target block ${targetBlockHeader.number}")
           val initialSyncState = SyncState(targetBlockHeader,
             mptNodesQueue = Seq(StateMptNodeHash(targetBlockHeader.stateRoot)))
           startFastSync(initialSyncState)
