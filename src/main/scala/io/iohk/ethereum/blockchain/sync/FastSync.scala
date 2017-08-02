@@ -239,7 +239,7 @@ trait FastSync {
 
     private def handleFailingMptPeers: Receive = {
       case MarkPeerBlockchainOnly(peer) => if (!blockChainOnlyPeers.contains(peer)) {
-        blockChainOnlyPeers = peer +: blockChainOnlyPeers.dropRight(1)
+        blockChainOnlyPeers = (peer +: blockChainOnlyPeers).take(blockChainOnlyPeersPoolSize)
       }
     }
 
