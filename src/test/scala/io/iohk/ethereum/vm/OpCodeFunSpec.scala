@@ -428,6 +428,8 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(JUMP) { op =>
+    // TODO: add test for destination > Int.MaxValue
+
     val jumpDest: Byte = (Byte.MaxValue / 2).toByte
     val stateGen = getProgramStateGen(
       stackGen = getStackGen().map(stack => stack.pop._2.push(UInt256(jumpDest))),
@@ -483,6 +485,8 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(JUMPI) { op =>
+    // TODO: add test for destination > Int.MaxValue
+
     val jumpDest: Byte = (Byte.MaxValue / 2).toByte
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = 1, maxUInt = UInt256(1)).map(stack => stack.push(UInt256(jumpDest))),
