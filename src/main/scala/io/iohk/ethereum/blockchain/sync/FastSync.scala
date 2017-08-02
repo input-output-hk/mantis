@@ -171,7 +171,7 @@ trait FastSync {
 
     syncStateStorageActor ! fastSyncStateStorage
 
-    private var blockChainOnlyPeers = Set.empty[Peer]
+    private var blockChainOnlyPeers = Seq.empty[Peer]
 
     private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotInterval, persistStateSnapshotInterval, self, PersistSyncState)
     private val heartBeat = scheduler.schedule(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
@@ -237,9 +237,10 @@ trait FastSync {
         bestBlockHeaderNumber)
     }
 
-    private def handleFailingMptPeers: Receive ={
-      case BlockChainOnlyDownload(peer) =>
-        blockChainOnlyPeers = (blockChainOnlyPeers + peer).take(blockChainOnlyPeersPoolSize)
+    private def handleFailingMptPeers: Receive = {
+      case MarkPeerBlockchainOnly(peer) => if (!blockChainOnlyPeers.contains(peer)) {
+        blockChainOnlyPeers = peer +: blockChainOnlyPeers.dropRight(1)
+      }
     }
 
     private def printStatus() = {
@@ -312,7 +313,7 @@ trait FastSync {
       cleanup()
       appStateStorage.fastSyncDone()
       context become idle
-      blockChainOnlyPeers = Set.empty
+      blockChainOnlyPeers = Seq.empty
       self ! FastSyncDone
     }
 
@@ -333,12 +334,13 @@ trait FastSync {
         }
       } else {
         val peers = unassignedPeers
-        (peers -- blockChainOnlyPeers)
+        val blockChainPeers = blockChainOnlyPeers.toSet
+        (peers -- blockChainPeers)
           .take(maxConcurrentRequests - assignedHandlers.size)
           .toSeq.sortBy(_.ref.toString())
           .foreach(assignWork)
         peers
-          .intersect(blockChainOnlyPeers)
+          .intersect(blockChainPeers)
           .take(maxConcurrentRequests - assignedHandlers.size)
           .toSeq.sortBy(_.ref.toString())
           .foreach(assignBlockChainWork)
@@ -453,7 +455,7 @@ object FastSync {
 
   private case object ProcessSyncing
   private case object PersistSyncState
-  case class BlockChainOnlyDownload(peer: Peer)
+  case class MarkPeerBlockchainOnly(peer: Peer)
 
   case class SyncState(
     targetBlock: BlockHeader,

@@ -25,7 +25,7 @@ class FastSyncNodesRequestHandler(
   override def handleResponseMsg(nodeData: NodeData): Unit = {
     if (nodeData.values.isEmpty) {
       log.debug(s"got empty mpt node response for known hashes switching to blockchain only: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
-      syncController ! BlockChainOnlyDownload(peer)
+      syncController ! MarkPeerBlockchainOnly(peer)
     }
 
     val receivedHashes = nodeData.values.map(v => ByteString(kec256(v.toArray[Byte])))
