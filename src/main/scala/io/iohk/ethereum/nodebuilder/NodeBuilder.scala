@@ -11,6 +11,7 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
+import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.jsonrpc._
@@ -55,7 +56,7 @@ trait NodeKeyBuilder {
 }
 
 trait ActorSystemBuilder {
-  implicit lazy val actorSystem = ActorSystem("etc-client_system")
+  implicit lazy val actorSystem = ActorSystem("mantis_system")
 }
 
 trait PruningConfigBuilder extends PruningModeComponent {
@@ -226,7 +227,9 @@ trait Web3ServiceBuilder {
 trait NetServiceBuilder {
   this: PeerManagerActorBuilder with NodeStatusBuilder =>
 
-  lazy val netService = new NetService(nodeStatusHolder, peerManager)
+  lazy val netServiceConfig = NetServiceConfig(Config.config)
+
+  lazy val netService = new NetService(nodeStatusHolder, peerManager, netServiceConfig)
 }
 
 trait PendingTransactionsManagerBuilder {
@@ -259,9 +262,7 @@ trait FilterManagerBuilder {
         keyStore,
         pendingTransactionsManager,
         filterConfig,
-        txPoolConfig
-      )
-    )
+        txPoolConfig), "filter-manager")
 }
 
 trait BlockGeneratorBuilder {
@@ -405,7 +406,8 @@ trait GenesisDataLoaderBuilder {
 }
 
 trait SecureRandomBuilder {
-  lazy val secureRandom: SecureRandom = SecureRandom.getInstance(Config.secureRandomAlgo)
+  lazy val secureRandom: SecureRandom =
+    Config.secureRandomAlgo.map(SecureRandom.getInstance(_)).getOrElse(new SecureRandom())
 }
 
 trait Node extends NodeKeyBuilder

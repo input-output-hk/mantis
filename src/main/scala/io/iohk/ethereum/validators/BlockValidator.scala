@@ -1,14 +1,10 @@
 package io.iohk.ethereum.validators
 
-import akka.serialization.ByteArraySerializer
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction}
 import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.mpt.ByteArraySerializable
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.rlp.RLPImplicitConversions.toRlpList
-import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.ByteUtils.or
 import io.iohk.ethereum.validators.BlockValidator.BlockError
 
