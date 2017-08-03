@@ -434,7 +434,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     val opcodeGen = Gen.oneOf(opcodes).map(_.code)
 
     // 80% of jump destinations arguments will be within codesize bound
-    def stackValueGen(codeSize: UInt256) = Gen.frequency(
+    def stackValueGen(codeSize: UInt256): Gen[UInt256] = Gen.frequency(
       8 -> getUInt256Gen(0, codeSize),
       1 -> getUInt256Gen(codeSize, Int.MaxValue),
       1 -> getUInt256Gen(Int.MaxValue, UInt256.MaxValue)
@@ -509,7 +509,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
     // 40% of conditionals arguments will be false (zero)
     // 80% of jump destinations arguments will be within codesize bound
-    def stackValueGen(codeSize: UInt256) = Gen.frequency(
+    def stackValueGen(codeSize: UInt256): Gen[UInt256] = Gen.frequency(
       4 -> Gen.const(UInt256.Zero),
       4 -> getUInt256Gen(0, codeSize),
       1 -> getUInt256Gen(codeSize, Int.MaxValue),
