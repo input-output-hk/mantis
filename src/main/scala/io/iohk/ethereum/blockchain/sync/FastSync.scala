@@ -1,17 +1,18 @@
 package io.iohk.ethereum.blockchain.sync
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaders, GetBlockHeaders}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.Sync._
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.FiniteDuration
 
 trait FastSync {
   selfSyncController: SyncController =>
@@ -195,8 +196,13 @@ trait FastSync {
       case UpdateDownloadedNodesCount(num) =>
         downloadedNodesCount += num
 
-      case BlockBodiesReceived(_, requestedHashes, blockBodies) =>
-        insertBlocks(requestedHashes, blockBodies)
+      case BlockBodiesReceived(peer, requestedHashes, blockBodies) =>
+        if (validateBlocks(requestedHashes, blockBodies)) {
+          insertBlocks(requestedHashes, blockBodies)
+        } else {
+          blacklist(peer.id, blacklistDuration, s"responded with block bodies not matching block headers, blacklisting for $blacklistDuration")
+          self ! FastSync.EnqueueBlockBodies(requestedHashes)
+        }
 
       case BlockHeadersReceived(_, headers) =>
         insertHeaders(headers)
@@ -211,19 +217,23 @@ trait FastSync {
         processSyncing()
 
       case Terminated(ref) if assignedHandlers.contains(ref) =>
-        context unwatch ref
-        assignedHandlers -= ref
-        mptNodesQueue ++= requestedMptNodes.getOrElse(ref, Nil)
-        nonMptNodesQueue ++= requestedNonMptNodes.getOrElse(ref, Nil)
-        blockBodiesQueue ++= requestedBlockBodies.getOrElse(ref, Nil)
-        receiptsQueue ++= requestedReceipts.getOrElse(ref, Nil)
-        cleanupRequestedMaps(ref)
+        handleActorTerminate(ref)
 
       case PrintStatus =>
         printStatus()
 
       case PersistSyncState =>
         persistSyncState()
+    }
+
+    private def handleActorTerminate(ref: ActorRef) = {
+      context unwatch ref
+      assignedHandlers -= ref
+      mptNodesQueue ++= requestedMptNodes.getOrElse(ref, Nil)
+      nonMptNodesQueue ++= requestedNonMptNodes.getOrElse(ref, Nil)
+      blockBodiesQueue ++= requestedBlockBodies.getOrElse(ref, Nil)
+      receiptsQueue ++= requestedReceipts.getOrElse(ref, Nil)
+      cleanupRequestedMaps(ref)
     }
 
     private def persistSyncState(): Unit = {
@@ -266,10 +276,16 @@ trait FastSync {
       requestedReceipts = requestedReceipts - handler
     }
 
+    private def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Boolean = (requestedHashes zip blockBodies)
+      .map { case (hash, body) => (blockchain.getBlockHeaderByHash(hash), body) }
+      .forall {
+        case (Some(header), body) =>
+          val result = validators.blockValidator.validateHeaderAndBody(header, body)
+          result.isRight
+        case _ => false
+      }
+
     private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
-      //todo this is moved from FastSyncBlockBodiesRequestHandler.scala we should add block validation here [EC-249]
-      //load header from chain by hash and check consistency with BlockValidator.validateHeaderAndBody
-      //if invalid blacklist peer
       (requestedHashes zip blockBodies).foreach { case (hash, body) =>
         blockchain.save(hash, body)
       }
