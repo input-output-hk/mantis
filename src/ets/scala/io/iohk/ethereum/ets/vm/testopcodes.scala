@@ -72,11 +72,15 @@ abstract class TestCallOp(code: Int) extends CallOp(code, 7, 1) {
   }
 
   override protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
-    val (Seq(_, to, endowment, _, _, _, _), _) = getParams(state)
+    val (Seq(_, to, endowment, inOffset, inSize, outOffset, outSize), _) = getParams(state)
     val fs = state.config.feeSchedule
     import fs._
 
-    G_call + (if (endowment.isZero) 0 else G_callvalue - G_callstipend)
+    val transferCost: BigInt = if (endowment.isZero) 0 else G_callvalue - G_callstipend
+    val newAccountCost: BigInt = if (!state.world.accountExists(Address(to)) && this == TestCALL) G_newaccount else 0
+    val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
+
+    G_call + transferCost + newAccountCost + memCost
   }
 }
 
