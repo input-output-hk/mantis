@@ -807,7 +807,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       val sizeCap = outSize.min(result.returnData.size).toInt
       val output = result.returnData.take(sizeCap)
       val mem2 = mem1.store(outOffset, output).expand(outOffset, outSize)
-      val internalTx = InternalTransaction(this, state.env.ownerAddr, Some(Address(to)), startGas, inputData, endowment)
+      val internalTx = internalTransaction(state.env, to, startGas, inputData, endowment)
 
       state
         .spendGas(-result.gasRemaining)
@@ -820,6 +820,12 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
         .withLogs(result.logs)
         .step()
     }
+  }
+
+  protected def internalTransaction(env: ExecEnv, callee: UInt256, startGas: BigInt, inputData: ByteString, endowment: UInt256): InternalTransaction = {
+    val from = env.ownerAddr
+    val to = if (this == CALL) Address(callee) else env.ownerAddr
+    InternalTransaction(this, from, Some(to), startGas, inputData, endowment)
   }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {

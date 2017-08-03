@@ -79,7 +79,7 @@ class VMSuite extends FreeSpec with Matchers with Logger {
   }
 
   private def internalTxToCallCreate(itx: InternalTransaction): Option[CallCreate] = {
-    if (!Set(TestCREATE, TestCALL).contains(itx.opcode))
+    if (!Set(TestCREATE, TestCALL, TestCALLCODE).contains(itx.opcode))
       None
     else
       Some(CallCreate(itx.data, itx.to, itx.gasLimit, itx.value))

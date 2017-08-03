@@ -69,7 +69,7 @@ object ScenarioBuilder {
 
   def getConfig(blockNumber: BigInt): EvmConfig = {
     val baseConfig = EvmConfig.HomesteadConfig
-    val opCodes = baseConfig.opCodes.diff(List(CREATE, CALL)) ++ List(TestCREATE, TestCALL)
+    val opCodes = baseConfig.opCodes.diff(List(CREATE, CALL, CALLCODE)) ++ List(TestCREATE, TestCALL, TestCALLCODE)
     baseConfig.copy(
       opCodes = opCodes,
       traceInternalTransactions = true

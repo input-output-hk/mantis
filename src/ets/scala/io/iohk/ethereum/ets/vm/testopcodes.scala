@@ -1,5 +1,6 @@
 package io.iohk.ethereum.ets.vm
 
+import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.vm._
 
@@ -28,9 +29,10 @@ case object TestCREATE extends CreateOp {
   }
 }
 
-case object TestCALL extends CallOp(0xf1, 7, 1) {
+abstract class TestCallOp(code: Int) extends CallOp(code, 7, 1) {
   override protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(gas, to, endowment, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
+    val toAddr = Address(to)
 
     val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
 
@@ -53,7 +55,7 @@ case object TestCALL extends CallOp(0xf1, 7, 1) {
       val stack2 = stack1.push(UInt256.One)
       val startGas = calcStartGas(state, gas, endowment, to)
       val (inputData, mem1) = state.memory.load(inOffset, inSize)
-      val internalTx = InternalTransaction(this, state.env.ownerAddr, Some(Address(to)), startGas, inputData, endowment)
+      val internalTx = internalTransaction(state.env, to, startGas, inputData, endowment)
 
       state
         .withStack(stack2)
@@ -63,11 +65,20 @@ case object TestCALL extends CallOp(0xf1, 7, 1) {
     }
   }
 
+  override protected def internalTransaction(env: ExecEnv, callee: UInt256, startGas: BigInt, inputData: ByteString, endowment: UInt256): InternalTransaction = {
+    val from = env.ownerAddr
+    val to = if (this == TestCALL) Address(callee) else env.ownerAddr
+    InternalTransaction(this, from, Some(to), startGas, inputData, endowment)
+  }
+
   override protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
-    val (Seq(_, _, endowment, _, _, _, _), _) = getParams(state)
+    val (Seq(_, to, endowment, _, _, _, _), _) = getParams(state)
     val fs = state.config.feeSchedule
     import fs._
 
     G_call + (if (endowment.isZero) 0 else G_callvalue - G_callstipend)
   }
 }
+
+case object TestCALL extends TestCallOp(0xf1)
+case object TestCALLCODE extends TestCallOp(0xf2)
