@@ -52,7 +52,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val updateNodesInterval: FiniteDuration = 20.seconds
     }
 
-    val actorSystem = ActorSystem("etc-client_system")
+    val actorSystem = ActorSystem("mantis_system")
     trait PruningConfig extends PruningModeComponent {
       override val pruningMode: PruningMode = ArchivePruning
     }

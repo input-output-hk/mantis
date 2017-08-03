@@ -1,3 +1,0 @@
--Dconfig.file=.\conf\grothendieck.conf
--Dlogback.configurationFile=.\conf\logback.xml
--Xss10M
