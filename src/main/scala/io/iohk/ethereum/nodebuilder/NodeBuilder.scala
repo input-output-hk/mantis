@@ -56,7 +56,7 @@ trait NodeKeyBuilder {
 }
 
 trait ActorSystemBuilder {
-  implicit lazy val actorSystem = ActorSystem("etc-client_system")
+  implicit lazy val actorSystem = ActorSystem("mantis_system")
 }
 
 trait PruningConfigBuilder extends PruningModeComponent {
