@@ -52,6 +52,14 @@ object Mocks {
       runFn(context.asInstanceOf[Ledger.PC]).asInstanceOf[ProgramResult[W, S]]
   }
 
+  class MockValidatorsFailingOnBlockBodies extends MockValidatorsAlwaysSucceed {
+
+    override val blockValidator: BlockValidator = new BlockValidator {
+      override def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]) = Right(block)
+      override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
+    }
+  }
+
   class MockValidatorsAlwaysSucceed extends Validators {
 
     override val blockValidator: BlockValidator = new BlockValidator {
