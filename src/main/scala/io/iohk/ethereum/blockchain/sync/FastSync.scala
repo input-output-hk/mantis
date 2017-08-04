@@ -198,16 +198,7 @@ trait FastSync {
         downloadedNodesCount += num
 
       case BlockBodiesReceived(peer, requestedHashes, blockBodies) =>
-        validateBlocks(requestedHashes, blockBodies) match{
-          case Valid =>
-            insertBlocks(requestedHashes, blockBodies)
-          case Invalid =>
-            blacklist(peer.id, blacklistDuration, s"responded with block bodies not matching block headers, blacklisting for $blacklistDuration")
-            self ! FastSync.EnqueueBlockBodies(requestedHashes)
-          case DbError =>
-            log.debug("missing block header for known hash")
-            self ! ProcessSyncing
-        }
+        handleBlockBodies(peer, requestedHashes, blockBodies)
 
       case BlockHeadersReceived(_, headers) =>
         insertHeaders(headers)
@@ -229,6 +220,22 @@ trait FastSync {
 
       case PersistSyncState =>
         persistSyncState()
+    }
+
+    private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]) = {
+      validateBlocks(requestedHashes, blockBodies) match {
+        case Valid =>
+          insertBlocks(requestedHashes, blockBodies)
+        case Invalid =>
+          blacklist(peer.id, blacklistDuration, s"responded with block bodies not matching block headers, blacklisting for $blacklistDuration")
+          self ! FastSync.EnqueueBlockBodies(requestedHashes)
+        case DbError =>
+          blockBodiesQueue = Seq.empty
+          receiptsQueue = Seq.empty
+          bestBlockHeaderNumber = bestBlockHeaderNumber - 2 * blockHeadersPerRequest
+          log.debug("missing block header for known hash")
+          self ! ProcessSyncing
+      }
     }
 
     private def handleActorTerminate(ref: ActorRef) = {
@@ -281,8 +288,8 @@ trait FastSync {
       requestedReceipts = requestedReceipts - handler
     }
 
-    private def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): ValidationResult = {
-      var result: ValidationResult = Valid
+    private def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): BlockBodyValidationResult = {
+      var result: BlockBodyValidationResult = Valid
       (requestedHashes zip blockBodies)
         .map { case (hash, body) => (blockchain.getBlockHeaderByHash(hash), body) }
         .forall {
@@ -291,9 +298,6 @@ trait FastSync {
             result = validationResult.fold(_ => Invalid, _ => Valid)
             validationResult.isRight
           case _ =>
-            blockBodiesQueue = Seq.empty
-            receiptsQueue = Seq.empty
-            bestBlockHeaderNumber = bestBlockHeaderNumber - 2 * blockHeadersPerRequest
             result = DbError
             false
         }
@@ -488,10 +492,10 @@ object FastSync {
   private case object PersistSyncState
   case class MarkPeerBlockchainOnly(peer: Peer)
 
-  private sealed trait ValidationResult
-  private case object Valid extends ValidationResult
-  private case object Invalid extends ValidationResult
-  private case object DbError extends ValidationResult
+  private sealed trait BlockBodyValidationResult
+  private case object Valid extends BlockBodyValidationResult
+  private case object Invalid extends BlockBodyValidationResult
+  private case object DbError extends BlockBodyValidationResult
 
   case class SyncState(
     targetBlock: BlockHeader,
