@@ -34,22 +34,12 @@ abstract class TestCallOp(code: Int) extends CallOp(code, 7, 1) {
     val (Seq(gas, to, endowment, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
     val toAddr = Address(to)
 
-    val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
-
+    val gasBack = -gas.toBigInt // not executing any code so all the gas provided is returned
     val validCall = state.env.callDepth < EvmConfig.MaxCallDepth && endowment <= state.ownBalance
 
-    /* TODO:
-      Gas requirements are checked before checking call validity.
-      This is different than the current CALL implementation and should be checked against existing implementations.
-      YP is vague on the subject. However, because memory expansion or code execution are not required for
-      validity checks, one might assume that the behaviour expected in the VMTests is wrong.
-    */
-    if (varGas(state) + gas + memCost > state.gas) {
-      state.withError(OutOfGas)
-
-    } else if (!validCall) {
+    if (!validCall) {
       val stack2 = stack1.push(UInt256.Zero)
-      state.withStack(stack2).step()
+      state.withStack(stack2).spendGas(gasBack).step()
 
     } else {
       val stack2 = stack1.push(UInt256.One)
@@ -61,6 +51,7 @@ abstract class TestCallOp(code: Int) extends CallOp(code, 7, 1) {
         .withStack(stack2)
         .withMemory(mem1)
         .withInternalTxs(internalTx :: Nil)
+        .spendGas(gasBack)
         .step()
     }
   }
@@ -72,7 +63,7 @@ abstract class TestCallOp(code: Int) extends CallOp(code, 7, 1) {
   }
 
   override protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
-    val (Seq(_, to, endowment, inOffset, inSize, outOffset, outSize), _) = getParams(state)
+    val (Seq(gas, to, endowment, inOffset, inSize, outOffset, outSize), _) = getParams(state)
     val fs = state.config.feeSchedule
     import fs._
 
@@ -80,7 +71,7 @@ abstract class TestCallOp(code: Int) extends CallOp(code, 7, 1) {
     val newAccountCost: BigInt = if (!state.world.accountExists(Address(to)) && this == TestCALL) G_newaccount else 0
     val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
 
-    G_call + transferCost + newAccountCost + memCost
+    G_call + gas + transferCost + newAccountCost + memCost
   }
 }
 
