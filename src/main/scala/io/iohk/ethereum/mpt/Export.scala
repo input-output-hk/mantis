@@ -82,6 +82,7 @@ object Export extends StorageBuilder with
       //export(args)
       println("Begin analysis ... ")
       listMissingBlocks()
+      //removeKnownNodes()
       println("Done!")
     } finally {
       shutdown()
@@ -163,8 +164,11 @@ Num key values is 116398338, total key size 3813442561, total value size 4131234
 
     def cacheOr(node: T){
       buffer :+ node
-      if(buffer.size > maxBufferSize) f(buffer)
-      buffer = List()
+      if(buffer.size > maxBufferSize) {
+        f(buffer)
+        buffer = List()
+      }
+
     }
 
     def close() : Unit = {
