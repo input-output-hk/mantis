@@ -232,6 +232,7 @@ trait FastSync {
         case DbError =>
           blockBodiesQueue = Seq.empty
           receiptsQueue = Seq.empty
+          //todo adjust the formula to minimize redownloaded block headers
           bestBlockHeaderNumber = bestBlockHeaderNumber - 2 * blockHeadersPerRequest
           log.debug("missing block header for known hash")
           self ! ProcessSyncing
