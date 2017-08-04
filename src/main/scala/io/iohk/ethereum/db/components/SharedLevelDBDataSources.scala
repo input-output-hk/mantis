@@ -5,9 +5,9 @@ import io.iohk.ethereum.utils.Config
 
 trait SharedLevelDBDataSources extends DataSourcesComponent {
 
-  val dataSource = LevelDBDataSource(Config.Db.LevelDb)
+  lazy val dataSource = LevelDBDataSource(Config.Db.LevelDb)
 
-  val dataSources = new DataSources {
+  lazy val dataSources = new DataSources {
 
     override val blockBodiesDataSource: DataSource = dataSource
 
