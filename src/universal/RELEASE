@@ -1,0 +1,50 @@
+Introduction
+
+This is the early beta 1 release of the mantis scala client for the Ethereum Classic network.
+
+This release is fundamentally a command line release allowing fast syncing of the Ethereum Classic network and processing of new transactions.
+
+For a more detailed description of the functionality and configuration options see https://github.com/input-output-hk/etc-client/wiki
+
+Known Issues
+
+EC-269 JSON RPC network_version returns a value of 1 for morden network, correct version is 2
+
+EC-270 personal_importRawKey allows the same key to be imported several times
+
+EC-282 download gets stuck in a loop when downloading block headers from a single peer whichdoen't have those block headers
+
+Workaround - restart the client to allow another peer to be chosen
+
+EC-174 Releases not signed. Potential security issue whereby neither our releases nor the components used to build our releases are signed as verified.
+
+EC-283 Keyfiles exported from MyEtherwallet do not work
+
+Workaround - edit the exported file and change all json keys to lower case (e.g. "Crypto" -> "crypto")
+
+EC-278 Killing the client during fast download *might* result in missing block header
+
+EC-268 Pending transactions may not get forwarded to new peers. A connection made to a peer when a transaction is already pending will not receive the pending transaction.
+
+Workaround - resend the transaction when the client has peers
+
+EC-265 Spurious "Could not open table" database error during regular sync.
+Occasionally during regular sync the client will crash with an error saying it cannot locate a LeveLDB database file.
+
+Workaround - clear out datadir and restart sync
+
+EC-254 Full discovery 'kademlia' protocol not implemented. There are no known implications.
+
+EC-244 etcstats.net data for mantis always seems one block behind
+
+EC-167 Trying to run "regular sync" after an incomplete "fast sync" results in "Node not found" exception
+
+Workaround - clear out datadir and restart sync
+
+Feedback
+
+Feedback gratefully received through the Ethereum Classic Slack (@carlo)
+
+
+
+
