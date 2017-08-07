@@ -1,6 +1,6 @@
 # mantis - Scala client for Ethereum Classic
 
-*Mantis* is the name given to the new Ethereum Classic client produced by the Grothendieck Team.
+*Mantis* is the name given to the new Ethereum Classic client produced by the [Grothendieck Team](https://iohk.io/projects/ethereum-classic/).
  
 ### Status - Beta 1 
 
@@ -15,7 +15,7 @@ This version of the code supports
   - bootstrap sync (download a database for *mantis* preloaded with a recent version of the block chain, recommended for testing) 
   - JSON RPC API (useful for console and Mist integration)
   - Morden testnet and private network
-  - `ethminer` miner integration (allows *mantis* to mine blocks with `ethminer`)
+  - `ethminer` miner integration (allows *mantis* to mine blocks with [ethminer](https://github.com/Genoil/cpp-ethereum))
   
 This version has been tested on Windows 10, Linux and MacOS     
 
@@ -24,6 +24,8 @@ For more details on configuration and functionality check out our [wiki](https:/
 ### Download the client and bootstrap files
 
 The latest release can be downloaded from [here](https://github.com/input-output-hk/etc-client/releases)
+
+The bootstrap database files can be downloaded from [here](https://github.com/input-output-hk/etc-client/wiki/Bootstrap-Database-Download-Links)
     
 ### Building the client 
 

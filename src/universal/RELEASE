@@ -12,7 +12,7 @@ EC-269 JSON RPC network_version returns a value of 1 for morden network, correct
 
 EC-270 personal_importRawKey allows the same key to be imported several times
 
-EC-282 download gets stuck in a loop when downloading block headers from a single peer whichdoen't have those block headers
+EC-282 download gets stuck in a loop when downloading block headers from a single peer which doesn't have those block headers
 
 Workaround - restart the client to allow another peer to be chosen
 
