@@ -13,6 +13,7 @@ import io.iohk.ethereum.utils.Config.Sync._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Random
 
 trait FastSync {
   selfSyncController: SyncController =>
@@ -349,7 +350,7 @@ trait FastSync {
           scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
       } else {
-        val peers = unassignedPeers
+        val peers = Random.shuffle(unassignedPeers)
         val blockChainPeers = blockChainOnlyPeers.toSet
         (peers -- blockChainPeers)
           .take(maxConcurrentRequests - assignedHandlers.size)
