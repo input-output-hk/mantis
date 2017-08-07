@@ -10,5 +10,6 @@ class Config(rootConfig: TypesafeConfig = ConfigFactory.load()) {
 
   val sourceDbPath: String = snappyConf.getString("source-db-path")
   val targetDbPath: String = snappyConf.getString("target-db-path")
+  val startBlock: Option[BigInt] = Try(snappyConf.getString("start-block")).toOption.map(BigInt(_))
   val targetBlock: Option[BigInt] = Try(snappyConf.getString("target-block")).toOption.map(BigInt(_))
 }

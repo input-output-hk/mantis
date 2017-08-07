@@ -1,10 +1,7 @@
 package io.iohk.ethereum.snappy
 
-import java.io.File
-
 import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.utils.Logger
-import org.apache.commons.io.FileUtils
 import org.scalatest.{FreeSpec, Matchers}
 
 import scala.concurrent.duration._
@@ -14,17 +11,16 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
   "Blockchain regression test" in {
 
     val config = new Config()
-    removeTargetDir(config.targetDbPath)
-
     val pre = new Prerequisites(config)
     import pre._
 
-    val targetN = config.targetBlock.getOrElse(findHighestBlockNumber(sourceBlockchain))
-    val progLog = new ProgressLogger(targetN, 2.seconds)
+    val startN = config.startBlock.getOrElse(findHighestBlockNumber(targetBlockchain) - 1).max(1)
+    val targetN = config.targetBlock.getOrElse(findHighestBlockNumber(sourceBlockchain)).max(1)
+    val progLog = new ProgressLogger(startN, targetN, 2.seconds)
 
     progLog.start()
 
-    for (n <- BigInt(1) to targetN) {
+    for (n <- startN to targetN) {
       val block: Block = sourceBlockchain.getBlockByNumber(n)
         .getOrElse(fail(s"Failed to retrieve block by number: $n"))
 
@@ -47,23 +43,22 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
     }
   }
 
-  private def findHighestBlockNumber(blockchain: Blockchain, n: BigInt = 1000000, lastN: BigInt = 0): BigInt =
-    if (n <= 0)
-      fail("No block found in the source DB!")
-    else if (n == lastN)
+  private def findHighestBlockNumber(blockchain: Blockchain, n: BigInt = 1000000, bottom: BigInt = 0, top: BigInt = -1): BigInt = {
+    if (top - bottom == 1)
       n
-    else {
-      val newN = blockchain.getBlockByNumber(n) match {
-        case Some(_) => if (n > lastN) n + n - lastN else (n + lastN) / 2
-        case None => (n + lastN) / 2
-      }
-      findHighestBlockNumber(blockchain, newN, n)
+
+    else if (top < 0) {
+      def candidates(n: BigInt): Stream[BigInt] = n #:: candidates(n + 100000)
+      val newTop = candidates(1).find(n => blockchain.getBlockByNumber(n).isEmpty).get
+      findHighestBlockNumber(blockchain, newTop / 2, 0, newTop)
     }
 
-  private def removeTargetDir(dirPath: String): Unit = {
-    val dir = new File(dirPath)
-    if (dir.exists() && dir.isDirectory) {
-      FileUtils.deleteDirectory(dir)
+    else {
+      val (newBottom, newTop) = blockchain.getBlockByNumber(n) match {
+        case Some(_) => (n, top)
+        case None => (bottom, n)
+      }
+      findHighestBlockNumber(blockchain, (bottom + top) / 2, newBottom, newTop)
     }
   }
 
