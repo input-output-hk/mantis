@@ -10,9 +10,9 @@ Unit Test Code Coverage Status [![Coverage Status](https://coveralls.io/repos/gi
 
 This version of the code supports 
 
-  - fast sync (download a recent state trie snapshot and all blocks, this is the default behaviour)
-  - regular sync (download and execute every transaction in every block in the chain, this can be very slow)
-  - bootstrap sync (download a database for *mantis* preloaded with a recent version of the block chain, **highly recommended** for testing) 
+  - fast sync (download a recent state trie snapshot and all blocks, this is the default behaviour)  
+  - bootstrap sync (download a database for *mantis* preloaded with a recent version of the block chain, **highly recommended** for testing)
+  - regular sync (download and execute every transaction in every block in the chain, this can be very slow and error prone - not recommended) 
   - JSON RPC API (useful for console and Mist integration)
   - Morden testnet and private network
   - `ethminer` miner integration (allows *mantis* to mine blocks with [ethminer](https://github.com/Genoil/cpp-ethereum))
