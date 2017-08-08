@@ -19,7 +19,7 @@ This version of the code supports
   
 This version has been tested on Windows 10, Linux and MacOS     
 
-For more details on configuration and functionality check out our [wiki](https://github.com/input-output-hk/etc-client/wiki)
+For more details on configuration and functionality check out our [wiki](http://mantis.readthedocs.io) (also at [wiki](https://github.com/input-output-hk/etc-client/wiki))
 
 ### Download the client and bootstrap files
 
@@ -112,7 +112,7 @@ Uncomment and edit `datadir` to read
 datadir = "/mydata"
 ```
 
-For more details on configuration and functionality check out our [wiki](https://github.com/input-output-hk/etc-client/wiki) 
+For more details on configuration and functionality check out our [wiki](http://mantis.readthedocs.io) (also at [wiki](https://github.com/input-output-hk/etc-client/wiki)) 
 
 ### Uninstall 
 
@@ -120,6 +120,6 @@ To remove the mantis client simple delete the folder the distribution (zip) file
 
 ### Feedback
 
-Feedback gratefully received through the Ethereum Classic Slack (@carlo) although please check out the list of known issues first in the 'RELEASE' file located in the root of the installation.
+Feedback gratefully received through the Ethereum Classic Slack (#mantis_client_bugs) although please check out the list of known issues first in the 'RELEASE' file located in the root of the installation.
 
 
