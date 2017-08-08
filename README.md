@@ -37,6 +37,7 @@ The bootstrap database files can be downloaded from [here](https://github.com/in
 #### Build the client
 
 As an alternative to downloading the client build the client from source. 
+
 Checkout this repository from github and then type
 
  `sbt dist`
@@ -61,7 +62,7 @@ Note that on windows a 64 bit version of the JVM is required. This can be checke
  
  - the download of the Ethereum Classic chain will take up around 15G of disk space
  
-Note that a slow disk will slow the chain dowload, an SSD with 25G free space is recommended  
+Note that a slow disk will slow the chain download, an SSD with 25G free space is recommended  
 
 #### Install the client 
 
@@ -85,6 +86,7 @@ Within a minute the chain begins downloading to a folder in the `$HOME` folder c
 ### Run the client on Windows 
 
 Open a command terminal and from the root of the installation run
+
   
 ```
 bin\mantis.bat
@@ -120,6 +122,10 @@ To remove the mantis client simple delete the folder the distribution (zip) file
 
 ### Feedback
 
-Feedback gratefully received through the Ethereum Classic Slack (#mantis_client_bugs) although please check out the list of known issues first in the 'RELEASE' file located in the root of the installation.
+Feedback gratefully received through the Ethereum Classic Slack (#mantis_client_bugs) 
+
+### Known Issues
+ 
+There is a list of known issues in the 'RELEASE' file located in the root of the installation.
 
 
