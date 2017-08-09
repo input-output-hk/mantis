@@ -313,6 +313,10 @@ trait FastSync {
           bestBlockHeaderNumber = lastHeader.number
         }
       }
+
+      val blockHashes = blockHeadersObtained.map(_.hash)
+      self ! FastSync.EnqueueBlockBodies(blockHashes)
+      self ! FastSync.EnqueueReceipts(blockHashes)
     }
 
     def processSyncing(): Unit = {
