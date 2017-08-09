@@ -29,10 +29,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
 
     peerMessageBus.reply(MessageFromPeer(BlockHeaders(responseHeaders), peer.id))
 
-    parent.expectMsgAllOf(
-      SyncController.BlockHeadersReceived(peer, responseHeaders),
-      FastSync.EnqueueBlockBodies(Seq(responseHeaders.head.hash)),
-      FastSync.EnqueueReceipts(Seq(responseHeaders.head.hash)))
+    parent.expectMsgAllOf(SyncController.BlockHeadersReceived(peer, responseHeaders))
 
     parent.expectMsg(SyncRequestHandler.Done)
 
