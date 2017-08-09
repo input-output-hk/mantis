@@ -508,24 +508,26 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
 case object JUMP extends OpCode(0x56, 1, 0, _.G_mid) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (pos, stack1) = state.stack.pop
-    val dest = pos.intValue
-    if(state.program.validJumpDestinations.contains(dest))
+    val dest = pos.toInt // fail with InvalidJump if convertion to Int is lossy
+
+    if (pos == dest && state.program.validJumpDestinations.contains(dest))
       state.withStack(stack1).goto(dest)
     else
-      state.withError(InvalidJump(dest))
+      state.withError(InvalidJump(pos))
   }
 }
 
 case object JUMPI extends OpCode(0x57, 2, 0, _.G_high) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(pos, cond), stack1) = state.stack.pop(2)
-    val dest = pos.intValue
+    val dest = pos.toInt // fail with InvalidJump if convertion to Int is lossy
+
     if(cond.isZero)
       state.withStack(stack1).step()
-    else if (state.program.validJumpDestinations.contains(dest))
+    else if (pos == dest && state.program.validJumpDestinations.contains(dest))
       state.withStack(stack1).goto(dest)
     else
-      state.withError(InvalidJump(dest))
+      state.withError(InvalidJump(pos))
   }
 }
 
