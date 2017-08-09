@@ -17,7 +17,7 @@ test:
     - sbt coverageReport coverageAggregate coveralls
     - sbt dist
     # TODO: change to branch name to 'master' after verifying this works
-    - if [ $CIRCLE_BRANCH = 'feature/ethereumTestSuiteVM' ] then;
+    - if [ $CIRCLE_BRANCH = 'feature/ethereumTestSuiteVM' ]; then
         git submodule init;
         git submodule update;
         sbt ets:testOnly *VMSuite -- -Dexg=vmPerf*;
