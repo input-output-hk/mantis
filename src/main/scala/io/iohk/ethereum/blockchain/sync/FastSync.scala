@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
 import akka.util.ByteString
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
@@ -10,6 +10,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsu
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.Sync._
+import io.iohk.ethereum.validators.BlockValidator
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
@@ -198,12 +199,7 @@ trait FastSync {
         downloadedNodesCount += num
 
       case BlockBodiesReceived(peer, requestedHashes, blockBodies) =>
-        if (validateBlocks(requestedHashes, blockBodies)) {
-          insertBlocks(requestedHashes, blockBodies)
-        } else {
-          blacklist(peer.id, blacklistDuration, s"responded with block bodies not matching block headers, blacklisting for $blacklistDuration")
-          self ! FastSync.EnqueueBlockBodies(requestedHashes)
-        }
+        handleBlockBodies(peer, requestedHashes, blockBodies)
 
       case BlockHeadersReceived(_, headers) =>
         insertHeaders(headers)
@@ -225,6 +221,23 @@ trait FastSync {
 
       case PersistSyncState =>
         persistSyncState()
+    }
+
+    private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]) = {
+      validateBlocks(requestedHashes, blockBodies) match {
+        case Valid =>
+          insertBlocks(requestedHashes, blockBodies)
+        case Invalid =>
+          blacklist(peer.id, blacklistDuration, s"responded with block bodies not matching block headers, blacklisting for $blacklistDuration")
+          self ! FastSync.EnqueueBlockBodies(requestedHashes)
+        case DbError =>
+          blockBodiesQueue = Seq.empty
+          receiptsQueue = Seq.empty
+          //todo adjust the formula to minimize redownloaded block headers
+          bestBlockHeaderNumber = bestBlockHeaderNumber - 2 * blockHeadersPerRequest
+          log.debug("missing block header for known hash")
+          self ! ProcessSyncing
+      }
     }
 
     private def handleActorTerminate(ref: ActorRef) = {
@@ -277,14 +290,21 @@ trait FastSync {
       requestedReceipts = requestedReceipts - handler
     }
 
-    private def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Boolean = (requestedHashes zip blockBodies)
-      .map { case (hash, body) => (blockchain.getBlockHeaderByHash(hash), body) }
-      .forall {
-        case (Some(header), body) =>
-          val result = validators.blockValidator.validateHeaderAndBody(header, body)
-          result.isRight
-        case _ => false
-      }
+    private def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): BlockBodyValidationResult = {
+      var result: BlockBodyValidationResult = Valid
+      (requestedHashes zip blockBodies)
+        .map { case (hash, body) => (blockchain.getBlockHeaderByHash(hash), body) }
+        .forall {
+          case (Some(header), body) =>
+            val validationResult: Either[BlockValidator.BlockError, Block] = validators.blockValidator.validateHeaderAndBody(header, body)
+            result = validationResult.fold(_ => Invalid, _ => Valid)
+            validationResult.isRight
+          case _ =>
+            result = DbError
+            false
+        }
+      result
+    }
 
     private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
       (requestedHashes zip blockBodies).foreach { case (hash, body) =>
@@ -473,6 +493,11 @@ object FastSync {
   private case object ProcessSyncing
   private case object PersistSyncState
   case class MarkPeerBlockchainOnly(peer: Peer)
+
+  private sealed trait BlockBodyValidationResult
+  private case object Valid extends BlockBodyValidationResult
+  private case object Invalid extends BlockBodyValidationResult
+  private case object DbError extends BlockBodyValidationResult
 
   case class SyncState(
     targetBlock: BlockHeader,
