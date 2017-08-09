@@ -11,7 +11,6 @@ import org.spongycastle.util.encoders.Hex
 
 import scala.util.Try
 
-//TODO: better error handling
 object ScenarioParser {
 
   private implicit val decodeBigInt: Decoder[BigInt] = {

@@ -16,7 +16,7 @@ object ScenarioLoader extends Logger {
     val files = FileUtils.listFiles(testDir, Array("json"), true).asScala.toList
 
     files.flatMap { file =>
-      val name = file.getName.dropRight(".json".length)
+      val name = file.getAbsolutePath.drop(testDir.getAbsolutePath.length + 1).dropRight(".json".length)
 
       if (!options.isGroupIncluded(name))
         None

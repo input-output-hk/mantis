@@ -1,35 +1,59 @@
 package io.iohk.ethereum.ets.vm
 
+import io.iohk.ethereum.ets.vm.TestOptions._
 import org.scalatest.ConfigMap
 
 object TestOptions {
+
+  trait MatchMode
+  case object Plain extends MatchMode
+  case object Glob extends MatchMode
+  case object Regex extends MatchMode
+
   def apply(configMap: ConfigMap): TestOptions = {
 
-    def parseNames(keys: String*): Option[Set[String]] = {
-      val arg = keys.foldLeft(None: Option[String]){ _ orElse configMap.get(_).map(_.toString) }
-      arg.map(_.toString.split(",").toSet)
+    def getSetting(keys: String*): Option[String] =
+      keys.foldLeft(None: Option[String]){ _ orElse configMap.get(_).map(_.toString) }
+
+    val matchMode = getSetting("match", "m").getOrElse("glob") match {
+      case "glob" => Glob
+      case "regex" => Regex
+      case "plain" => Plain
     }
 
     TestOptions(
-      parseNames("includeGroups", "ing"),
-      parseNames("excludeGroups", "exg"),
-      parseNames("includeScenarios", "ins"),
-      parseNames("excludeScenarios", "exs")
+      getSetting("includeGroups", "ing"),
+      getSetting("excludeGroups", "exg"),
+      getSetting("includeScenarios", "ins"),
+      getSetting("excludeScenarios", "exs"),
+      matchMode
     )
-
   }
 }
 
 case class TestOptions(
-  includedGroups: Option[Set[String]],
-  excludedGroups: Option[Set[String]],
-  includedScenarios: Option[Set[String]],
-  excludedScenarios: Option[Set[String]]
+  includedGroups: Option[String],
+  excludedGroups: Option[String],
+  includedScenarios: Option[String],
+  excludedScenarios: Option[String],
+  matchMode: MatchMode
 ) {
 
   def isGroupIncluded(name: String): Boolean =
-    includedGroups.forall(_.contains(name)) && !excludedGroups.exists(_.contains(name))
+    includedGroups.forall(groupMatches(name)) && !excludedGroups.exists(groupMatches(name))
 
   def isScenarioIncluded(name: String): Boolean =
-    includedScenarios.forall(_.contains(name)) && !excludedScenarios.exists(_.contains(name))
+    includedScenarios.forall(groupMatches(name)) && !excludedScenarios.exists(groupMatches(name))
+
+  private def groupMatches(name: String)(group: String): Boolean = matchMode match {
+    case Plain =>
+      group.split(",").toSet.contains(name)
+
+    case Glob =>
+      val regexes = group.replaceAll("\\*", ".*").split(",").map(_.r)
+      regexes.exists(_.findFirstIn(name).contains(name))
+
+    case Regex =>
+      group.r.findFirstIn(name).contains(name)
+  }
 }
