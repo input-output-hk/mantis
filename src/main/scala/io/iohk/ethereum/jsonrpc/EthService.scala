@@ -37,8 +37,6 @@ import scala.util.{Failure, Success, Try}
 // scalastyle:off number.of.methods number.of.types
 object EthService {
 
-  val CurrentProtocolVersion = 63
-
   case class ProtocolVersionRequest()
   case class ProtocolVersionResponse(value: String)
 
@@ -180,7 +178,8 @@ class EthService(
     ommersPool: ActorRef,
     filterManager: ActorRef,
     filterConfig: FilterConfig,
-    blockchainConfig: BlockchainConfig)
+    blockchainConfig: BlockchainConfig,
+    protocolVersion: Int)
   extends Logger {
 
   import EthService._
@@ -191,7 +190,7 @@ class EthService(
   val lastActive = new AtomicReference[Option[Date]](None)
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
-    Future.successful(Right(ProtocolVersionResponse(f"0x$CurrentProtocolVersion%x")))
+    Future.successful(Right(ProtocolVersionResponse(f"0x$protocolVersion%x")))
 
   /**
     * eth_blockNumber that returns the number of most recent block.
