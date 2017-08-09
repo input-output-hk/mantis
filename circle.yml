@@ -20,7 +20,7 @@ test:
     - if [ $CIRCLE_BRANCH = 'feature/ethereumTestSuiteVM' ]; then
         git submodule init;
         git submodule update;
-        sbt ets:testOnly *VMSuite -- -Dexg=vmPerf*;
+        sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*";
       fi
   post:
     - mkdir -p $CIRCLE_ARTIFACTS/scala-2.12
