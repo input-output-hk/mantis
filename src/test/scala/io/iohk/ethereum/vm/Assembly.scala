@@ -15,6 +15,8 @@ object Assembly {
   implicit class IntAsByteCode(val i: Int) extends ByteCode {
     def byte: Byte = i.toByte
   }
+
+  implicit class ByteAsByteCode(val byte: Byte) extends ByteCode
 }
 
 import Assembly._
