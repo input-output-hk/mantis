@@ -41,6 +41,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     peerMessageBus.reply(MessageFromPeer(BlockBodies(responseBodies), peer.id))
 
     parent.expectMsg(BlacklistSupport.BlacklistPeer(peer.id, "got empty block bodies response for known hashes: List(31, 32)"))
+    parent.expectMsg(FastSync.EnqueueBlockBodies(requestedHashes))
     parent.expectMsg(SyncRequestHandler.Done)
 
     peerMessageBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))

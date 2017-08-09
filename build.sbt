@@ -1,8 +1,8 @@
 enablePlugins(JavaAppPackaging, SolidityPlugin)
 
 val commonSettings = Seq(
-  name := "etc-client",
-  version := "0.1",
+  name := "mantis",
+  version := "0.3-cli-beta",
   scalaVersion := "2.12.1"
 )
 

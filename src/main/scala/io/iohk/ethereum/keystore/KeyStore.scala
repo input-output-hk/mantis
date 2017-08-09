@@ -115,7 +115,7 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
     IOError(ex.toString)
 
   private def fileName(encKey: EncryptedKey) = {
-    val dateStr = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_DATE_TIME)
+    val dateStr = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_DATE_TIME).replace(':', '-')
     val addrStr = encKey.address.toUnprefixedString
     s"UTC--$dateStr--$addrStr"
   }

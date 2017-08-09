@@ -12,7 +12,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
-import akka.agent.Agent
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
@@ -21,7 +20,8 @@ import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.utils.NodeStatus
+
+import scala.util.{Failure, Success}
 
 class PeerManagerActor(
     peerEventBus: ActorRef,
@@ -70,7 +70,7 @@ class PeerManagerActor(
       val nodesToConnect = nodes.take(peerConfiguration.maxPeers)
 
       if (nodesToConnect.nonEmpty) {
-        log.info("Trying to connect to {} known nodes", nodesToConnect.size)
+        log.debug("Trying to connect to {} known nodes", nodesToConnect.size)
         nodesToConnect.foreach(n => self ! ConnectToPeer(n))
       }
 
@@ -93,7 +93,7 @@ class PeerManagerActor(
         s"Trying to connect to ${nodesToConnect.size} more nodes.")
 
       if (nodesToConnect.nonEmpty) {
-        log.info("Trying to connect to {} nodes", nodesToConnect.size)
+        log.debug("Trying to connect to {} nodes", nodesToConnect.size)
         nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
       }
   }
@@ -105,10 +105,10 @@ class PeerManagerActor(
 
       if (incomingPeers.size > peerConfiguration.maxIncomingPeers) {
         peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
-        log.info("Maximum number of incoming peer connections reached.")
+        log.debug("Maximum number of incoming peer connections reached.")
       }
     } else {
-      log.info("Another connection with {} is already opened. Disconnecting.", remoteAddress)
+      log.debug("Another connection with {} is already opened. Disconnecting.", remoteAddress)
       connection ! PoisonPill
     }
   }
@@ -120,10 +120,10 @@ class PeerManagerActor(
         val peer = createPeer(addr, incomingConnection = false)
         peer.ref ! PeerActor.ConnectTo(uri)
       } else {
-        log.info("Maximum number of connected peers reached.")
+        log.debug("Maximum number of connected peers reached.")
       }
     } else {
-      log.info("Maximum number of connected peers reached. Not connecting to {}", uri)
+      log.debug("Maximum number of connected peers reached. Not connecting to {}", uri)
     }
   }
 
@@ -161,8 +161,9 @@ class PeerManagerActor(
     Future.traverse(peers.values) { peer =>
       (peer.ref ? PeerActor.GetStatus)
         .mapTo[PeerActor.StatusResponse]
-        .map(sr => (peer, sr.status))
-    }.map(r => Peers.apply(r.toMap))
+        .map { sr => Success((peer, sr.status)) }
+        .recover { case ex => Failure(ex) }
+    }.map(r => Peers.apply(r.collect { case Success(v) => v }.toMap))
   }
 
 }

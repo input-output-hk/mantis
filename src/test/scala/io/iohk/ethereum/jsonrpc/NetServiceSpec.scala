@@ -13,6 +13,7 @@ import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class NetServiceSpec extends FlatSpec with Matchers with ScalaFutures with NormalPatience with SecureRandomBuilder {
@@ -46,7 +47,7 @@ class NetServiceSpec extends FlatSpec with Matchers with ScalaFutures with Norma
 
     val nodeStatus = NodeStatus(crypto.generateKeyPair(secureRandom), ServerStatus.Listening(new InetSocketAddress(9000)),
       discoveryStatus = ServerStatus.NotListening)
-    val netService = new NetService(Agent(nodeStatus), peerManager.ref)
+    val netService = new NetService(Agent(nodeStatus), peerManager.ref, NetServiceConfig(5.seconds))
   }
 
 }

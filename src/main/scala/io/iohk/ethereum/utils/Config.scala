@@ -19,7 +19,7 @@ import scala.util.Try
 
 object Config {
 
-  val config = ConfigFactory.load().getConfig("grothendieck")
+  val config = ConfigFactory.load().getConfig("mantis")
 
   val clientId: String = config.getString("client-id")
 
@@ -31,7 +31,9 @@ object Config {
 
   val shutdownTimeout: Duration = config.getDuration("shutdown-timeout").toMillis.millis
 
-  val secureRandomAlgo: String = config.getString("secure-random-algo")
+  val secureRandomAlgo: Option[String] =
+    if(config.hasPath("secure-random-algo")) Some(config.getString("secure-random-algo"))
+    else None
 
   object Network {
     private val networkConfig = config.getConfig("network")
@@ -116,6 +118,7 @@ object Config {
 
     val checkForNewBlockInterval: FiniteDuration = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis
     val blockResolveDepth: Int = syncConfig.getInt("block-resolving-depth")
+    val blockChainOnlyPeersPoolSize: Int = syncConfig.getInt("fastsync-block-chain-only-peers-pool")
   }
 
   trait DbConfig {

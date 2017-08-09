@@ -2,10 +2,9 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
+import akka.actor.SupervisorStrategy.Escalate
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import akka.actor._
-import akka.agent.Agent
-import akka.util.ByteString
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.messages.Versions
@@ -13,12 +12,10 @@ import io.iohk.ethereum.network.rlpx.{AuthHandshaker, RLPxConnectionHandler}
 import io.iohk.ethereum.network.PeerActor.Status._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerHandshakeSuccessful}
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
-import io.iohk.ethereum.utils.NodeStatus
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
 
 
@@ -42,6 +39,11 @@ class PeerActor[R <: HandshakeResult](
 
   import PeerActor._
   import context.{dispatcher, system}
+
+  override val supervisorStrategy: OneForOneStrategy =
+    OneForOneStrategy() {
+      case _ => Escalate
+    }
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
 
@@ -79,17 +81,17 @@ class PeerActor[R <: HandshakeResult](
         processHandshakerNextMessage(initHandshaker, rlpxConnection.copy(uriOpt = Some(uri)), numRetries)
 
       case RLPxConnectionHandler.ConnectionFailed =>
-        log.warning("Failed to establish RLPx connection")
+        log.debug("Failed to establish RLPx connection")
         rlpxConnection.uriOpt match {
           case Some(uri) if numRetries < peerConfiguration.connectMaxRetries =>
             context unwatch rlpxConnection.ref
             scheduleConnectRetry(uri, numRetries)
           case Some(uri) =>
-            log.warning("No more reconnect attempts left, removing peer")
+            log.debug("No more reconnect attempts left, removing peer")
             knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri)
             context stop self
           case None =>
-            log.warning("Connection was initiated by remote peer, not attempting to reconnect")
+            log.debug("Connection was initiated by remote peer, not attempting to reconnect")
             context stop self
         }
 
@@ -149,7 +151,7 @@ class PeerActor[R <: HandshakeResult](
     }
 
   private def scheduleConnectRetry(uri: URI, numRetries: Int): Unit = {
-    log.info("Scheduling connection retry in {}", peerConfiguration.connectRetryDelay)
+    log.debug("Scheduling connection retry in {}", peerConfiguration.connectRetryDelay)
     scheduler.scheduleOnce(peerConfiguration.connectRetryDelay, self, RetryConnectionTimeout)
     context become {
       case RetryConnectionTimeout => reconnect(uri, numRetries + 1)
@@ -170,7 +172,7 @@ class PeerActor[R <: HandshakeResult](
 
   def handleTerminated(rlpxConnection: RLPxConnection): Receive = {
     case Terminated(actor) if actor == rlpxConnection.ref =>
-      log.warning(s"Underlying rlpx connection with peer $peerId closed")
+      log.debug(s"Underlying rlpx connection with peer $peerId closed")
       rlpxConnection.uriOpt match {
         case Some(uri) if rlpxConnection.isInitiator => scheduleConnectRetry(uri, numRetries = 0)
         case Some(uri) =>
@@ -182,7 +184,7 @@ class PeerActor[R <: HandshakeResult](
   }
 
   def reconnect(uri: URI, numRetries: Int): Unit = {
-    log.info("Trying to reconnect")
+    log.debug("Trying to reconnect")
     val address = new InetSocketAddress(uri.getHost, uri.getPort)
     val newConnection = createRlpxConnection(address, Some(uri), true)
     newConnection.ref ! RLPxConnectionHandler.ConnectTo(uri)
@@ -201,7 +203,7 @@ class PeerActor[R <: HandshakeResult](
           rlpxConnection.uriOpt.foreach(uri => knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri))
         case _ => // nothing
       }
-      log.info("Received {}. Closing connection", d)
+      log.debug(s"Received {}. Closing connection with peer ${peerAddress.getHostString}:${peerAddress.getPort}", d)
       context unwatch rlpxConnection.ref
       context stop self
   }
