@@ -14,8 +14,8 @@ object Generators extends ObjectGenerators {
   def getListGen[T](minSize: Int, maxSize: Int, genT: Gen[T]): Gen[List[T]] =
     Gen.choose(minSize, maxSize).flatMap(size => Gen.listOfN(size, genT))
 
-  def getByteStringGen(minSize: Int, maxSize: Int): Gen[ByteString] =
-    getListGen(minSize, maxSize, Arbitrary.arbitrary[Byte]).map(l => ByteString(l.toArray))
+  def getByteStringGen(minSize: Int, maxSize: Int, byteGen: Gen[Byte] = Arbitrary.arbitrary[Byte]): Gen[ByteString] =
+    getListGen(minSize, maxSize, byteGen).map(l => ByteString(l.toArray))
 
   def getBigIntGen(min: BigInt = 0, max: BigInt = BigInt(2).pow(256) - 1): Gen[BigInt] = {
     val mod = max - min
@@ -30,11 +30,11 @@ object Generators extends ObjectGenerators {
   def getUInt256Gen(min: UInt256 = UInt256(0), max: UInt256 = UInt256.MaxValue): Gen[UInt256] =
     getBigIntGen(min.toBigInt, max.toBigInt).map(UInt256(_))
 
-  def getStackGen(minElems: Int = 0, maxElems: Int = testStackMaxSize, uint256Gen: Gen[UInt256] = getUInt256Gen(),
+  def getStackGen(minElems: Int = 0, maxElems: Int = testStackMaxSize, valueGen: Gen[UInt256] = getUInt256Gen(),
     maxSize: Int = testStackMaxSize): Gen[Stack] =
     for {
       size <- Gen.choose(minElems, maxElems)
-      list <- Gen.listOfN(size, uint256Gen)
+      list <- Gen.listOfN(size, valueGen)
       stack = Stack.empty(maxSize)
     } yield stack.push(list)
 
@@ -45,10 +45,10 @@ object Generators extends ObjectGenerators {
     getStackGen(minElems = elems, maxElems = elems, getUInt256Gen())
 
   def getStackGen(elems: Int, maxUInt: UInt256): Gen[Stack] =
-    getStackGen(minElems = elems, maxElems = elems, uint256Gen = getUInt256Gen(max = maxUInt), maxSize = testStackMaxSize)
+    getStackGen(minElems = elems, maxElems = elems, valueGen = getUInt256Gen(max = maxUInt), maxSize = testStackMaxSize)
 
   def getStackGen(maxWord: UInt256): Gen[Stack] =
-    getStackGen(uint256Gen = getUInt256Gen(max = maxWord), maxSize = testStackMaxSize)
+    getStackGen(valueGen = getUInt256Gen(max = maxWord), maxSize = testStackMaxSize)
 
   def getMemoryGen(maxSize: Int = 0): Gen[Memory] =
     getByteStringGen(0, maxSize).map(Memory.empty.store(0, _))
