@@ -211,7 +211,7 @@ trait FastSync {
         context unwatch sender()
         assignedHandlers -= sender()
         cleanupRequestedMaps(sender())
-        processSyncing()
+        scheduler.scheduleOnce(fastSyncThrottle, self, ProcessSyncing)
 
       case Terminated(ref) if assignedHandlers.contains(ref) =>
         handleActorTerminate(ref)
