@@ -94,7 +94,31 @@ object Config {
 
   }
 
-  object Sync {
+  trait SyncConfig {
+    val doFastSync: Boolean
+
+    val peersScanInterval: FiniteDuration
+    val blacklistDuration: FiniteDuration
+    val startRetryInterval: FiniteDuration
+    val syncRetryInterval: FiniteDuration
+    val peerResponseTimeout: FiniteDuration
+    val printStatusInterval: FiniteDuration
+
+    val maxConcurrentRequests: Int
+    val blockHeadersPerRequest: Int
+    val blockBodiesPerRequest: Int
+    val receiptsPerRequest: Int
+    val nodesPerRequest: Int
+    val minPeersToChooseTargetBlock: Int
+    val targetBlockOffset: Int
+    val persistStateSnapshotInterval: FiniteDuration
+
+    val checkForNewBlockInterval: FiniteDuration
+    val blockResolveDepth: Int
+    val blockChainOnlyPeersPoolSize: Int
+  }
+
+  object Sync extends SyncConfig {
     private val syncConfig = config.getConfig("sync")
 
     val doFastSync: Boolean = syncConfig.getBoolean("do-fast-sync")
