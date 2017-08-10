@@ -37,7 +37,7 @@ object PendingTransactionsManager {
 }
 
 class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorRef,
-                                 etcPeerManager: ActorRef, peerMessageBus: ActorRef) extends Actor {
+                                 etcPeerManager: ActorRef, peerEventBus: ActorRef) extends Actor {
 
   import PendingTransactionsManager._
   import akka.pattern.ask
@@ -54,8 +54,8 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
 
   implicit val timeout = Timeout(3.seconds)
 
-  peerMessageBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
-  peerMessageBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
+  peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
+  peerEventBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
   override def receive: Receive = {
     case PeerEvent.PeerHandshakeSuccessful(peer, _) =>
