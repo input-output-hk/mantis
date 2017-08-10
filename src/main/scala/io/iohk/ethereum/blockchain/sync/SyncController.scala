@@ -19,7 +19,7 @@ import io.iohk.ethereum.validators.Validators
 
 class SyncController(
     val appStateStorage: AppStateStorage,
-    val blockchain: BlockchainImpl,
+    val blockchain: Blockchain,
     val fastSyncStateStorage: FastSyncStateStorage,
     val ledger: Ledger,
     val validators: Validators,
@@ -106,7 +106,7 @@ class SyncController(
 object SyncController {
   // scalastyle:off parameter.number
   def props(appStateStorage: AppStateStorage,
-            blockchain: BlockchainImpl,
+            blockchain: Blockchain,
             syncStateStorage: FastSyncStateStorage,
             ledger: Ledger,
             validators: Validators,

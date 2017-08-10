@@ -30,8 +30,6 @@ class ForksTest extends FlatSpec with Matchers {
     override val accountStartNonce: UInt256 = UInt256.Zero
   }
 
-  val ledger = new LedgerImpl(VM, blockchainConfig)
-
   val noErrors = a[Right[_, Seq[Receipt]]]
 
   val validators = new Validators {
@@ -50,7 +48,9 @@ class ForksTest extends FlatSpec with Matchers {
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchain = BlockchainImpl(storages)
-      ledger.executeBlock(fixtures.blockByNumber(blockToExecute), blockchain, validators) shouldBe noErrors
+      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig)
+
+      ledger.executeBlock(fixtures.blockByNumber(blockToExecute), validators) shouldBe noErrors
     }
   }
 

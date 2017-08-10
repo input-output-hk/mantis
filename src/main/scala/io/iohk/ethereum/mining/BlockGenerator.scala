@@ -21,7 +21,7 @@ import io.iohk.ethereum.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.crypto._
 
-class BlockGenerator(blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig, miningConfig: MiningConfig,
+class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig, miningConfig: MiningConfig,
   ledger: Ledger, validators: Validators, blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider) {
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
@@ -39,7 +39,7 @@ class BlockGenerator(blockchain: BlockchainImpl, blockchainConfig: BlockchainCon
         val body = BlockBody(transactionsForBlock, ommers)
         val block = Block(header, body)
 
-        val prepared = ledger.prepareBlock(block, blockchain, validators) match {
+        val prepared = ledger.prepareBlock(block, validators) match {
           case BlockPreparationResult(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot) =>
             val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
             val bloomFilter = ByteString(or(receiptsLogs: _*))

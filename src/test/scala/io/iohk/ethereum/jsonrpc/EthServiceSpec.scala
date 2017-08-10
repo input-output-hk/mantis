@@ -412,7 +412,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
 
     val txResult = TxResult(BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None), 123, Nil, ByteString("return_value"))
-    (ledger.simulateTransaction _).expects(*, *, *).returning(txResult)
+    (ledger.simulateTransaction _).expects(*, *).returning(txResult)
 
     val tx = CallTx(
       Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),
@@ -428,7 +428,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
 
     val txResult = TxResult(BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None), 123, Nil, ByteString("return_value"))
-    (ledger.simulateTransaction _).expects(*, *, *).returning(txResult)
+    (ledger.simulateTransaction _).expects(*, *).returning(txResult)
 
     val tx = CallTx(
       Some(ByteString(Hex.decode("da714fe079751fa7a1ad80b76571ea6ec52a446c"))),

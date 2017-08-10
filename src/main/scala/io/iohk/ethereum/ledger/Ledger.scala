@@ -15,26 +15,26 @@ import scala.annotation.tailrec
 
 trait Ledger {
 
-  def executeBlock(block: Block, blockchain: BlockchainImpl, validators: Validators): Either[BlockExecutionError, Seq[Receipt]]
+  def executeBlock(block: Block, validators: Validators): Either[BlockExecutionError, Seq[Receipt]]
 
-  def prepareBlock(block: Block, blockchain: BlockchainImpl, validators: Validators): BlockPreparationResult
+  def prepareBlock(block: Block, validators: Validators): BlockPreparationResult
 
-  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, blockchain: BlockchainImpl): TxResult
+  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader): TxResult
 }
 
-class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with Logger {
+//FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
+class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig) extends Ledger with Logger {
 
   val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
 
   def executeBlock(
     block: Block,
-    blockchain: BlockchainImpl,
     validators: Validators): Either[BlockExecutionError, Seq[Receipt]] = {
 
     val blockExecResult = for {
-      _ <- validateBlockBeforeExecution(block, blockchain, validators)
+      _ <- validateBlockBeforeExecution(block, validators)
 
-      execResult <- executeBlockTransactions(block, blockchain, validators.signedTransactionValidator)
+      execResult <- executeBlockTransactions(block, validators.signedTransactionValidator)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
       worldToPersist = payBlockReward(block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
@@ -49,7 +49,6 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
   def prepareBlock(
     block: Block,
-    blockchain: BlockchainImpl,
     validators: Validators): BlockPreparationResult = {
 
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
@@ -68,12 +67,10 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     * This function runs transaction
     *
     * @param block
-    * @param blockchain
     * @param signedTransactionValidator
     */
   private[ledger] def executeBlockTransactions(
     block: Block,
-    blockchain: BlockchainImpl,
     signedTransactionValidator: SignedTransactionValidator):
   Either[BlockExecutionError, BlockResult] = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
@@ -152,7 +149,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
       }
   }
 
-  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, blockchain: BlockchainImpl): TxResult = {
+  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader): TxResult = {
     val stateRoot = blockHeader.stateRoot
 
     val gasLimit = stx.tx.gasLimit
@@ -211,7 +208,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     TxResult(world2, gasLimit - totalGasToRefund, resultWithErrorHandling.logs, result.returnData)
   }
 
-  private def validateBlockBeforeExecution(block: Block, blockchain: Blockchain, validators: Validators): Either[BlockExecutionError, Unit] = {
+  private def validateBlockBeforeExecution(block: Block, validators: Validators): Either[BlockExecutionError, Unit] = {
     val result = for {
       _ <- validators.blockHeaderValidator.validate(block.header, blockchain)
       _ <- validators.blockValidator.validateHeaderAndBody(block.header, block.body)

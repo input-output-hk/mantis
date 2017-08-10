@@ -347,9 +347,10 @@ trait ValidatorsBuilder {
 }
 
 trait LedgerBuilder {
-  self: BlockchainConfigBuilder =>
+  self: BlockchainConfigBuilder
+    with BlockChainBuilder =>
 
-  lazy val ledger: Ledger = new LedgerImpl(VM, blockchainConfig)
+  lazy val ledger: Ledger = new LedgerImpl(VM, blockchain, blockchainConfig)
 }
 
 trait SyncControllerBuilder {

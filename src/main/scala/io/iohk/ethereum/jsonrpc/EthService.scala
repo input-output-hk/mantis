@@ -167,7 +167,7 @@ object EthService {
 }
 
 class EthService(
-    blockchain: BlockchainImpl,
+    blockchain: Blockchain,
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
     miningConfig: MiningConfig,
@@ -720,7 +720,7 @@ class EthService(
       val stx = SignedTransaction(tx, fakeSignature, fromAddress)
 
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        ledger.simulateTransaction(stx, block.header, blockchain)
+        ledger.simulateTransaction(stx, block.header)
       }
     }
 
