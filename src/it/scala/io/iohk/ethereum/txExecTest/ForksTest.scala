@@ -1,7 +1,7 @@
 package io.iohk.ethereum.txExecTest
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.domain.{BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig}
@@ -49,7 +49,8 @@ class ForksTest extends FlatSpec with Matchers {
 
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
-      ledger.executeBlock(fixtures.blockByNumber(blockToExecute), storages, validators) shouldBe noErrors
+      val blockchain = BlockchainImpl(storages)
+      ledger.executeBlock(fixtures.blockByNumber(blockToExecute), blockchain, validators) shouldBe noErrors
     }
   }
 

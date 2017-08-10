@@ -325,7 +325,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       val block = Block(blockHeader, blockBodyWithOmmers)
 
 
-      val blockExecResult = ledger.executeBlock(block, blockchainStorages, new Mocks.MockValidatorsAlwaysSucceed)
+      val blockExecResult = ledger.executeBlock(block, blockchain, new Mocks.MockValidatorsAlwaysSucceed)
       assert(blockExecResult.isRight)
     }
   }
@@ -367,7 +367,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
 
 
     assert(seqFailingValidators.forall{ validators: Validators =>
-      val blockExecResult = ledger.executeBlock(block, blockchainStorages, validators)
+      val blockExecResult = ledger.executeBlock(block, blockchain, validators)
       blockExecResult.left.forall {
         case e: ValidationBeforeExecError => true
         case _ => false
@@ -414,7 +414,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       val blockHeader: BlockHeader = validBlockHeader.copy(gasUsed = cumulativeGasUsedBlock, stateRoot = stateRootHash)
       val block = Block(blockHeader, validBlockBodyWithNoTxs)
 
-      val blockExecResult = ledger.executeBlock(block, blockchainStorages, validators)
+      val blockExecResult = ledger.executeBlock(block, blockchain, validators)
 
       assert(blockExecResult match {
         case Left(_: ValidationAfterExecError) => true
@@ -515,7 +515,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       val blockWithCorrectStateAndGasUsed = block.copy(
         header = block.header.copy(stateRoot = blockExpectedStateRoot, gasUsed = gasUsedReceipt2)
       )
-      assert(ledger.executeBlock(blockWithCorrectStateAndGasUsed, blockchainStorages, new Mocks.MockValidatorsAlwaysSucceed).isRight)
+      assert(ledger.executeBlock(blockWithCorrectStateAndGasUsed, blockchain, new Mocks.MockValidatorsAlwaysSucceed).isRight)
     }
   }
 

@@ -15,11 +15,11 @@ import scala.annotation.tailrec
 
 trait Ledger {
 
-  def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockExecutionError, Seq[Receipt]]
+  def executeBlock(block: Block, blockchain: BlockchainImpl, validators: Validators): Either[BlockExecutionError, Seq[Receipt]]
 
-  def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators): BlockPreparationResult
+  def prepareBlock(block: Block, blockchain: BlockchainImpl, validators: Validators): BlockPreparationResult
 
-  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): TxResult
+  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, blockchain: BlockchainImpl): TxResult
 }
 
 class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with Logger {
@@ -28,10 +28,8 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
   def executeBlock(
     block: Block,
-    storages: BlockchainStorages,
+    blockchain: BlockchainImpl,
     validators: Validators): Either[BlockExecutionError, Seq[Receipt]] = {
-
-    val blockchain = BlockchainImpl(storages)
 
     val blockExecResult = for {
       _ <- validateBlockBeforeExecution(block, blockchain, validators)
@@ -51,10 +49,9 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
   def prepareBlock(
     block: Block,
-    storages: BlockchainStorages,
+    blockchain: BlockchainImpl,
     validators: Validators): BlockPreparationResult = {
 
-    val blockchain = BlockchainImpl(storages)
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, parentStateRoot)
     val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header, validators.signedTransactionValidator)
@@ -155,13 +152,13 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
       }
   }
 
-  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): TxResult = {
+  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, blockchain: BlockchainImpl): TxResult = {
     val stateRoot = blockHeader.stateRoot
 
     val gasLimit = stx.tx.gasLimit
     val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
-    val world1 = BlockchainImpl(storages).getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(stateRoot))
+    val world1 = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(stateRoot))
     val world2 =
       if (world1.getAccount(stx.senderAddress).isEmpty)
         world1.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce))

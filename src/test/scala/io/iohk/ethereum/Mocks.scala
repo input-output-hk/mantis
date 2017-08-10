@@ -17,22 +17,22 @@ import io.iohk.ethereum.vm._
 
 object Mocks {
 
-  class MockLedger(shouldExecuteCorrectly: (Block, BlockchainStorages, Validators) => Boolean) extends Ledger{
-    override def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators)
+  class MockLedger(shouldExecuteCorrectly: (Block, Blockchain, Validators) => Boolean) extends Ledger{
+    override def executeBlock(block: Block, blockchain: BlockchainImpl, validators: Validators)
     : Either[BlockExecutionError, Seq[Receipt]] = {
-      if(shouldExecuteCorrectly(block, storages, validators))
+      if(shouldExecuteCorrectly(block, blockchain, validators))
         Right(Nil)
       else
         Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head,
-          StateBeforeFailure(BlockchainImpl(storages).getWorldStateProxy(0, UInt256.Zero),0,Nil),
+          StateBeforeFailure(blockchain.getWorldStateProxy(0, UInt256.Zero),0,Nil),
           "StubLedger was set to fail for this case"))
     }
 
-    override def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators): BlockPreparationResult = {
+    override def prepareBlock(block: Block, blockchain: BlockchainImpl, validators: Validators): BlockPreparationResult = {
       ???
     }
 
-    override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): Ledger.TxResult = {
+    override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, blockchain: BlockchainImpl): Ledger.TxResult = {
       ???
     }
   }

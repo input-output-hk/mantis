@@ -167,7 +167,7 @@ object EthService {
 }
 
 class EthService(
-    blockchainStorages: BlockchainStorages,
+    blockchain: BlockchainImpl,
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
     miningConfig: MiningConfig,
@@ -183,8 +183,6 @@ class EthService(
   extends Logger {
 
   import EthService._
-
-  lazy val blockchain = BlockchainImpl(blockchainStorages)
 
   val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] = new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
   val lastActive = new AtomicReference[Option[Date]](None)
@@ -545,7 +543,7 @@ class EthService(
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Future {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        val world = BlockchainImpl(blockchainStorages).getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, Some(block.header.stateRoot))
+        val world = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, Some(block.header.stateRoot))
         GetCodeResponse(world.getCode(req.address))
       }
     }
@@ -722,7 +720,7 @@ class EthService(
       val stx = SignedTransaction(tx, fakeSignature, fromAddress)
 
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        ledger.simulateTransaction(stx, block.header, blockchainStorages)
+        ledger.simulateTransaction(stx, block.header, blockchain)
       }
     }
 

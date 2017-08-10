@@ -19,8 +19,7 @@ import io.iohk.ethereum.validators.Validators
 
 class SyncController(
     val appStateStorage: AppStateStorage,
-    val blockchain: Blockchain,
-    val blockchainStorages: BlockchainStorages,
+    val blockchain: BlockchainImpl,
     val fastSyncStateStorage: FastSyncStateStorage,
     val ledger: Ledger,
     val validators: Validators,
@@ -107,8 +106,7 @@ class SyncController(
 object SyncController {
   // scalastyle:off parameter.number
   def props(appStateStorage: AppStateStorage,
-            blockchain: Blockchain,
-            blockchainStorages: BlockchainStorages,
+            blockchain: BlockchainImpl,
             syncStateStorage: FastSyncStateStorage,
             ledger: Ledger,
             validators: Validators,
@@ -116,7 +114,7 @@ object SyncController {
             pendingTransactionsManager: ActorRef,
             ommersPool: ActorRef,
             etcPeerManager: ActorRef):
-  Props = Props(new SyncController(appStateStorage, blockchain, blockchainStorages, syncStateStorage, ledger, validators,
+  Props = Props(new SyncController(appStateStorage, blockchain, syncStateStorage, ledger, validators,
     peerEventBus, pendingTransactionsManager, ommersPool, etcPeerManager))
 
   case class BlockHeadersToResolve(peer: Peer, headers: Seq[BlockHeader])

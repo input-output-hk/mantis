@@ -151,7 +151,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     override val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,
       blockchain,
-      storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       new Mocks.MockValidatorsFailingOnBlockBodies,
@@ -890,7 +889,6 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,
       blockchain,
-      storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       new Mocks.MockValidatorsAlwaysSucceed,
