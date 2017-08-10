@@ -186,5 +186,6 @@ class PersonalService(
     case KeyStore.DecryptionFailed => InvalidPassphrase
     case KeyStore.KeyNotFound => KeyNotFound
     case KeyStore.IOError(msg) => LogicError(msg)
+    case KeyStore.DuplicateKeySaved => LogicError("account already exists")
   }
 }
