@@ -5,15 +5,24 @@ import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.dataSource.{LevelDBDataSource, LevelDbConfig}
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
-import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, LedgerBuilder, ValidatorsBuilder}
+import io.iohk.ethereum.snappy.Config.{DualDB, SingleDB}
+import io.iohk.ethereum.snappy.Prerequisites._
 import io.iohk.ethereum.utils.Config.DbConfig
+import io.iohk.ethereum.validators.Validators
 
-class Prerequisites(config: Config) {
 
+object Prerequisites {
   trait NoPruning extends PruningModeComponent {
     val pruningMode = ArchivePruning
   }
+
+  trait Storages extends SharedLevelDBDataSources with NoPruning with Storages.DefaultStorages
+}
+
+class Prerequisites(config: Config) {
 
   private def levelDb(dbPath: String): LevelDBDataSource =
     LevelDBDataSource (
@@ -25,16 +34,21 @@ class Prerequisites(config: Config) {
       }
     )
 
-  val sourceStorages = new SharedLevelDBDataSources with NoPruning with Storages.DefaultStorages {
+  val sourceStorages: Storages = new Storages {
     override lazy val dataSource = levelDb(config.sourceDbPath)
   }
 
-  val targetStorages = new SharedLevelDBDataSources with NoPruning with Storages.DefaultStorages {
-    override lazy val dataSource = levelDb(config.targetDbPath)
+  val targetStorages: Option[Storages] = config.mode match {
+    case DualDB =>
+      Some(new Storages {
+        override lazy val dataSource = levelDb(config.targetDbPath)
+      })
+
+    case SingleDB => None
   }
 
-  val sourceBlockchain = BlockchainImpl(sourceStorages.storages)
-  val targetBlockchain = BlockchainImpl(targetStorages.storages)
+  val sourceBlockchain: Blockchain = BlockchainImpl(sourceStorages.storages)
+  val targetBlockchain: Option[Blockchain] = targetStorages.map(ts => BlockchainImpl(ts.storages))
 
   private val components =
     new LedgerBuilder
@@ -42,17 +56,21 @@ class Prerequisites(config: Config) {
       with BlockchainConfigBuilder
 
 
-  val ledger = components.ledger
+  val ledger: Ledger = components.ledger
 
-  val validators = components.validators
+  val validators: Validators = components.validators
 
-  val genesisLoader = new GenesisDataLoader(
-    targetStorages.dataSource,
-    BlockchainImpl(targetStorages.storages),
-    ArchivePruning,
-    components.blockchainConfig,
-    new DbConfig { val batchSize: Int = 1000 }
-  )
+  targetStorages.foreach { ts =>
+    val genesisLoader = new GenesisDataLoader(
+      ts.dataSource,
+      BlockchainImpl(ts.storages),
+      ArchivePruning,
+      components.blockchainConfig,
+      new DbConfig {
+        val batchSize: Int = 1000
+      }
+    )
 
-  genesisLoader.loadGenesisData()
+    genesisLoader.loadGenesisData()
+  }
 }

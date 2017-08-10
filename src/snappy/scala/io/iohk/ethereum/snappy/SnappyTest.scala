@@ -1,6 +1,7 @@
 package io.iohk.ethereum.snappy
 
-import io.iohk.ethereum.domain.{Block, Blockchain}
+import io.iohk.ethereum.domain.{Block, Blockchain, Receipt}
+import io.iohk.ethereum.snappy.Prerequisites.Storages
 import io.iohk.ethereum.utils.Logger
 import org.scalatest.{FreeSpec, Matchers}
 
@@ -8,14 +9,18 @@ import scala.concurrent.duration._
 
 class SnappyTest extends FreeSpec with Matchers with Logger {
 
+  val config = Config()
+  val pre = new Prerequisites(config)
+  import pre._
+
   "Blockchain regression test" in {
 
-    val config = new Config()
-    val pre = new Prerequisites(config)
-    import pre._
-
-    val startN = config.startBlock.getOrElse(findHighestBlockNumber(targetBlockchain) - 1).max(1)
+    val startN = targetBlockchain match {
+      case Some(tb) => config.startBlock.getOrElse(findHighestBlockNumber(tb) - 1).max(1)
+      case None => BigInt(1)
+    }
     val targetN = config.targetBlock.getOrElse(findHighestBlockNumber(sourceBlockchain)).max(1)
+
     val progLog = new ProgressLogger(startN, targetN, 2.seconds)
 
     progLog.start()
@@ -27,7 +32,7 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
       val expectedReceipts = sourceBlockchain.getReceiptsByHash(block.header.hash)
         .getOrElse(fail(s"Failed to retrieve receipts for block number: $n"))
 
-      val result = ledger.executeBlock(block, targetStorages.storages, validators)
+      val result = executeBlock(block)
 
       result match {
         case Left(error) =>
@@ -37,11 +42,22 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
           receipts shouldEqual expectedReceipts
       }
 
-      targetBlockchain.save(block)
-
       progLog.update(n)
     }
   }
+
+  private def executeBlock(block: Block): Either[Any, Seq[Receipt]] =
+    targetStorages match {
+      case Some(storages) =>
+        val result = ledger.executeBlock(block, storages.storages, validators)
+        targetBlockchain.foreach(_.save(block))
+        result
+
+      case None =>
+        // this seems to discard failures, for better errors messages we might want to implement a different method (simulateBlock?)
+        val result = ledger.prepareBlock(block, sourceStorages.storages, validators)
+        Right(result.blockResult.receipts)
+    }
 
   private def findHighestBlockNumber(blockchain: Blockchain, n: BigInt = 1000000, bottom: BigInt = 0, top: BigInt = -1): BigInt = {
     if (top - bottom == 1)
