@@ -379,7 +379,7 @@ trait FastSync {
       } else {
         val now = new Date
         val peers = unassignedPeers
-          .filter(p => peerRequestsTime.get(p).forall(d => d.getTime + fastSyncThrottle.toMillis > now.getTime))
+          .filter(p => peerRequestsTime.get(p).forall(d => d.getTime + fastSyncThrottle.toMillis < now.getTime))
         val blockChainPeers = blockChainOnlyPeers.toSet
         (peers -- blockChainPeers)
           .take(maxConcurrentRequests - assignedHandlers.size)
