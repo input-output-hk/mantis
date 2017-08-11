@@ -122,7 +122,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
 
     //wait for peers throttle
-    Thread.sleep(200.milliseconds.toMillis)
+    Thread.sleep(Config.Sync.fastSyncThrottle.toMillis)
     //trigger scheduling
     time.advance(2.second)
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
@@ -132,7 +132,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peerMessageBus.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer2.id))
     peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
 
-    Thread.sleep(200.milliseconds.toMillis)
+    Thread.sleep(Config.Sync.fastSyncThrottle.toMillis)
     time.advance(2.second)
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetReceipts(Seq(targetBlockHeader.hash)), peer2.id))
@@ -140,7 +140,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peerMessageBus.reply(MessageFromPeer(Receipts(Seq(Nil)), peer2.id))
     peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer2.id))))
 
-    Thread.sleep(200.milliseconds.toMillis)
+    Thread.sleep(Config.Sync.fastSyncThrottle.toMillis)
     time.advance(2.second)
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(targetBlockHeader.hash)), peer2.id))
@@ -202,7 +202,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peerMessageBus.reply(MessageFromPeer(NodeData(Seq(stateMptLeafWithAccount)), peer2.id))
     peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
 
-    Thread.sleep(200.milliseconds.toMillis)
+    Thread.sleep(Config.Sync.fastSyncThrottle.toMillis)
     time.advance(2.second)
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
       GetBlockHeaders(Left(targetBlockHeader.number), expectedTargetBlock - bestBlockHeaderNumber, 0, reverse = false),
@@ -211,7 +211,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peerMessageBus.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer2.id))
     peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
 
-    Thread.sleep(200.milliseconds.toMillis)
+    Thread.sleep(Config.Sync.fastSyncThrottle.toMillis)
     time.advance(2.second)
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetReceipts(Seq(targetBlockHeader.hash)), peer2.id))
@@ -277,7 +277,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     etcPeerManager.expectNoMsg()
 
     //wait for peers throttle
-    Thread.sleep(200.milliseconds.toMillis)
+    Thread.sleep(Config.Sync.fastSyncThrottle.toMillis)
 
     //trigger scheduling again
     time.advance(2.second)
