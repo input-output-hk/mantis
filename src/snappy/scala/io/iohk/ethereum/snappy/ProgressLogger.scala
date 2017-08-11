@@ -25,7 +25,7 @@ class ProgressLogger(startN: BigInt, targetN: BigInt, interval: FiniteDuration) 
     val elapsed = (now - startTimestamp) / 1000
     if (n - startN > 0 && elapsed > 0) {
       val r = (targetN - startN + 1).toDouble / (n - startN + 1).toDouble
-      val estimated = elapsed * r
+      val estimated = elapsed * (r - 1)
       val h = (estimated / 3600).toInt
       val m = ((estimated % 3600) / 60).toInt
       val s = (estimated % 60).toInt

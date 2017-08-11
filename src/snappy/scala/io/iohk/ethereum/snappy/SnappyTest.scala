@@ -1,7 +1,6 @@
 package io.iohk.ethereum.snappy
 
 import io.iohk.ethereum.domain.{Block, Blockchain, Receipt}
-import io.iohk.ethereum.snappy.Prerequisites.Storages
 import io.iohk.ethereum.utils.Logger
 import org.scalatest.{FreeSpec, Matchers}
 
@@ -21,7 +20,7 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
     }
     val targetN = config.targetBlock.getOrElse(findHighestBlockNumber(sourceBlockchain)).max(1)
 
-    val progLog = new ProgressLogger(startN, targetN, 2.seconds)
+    val progLog = new ProgressLogger(startN, targetN, 5.seconds)
 
     progLog.start()
 
