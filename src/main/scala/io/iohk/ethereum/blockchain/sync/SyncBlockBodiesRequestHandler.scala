@@ -7,12 +7,15 @@ import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, GetBlockBodies}
 import org.spongycastle.util.encoders.Hex
 
+import scala.concurrent.duration.FiniteDuration
+
 class SyncBlockBodiesRequestHandler(
     peer: Peer,
+    peerResponseTimeout: FiniteDuration,
     etcPeerManager: ActorRef,
     peerMessageBus: ActorRef,
     requestedHashes: Seq[ByteString])(implicit scheduler: Scheduler)
-  extends SyncRequestHandler[GetBlockBodies, BlockBodies](peer, etcPeerManager, peerMessageBus) {
+  extends SyncRequestHandler[GetBlockBodies, BlockBodies](peer, peerResponseTimeout, etcPeerManager, peerMessageBus) {
 
   override val requestMsg = GetBlockBodies(requestedHashes)
   override val responseMsgCode: Int = BlockBodies.code
@@ -45,7 +48,7 @@ class SyncBlockBodiesRequestHandler(
 }
 
 object SyncBlockBodiesRequestHandler {
-  def props(peer: Peer, etcPeerManager: ActorRef, peerMessageBus: ActorRef, requestedHashes: Seq[ByteString])
+  def props(peer: Peer, peerTimeout: FiniteDuration, etcPeerManager: ActorRef, peerMessageBus: ActorRef, requestedHashes: Seq[ByteString])
            (implicit scheduler: Scheduler): Props =
-    Props(new SyncBlockBodiesRequestHandler(peer, etcPeerManager, peerMessageBus, requestedHashes))
+    Props(new SyncBlockBodiesRequestHandler(peer, peerTimeout, etcPeerManager, peerMessageBus, requestedHashes))
 }

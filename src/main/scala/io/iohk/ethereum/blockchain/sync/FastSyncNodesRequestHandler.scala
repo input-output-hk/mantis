@@ -10,14 +10,17 @@ import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import org.spongycastle.util.encoders.Hex
 
+import scala.concurrent.duration.FiniteDuration
+
 class FastSyncNodesRequestHandler(
     peer: Peer,
+    peerResponseTimeout: FiniteDuration,
     etcPeerManager: ActorRef,
     peerMessageBus: ActorRef,
     requestedHashes: Seq[HashType],
     blockchain: Blockchain,
     nodesKeyValueStorage: NodesKeyValueStorage)(implicit scheduler: Scheduler)
-  extends SyncRequestHandler[GetNodeData, NodeData](peer, etcPeerManager, peerMessageBus) {
+  extends SyncRequestHandler[GetNodeData, NodeData](peer, peerResponseTimeout, etcPeerManager, peerMessageBus) {
 
   override val requestMsg = GetNodeData(requestedHashes.map(_.v))
   override val responseMsgCode: Int = NodeData.code
@@ -122,8 +125,8 @@ class FastSyncNodesRequestHandler(
 }
 
 object FastSyncNodesRequestHandler {
-  def props(peer: Peer, etcPeerManager: ActorRef, peerMessageBus: ActorRef,
+  def props(peer: Peer, peerTimeout: FiniteDuration, etcPeerManager: ActorRef, peerMessageBus: ActorRef,
             requestedHashes: Seq[HashType], blockchain: Blockchain, nodesKeyValueStorage: NodesKeyValueStorage)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncNodesRequestHandler(peer, etcPeerManager, peerMessageBus, requestedHashes, blockchain, nodesKeyValueStorage))
+    Props(new FastSyncNodesRequestHandler(peer, peerTimeout, etcPeerManager, peerMessageBus, requestedHashes, blockchain, nodesKeyValueStorage))
 }

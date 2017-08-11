@@ -5,13 +5,16 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 
+import scala.concurrent.duration.FiniteDuration
+
 class SyncBlockHeadersRequestHandler(
     peer: Peer,
+    peerResponseTimeout: FiniteDuration,
     etcPeerManager: ActorRef,
     peerMessageBus: ActorRef,
     val requestMsg: GetBlockHeaders,
     resolveBranches: Boolean)(implicit scheduler: Scheduler)
-  extends SyncRequestHandler[GetBlockHeaders, BlockHeaders](peer, etcPeerManager, peerMessageBus) {
+  extends SyncRequestHandler[GetBlockHeaders, BlockHeaders](peer, peerResponseTimeout, etcPeerManager, peerMessageBus) {
 
   override val responseMsgCode: Int = BlockHeaders.code
 
@@ -60,7 +63,7 @@ class SyncBlockHeadersRequestHandler(
 }
 
 object SyncBlockHeadersRequestHandler {
-  def props(peer: Peer, etcPeerManager: ActorRef, peerMessageBus: ActorRef, requestMsg: GetBlockHeaders, resolveBranches: Boolean)
+  def props(peer: Peer, peerTimeout: FiniteDuration, etcPeerManager: ActorRef, peerMessageBus: ActorRef, requestMsg: GetBlockHeaders, resolveBranches: Boolean)
            (implicit scheduler: Scheduler): Props =
-    Props(new SyncBlockHeadersRequestHandler(peer, etcPeerManager, peerMessageBus, requestMsg, resolveBranches))
+    Props(new SyncBlockHeadersRequestHandler(peer, peerTimeout, etcPeerManager, peerMessageBus, requestMsg, resolveBranches))
 }

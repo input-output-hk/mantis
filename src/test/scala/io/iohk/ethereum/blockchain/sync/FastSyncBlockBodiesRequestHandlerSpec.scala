@@ -7,7 +7,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockBody, GetBlockBodies}
 import org.scalatest.{FlatSpec, Matchers}
 import io.iohk.ethereum.blockchain.sync.SyncController.BlockBodiesReceived
@@ -83,6 +83,7 @@ class FastSyncBlockBodiesRequestHandlerSpec extends FlatSpec with Matchers {
     val fastSyncBlockBodiesRequestHandler: ActorRef =
       parent.childActorOf(SyncBlockBodiesRequestHandler.props(
         peer,
+        1.second,
         etcPeerManager.ref,
         peerMessageBus.ref,
         requestedHashes)(time.scheduler))

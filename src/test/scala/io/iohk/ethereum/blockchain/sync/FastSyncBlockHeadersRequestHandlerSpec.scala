@@ -50,6 +50,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
     val resolver: ActorRef = {
       parent.childActorOf(SyncBlockHeadersRequestHandler.props(
         resolverPeer,
+        1.second,
         etcPeerManager.ref,
         peerMessageBus.ref,
         request,
@@ -118,6 +119,7 @@ class FastSyncBlockHeadersRequestHandlerSpec extends FlatSpec with Matchers {
       val request = GetBlockHeaders(Left(block), maxHeaders, skip = 0, reverse = false)
       parent.childActorOf(SyncBlockHeadersRequestHandler.props(
         peer,
+        1.second,
         etcPeerManager.ref,
         peerMessageBus.ref,
         request,

@@ -94,31 +94,60 @@ object Config {
 
   }
 
-  object Sync {
-    private val syncConfig = config.getConfig("sync")
+  trait SyncConfig {
+    val doFastSync: Boolean
 
-    val doFastSync: Boolean = syncConfig.getBoolean("do-fast-sync")
+    val peersScanInterval: FiniteDuration
+    val blacklistDuration: FiniteDuration
+    val startRetryInterval: FiniteDuration
+    val syncRetryInterval: FiniteDuration
+    val peerResponseTimeout: FiniteDuration
+    val printStatusInterval: FiniteDuration
 
-    val peersScanInterval: FiniteDuration = syncConfig.getDuration("peers-scan-interval").toMillis.millis
-    val blacklistDuration: FiniteDuration = syncConfig.getDuration("blacklist-duration").toMillis.millis
-    val startRetryInterval: FiniteDuration = syncConfig.getDuration("start-retry-interval").toMillis.millis
-    val syncRetryInterval: FiniteDuration = syncConfig.getDuration("sync-retry-interval").toMillis.millis
-    val peerResponseTimeout: FiniteDuration = syncConfig.getDuration("peer-response-timeout").toMillis.millis
-    val printStatusInterval: FiniteDuration = syncConfig.getDuration("print-status-interval").toMillis.millis
+    val maxConcurrentRequests: Int
+    val blockHeadersPerRequest: Int
+    val blockBodiesPerRequest: Int
+    val receiptsPerRequest: Int
+    val nodesPerRequest: Int
+    val minPeersToChooseTargetBlock: Int
+    val targetBlockOffset: Int
+    val persistStateSnapshotInterval: FiniteDuration
 
-    val maxConcurrentRequests: Int = syncConfig.getInt("max-concurrent-requests")
-    val blockHeadersPerRequest: Int = syncConfig.getInt("block-headers-per-request")
-    val blockBodiesPerRequest: Int = syncConfig.getInt("block-bodies-per-request")
-    val receiptsPerRequest: Int = syncConfig.getInt("receipts-per-request")
-    val nodesPerRequest: Int = syncConfig.getInt("nodes-per-request")
-    val minPeersToChooseTargetBlock: Int = syncConfig.getInt("min-peers-to-choose-target-block")
-    val targetBlockOffset: Int = syncConfig.getInt("target-block-offset")
-    val persistStateSnapshotInterval: FiniteDuration =
-      syncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis
+    val checkForNewBlockInterval: FiniteDuration
+    val blockResolvePerRequest: Int
+    val blockChainOnlyPeersPoolSize: Int
+    val branchMaxDepthResolving: Int
+  }
 
-    val checkForNewBlockInterval: FiniteDuration = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis
-    val blockResolveDepth: Int = syncConfig.getInt("block-resolving-depth")
-    val blockChainOnlyPeersPoolSize: Int = syncConfig.getInt("fastsync-block-chain-only-peers-pool")
+  object SyncConfig {
+    def apply(etcClientConfig: TypesafeConfig): SyncConfig = {
+      val syncConfig = etcClientConfig.getConfig("sync")
+      new SyncConfig {
+        val doFastSync: Boolean = syncConfig.getBoolean("do-fast-sync")
+
+        val peersScanInterval: FiniteDuration = syncConfig.getDuration("peers-scan-interval").toMillis.millis
+        val blacklistDuration: FiniteDuration = syncConfig.getDuration("blacklist-duration").toMillis.millis
+        val startRetryInterval: FiniteDuration = syncConfig.getDuration("start-retry-interval").toMillis.millis
+        val syncRetryInterval: FiniteDuration = syncConfig.getDuration("sync-retry-interval").toMillis.millis
+        val peerResponseTimeout: FiniteDuration = syncConfig.getDuration("peer-response-timeout").toMillis.millis
+        val printStatusInterval: FiniteDuration = syncConfig.getDuration("print-status-interval").toMillis.millis
+
+        val maxConcurrentRequests: Int = syncConfig.getInt("max-concurrent-requests")
+        val blockHeadersPerRequest: Int = syncConfig.getInt("block-headers-per-request")
+        val blockBodiesPerRequest: Int = syncConfig.getInt("block-bodies-per-request")
+        val receiptsPerRequest: Int = syncConfig.getInt("receipts-per-request")
+        val nodesPerRequest: Int = syncConfig.getInt("nodes-per-request")
+        val minPeersToChooseTargetBlock: Int = syncConfig.getInt("min-peers-to-choose-target-block")
+        val targetBlockOffset: Int = syncConfig.getInt("target-block-offset")
+        val persistStateSnapshotInterval: FiniteDuration =
+          syncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis
+
+        val checkForNewBlockInterval: FiniteDuration = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis
+        val blockResolvePerRequest: Int = syncConfig.getInt("block-resolving-per-request")
+        val blockChainOnlyPeersPoolSize: Int = syncConfig.getInt("fastsync-block-chain-only-peers-pool")
+        val branchMaxDepthResolving: Int = syncConfig.getInt("branch-max-depth-resolving")
+      }
+    }
   }
 
   trait DbConfig {

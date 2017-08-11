@@ -14,7 +14,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerDis
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.validators.Validators
 
 class SyncController(
@@ -24,6 +24,7 @@ class SyncController(
     val fastSyncStateStorage: FastSyncStateStorage,
     val ledger: Ledger,
     val validators: Validators,
+    val syncConfig: SyncConfig,
     val peerEventBus: ActorRef,
     val pendingTransactionsManager: ActorRef,
     val ommersPool: ActorRef,
@@ -36,8 +37,8 @@ class SyncController(
     with RegularSync {
 
   import BlacklistSupport._
-  import Config.Sync._
   import SyncController._
+  import syncConfig._
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
@@ -112,12 +113,13 @@ object SyncController {
             syncStateStorage: FastSyncStateStorage,
             ledger: Ledger,
             validators: Validators,
+            syncConfig: SyncConfig,
             peerEventBus: ActorRef,
             pendingTransactionsManager: ActorRef,
             ommersPool: ActorRef,
             etcPeerManager: ActorRef):
   Props = Props(new SyncController(appStateStorage, blockchain, blockchainStorages, syncStateStorage, ledger, validators,
-    peerEventBus, pendingTransactionsManager, ommersPool, etcPeerManager))
+    syncConfig, peerEventBus, pendingTransactionsManager, ommersPool, etcPeerManager))
 
   case class BlockHeadersToResolve(peer: Peer, headers: Seq[BlockHeader])
 
