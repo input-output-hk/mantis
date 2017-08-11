@@ -52,8 +52,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val response = ethService.protocolVersion(ProtocolVersionRequest())
     val protocolVersion = response.futureValue.right.get.value
 
-    protocolVersion shouldEqual "0x3f"
-    Integer.parseInt(protocolVersion.drop(2), 16) shouldEqual EthService.CurrentProtocolVersion
+    Integer.parseInt(protocolVersion.drop(2), 16) shouldEqual currentProtocolVersion
   }
 
   it should "answer eth_getBlockTransactionCountByHash with None when the requested block isn't in the blockchain" in new TestSetup {
@@ -787,8 +786,10 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
+    val currentProtocolVersion = 11
+
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig, blockchainConfig)
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig, blockchainConfig, currentProtocolVersion)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number

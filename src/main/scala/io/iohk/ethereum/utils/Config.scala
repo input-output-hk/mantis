@@ -38,7 +38,7 @@ object Config {
   object Network {
     private val networkConfig = config.getConfig("network")
 
-    val protocolVersion = networkConfig.getString("protocol-version")
+    val protocolVersion = networkConfig.getInt("protocol-version")
 
     object Server {
       private val serverConfig = networkConfig.getConfig("server-address")
