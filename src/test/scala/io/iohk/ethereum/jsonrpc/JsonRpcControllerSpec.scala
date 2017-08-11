@@ -97,13 +97,15 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "Handle net_version request" in new TestSetup {
-    (netService.version _).expects(*).returning(Future.successful(Right(VersionResponse("99"))))
+    val netVersion = "99"
+
+    (netService.version _).expects(*).returning(Future.successful(Right(VersionResponse(netVersion))))
 
     val rpcRequest = JsonRpcRequest("2.0", "net_version", None, Some(1))
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.result shouldBe Some(JString("99"))
+    response.result shouldBe Some(JString(netVersion))
   }
 
   it should "eth_protocolVersion" in new TestSetup {
@@ -1313,12 +1315,15 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
+    val currentProtocolVersion = 63
+
     val appStateStorage = mock[AppStateStorage]
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
     val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig, blockchainConfig)
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
+      blockchainConfig, currentProtocolVersion)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 
     val blockHeader = BlockHeader(

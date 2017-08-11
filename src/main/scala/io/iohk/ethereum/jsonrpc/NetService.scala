@@ -36,9 +36,8 @@ object NetService {
 class NetService(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef, config: NetServiceConfig) {
   import NetService._
 
-  def version(req: VersionRequest): ServiceResponse[VersionResponse] = {
-    Future.successful(Right(VersionResponse(Config.Network.protocolVersion)))
-  }
+  def version(req: VersionRequest): ServiceResponse[VersionResponse] =
+    Future.successful(Right(VersionResponse(Config.Network.peer.networkId.toString)))
 
   def listening(req: ListeningRequest): ServiceResponse[ListeningResponse] = {
     Future.successful {
