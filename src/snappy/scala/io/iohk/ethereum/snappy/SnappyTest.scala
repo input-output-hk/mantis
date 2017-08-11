@@ -38,7 +38,11 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
           fail(s"Failed to execute block $n: $error")
 
         case Right(receipts) =>
-          receipts shouldEqual expectedReceipts
+          if (receipts == expectedReceipts) {
+            targetBlockchain.foreach(_.save(block))
+          } else {
+            fail(s"Block $n did not execute correctly.\n$receipts did not equal $expectedReceipts")
+          }
       }
 
       progLog.update(n)
@@ -48,9 +52,7 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
   private def executeBlock(block: Block): Either[Any, Seq[Receipt]] =
     targetStorages match {
       case Some(storages) =>
-        val result = ledger.executeBlock(block, storages.storages, validators)
-        targetBlockchain.foreach(_.save(block))
-        result
+        ledger.executeBlock(block, storages.storages, validators)
 
       case None =>
         // this seems to discard failures, for better errors messages we might want to implement a different method (simulateBlock?)
@@ -63,7 +65,7 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
       n
 
     else if (top < 0) {
-      def candidates(n: BigInt): Stream[BigInt] = n #:: candidates(n + 100000)
+      def candidates(n: BigInt): Stream[BigInt] = n #:: candidates(n + 1000000)
       val newTop = candidates(1).find(n => blockchain.getBlockByNumber(n).isEmpty).get
       findHighestBlockNumber(blockchain, newTop / 2, 0, newTop)
     }
