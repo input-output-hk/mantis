@@ -30,6 +30,19 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
     listAfterImport.length shouldEqual 2
   }
 
+  it should "fail to import a key twice" in new TestSetup {
+    val resAfterFirstImport = keyStore.importPrivateKey(key1, "aaa")
+    val resAfterDupImport = keyStore.importPrivateKey(key1, "aaa")
+
+    resAfterFirstImport shouldEqual Right(addr1)
+    resAfterDupImport shouldBe Left(KeyStore.DuplicateKeySaved)
+
+    //Only the first import succeeded
+    val listAfterImport = keyStore.listAccounts().right.get
+    listAfterImport.toSet shouldEqual Set(addr1)
+    listAfterImport.length shouldEqual 1
+  }
+
   it should "create new accounts" in new TestSetup {
     val newAddr1 = keyStore.newAccount("aaa").right.get
     val newAddr2 = keyStore.newAccount("bbb").right.get
