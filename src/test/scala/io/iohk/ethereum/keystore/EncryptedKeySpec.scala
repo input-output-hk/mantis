@@ -35,7 +35,7 @@ class EncryptedKeySpec extends FlatSpec with Matchers with SecureRandomBuilder {
     """{
       |  "id": "20909a42-09c4-0740-02dc-a0b8cbaea688",
       |  "version": 3,
-      |  "crypto": {
+      |  "Crypto": {
       |    "cipher": "aes-128-ctr",
       |    "cipherparams": {
       |      "iv": "68521b4d5fc5ecf83bbe24768a321fe5"
