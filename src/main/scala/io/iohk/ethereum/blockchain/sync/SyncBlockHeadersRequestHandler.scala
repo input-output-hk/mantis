@@ -31,10 +31,7 @@ class SyncBlockHeadersRequestHandler(
         syncController ! SyncController.BlockHeadersToResolve(peer, headers)
         log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
       } else {
-        val blockHashes = headers.map(_.hash)
         syncController ! SyncController.BlockHeadersReceived(peer, headers)
-        syncController ! FastSync.EnqueueBlockBodies(blockHashes)
-        syncController ! FastSync.EnqueueReceipts(blockHashes)
         log.info("Received {} block headers in {} ms", headers.size, timeTakenSoFar())
       }
     } else {
