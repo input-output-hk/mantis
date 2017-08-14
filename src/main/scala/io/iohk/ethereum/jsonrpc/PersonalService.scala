@@ -77,6 +77,7 @@ class PersonalService(
 
   def newAccount(req: NewAccountRequest): ServiceResponse[NewAccountResponse] = Future {
     println("test")
+    println("test")
     keyStore.newAccount(req.passphrase)
       .map(NewAccountResponse.apply)
       .left.map(handleError)
