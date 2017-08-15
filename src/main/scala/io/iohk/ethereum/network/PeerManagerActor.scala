@@ -94,7 +94,7 @@ class PeerManagerActor(
 
       if (nodesToConnect.nonEmpty) {
         log.debug("Trying to connect to {} nodes", nodesToConnect.size)
-        nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
+        nodesToConnect.foreach(n => self ! ConnectToPeer(n.node.toUri))
       }
   }
 

@@ -9,7 +9,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{ByteUtils, NodeStatus, ServerStatus}
-import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -21,15 +20,14 @@ class PeerDiscoveryManager(
 
   import PeerDiscoveryManager._
 
-  var nodes: Map[ByteString, Node] = {
-    val uris = discoveryConfig.bootstrapNodes.map(new URI(_)) ++
-      (if (discoveryConfig.discoveryEnabled) knownNodesStorage.getKnownNodes()
-      else Set.empty)
+  var nodes: Map[ByteString, NodeWithTimestamp] = {
+    val bootStrapNodes = discoveryConfig.bootstrapNodes.map(NodeWithTimestamp.fromNode)
+    val knownNodesURIs =
+      if (discoveryConfig.discoveryEnabled) knownNodesStorage.getKnownNodes()
+      else Set.empty
+    val nodes = bootStrapNodes ++ knownNodesURIs.map(NodeWithTimestamp.fromUri)
 
-    uris.map { uri =>
-      val node = Node.fromUri(uri)
-      node.id -> node
-    }.toMap
+    nodes.map { node => node.id -> node }.toMap
   }
 
   if (discoveryConfig.discoveryEnabled) {
@@ -50,7 +48,7 @@ class PeerDiscoveryManager(
       sendMessage(Pong(to, packet.mdc, expirationTimestamp), from)
 
     case DiscoveryListener.MessageReceived(pong: Pong, from, packet) =>
-      val newNode = Node(packet.nodeId, from, System.currentTimeMillis())
+      val newNode = NodeWithTimestamp.fromNode(Node(packet.nodeId, from))
 
       if (nodes.size < discoveryConfig.nodesLimit) {
         nodes += newNode.id -> newNode
@@ -113,22 +111,24 @@ object PeerDiscoveryManager {
             nodeStatusHolder: Agent[NodeStatus]): Props =
     Props(new PeerDiscoveryManager(discoveryListener, discoveryConfig, knownNodesStorage, nodeStatusHolder))
 
-  object Node {
+  object NodeWithTimestamp {
 
-    def fromUri(uri: URI): Node = {
-      val nodeId = ByteString(Hex.decode(uri.getUserInfo))
-      Node(nodeId, new InetSocketAddress(uri.getHost, uri.getPort), System.currentTimeMillis())
-    }
+    def fromUri(uri: URI): NodeWithTimestamp = fromNode(Node.fromUri(uri))
+
+    def fromNode(node: Node): NodeWithTimestamp = NodeWithTimestamp(node, System.currentTimeMillis())
+
   }
 
-  case class Node(id: ByteString, addr: InetSocketAddress, addTimestamp: Long) {
-    def toUri: URI = {
-      new URI(s"enode://${Hex.toHexString(id.toArray[Byte])}@${addr.getAddress.getHostAddress}:${addr.getPort}")
-    }
+  case class NodeWithTimestamp(node: Node, addTimestamp: Long) {
+
+    def id: ByteString = node.id
+
+    def addr: InetSocketAddress = node.address
+
   }
 
   case object GetDiscoveredNodes
-  case class DiscoveredNodes(nodes: Set[Node])
+  case class DiscoveredNodes(nodes: Set[NodeWithTimestamp])
 
   private case object Scan
 }
