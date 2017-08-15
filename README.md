@@ -4,9 +4,10 @@
  
 ### Status - Beta 1 
 
-Continuous Integration Build Status [![CircleCI](https://circleci.com/gh/input-output-hk/etc-client/tree/master.svg?style=svg)](https://circleci.com/gh/input-output-hk/etc-client/tree/master)
+Continuous Integration Build Status [![CircleCI](https://circleci.com/gh/input-output-hk/mantis/tree/master.svg?style=svg)](https://circleci.com/gh/input-output-hk/mantis/tree/master)
 
-Unit Test Code Coverage Status [![Coverage Status](https://coveralls.io/repos/github/input-output-hk/etc-client/badge.svg?branch=master)](https://coveralls.io/github/input-output-hk/etc-client?branch=master)
+Unit Test Code Coverage Status [![Coverage Status](https://coveralls.io/repos/github/input-output-hk/mantis/badge.svg?branch=master)](https://coveralls.io/github/input-output-hk/mantis?branch=master)
+
 
 This version of the code supports 
 
@@ -19,13 +20,13 @@ This version of the code supports
   
 This version has been tested on Windows 10, Linux and MacOS     
 
-For more details on configuration and functionality check out our [wiki](http://mantis.readthedocs.io) (also at [wiki](https://github.com/input-output-hk/etc-client/wiki))
+For more details on configuration and functionality check out our [wiki](http://mantis.readthedocs.io) (also at [wiki](https://github.com/input-output-hk/mantis/wiki))
 
 ### Download the client and bootstrap files
 
-The latest release can be downloaded from [here](https://github.com/input-output-hk/etc-client/releases)
+The latest release can be downloaded from [here](https://github.com/input-output-hk/mantis/releases)
 
-The bootstrap database files can be downloaded from [here](https://github.com/input-output-hk/etc-client/wiki/Bootstrap-Database-Download-Links)
+The bootstrap database files can be downloaded from [here](https://github.com/input-output-hk/mantis/wiki/Bootstrap-Database-Download-Links)
     
 ### Building the client 
 
@@ -114,7 +115,7 @@ Uncomment and edit `datadir` to read
 datadir = "/mydata"
 ```
 
-For more details on configuration and functionality check out our [wiki](http://mantis.readthedocs.io) (also at [wiki](https://github.com/input-output-hk/etc-client/wiki)) 
+For more details on configuration and functionality check out our [wiki](http://mantis.readthedocs.io) (also at [wiki](https://github.com/input-output-hk/mantis/wiki)) 
 
 ### Uninstall 
 
