@@ -4,7 +4,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.BlockBodiesStorage.BlockBodyHash
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
@@ -55,7 +54,6 @@ object BlockBodiesStorage {
 
 
   private[BlockBodiesStorage] def toBytes(blockBody: BlockBody): IndexedSeq[Byte] = {
-    import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
     encode(BlockBody.blockBodyToRlpEncodable(
       blockBody,
       signedTransactionToBytes,
@@ -64,7 +62,6 @@ object BlockBodiesStorage {
   }
 
   private[BlockBodiesStorage] def fromBytes(bytes: Array[Byte]): BlockBody = {
-    import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
     BlockBody.rlpEncodableToBlockBody(
       rawDecode(bytes),
       signedTransactionFromEncodable,
