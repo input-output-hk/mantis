@@ -55,11 +55,11 @@ object NodeParser {
       }
 
       if(scheme != NodeScheme)
-        Failure(throw new Exception(s"Invalid node scheme $scheme, it should be $NodeScheme"))
+        Failure(new Exception(s"Invalid node scheme $scheme, it should be $NodeScheme"))
       else if(nodeId.size != NodeIdSize)
-        Failure(throw new Exception(s"Invalid nodeId size ${nodeId.size}, it should be $NodeIdSize bytes long"))
+        Failure(new Exception(s"Invalid nodeId size ${nodeId.size}, it should be $NodeIdSize bytes long"))
       else if(!hasIPV4Version) //FIXME: We currently don't support IPv6 nodes [EC-295]
-        Failure(throw new Exception(s"Invalid host $host, only IPv4 addresses are currently supported"))
+        Failure(new Exception(s"Invalid host $host, only IPv4 addresses are currently supported"))
       else
         Success(NodeImpl(nodeId, address))
     }
