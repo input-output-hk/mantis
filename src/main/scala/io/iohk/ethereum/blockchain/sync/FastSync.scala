@@ -1,7 +1,12 @@
 package io.iohk.ethereum.blockchain.sync
 
+
+import java.time.Instant
+import java.util.Date
+
 import akka.actor._
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.FastSync.ReceiptsValidationResult.{ReceiptsDbError, ReceiptsInvalid, ReceiptsValid}
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader, Receipt}
@@ -15,10 +20,12 @@ import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.Sync._
 import io.iohk.ethereum.validators.BlockValidator
+import io.iohk.ethereum.validators.BlockValidator.BlockError
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 trait FastSync {
   selfSyncController: SyncController =>
@@ -163,6 +170,7 @@ trait FastSync {
     private var syncState = initialSyncState
 
     private var assignedHandlers: Map[ActorRef, Peer] = Map.empty
+    private var peerRequestsTime: Map[Peer, Instant] = Map.empty
 
     private val syncStateStorageActor = context.actorOf(Props[FastSyncStateActor], "state-storage")
 
@@ -175,7 +183,10 @@ trait FastSync {
 
     private var blockChainOnlyPeers: Seq[Peer] = Nil
 
-    private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotInterval, persistStateSnapshotInterval, self, PersistSyncState)
+    //Delay before starting to persist snapshot. It should be 0, as the presence of it marks that fast sync was started
+    private val persistStateSnapshotDelay: FiniteDuration = 0.seconds
+
+    private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotDelay, persistStateSnapshotInterval, self, PersistSyncState)
     private val heartBeat = scheduler.schedule(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
 
     def receive: Receive = handlePeerUpdates orElse {
@@ -219,6 +230,8 @@ trait FastSync {
 
     private def removeRequestHandler(handler: ActorRef): Unit = {
       context unwatch handler
+      val peer = assignedHandlers(handler)
+      peerRequestsTime -= peer
       assignedHandlers -= handler
     }
 
@@ -242,12 +255,7 @@ trait FastSync {
             blacklist(peer.id, blacklistDuration, s"responded with block bodies not matching block headers, blacklisting for $blacklistDuration")
             syncState = syncState.enqueueBlockBodies(requestedHashes)
           case DbError =>
-            syncState = syncState.copy(
-              blockBodiesQueue = Nil,
-              receiptsQueue = Nil,
-              // todo adjust the formula to minimize redownloaded block headers
-              bestBlockHeaderNumber = syncState.bestBlockHeaderNumber - 2 * blockHeadersPerRequest)
-            log.debug("missing block header for known hash")
+            redownloadBlockchain()
         }
       }
 
@@ -255,22 +263,61 @@ trait FastSync {
     }
 
     private def handleReceipts(peer: Peer, requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]]) = {
-      (requestedHashes zip receipts).foreach { case (hash, receiptsForBlock) => blockchain.save(hash, receiptsForBlock) }
+      validateReceipts(requestedHashes, receipts) match {
+        case ReceiptsValid(blockHashesWithReceipts) =>
+          blockHashesWithReceipts.foreach { case (hash, receiptsForBlock) =>
+            blockchain.save(hash, receiptsForBlock)
+          }
 
-      val receivedHashes = requestedHashes.take(receipts.size)
-      updateBestBlockIfNeeded(receivedHashes)
+          val receivedHashes = blockHashesWithReceipts.unzip._1
+          updateBestBlockIfNeeded(receivedHashes)
 
-      if (receipts.isEmpty) {
-        val reason = s"got empty receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
-        blacklist(peer.id, blacklistDuration, reason)
-      }
+          if (receipts.isEmpty) {
+            val reason = s"got empty receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
+            blacklist(peer.id, blacklistDuration, reason)
+          }
 
-      val remainingReceipts = requestedHashes.drop(receipts.size)
-      if (remainingReceipts.nonEmpty) {
-        syncState = syncState.enqueueReceipts(remainingReceipts)
+          val remainingReceipts = requestedHashes.drop(receipts.size)
+          if (remainingReceipts.nonEmpty) {
+            syncState = syncState.enqueueReceipts(remainingReceipts)
+          }
+
+        case ReceiptsInvalid(error) =>
+          val reason =
+            s"got invalid receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}" +
+              s" due to: $error"
+          blacklist(peer.id, blacklistDuration, reason)
+          syncState = syncState.enqueueReceipts(requestedHashes)
+
+        case ReceiptsDbError =>
+          redownloadBlockchain()
       }
 
       processSyncing()
+    }
+
+    /**
+      * Validates whether the received receipts match the block headers stored on the blockchain,
+      * returning the valid receipts
+      *
+      * @param requestedHashes hash of the blocks to which the requested receipts should belong
+      * @param receipts received by the peer
+      * @return the valid receipts or the error encountered while validating them
+      */
+    private def validateReceipts(requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]]): ReceiptsValidationResult = {
+      val blockHashesWithReceipts = requestedHashes.zip(receipts)
+      val blockHeadersWithReceipts = blockHashesWithReceipts.map{ case (hash, blockReceipts) =>
+        blockchain.getBlockHeaderByHash(hash) -> blockReceipts }
+
+      val receiptsValidationError = blockHeadersWithReceipts.collectFirst {
+        case (Some(header), receipt) if validators.blockValidator.validateBlockAndReceipts(header, receipt).isLeft =>
+          ReceiptsInvalid(validators.blockValidator.validateBlockAndReceipts(header, receipt).left.get)
+        case (None, _) => ReceiptsDbError
+      }
+      receiptsValidationError match {
+        case Some(error) => error
+        case None => ReceiptsValid(blockHashesWithReceipts)
+      }
     }
 
     private def handleNodeData(peer: Peer, requestedHashes: Seq[HashType], nodeData: NodeData) = {
@@ -379,6 +426,19 @@ trait FastSync {
       }
     }
 
+    /**
+      * Restarts download from a few blocks behind the current best block header, as an unexpected DB error happened
+      */
+    private def redownloadBlockchain(): Unit = {
+      syncState = syncState.copy(
+        blockBodiesQueue = Seq.empty,
+          receiptsQueue = Seq.empty,
+          //todo adjust the formula to minimize redownloaded block headers
+          bestBlockHeaderNumber = (syncState.bestBlockHeaderNumber - 2 * blockHeadersPerRequest).max(0)
+      )
+      log.debug("missing block header for known hash")
+    }
+
     private def persistSyncState(): Unit = {
       syncStateStorageActor ! syncState.copy(
         mptNodesQueue = requestedMptNodes.values.flatten.toSeq.distinct ++ syncState.mptNodesQueue,
@@ -474,6 +534,7 @@ trait FastSync {
       appStateStorage.fastSyncDone()
       context become idle
       blockChainOnlyPeers = Seq.empty
+      peerRequestsTime = Map.empty
       self ! FastSyncDone
     }
 
@@ -493,7 +554,9 @@ trait FastSync {
           scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
       } else {
+        val now = Instant.now()
         val peers = unassignedPeers
+          .filter(p => peerRequestsTime.get(p).forall(d => d.plusMillis(fastSyncThrottle.toMillis).isBefore(now)))
         val blockChainPeers = blockChainOnlyPeers.toSet
         (peers -- blockChainPeers)
           .take(maxConcurrentRequests - assignedHandlers.size)
@@ -537,6 +600,7 @@ trait FastSync {
 
       context watch handler
       assignedHandlers += (handler -> peer)
+      peerRequestsTime += (peer -> Instant.now())
       syncState = syncState.copy(receiptsQueue = remainingReceipts)
       requestedReceipts += handler -> receiptsToGet
     }
@@ -552,6 +616,7 @@ trait FastSync {
 
       context watch handler
       assignedHandlers += (handler -> peer)
+      peerRequestsTime += (peer -> Instant.now())
       syncState = syncState.copy(blockBodiesQueue = remainingBlockBodies)
       requestedBlockBodies += handler -> blockBodiesToGet
     }
@@ -570,6 +635,7 @@ trait FastSync {
 
       context watch handler
       assignedHandlers += (handler -> peer)
+      peerRequestsTime += (peer -> Instant.now())
     }
 
     def requestNodes(peer: Peer): Unit = {
@@ -585,6 +651,7 @@ trait FastSync {
 
       context watch handler
       assignedHandlers += (handler -> peer)
+      peerRequestsTime += (peer -> Instant.now())
       syncState = syncState.copy(
         nonMptNodesQueue = remainingNonMptNodes,
         mptNodesQueue = remainingMptNodes)
@@ -676,4 +743,11 @@ object FastSync {
   case class ContractStorageMptNodeHash(v: ByteString) extends HashType
   case class EvmCodeHash(v: ByteString) extends HashType
   case class StorageRootHash(v: ByteString) extends HashType
+
+  sealed trait ReceiptsValidationResult
+  object ReceiptsValidationResult {
+    case class ReceiptsValid(blockHashesAndReceipts: Seq[(ByteString, Seq[Receipt])]) extends ReceiptsValidationResult
+    case class ReceiptsInvalid(error: BlockError) extends ReceiptsValidationResult
+    case object ReceiptsDbError extends ReceiptsValidationResult
+  }
 }
