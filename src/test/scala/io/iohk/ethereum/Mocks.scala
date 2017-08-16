@@ -56,7 +56,7 @@ object Mocks {
   class MockValidatorsFailingOnBlockBodies extends MockValidatorsAlwaysSucceed {
 
     override val blockValidator: BlockValidator = new BlockValidator {
-      override def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]) = Right(block)
+      override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Right(())
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
     }
   }
@@ -64,7 +64,7 @@ object Mocks {
   class MockValidatorsAlwaysSucceed extends Validators {
 
     override val blockValidator: BlockValidator = new BlockValidator {
-      override def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]) = Right(block)
+      override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Right(())
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Right(Block(blockHeader, blockBody))
     }
 
@@ -75,6 +75,8 @@ object Mocks {
     override val signedTransactionValidator: SignedTransactionValidator =
       (stx: SignedTransaction, account: Account, blockHeader: BlockHeader, upfrontGasCost: UInt256, accumGasLimit: BigInt) => Right(())
   }
+
+  object MockValidatorsAlwaysSucceed extends MockValidatorsAlwaysSucceed
 
   object MockValidatorsAlwaysFail extends Validators {
     override val signedTransactionValidator = new SignedTransactionValidator {
@@ -92,7 +94,7 @@ object Mocks {
 
     override val blockValidator = new BlockValidator {
       def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
-      def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
+      def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
     }
   }
 
