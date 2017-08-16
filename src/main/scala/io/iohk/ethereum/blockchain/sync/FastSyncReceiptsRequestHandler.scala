@@ -5,7 +5,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSyncReceiptsRequestHandler.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.FastSyncReceiptsRequestHandler.ReceiptsValidationResult._
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{Blockchain, Receipt}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetReceipts, Receipts}
 import io.iohk.ethereum.validators.BlockValidator
@@ -27,12 +27,12 @@ class FastSyncReceiptsRequestHandler(
 
   override def handleResponseMsg(receipts: Receipts): Unit = {
     validateReceipts(requestedHashes, receipts) match {
-      case ReceiptsValid =>
-        (requestedHashes zip receipts.receiptsForBlocks).foreach { case (hash, receiptsForBlock) =>
+      case ReceiptsValid(blockHashesWithReceipts) =>
+        blockHashesWithReceipts.foreach { case (hash, receiptsForBlock) =>
           blockchain.save(hash, receiptsForBlock)
         }
 
-        val receivedHashes = requestedHashes.take(receipts.receiptsForBlocks.size)
+        val receivedHashes = blockHashesWithReceipts.unzip._1
         updateBestBlockIfNeeded(receivedHashes)
 
         if (receipts.receiptsForBlocks.isEmpty) {
@@ -77,28 +77,27 @@ class FastSyncReceiptsRequestHandler(
   }
 
   /**
-    * Validates whether the received receipts match the block headers stored on the blockchain
+    * Validates whether the received receipts match the block headers stored on the blockchain,
+    * returning the valid receipts
     *
     * @param requestedHashes hash of the blocks to which the requested receipts should belong
     * @param receipts received by the peer
-    * @return whether the receipts are valid or not
+    * @return the valid receipts or the error encountered while validating them
     */
   private def validateReceipts(requestedHashes: Seq[ByteString], receipts: Receipts): ReceiptsValidationResult = {
-    val expectedAnsweredHashes = requestedHashes.take(receipts.receiptsForBlocks.size)
-    val blockHeaders = expectedAnsweredHashes.flatMap(hash => blockchain.getBlockHeaderByHash(hash))
+    val blockHashesWithReceipts = requestedHashes.zip(receipts.receiptsForBlocks)
+    val blockHeadersWithReceipts = blockHashesWithReceipts.map{ case (hash, blockReceipts) =>
+      blockchain.getBlockHeaderByHash(hash) -> blockReceipts }
 
-    if(blockHeaders.size == expectedAnsweredHashes.size) {
-      val receiptValidationResult: Option[BlockError] = blockHeaders.zip(receipts.receiptsForBlocks)
-        .collectFirst{case (header, receipt) if blockValidator.validateBlockAndReceipts(header, receipt).isLeft =>
-          blockValidator.validateBlockAndReceipts(header, receipt).left.get
-        }
-
-      receiptValidationResult match {
-        case Some(error) => ReceiptsInvalid(error)
-        case None => ReceiptsValid
-      }
-    } else
-      ReceiptsDbError
+    val receiptsValidationError = blockHeadersWithReceipts.collectFirst {
+      case (Some(header), receipt) if blockValidator.validateBlockAndReceipts(header, receipt).isLeft =>
+        ReceiptsInvalid(blockValidator.validateBlockAndReceipts(header, receipt).left.get)
+      case (None, _) => ReceiptsDbError
+    }
+    receiptsValidationError match {
+      case Some(error) => error
+      case None => ReceiptsValid(blockHashesWithReceipts)
+    }
   }
 
   override def handleTimeout(): Unit = {
@@ -123,7 +122,7 @@ object FastSyncReceiptsRequestHandler {
 
   sealed trait ReceiptsValidationResult
   object ReceiptsValidationResult {
-    case object ReceiptsValid extends ReceiptsValidationResult
+    case class ReceiptsValid(blockHashesAndReceipts: Seq[(ByteString, Seq[Receipt])]) extends ReceiptsValidationResult
     case class ReceiptsInvalid(error: BlockError) extends ReceiptsValidationResult
     case object ReceiptsDbError extends ReceiptsValidationResult
   }
