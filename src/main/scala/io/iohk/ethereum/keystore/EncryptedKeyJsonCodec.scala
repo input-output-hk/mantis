@@ -5,10 +5,11 @@ import java.util.UUID
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.EncryptedKey._
+import org.json4s
 import org.json4s.JsonAST.{JObject, JString, JValue}
 import org.json4s.JsonDSL._
 import org.json4s.native.JsonMethods._
-import org.json4s.{CustomSerializer, DefaultFormats, Extraction}
+import org.json4s.{CustomSerializer, DefaultFormats, Extraction, JField}
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.Try
@@ -45,7 +46,7 @@ object EncryptedKeyJsonCodec {
   }
 
   def fromJson(jsonStr: String): Either[String, EncryptedKey] = Try {
-    val json = parse(jsonStr)
+    val json = parse(jsonStr).transformField { case JField(k, v) => JField(k.toLowerCase, v) }
 
     val uuid = UUID.fromString((json \ "id").extract[String])
     val address = Address((json \ "address").extract[String])
