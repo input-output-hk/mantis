@@ -253,7 +253,7 @@ trait FastSync {
       blockBodiesQueue = Seq.empty
       receiptsQueue = Seq.empty
       //todo adjust the formula to minimize redownloaded block headers
-      bestBlockHeaderNumber = bestBlockHeaderNumber - 2 * blockHeadersPerRequest
+      bestBlockHeaderNumber = (bestBlockHeaderNumber - 2 * blockHeadersPerRequest).max(0)
       log.debug("missing block header for known hash")
       self ! ProcessSyncing
     }
