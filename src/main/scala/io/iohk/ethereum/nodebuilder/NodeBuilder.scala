@@ -368,7 +368,7 @@ trait SyncControllerBuilder {
     OmmersPoolBuilder with
     EtcPeerManagerActorBuilder =>
 
-
+  lazy val syncConfig = Config.Sync
 
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
@@ -381,7 +381,8 @@ trait SyncControllerBuilder {
       peerEventBus,
       pendingTransactionsManager,
       ommersPool,
-      etcPeerManager), "sync-controller")
+      etcPeerManager,
+      syncConfig), "sync-controller")
 
 }
 

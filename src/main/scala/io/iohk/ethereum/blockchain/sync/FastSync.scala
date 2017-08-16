@@ -18,6 +18,7 @@ import io.iohk.ethereum.validators.BlockValidator
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 trait FastSync {
   selfSyncController: SyncController =>
@@ -180,7 +181,10 @@ trait FastSync {
 
     private var blockChainOnlyPeers = Seq.empty[Peer]
 
-    private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotInterval, persistStateSnapshotInterval, self, PersistSyncState)
+    //Delay before starting to persist snapshot. It should be 0, as the presence of it marks that fast sync was started
+    private val persistStateSnapshotDelay: FiniteDuration = 0.seconds
+
+    private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotDelay, persistStateSnapshotInterval, self, PersistSyncState)
     private val heartBeat = scheduler.schedule(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
 
     // scalastyle:off cyclomatic.complexity
