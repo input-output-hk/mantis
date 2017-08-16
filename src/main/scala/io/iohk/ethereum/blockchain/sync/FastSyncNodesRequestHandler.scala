@@ -5,9 +5,10 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSync._
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Account, Blockchain}
-import io.iohk.ethereum.mpt.NodesKeyValueStorage
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode, NodesKeyValueStorage}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import org.spongycastle.util.encoders.Hex
 
 class FastSyncNodesRequestHandler(
@@ -73,11 +74,11 @@ class FastSyncNodesRequestHandler(
   }
 
   private def handleMptNode(mptNode: MptNode): Seq[HashType] = mptNode match {
-    case n: MptLeaf =>
+    case n: LeafNode =>
       val evm = n.getAccount.codeHash
       val storage = n.getAccount.storageRoot
 
-      nodesKeyValueStorage.put(n.hash, n.toBytes)
+      nodesKeyValueStorage.put(ByteString(n.hash), n.toBytes)
 
       val evmRequests =
         if (evm != Account.EmptyCodeHash) Seq(EvmCodeHash(evm))
@@ -89,33 +90,33 @@ class FastSyncNodesRequestHandler(
 
       evmRequests ++ storageRequests
 
-    case n: MptBranch =>
-      val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-      nodesKeyValueStorage.put(n.hash, n.toBytes)
-      hashes.map(StateMptNodeHash)
+    case n: BranchNode =>
+      val hashes = n.children.collect { case Some(Left(childHash)) => childHash }
+      nodesKeyValueStorage.put(ByteString(n.hash), n.toBytes)
+      hashes.map(e => StateMptNodeHash(e))
 
-    case n: MptExtension =>
-      nodesKeyValueStorage.put(n.hash, n.toBytes)
-      n.child.fold(
-        mptHash => Seq(StateMptNodeHash(mptHash.hash)),
+    case n: ExtensionNode =>
+      nodesKeyValueStorage.put(ByteString(n.hash), n.toBytes)
+      n.next.fold(
+        mptHash => Seq(StateMptNodeHash(mptHash)),
         _ => Nil)
-    }
+  }
 
   private def handleContractMptNode(mptNode: MptNode): Seq[HashType] = {
     mptNode match {
-      case n: MptLeaf =>
-        nodesKeyValueStorage.put(n.hash, n.toBytes)
+      case n: LeafNode =>
+        nodesKeyValueStorage.put(ByteString(n.hash), n.toBytes)
         Nil
 
-      case n: MptBranch =>
-        val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-        nodesKeyValueStorage.put(n.hash, n.toBytes)
-        hashes.map(ContractStorageMptNodeHash)
+      case n: BranchNode =>
+        val hashes = n.children.collect { case Some(Left(childHash)) => childHash }
+        nodesKeyValueStorage.put(ByteString(n.hash), n.toBytes)
+        hashes.map(e => ContractStorageMptNodeHash(e))
 
-      case n: MptExtension =>
-        nodesKeyValueStorage.put(n.hash, n.toBytes)
-        n.child.fold(
-          mptHash => Seq(ContractStorageMptNodeHash(mptHash.hash)),
+      case n: ExtensionNode =>
+        nodesKeyValueStorage.put(ByteString(n.hash), n.toBytes)
+        n.next.fold(
+          mptHash => Seq(ContractStorageMptNodeHash(mptHash)),
           _ => Nil)
     }
   }

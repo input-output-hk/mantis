@@ -10,11 +10,10 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.network.p2p.messages.PV63._
-import MptNode._
+import MptNodeEncoders._
 import ReceiptImplicits._
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.mpt.NodesKeyValueStorage
-import io.iohk.ethereum.utils.PruningConfig
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode, NodesKeyValueStorage}
 import org.spongycastle.util.encoders.Hex
 
 import scala.io.Source
@@ -23,14 +22,14 @@ import scala.util.Try
 object FixtureProvider {
 
   case class Fixture(
-    blockByNumber: Map[BigInt, Block],
-    blockByHash: Map[ByteString, Block],
-    blockHeaders: Map[ByteString, BlockHeader],
-    blockBodies: Map[ByteString, BlockBody],
-    receipts: Map[ByteString, Seq[Receipt]],
-    stateMpt: Map[ByteString, MptNode],
-    contractMpts: Map[ByteString, MptNode],
-    evmCode: Map[ByteString, ByteString]
+                      blockByNumber: Map[BigInt, Block],
+                      blockByHash: Map[ByteString, Block],
+                      blockHeaders: Map[ByteString, BlockHeader],
+                      blockBodies: Map[ByteString, BlockBody],
+                      receipts: Map[ByteString, Seq[Receipt]],
+                      stateMpt: Map[ByteString, MptNode],
+                      contractMpts: Map[ByteString, MptNode],
+                      evmCode: Map[ByteString, ByteString]
   )
 
   // scalastyle:off
@@ -57,19 +56,19 @@ object FixtureProvider {
       fixtures.receipts.get(block.header.hash).foreach(r => storages.receiptStorage.put(block.header.hash, r))
 
       def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
-        case Some(m: MptBranch) =>
-          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(m.hash -> m.toBytes))
-          m.children.collect { case Left(MptHash(hash)) if hash.nonEmpty => hash }.foreach(traverse)
+        case Some(m: BranchNode) =>
+          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
+          m.children.collect { case Some(Left(hash)) => hash}.foreach(e => traverse(e))
 
-        case Some(m: MptExtension) =>
-          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(m.hash -> m.toBytes))
-          m.child match {
-            case Left(MptHash(hash)) if hash.nonEmpty => traverse(hash)
+        case Some(m: ExtensionNode) =>
+          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
+          m.next match {
+            case Left(hash) if hash.nonEmpty => traverse(hash)
             case _ =>
           }
 
-        case Some(m: MptLeaf) =>
-          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(m.hash -> m.toBytes))
+        case Some(m: LeafNode) =>
+          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
           Try(m.getAccount).toOption.foreach { account =>
             if (account.codeHash != DumpChainActor.emptyEvm) {
               storages.evmCodeStorage.put(account.codeHash, fixtures.evmCode(account.codeHash))

@@ -93,8 +93,7 @@ object InMemoryWorldStateProxy {
     InMemorySimpleMapProxy.wrap[Address, Account, MerklePatriciaTrie[Address, Account]](
       MerklePatriciaTrie[Address, Account](
         stateRootHash.toArray[Byte],
-        accountsStorage,
-        kec256(_: Array[Byte])
+        accountsStorage
       )(Address.hashedAddressEncoder, accountSerializer)
     )
   }

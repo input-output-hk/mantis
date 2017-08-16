@@ -1,63 +1,72 @@
 package io.iohk.ethereum.mpt
 
+import akka.util.ByteString
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.HashFn
+import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits
 import io.iohk.ethereum.rlp.{encode => encodeRLP}
 
 /**
   * Trie elements
   */
-private[mpt] sealed trait Node {
+sealed trait MptNode {
 
   import MerklePatriciaTrie._
 
-  protected val hashFn: HashFn
+  lazy val encode: Array[Byte] = encodeRLP[MptNode](this)
 
-  lazy val encode: Array[Byte] = encodeRLP[Node](this)
+  lazy val hash: Array[Byte] = Node.hashFn(encode)
 
-  lazy val hash: Array[Byte] = hashFn(encode)
-
-  def capped: Array[Byte] = {
+  def capped: ByteString = {
     val encoded = encode
-    if (encoded.length < 32) encoded else hash
+    if (encoded.length < 32) ByteString(encoded) else ByteString(hash)
   }
 }
 
-private[mpt] case class LeafNode(key: Array[Byte], value: Array[Byte], hashFn: HashFn) extends Node
-
-private[mpt] case class ExtensionNode(sharedKey: Array[Byte], next: Either[Array[Byte], Node], hashFn: HashFn) extends Node
-
-private[mpt] object ExtensionNode {
-  /**
-    * This function creates a new ExtensionNode with next parameter as its node pointer
-    *
-    * @param sharedKey of the new ExtensionNode.
-    * @param next      to be inserted as the node pointer (and hashed if necessary).
-    * @param hashFn    to hash the node if necessary.
-    * @return a new BranchNode.
-    */
-  def apply(sharedKey: Array[Byte], next: Node, hashFn: HashFn): ExtensionNode = {
-    val nextCapped = next.capped
-    ExtensionNode(sharedKey, if (nextCapped.length == 32) Left(nextCapped) else Right(next), hashFn)
-  }
+object Node {
+  val hashFn: HashFn = (input: Array[Byte]) => crypto.kec256(input)
 }
 
-private[mpt] case class BranchNode(children: Seq[Option[Either[Array[Byte], Node]]], terminator: Option[Array[Byte]], hashFn: HashFn) extends Node {
+case class LeafNode(key: ByteString, value: ByteString) extends MptNode {
+  import AccountImplicits._
+  def getAccount: Account = value.toArray[Byte].toAccount
+}
+
+case class ExtensionNode(sharedKey: ByteString, next: Either[ByteString, MptNode]) extends MptNode
+
+case class BranchNode(children: Seq[Option[Either[ByteString, MptNode]]], terminator: Option[ByteString]) extends MptNode {
+  require(children.length == 16, "MptBranch childHashes length have to be 16")
+
   /**
     * This function creates a new BranchNode by updating one of the children of the self node.
     *
     * @param childIndex of the BranchNode children where the child should be inserted.
     * @param childNode  to be inserted as a child of the new BranchNode (and hashed if necessary).
-    * @param hashFn     to hash the node if necessary.
     * @return a new BranchNode.
     */
-  def updateChild(childIndex: Int, childNode: Node, hashFn: HashFn): BranchNode = {
+  def updateChild(childIndex: Int, childNode: MptNode): BranchNode = {
     val childCapped = childNode.capped
-    BranchNode(children.updated(childIndex, Some(if (childCapped.length == 32) Left(childCapped) else Right(childNode))), terminator, hashFn)
+    BranchNode(children.updated(childIndex, Some(if (childCapped.length == 32) Left(childCapped) else Right(childNode))), terminator)
   }
 }
 
-private[mpt] object BranchNode {
-  private val emptyChildren: Seq[Option[Either[Array[Byte], Node]]] = Array.fill(MerklePatriciaTrie.ListSize - 1)(None)
+object ExtensionNode {
+  /**
+    * This function creates a new ExtensionNode with next parameter as its node pointer
+    *
+    * @param sharedKey of the new ExtensionNode.
+    * @param next      to be inserted as the node pointer (and hashed if necessary).
+    * @return a new BranchNode.
+    */
+  def apply(sharedKey: ByteString, next: MptNode): ExtensionNode = {
+    val nextCapped = next.capped
+    ExtensionNode(sharedKey, if (nextCapped.length == 32) Left(nextCapped) else Right(next))
+  }
+}
+
+object BranchNode {
+  private val emptyChildren: Seq[Option[Either[ByteString, MptNode]]] = Array.fill(MerklePatriciaTrie.ListSize - 1)(None)
 
   /**
     * This function creates a new terminator BranchNode having only a value associated with it.
@@ -66,8 +75,8 @@ private[mpt] object BranchNode {
     * @param terminator to be associated with the new BranchNode.
     * @return a new BranchNode.
     */
-  def withValueOnly(terminator: Array[Byte], hashFn: HashFn): BranchNode =
-  BranchNode(emptyChildren, Some(terminator), hashFn)
+  def withValueOnly(terminator: Array[Byte]): BranchNode =
+    BranchNode(emptyChildren, Some(ByteString(terminator)))
 
   /**
     * This function creates a new BranchNode having only one child associated with it (and optionaly a value).
@@ -76,12 +85,11 @@ private[mpt] object BranchNode {
     * @param position   of the BranchNode children where the child should be inserted.
     * @param child      to be inserted as a child of the new BranchNode (and hashed if necessary).
     * @param terminator to be associated with the new BranchNode.
-    * @param hashFn     to hash the node if necessary.
     * @return a new BranchNode.
     */
-  def withSingleChild(position: Byte, child: Node, terminator: Option[Array[Byte]], hashFn: HashFn): BranchNode = {
+  def withSingleChild(position: Byte, child: MptNode, terminator: Option[Array[Byte]]): BranchNode = {
     val childCapped = child.capped
-    BranchNode(emptyChildren.updated(position, Some(if (childCapped.length == 32) Left(childCapped) else Right(child))), terminator, hashFn)
+    BranchNode(emptyChildren.updated(position, Some(if (childCapped.length == 32) Left(childCapped) else Right(child))), terminator.map(e => ByteString(e)))
   }
 
   /**
@@ -93,6 +101,6 @@ private[mpt] object BranchNode {
     * @param terminator to be associated with the new BranchNode.
     * @return a new BranchNode.
     */
-  def withSingleChild(position: Byte, child: Either[Array[Byte], Node], terminator: Option[Array[Byte]], hashFn: HashFn): BranchNode =
-  BranchNode(emptyChildren.updated(position, Some(child)), terminator, hashFn)
+  def withSingleChild(position: Byte, child: Either[ByteString, MptNode], terminator: Option[Array[Byte]]): BranchNode =
+  BranchNode(emptyChildren.updated(position, Some(child)), terminator.map(e => ByteString(e)))
 }
