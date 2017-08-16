@@ -102,6 +102,10 @@ class SyncController(
 
   def peersToDownloadFrom: Map[Peer, PeerInfo] =
     handshakedPeers.filterNot { case (p, s) => isBlacklisted(p.id) }
+
+  def checkHeaders(headers: Seq[BlockHeader]): Boolean =
+    if (headers.length > 1) headers.zip(headers.tail).forall { case (parent, child) => parent.hash == child.parentHash && parent.number + 1 == child.number }
+    else true
 }
 
 object SyncController {
@@ -118,12 +122,6 @@ object SyncController {
             etcPeerManager: ActorRef):
   Props = Props(new SyncController(appStateStorage, blockchain, blockchainStorages, syncStateStorage, ledger, validators,
     peerEventBus, pendingTransactionsManager, ommersPool, etcPeerManager))
-
-  case class BlockHeadersToResolve(peer: Peer, headers: Seq[BlockHeader])
-
-  case class BlockHeadersReceived(peer: Peer, headers: Seq[BlockHeader])
-
-  case class BlockBodiesReceived(peer: Peer, requestedHashes: Seq[ByteString], bodies: Seq[BlockBody])
 
   case class MinedBlock(block: Block)
 

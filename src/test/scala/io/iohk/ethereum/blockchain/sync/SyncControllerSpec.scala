@@ -119,26 +119,26 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer2.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
     peerMessageBus.reply(MessageFromPeer(NodeData(Seq(stateMptLeafWithAccount)), peer2.id))
-    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.expectMsg(Unsubscribe())
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
       GetBlockHeaders(Left(targetBlockHeader.number), expectedTargetBlock - bestBlockHeaderNumber, 0, reverse = false),
       peer2.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
     peerMessageBus.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer2.id))
-    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.expectMsg(Unsubscribe())
 
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetReceipts(Seq(targetBlockHeader.hash)), peer2.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer2.id))))
     peerMessageBus.reply(MessageFromPeer(Receipts(Seq(Nil)), peer2.id))
-    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.expectMsg(Unsubscribe())
 
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(targetBlockHeader.hash)), peer2.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer2.id))))
     peerMessageBus.reply(MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil))), peer2.id))
-    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.expectMsg(Unsubscribe())
 
     //switch to regular download
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
@@ -192,26 +192,26 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer2.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
     peerMessageBus.reply(MessageFromPeer(NodeData(Seq(stateMptLeafWithAccount)), peer2.id))
-    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.expectMsg(Unsubscribe())
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
       GetBlockHeaders(Left(targetBlockHeader.number), expectedTargetBlock - bestBlockHeaderNumber, 0, reverse = false),
       peer2.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
     peerMessageBus.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer2.id))
-    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.expectMsg(Unsubscribe())
 
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetReceipts(Seq(targetBlockHeader.hash)), peer2.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer2.id))))
     peerMessageBus.reply(MessageFromPeer(Receipts(Seq(Nil)), peer2.id))
-    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.expectMsg(Unsubscribe())
 
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(targetBlockHeader.hash)), peer2.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer2.id))))
     peerMessageBus.reply(MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil))), peer2.id))
-    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.expectMsg(Unsubscribe())
 
     //peer was blacklisted for bad block bodies. connecting second peer
     etcPeerManager.send(syncController, HandshakedPeers(Map(
@@ -250,7 +250,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     // response timeout
     time.advance(2.seconds)
-    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.expectMsg(Unsubscribe())
     etcPeerManager.expectNoMsg()
 
     // wait for blacklist timeout
@@ -304,9 +304,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
-      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
+      Unsubscribe(),
       Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))),
-      Unsubscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))),
+      Unsubscribe(),
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
     )
 
@@ -378,7 +378,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peerMessageBus.reply(MessageFromPeer(BlockHeaders(Queue(newBlockHeader)), peer.id))
 
     peerMessageBus.expectMsgAllOf(
-      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
+      Unsubscribe(),
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
     syncController.children.last ! MessageFromPeer(BlockHeaders(Queue(newBlockHeaderParent)), peer.id)
 
@@ -504,7 +504,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
   }
 
-  it should "broadcast all blocks if they were all valid" in new TestSetup() {
+  it should "broadcast all blocks if they were all valid" in new TestSetup {
     val peer1TestProbe: TestProbe = TestProbe()(system)
 
     val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
@@ -546,7 +546,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
-      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
+      Unsubscribe())
 
     time.advance(Config.Sync.checkForNewBlockInterval)
 
@@ -558,7 +558,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
-      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Unsubscribe(),
       Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer1.id))))
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
@@ -631,7 +631,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
-      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
+      Unsubscribe())
 
     time.advance(Config.Sync.checkForNewBlockInterval)
 
@@ -706,9 +706,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     peerMessageBus.expectMsgAllOf(Timeouts.normalTimeout,
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
       Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer1.id))),
-      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
+      Unsubscribe(),
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))),
-      Unsubscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer1.id))))
+      Unsubscribe())
 
     //As block execution failed for a block received from peer1, the same block is asked to peer2
     etcPeerManager.expectMsg(Timeouts.longTimeout, EtcPeerManagerActor.SendMessage(
@@ -810,7 +810,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     //wait for timeout
     time.advance(2 * Config.Sync.peerResponseTimeout)
-    peerMessageBus.expectMsg(Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
+    peerMessageBus.expectMsg(Unsubscribe())
 
     //wait for Done msg processing
     Thread.sleep(1.seconds.toMillis)
