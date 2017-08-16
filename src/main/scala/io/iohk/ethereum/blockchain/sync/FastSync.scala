@@ -1,5 +1,9 @@
 package io.iohk.ethereum.blockchain.sync
 
+
+import java.time.Instant
+import java.util.Date
+
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Block, BlockHeader}
@@ -14,6 +18,7 @@ import io.iohk.ethereum.validators.BlockValidator
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 trait FastSync {
   selfSyncController: SyncController =>
@@ -163,6 +168,7 @@ trait FastSync {
     private var bestBlockHeaderNumber: BigInt = initialSyncState.bestBlockHeaderNumber
 
     private var assignedHandlers: Map[ActorRef, Peer] = Map.empty
+    private var peerRequestsTime: Map[Peer, Instant] = Map.empty
 
     private val syncStateStorageActor = context.actorOf(Props[FastSyncStateActor], "state-storage")
 
@@ -175,7 +181,10 @@ trait FastSync {
 
     private var blockChainOnlyPeers = Seq.empty[Peer]
 
-    private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotInterval, persistStateSnapshotInterval, self, PersistSyncState)
+    //Delay before starting to persist snapshot. It should be 0, as the presence of it marks that fast sync was started
+    private val persistStateSnapshotDelay: FiniteDuration = 0.seconds
+
+    private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotDelay, persistStateSnapshotInterval, self, PersistSyncState)
     private val heartBeat = scheduler.schedule(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
 
     // scalastyle:off cyclomatic.complexity
@@ -210,7 +219,7 @@ trait FastSync {
         context unwatch sender()
         assignedHandlers -= sender()
         cleanupRequestedMaps(sender())
-        processSyncing()
+        self ! ProcessSyncing
 
       case Terminated(ref) if assignedHandlers.contains(ref) =>
         handleActorTerminate(ref)
@@ -241,6 +250,8 @@ trait FastSync {
 
     private def handleActorTerminate(ref: ActorRef) = {
       context unwatch ref
+      val peer = assignedHandlers(ref)
+      peerRequestsTime -= peer
       assignedHandlers -= ref
       mptNodesQueue ++= requestedMptNodes.getOrElse(ref, Nil)
       nonMptNodesQueue ++= requestedNonMptNodes.getOrElse(ref, Nil)
@@ -354,6 +365,7 @@ trait FastSync {
       appStateStorage.fastSyncDone()
       context become idle
       blockChainOnlyPeers = Seq.empty
+      peerRequestsTime = Map.empty
       self ! FastSyncDone
     }
 
@@ -373,7 +385,9 @@ trait FastSync {
           scheduler.scheduleOnce(syncRetryInterval, self, ProcessSyncing)
         }
       } else {
+        val now = Instant.now()
         val peers = unassignedPeers
+          .filter(p => peerRequestsTime.get(p).forall(d => d.plusMillis(fastSyncThrottle.toMillis).isBefore(now)))
         val blockChainPeers = blockChainOnlyPeers.toSet
         (peers -- blockChainPeers)
           .take(maxConcurrentRequests - assignedHandlers.size)
@@ -412,6 +426,7 @@ trait FastSync {
         peer, etcPeerManager, peerEventBus, receiptsToGet, appStateStorage, blockchain))
       context watch handler
       assignedHandlers += (handler -> peer)
+      peerRequestsTime += (peer -> Instant.now())
       receiptsQueue = remainingReceipts
       requestedReceipts += handler -> receiptsToGet
     }
@@ -421,6 +436,7 @@ trait FastSync {
       val handler = context.actorOf(SyncBlockBodiesRequestHandler.props(peer, etcPeerManager, peerEventBus, blockBodiesToGet))
       context watch handler
       assignedHandlers += (handler -> peer)
+      peerRequestsTime += (peer -> Instant.now())
       blockBodiesQueue = remainingBlockBodies
       requestedBlockBodies += handler -> blockBodiesToGet
     }
@@ -437,6 +453,7 @@ trait FastSync {
         blockHeadersHandlerName)
       context watch handler
       assignedHandlers += (handler -> peer)
+      peerRequestsTime += (peer -> Instant.now())
     }
 
     def requestNodes(peer: Peer): Unit = {
@@ -447,6 +464,7 @@ trait FastSync {
         blockchainStorages.nodesKeyValueStorageFor(Some(initialSyncState.targetBlock.number))))
       context watch handler
       assignedHandlers += (handler -> peer)
+      peerRequestsTime += (peer -> Instant.now())
       nonMptNodesQueue = remainingNonMptNodes
       mptNodesQueue = remainingMptNodes
       requestedMptNodes += handler -> mptNodesToGet
