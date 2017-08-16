@@ -5,20 +5,25 @@ import java.net._
 import akka.util.ByteString
 import org.spongycastle.util.encoders.Hex
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
-case class Node(id: ByteString, address: InetSocketAddress) {
+trait Node {
+  val id: ByteString
+  val addr: InetSocketAddress
+
   def toUri: URI = {
-    val host = address.getHostName
-    val port = address.getPort
+    val host = addr.getHostName
+    val port = addr.getPort
     new URI(s"enode://${Hex.toHexString(id.toArray[Byte])}@$host:$port")
   }
 }
 
-object Node {
-  def fromUri(uri: URI): Node = {
+case class NodeImpl(id: ByteString, addr: InetSocketAddress) extends Node
+
+object NodeImpl {
+  def fromUri(uri: URI): NodeImpl = {
     val nodeId = ByteString(Hex.decode(uri.getUserInfo))
-    Node(nodeId, new InetSocketAddress(uri.getHost, uri.getPort))
+    NodeImpl(nodeId, new InetSocketAddress(uri.getHost, uri.getPort))
   }
 }
 
@@ -33,29 +38,30 @@ object NodeParser {
     * @param node to be parsed
     * @return the parsed node, or the error detected during parsing
     */
-  def parseNode(node: String): Try[Node] = Try {
-    val maybeUri = Try(new URI(node))
+  def parseNode(node: String): Try[Node] = {
+    val parseResult = for {
+      uri <- Try(new URI(node))
+      scheme = uri.getScheme
+      nodeId <- Try(ByteString(Hex.decode(uri.getUserInfo)))
+      host <- Try(InetAddress.getByName(uri.getHost))
+      port = uri.getPort
+      address <- Try(new InetSocketAddress(host, port))
+    } yield (scheme, nodeId, address)
+    parseResult.flatMap{ case (scheme, nodeId, address) =>
+      val host = address.getAddress
+      val hasIPV4Version = host match {
+        case _: Inet4Address => true
+        case _ => false
+      }
 
-    require(maybeUri.isSuccess, s"Invalid format of node: '$node'")
-    val uri = maybeUri.get
-
-    val scheme = uri.getScheme
-    val maybeNodeId = Try(ByteString(Hex.decode(uri.getUserInfo)))
-    val maybeHost = Try(InetAddress.getByName(uri.getHost))
-    val port = uri.getPort
-
-    require(maybeNodeId.isSuccess, s"Invalid nodeId '${Option(uri.getUserInfo).getOrElse("")}'")
-    require(maybeHost.isSuccess, s"Invalid host '${Option(uri.getHost).getOrElse("")}'")
-    val nodeId = maybeNodeId.get
-    val host = maybeHost.get
-
-    require(scheme == NodeScheme, s"Invalid node scheme $scheme, only $NodeScheme is supported")
-    require(nodeId.size == NodeIdSize, s"Invalid nodeId size ${nodeId.size}, it should be $NodeIdSize bytes long")
-
-    val address = new InetSocketAddress(host, port)
-    //FIXME: We currently don't support IPv6 nodes
-    require(host.isInstanceOf[Inet4Address], s"Invalid host $host, only IPv4 addresses are currently supported")
-
-    Node(nodeId, address)
+      if(scheme != NodeScheme)
+        Failure(throw new Exception(s"Invalid node scheme $scheme, it should be $NodeScheme"))
+      else if(nodeId.size != NodeIdSize)
+        Failure(throw new Exception(s"Invalid nodeId size ${nodeId.size}, it should be $NodeIdSize bytes long"))
+      else if(!hasIPV4Version) //FIXME: We currently don't support IPv6 nodes [EC-295]
+        Failure(throw new Exception(s"Invalid host $host, only IPv4 addresses are currently supported"))
+      else
+        Success(NodeImpl(nodeId, address))
+    }
   }
 }

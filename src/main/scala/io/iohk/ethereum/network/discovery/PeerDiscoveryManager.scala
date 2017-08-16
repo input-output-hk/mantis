@@ -48,7 +48,7 @@ class PeerDiscoveryManager(
       sendMessage(Pong(to, packet.mdc, expirationTimestamp), from)
 
     case DiscoveryListener.MessageReceived(pong: Pong, from, packet) =>
-      val newNode = NodeWithTimestamp.fromNode(Node(packet.nodeId, from))
+      val newNode = NodeWithTimestamp.fromNode(NodeImpl(packet.nodeId, from))
 
       if (nodes.size < discoveryConfig.nodesLimit) {
         nodes += newNode.id -> newNode
@@ -113,19 +113,13 @@ object PeerDiscoveryManager {
 
   object NodeWithTimestamp {
 
-    def fromUri(uri: URI): NodeWithTimestamp = fromNode(Node.fromUri(uri))
+    def fromUri(uri: URI): NodeWithTimestamp = fromNode(NodeImpl.fromUri(uri))
 
-    def fromNode(node: Node): NodeWithTimestamp = NodeWithTimestamp(node, System.currentTimeMillis())
-
-  }
-
-  case class NodeWithTimestamp(node: Node, addTimestamp: Long) {
-
-    def id: ByteString = node.id
-
-    def addr: InetSocketAddress = node.address
+    def fromNode(node: Node): NodeWithTimestamp = NodeWithTimestamp(node.id, node.addr, System.currentTimeMillis())
 
   }
+
+  case class NodeWithTimestamp(id: ByteString, addr: InetSocketAddress, addTimestamp: Long) extends Node
 
   case object GetDiscoveredNodes
   case class DiscoveredNodes(nodes: Set[NodeWithTimestamp])
