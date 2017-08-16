@@ -6,6 +6,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.{Fixtures, Mocks, Timeouts}
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
 import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader}
@@ -21,7 +22,8 @@ import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Mocks, Timeouts}
+import io.iohk.ethereum.utils.Config.SyncConfig
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -164,6 +166,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       ledger,
       new Mocks.MockValidatorsFailingOnBlockBodies,
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
+      syncConfig(Config.Sync.doFastSync),
       externalSchedulerOpt = Some(time.scheduler))))
 
 
@@ -935,6 +938,38 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     pendingTransactionsManager.expectNoMsg()
   }
 
+  it should "start fast sync after restart, if fast sync was partially ran and then regular sync started" in new TestSetup with MockFactory {
+    val peerTestProbe: TestProbe = TestProbe()(system)
+    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref, false)
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+
+    //Save previous incomplete attempt to fast sync
+    val syncState = SyncState(targetBlock = Fixtures.Blocks.Block3125369.header, mptNodesQueue = Seq(StateMptNodeHash(ByteString("node_hash"))))
+    storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
+
+    //Attempt to start regular sync
+    val syncConfigWithRegularSync = syncConfig(enableFastSync = false)
+    val syncControllerWithRegularSync = TestActorRef(Props(new SyncController(
+      storagesInstance.storages.appStateStorage,
+      blockchain,
+      storagesInstance.storages,
+      storagesInstance.storages.fastSyncStateStorage,
+      ledger,
+      new Mocks.MockValidatorsAlwaysSucceed,
+      peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
+      syncConfigWithRegularSync,
+      externalSchedulerOpt = Some(time.scheduler))))
+
+    etcPeerManager.send(syncControllerWithRegularSync, HandshakedPeers(Map(
+      peer -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0))))
+
+    syncControllerWithRegularSync ! SyncController.StartSync
+
+    //Fast sync node request should be received
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer.id))
+  }
+
   class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil) extends EphemBlockchainTestSetup {
     implicit val system = ActorSystem("FastSyncControllerSpec_System")
 
@@ -952,6 +987,29 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val pendingTransactionsManager = TestProbe()
     val ommersPool = TestProbe()
 
+    def syncConfig(enableFastSync: Boolean): SyncConfig = new SyncConfig {
+      override val doFastSync: Boolean = enableFastSync
+
+      //unchanged
+      override val blockBodiesPerRequest: Int = Config.Sync.blockBodiesPerRequest
+      override val blacklistDuration: FiniteDuration = Config.Sync.blacklistDuration
+      override val peersScanInterval: FiniteDuration = Config.Sync.peersScanInterval
+      override val blockResolveDepth: Int = Config.Sync.blockResolveDepth
+      override val printStatusInterval: FiniteDuration = Config.Sync.printStatusInterval
+      override val targetBlockOffset: Int = Config.Sync.targetBlockOffset
+      override val syncRetryInterval: FiniteDuration = Config.Sync.syncRetryInterval
+      override val peerResponseTimeout: FiniteDuration = Config.Sync.peerResponseTimeout
+      override val maxConcurrentRequests: Int = Config.Sync.maxConcurrentRequests
+      override val startRetryInterval: FiniteDuration = Config.Sync.startRetryInterval
+      override val receiptsPerRequest: Int = Config.Sync.receiptsPerRequest
+      override val blockHeadersPerRequest: Int = Config.Sync.blockHeadersPerRequest
+      override val minPeersToChooseTargetBlock: Int = Config.Sync.minPeersToChooseTargetBlock
+      override val checkForNewBlockInterval: FiniteDuration = Config.Sync.checkForNewBlockInterval
+      override val blockChainOnlyPeersPoolSize: Int = Config.Sync.blockChainOnlyPeersPoolSize
+      override val persistStateSnapshotInterval: FiniteDuration = Config.Sync.persistStateSnapshotInterval
+      override val nodesPerRequest: Int = Config.Sync.nodesPerRequest
+    }
+
     val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,
       blockchain,
@@ -960,6 +1018,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       ledger,
       new Mocks.MockValidatorsAlwaysSucceed,
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
+      syncConfig(Config.Sync.doFastSync),
       externalSchedulerOpt = Some(time.scheduler))))
 
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
