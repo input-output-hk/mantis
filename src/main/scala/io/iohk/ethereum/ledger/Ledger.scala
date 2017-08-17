@@ -238,7 +238,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     */
   private[ledger] def validateBlockAfterExecution(block: Block, stateRootHash: ByteString, receipts: Seq[Receipt],
                                                   gasUsed: BigInt, blockValidator: BlockValidator): Either[BlockExecutionError, Unit] = {
-    lazy val blockAndReceiptsValidation = blockValidator.validateBlockAndReceipts(block, receipts)
+    lazy val blockAndReceiptsValidation = blockValidator.validateBlockAndReceipts(block.header, receipts)
     if(block.header.gasUsed != gasUsed)
       Left(ValidationAfterExecError(s"Block has invalid gas used, expected ${block.header.gasUsed} but got $gasUsed"))
     else if(block.header.stateRoot != stateRootHash)

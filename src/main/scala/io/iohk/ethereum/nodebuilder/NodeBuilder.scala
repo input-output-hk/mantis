@@ -291,8 +291,9 @@ trait EthServiceBuilder {
     FilterManagerBuilder with
     FilterConfigBuilder =>
 
-  lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage, miningConfig,
-    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig, blockchainConfig)
+  lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage,
+    miningConfig, ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
+    blockchainConfig, Config.Network.protocolVersion)
 }
 
 trait PersonalServiceBuilder {
@@ -367,7 +368,7 @@ trait SyncControllerBuilder {
     OmmersPoolBuilder with
     EtcPeerManagerActorBuilder =>
 
-
+  lazy val syncConfig = Config.Sync
 
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
@@ -380,7 +381,8 @@ trait SyncControllerBuilder {
       peerEventBus,
       pendingTransactionsManager,
       ommersPool,
-      etcPeerManager), "sync-controller")
+      etcPeerManager,
+      syncConfig), "sync-controller")
 
 }
 

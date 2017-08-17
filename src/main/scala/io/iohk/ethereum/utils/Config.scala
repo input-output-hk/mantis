@@ -38,7 +38,7 @@ object Config {
   object Network {
     private val networkConfig = config.getConfig("network")
 
-    val protocolVersion = networkConfig.getString("protocol-version")
+    val protocolVersion = networkConfig.getInt("protocol-version")
 
     object Server {
       private val serverConfig = networkConfig.getConfig("server-address")
@@ -94,7 +94,31 @@ object Config {
 
   }
 
-  object Sync {
+  trait SyncConfig {
+    val doFastSync: Boolean
+
+    val peersScanInterval: FiniteDuration
+    val blacklistDuration: FiniteDuration
+    val startRetryInterval: FiniteDuration
+    val syncRetryInterval: FiniteDuration
+    val peerResponseTimeout: FiniteDuration
+    val printStatusInterval: FiniteDuration
+
+    val maxConcurrentRequests: Int
+    val blockHeadersPerRequest: Int
+    val blockBodiesPerRequest: Int
+    val receiptsPerRequest: Int
+    val nodesPerRequest: Int
+    val minPeersToChooseTargetBlock: Int
+    val targetBlockOffset: Int
+    val persistStateSnapshotInterval: FiniteDuration
+
+    val checkForNewBlockInterval: FiniteDuration
+    val blockResolveDepth: Int
+    val blockChainOnlyPeersPoolSize: Int
+  }
+
+  object Sync extends SyncConfig {
     private val syncConfig = config.getConfig("sync")
 
     val doFastSync: Boolean = syncConfig.getBoolean("do-fast-sync")
@@ -119,6 +143,7 @@ object Config {
     val checkForNewBlockInterval: FiniteDuration = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis
     val blockResolveDepth: Int = syncConfig.getInt("block-resolving-depth")
     val blockChainOnlyPeersPoolSize: Int = syncConfig.getInt("fastsync-block-chain-only-peers-pool")
+    val fastSyncThrottle: FiniteDuration = syncConfig.getDuration("fastsync-throttle").toMillis.millis
   }
 
   trait DbConfig {
