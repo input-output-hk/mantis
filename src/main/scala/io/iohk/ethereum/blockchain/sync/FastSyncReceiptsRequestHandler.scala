@@ -116,6 +116,8 @@ class FastSyncReceiptsRequestHandler(
   }
 }
 
+// todo move inserting receipts to FastSync
+// scalastyle:off parameter.number
 object FastSyncReceiptsRequestHandler {
   def props(peer: Peer, peerTimeout: FiniteDuration, etcPeerManager: ActorRef, peerMessageBus: ActorRef, requestedHashes: Seq[ByteString],
             appStateStorage: AppStateStorage, blockchain: Blockchain, blockValidator: BlockValidator)
