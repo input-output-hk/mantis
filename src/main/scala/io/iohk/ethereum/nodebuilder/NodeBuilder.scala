@@ -375,8 +375,6 @@ trait SyncControllerBuilder {
     EtcPeerManagerActorBuilder with
     SyncConfigBuilder =>
 
-
-
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
       storagesInstance.storages.appStateStorage,

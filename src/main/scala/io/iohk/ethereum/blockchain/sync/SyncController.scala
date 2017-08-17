@@ -66,8 +66,12 @@ class SyncController(
         case (true, false) =>
           startRegularSync()
         case (false, false) =>
-          fastSyncStateStorage.purge()
-          startRegularSync()
+          //Check whether fast sync was started before
+          if (fastSyncStateStorage.getSyncState().isDefined) {
+            log.warning(s"do-fast-sync is set to $doFastSync but regular sync cannot start because fast sync hasn't completed")
+            startFastSync()
+          } else
+            startRegularSync()
       }
 
     case FastSyncDone =>

@@ -117,6 +117,7 @@ object Config {
     val blockResolvePerRequest: Int
     val blockChainOnlyPeersPoolSize: Int
     val branchMaxDepthResolving: Int
+    val fastSyncThrottle: FiniteDuration
   }
 
   object SyncConfig {
@@ -146,6 +147,7 @@ object Config {
         val blockResolvePerRequest: Int = syncConfig.getInt("block-resolving-per-request")
         val blockChainOnlyPeersPoolSize: Int = syncConfig.getInt("fastsync-block-chain-only-peers-pool")
         val branchMaxDepthResolving: Int = syncConfig.getInt("branch-max-depth-resolving")
+        val fastSyncThrottle: FiniteDuration = syncConfig.getDuration("fastsync-throttle").toMillis.millis
       }
     }
   }

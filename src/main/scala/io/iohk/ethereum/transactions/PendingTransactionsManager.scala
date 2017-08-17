@@ -5,7 +5,7 @@ import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, PeerSelector, Subscribe, SubscriptionClassifier}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
@@ -37,7 +37,7 @@ object PendingTransactionsManager {
 }
 
 class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorRef,
-                                 etcPeerManager: ActorRef, peerMessageBus: ActorRef) extends Actor {
+                                 etcPeerManager: ActorRef, peerEventBus: ActorRef) extends Actor {
 
   import PendingTransactionsManager._
   import akka.pattern.ask
@@ -54,9 +54,13 @@ class PendingTransactionsManager(txPoolConfig: TxPoolConfig, peerManager: ActorR
 
   implicit val timeout = Timeout(3.seconds)
 
-  peerMessageBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
+  peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
+  peerEventBus ! Subscribe(MessageClassifier(Set(SignedTransactions.code), PeerSelector.AllPeers))
 
   override def receive: Receive = {
+    case PeerEvent.PeerHandshakeSuccessful(peer, _) =>
+      self ! NotifyPeer(pendingTransactions.map(_.stx), peer)
+
     case AddTransactions(signedTransactions) =>
       val transactionsToAdd = signedTransactions.filterNot(t => pendingTransactions.map(_.stx).contains(t))
       if (transactionsToAdd.nonEmpty) {
