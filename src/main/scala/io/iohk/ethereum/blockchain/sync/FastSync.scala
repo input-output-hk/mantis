@@ -230,6 +230,9 @@ trait FastSync {
 
       case PersistSyncState =>
         persistSyncState()
+
+      case RedownloadBlockchain =>
+        redownloadBlockchain()
     }
 
     private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]) = {
@@ -240,13 +243,20 @@ trait FastSync {
           blacklist(peer.id, blacklistDuration, s"responded with block bodies not matching block headers, blacklisting for $blacklistDuration")
           self ! FastSync.EnqueueBlockBodies(requestedHashes)
         case DbError =>
-          blockBodiesQueue = Seq.empty
-          receiptsQueue = Seq.empty
-          //todo adjust the formula to minimize redownloaded block headers
-          bestBlockHeaderNumber = bestBlockHeaderNumber - 2 * blockHeadersPerRequest
-          log.debug("missing block header for known hash")
-          self ! ProcessSyncing
+          redownloadBlockchain()
       }
+    }
+
+    /**
+      * Restarts download from a few blocks behind the current best block header, as an unexpected DB error happened
+      */
+    private def redownloadBlockchain(): Unit = {
+      blockBodiesQueue = Seq.empty
+      receiptsQueue = Seq.empty
+      //todo adjust the formula to minimize redownloaded block headers
+      bestBlockHeaderNumber = (bestBlockHeaderNumber - 2 * blockHeadersPerRequest).max(0)
+      log.debug("missing block header for known hash")
+      self ! ProcessSyncing
     }
 
     private def handleActorTerminate(ref: ActorRef) = {
@@ -424,7 +434,7 @@ trait FastSync {
     def requestReceipts(peer: Peer): Unit = {
       val (receiptsToGet, remainingReceipts) = receiptsQueue.splitAt(receiptsPerRequest)
       val handler = context.actorOf(FastSyncReceiptsRequestHandler.props(
-        peer, etcPeerManager, peerEventBus, receiptsToGet, appStateStorage, blockchain))
+        peer, etcPeerManager, peerEventBus, receiptsToGet, appStateStorage, blockchain, validators.blockValidator))
       context watch handler
       assignedHandlers += (handler -> peer)
       peerRequestsTime += (peer -> Instant.now())
@@ -516,6 +526,7 @@ object FastSync {
 
   private case object ProcessSyncing
   private case object PersistSyncState
+  case object RedownloadBlockchain
   case class MarkPeerBlockchainOnly(peer: Peer)
 
   private sealed trait BlockBodyValidationResult
