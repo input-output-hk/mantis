@@ -30,19 +30,19 @@ case class EtcForkBlockExchangeState(handshakerConfiguration: EtcHandshakerConfi
         case Some(forkBlockHeader) =>
           val fork = forkResolver.recognizeFork(forkBlockHeader)
 
-          log.info("Peer is running the {}", fork)
+          log.debug("Peer is running the {} fork", fork)
 
           if (forkResolver.isAccepted(fork)) {
-            log.info("Fork is accepted")
+            log.debug("Fork is accepted")
             val peerInfo: PeerInfo = PeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, forkBlockHeader.number)
             ConnectedState(peerInfo)
           } else {
-            log.warn("Fork is not accepted")
+            log.debug("Fork is not accepted")
             DisconnectedState[PeerInfo](Disconnect.Reasons.UselessPeer)
           }
 
         case None =>
-          log.info("Peer did not respond with fork block header")
+          log.debug("Peer did not respond with fork block header")
           ConnectedState(PeerInfo(remoteStatus, remoteStatus.totalDifficulty, false, 0))
       }
 

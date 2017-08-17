@@ -23,6 +23,7 @@ class VM extends Logger {
         finalState.world,
         finalState.addressesToDelete,
         finalState.logs,
+        finalState.internalTxs,
         finalState.gasRefund,
         finalState.error)
     }

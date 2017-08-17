@@ -5,6 +5,7 @@ import java.net.InetSocketAddress
 import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
@@ -19,7 +20,7 @@ import scala.util.Try
 
 object Config {
 
-  val config = ConfigFactory.load().getConfig("grothendieck")
+  val config = ConfigFactory.load().getConfig("mantis")
 
   val clientId: String = config.getString("client-id")
 
@@ -31,12 +32,14 @@ object Config {
 
   val shutdownTimeout: Duration = config.getDuration("shutdown-timeout").toMillis.millis
 
-  val secureRandomAlgo: String = config.getString("secure-random-algo")
+  val secureRandomAlgo: Option[String] =
+    if(config.hasPath("secure-random-algo")) Some(config.getString("secure-random-algo"))
+    else None
 
   object Network {
     private val networkConfig = config.getConfig("network")
 
-    val protocolVersion = networkConfig.getString("protocol-version")
+    val protocolVersion = networkConfig.getInt("protocol-version")
 
     object Server {
       private val serverConfig = networkConfig.getConfig("server-address")
@@ -56,6 +59,7 @@ object Config {
       val waitForStatusTimeout: FiniteDuration = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
       val waitForChainCheckTimeout: FiniteDuration = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
       val maxPeers: Int = peerConfig.getInt("max-peers")
+      val maxIncomingPeers: Int = peerConfig.getInt("max-incoming-peers")
       val networkId: Int = peerConfig.getInt("network-id")
 
       val rlpxConfiguration = new RLPxConfiguration {
@@ -91,7 +95,31 @@ object Config {
 
   }
 
-  object Sync {
+  trait SyncConfig {
+    val doFastSync: Boolean
+
+    val peersScanInterval: FiniteDuration
+    val blacklistDuration: FiniteDuration
+    val startRetryInterval: FiniteDuration
+    val syncRetryInterval: FiniteDuration
+    val peerResponseTimeout: FiniteDuration
+    val printStatusInterval: FiniteDuration
+
+    val maxConcurrentRequests: Int
+    val blockHeadersPerRequest: Int
+    val blockBodiesPerRequest: Int
+    val receiptsPerRequest: Int
+    val nodesPerRequest: Int
+    val minPeersToChooseTargetBlock: Int
+    val targetBlockOffset: Int
+    val persistStateSnapshotInterval: FiniteDuration
+
+    val checkForNewBlockInterval: FiniteDuration
+    val blockResolveDepth: Int
+    val blockChainOnlyPeersPoolSize: Int
+  }
+
+  object Sync extends SyncConfig {
     private val syncConfig = config.getConfig("sync")
 
     val doFastSync: Boolean = syncConfig.getBoolean("do-fast-sync")
@@ -115,15 +143,23 @@ object Config {
 
     val checkForNewBlockInterval: FiniteDuration = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis
     val blockResolveDepth: Int = syncConfig.getInt("block-resolving-depth")
+    val blockChainOnlyPeersPoolSize: Int = syncConfig.getInt("fastsync-block-chain-only-peers-pool")
+    val fastSyncThrottle: FiniteDuration = syncConfig.getDuration("fastsync-throttle").toMillis.millis
   }
 
-  object Db {
+  trait DbConfig {
+    val batchSize: Int
+  }
+
+  object Db extends DbConfig {
 
     private val dbConfig = config.getConfig("db")
     private val iodbConfig = dbConfig.getConfig("iodb")
     private val levelDbConfig = dbConfig.getConfig("leveldb")
 
-    object Iodb {
+    val batchSize = dbConfig.getInt("batch-size")
+
+    object Iodb  {
       val path: String = iodbConfig.getString("path")
     }
 
@@ -174,6 +210,7 @@ trait MiningConfig {
   val ommersPoolSize: Int
   val blockCacheSize: Int
   val coinbase: Address
+  val activeTimeout: FiniteDuration
   val ommerPoolQueryTimeout: FiniteDuration
 }
 
@@ -185,6 +222,7 @@ object MiningConfig {
       val coinbase: Address = Address(miningConfig.getString("coinbase"))
       val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
       val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
+      val activeTimeout: FiniteDuration = miningConfig.getDuration("active-timeout").toMillis.millis
       val ommerPoolQueryTimeout: FiniteDuration = miningConfig.getDuration("ommer-pool-query-timeout").toMillis.millis
     }
   }
@@ -247,7 +285,7 @@ case class MonetaryPolicyConfig(
   firstEraBlockReward: BigInt
 ) {
   require(rewardRedutionRate >= 0.0 && rewardRedutionRate <= 1.0,
-    s"reward-reduction-rate should be a value in range [0.0, 1.0]")
+    "reward-reduction-rate should be a value in range [0.0, 1.0]")
 }
 
 object MonetaryPolicyConfig {
@@ -257,5 +295,24 @@ object MonetaryPolicyConfig {
       mpConfig.getDouble("reward-reduction-rate"),
       BigInt(mpConfig.getString("first-era-block-reward"))
     )
+  }
+}
+
+trait PruningConfig {
+  val mode: PruningMode
+}
+
+object PruningConfig {
+  def apply(etcClientConfig: com.typesafe.config.Config): PruningConfig = {
+    val pruningConfig = etcClientConfig.getConfig("pruning")
+
+    val pruningMode: PruningMode = pruningConfig.getString("mode") match {
+      case "basic" => BasicPruning(pruningConfig.getInt("history"))
+      case "archive" => ArchivePruning
+    }
+
+    new PruningConfig {
+      override val mode: PruningMode = pruningMode
+    }
   }
 }

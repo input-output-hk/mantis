@@ -321,6 +321,14 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     txPool.expectMsg(AddOrOverrideTransaction(chainSpecificStx))
   }
 
+  it should "return an error when importing a duplicated key" in new TestSetup {
+    (keyStore.importPrivateKey _).expects(prvKey, passphrase).returning(Left(KeyStore.DuplicateKeySaved))
+
+    val req = ImportRawKeyRequest(prvKey, passphrase)
+    val res = personal.importRawKey(req).futureValue
+    res shouldEqual Left(LogicError("account already exists"))
+  }
+
   trait TestSetup {
     val prvKey = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
     val address = Address(Hex.decode("aa6826f00d01fe4085f0c3dd12778e206ce4e2ac"))
@@ -360,7 +368,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     }
 
     val keyStore = mock[KeyStore]
-    val blockchain = mock[Blockchain]
+    val blockchain = mock[BlockchainImpl]
     val txPool = TestProbe()
     val appStateStorage = mock[AppStateStorage]
     val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig)

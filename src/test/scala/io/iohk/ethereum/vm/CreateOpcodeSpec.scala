@@ -71,9 +71,9 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val context: PC = ProgramContext(env, Address(0), 2 * gasRequiredForCreation, initWorld, config)
   }
 
-  case class CreateResult(context: PC = fxt.context, value: UInt256 = fxt.endowment, createCode: Assembly = fxt.createCode) {
-    val mem = Memory.empty.store(0, createCode.code)
-    val stack = Stack.empty().push(Seq[UInt256](createCode.code.size, 0, value))
+  case class CreateResult(context: PC = fxt.context, value: UInt256 = fxt.endowment, createCode: ByteString = fxt.createCode.code) {
+    val mem = Memory.empty.store(0, createCode)
+    val stack = Stack.empty().push(Seq[UInt256](createCode.size, 0, value))
     val stateIn: PS = ProgramState(context).withStack(stack).withMemory(mem)
     val stateOut: PS = CREATE.execute(stateIn)
 
@@ -110,14 +110,20 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       "consume correct gas" in {
         result.stateOut.gasUsed shouldEqual fxt.gasRequiredForCreation
       }
+
+      "step forward" in {
+        result.stateOut.pc shouldEqual result.stateIn.pc + 1
+      }
     }
 
     "initialization code fails" should {
       val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit / 2)
       val result = CreateResult(context = context)
 
-      "not modify world state" in {
-        result.world shouldEqual context.world
+      "not modify world state except for the creator's nonce" in {
+        val creatorsAccount = context.world.getGuaranteedAccount(fxt.creatorAddr)
+        val expectedWorld = context.world.saveAccount(fxt.creatorAddr, creatorsAccount.copy(nonce = creatorsAccount.nonce + 1))
+        result.world shouldEqual expectedWorld
       }
 
       "return 0" in {
@@ -128,14 +134,39 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
         val expectedGas = G_create + config.gasCap(context.startGas - G_create)
         result.stateOut.gasUsed shouldEqual expectedGas
       }
+
+      "step forward" in {
+        result.stateOut.pc shouldEqual result.stateIn.pc + 1
+      }
     }
 
     "initialization code runs normally but there's not enough gas to deposit code" should {
-      val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit + fxt.depositGas / 2)
+      val depositGas = fxt.depositGas * 101 / 100
+      val availableGasDepth0 = fxt.gasRequiredForInit + depositGas
+      val availableGasDepth1 = config.gasCap(availableGasDepth0)
+      val gasUsedInInit = fxt.gasRequiredForInit + fxt.depositGas
+
+      require(
+        gasUsedInInit < availableGasDepth0 && gasUsedInInit > availableGasDepth1,
+        "Regression: capped startGas in the VM at depth 1, should be used a base for code deposit gas check"
+      )
+
+      val context: PC = fxt.context.copy(startGas = G_create + fxt.gasRequiredForInit + depositGas)
       val result = CreateResult(context = context)
 
-      "throw OOG" in {
-        result.stateOut.error shouldEqual Some(OutOfGas)
+      "consume all gas passed to the init code" in {
+        val expectedGas = G_create + config.gasCap(context.startGas - G_create)
+        result.stateOut.gasUsed shouldEqual expectedGas
+      }
+
+      "not modify world state except for the creator's nonce" in {
+        val creatorsAccount = context.world.getGuaranteedAccount(fxt.creatorAddr)
+        val expectedWorld = context.world.saveAccount(fxt.creatorAddr, creatorsAccount.copy(nonce = creatorsAccount.nonce + 1))
+        result.world shouldEqual expectedWorld
+      }
+
+      "return 0" in {
+        result.returnValue shouldEqual 0
       }
     }
 
@@ -179,7 +210,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val gasRequiredForCreation = gasRequiredForInit + G_create
 
     val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation)
-    val result = CreateResult(context = context, createCode = fxt.initWithSelfDestruct)
+    val result = CreateResult(context = context, createCode = fxt.initWithSelfDestruct.code)
 
     "refund the correct amount of gas" in {
       result.stateOut.gasRefund shouldBe result.stateOut.config.feeSchedule.R_selfdestruct
@@ -194,7 +225,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val gasRequiredForCreation = gasRequiredForInit + G_create
 
     val context: PC = fxt.context.copy(startGas = 2 * gasRequiredForCreation)
-    val call = CreateResult(context = context, createCode = fxt.initWithSstoreWithClear)
+    val call = CreateResult(context = context, createCode = fxt.initWithSstoreWithClear.code)
 
     "refund the correct amount of gas" in {
       call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear

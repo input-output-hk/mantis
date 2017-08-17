@@ -4,16 +4,19 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.{AppStateStorage, ArchiveNodeStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.utils.{BlockchainConfig, FilterConfig, MiningConfig, TxPoolConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, FilterConfig, MiningConfig, PruningConfig, TxPoolConfig}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -49,8 +52,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val response = ethService.protocolVersion(ProtocolVersionRequest())
     val protocolVersion = response.futureValue.right.get.value
 
-    protocolVersion shouldEqual "0x3f"
-    Integer.parseInt(protocolVersion.drop(2), 16) shouldEqual EthService.CurrentProtocolVersion
+    Integer.parseInt(protocolVersion.drop(2), 16) shouldEqual currentProtocolVersion
   }
 
   it should "answer eth_getBlockTransactionCountByHash with None when the requested block isn't in the blockchain" in new TestSetup {
@@ -409,7 +411,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.save(blockToRequest)
     (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
 
-    val txResult = TxResult(InMemoryWorldStateProxy(storagesInstance.storages, UInt256.Zero), 123, Nil, ByteString("return_value"))
+    val txResult = TxResult(BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None), 123, Nil, ByteString("return_value"))
     (ledger.simulateTransaction _).expects(*, *, *).returning(txResult)
 
     val tx = CallTx(
@@ -425,7 +427,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     blockchain.save(blockToRequest)
     (appStateStorage.getBestBlockNumber _).expects().returning(blockToRequest.header.number)
 
-    val txResult = TxResult(InMemoryWorldStateProxy(storagesInstance.storages, UInt256.Zero), 123, Nil, ByteString("return_value"))
+    val txResult = TxResult(BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None), 123, Nil, ByteString("return_value"))
     (ledger.simulateTransaction _).expects(*, *, *).returning(txResult)
 
     val tx = CallTx(
@@ -478,7 +480,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     val mpt =
-      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.nodeStorage, (input: Array[Byte]) => crypto.kec256(input))
+      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage), (input: Array[Byte]) => crypto.kec256(input))
         .put(crypto.kec256(address.bytes.toArray[Byte]), Account(0, UInt256(0), ByteString(""), ByteString("code hash")))
 
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
@@ -508,13 +510,13 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val id2 = ByteString("id2")
 
     ethService.submitHashRate(SubmitHashRateRequest(rate, id1)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
-    Thread.sleep(ethService.minerTimeOut / 2)
+    Thread.sleep(miningConfig.activeTimeout.toMillis / 2)
     ethService.submitHashRate(SubmitHashRateRequest(rate, id2)).futureValue shouldEqual Right(SubmitHashRateResponse(true))
 
     val response1 = ethService.getHashRate(GetHashRateRequest())
     response1.futureValue shouldEqual Right(GetHashRateResponse(rate * 2))
 
-    Thread.sleep(ethService.minerTimeOut / 2)
+    Thread.sleep(miningConfig.activeTimeout.toMillis / 2)
     val response2 = ethService.getHashRate(GetHashRateRequest())
     response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
   }
@@ -558,7 +560,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
     ethService.getWork(GetWorkRequest())
 
-    Thread.sleep(ethService.minerTimeOut)
+    Thread.sleep(miningConfig.activeTimeout.toMillis)
 
     val response = ethService.getMining(GetMiningRequest())
 
@@ -623,7 +625,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     val mpt =
-      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.nodeStorage, (input: Array[Byte]) => crypto.kec256(input))
+      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage), (input: Array[Byte]) => crypto.kec256(input))
         .put(crypto.kec256(address.bytes.toArray[Byte]), Account(0, UInt256(123), ByteString(""), ByteString("code hash")))
 
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
@@ -653,12 +655,12 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     }
 
     val storageMpt =
-      MerklePatriciaTrie[UInt256, UInt256](storagesInstance.storages.nodeStorage, crypto.kec256(_: Array[Byte]))(
+      MerklePatriciaTrie[UInt256, UInt256](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage), crypto.kec256(_: Array[Byte]))(
         HashByteArraySerializable(byteArrayUInt256Serializer), rlpUInt256Serializer)
         .put(UInt256(333), UInt256(123))
 
     val mpt =
-      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.nodeStorage, (input: Array[Byte]) => crypto.kec256(input))
+      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage), (input: Array[Byte]) => crypto.kec256(input))
         .put(crypto.kec256(address.bytes.toArray[Byte]), Account(0, UInt256(0), ByteString(storageMpt.getRootHash), ByteString("")))
 
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
@@ -677,7 +679,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     val mpt =
-      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.nodeStorage, (input: Array[Byte]) => crypto.kec256(input))
+      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage), (input: Array[Byte]) => crypto.kec256(input))
         .put(crypto.kec256(address.bytes.toArray[Byte]), Account(999, UInt256(0), ByteString(""), ByteString("")))
 
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
@@ -756,9 +758,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         ))))))
   }
 
-  trait TestSetup extends MockFactory {
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
-    val blockchain = BlockchainImpl(storagesInstance.storages)
+  trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     val blockGenerator = mock[BlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
@@ -777,12 +777,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val coinbase: Address = Address(42)
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
+      override val activeTimeout: FiniteDuration = Timeouts.shortTimeout
       override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
-    }
-
-    val txPoolConfig = new TxPoolConfig {
-      val txPoolSize: Int = 1000
-      val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val filterConfig = new FilterConfig {
@@ -790,10 +786,10 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
-    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, txPoolConfig, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig, blockchainConfig) {
-      override val minerTimeOut: Long = Timeouts.shortTimeout.toMillis
-    }
+    val currentProtocolVersion = 11
+
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig, blockchainConfig, currentProtocolVersion)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number

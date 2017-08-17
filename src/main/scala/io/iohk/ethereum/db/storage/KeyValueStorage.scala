@@ -3,7 +3,7 @@ package io.iohk.ethereum.db.storage
 import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.dataSource.DataSource
 
-private[storage] trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, V, T]{
+trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, V, T]{
 
   val dataSource: DataSource
   val namespace: IndexedSeq[Byte]
@@ -48,6 +48,7 @@ object Namespaces {
   val CodeNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('c'.toByte)
   val TotalDifficultyNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('t'.toByte)
   val AppStateNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('s'.toByte)
+  val KnownNodesNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('k'.toByte)
   val HeightsNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('i'.toByte)
   val FastSyncStateNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('h'.toByte)
   val TransactionMappingNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('l'.toByte)

@@ -1,6 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+
 import language.implicitConversions
 
 // scalastyle:off number.of.methods
@@ -61,7 +62,7 @@ object UInt256 {
   private val MaxSignedValue: BigInt = BigInt(2).pow(Size * 8 - 1) - 1
 }
 
-// TODO: consider moving to util as Uint256, which follows Scala numeric conventions, and is used across the system for P_256 numbers (see YP 4.3)
+// TODO: consider moving to util as Uint256, which follows Scala numeric conventions, and is used across the system for P_256 numbers (see YP 4.3) [EC-252]
 /** Represents 256 bit unsigned integers with standard arithmetic, byte-wise operation and EVM-specific extensions */
 class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
 

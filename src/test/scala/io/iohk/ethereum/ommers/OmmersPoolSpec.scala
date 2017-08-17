@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import io.iohk.ethereum.Fixtures.Blocks.Block3125369
 import io.iohk.ethereum.Timeouts
-import io.iohk.ethereum.domain.{Address, Blockchain}
+import io.iohk.ethereum.domain.{Address, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers, RemoveOmmers}
 import io.iohk.ethereum.utils.MiningConfig
 import org.scalamock.scalatest.MockFactory
@@ -59,11 +59,12 @@ class OmmersPoolSpec extends FlatSpec with Matchers with MockFactory {
       override val coinbase: Address = Address(2)
       override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
       override val blockCacheSize: Int = 4
+      override val activeTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val testProbe = TestProbe()
 
-    val blockchain = mock[Blockchain]
+    val blockchain = mock[BlockchainImpl]
     val ommersPool = system.actorOf(OmmersPool.props(blockchain, miningConfig))
   }
 }

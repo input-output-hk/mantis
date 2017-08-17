@@ -2,11 +2,11 @@ package io.iohk.ethereum
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
+import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
-import io.iohk.ethereum.ledger.{BlockExecutionError, BlockPreparationError, Ledger}
+import io.iohk.ethereum.ledger.{BlockExecutionError, BlockPreparationError, InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderNumberError
@@ -23,11 +23,12 @@ object Mocks {
       if(shouldExecuteCorrectly(block, storages, validators))
         Right(Nil)
       else
-        Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head, "StubLedger was set to fail for this case"))
+        Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head,
+          StateBeforeFailure(BlockchainImpl(storages).getWorldStateProxy(0, UInt256.Zero),0,Nil),
+          "StubLedger was set to fail for this case"))
     }
 
-    override def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators):
-    Either[BlockPreparationError, BlockPreparationResult] = {
+    override def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators): BlockPreparationResult = {
       ???
     }
 
@@ -42,6 +43,7 @@ object Mocks {
     world = context.world,
     addressesToDelete = Set.empty,
     logs = Nil,
+    internalTxs = Nil,
     gasRefund = 20000,
     error = None
   )
@@ -51,10 +53,18 @@ object Mocks {
       runFn(context.asInstanceOf[Ledger.PC]).asInstanceOf[ProgramResult[W, S]]
   }
 
+  class MockValidatorsFailingOnBlockBodies extends MockValidatorsAlwaysSucceed {
+
+    override val blockValidator: BlockValidator = new BlockValidator {
+      override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Right(())
+      override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
+    }
+  }
+
   class MockValidatorsAlwaysSucceed extends Validators {
 
     override val blockValidator: BlockValidator = new BlockValidator {
-      override def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]) = Right(block)
+      override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Right(())
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Right(Block(blockHeader, blockBody))
     }
 
@@ -65,6 +75,8 @@ object Mocks {
     override val signedTransactionValidator: SignedTransactionValidator =
       (stx: SignedTransaction, account: Account, blockHeader: BlockHeader, upfrontGasCost: UInt256, accumGasLimit: BigInt) => Right(())
   }
+
+  object MockValidatorsAlwaysSucceed extends MockValidatorsAlwaysSucceed
 
   object MockValidatorsAlwaysFail extends Validators {
     override val signedTransactionValidator = new SignedTransactionValidator {
@@ -82,7 +94,7 @@ object Mocks {
 
     override val blockValidator = new BlockValidator {
       def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
-      def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
+      def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
     }
   }
 

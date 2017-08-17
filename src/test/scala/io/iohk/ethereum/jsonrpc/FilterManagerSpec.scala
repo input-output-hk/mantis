@@ -386,7 +386,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
 
     val time = new VirtualTime
 
-    val blockchain = mock[Blockchain]
+    val blockchain = mock[BlockchainImpl]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
     val blockGenerator = mock[BlockGenerator]

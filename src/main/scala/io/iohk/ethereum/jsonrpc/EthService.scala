@@ -17,7 +17,7 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -33,12 +33,9 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
-import scala.concurrent.duration._
 
 // scalastyle:off number.of.methods number.of.types
 object EthService {
-
-  val CurrentProtocolVersion = 63
 
   case class ProtocolVersionRequest()
   case class ProtocolVersionResponse(value: String)
@@ -174,7 +171,6 @@ class EthService(
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
     miningConfig: MiningConfig,
-    txPoolConfig: TxPoolConfig,
     ledger: Ledger,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
@@ -182,19 +178,19 @@ class EthService(
     ommersPool: ActorRef,
     filterManager: ActorRef,
     filterConfig: FilterConfig,
-    blockchainConfig: BlockchainConfig)
+    blockchainConfig: BlockchainConfig,
+    protocolVersion: Int)
   extends Logger {
 
   import EthService._
 
   lazy val blockchain = BlockchainImpl(blockchainStorages)
 
-  val minerTimeOut: Long = 5.seconds.toMillis // TODO: configure timeout
   val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] = new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
   val lastActive = new AtomicReference[Option[Date]](None)
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
-    Future.successful(Right(ProtocolVersionResponse(f"0x$CurrentProtocolVersion%x")))
+    Future.successful(Right(ProtocolVersionResponse(f"0x$protocolVersion%x")))
 
   /**
     * eth_blockNumber that returns the number of most recent block.
@@ -409,7 +405,7 @@ class EthService(
   def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] = {
     val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
       override def apply(e: Option[Date]): Option[Date] = {
-        e.filter { time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < minerTimeOut }
+        e.filter { time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < miningConfig.activeTimeout.toMillis }
       }
     }).isDefined
     Future.successful(Right(GetMiningResponse(isMining)))
@@ -437,7 +433,7 @@ class EthService(
 
   private def removeObsoleteHashrates(now: Date, rates: Map[ByteString, (BigInt, Date)]):Map[ByteString, (BigInt, Date)]={
     rates.filter { case (_, (_, reported)) =>
-      Duration.between(reported.toInstant, now.toInstant).toMillis < minerTimeOut
+      Duration.between(reported.toInstant, now.toInstant).toMillis < miningConfig.activeTimeout.toMillis
     }
   }
 
@@ -549,7 +545,7 @@ class EthService(
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Future {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        val world = InMemoryWorldStateProxy(blockchainStorages, blockchainConfig.accountStartNonce, Some(block.header.stateRoot))
+        val world = BlockchainImpl(blockchainStorages).getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, Some(block.header.stateRoot))
         GetCodeResponse(world.getCode(req.address))
       }
     }

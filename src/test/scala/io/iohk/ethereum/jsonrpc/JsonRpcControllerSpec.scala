@@ -4,8 +4,11 @@ import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.EthService._
@@ -70,7 +73,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(JString("grothendieck/v0.1"))
+    response.result shouldBe Some(JString("mantis/v0.1"))
   }
 
   it should "Handle net_peerCount request" in new TestSetup {
@@ -94,13 +97,15 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "Handle net_version request" in new TestSetup {
-    (netService.version _).expects(*).returning(Future.successful(Right(VersionResponse("99"))))
+    val netVersion = "99"
+
+    (netService.version _).expects(*).returning(Future.successful(Right(VersionResponse(netVersion))))
 
     val rpcRequest = JsonRpcRequest("2.0", "net_version", None, Some(1))
 
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.result shouldBe Some(JString("99"))
+    response.result shouldBe Some(JString(netVersion))
   }
 
   it should "eth_protocolVersion" in new TestSetup {
@@ -156,7 +161,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val web3Response = jsonRpcController.handleRequest(web3RpcRequest).futureValue
 
     web3Response.error shouldBe None
-    web3Response.result shouldBe Some(JString("grothendieck/v0.1"))
+    web3Response.result shouldBe Some(JString("mantis/v0.1"))
   }
 
   it should "handle eth_getBlockTransactionCountByHash request" in new TestSetup {
@@ -1281,11 +1286,9 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     ))
   }
 
-  trait TestSetup extends MockFactory {
+  trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     def config: JsonRpcConfig = Config.Network.Rpc
 
-    val storagesInstance = new SharedEphemDataSources with Storages.DefaultStorages
-    val blockchain = BlockchainImpl(storagesInstance.storages)
     val blockGenerator: BlockGenerator = mock[BlockGenerator]
     implicit val system = ActorSystem("JsonRpcControllerSpec_System")
 
@@ -1303,12 +1306,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override val coinbase: Address = Address(Hex.decode("42" * 20))
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
+      override val activeTimeout: FiniteDuration = Timeouts.normalTimeout
       override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
-    }
-
-    val txPoolConfig = new TxPoolConfig {
-      val txPoolSize: Int = 1000
-      val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val filterConfig = new FilterConfig {
@@ -1316,12 +1315,15 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
+    val currentProtocolVersion = 63
+
     val appStateStorage = mock[AppStateStorage]
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
-    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, txPoolConfig, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig, blockchainConfig)
+    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
+      blockchainConfig, currentProtocolVersion)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
 
     val blockHeader = BlockHeader(

@@ -14,7 +14,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerDis
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.validators.Validators
 
 class SyncController(
@@ -28,6 +28,7 @@ class SyncController(
     val pendingTransactionsManager: ActorRef,
     val ommersPool: ActorRef,
     val etcPeerManager: ActorRef,
+    syncConfig: SyncConfig,
     val externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor
     with ActorLogging
@@ -36,7 +37,7 @@ class SyncController(
     with RegularSync {
 
   import BlacklistSupport._
-  import Config.Sync._
+  import syncConfig._
   import SyncController._
 
   override val supervisorStrategy: OneForOneStrategy =
@@ -65,8 +66,12 @@ class SyncController(
         case (true, false) =>
           startRegularSync()
         case (false, false) =>
-          fastSyncStateStorage.purge()
-          startRegularSync()
+          //Check whether fast sync was started before
+          if (fastSyncStateStorage.getSyncState().isDefined) {
+            log.warning(s"do-fast-sync is set to $doFastSync but regular sync cannot start because fast sync hasn't completed")
+            startFastSync()
+          } else
+            startRegularSync()
       }
 
     case FastSyncDone =>
@@ -105,7 +110,6 @@ class SyncController(
 }
 
 object SyncController {
-  //todo refactor to provide ActorRefs differently
   // scalastyle:off parameter.number
   def props(appStateStorage: AppStateStorage,
             blockchain: Blockchain,
@@ -116,9 +120,10 @@ object SyncController {
             peerEventBus: ActorRef,
             pendingTransactionsManager: ActorRef,
             ommersPool: ActorRef,
-            peersInfoHolder: ActorRef):
+            etcPeerManager: ActorRef,
+            syncConfig: SyncConfig):
   Props = Props(new SyncController(appStateStorage, blockchain, blockchainStorages, syncStateStorage, ledger, validators,
-    peerEventBus, pendingTransactionsManager, ommersPool, peersInfoHolder))
+    peerEventBus, pendingTransactionsManager, ommersPool, etcPeerManager, syncConfig))
 
   case class BlockHeadersToResolve(peer: Peer, headers: Seq[BlockHeader])
 

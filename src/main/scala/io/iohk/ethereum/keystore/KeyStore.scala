@@ -21,6 +21,7 @@ object KeyStore {
   case object DecryptionFailed extends KeyStoreError
   case object InvalidKeyFormat extends KeyStoreError
   case class IOError(msg: String) extends KeyStoreError
+  case object DuplicateKeySaved extends KeyStoreError
 }
 
 import io.iohk.ethereum.keystore.KeyStore._
@@ -66,18 +67,25 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
 
   private def init(): Unit = {
     val dir = new File(keyStoreDir)
-    val res = Try(dir.mkdirs()).filter(identity)
-    res.failed.foreach(ex => log.error(s"Could not initialise keystore directory ($dir): $ex"))
+    val res = Try(dir.isDirectory || dir.mkdirs()).filter(identity)
+    require(res.isSuccess, s"Could not initialise keystore directory ($dir): ${res.failed.get}")
   }
 
   private def save(encKey: EncryptedKey): Either[KeyStoreError, Unit] = {
     val json = EncryptedKeyJsonCodec.toJson(encKey)
     val name = fileName(encKey)
     val path = Paths.get(keyStoreDir, name)
-    Try {
-      Files.write(path, json.getBytes(StandardCharsets.UTF_8))
-      ()
-    }.toEither.left.map(ioError)
+
+    containsAccount(encKey).flatMap { alreadyInKeyStore =>
+      if(alreadyInKeyStore)
+        Left(DuplicateKeySaved)
+      else {
+        Try {
+          Files.write(path, json.getBytes(StandardCharsets.UTF_8))
+          ()
+        }.toEither.left.map(ioError)
+      }
+    }
   }
 
   private def load(address: Address): Either[KeyStoreError, EncryptedKey] = {
@@ -115,8 +123,14 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
     IOError(ex.toString)
 
   private def fileName(encKey: EncryptedKey) = {
-    val dateStr = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_DATE_TIME)
+    val dateStr = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_DATE_TIME).replace(':', '-')
     val addrStr = encKey.address.toUnprefixedString
     s"UTC--$dateStr--$addrStr"
+  }
+
+  private def containsAccount(encKey: EncryptedKey): Either[KeyStoreError, Boolean] = load(encKey.address) match {
+    case Right(_) => Right(true)
+    case Left(KeyNotFound) => Right(false)
+    case Left(err) => Left(err)
   }
 }

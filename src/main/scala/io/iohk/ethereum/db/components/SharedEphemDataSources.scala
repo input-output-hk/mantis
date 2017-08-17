@@ -27,6 +27,8 @@ trait SharedEphemDataSources extends DataSourcesComponent {
 
     override val transactionMappingDataSource: DataSource = ephemDataSource
 
+    override val knownNodesDataSource: DataSource = ephemDataSource
+
     override def closeAll(): Unit = ()
   }
 

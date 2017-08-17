@@ -30,6 +30,19 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
     listAfterImport.length shouldEqual 2
   }
 
+  it should "fail to import a key twice" in new TestSetup {
+    val resAfterFirstImport = keyStore.importPrivateKey(key1, "aaa")
+    val resAfterDupImport = keyStore.importPrivateKey(key1, "aaa")
+
+    resAfterFirstImport shouldEqual Right(addr1)
+    resAfterDupImport shouldBe Left(KeyStore.DuplicateKeySaved)
+
+    //Only the first import succeeded
+    val listAfterImport = keyStore.listAccounts().right.get
+    listAfterImport.toSet shouldEqual Set(addr1)
+    listAfterImport.length shouldEqual 1
+  }
+
   it should "create new accounts" in new TestSetup {
     val newAddr1 = keyStore.newAccount("aaa").right.get
     val newAddr2 = keyStore.newAccount("bbb").right.get
@@ -39,17 +52,23 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
     listOfNewAccounts.length shouldEqual 2
   }
 
+  it should "return an error when the keystore dir cannot be initialized" in new TestSetup {
+    intercept[IllegalArgumentException] {
+      new KeyStoreImpl("/root/keystore", secureRandom)
+    }
+  }
+
   it should "return an error when the keystore dir cannot be read or written" in new TestSetup {
-    val badKeyStore = new KeyStoreImpl("/root/keystore", secureRandom)
+    clearKeyStore()
 
     val key = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
-    val res1 = badKeyStore.importPrivateKey(key, "aaa")
+    val res1 = keyStore.importPrivateKey(key, "aaa")
     res1 should matchPattern { case Left(IOError(_)) => }
 
-    val res2 = badKeyStore.newAccount("aaa")
+    val res2 = keyStore.newAccount("aaa")
     res2 should matchPattern { case Left(IOError(_)) => }
 
-    val res3 = badKeyStore.listAccounts()
+    val res3 = keyStore.listAccounts()
     res3 should matchPattern { case Left(IOError(_)) => }
   }
 

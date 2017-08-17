@@ -7,9 +7,13 @@ import akka.pattern.ask
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerManagerActor.Peers
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.HandshakeSuccess
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
@@ -140,6 +144,19 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     )
   }
 
+  it should "broadcast pending transactions to newly connected peers" in new TestSetup {
+    val stx = newStx()
+    pendingTransactionsManager ! AddTransactions(stx)
+
+    peerManager.expectMsg(PeerManagerActor.GetPeers)
+    peerManager.reply(Peers(Map.empty))
+
+    pendingTransactionsManager ! PeerEvent.PeerHandshakeSuccessful(peer1, new HandshakeResult {})
+
+    etcPeerManager.expectMsgAllOf(
+      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx)), peer1.id))
+  }
+
   trait TestSetup extends SecureRandomBuilder {
     implicit val system = ActorSystem("test-system")
 
@@ -152,11 +169,11 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
       SignedTransaction.sign(tx, keyPair, Some(0x3d))
 
     val peer1TestProbe = TestProbe()
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref)
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref, false)
     val peer2TestProbe = TestProbe()
-    val peer2 = Peer(new InetSocketAddress("127.0.0.2", 9000), peer2TestProbe.ref)
+    val peer2 = Peer(new InetSocketAddress("127.0.0.2", 9000), peer2TestProbe.ref, false)
     val peer3TestProbe = TestProbe()
-    val peer3 = Peer(new InetSocketAddress("127.0.0.3", 9000), peer3TestProbe.ref)
+    val peer3 = Peer(new InetSocketAddress("127.0.0.3", 9000), peer3TestProbe.ref, false)
 
     val txPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 300

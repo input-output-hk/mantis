@@ -23,6 +23,7 @@ object ProgramState {
   * @param returnData data to be returned from the program execution
   * @param gasRefund the amount of gas to be refunded after execution (not sure if a separate field is required)
   * @param addressesToDelete list of addresses of accounts scheduled to be deleted
+  * @param internalTxs list of internal transactions (for debugging/tracing)
   * @param halted a flag to indicate program termination
   * @param error indicates whether the program terminated abnormally
   */
@@ -36,6 +37,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   returnData: ByteString = ByteString.empty,
   gasRefund: BigInt = 0,
   addressesToDelete: Set[Address] = Set.empty,
+  internalTxs: Vector[InternalTransaction] = Vector.empty,
   logs: Vector[TxLogEntry] = Vector.empty,
   halted: Boolean = false,
   error: Option[ProgramError] = None
@@ -98,6 +100,9 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def withLogs(log: Seq[TxLogEntry]): ProgramState[W, S] =
     copy(logs = logs ++ log)
+
+  def withInternalTxs(txs: Seq[InternalTransaction]): ProgramState[W, S] =
+    if (config.traceInternalTransactions) copy(internalTxs = internalTxs ++ txs) else this
 
   def halt: ProgramState[W, S] =
     copy(halted = true)
