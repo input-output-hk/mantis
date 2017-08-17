@@ -18,6 +18,7 @@ import io.iohk.ethereum.validators.BlockValidator
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 trait FastSync {
   selfSyncController: SyncController =>
@@ -180,7 +181,10 @@ trait FastSync {
 
     private var blockChainOnlyPeers = Seq.empty[Peer]
 
-    private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotInterval, persistStateSnapshotInterval, self, PersistSyncState)
+    //Delay before starting to persist snapshot. It should be 0, as the presence of it marks that fast sync was started
+    private val persistStateSnapshotDelay: FiniteDuration = 0.seconds
+
+    private val syncStatePersistCancellable = scheduler.schedule(persistStateSnapshotDelay, persistStateSnapshotInterval, self, PersistSyncState)
     private val heartBeat = scheduler.schedule(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
 
     // scalastyle:off cyclomatic.complexity
@@ -225,6 +229,9 @@ trait FastSync {
 
       case PersistSyncState =>
         persistSyncState()
+
+      case RedownloadBlockchain =>
+        redownloadBlockchain()
     }
 
     private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]) = {
@@ -235,13 +242,20 @@ trait FastSync {
           blacklist(peer.id, blacklistDuration, s"responded with block bodies not matching block headers, blacklisting for $blacklistDuration")
           self ! FastSync.EnqueueBlockBodies(requestedHashes)
         case DbError =>
-          blockBodiesQueue = Seq.empty
-          receiptsQueue = Seq.empty
-          //todo adjust the formula to minimize redownloaded block headers
-          bestBlockHeaderNumber = bestBlockHeaderNumber - 2 * blockHeadersPerRequest
-          log.debug("missing block header for known hash")
-          self ! ProcessSyncing
+          redownloadBlockchain()
       }
+    }
+
+    /**
+      * Restarts download from a few blocks behind the current best block header, as an unexpected DB error happened
+      */
+    private def redownloadBlockchain(): Unit = {
+      blockBodiesQueue = Seq.empty
+      receiptsQueue = Seq.empty
+      //todo adjust the formula to minimize redownloaded block headers
+      bestBlockHeaderNumber = (bestBlockHeaderNumber - 2 * blockHeadersPerRequest).max(0)
+      log.debug("missing block header for known hash")
+      self ! ProcessSyncing
     }
 
     private def handleActorTerminate(ref: ActorRef) = {
@@ -419,7 +433,7 @@ trait FastSync {
     def requestReceipts(peer: Peer): Unit = {
       val (receiptsToGet, remainingReceipts) = receiptsQueue.splitAt(receiptsPerRequest)
       val handler = context.actorOf(FastSyncReceiptsRequestHandler.props(
-        peer, etcPeerManager, peerEventBus, receiptsToGet, appStateStorage, blockchain))
+        peer, etcPeerManager, peerEventBus, receiptsToGet, appStateStorage, blockchain, validators.blockValidator))
       context watch handler
       assignedHandlers += (handler -> peer)
       peerRequestsTime += (peer -> Instant.now())
@@ -509,6 +523,7 @@ object FastSync {
 
   private case object ProcessSyncing
   private case object PersistSyncState
+  case object RedownloadBlockchain
   case class MarkPeerBlockchainOnly(peer: Peer)
 
   private sealed trait BlockBodyValidationResult
