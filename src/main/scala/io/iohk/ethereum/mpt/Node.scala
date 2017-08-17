@@ -3,7 +3,6 @@ package io.iohk.ethereum.mpt
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.HashFn
 import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits
 import io.iohk.ethereum.rlp.{encode => encodeRLP}
 
@@ -25,7 +24,7 @@ sealed trait MptNode {
 }
 
 object Node {
-  val hashFn: HashFn = (input: Array[Byte]) => crypto.kec256(input)
+  val hashFn: (Array[Byte]) => Array[Byte] = (input: Array[Byte]) => crypto.kec256(input)
 }
 
 case class LeafNode(key: ByteString, value: ByteString) extends MptNode {

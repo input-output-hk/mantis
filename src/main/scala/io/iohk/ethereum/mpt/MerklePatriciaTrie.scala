@@ -22,8 +22,6 @@ object MerklePatriciaTrie {
     toDeleteFromStorage: Seq[MptNode] = Nil,
     toUpdateInStorage: Seq[MptNode] = Nil)
 
-  type HashFn = Array[Byte] => Array[Byte]
-
   private val PairSize: Byte = 2
   private[mpt] val ListSize: Byte = 17
 
@@ -34,11 +32,11 @@ object MerklePatriciaTrie {
   def apply[K, V](rootHash: Array[Byte], source: NodesKeyValueStorage)
     (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
   : MerklePatriciaTrie[K, V] = {
-    if (calculateEmptyRootHash(Node.hashFn) sameElements rootHash) MerklePatriciaTrie(source)
+    if (calculateEmptyRootHash() sameElements rootHash) MerklePatriciaTrie(source)
     else new MerklePatriciaTrie[K, V](Some(rootHash), source)(kSerializer, vSerializer)
   }
 
-  def calculateEmptyRootHash(hashFn: HashFn): Array[Byte] = hashFn(encodeRLP(Array.emptyByteArray))
+  def calculateEmptyRootHash(): Array[Byte] = Node.hashFn(encodeRLP(Array.emptyByteArray))
 
   private def getNode(nodeId: Array[Byte], source: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): MptNode = {
     val nodeEncoded =
