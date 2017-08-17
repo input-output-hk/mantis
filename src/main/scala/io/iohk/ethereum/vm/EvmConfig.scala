@@ -38,7 +38,8 @@ object EvmConfig {
     exceptionalFailedCodeDeposit = false,
     subGasCapDivisor = None,
     chargeSelfDestructForNewAccount = false,
-    maxCodeSize = maxCodeSize)
+    maxCodeSize = maxCodeSize,
+    traceInternalTransactions = false)
 
   val HomesteadConfigBuilder: EvmConfigBuilder = maxCodeSize => EvmConfig(
     feeSchedule = new FeeSchedule.HomesteadFeeSchedule,
@@ -46,7 +47,8 @@ object EvmConfig {
     exceptionalFailedCodeDeposit = true,
     subGasCapDivisor = None,
     chargeSelfDestructForNewAccount = false,
-    maxCodeSize = maxCodeSize)
+    maxCodeSize = maxCodeSize,
+    traceInternalTransactions = false)
 
   val PostEIP150ConfigBuilder: EvmConfigBuilder = maxCodeSize => HomesteadConfigBuilder(maxCodeSize).copy(
     feeSchedule = new FeeSchedule.PostEIP150FeeSchedule,
@@ -63,7 +65,8 @@ case class EvmConfig(
     exceptionalFailedCodeDeposit: Boolean,
     subGasCapDivisor: Option[Long],
     chargeSelfDestructForNewAccount: Boolean,
-    maxCodeSize: Option[BigInt]) {
+    maxCodeSize: Option[BigInt],
+    traceInternalTransactions: Boolean) {
 
   import feeSchedule._
   import EvmConfig._

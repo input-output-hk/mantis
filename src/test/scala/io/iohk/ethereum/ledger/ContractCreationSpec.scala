@@ -33,6 +33,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
       addressesToDelete = addressesToDelete,
       logs = logs,
       gasRefund = gasRefund,
+      internalTxs = Nil,
       error = error
     )
 
