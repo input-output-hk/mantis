@@ -22,4 +22,7 @@ case class MockStorage(data: Map[UInt256, UInt256] = Map()) extends Storage[Mock
 
   def load(addr: UInt256): UInt256 =
     data.getOrElse(addr, UInt256.Zero)
+
+  def isEmpty: Boolean =
+    data.isEmpty
 }
