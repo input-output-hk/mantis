@@ -113,7 +113,7 @@ trait RegularSync extends BlockBroadcast {
   private def handleBlockBranchResolution(peer: Peer, message: Seq[BlockHeader]) =
     if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
       headersQueue = message ++ headersQueue
-      if (headersQueue.length > branchMaxDepthResolving) {
+      if (headersQueue.length > branchResolutionMaxDepth) {
         log.debug("fail to resolve branch, branch too long, it may indicate malicious peer")
         resumeWithDifferentPeer(peer)
       } else {
@@ -158,7 +158,7 @@ trait RegularSync extends BlockBroadcast {
             scheduleResume()
           }
         } else {
-          val request = GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolvePerRequest, skip = 0, reverse = true)
+          val request = GetBlockHeaders(Right(headersQueue.head.parentHash), branchResolutionBatchSize, skip = 0, reverse = true)
           waitingForActor = Some(context.actorOf(
             SyncBlockHeadersRequestHandler.props(peer, peerResponseTimeout, etcPeerManager, peerEventBus, request, resolveBranches = true)))
         }
