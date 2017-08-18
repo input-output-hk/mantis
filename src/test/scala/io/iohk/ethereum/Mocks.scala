@@ -43,6 +43,7 @@ object Mocks {
     world = context.world,
     addressesToDelete = Set.empty,
     logs = Nil,
+    internalTxs = Nil,
     gasRefund = 20000,
     error = None
   )

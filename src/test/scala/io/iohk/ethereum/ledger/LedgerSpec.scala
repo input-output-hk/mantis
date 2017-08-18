@@ -48,6 +48,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       world = context.world,
       addressesToDelete = addressesToDelete,
       logs = logs,
+      internalTxs = Nil,
       gasRefund = gasRefund,
       error = error
     )

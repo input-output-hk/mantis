@@ -33,9 +33,15 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.utils.Config.SyncConfig
 
+// scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
   lazy val blockchainConfig = BlockchainConfig(Config.config)
+}
+
+trait SyncConfigBuilder {
+  lazy val syncConfig = SyncConfig(Config.config)
 }
 
 trait TxPoolConfigBuilder {
@@ -366,9 +372,8 @@ trait SyncControllerBuilder {
     PeerEventBusBuilder with
     PendingTransactionsManagerBuilder with
     OmmersPoolBuilder with
-    EtcPeerManagerActorBuilder =>
-
-  lazy val syncConfig = Config.Sync
+    EtcPeerManagerActorBuilder with
+    SyncConfigBuilder =>
 
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
@@ -377,11 +382,11 @@ trait SyncControllerBuilder {
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       validators,
+      syncConfig,
       peerEventBus,
       pendingTransactionsManager,
       ommersPool,
-      etcPeerManager,
-      syncConfig), "sync-controller")
+      etcPeerManager), "sync-controller")
 
 }
 
@@ -450,3 +455,4 @@ trait Node extends NodeKeyBuilder
   with DiscoveryConfigBuilder
   with DiscoveryListenerBuilder
   with KnownNodesManagerBuilder
+  with SyncConfigBuilder
