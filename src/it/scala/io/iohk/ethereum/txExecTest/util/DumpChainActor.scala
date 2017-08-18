@@ -104,16 +104,19 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
 
       nodes.foreach {
         case n: LeafNode =>
-          if (n.getAccount.codeHash != DumpChainActor.emptyEvm) {
-            peers.headOption.foreach { case Peer(_, actor, _) =>
-              evmTorequest = evmTorequest :+ n.getAccount.codeHash
-              evmCodeHashes = evmCodeHashes + n.getAccount.codeHash
+          import AccountImplicits._
+          val account = n.value.toArray[Byte].toAccount
+
+          if (account.codeHash != DumpChainActor.emptyEvm) {
+            peers.headOption.foreach { case Peer(_, _, _) =>
+              evmTorequest = evmTorequest :+ account.codeHash
+              evmCodeHashes = evmCodeHashes + account.codeHash
             }
           }
-          if (n.getAccount.storageRoot != DumpChainActor.emptyStorage) {
-            peers.headOption.foreach { case Peer(_, actor, _) =>
-              contractChildren = contractChildren :+ n.getAccount.storageRoot
-              contractNodesHashes = contractNodesHashes + n.getAccount.storageRoot
+          if (account.storageRoot != DumpChainActor.emptyStorage) {
+            peers.headOption.foreach { case Peer(_, _, _) =>
+              contractChildren = contractChildren :+ account.storageRoot
+              contractNodesHashes = contractNodesHashes + account.storageRoot
             }
           }
         case _ =>

@@ -68,8 +68,9 @@ object FixtureProvider {
           }
 
         case Some(m: LeafNode) =>
+          import AccountImplicits._
           storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
-          Try(m.getAccount).toOption.foreach { account =>
+          Try(m.value.toArray[Byte].toAccount).toOption.foreach { account =>
             if (account.codeHash != DumpChainActor.emptyEvm) {
               storages.evmCodeStorage.put(account.codeHash, fixtures.evmCode(account.codeHash))
             }

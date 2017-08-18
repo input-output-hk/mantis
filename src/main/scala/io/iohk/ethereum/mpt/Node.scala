@@ -27,10 +27,7 @@ object Node {
   val hashFn: (Array[Byte]) => Array[Byte] = (input: Array[Byte]) => crypto.kec256(input)
 }
 
-case class LeafNode(key: ByteString, value: ByteString) extends MptNode {
-  import AccountImplicits._
-  def getAccount: Account = value.toArray[Byte].toAccount
-}
+case class LeafNode(key: ByteString, value: ByteString) extends MptNode
 
 case class ExtensionNode(sharedKey: ByteString, next: Either[ByteString, MptNode]) extends MptNode
 

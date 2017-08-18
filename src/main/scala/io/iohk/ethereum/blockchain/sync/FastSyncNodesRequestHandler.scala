@@ -78,8 +78,11 @@ class FastSyncNodesRequestHandler(
 
   private def handleMptNode(mptNode: MptNode): Seq[HashType] = mptNode match {
     case n: LeafNode =>
-      val evm = n.getAccount.codeHash
-      val storage = n.getAccount.storageRoot
+      import AccountImplicits._
+      val account = n.value.toArray[Byte].toAccount
+
+      val evm = account.codeHash
+      val storage = account.storageRoot
 
       nodesKeyValueStorage.put(ByteString(n.hash), n.toBytes)
 
