@@ -113,12 +113,7 @@ trait RegularSync extends BlockBroadcast {
   private def handleBlockBranchResolution(peer: Peer, message: Seq[BlockHeader]) =
     if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
       headersQueue = message ++ headersQueue
-      if ((headersQueue.length - 1) / branchResolutionBatchSize > branchResolutionMaxRequests) {
-        log.debug("fail to resolve branch, branch too long, it may indicate malicious peer")
-        resumeWithDifferentPeer(peer)
-      } else {
         processBlockHeaders(peer, headersQueue)
-      }
     } else {
       //we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
       resumeWithDifferentPeer(peer)
@@ -158,9 +153,14 @@ trait RegularSync extends BlockBroadcast {
             scheduleResume()
           }
         } else {
-          val request = GetBlockHeaders(Right(headersQueue.head.parentHash), branchResolutionBatchSize, skip = 0, reverse = true)
-          waitingForActor = Some(context.actorOf(
-            SyncBlockHeadersRequestHandler.props(peer, peerResponseTimeout, etcPeerManager, peerEventBus, request, resolveBranches = true)))
+          if ((headersQueue.length - 1) / branchResolutionBatchSize >= branchResolutionMaxRequests) {
+            log.debug("fail to resolve branch, branch too long, it may indicate malicious peer")
+            resumeWithDifferentPeer(peer)
+          } else {
+            val request = GetBlockHeaders(Right(headersQueue.head.parentHash), branchResolutionBatchSize, skip = 0, reverse = true)
+            waitingForActor = Some(context.actorOf(
+              SyncBlockHeadersRequestHandler.props(peer, peerResponseTimeout, etcPeerManager, peerEventBus, request, resolveBranches = true)))
+          }
         }
       case _ =>
         log.debug("Got block header that does not have parent")

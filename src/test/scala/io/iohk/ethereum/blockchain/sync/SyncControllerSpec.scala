@@ -480,19 +480,9 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     syncController.children.last ! MessageFromPeer(BlockHeaders(Queue(newBlockHeader)), peer.id)
 
 
-    peerMessageBus.expectMsgAllOf(
-      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
-      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
-    )
+    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
 
-    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Right(newBlockHeader.parentHash), syncConfig.branchResolutionBatchSize, 0, reverse = true),
-      peer.id))
-    syncController.children.last ! MessageFromPeer(BlockHeaders(Queue(newBlockHeaderParent)), peer.id)
-
-    peerMessageBus.expectMsgAllOf(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
-
-    //expect peer blacklisting because branch is too long (newBlockHeaderParent + newBlockHeader + newBlockHeaderParent)
+    //expect peer blacklisting because branch is too long (newBlockHeaderParent + newBlockHeader)
     etcPeerManager.expectNoMsg()
     peerMessageBus.expectNoMsg()
     ommersPool.expectNoMsg()
