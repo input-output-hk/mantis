@@ -27,7 +27,7 @@ case class MockWorldState(
     copy(accounts = accounts + (address -> account))
 
   def deleteAccount(address: Address): MockWorldState =
-    copy(accounts = accounts - address)
+    copy(accounts = accounts - address, codeRepo - address, storages - address)
 
   def getCode(address: Address): ByteString =
     codeRepo.getOrElse(address, ByteString.empty)
@@ -37,15 +37,29 @@ case class MockWorldState(
 
   def getBlockHash(number: UInt256): Option[UInt256] =
     if (numberOfHashes >= number && number >= 0)
-      Some(UInt256(kec256(number.bytes.toArray)))
+      Some(UInt256(kec256(number.toString.getBytes)))
     else
       None
 
   def saveCode(address: Address, code: ByteString): MockWorldState =
-    copy(codeRepo = codeRepo + (address -> code))
+    if (code.isEmpty)
+      copy(codeRepo = codeRepo - address)
+    else
+      copy(codeRepo = codeRepo + (address -> code))
 
   def saveStorage(address: Address, storage: MockStorage): MockWorldState =
-    copy(storages = storages + (address -> storage))
+    if (storage.isEmpty)
+      copy(storages = storages - address)
+    else
+      copy(storages = storages + (address -> storage))
 
   def getEmptyAccount: Account = Account.empty()
+
+  /**
+    * Check whether an account at given address is dead,
+    * according to the EIP-161 definition of 'dead' (inexistent or empty)
+    */
+  def isAccountDead(address: Address): Boolean =
+    getAccount(address).forall(_ == Account.empty())
+
 }
