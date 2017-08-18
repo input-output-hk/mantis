@@ -47,13 +47,15 @@ val Integration = config("it") extend Test
 
 val Evm = config("evm") extend Test
 
+val Ets = config("ets") extend Test
+
 val root = project.in(file("."))
-    .configs(Integration)
-    .configs(Evm)
+    .configs(Integration, Evm, Ets)
     .settings(commonSettings: _*)
     .settings(libraryDependencies ++= dep)
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
     .settings(inConfig(Evm)(Defaults.testSettings) : _*)
+    .settings(inConfig(Ets)(Defaults.testSettings) : _*)
 
 scalacOptions := Seq(
   "-unchecked",
