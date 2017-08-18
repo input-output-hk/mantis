@@ -112,7 +112,7 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
   private def listFiles(): Either[KeyStoreError, List[String]] = {
     val dir = new File(keyStoreDir)
     Try {
-      if (!dir.exists() || !dir.isDirectory())
+      if (!dir.exists || !dir.isDirectory)
         Left(IOError(s"Could not read $keyStoreDir"))
       else
         Right(dir.listFiles().toList.map(_.getName))
