@@ -46,7 +46,7 @@ trait Decoders {
    implicit val decodeAddressKey: KeyDecoder[Address] =
     (key: String) => Some(Address(key))
 
-  private def decodeString(s: String): Array[Byte] = {
+  def decodeString(s: String): Array[Byte] = {
     val stripped = s.replaceFirst("^0x", "")
     val normalized = if (stripped.length % 2 == 1) "0" + stripped else stripped
     Hex.decode(normalized)

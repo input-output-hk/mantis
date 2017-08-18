@@ -13,17 +13,17 @@ case class BlockChainScenarioGroup(
 )
 
 case class testBlockChainScenario(
-   blocks: List[testBlock],
-   genesisBlockHeader: testBlockHeader,
-   genesisRLP: Option[ByteString],
-   lastblockhash: ByteString,
-   network: String,
-   postState: Map[Address, AccountState],
-   pre: Map[Address, AccountState]
+  blocks: List[TestBlock],
+  genesisBlockHeader: testBlockHeader,
+  genesisRLP: Option[String],
+  lastblockhash: ByteString,
+  network: String,
+  postState: Map[Address, AccountState],
+  pre: Map[Address, AccountState]
 )
 
 
-case class testBlock(
+case class TestBlock(
   rlp: String,
   blockHeader: Option[testBlockHeader],
   transactions: Option[Seq[testTransaction]],

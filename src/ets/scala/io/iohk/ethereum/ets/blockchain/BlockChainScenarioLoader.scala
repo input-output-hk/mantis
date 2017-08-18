@@ -12,7 +12,7 @@ import io.circe._, io.circe.parser._
 
 object BlockChainScenarioLoader extends Logger {
 
-  val unsupportedNetworks = Set("Byzantium","Constantinople")
+  val unsupportedNetworks = Set("Byzantium","Constantinople", "EIP158")
 
 
   def load(options: TestOptions): List[BlockChainScenarioGroup] = {
