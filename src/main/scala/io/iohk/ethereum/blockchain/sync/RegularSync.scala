@@ -113,7 +113,7 @@ trait RegularSync extends BlockBroadcast {
   private def handleBlockBranchResolution(peer: Peer, message: Seq[BlockHeader]) =
     if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
       headersQueue = message ++ headersQueue
-        processBlockHeaders(peer, headersQueue)
+      processBlockHeaders(peer, headersQueue)
     } else {
       //we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
       resumeWithDifferentPeer(peer)
