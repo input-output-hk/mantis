@@ -81,7 +81,7 @@ class BlockChainSuite extends FreeSpec with Matchers with Logger {
     val options = TestOptions(args.configMap)
     val scenarios = BlockChainScenarioLoader.load(options)
 
-    scenarios.take(3).foreach { group =>
+    scenarios.foreach { group =>
       group.name - {
         for {
           (name, scenario) <- group.scenarios
@@ -105,27 +105,22 @@ class BlockChainSuite extends FreeSpec with Matchers with Logger {
     val genesisRlp = scenario.genesisRLP
     loadGenesis(genesisHeader, genesisRlp, env)
 
-    val postWorldState = geWorldState(scenario.postState, env.emptyWorld)
-    val hash = postWorldState.stateRootHash
-
     val preWorldState = geWorldState(scenario.pre, env.emptyWorld)
-
     // Needed to make this public to use outside of ledger package
     val persistedState = InMemoryWorldStateProxy.persistState(preWorldState)
-
     val blocks = scenario.blocks.map(testBlock => decode(testBlock.rlp).toBlock)
-
     val proc: (Seq[NewBlock], Option[BlockExecutionError]) = processBlocks(blocks, genesisHeader.difficulty, env = env)
-
     val newBlocks = proc._1
 
-    val accounts = scenario.postState.map(a => env.blockchain.getAccount(a._1, newBlocks.size)).toList
-    val postWorldStateAccounts = postWorldState.accountsStateTrie.cache.values.toList
+    val accountsFromBlockChain = scenario.postState.map(a => env.blockchain.getAccount(a._1, newBlocks.size)).toList
 
+    val postWorldState = geWorldState(scenario.postState, env.emptyWorld)
+    val persitedPost = InMemoryWorldStateProxy.persistState(postWorldState)
+    val acountsAfterPersist= scenario.postState.map(a => persitedPost.getAccount(a._1))
 
     //Checking Accounts and last block hash
     //Only covering happy cases, we need to also consider the test which are meant to fail
-    accounts should contain theSameElementsAs postWorldStateAccounts
+    accountsFromBlockChain should contain theSameElementsAs acountsAfterPersist
     val lastBlock = env.blockchain.getBlockByNumber(newBlocks.size)
     lastBlock shouldBe defined
     lastBlock.get.header.hash shouldEqual scenario.lastblockhash
