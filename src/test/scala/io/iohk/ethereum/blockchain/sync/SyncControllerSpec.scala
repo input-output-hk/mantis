@@ -399,14 +399,14 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
   it should "fail to resolve branch conflict if branch is too long" in new TestSetup() {
     override lazy val syncConfig = new SyncConfig {
-      override val branchResolutionMaxDepth: Int = 1
+      override val branchResolutionMaxRequests: Int = 1
+      override val branchResolutionBatchSize: Int = 1
 
       override val printStatusInterval: FiniteDuration = 1.hour
       override val persistStateSnapshotInterval: FiniteDuration = 20.seconds
       override val targetBlockOffset: Int = 500
-      override val branchResolutionBatchSize: Int = 20
       override val blacklistDuration: FiniteDuration = 5.seconds
-      override val syncRetryInterval: FiniteDuration = 1.second
+      override val syncRetryInterval: FiniteDuration = 5.second
       override val checkForNewBlockInterval: FiniteDuration = 1.second
       override val startRetryInterval: FiniteDuration = 500.milliseconds
       override val blockChainOnlyPeersPoolSize: Int = 100
@@ -436,8 +436,8 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val newBlockDifficulty = 23
     val commonRootTotalDifficulty = 12340
 
-    val commonRoot: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock - 1)
-    val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock, parentHash = commonRoot.hash, difficulty = 5)
+    val commonRoot: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock)
+    val latestBlock: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock + 1, parentHash = commonRoot.hash, difficulty = 5)
 
     val newBlockHeaderParent: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock, parentHash = commonRoot.hash, difficulty = newBlockDifficulty,
       stateRoot = ByteString(Hex.decode("d0aedc3838a3d7f9a526bdd642b55fb1b6292596985cfab2eedb751da19b8bb4")))
@@ -447,31 +447,44 @@ class SyncControllerSpec extends FlatSpec with Matchers {
     val nextNewBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock + 2, parentHash = newBlockHeader.hash, difficulty = newBlockDifficulty,
       stateRoot = ByteString(Hex.decode("f5915b81ca32d039e187b92a0d63b8c545f0496ade014f86afaaa596696c45cf")))
 
-    storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(latestBlock.number)
 
-    storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
-    storagesInstance.storages.blockBodiesStorage.put(maxBlockHeader.hash, BlockBody(Nil, Nil))
-    storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
+    storagesInstance.storages.blockHeadersStorage.put(latestBlock.hash, latestBlock)
+    storagesInstance.storages.blockBodiesStorage.put(latestBlock.hash, BlockBody(Nil, Nil))
+    storagesInstance.storages.blockNumberMappingStorage.put(latestBlock.number, latestBlock.hash)
 
     storagesInstance.storages.blockHeadersStorage.put(commonRoot.hash, commonRoot)
     storagesInstance.storages.blockNumberMappingStorage.put(commonRoot.number, commonRoot.hash)
 
     storagesInstance.storages.totalDifficultyStorage.put(commonRoot.hash, commonRootTotalDifficulty)
-    storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, commonRootTotalDifficulty + maxBlockHeader.difficulty)
+    storagesInstance.storages.totalDifficultyStorage.put(latestBlock.hash, commonRootTotalDifficulty + latestBlock.difficulty)
 
     storagesInstance.storages.appStateStorage.fastSyncDone()
 
     syncController ! SyncController.StartSync
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(expectedMaxBlock + 1), syncConfig.blockHeadersPerRequest, 0, reverse = false),
+      GetBlockHeaders(Left(expectedMaxBlock + 2), syncConfig.blockHeadersPerRequest, 0, reverse = false),
       peer.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
-    peerMessageBus.reply(MessageFromPeer(BlockHeaders(Queue(newBlockHeader)), peer.id))
+    peerMessageBus.reply(MessageFromPeer(BlockHeaders(Queue(nextNewBlockHeader)), peer.id))
 
     peerMessageBus.expectMsgAllOf(
       Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
-      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
+    )
+
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Right(nextNewBlockHeader.parentHash), syncConfig.branchResolutionBatchSize, 0, reverse = true),
+      peer.id))
+    syncController.children.last ! MessageFromPeer(BlockHeaders(Queue(newBlockHeader)), peer.id)
+
+
+    peerMessageBus.expectMsgAllOf(
+      Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
+    )
+
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
       GetBlockHeaders(Right(newBlockHeader.parentHash), syncConfig.branchResolutionBatchSize, 0, reverse = true),
       peer.id))
@@ -479,8 +492,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
 
     peerMessageBus.expectMsgAllOf(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
 
-    //expect peer blacklisting because branch is to long newBlockHeader + newBlockHeaderParent
-
+    //expect peer blacklisting because branch is too long (newBlockHeaderParent + newBlockHeader + newBlockHeaderParent)
     etcPeerManager.expectNoMsg()
     peerMessageBus.expectNoMsg()
     ommersPool.expectNoMsg()
@@ -1048,7 +1060,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       override val syncRetryInterval: FiniteDuration = 1.second
       override val checkForNewBlockInterval: FiniteDuration = 1.second
       override val startRetryInterval: FiniteDuration = 500.milliseconds
-      override val branchResolutionMaxDepth: Int = 100
+      override val branchResolutionMaxRequests: Int = 100
       override val blockChainOnlyPeersPoolSize: Int = 100
       override val maxConcurrentRequests: Int = 10
       override val blockHeadersPerRequest: Int = 10
@@ -1109,7 +1121,7 @@ class SyncControllerSpec extends FlatSpec with Matchers {
       override val syncRetryInterval: FiniteDuration = 1.second
       override val checkForNewBlockInterval: FiniteDuration = 1.second
       override val startRetryInterval: FiniteDuration = 500.milliseconds
-      override val branchResolutionMaxDepth: Int = 100
+      override val branchResolutionMaxRequests: Int = 100
       override val blockChainOnlyPeersPoolSize: Int = 100
       override val maxConcurrentRequests: Int = 10
       override val blockHeadersPerRequest: Int = 10

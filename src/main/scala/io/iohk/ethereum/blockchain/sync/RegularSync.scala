@@ -113,7 +113,7 @@ trait RegularSync extends BlockBroadcast {
   private def handleBlockBranchResolution(peer: Peer, message: Seq[BlockHeader]) =
     if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
       headersQueue = message ++ headersQueue
-      if (headersQueue.length > branchResolutionMaxDepth) {
+      if ((headersQueue.length - 1) / branchResolutionBatchSize > branchResolutionMaxRequests) {
         log.debug("fail to resolve branch, branch too long, it may indicate malicious peer")
         resumeWithDifferentPeer(peer)
       } else {

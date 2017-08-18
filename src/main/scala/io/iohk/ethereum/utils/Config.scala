@@ -116,7 +116,7 @@ object Config {
     val checkForNewBlockInterval: FiniteDuration
     val branchResolutionBatchSize: Int
     val blockChainOnlyPeersPoolSize: Int
-    val branchResolutionMaxDepth: Int
+    val branchResolutionMaxRequests: Int
     val fastSyncThrottle: FiniteDuration
   }
 
@@ -146,7 +146,7 @@ object Config {
         val checkForNewBlockInterval: FiniteDuration = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis
         val branchResolutionBatchSize: Int = syncConfig.getInt("branch-resolution-batch-size")
         val blockChainOnlyPeersPoolSize: Int = syncConfig.getInt("fastsync-block-chain-only-peers-pool")
-        val branchResolutionMaxDepth: Int = syncConfig.getInt("branch-resolution-max-depth")
+        val branchResolutionMaxRequests: Int = syncConfig.getInt("branch-resolution-max-requests")
         val fastSyncThrottle: FiniteDuration = syncConfig.getDuration("fastsync-throttle").toMillis.millis
       }
     }
