@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, Props, Scheduler}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSync._
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.domain.{Account, Blockchain}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode, NodesKeyValueStorage}
 import io.iohk.ethereum.network.Peer
@@ -20,7 +21,7 @@ class FastSyncNodesRequestHandler(
     peerMessageBus: ActorRef,
     requestedHashes: Seq[HashType],
     blockchain: Blockchain,
-    nodesKeyValueStorage: NodesKeyValueStorage)(implicit scheduler: Scheduler)
+    saveNodeFn: (NodeHash, NodeEncoded) => Unit)(implicit scheduler: Scheduler)
   extends SyncRequestHandler[GetNodeData, NodeData](peer, peerResponseTimeout, etcPeerManager, peerMessageBus) {
 
   override val requestMsg = GetNodeData(requestedHashes.map(_.v))
@@ -84,7 +85,7 @@ class FastSyncNodesRequestHandler(
       val evm = account.codeHash
       val storage = account.storageRoot
 
-      nodesKeyValueStorage.put(ByteString(n.hash), n.toBytes)
+      saveNodeFn(ByteString(n.hash), n.toBytes)
 
       val evmRequests =
         if (evm != Account.EmptyCodeHash) Seq(EvmCodeHash(evm))
@@ -98,11 +99,11 @@ class FastSyncNodesRequestHandler(
 
     case n: BranchNode =>
       val hashes = n.children.collect { case Some(Left(childHash)) => childHash }
-      nodesKeyValueStorage.put(ByteString(n.hash), n.toBytes)
+      saveNodeFn(ByteString(n.hash), n.toBytes)
       hashes.map(e => StateMptNodeHash(e))
 
     case n: ExtensionNode =>
-      nodesKeyValueStorage.put(ByteString(n.hash), n.toBytes)
+      saveNodeFn(ByteString(n.hash), n.toBytes)
       n.next.fold(
         mptHash => Seq(StateMptNodeHash(mptHash)),
         _ => Nil)
@@ -111,16 +112,16 @@ class FastSyncNodesRequestHandler(
   private def handleContractMptNode(mptNode: MptNode): Seq[HashType] = {
     mptNode match {
       case n: LeafNode =>
-        nodesKeyValueStorage.put(ByteString(n.hash), n.toBytes)
+        saveNodeFn(ByteString(n.hash), n.toBytes)
         Nil
 
       case n: BranchNode =>
         val hashes = n.children.collect { case Some(Left(childHash)) => childHash }
-        nodesKeyValueStorage.put(ByteString(n.hash), n.toBytes)
+        saveNodeFn(ByteString(n.hash), n.toBytes)
         hashes.map(e => ContractStorageMptNodeHash(e))
 
       case n: ExtensionNode =>
-        nodesKeyValueStorage.put(ByteString(n.hash), n.toBytes)
+        saveNodeFn(ByteString(n.hash), n.toBytes)
         n.next.fold(
           mptHash => Seq(ContractStorageMptNodeHash(mptHash)),
           _ => Nil)
@@ -130,7 +131,8 @@ class FastSyncNodesRequestHandler(
 
 object FastSyncNodesRequestHandler {
   def props(peer: Peer, peerTimeout: FiniteDuration, etcPeerManager: ActorRef, peerMessageBus: ActorRef,
-            requestedHashes: Seq[HashType], blockchain: Blockchain, nodesKeyValueStorage: NodesKeyValueStorage)
+            requestedHashes: Seq[HashType], blockchain: Blockchain, saveNodeFn: (NodeHash, NodeEncoded) => Unit)
            (implicit scheduler: Scheduler): Props =
-    Props(new FastSyncNodesRequestHandler(peer, peerTimeout, etcPeerManager, peerMessageBus, requestedHashes, blockchain, nodesKeyValueStorage))
+    Props(new FastSyncNodesRequestHandler(peer, peerTimeout, etcPeerManager, peerMessageBus, requestedHashes,
+      blockchain, saveNodeFn))
 }

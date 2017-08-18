@@ -8,13 +8,16 @@ import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.vm.UInt256
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
-class BlockRewardSpec extends FlatSpec with Matchers {
+class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
 
   val blockchainConfig = BlockchainConfig(Config.config)
 
-  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchainConfig)
+  val blockchain = mock[BlockchainImpl]
+
+  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig)
 
   "Reward Calculation" should "pay to the miner if no ommers included" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))
