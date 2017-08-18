@@ -3,12 +3,11 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Account, Address, Receipt, TxLogEntry}
 import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
-
 import org.spongycastle.util.encoders.Hex
 
 import scala.language.implicitConversions
@@ -101,41 +100,7 @@ object PV63 {
     }
 
     implicit class MptNodeRLPEncodableDec(val rlp: RLPEncodeable) extends AnyVal {
-      def toMptNode: MptNode = rlp match {
-        case rlpList: RLPList if rlpList.items.length == BranchNodeChildLength + 1 =>
-          val terminatorValue: Array[Byte] = rlpList.items(BranchNodeIndexOfValue): Array[Byte]
-          BranchNode(rlpList.items.take(BranchNodeChildLength).map(decodeChild), if (terminatorValue.isEmpty) None else Some(ByteString(terminatorValue)))
-        case RLPList(hpEncoded, value) =>
-          hpDecode(hpEncoded: Array[Byte]) match {
-            case (decoded, true) =>
-              LeafNode(ByteString(decoded), value)
-            case (decoded, false) =>
-              //todo fix this get by unifying ExtensionNode and BranchNode
-              ExtensionNode(ByteString(decoded), decodeChild(value).get)
-          }
-        case _ =>
-          throw new RuntimeException("Cannot decode NodeData")
-      }
-
-      private def decodeChild(rlp: RLPEncodeable): Option[Either[ByteString, MptNode]] = {
-        val encodedLength = rlpEncode(rlp).length
-
-        rlp match {
-          case bytes: RLPValue if bytes.bytes.length == 0 =>
-            None
-
-          case bytes: RLPValue if bytes.bytes.length == HashLength =>
-            Some(Left(bytes))
-
-          case list: RLPList if (list.items.length == ExtensionNodeLength || list.items.length == LeafNodeLength) && encodedLength <= MaxNodeValueSize =>
-            Some(Right(list.toMptNode))
-
-          case list: RLPList if list.items.length == BranchNodeChildLength + 1 && encodedLength <= MaxNodeValueSize =>
-            Some(Right(list.toMptNode))
-
-          case _ => throw new RuntimeException("unexpected value in node")
-        }
-      }
+      def toMptNode: MptNode = MerklePatriciaTrie.nodeDec.decode(rlp)
     }
   }
 

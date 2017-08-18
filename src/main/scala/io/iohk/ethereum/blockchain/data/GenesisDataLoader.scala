@@ -96,7 +96,7 @@ class GenesisDataLoader(
 
     val ephemDataSource = EphemDataSource()
     val nodeStorage = new NodeStorage(ephemDataSource)
-    val initalRootHash = MerklePatriciaTrie.calculateEmptyRootHash()
+    val initalRootHash = MerklePatriciaTrie.EmptyRootHash
 
     val stateMptRootHash = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, (((address, AllocAccount(balance)), idx))) =>
       val ephemNodeStorage =  PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(Some(idx - genesisData.alloc.size))

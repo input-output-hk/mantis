@@ -22,7 +22,7 @@ object InMemoryWorldStateProxy {
   ): InMemoryWorldStateProxy = {
     val accountsStateTrieProxy = createProxiedAccountsStateTrie(
       nodesKeyValueStorage,
-      stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.calculateEmptyRootHash()))
+      stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.EmptyRootHash))
     )
     new InMemoryWorldStateProxy(
       nodesKeyValueStorage,

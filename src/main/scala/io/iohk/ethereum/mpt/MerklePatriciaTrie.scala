@@ -14,6 +14,8 @@ object MerklePatriciaTrie {
 
   case class MPTException(message: String) extends RuntimeException(message)
 
+  val EmptyRootHash: Array[Byte] = Node.hashFn(encodeRLP(Array.emptyByteArray))
+
   private case class NodeInsertResult(newNode: MptNode,
     toDeleteFromStorage: Seq[MptNode] = Nil,
     toUpdateInStorage: Seq[MptNode] = Nil)
@@ -32,11 +34,37 @@ object MerklePatriciaTrie {
   def apply[K, V](rootHash: Array[Byte], source: NodesKeyValueStorage)
     (implicit kSerializer: ByteArrayEncoder[K], vSerializer: ByteArraySerializable[V])
   : MerklePatriciaTrie[K, V] = {
-    if (calculateEmptyRootHash() sameElements rootHash) MerklePatriciaTrie(source)
+    if (EmptyRootHash sameElements rootHash) MerklePatriciaTrie(source)
     else new MerklePatriciaTrie[K, V](Some(rootHash), source)(kSerializer, vSerializer)
   }
 
-  def calculateEmptyRootHash(): Array[Byte] = Node.hashFn(encodeRLP(Array.emptyByteArray))
+  /**
+    * Implicits
+    */
+  implicit val nodeDec = new RLPDecoder[MptNode] {
+    override def decode(rlp: RLPEncodeable): MptNode = rlp match {
+      case RLPList(items@_*) if items.size == MerklePatriciaTrie.ListSize =>
+        val parsedChildren: Seq[Option[Either[ByteString, MptNode]]] = items.init.map {
+          case list: RLPList => Some(Right(this.decode(list)))
+          case RLPValue(bytes) =>
+            if (bytes.isEmpty) None
+            else Some(Left(ByteString(bytes)))
+        }
+        val terminatorAsArray: ByteString = items.last
+        BranchNode(children = parsedChildren, terminator = if (terminatorAsArray.isEmpty) None else Some(terminatorAsArray))
+      case RLPList(items@_*) if items.size == MerklePatriciaTrie.PairSize =>
+        val (key, isLeaf) = HexPrefix.decode(items.head)
+        if (isLeaf) LeafNode(ByteString(key), items.last)
+        else {
+          val next = items.last match {
+            case list: RLPList => Right(this.decode(list))
+            case RLPValue(bytes) => Left(ByteString(bytes))
+          }
+          ExtensionNode(ByteString(key), next)
+        }
+      case _ => throw new RuntimeException("Invalid Node")
+    }
+  }
 
   private def getNode(nodeId: Array[Byte], source: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): MptNode = {
     val nodeEncoded =
@@ -111,36 +139,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
 
   import MerklePatriciaTrie._
 
-  /**
-    * Implicits
-    */
-  private[mpt] implicit val nodeDec = new RLPDecoder[MptNode] {
-    override def decode(rlp: RLPEncodeable): MptNode = rlp match {
-      case RLPList(items@_*) if items.size == MerklePatriciaTrie.ListSize =>
-        val parsedChildren: Seq[Option[Either[ByteString, MptNode]]] = items.init.map {
-          case list: RLPList => Some(Right(this.decode(list)))
-          case RLPValue(bytes) =>
-            if (bytes.isEmpty) None
-            else Some(Left(ByteString(bytes)))
-        }
-        val terminatorAsArray: ByteString = items.last
-        BranchNode(children = parsedChildren, terminator = if (terminatorAsArray.isEmpty) None else Some(terminatorAsArray))
-      case RLPList(items@_*) if items.size == MerklePatriciaTrie.PairSize =>
-        val (key, isLeaf) = HexPrefix.decode(items.head)
-        if (isLeaf) LeafNode(ByteString(key), items.last)
-        else {
-          val next = items.last match {
-            case list: RLPList => Right(this.decode(list))
-            case RLPValue(bytes) => Left(ByteString(bytes))
-          }
-          ExtensionNode(ByteString(key), next)
-        }
-      case _ => throw new RuntimeException("Invalid Node")
-    }
-  }
-
-  private lazy val EmptyTrieHash = Node.hashFn(encodeRLP(Array.emptyByteArray))
-  lazy val getRootHash: Array[Byte] = rootHash.getOrElse(EmptyTrieHash)
+  lazy val getRootHash: Array[Byte] = rootHash.getOrElse(EmptyRootHash)
 
   /**
     * This function obtains the value asociated with the key passed, if there exists one.
