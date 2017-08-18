@@ -32,6 +32,11 @@ object SignedTransaction {
     } yield SignedTransaction(tx, txSignature, sender)
   }
 
+  def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString, address: Address): SignedTransaction = {
+    val txSignature = ECDSASignature(r = new BigInteger(1, signatureRandom.toArray), s = new BigInteger(1, signature.toArray), v = pointSign)
+    SignedTransaction(tx, txSignature, address)
+  }
+
   def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte]): SignedTransaction = {
     val bytes = bytesToSign(tx, chainId)
     val sig = ECDSASignature.sign(bytes, keyPair, chainId)

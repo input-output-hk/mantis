@@ -143,6 +143,7 @@ class FastSyncReceiptsRequestHandlerSpec extends FlatSpec with Matchers {
     def fastSyncReceiptsRequestHandlerBuilder(blockValidator: BlockValidator): ActorRef =
       parent.childActorOf(FastSyncReceiptsRequestHandler.props(
         peer,
+        1.second,
         etcPeerManager.ref,
         peerMessageBus.ref,
         requestedHashes,

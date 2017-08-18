@@ -12,15 +12,18 @@ import io.iohk.ethereum.validators.BlockValidator
 import io.iohk.ethereum.validators.BlockValidator.BlockError
 import org.spongycastle.util.encoders.Hex
 
+import scala.concurrent.duration.FiniteDuration
+
 class FastSyncReceiptsRequestHandler(
     peer: Peer,
+    peerResponseTimeout: FiniteDuration,
     etcPeerManager: ActorRef,
     peerMessageBus: ActorRef,
     requestedHashes: Seq[ByteString],
     appStateStorage: AppStateStorage,
     blockchain: Blockchain,
     blockValidator: BlockValidator)(implicit scheduler: Scheduler)
-  extends SyncRequestHandler[GetReceipts, Receipts](peer, etcPeerManager, peerMessageBus) {
+  extends SyncRequestHandler[GetReceipts, Receipts](peer, peerResponseTimeout, etcPeerManager, peerMessageBus) {
 
   override val requestMsg = GetReceipts(requestedHashes)
   override val responseMsgCode: Int = Receipts.code
@@ -113,12 +116,14 @@ class FastSyncReceiptsRequestHandler(
   }
 }
 
+// todo move inserting receipts to FastSync
+// scalastyle:off parameter.number
 object FastSyncReceiptsRequestHandler {
-  def props(peer: Peer, etcPeerManager: ActorRef, peerMessageBus: ActorRef, requestedHashes: Seq[ByteString],
+  def props(peer: Peer, peerTimeout: FiniteDuration, etcPeerManager: ActorRef, peerMessageBus: ActorRef, requestedHashes: Seq[ByteString],
             appStateStorage: AppStateStorage, blockchain: Blockchain, blockValidator: BlockValidator)
            (implicit scheduler: Scheduler): Props =
     Props(new FastSyncReceiptsRequestHandler(
-      peer, etcPeerManager, peerMessageBus, requestedHashes, appStateStorage, blockchain, blockValidator))
+      peer, peerTimeout, etcPeerManager, peerMessageBus, requestedHashes, appStateStorage, blockchain, blockValidator))
 
   sealed trait ReceiptsValidationResult
   object ReceiptsValidationResult {
