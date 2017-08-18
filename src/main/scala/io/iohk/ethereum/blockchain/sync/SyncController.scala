@@ -1,116 +1,85 @@
 package io.iohk.ethereum.blockchain.sync
 
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
-import akka.actor.SupervisorStrategy.Stop
-import akka.actor._
-import akka.util.ByteString
-import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain._
+import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Scheduler}
+import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
+import io.iohk.ethereum.domain.{Blockchain, BlockchainStorages}
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerDisconnectedClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.validators.Validators
 
 class SyncController(
-    val appStateStorage: AppStateStorage,
-    val blockchain: Blockchain,
-    val blockchainStorages: BlockchainStorages,
-    val fastSyncStateStorage: FastSyncStateStorage,
-    val ledger: Ledger,
-    val validators: Validators,
-    val peerEventBus: ActorRef,
-    val pendingTransactionsManager: ActorRef,
-    val ommersPool: ActorRef,
-    val etcPeerManager: ActorRef,
+    appStateStorage: AppStateStorage,
+    blockchain: Blockchain,
+    blockchainStorages: BlockchainStorages,
+    fastSyncStateStorage: FastSyncStateStorage,
+    ledger: Ledger,
+    validators: Validators,
+    peerEventBus: ActorRef,
+    pendingTransactionsManager: ActorRef,
+    ommersPool: ActorRef,
+    etcPeerManager: ActorRef,
     syncConfig: SyncConfig,
-    val externalSchedulerOpt: Option[Scheduler] = None)
+    externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor
-    with ActorLogging
-    with BlacklistSupport
-    with FastSync
-    with RegularSync {
+    with ActorLogging {
 
-  import BlacklistSupport._
-  import syncConfig._
   import SyncController._
 
-  override val supervisorStrategy: OneForOneStrategy =
-    OneForOneStrategy() {
-      case _ => Stop
-    }
-
-  var handshakedPeers: Map[Peer, PeerInfo] = Map.empty
-
-  scheduler.schedule(0.seconds, peersScanInterval, etcPeerManager, EtcPeerManagerActor.GetHandshakedPeers)
-
-  override implicit def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
+  def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
   override def receive: Receive = idle
 
-  def idle: Receive = handlePeerUpdates orElse {
-    case StartSync =>
-      appStateStorage.putSyncStartingBlock(appStateStorage.getBestBlockNumber())
-      scheduler.schedule(0.seconds, printStatusInterval, self, PrintStatus)
-      (appStateStorage.isFastSyncDone(), doFastSync) match {
-        case (false, true) =>
-          startFastSync()
-        case (true, true) =>
-          log.warning(s"do-fast-sync is set to $doFastSync but fast sync cannot start because it has already been completed")
-          startRegularSync()
-        case (true, false) =>
-          startRegularSync()
-        case (false, false) =>
-          //Check whether fast sync was started before
-          if (fastSyncStateStorage.getSyncState().isDefined) {
-            log.warning(s"do-fast-sync is set to $doFastSync but regular sync cannot start because fast sync hasn't completed")
-            startFastSync()
-          } else
-            startRegularSync()
-      }
+  def idle: Receive = {
+    case Start => start()
+  }
 
-    case FastSyncDone =>
+  def runningFastSync(fastSync: ActorRef): Receive = {
+    case FastSync.Done =>
+      fastSync ! PoisonPill
       startRegularSync()
+
+    case other => fastSync.forward(other)
   }
 
-  def handlePeerUpdates: Receive = {
-    case EtcPeerManagerActor.HandshakedPeers(peers) =>
-      peers.foreach {
-        case (peer, _) if !handshakedPeers.contains(peer) =>
-          peerEventBus ! Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id)))
-
-        case _ => // nothing
-      }
-
-      handshakedPeers = peers
-
-    case PeerDisconnected(peerId) if handshakedPeers.exists(_._1.id == peerId) =>
-      removePeer(peerId)
-
-    case BlacklistPeer(ref, reason) =>
-      blacklist(ref, blacklistDuration, reason)
-
-    case UnblacklistPeer(ref) =>
-      undoBlacklist(ref)
+  def runningRegularSync(regularSync: ActorRef): Receive = {
+    case other => regularSync.forward(other)
   }
 
-  def removePeer(peerId: PeerId): Unit = {
-    peerEventBus ! Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peerId)))
-    handshakedPeers.find(_._1.id == peerId).foreach { case (peer, _) => undoBlacklist(peer.id) }
-    handshakedPeers = handshakedPeers.filterNot(_._1.id == peerId)
+  def start(): Unit = {
+    import syncConfig.doFastSync
+
+    appStateStorage.putSyncStartingBlock(appStateStorage.getBestBlockNumber())
+    (appStateStorage.isFastSyncDone(), doFastSync) match {
+      case (false, true) =>
+        startFastSync()
+      case (true, true) =>
+        log.warning(s"do-fast-sync is set to $doFastSync but fast sync cannot start because it has already been completed")
+        startRegularSync()
+      case (true, false) =>
+        startRegularSync()
+      case (false, false) =>
+        //Check whether fast sync was started before
+        if (fastSyncStateStorage.getSyncState().isDefined) {
+          log.warning(s"do-fast-sync is set to $doFastSync but regular sync cannot start because fast sync hasn't completed")
+          startFastSync()
+        } else
+          startRegularSync()
+    }
   }
 
-  def peersToDownloadFrom: Map[Peer, PeerInfo] =
-    handshakedPeers.filterNot { case (p, s) => isBlacklisted(p.id) }
+  def startFastSync(): Unit = {
+    val fastSync = context.actorOf(FastSync.props(fastSyncStateStorage, appStateStorage, blockchain, blockchainStorages, validators,
+      peerEventBus, etcPeerManager, syncConfig, scheduler), "fast-sync")
+    fastSync ! FastSync.Start
+    context become runningFastSync(fastSync)
+  }
 
-  def checkHeaders(headers: Seq[BlockHeader]): Boolean =
-    if (headers.length > 1) headers.zip(headers.tail).forall { case (parent, child) => parent.hash == child.parentHash && parent.number + 1 == child.number }
-    else true
+  def startRegularSync(): Unit = {
+    val regularSync = context.actorOf(RegularSync.props(appStateStorage, blockchain, blockchainStorages, validators, etcPeerManager,
+      peerEventBus, ommersPool, pendingTransactionsManager, ledger, syncConfig, scheduler), "regular-sync")
+    regularSync ! RegularSync.Start
+    context become runningRegularSync(regularSync)
+  }
 }
 
 object SyncController {
@@ -129,11 +98,5 @@ object SyncController {
   Props = Props(new SyncController(appStateStorage, blockchain, blockchainStorages, syncStateStorage, ledger, validators,
     peerEventBus, pendingTransactionsManager, ommersPool, etcPeerManager, syncConfig))
 
-  case class MinedBlock(block: Block)
-
-  case object StartSync
-
-  case object PrintStatus
-
-  case object FastSyncDone
+  case object Start
 }

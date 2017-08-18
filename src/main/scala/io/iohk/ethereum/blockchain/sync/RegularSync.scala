@@ -1,11 +1,10 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
-import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
-import io.iohk.ethereum.blockchain.sync.SyncController._
-import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt}
-import io.iohk.ethereum.ledger.BlockExecutionError
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.{BlockExecutionError, Ledger}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -13,13 +12,26 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
+import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.validators.Validators
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 
-trait RegularSync extends BlockBroadcast {
-  selfSyncController: SyncController =>
+class RegularSync(
+    val appStateStorage: AppStateStorage,
+    val blockchain: Blockchain,
+    val blockchainStorages: BlockchainStorages,
+    val validators: Validators,
+    val etcPeerManager: ActorRef,
+    val peerEventBus: ActorRef,
+    val ommersPool: ActorRef,
+    val pendingTransactionsManager: ActorRef,
+    val ledger: Ledger,
+    val syncConfig: SyncConfig,
+    implicit val scheduler: Scheduler)
+  extends Actor with ActorLogging with PeerListSupport with BlacklistSupport with SyncUtils with BlockBroadcast {
 
   import Config.Sync._
   import RegularSync._
@@ -28,14 +40,21 @@ trait RegularSync extends BlockBroadcast {
   private var waitingForActor: Option[ActorRef] = None
   private var resolvingBranches: Boolean = false
 
-  def startRegularSync(): Unit = {
-    log.info("Starting block synchronization")
-    appStateStorage.fastSyncDone()
-    context become (handlePeerUpdates orElse regularSync())
-    askForHeaders()
+  scheduler.schedule(printStatusInterval, printStatusInterval, self, PrintStatus)
+
+  def handleCommonMessages: Receive = handlePeerListMessages orElse handleBlacklistMessages
+
+  override def receive: Receive = idle
+
+  def idle: Receive = handleCommonMessages orElse {
+    case Start =>
+      log.info("Starting block synchronization")
+      appStateStorage.fastSyncDone()
+      context become running
+      askForHeaders()
   }
 
-  def regularSync(): Receive = {
+  def running: Receive = handleCommonMessages orElse {
     case ResumeRegularSync =>
       askForHeaders()
 
@@ -272,7 +291,7 @@ trait RegularSync extends BlockBroadcast {
   }
 
   private def resumeWithDifferentPeer(currentPeer: Peer, reason: String = "error in response") = {
-    self ! BlacklistPeer(currentPeer.id, "because of " + reason)
+    blacklist(currentPeer.id, blacklistDuration, reason)
     headersQueue = Nil
     context.self ! ResumeRegularSync
   }
@@ -290,6 +309,17 @@ trait RegularSync extends BlockBroadcast {
 }
 
 object RegularSync {
+  // scalastyle:off parameter.number
+  def props(appStateStorage: AppStateStorage, blockchain: Blockchain, blockchainStorages: BlockchainStorages, validators: Validators,
+            etcPeerManager: ActorRef, peerEventBus: ActorRef, ommersPool: ActorRef, pendingTransactionsManager: ActorRef, ledger: Ledger,
+            syncConfig: SyncConfig, scheduler: Scheduler): Props =
+    Props(new RegularSync(appStateStorage, blockchain, blockchainStorages, validators, etcPeerManager, peerEventBus, ommersPool, pendingTransactionsManager,
+      ledger, syncConfig, scheduler))
+
   private case object ResumeRegularSync
   private case class ResolveBranch(peer: ActorRef)
+  private case object PrintStatus
+
+  case object Start
+  case class MinedBlock(block: Block)
 }

@@ -28,7 +28,6 @@ class PeerRequestHandler[RequestMsg <: Message, ResponseMsg <: Message : ClassTa
   def timeTakenSoFar(): Long = System.currentTimeMillis() - startTime
 
   override def preStart(): Unit = {
-    // TODO: can we just use: peer.ref ! PeerActor.SendMessage() and remove dependency on peer manager? (fix tests)
     etcPeerManager ! EtcPeerManagerActor.SendMessage(toSerializable(requestMsg), peer.id)
     peerEventBus ! Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id)))
     peerEventBus ! Subscribe(subscribeMessageClassifier)

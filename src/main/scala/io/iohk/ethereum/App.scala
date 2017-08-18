@@ -34,7 +34,7 @@ object App {
         discoveryListener ! DiscoveryListener.Start
       }
 
-      syncController ! SyncController.StartSync
+      syncController ! SyncController.Start
 
       peerDiscoveryManager // unlazy
 
