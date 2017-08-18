@@ -5,10 +5,10 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ets.common.AccountState
 
 
-case class Scenario(
+case class BlockchainScenario(
    blocks: List[BlockDef],
    genesisBlockHeader: BlockHeaderDef,
-   genesisRLP: ByteString,
+   genesisRLP: Option[ByteString],
    lastblockhash: ByteString,
    network: String,
    postState: Map[Address, AccountState],
@@ -18,7 +18,7 @@ case class Scenario(
 
 case class BlockDef(
   rlp: ByteString,
-  blocknumber: BigInt,
+  blocknumber: Option[BigInt],
   blockHeader: Option[BlockHeaderDef],
   transactions: Option[Seq[TransactionDef]],
   uncleHeaders: Option[Seq[BlockHeaderDef]]

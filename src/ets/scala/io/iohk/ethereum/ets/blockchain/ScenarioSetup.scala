@@ -3,35 +3,46 @@ package io.iohk.ethereum.ets.blockchain
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, Block, BlockHeader}
+import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, LedgerImpl}
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ValidatorsBuilder}
-import io.iohk.ethereum.rlp
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.vm.{UInt256, VM}
 
-abstract class ScenarioSetup(scenario: Scenario)
+abstract class ScenarioSetup(scenario: BlockchainScenario)
   extends EphemBlockchainTestSetup
   with ValidatorsBuilder
   with BlockchainConfigBuilder {
 
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
 
-  override val blockchainConfig = buildBlockchainConfig(scenario.network)
+  override lazy val blockchainConfig = buildBlockchainConfig(scenario.network)
 
   val ledger = new LedgerImpl(VM, blockchainConfig)
 
-  def loadGenesis(): BlockHeader = {
-    val genesisBlock = rlp.decode[Block](scenario.genesisRLP.toArray)
+  def loadGenesis(): Unit = {
+    val genesisBlock = scenario.genesisRLP match {
+      case Some(rlp) =>
+        val block = rlp.toArray.toBlock
+        assert(block.header == scenario.genesisBlockHeader.toBlockHeader,
+          "decoded genesis block header did not match the expectation")
+        block
+
+      case None =>
+        Block(scenario.genesisBlockHeader.toBlockHeader, BlockBody(Nil, Nil))
+    }
+
     blockchain.save(genesisBlock)
-    genesisBlock.header
   }
 
-  def prepareInitialWorld(): Unit =
+  def prepareInitialWorld(): Unit = {
     InMemoryWorldStateProxy.persistState(getWorldState(scenario.pre))
+  }
 
-  lazy val expectedStateRoot = InMemoryWorldStateProxy.persistState(getWorldState(scenario.postState)).stateRootHash
+  //lazy val expectedStateRoot = InMemoryWorldStateProxy.persistState(getWorldState(scenario.postState)).stateRootHash
 
   // TODO: build proper config based on network
   private def buildBlockchainConfig(network: String): BlockchainConfig =

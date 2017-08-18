@@ -9,10 +9,10 @@ import scala.collection.JavaConverters._
 import scala.io.Source
 
 
-object ScenarioLoader extends Logger {
+trait ScenarioLoader[T] extends ScenarioParser[T] with Logger {
 
-  def load[T](path: String, options: TestOptions): List[ScenarioGroup[T]] = {
-    val testDir = new File(getClass.getClassLoader.getResource("ets/VMTests").toURI)
+  def load(path: String, options: TestOptions): List[ScenarioGroup[T]] = {
+    val testDir = new File(getClass.getClassLoader.getResource(path).toURI)
     val files = FileUtils.listFiles(testDir, Array("json"), true).asScala.toList
 
     files.flatMap { file =>
@@ -21,9 +21,9 @@ object ScenarioLoader extends Logger {
       if (!options.isGroupIncluded(name))
         None
       else {
-        log.debug(s"Loading test scenarios from: $file")
+        log.info(s"Loading test scenarios from: $file")
         val text = Source.fromFile(file).getLines.mkString
-        val scenarios = ScenarioParser.parse[T](text)
+        val scenarios = parse(text)
         Some(ScenarioGroup(name, scenarios))
       }
     }

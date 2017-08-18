@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.ets.common.AccountState
 
-case class Scenario(
+case class VMScenario(
   env: Env,
   exec: Exec,
   callcreates: Option[List[CallCreate]],

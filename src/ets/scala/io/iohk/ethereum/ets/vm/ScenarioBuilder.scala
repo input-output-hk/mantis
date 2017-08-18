@@ -9,7 +9,7 @@ import io.iohk.ethereum.vm._
 
 object ScenarioBuilder {
 
-  def prepareContext(scenario: Scenario): PC = {
+  def prepareContext(scenario: VMScenario): PC = {
     val blockHeader = prepareHeader(scenario.env)
     val execEnv = prepareExecEnv(scenario.exec, blockHeader)
     val world = prepareWorld(scenario.pre, scenario.env.currentNumber)
