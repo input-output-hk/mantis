@@ -5,6 +5,7 @@ import java.time.Instant
 
 import akka.actor._
 import akka.util.ByteString
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -469,8 +470,10 @@ trait FastSync {
       val (nonMptNodesToGet, remainingNonMptNodes) = nonMptNodesQueue.splitAt(nodesPerRequest)
       val (mptNodesToGet, remainingMptNodes) = mptNodesQueue.splitAt(nodesPerRequest - nonMptNodesToGet.size)
       val nodesToGet = nonMptNodesToGet ++ mptNodesToGet
-      val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, peerResponseTimeout, etcPeerManager, peerEventBus, nodesToGet, blockchain,
-        blockchainStorages.nodesKeyValueStorageFor(Some(initialSyncState.targetBlock.number))))
+      val saveNodeFn = (nodeHash: NodeHash, nodeEncoded: NodeEncoded) =>
+        blockchain.saveNode(nodeHash, nodeEncoded, initialSyncState.targetBlock.number)
+      val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, peerResponseTimeout, etcPeerManager,
+        peerEventBus, nodesToGet, blockchain, saveNodeFn))
       context watch handler
       assignedHandlers += (handler -> peer)
       peerRequestsTime += (peer -> Instant.now())
