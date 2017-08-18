@@ -2,6 +2,7 @@ package io.iohk.ethereum.ets.vm
 
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.domain.{Account, Address, BlockHeader}
+import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.vm.MockWorldState._
 import io.iohk.ethereum.vm._

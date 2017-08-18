@@ -1,6 +1,7 @@
 package io.iohk.ethereum.ets.vm
 
 import io.iohk.ethereum.domain.TxLogEntry
+import io.iohk.ethereum.ets.common.{ScenarioLoader, TestOptions}
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.vm.MockWorldState._
 import io.iohk.ethereum.vm._
@@ -11,7 +12,7 @@ class VMSuite extends FreeSpec with Matchers with Logger {
   override def run(testName: Option[String], args: Args): Status = {
 
     val options = TestOptions(args.configMap)
-    val scenarios = ScenarioLoader.load(options)
+    val scenarios = ScenarioLoader.load[Scenario]("ets/VMTests", options)
 
     scenarios.foreach { group =>
       group.name - {

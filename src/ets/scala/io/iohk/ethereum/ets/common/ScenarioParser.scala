@@ -1,9 +1,9 @@
-package io.iohk.ethereum.ets.vm
+package io.iohk.ethereum.ets.common
 
 import akka.util.ByteString
 import io.circe._
-import io.circe.parser._
 import io.circe.generic.auto._
+import io.circe.parser._
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.NumericUtils._
 import io.iohk.ethereum.vm.UInt256
@@ -53,6 +53,6 @@ object ScenarioParser {
     if (s.isEmpty || s == "0x") Right(BigInt(0)) else Try(parseHexOrDecNumber(s)).toEither
 
 
-  def parse(json: String): Map[String, Scenario] =
-    decode[Map[String, Scenario]](json).fold(throw _, identity)
+  def parse[T](json: String): Map[String, T] =
+    decode[Map[String, T]](json).fold(throw _, identity)
 }

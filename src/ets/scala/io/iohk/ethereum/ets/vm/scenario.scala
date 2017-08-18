@@ -2,12 +2,7 @@ package io.iohk.ethereum.ets.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.vm.UInt256
-
-case class ScenarioGroup(
-  name: String,
-  scenarios: Map[String, Scenario]
-)
+import io.iohk.ethereum.ets.common.AccountState
 
 case class Scenario(
   env: Env,
@@ -38,13 +33,6 @@ case class Exec(
   code: ByteString,
   gasPrice: BigInt,
   gas: BigInt
-)
-
-case class AccountState(
-  balance: BigInt,
-  nonce: BigInt,
-  code: ByteString,
-  storage: Map[UInt256, UInt256]
 )
 
 case class CallCreate(

@@ -1,4 +1,4 @@
-package io.iohk.ethereum.ets.vm
+package io.iohk.ethereum.ets.common
 
 import java.io.File
 
@@ -11,7 +11,7 @@ import scala.io.Source
 
 object ScenarioLoader extends Logger {
 
-  def load(options: TestOptions): List[ScenarioGroup] = {
+  def load[T](path: String, options: TestOptions): List[ScenarioGroup[T]] = {
     val testDir = new File(getClass.getClassLoader.getResource("ets/VMTests").toURI)
     val files = FileUtils.listFiles(testDir, Array("json"), true).asScala.toList
 
@@ -23,7 +23,7 @@ object ScenarioLoader extends Logger {
       else {
         log.debug(s"Loading test scenarios from: $file")
         val text = Source.fromFile(file).getLines.mkString
-        val scenarios = ScenarioParser.parse(text)
+        val scenarios = ScenarioParser.parse[T](text)
         Some(ScenarioGroup(name, scenarios))
       }
     }
