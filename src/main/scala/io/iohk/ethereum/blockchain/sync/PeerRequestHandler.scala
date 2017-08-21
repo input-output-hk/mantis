@@ -8,10 +8,11 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, Pe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
-import io.iohk.ethereum.utils.Config.Sync._
+
+import scala.concurrent.duration.FiniteDuration
 
 class PeerRequestHandler[RequestMsg <: Message, ResponseMsg <: Message : ClassTag]
-    (peer: Peer, etcPeerManager: ActorRef, peerEventBus: ActorRef, requestMsg: RequestMsg, responseMsgCode: Int)
+    (peer: Peer, responseTimeout: FiniteDuration, etcPeerManager: ActorRef, peerEventBus: ActorRef, requestMsg: RequestMsg, responseMsgCode: Int)
     (implicit scheduler: Scheduler, toSerializable: RequestMsg => MessageSerializable)
   extends Actor with ActorLogging {
 
@@ -19,7 +20,7 @@ class PeerRequestHandler[RequestMsg <: Message, ResponseMsg <: Message : ClassTa
 
   val initiator: ActorRef = context.parent
 
-  val timeout: Cancellable = scheduler.scheduleOnce(peerResponseTimeout, self, Timeout)
+  val timeout: Cancellable = scheduler.scheduleOnce(responseTimeout, self, Timeout)
 
   val startTime: Long = System.currentTimeMillis()
 
@@ -64,9 +65,9 @@ class PeerRequestHandler[RequestMsg <: Message, ResponseMsg <: Message : ClassTa
 object PeerRequestHandler {
   def props[RequestMsg <: Message,
             ResponseMsg <: Message : ClassTag]
-  (peer: Peer, etcPeerManager: ActorRef, peerEventBus: ActorRef, requestMsg: RequestMsg, responseMsgCode: Int)
+  (peer: Peer, responseTimeout: FiniteDuration, etcPeerManager: ActorRef, peerEventBus: ActorRef, requestMsg: RequestMsg, responseMsgCode: Int)
   (implicit scheduler: Scheduler, toSerializable: RequestMsg => MessageSerializable): Props =
-    Props(new PeerRequestHandler(peer, etcPeerManager, peerEventBus, requestMsg, responseMsgCode))
+    Props(new PeerRequestHandler(peer, responseTimeout, etcPeerManager, peerEventBus, requestMsg, responseMsgCode))
 
   case class RequestFailed(peer: Peer, reason: String)
   case class ResponseReceived[T](peer: Peer, response: T, timeTaken: Long)

@@ -8,7 +8,6 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
-import io.iohk.ethereum.utils.Config.Sync.{blacklistDuration, minPeersToChooseTargetBlock, peerResponseTimeout, startRetryInterval}
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.concurrent.duration.FiniteDuration
@@ -22,6 +21,7 @@ class FastSyncTargetBlockSelector(
   extends Actor with ActorLogging with PeerListSupport with BlacklistSupport {
 
   import FastSyncTargetBlockSelector._
+  import syncConfig._
 
   val fastSync: ActorRef = context.parent
 

@@ -10,11 +10,9 @@ import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.utils.Config.Sync._
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.validators.Validators
 import org.spongycastle.util.encoders.Hex
@@ -27,7 +25,6 @@ class FastSync(
     val fastSyncStateStorage: FastSyncStateStorage,
     val appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
-    val blockchainStorages: BlockchainStorages,
     val validators: Validators,
     val peerEventBus: ActorRef,
     val etcPeerManager: ActorRef,
@@ -38,6 +35,7 @@ class FastSync(
     with FastSyncReceiptsValidator with SyncBlocksValidator {
 
   import FastSync._
+  import syncConfig._
 
   val syncController: ActorRef = context.parent
 
@@ -215,8 +213,6 @@ class FastSync(
     }
 
     private def handleNodeData(peer: Peer, requestedHashes: Seq[HashType], nodeData: NodeData) = {
-      val nodesKvStorage = blockchainStorages.nodesKeyValueStorageFor(Some(initialSyncState.targetBlock.number))
-
       if (nodeData.values.isEmpty) {
         log.debug(s"got empty mpt node response for known hashes switching to blockchain only: ${requestedHashes.map(h => Hex.toHexString(h.v.toArray[Byte]))}")
         markPeerBlockchainOnly(peer)
@@ -231,10 +227,10 @@ class FastSync(
       val hashesToRequest = (nodeData.values.indices zip receivedHashes) flatMap { case (idx, valueHash) =>
         requestedHashes.find(_.v == valueHash) map {
           case _: StateMptNodeHash =>
-            handleMptNode(nodesKvStorage, nodeData.getMptNode(idx))
+            handleMptNode(nodeData.getMptNode(idx))
 
           case _: ContractStorageMptNodeHash =>
-            handleContractMptNode(nodesKvStorage, nodeData.getMptNode(idx))
+            handleContractMptNode(nodeData.getMptNode(idx))
 
           case EvmCodeHash(hash) =>
             val evmCode = nodeData.values(idx)
@@ -243,7 +239,7 @@ class FastSync(
 
           case StorageRootHash(_) =>
             val rootNode = nodeData.getMptNode(idx)
-            handleContractMptNode(nodesKvStorage, rootNode)
+            handleContractMptNode(rootNode)
         }
       }
 
@@ -254,11 +250,11 @@ class FastSync(
       processSyncing()
     }
 
-    private def handleMptNode(nodesKvStorage: NodesKeyValueStorage, mptNode: MptNode): Seq[HashType] = mptNode match {
+    private def handleMptNode(mptNode: MptNode): Seq[HashType] = mptNode match {
       case n: MptLeaf =>
         val evm = n.getAccount.codeHash
         val storage = n.getAccount.storageRoot
-        nodesKvStorage.put(n.hash, n.toBytes)
+        blockchain.saveNode(n.hash, n.toBytes, initialSyncState.targetBlock.number)
 
         val evmRequests =
           if (evm != Account.EmptyCodeHash) Seq(EvmCodeHash(evm))
@@ -272,29 +268,29 @@ class FastSync(
 
       case n: MptBranch =>
         val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-        nodesKvStorage.put(n.hash, n.toBytes)
+        blockchain.saveNode(n.hash, n.toBytes, initialSyncState.targetBlock.number)
         hashes.map(StateMptNodeHash)
 
       case n: MptExtension =>
-        nodesKvStorage.put(n.hash, n.toBytes)
+        blockchain.saveNode(n.hash, n.toBytes, initialSyncState.targetBlock.number)
         n.child.fold(
           mptHash => Seq(StateMptNodeHash(mptHash.hash)),
           _ => Nil)
     }
 
-    private def handleContractMptNode(nodesKvStorage: NodesKeyValueStorage, mptNode: MptNode): Seq[HashType] = {
+    private def handleContractMptNode(mptNode: MptNode): Seq[HashType] = {
       mptNode match {
         case n: MptLeaf =>
-          nodesKvStorage.put(n.hash, n.toBytes)
+          blockchain.saveNode(n.hash, n.toBytes, initialSyncState.targetBlock.number)
           Nil
 
         case n: MptBranch =>
           val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-          nodesKvStorage.put(n.hash, n.toBytes)
+          blockchain.saveNode(n.hash, n.toBytes, initialSyncState.targetBlock.number)
           hashes.map(ContractStorageMptNodeHash)
 
         case n: MptExtension =>
-          nodesKvStorage.put(n.hash, n.toBytes)
+          blockchain.saveNode(n.hash, n.toBytes, initialSyncState.targetBlock.number)
           n.child.fold(
             mptHash => Seq(ContractStorageMptNodeHash(mptHash.hash)),
             _ => Nil)
@@ -473,7 +469,7 @@ class FastSync(
 
       val handler = context.actorOf(
         PeerRequestHandler.props[GetReceipts, Receipts](
-          peer, etcPeerManager, peerEventBus,
+          peer, peerResponseTimeout, etcPeerManager, peerEventBus,
           requestMsg = GetReceipts(receiptsToGet),
           responseMsgCode = Receipts.code))
 
@@ -489,7 +485,7 @@ class FastSync(
 
       val handler = context.actorOf(
         PeerRequestHandler.props[GetBlockBodies, BlockBodies](
-          peer, etcPeerManager, peerEventBus,
+          peer, peerResponseTimeout, etcPeerManager, peerEventBus,
           requestMsg = GetBlockBodies(blockBodiesToGet),
           responseMsgCode = BlockBodies.code))
 
@@ -508,7 +504,7 @@ class FastSync(
 
       val handler = context.actorOf(
         PeerRequestHandler.props[GetBlockHeaders, BlockHeaders](
-          peer, etcPeerManager, peerEventBus,
+          peer, peerResponseTimeout, etcPeerManager, peerEventBus,
           requestMsg = GetBlockHeaders(Left(syncState.bestBlockHeaderNumber + 1), limit, skip = 0, reverse = false),
           responseMsgCode = BlockHeaders.code), BlockHeadersHandlerName)
 
@@ -524,7 +520,7 @@ class FastSync(
 
       val handler = context.actorOf(
         PeerRequestHandler.props[GetNodeData, NodeData](
-          peer, etcPeerManager, peerEventBus,
+          peer, peerResponseTimeout, etcPeerManager, peerEventBus,
           requestMsg = GetNodeData(nodesToGet.map(_.v)),
           responseMsgCode = NodeData.code))
 
@@ -570,9 +566,9 @@ class FastSync(
 
 object FastSync {
   // scalastyle:off parameter.number
-  def props(fastSyncStateStorage: FastSyncStateStorage, appStateStorage: AppStateStorage, blockchain: Blockchain, blockchainStorages: BlockchainStorages,
+  def props(fastSyncStateStorage: FastSyncStateStorage, appStateStorage: AppStateStorage, blockchain: Blockchain,
   validators: Validators, peerEventBus: ActorRef, etcPeerManager: ActorRef, syncConfig: SyncConfig, scheduler: Scheduler): Props =
-    Props(new FastSync(fastSyncStateStorage, appStateStorage, blockchain, blockchainStorages, validators, peerEventBus, etcPeerManager, syncConfig, scheduler))
+    Props(new FastSync(fastSyncStateStorage, appStateStorage, blockchain, validators, peerEventBus, etcPeerManager, syncConfig, scheduler))
 
   private case object ProcessSyncing
   private case object PersistSyncState

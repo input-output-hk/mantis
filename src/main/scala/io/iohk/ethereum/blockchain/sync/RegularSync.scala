@@ -10,7 +10,6 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.validators.Validators
@@ -22,7 +21,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class RegularSync(
     val appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
-    val blockchainStorages: BlockchainStorages,
     val validators: Validators,
     val etcPeerManager: ActorRef,
     val peerEventBus: ActorRef,
@@ -33,8 +31,8 @@ class RegularSync(
     implicit val scheduler: Scheduler)
   extends Actor with ActorLogging with PeerListSupport with BlacklistSupport with SyncBlocksValidator with BlockBroadcast {
 
-  import Config.Sync._
   import RegularSync._
+  import syncConfig._
 
   private var headersQueue: Seq[BlockHeader] = Nil
   private var waitingForActor: Option[ActorRef] = None
@@ -98,7 +96,7 @@ class RegularSync(
   }
 
   private def insertMinedBlock(block: Block, parentTd: BigInt) = {
-    val result: Either[BlockExecutionError, Seq[Receipt]] = ledger.executeBlock(block, blockchainStorages, validators)
+    val result: Either[BlockExecutionError, Seq[Receipt]] = ledger.executeBlock(block, validators)
 
     result match {
       case Right(receipts) =>
@@ -176,8 +174,14 @@ class RegularSync(
             scheduleResume()
           }
         } else {
-          requestBlockHeaders(peer, GetBlockHeaders(Right(headersQueue.head.parentHash), blockResolveDepth, skip = 0, reverse = true))
-          resolvingBranches = true
+          if ((headersQueue.length - 1) / branchResolutionBatchSize >= branchResolutionMaxRequests) {
+            log.debug("fail to resolve branch, branch too long, it may indicate malicious peer")
+            resumeWithDifferentPeer(peer)
+          } else {
+            val request = GetBlockHeaders(Right(headersQueue.head.parentHash), branchResolutionBatchSize, skip = 0, reverse = true)
+            requestBlockHeaders(peer, request)
+            resolvingBranches = true
+          }
         }
       case _ =>
         log.debug("Got block header that does not have parent")
@@ -188,7 +192,7 @@ class RegularSync(
   private def requestBlockHeaders(peer: Peer, msg: GetBlockHeaders): Unit = {
     waitingForActor = Some(context.actorOf(
       PeerRequestHandler.props[GetBlockHeaders, BlockHeaders](
-        peer, etcPeerManager, peerEventBus,
+        peer, peerResponseTimeout, etcPeerManager, peerEventBus,
         requestMsg = msg,
         responseMsgCode = BlockHeaders.code)))
   }
@@ -196,7 +200,7 @@ class RegularSync(
   private def requestBlockBodies(peer: Peer, msg: GetBlockBodies): Unit = {
     waitingForActor = Some(context.actorOf(
       PeerRequestHandler.props[GetBlockBodies, BlockBodies](
-        peer, etcPeerManager, peerEventBus,
+        peer, peerResponseTimeout, etcPeerManager, peerEventBus,
         requestMsg = msg,
         responseMsgCode = BlockBodies.code)))
   }
@@ -266,7 +270,7 @@ class RegularSync(
 
     case Seq(block, otherBlocks@_*) =>
       val blockHashToDelete = blockchain.getBlockHeaderByNumber(block.header.number).map(_.hash).filter(_ != block.header.hash)
-      val blockExecResult = ledger.executeBlock(block, blockchainStorages, validators)
+      val blockExecResult = ledger.executeBlock(block, validators)
       blockExecResult match {
         case Right(receipts) =>
           blockchain.save(block)
@@ -310,10 +314,10 @@ class RegularSync(
 
 object RegularSync {
   // scalastyle:off parameter.number
-  def props(appStateStorage: AppStateStorage, blockchain: Blockchain, blockchainStorages: BlockchainStorages, validators: Validators,
+  def props(appStateStorage: AppStateStorage, blockchain: Blockchain, validators: Validators,
             etcPeerManager: ActorRef, peerEventBus: ActorRef, ommersPool: ActorRef, pendingTransactionsManager: ActorRef, ledger: Ledger,
             syncConfig: SyncConfig, scheduler: Scheduler): Props =
-    Props(new RegularSync(appStateStorage, blockchain, blockchainStorages, validators, etcPeerManager, peerEventBus, ommersPool, pendingTransactionsManager,
+    Props(new RegularSync(appStateStorage, blockchain, validators, etcPeerManager, peerEventBus, ommersPool, pendingTransactionsManager,
       ledger, syncConfig, scheduler))
 
   private case object ResumeRegularSync

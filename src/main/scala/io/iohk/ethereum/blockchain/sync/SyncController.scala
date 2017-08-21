@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Scheduler}
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
-import io.iohk.ethereum.domain.{Blockchain, BlockchainStorages}
+import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.validators.Validators
@@ -10,7 +10,6 @@ import io.iohk.ethereum.validators.Validators
 class SyncController(
     appStateStorage: AppStateStorage,
     blockchain: Blockchain,
-    blockchainStorages: BlockchainStorages,
     fastSyncStateStorage: FastSyncStateStorage,
     ledger: Ledger,
     validators: Validators,
@@ -68,14 +67,14 @@ class SyncController(
   }
 
   def startFastSync(): Unit = {
-    val fastSync = context.actorOf(FastSync.props(fastSyncStateStorage, appStateStorage, blockchain, blockchainStorages, validators,
+    val fastSync = context.actorOf(FastSync.props(fastSyncStateStorage, appStateStorage, blockchain, validators,
       peerEventBus, etcPeerManager, syncConfig, scheduler), "fast-sync")
     fastSync ! FastSync.Start
     context become runningFastSync(fastSync)
   }
 
   def startRegularSync(): Unit = {
-    val regularSync = context.actorOf(RegularSync.props(appStateStorage, blockchain, blockchainStorages, validators, etcPeerManager,
+    val regularSync = context.actorOf(RegularSync.props(appStateStorage, blockchain, validators, etcPeerManager,
       peerEventBus, ommersPool, pendingTransactionsManager, ledger, syncConfig, scheduler), "regular-sync")
     regularSync ! RegularSync.Start
     context become runningRegularSync(regularSync)
@@ -86,7 +85,6 @@ object SyncController {
   // scalastyle:off parameter.number
   def props(appStateStorage: AppStateStorage,
             blockchain: Blockchain,
-            blockchainStorages: BlockchainStorages,
             syncStateStorage: FastSyncStateStorage,
             ledger: Ledger,
             validators: Validators,
@@ -95,7 +93,7 @@ object SyncController {
             ommersPool: ActorRef,
             etcPeerManager: ActorRef,
             syncConfig: SyncConfig):
-  Props = Props(new SyncController(appStateStorage, blockchain, blockchainStorages, syncStateStorage, ledger, validators,
+  Props = Props(new SyncController(appStateStorage, blockchain, syncStateStorage, ledger, validators,
     peerEventBus, pendingTransactionsManager, ommersPool, etcPeerManager, syncConfig))
 
   case object Start
