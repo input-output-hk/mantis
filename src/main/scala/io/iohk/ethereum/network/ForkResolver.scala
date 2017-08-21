@@ -17,17 +17,17 @@ object ForkResolver {
 
   class EtcForkResolver(blockchainConfig: BlockchainConfig) extends ForkResolver {
     sealed trait Fork extends ForkResolver.Fork
-    case object Etc extends Fork
-    case object Eth extends Fork
+    case object AcceptedFork extends Fork
+    case object RejectedFork extends Fork
 
     override def forkBlockNumber: BigInt = blockchainConfig.daoForkBlockNumber
 
     override def recognizeFork(blockHeader: BlockHeader): Fork = {
-      if (blockHeader.hash == blockchainConfig.daoForkBlockHash) Etc
-      else Eth
+      if (blockHeader.hash == blockchainConfig.daoForkBlockHash) AcceptedFork
+      else RejectedFork
     }
 
-    override def isAccepted(fork: Fork): Boolean = fork == Etc
+    override def isAccepted(fork: Fork): Boolean = fork == AcceptedFork
   }
 
 }
