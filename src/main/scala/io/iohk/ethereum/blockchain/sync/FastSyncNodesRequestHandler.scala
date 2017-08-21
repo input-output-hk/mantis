@@ -13,6 +13,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
 
 class FastSyncNodesRequestHandler(
     peer: Peer,
@@ -80,20 +81,24 @@ class FastSyncNodesRequestHandler(
   private def handleMptNode(mptNode: MptNode): Seq[HashType] = mptNode match {
     case n: LeafNode =>
       import AccountImplicits._
-      val account = n.value.toArray[Byte].toAccount
+      //if this fails it means that we have leaf node which is part of MPT that do not stores account
+      //we verify if node is paert of the tree by checking its hash before we call handleMptNode() in line 44
+      val account = Try(n.value.toArray[Byte].toAccount)
+        .toEither.left.map(e => log.debug(s"Leaf node without account, error while trying to decode account ${e.getMessage}"))
+        .toOption
 
-      val evm = account.codeHash
-      val storage = account.storageRoot
+      val evm = account.map(_.codeHash)
+      val storage = account.map(_.storageRoot)
 
       saveNodeFn(ByteString(n.hash), n.toBytes)
 
-      val evmRequests =
-        if (evm != Account.EmptyCodeHash) Seq(EvmCodeHash(evm))
-        else Nil
+      val evmRequests = evm
+        .filter(_ != Account.EmptyCodeHash)
+        .map(c => Seq(EvmCodeHash(c))).getOrElse(Nil)
 
-      val storageRequests =
-        if (storage != Account.EmptyStorageRootHash) Seq(StorageRootHash(storage))
-        else Nil
+      val storageRequests = storage
+        .filter(_ != Account.EmptyStorageRootHash)
+        .map(s => Seq(StorageRootHash(s))).getOrElse(Nil)
 
       evmRequests ++ storageRequests
 

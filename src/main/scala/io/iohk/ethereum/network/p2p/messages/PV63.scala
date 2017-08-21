@@ -72,27 +72,7 @@ object PV63 {
     val HashLength = 32
 
     implicit class MptNodeEnc(obj: MptNode) extends RLPSerializable {
-
-      def toRLPEncodable: RLPEncodeable = obj match {
-        case n: LeafNode =>
-          import n._
-          RLPList(RLPValue(hpEncode(key.toArray[Byte], isLeaf = true)), value)
-        case n: ExtensionNode =>
-          import n._
-          RLPList(RLPValue(hpEncode(sharedKey.toArray[Byte], isLeaf = false)),
-            next.fold(hash => hash, node => node.toRLPEncodable)
-          )
-        case n: BranchNode =>
-          import n._
-          val terminatorValue: Array[Byte] = terminator.map(_.toArray[Byte]).getOrElse(Array.emptyByteArray)
-          val result: Seq[RLPEncodeable] = children.map {
-            case Some(e) =>
-              e.fold((mptHash: ByteString) => mptHash: RLPEncodeable, (node: MptNode) => node.toRLPEncodable)
-            case None =>
-              Array.emptyByteArray: RLPEncodeable
-          } :+ (terminatorValue: RLPEncodeable)
-          RLPList(result: _*)
-      }
+      def toRLPEncodable: RLPEncodeable = MerklePatriciaTrie.nodeEnc.encode(obj)
     }
 
     implicit class MptNodeDec(val bytes: Array[Byte]) extends AnyVal {

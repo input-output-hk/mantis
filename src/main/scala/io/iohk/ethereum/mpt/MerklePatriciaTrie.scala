@@ -41,7 +41,7 @@ object MerklePatriciaTrie {
   /**
     * Implicits
     */
-  implicit val nodeDec = new RLPDecoder[MptNode] {
+  implicit val nodeDec: RLPDecoder[MptNode] = new RLPDecoder[MptNode] {
     override def decode(rlp: RLPEncodeable): MptNode = rlp match {
       case RLPList(items@_*) if items.size == MerklePatriciaTrie.ListSize =>
         val parsedChildren: Seq[Option[Either[ByteString, MptNode]]] = items.init.map {
@@ -105,7 +105,7 @@ object MerklePatriciaTrie {
       case Left(hash) => MerklePatriciaTrie.getNode(hash.toArray[Byte], nodeStorage)
     }
 
-  private[mpt] implicit val nodeEnc = new RLPEncoder[MptNode] {
+  implicit val nodeEnc: RLPEncoder[MptNode] = new RLPEncoder[MptNode] {
     override def encode(obj: MptNode): RLPEncodeable = obj match {
       case leaf: LeafNode => RLPList(HexPrefix.encode(nibbles = leaf.key.toArray[Byte], isLeaf = true), leaf.value)
       case extension: ExtensionNode =>
