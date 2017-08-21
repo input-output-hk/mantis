@@ -1,8 +1,8 @@
 package io.iohk.ethereum.rlp
 
 import akka.util.ByteString
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.rlp.RLP._
-import io.iohk.ethereum.vm.UInt256
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 
 import scala.language.implicitConversions

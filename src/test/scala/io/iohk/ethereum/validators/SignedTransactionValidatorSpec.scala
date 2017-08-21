@@ -5,11 +5,11 @@ import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.{Account, Address, SignedTransaction, Transaction}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.{Fixtures, crypto}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.validators.SignedTransactionError.{TransactionSignatureError, _}
-import io.iohk.ethereum.vm.{EvmConfig, UInt256}
+import io.iohk.ethereum.vm.EvmConfig
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 

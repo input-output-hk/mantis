@@ -1,8 +1,8 @@
-package io.iohk.ethereum.vm
+package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 
-import language.implicitConversions
+import scala.language.implicitConversions
 
 // scalastyle:off number.of.methods
 object UInt256 {
