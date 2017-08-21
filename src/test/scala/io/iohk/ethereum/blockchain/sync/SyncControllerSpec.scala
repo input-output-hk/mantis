@@ -507,12 +507,11 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     pendingTransactionsManager.expectNoMsg()
   }
 
-  /*
   it should "resolve branch conflict" in new TestSetup() {
     val peerTestProbe: TestProbe = TestProbe()(system)
-    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref, false)
+    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref, incomingConnection = false)
 
-    Thread.sleep(1.seconds.toMillis)
+    Thread.sleep(1000)
 
     val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
@@ -550,59 +549,50 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     syncController.getSingleChild("regular-sync") ! HandshakedPeers(Map(
       peer -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)))
 
-
-    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
       GetBlockHeaders(Left(expectedMaxBlock + 1), syncConfig.blockHeadersPerRequest, 0, reverse = false),
       peer.id))
-    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Queue(newBlockHeader)), peer.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
+    peerMessageBus.reply(MessageFromPeer(BlockHeaders(Queue(newBlockHeader)), peer.id))
 
-    peerMessageBus.expectMsgAllOf(
-      Unsubscribe(),
-      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
+    peerMessageBus.expectMsg(Unsubscribe())
+
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
+    peerMessageBus.reply(MessageFromPeer(BlockHeaders(Queue(newBlockHeaderParent)), peer.id))
+
+    peerMessageBus.expectMsg(Unsubscribe())
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))))
+    peerMessageBus.reply(MessageFromPeer(BlockBodies(Queue(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer.id))
+
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Right(newBlockHeader.parentHash), syncConfig.blockResolveDepth, 0, reverse = true),
+      GetBlockHeaders(Right(newBlockHeader.parentHash), syncConfig.branchResolutionBatchSize, 0, reverse = true),
       peer.id))
-    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Queue(newBlockHeaderParent)), peer.id))
-
-    peerMessageBus.expectMsgAllOf(
-      Unsubscribe(),
-      Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))))
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
       GetBlockBodies(Queue(newBlockHeaderParent.hash, newBlockHeader.hash)),
       peer.id))
-    etcPeerManager.reply(MessageFromPeer(BlockBodies(Queue(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer.id))
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))),
       Unsubscribe())
-    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      NewBlock(Block(newBlockHeaderParent, BlockBody(Nil, Nil)), commonRootTotalDifficulty + newBlockDifficulty),
-      peer.id))
-    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), commonRootTotalDifficulty + 2 * newBlockDifficulty),
-      peer.id))
-
-    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Right(newBlockHeader.parentHash), syncConfig.blockResolveDepth, 0, reverse = true),
-      peer.id))
-
-    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Queue(nextNewBlockHeader)), peer.id))
+    peerMessageBus.reply(MessageFromPeer(BlockHeaders(Queue(nextNewBlockHeader)), peer.id))
 
     peerMessageBus.expectMsgAllOf(
-      Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))))
-    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockBodies(Queue(newBlockHeaderParent.hash, newBlockHeader.hash)),
-      peer.id))
-    etcPeerManager.reply(MessageFromPeer(BlockBodies(Queue(BlockBody(Nil, Nil))), peer.id))
+      Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer.id))),
+      Unsubscribe())
+    peerMessageBus.reply(MessageFromPeer(BlockBodies(Queue(BlockBody(Nil, Nil))), peer.id))
 
     //start next download cycle
 
     etcPeerManager.expectMsgAllOf(
       EtcPeerManagerActor.SendMessage(
         GetBlockHeaders(Left(expectedMaxBlock + 2), syncConfig.blockHeadersPerRequest, 0, reverse = false),
+        peer.id),
+      EtcPeerManagerActor.SendMessage(
+        NewBlock(Block(newBlockHeaderParent, BlockBody(Nil, Nil)), commonRootTotalDifficulty + newBlockDifficulty),
+        peer.id),
+      EtcPeerManagerActor.SendMessage(
+        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), commonRootTotalDifficulty + 2 * newBlockDifficulty),
         peer.id)
-
     )
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(nextNewBlockHeader.hash)), peer.id))
 
@@ -639,7 +629,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     ommersPool.expectNoMsg()
     pendingTransactionsManager.expectNoMsg()
   }
-*/
 
   it should "only use ETC peer to choose target block" in new TestSetup() {
     val peer1TestProbe: TestProbe = TestProbe()(system)
