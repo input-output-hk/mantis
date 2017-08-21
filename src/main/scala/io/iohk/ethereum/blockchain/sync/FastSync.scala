@@ -2,10 +2,10 @@ package io.iohk.ethereum.blockchain.sync
 
 
 import java.time.Instant
-import java.util.Date
 
 import akka.actor._
 import akka.util.ByteString
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -13,7 +13,6 @@ import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.Message
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
-import io.iohk.ethereum.utils.Config.Sync._
 import io.iohk.ethereum.validators.BlockValidator
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -25,6 +24,7 @@ trait FastSync {
 
   import FastSync._
   import SyncController._
+  import syncConfig._
 
   def startFastSync(): Unit = {
     log.info("Trying to start block synchronization (fast mode)")
@@ -433,7 +433,7 @@ trait FastSync {
     def requestReceipts(peer: Peer): Unit = {
       val (receiptsToGet, remainingReceipts) = receiptsQueue.splitAt(receiptsPerRequest)
       val handler = context.actorOf(FastSyncReceiptsRequestHandler.props(
-        peer, etcPeerManager, peerEventBus, receiptsToGet, appStateStorage, blockchain, validators.blockValidator))
+        peer, peerResponseTimeout, etcPeerManager, peerEventBus, receiptsToGet, appStateStorage, blockchain, validators.blockValidator))
       context watch handler
       assignedHandlers += (handler -> peer)
       peerRequestsTime += (peer -> Instant.now())
@@ -443,7 +443,7 @@ trait FastSync {
 
     def requestBlockBodies(peer: Peer): Unit = {
       val (blockBodiesToGet, remainingBlockBodies) = blockBodiesQueue.splitAt(blockBodiesPerRequest)
-      val handler = context.actorOf(SyncBlockBodiesRequestHandler.props(peer, etcPeerManager, peerEventBus, blockBodiesToGet))
+      val handler = context.actorOf(SyncBlockBodiesRequestHandler.props(peer, peerResponseTimeout, etcPeerManager, peerEventBus, blockBodiesToGet))
       context watch handler
       assignedHandlers += (handler -> peer)
       peerRequestsTime += (peer -> Instant.now())
@@ -459,7 +459,7 @@ trait FastSync {
 
       val request = GetBlockHeaders(Left(bestBlockHeaderNumber + 1), limit, skip = 0, reverse = false)
       val handler = context.actorOf(
-        SyncBlockHeadersRequestHandler.props(peer, etcPeerManager, peerEventBus, request, resolveBranches = false),
+        SyncBlockHeadersRequestHandler.props(peer, peerResponseTimeout, etcPeerManager, peerEventBus, request, resolveBranches = false),
         blockHeadersHandlerName)
       context watch handler
       assignedHandlers += (handler -> peer)
@@ -470,8 +470,10 @@ trait FastSync {
       val (nonMptNodesToGet, remainingNonMptNodes) = nonMptNodesQueue.splitAt(nodesPerRequest)
       val (mptNodesToGet, remainingMptNodes) = mptNodesQueue.splitAt(nodesPerRequest - nonMptNodesToGet.size)
       val nodesToGet = nonMptNodesToGet ++ mptNodesToGet
-      val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, etcPeerManager, peerEventBus, nodesToGet, blockchain,
-        blockchainStorages.nodesKeyValueStorageFor(Some(initialSyncState.targetBlock.number))))
+      val saveNodeFn = (nodeHash: NodeHash, nodeEncoded: NodeEncoded) =>
+        blockchain.saveNode(nodeHash, nodeEncoded, initialSyncState.targetBlock.number)
+      val handler = context.actorOf(FastSyncNodesRequestHandler.props(peer, peerResponseTimeout, etcPeerManager,
+        peerEventBus, nodesToGet, blockchain, saveNodeFn))
       context watch handler
       assignedHandlers += (handler -> peer)
       peerRequestsTime += (peer -> Instant.now())

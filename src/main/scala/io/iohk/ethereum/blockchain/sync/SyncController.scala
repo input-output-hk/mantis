@@ -20,15 +20,14 @@ import io.iohk.ethereum.validators.Validators
 class SyncController(
     val appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
-    val blockchainStorages: BlockchainStorages,
     val fastSyncStateStorage: FastSyncStateStorage,
     val ledger: Ledger,
     val validators: Validators,
+    val syncConfig: SyncConfig,
     val peerEventBus: ActorRef,
     val pendingTransactionsManager: ActorRef,
     val ommersPool: ActorRef,
     val etcPeerManager: ActorRef,
-    syncConfig: SyncConfig,
     val externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor
     with ActorLogging
@@ -37,8 +36,8 @@ class SyncController(
     with RegularSync {
 
   import BlacklistSupport._
-  import syncConfig._
   import SyncController._
+  import syncConfig._
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() {
@@ -113,17 +112,16 @@ object SyncController {
   // scalastyle:off parameter.number
   def props(appStateStorage: AppStateStorage,
             blockchain: Blockchain,
-            blockchainStorages: BlockchainStorages,
             syncStateStorage: FastSyncStateStorage,
             ledger: Ledger,
             validators: Validators,
+            syncConfig: SyncConfig,
             peerEventBus: ActorRef,
             pendingTransactionsManager: ActorRef,
             ommersPool: ActorRef,
-            etcPeerManager: ActorRef,
-            syncConfig: SyncConfig):
-  Props = Props(new SyncController(appStateStorage, blockchain, blockchainStorages, syncStateStorage, ledger, validators,
-    peerEventBus, pendingTransactionsManager, ommersPool, etcPeerManager, syncConfig))
+            etcPeerManager: ActorRef):
+  Props = Props(new SyncController(appStateStorage, blockchain, syncStateStorage, ledger, validators,
+    syncConfig, peerEventBus, pendingTransactionsManager, ommersPool, etcPeerManager))
 
   case class BlockHeadersToResolve(peer: Peer, headers: Seq[BlockHeader])
 

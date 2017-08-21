@@ -8,11 +8,12 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, Pe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
-import io.iohk.ethereum.utils.Config.Sync._
+
+import scala.concurrent.duration.FiniteDuration
 
 abstract class SyncRequestHandler[RequestMsg <: Message,
-                                  ResponseMsg <: Message : ClassTag](peer: Peer, etcPeerManagerActor: ActorRef,
-                                                                     peerEventBus: ActorRef)
+                                  ResponseMsg <: Message : ClassTag](peer: Peer, peerResponseTimeout: FiniteDuration,
+                                                                     etcPeerManagerActor: ActorRef, peerEventBus: ActorRef)
                                   (implicit scheduler: Scheduler, toSerializable: RequestMsg => MessageSerializable)
   extends Actor with ActorLogging {
 

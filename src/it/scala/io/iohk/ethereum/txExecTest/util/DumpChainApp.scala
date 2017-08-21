@@ -7,6 +7,7 @@ import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.{Blockchain, _}
@@ -120,6 +121,8 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     override def save(hash: ByteString, evmCode: ByteString): Unit = ???
 
     override def save(blockhash: ByteString, totalDifficulty: BigInt): Unit = ???
+
+    override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
 
     override def removeBlock(hash: ByteString): Unit = ???
 
