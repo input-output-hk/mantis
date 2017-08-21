@@ -62,7 +62,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
       peer1 -> PeerInfo(peer1Status, peer1Status.totalDifficulty, forkAccepted = true, maxBlockNumber = 0),
       peer2 -> PeerInfo(peer2Status, peer1Status.totalDifficulty, forkAccepted = true, maxBlockNumber = 0)))
 
-    etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-chooser").toIterator), handshakedPeers)
+    etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").toIterator), handshakedPeers)
     etcPeerManager.send(syncController.getSingleChild("fast-sync"), handshakedPeers)
 
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
@@ -127,7 +127,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val handshakedPeers = HandshakedPeers(Map(
       peer2 -> PeerInfo(peer2Status, forkAccepted = true, totalDifficulty = peer2Status.totalDifficulty, maxBlockNumber = 0)))
 
-    etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-chooser").toIterator), handshakedPeers)
+    etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").toIterator), handshakedPeers)
     etcPeerManager.send(syncController.getSingleChild("fast-sync"), handshakedPeers)
 
     val stateMptLeafWithAccount =
@@ -283,7 +283,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val handshakedPeers = HandshakedPeers(Map(
       peer -> PeerInfo(peerStatus, forkAccepted = true, totalDifficulty = peerStatus.totalDifficulty, maxBlockNumber = 0)))
 
-    etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-chooser").toIterator), handshakedPeers)
+    etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").toIterator), handshakedPeers)
     etcPeerManager.send(syncController.getSingleChild("fast-sync"), handshakedPeers)
 
     val stateMptLeafWithAccount =
@@ -584,7 +584,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     Thread.sleep(200)
 
-    etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-chooser").toIterator), handshakedPeers)
+    etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").toIterator), handshakedPeers)
     etcPeerManager.send(syncController.getSingleChild("fast-sync"), handshakedPeers)
 
     peerMessageBus.expectMsgAllOf(

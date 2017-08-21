@@ -1,13 +1,13 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Block, Blockchain}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.{BlockValidator, Validators}
 
-trait FastSyncBlocksValidationUtils {
+trait SyncBlocksValidator {
 
-  import FastSyncBlocksValidationUtils._
+  import SyncBlocksValidator._
   import BlockBodyValidationResult._
 
   def blockchain: Blockchain
@@ -29,9 +29,13 @@ trait FastSyncBlocksValidationUtils {
     result
   }
 
+
+  def checkHeadersChain(headers: Seq[BlockHeader]): Boolean =
+    if (headers.length > 1) headers.zip(headers.tail).forall { case (parent, child) => parent.hash == child.parentHash && parent.number + 1 == child.number }
+    else true
 }
 
-object FastSyncBlocksValidationUtils {
+object SyncBlocksValidator {
   sealed trait BlockBodyValidationResult
   object BlockBodyValidationResult {
     case object Valid extends BlockBodyValidationResult

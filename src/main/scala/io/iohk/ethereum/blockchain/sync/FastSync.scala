@@ -4,8 +4,8 @@ import java.time.Instant
 
 import akka.actor._
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.FastSyncBlocksValidationUtils.BlockBodyValidationResult
-import io.iohk.ethereum.blockchain.sync.FastSyncReceiptsValidationUtils.ReceiptsValidationResult
+import io.iohk.ethereum.blockchain.sync.SyncBlocksValidator.BlockBodyValidationResult
+import io.iohk.ethereum.blockchain.sync.FastSyncReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
@@ -35,8 +35,7 @@ class FastSync(
     implicit val scheduler: Scheduler)
   extends Actor with ActorLogging
     with PeerListSupport with BlacklistSupport
-    with SyncUtils
-    with FastSyncReceiptsValidationUtils with FastSyncBlocksValidationUtils {
+    with FastSyncReceiptsValidator with SyncBlocksValidator {
 
   import FastSync._
 
@@ -66,13 +65,13 @@ class FastSync(
   }
 
   def startFromScratch(): Unit = {
-    val targetBlockChooser = context.actorOf(FastSyncTargetBlockChooser.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "target-block-chooser")
-    targetBlockChooser ! FastSyncTargetBlockChooser.ChooseTargetBlock
-    context become waitingForTargetBlock(targetBlockChooser)
+    val targetBlockSelector = context.actorOf(FastSyncTargetBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "target-block-selector")
+    targetBlockSelector ! FastSyncTargetBlockSelector.ChooseTargetBlock
+    context become waitingForTargetBlock(targetBlockSelector)
   }
 
   def waitingForTargetBlock(targetBlockChoose: ActorRef): Receive = handleCommonMessages orElse {
-    case FastSyncTargetBlockChooser.Result(targetBlockHeader) =>
+    case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
       if (targetBlockHeader.number < 1) {
         log.info("Unable to start block synchronization in fast mode: target block is less than 1")
         appStateStorage.fastSyncDone()
@@ -98,7 +97,7 @@ class FastSync(
     private var requestedBlockBodies: Map[ActorRef, Seq[ByteString]] = Map.empty
     private var requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
 
-    private val syncStateStorageActor = context.actorOf(Props[FastSyncStateActor], "state-storage")
+    private val syncStateStorageActor = context.actorOf(Props[FastSyncStateStorageActor], "state-storage")
     syncStateStorageActor ! fastSyncStateStorage
 
     private var blockChainOnlyPeers: Seq[Peer] = Nil
@@ -155,7 +154,7 @@ class FastSync(
     }
 
     private def handleBlockHeaders(peer: Peer, headers: Seq[BlockHeader]) = {
-      if (checkHeaders(headers)) insertHeaders(headers)
+      if (checkHeadersChain(headers)) insertHeaders(headers)
       else blacklist(peer.id, blacklistDuration, "error in block headers response")
 
       processSyncing()
@@ -606,9 +605,9 @@ object FastSync {
 
     def anythingQueued: Boolean =
       nonMptNodesQueue.nonEmpty ||
-        mptNodesQueue.nonEmpty ||
-        blockBodiesQueue.nonEmpty ||
-        receiptsQueue.nonEmpty
+      mptNodesQueue.nonEmpty ||
+      blockBodiesQueue.nonEmpty ||
+      receiptsQueue.nonEmpty
 
     val totalNodesCount: Int = downloadedNodesCount + mptNodesQueue.size + nonMptNodesQueue.size
   }

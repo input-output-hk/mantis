@@ -31,7 +31,7 @@ class RegularSync(
     val ledger: Ledger,
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler)
-  extends Actor with ActorLogging with PeerListSupport with BlacklistSupport with SyncUtils with BlockBroadcast {
+  extends Actor with ActorLogging with PeerListSupport with BlacklistSupport with SyncBlocksValidator with BlockBroadcast {
 
   import Config.Sync._
   import RegularSync._
@@ -154,7 +154,7 @@ class RegularSync(
     val parentByNumber = blockchain.getBlockHeaderByNumber(headers.head.number - 1)
 
     parentByNumber match {
-      case Some(parent) if checkHeaders(headers) =>
+      case Some(parent) if checkHeadersChain(headers) =>
         //we have same chain prefix
         if (parent.hash == headers.head.parentHash) {
 

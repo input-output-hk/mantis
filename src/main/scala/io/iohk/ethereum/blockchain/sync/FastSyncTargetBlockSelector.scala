@@ -14,14 +14,14 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class FastSyncTargetBlockChooser(
+class FastSyncTargetBlockSelector(
     val etcPeerManager: ActorRef,
     val peerEventBus: ActorRef,
     val syncConfig: SyncConfig,
     val scheduler: Scheduler)
   extends Actor with ActorLogging with PeerListSupport with BlacklistSupport {
 
-  import FastSyncTargetBlockChooser._
+  import FastSyncTargetBlockSelector._
 
   val fastSync: ActorRef = context.parent
 
@@ -135,9 +135,9 @@ class FastSyncTargetBlockChooser(
 
 }
 
-object FastSyncTargetBlockChooser {
+object FastSyncTargetBlockSelector {
   def props(etcPeerManager: ActorRef, peerEventBus: ActorRef, syncConfig: SyncConfig, scheduler: Scheduler): Props =
-    Props(new FastSyncTargetBlockChooser(etcPeerManager: ActorRef, peerEventBus, syncConfig, scheduler))
+    Props(new FastSyncTargetBlockSelector(etcPeerManager: ActorRef, peerEventBus, syncConfig, scheduler))
 
   case object ChooseTargetBlock
   case class Result(targetBlockHeader: BlockHeader)

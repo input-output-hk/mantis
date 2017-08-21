@@ -5,9 +5,9 @@ import io.iohk.ethereum.domain.{Blockchain, Receipt}
 import io.iohk.ethereum.validators.BlockValidator.BlockError
 import io.iohk.ethereum.validators.Validators
 
-trait FastSyncReceiptsValidationUtils {
+trait FastSyncReceiptsValidator {
 
-  import FastSyncReceiptsValidationUtils._
+  import FastSyncReceiptsValidator._
   import ReceiptsValidationResult._
 
   def blockchain: Blockchain
@@ -39,7 +39,7 @@ trait FastSyncReceiptsValidationUtils {
 
 }
 
-object FastSyncReceiptsValidationUtils {
+object FastSyncReceiptsValidator {
   sealed trait ReceiptsValidationResult
   object ReceiptsValidationResult {
     case class Valid(blockHashesAndReceipts: Seq[(ByteString, Seq[Receipt])]) extends ReceiptsValidationResult
