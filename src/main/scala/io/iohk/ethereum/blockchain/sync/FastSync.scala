@@ -550,6 +550,7 @@ class FastSync(
     val fullBlocks = receivedHashes.flatMap { hash =>
       for {
         header <- blockchain.getBlockHeaderByHash(hash)
+        _ <- blockchain.getBlockBodyByHash(hash)
         _ <- blockchain.getReceiptsByHash(hash)
       } yield header
     }

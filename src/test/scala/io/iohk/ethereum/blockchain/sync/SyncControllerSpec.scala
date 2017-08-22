@@ -335,7 +335,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     // response timeout
     Thread.sleep(2.seconds.toMillis)
-    // peerMessageBus.expectMsg(Unsubscribe())
     etcPeerManager.expectNoMsg()
 
     // wait for blacklist timeout
@@ -969,13 +968,13 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     syncController.getSingleChild("regular-sync") ! HandshakedPeers(Map(
       peer -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)))
+    peerMessageBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
 
     //Send block headers request
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
       GetBlockHeaders(Left(expectedMaxBlock + 1), syncConfig.blockHeadersPerRequest, 0, reverse = false),
       peer.id))
     peerMessageBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
-    peerMessageBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id)))) // TODO: why twice?
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
 
     //wait for timeout
