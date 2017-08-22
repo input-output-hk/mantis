@@ -17,7 +17,7 @@ case class BlockchainScenario(
 
 
 case class BlockDef(
-  rlp: ByteString,
+  rlp: String,
   blocknumber: Option[BigInt],
   blockHeader: Option[BlockHeaderDef],
   transactions: Option[Seq[TransactionDef]],
