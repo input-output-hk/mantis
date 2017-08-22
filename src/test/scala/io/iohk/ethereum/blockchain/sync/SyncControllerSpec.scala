@@ -41,7 +41,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
   after {
     Await.result(system.terminate(), 1.seconds)
   }
-
+  
   "SyncController" should "download target block and request state nodes" in new TestSetup() {
 
     val peer1TestProbe: TestProbe = TestProbe("peer1")(system)
@@ -52,7 +52,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     syncController ! SyncController.Start
 
-    Thread.sleep(200)
+    Thread.sleep(startDelayMillis)
 
     val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
     val peer2Status = Status(1, 1, 1, ByteString("peer2_bestHash"), ByteString("unused"))
@@ -121,8 +121,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     syncController ! SyncController.Start
 
-    Thread.sleep(200)
-
     val handshakedPeers = HandshakedPeers(Map(
       peer2 -> PeerInfo(peer2Status, forkAccepted = true, totalDifficulty = peer2Status.totalDifficulty, maxBlockNumber = 0)))
 
@@ -166,7 +164,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     peerMessageBus.reply(MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil))), peer2.id))
     peerMessageBus.expectMsg(Unsubscribe())
 
-    Thread.sleep(200)
+    Thread.sleep(startDelayMillis)
     etcPeerManager.send(syncController.getSingleChild("regular-sync"), handshakedPeers)
 
     //switch to regular download
@@ -208,8 +206,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
       peer2 -> PeerInfo(peerStatus, forkAccepted = true, totalDifficulty = peerStatus.totalDifficulty, maxBlockNumber = 0)))
 
     syncController ! SyncController.Start
-
-    Thread.sleep(200)
 
     syncController.getSingleChild("fast-sync") ! handshakedPeers
 
@@ -275,8 +271,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val peerStatus = Status(1, 1, 20, ByteString("peer2_bestHash"), ByteString("unused"))
 
     syncController ! SyncController.Start
-
-    Thread.sleep(200)
 
     val handshakedPeers = HandshakedPeers(Map(
       peer -> PeerInfo(peerStatus, forkAccepted = true, totalDifficulty = peerStatus.totalDifficulty, maxBlockNumber = 0)))
@@ -444,7 +438,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val peerTestProbe: TestProbe = TestProbe()(system)
     val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref, incomingConnection = false)
 
-    Thread.sleep(1000)
+    Thread.sleep(1.second.toMillis)
 
     val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
@@ -511,7 +505,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val peerTestProbe: TestProbe = TestProbe()(system)
     val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref, incomingConnection = false)
 
-    Thread.sleep(1000)
+    Thread.sleep(1.second.toMillis)
 
     val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
@@ -660,7 +654,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     syncController ! SyncController.Start
 
-    Thread.sleep(200)
+    Thread.sleep(startDelayMillis)
 
     etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").toIterator), handshakedPeers)
     etcPeerManager.send(syncController.getSingleChild("fast-sync"), handshakedPeers)
@@ -727,7 +721,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
       Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))),
       Unsubscribe())
 
-    Thread.sleep(2000)
+    Thread.sleep(2.seconds.toMillis)
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
       GetBlockHeaders(Left(expectedMaxBlock + 1), syncConfig.blockHeadersPerRequest, 0, reverse = false),
@@ -1167,6 +1161,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
       nonce = ByteString("unused"))
 
     blockchain.save(baseBlockHeader.parentHash, BigInt(0))
+    
+    val startDelayMillis = 200
   }
 
 }

@@ -130,7 +130,6 @@ class RegularSync(
   }
 
   private def handleBlockBranchResolution(peer: Peer, message: Seq[BlockHeader]) = {
-    //todo limit max branch depth? [EC-248]
     if (message.nonEmpty && message.last.hash == headersQueue.head.parentHash) {
       headersQueue = message ++ headersQueue
       processBlockHeaders(peer, headersQueue)
