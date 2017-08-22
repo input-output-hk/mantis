@@ -116,8 +116,8 @@ object ReferenceCountNodeStorage {
         // Get Node from storage and filter ones which have references = 0 now (maybe they were added again after blockNumber)
         val pruneCandidateNodes = pruneCandidates.nodeKeys.map(nodeStorage.get)
         val pruneCandidateNodesWithKeys = pruneCandidateNodes.zip(pruneCandidates.nodeKeys)
-        val nodesToDelete = pruneCandidateNodesWithKeys.filter(n => n._1.isDefined && storedNodeFromBytes(n._1.get).references == 0)
-        nodesToDelete.map(_._2)
+        pruneCandidateNodesWithKeys.collect {
+          case (Some(candidate), candidateKey) if storedNodeFromBytes(candidate).references == 0 => candidateKey }
       }.map(nodeKeysToDelete => {
         // Update nodestorage removing all nodes that are no longer being used
         nodeStorage.update(key +: nodeKeysToDelete, Nil)

@@ -97,10 +97,7 @@ class FastSyncReceiptsRequestHandler(
         ReceiptsInvalid(blockValidator.validateBlockAndReceipts(header, receipt).left.get)
       case (None, _) => ReceiptsDbError
     }
-    receiptsValidationError match {
-      case Some(error) => error
-      case None => ReceiptsValid(blockHashesWithReceipts)
-    }
+    receiptsValidationError.getOrElse(ReceiptsValid(blockHashesWithReceipts))
   }
 
   override def handleTimeout(): Unit = {

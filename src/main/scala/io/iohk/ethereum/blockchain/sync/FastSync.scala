@@ -125,7 +125,7 @@ trait FastSync {
   def waitingForTargetBlock(peer: Peer,
                             targetBlockNumber: BigInt,
                             timeout: Cancellable): Receive = handlePeerUpdates orElse {
-    case MessageFromPeer(blockHeaders: BlockHeaders, peerId) =>
+    case MessageFromPeer(blockHeaders: BlockHeaders, _) =>
       timeout.cancel()
       peerEventBus ! Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id)))
 
