@@ -42,7 +42,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     val resultBeforeSaving = createResult(emptyWorld, gasUsed = defaultGasLimit / 2,
       gasLimit = defaultGasLimit, gasRefund = 0, error = None, returnData = longContractCode)
 
-    val ledger = new LedgerImpl(new MockVM(), blockchainConfig)
+    val ledger = new LedgerImpl(new MockVM(), blockchain, blockchainConfig)
     val resultAfterSaving = ledger.saveNewContract(contractAddress, resultBeforeSaving, config)
     resultAfterSaving.error shouldBe Some(OutOfGas)
   }
@@ -52,7 +52,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     val resultBeforeSaving = createResult(emptyWorld, gasUsed = defaultGasLimit / 2,
       gasLimit = defaultGasLimit, gasRefund = 0, error = None, returnData = shortContractCode)
 
-    val ledger = new LedgerImpl(new MockVM(), blockchainConfig)
+    val ledger = new LedgerImpl(new MockVM(), blockchain, blockchainConfig)
     val resultAfterSaving = ledger.saveNewContract(contractAddress, resultBeforeSaving, config)
     resultAfterSaving.error shouldBe None
   }
