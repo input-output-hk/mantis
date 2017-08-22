@@ -6,12 +6,15 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.validators.BlockValidator
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-class ValidationsAfterExecutionSpec extends FlatSpec with Matchers {
+class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFactory {
 
-  val ledger = new LedgerImpl(new Mocks.MockVM(), BlockchainConfig(Config.config))
+  val blockchain = mock[BlockchainImpl]
+
+  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, BlockchainConfig(Config.config))
 
   val block: Block = Block(
     BlockHeader(

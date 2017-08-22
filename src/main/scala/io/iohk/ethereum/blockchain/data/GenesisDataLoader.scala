@@ -64,7 +64,7 @@ class GenesisDataLoader(
             throw ex
         }
       case None =>
-        log.info(s"Using default genesis data")
+        log.info("Using default genesis data")
         val src = Source.fromResource("blockchain/default-genesis.json")
         try {
           src.getLines().mkString
@@ -159,7 +159,7 @@ object GenesisDataLoader {
           else "0" ++ noPrefix
         Try(ByteString(Hex.decode(inp))) match {
           case Success(bs) => bs
-          case Failure(ex) => throw new RuntimeException("Cannot parse hex string: " + s)
+          case Failure(_) => throw new RuntimeException("Cannot parse hex string: " + s)
         }
       case other => throw new RuntimeException("Expected hex string, but got: " + other)
     }

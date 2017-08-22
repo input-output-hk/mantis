@@ -77,7 +77,7 @@ trait RegularSync extends BlockBroadcast {
   }
 
   private def insertMinedBlock(block: Block, parentTd: BigInt) = {
-    val result: Either[BlockExecutionError, Seq[Receipt]] = ledger.executeBlock(block, blockchainStorages, validators)
+    val result: Either[BlockExecutionError, Seq[Receipt]] = ledger.executeBlock(block, validators)
 
     result match {
       case Right(receipts) =>
@@ -233,7 +233,7 @@ trait RegularSync extends BlockBroadcast {
 
     case Seq(block, otherBlocks@_*) =>
       val blockHashToDelete = blockchain.getBlockHeaderByNumber(block.header.number).map(_.hash).filter(_ != block.header.hash)
-      val blockExecResult = ledger.executeBlock(block, blockchainStorages, validators)
+      val blockExecResult = ledger.executeBlock(block, validators)
       blockExecResult match {
         case Right(receipts) =>
           blockchain.save(block)

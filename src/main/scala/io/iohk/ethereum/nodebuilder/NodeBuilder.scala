@@ -122,7 +122,7 @@ trait NodeStatusBuilder {
 trait BlockChainBuilder {
   self: StorageBuilder =>
 
-  lazy val blockchain: Blockchain = BlockchainImpl(storagesInstance.storages)
+  lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages)
 }
 
 trait ForkResolverBuilder {
@@ -272,13 +272,13 @@ trait FilterManagerBuilder {
 }
 
 trait BlockGeneratorBuilder {
-  self: StorageBuilder with
-    BlockchainConfigBuilder with
+  self: BlockchainConfigBuilder with
     ValidatorsBuilder with
     LedgerBuilder with
-    MiningConfigBuilder =>
+    MiningConfigBuilder with
+    BlockChainBuilder =>
 
-  lazy val blockGenerator = new BlockGenerator(storagesInstance.storages, blockchainConfig, miningConfig, ledger, validators)
+  lazy val blockGenerator = new BlockGenerator(blockchain, blockchainConfig, miningConfig, ledger, validators)
 }
 
 trait EthServiceBuilder {
@@ -289,7 +289,6 @@ trait EthServiceBuilder {
     PendingTransactionsManagerBuilder with
     LedgerBuilder with
     ValidatorsBuilder with
-    BlockchainConfigBuilder with
     KeyStoreBuilder with
     SyncControllerBuilder with
     OmmersPoolBuilder with
@@ -297,7 +296,7 @@ trait EthServiceBuilder {
     FilterManagerBuilder with
     FilterConfigBuilder =>
 
-  lazy val ethService = new EthService(storagesInstance.storages, blockGenerator, storagesInstance.storages.appStateStorage,
+  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage,
     miningConfig, ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
     blockchainConfig, Config.Network.protocolVersion)
 }
@@ -354,9 +353,10 @@ trait ValidatorsBuilder {
 }
 
 trait LedgerBuilder {
-  self: BlockchainConfigBuilder =>
+  self: BlockchainConfigBuilder
+    with BlockChainBuilder =>
 
-  lazy val ledger: Ledger = new LedgerImpl(VM, blockchainConfig)
+  lazy val ledger: Ledger = new LedgerImpl(VM, blockchain, blockchainConfig)
 }
 
 trait SyncControllerBuilder {
@@ -379,7 +379,6 @@ trait SyncControllerBuilder {
     SyncController.props(
       storagesInstance.storages.appStateStorage,
       blockchain,
-      storagesInstance.storages,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       validators,
