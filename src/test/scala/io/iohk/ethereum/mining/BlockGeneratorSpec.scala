@@ -274,7 +274,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
     }
 
-    val genesisDataLoader = new GenesisDataLoader(storagesInstance.ephemDataSource, blockchain, ArchivePruning, blockchainConfig, new DbConfig {
+    val genesisDataLoader = new GenesisDataLoader(blockchain, ArchivePruning, blockchainConfig, new DbConfig {
       override val batchSize: Int = 1000
     })
     genesisDataLoader.loadGenesisData()

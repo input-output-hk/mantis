@@ -408,12 +408,12 @@ trait GenesisDataLoaderBuilder {
     with StorageBuilder
     with BlockchainConfigBuilder =>
 
-  lazy val genesisDataLoader = new GenesisDataLoader(storagesInstance.dataSource, blockchain, storagesInstance.pruningMode, blockchainConfig, Config.Db)
+  lazy val genesisDataLoader = new GenesisDataLoader(blockchain, storagesInstance.pruningMode, blockchainConfig, Config.Db)
 }
 
 trait SecureRandomBuilder {
   lazy val secureRandom: SecureRandom =
-    Config.secureRandomAlgo.map(SecureRandom.getInstance(_)).getOrElse(new SecureRandom())
+    Config.secureRandomAlgo.map(SecureRandom.getInstance).getOrElse(new SecureRandom())
 }
 
 trait Node extends NodeKeyBuilder

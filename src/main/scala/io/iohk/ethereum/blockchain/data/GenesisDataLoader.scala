@@ -8,7 +8,7 @@ import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.{crypto, rlp}
-import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
+import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Account, Block, BlockHeader, Blockchain}
@@ -17,14 +17,13 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.utils.Config.DbConfig
 import io.iohk.ethereum.vm.UInt256
-import org.json4s.{CustomSerializer, DefaultFormats, JString, JValue}
+import org.json4s.{CustomSerializer, DefaultFormats, Formats, JString, JValue}
 import org.spongycastle.util.encoders.Hex
 
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 class GenesisDataLoader(
-    dataSource: DataSource,
     blockchain: Blockchain,
     pruningMode: PruningMode,
     blockchainConfig: BlockchainConfig,
@@ -84,7 +83,7 @@ class GenesisDataLoader(
 
   private def loadGenesisData(genesisJson: String): Try[Unit] = {
     import org.json4s.native.JsonMethods.parse
-    implicit val formats = DefaultFormats + ByteStringJsonSerializer
+    implicit val formats: Formats = DefaultFormats + ByteStringJsonSerializer
     for {
       genesisData <- Try(parse(genesisJson).extract[GenesisData])
       _ <- loadGenesisData(genesisData)
@@ -107,7 +106,29 @@ class GenesisDataLoader(
       ).getRootHash
     }
 
-    val header = BlockHeader(
+    val header: BlockHeader = prepareHeader(genesisData, stateMptRootHash)
+
+    log.debug(s"prepared genesis header: $header")
+
+    blockchain.getBlockHeaderByNumber(0) match {
+      case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>
+        log.debug("Genesis data already in the database")
+        Success(())
+      case Some(_) =>
+        Failure(new RuntimeException("Genesis data present in the database does not match genesis block from file." +
+          " Use different directory for running private blockchains."))
+      case None =>
+        // key.tail to remove namespace-prefix keys
+        ephemDataSource.storage.toSeq.foreach { case (key, value) => blockchain.saveNode(ByteString(key.tail.toArray[Byte]), value.toArray[Byte], 0) }
+        blockchain.save(Block(header, BlockBody(Nil, Nil)))
+        blockchain.save(header.hash, Nil)
+        blockchain.save(header.hash, header.difficulty)
+        Success(())
+    }
+  }
+
+  private def prepareHeader(genesisData: GenesisData, stateMptRootHash: Array[Byte]) =
+    BlockHeader(
       parentHash = zeros(hashLength),
       ommersHash = ByteString(crypto.kec256(rlp.encode(RLPList()))),
       beneficiary = genesisData.coinbase,
@@ -123,25 +144,6 @@ class GenesisDataLoader(
       extraData = genesisData.extraData,
       mixHash = genesisData.mixHash.getOrElse(zeros(hashLength)),
       nonce = genesisData.nonce)
-
-    log.debug(s"prepared genesis header: $header")
-
-    blockchain.getBlockHeaderByNumber(0) match {
-      case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>
-        log.debug("Genesis data already in the database")
-        Success(())
-      case Some(_) =>
-        Failure(new RuntimeException("Genesis data present in the database does not match genesis block from file." +
-          " Use different directory for running private blockchains."))
-      case None =>
-        // using empty namespace because ephemDataSource.storage already has the namespace-prefixed keys
-        ephemDataSource.storage.toSeq.grouped(dbConfig.batchSize).foreach(toStore => dataSource.update(IndexedSeq(), Nil, toStore))
-        blockchain.save(Block(header, BlockBody(Nil, Nil)))
-        blockchain.save(header.hash, Nil)
-        blockchain.save(header.hash, header.difficulty)
-        Success(())
-    }
-  }
 
   private def zeros(length: Int) =
     ByteString(Hex.decode(List.fill(length)("0").mkString))
