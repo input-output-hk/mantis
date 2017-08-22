@@ -42,7 +42,7 @@ class Address private(val bytes: ByteString) {
 
   override def equals(that: Any): Boolean = that match {
     case addr: Address => addr.bytes == bytes
-    case other => false
+    case _ => false
   }
 
   override def hashCode: Int =

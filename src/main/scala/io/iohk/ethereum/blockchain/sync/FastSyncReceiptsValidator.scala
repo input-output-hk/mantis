@@ -31,10 +31,7 @@ trait FastSyncReceiptsValidator {
         Invalid(validators.blockValidator.validateBlockAndReceipts(header, receipt).left.get)
       case (None, _) => DbError
     }
-    receiptsValidationError match {
-      case Some(error) => error
-      case None => Valid(blockHashesWithReceipts)
-    }
+    receiptsValidationError.getOrElse(Valid(blockHashesWithReceipts))
   }
 
 }

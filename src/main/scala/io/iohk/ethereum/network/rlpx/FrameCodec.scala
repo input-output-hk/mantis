@@ -141,7 +141,7 @@ class FrameCodec(private val secrets: Secrets) {
 
       if (firstFrame) {
         // packet-type only in first frame
-        enc.processBytes(ptype.toArray, 0, ptype.length, buff, 0)
+        enc.processBytes(ptype, 0, ptype.length, buff, 0)
         out ++= ByteString(buff.take(ptype.length))
         secrets.egressMac.update(buff, 0, ptype.length)
       }
