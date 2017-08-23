@@ -1,5 +1,7 @@
 package io.iohk.ethereum.vm
 
+import io.iohk.ethereum.domain.UInt256
+
 object MockStorage {
   val Empty = MockStorage()
 

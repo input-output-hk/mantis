@@ -5,9 +5,8 @@ import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.{Fixtures, Mocks}
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.vm.UInt256
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 

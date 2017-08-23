@@ -1,8 +1,8 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie, NodesKeyValueStorage}
-import io.iohk.ethereum.vm.UInt256
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 
 package object domain {

@@ -1,5 +1,7 @@
 package io.iohk.ethereum
 
+import io.iohk.ethereum.domain.UInt256
+
 package object vm {
 
   /**

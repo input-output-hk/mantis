@@ -7,9 +7,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.pattern.ask
 import akka.util.Timeout
-import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import akka.actor.ActorRef
-import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.RegularSync
@@ -27,7 +26,6 @@ import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
-import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.Future

@@ -4,9 +4,8 @@ import akka.util.ByteString
 import io.circe._
 import io.circe.parser._
 import io.circe.generic.auto._
-import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.NumericUtils._
-import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.Try

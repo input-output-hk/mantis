@@ -7,7 +7,7 @@ import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecu
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult, PC, PR, TxResult}
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
-import io.iohk.ethereum.vm.UInt256._
+import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
