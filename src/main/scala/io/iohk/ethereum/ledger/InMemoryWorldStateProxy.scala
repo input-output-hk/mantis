@@ -22,7 +22,7 @@ object InMemoryWorldStateProxy {
   ): InMemoryWorldStateProxy = {
     val accountsStateTrieProxy = createProxiedAccountsStateTrie(
       nodesKeyValueStorage,
-      stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.calculateEmptyRootHash(kec256(_: Array[Byte]))))
+      stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.EmptyRootHash))
     )
     new InMemoryWorldStateProxy(
       nodesKeyValueStorage,
@@ -93,8 +93,7 @@ object InMemoryWorldStateProxy {
     InMemorySimpleMapProxy.wrap[Address, Account, MerklePatriciaTrie[Address, Account]](
       MerklePatriciaTrie[Address, Account](
         stateRootHash.toArray[Byte],
-        accountsStorage,
-        kec256(_: Array[Byte])
+        accountsStorage
       )(Address.hashedAddressEncoder, accountSerializer)
     )
   }

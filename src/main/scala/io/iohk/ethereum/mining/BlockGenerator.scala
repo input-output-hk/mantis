@@ -135,8 +135,7 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
 
   private def buildMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString = {
     val mpt = MerklePatriciaTrie[Int, K](
-      source = new ArchiveNodeStorage(new NodeStorage(EphemDataSource())),
-      hashFn = (input: Array[Byte]) => kec256(input)
+      source = new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))
     )(intByteArraySerializable, vSerializable)
     val hash = entities.zipWithIndex.foldLeft(mpt) { case (trie, (value, key)) => trie.put(key, value) }.getRootHash
     ByteString(hash)

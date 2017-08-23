@@ -1,7 +1,6 @@
 package io.iohk.ethereum.validators
 
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
@@ -27,8 +26,7 @@ object MptListValidator {
   def isValid[K](hash: Array[Byte], toValidate: Seq[K], vSerializable: ByteArraySerializable[K]): Boolean = {
 
     val trie = MerklePatriciaTrie[Int, K](
-      source = new ArchiveNodeStorage(new NodeStorage(EphemDataSource())),
-      hashFn = (input: Array[Byte]) => kec256(input)
+      source = new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))
     )(intByteArraySerializable, vSerializable)
     val trieRoot = toValidate.zipWithIndex.foldLeft(trie) { (trie, r) => trie.put(r._2, r._1) }.getRootHash
     hash sameElements trieRoot

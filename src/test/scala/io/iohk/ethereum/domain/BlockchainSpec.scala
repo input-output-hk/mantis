@@ -53,8 +53,7 @@ class BlockchainSpec extends FlatSpec with Matchers {
     val validHeader = Fixtures.Blocks.ValidBlock.header
 
     val emptyMpt = MerklePatriciaTrie[Address, Account](
-      new ArchiveNodeStorage(storagesInstance.storages.nodeStorage),
-      crypto.kec256(_: Array[Byte])
+      new ArchiveNodeStorage(storagesInstance.storages.nodeStorage)
     )
 
     val mptWithAcc = emptyMpt.put(address, account)

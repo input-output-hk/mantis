@@ -11,9 +11,11 @@ import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import org.spongycastle.util.encoders.Hex
 import ReceiptImplicits._
 import BlockHeaderImplicits._
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
@@ -91,9 +93,9 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
       val nodes = NodeData(stateNodes).values.indices.map(i => NodeData(stateNodes).getMptNode(i))
 
       val children = nodes.flatMap {
-        case n: MptBranch => n.children.collect { case Left(h: MptHash) if h.hash.nonEmpty => h.hash }
-        case MptExtension(_, Left(h)) => Seq(h.hash)
-        case n: MptLeaf => Seq.empty
+        case n: BranchNode => n.children.collect { case Some(Left(h)) => h }
+        case ExtensionNode(_, Left(h)) => Seq(h)
+        case n: LeafNode => Seq.empty
         case _ => Seq.empty
       }
 
@@ -101,17 +103,20 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
       var evmTorequest: Seq[ByteString] = Nil
 
       nodes.foreach {
-        case n: MptLeaf =>
-          if (n.getAccount.codeHash != DumpChainActor.emptyEvm) {
-            peers.headOption.foreach { case Peer(_, actor, _) =>
-              evmTorequest = evmTorequest :+ n.getAccount.codeHash
-              evmCodeHashes = evmCodeHashes + n.getAccount.codeHash
+        case n: LeafNode =>
+          import AccountImplicits._
+          val account = n.value.toArray[Byte].toAccount
+
+          if (account.codeHash != DumpChainActor.emptyEvm) {
+            peers.headOption.foreach { case Peer(_, _, _) =>
+              evmTorequest = evmTorequest :+ account.codeHash
+              evmCodeHashes = evmCodeHashes + account.codeHash
             }
           }
-          if (n.getAccount.storageRoot != DumpChainActor.emptyStorage) {
-            peers.headOption.foreach { case Peer(_, actor, _) =>
-              contractChildren = contractChildren :+ n.getAccount.storageRoot
-              contractNodesHashes = contractNodesHashes + n.getAccount.storageRoot
+          if (account.storageRoot != DumpChainActor.emptyStorage) {
+            peers.headOption.foreach { case Peer(_, _, _) =>
+              contractChildren = contractChildren :+ account.storageRoot
+              contractNodesHashes = contractNodesHashes + account.storageRoot
             }
           }
         case _ =>
@@ -119,8 +124,8 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
 
       val cNodes = NodeData(contractNodes).values.indices.map(i => NodeData(contractNodes).getMptNode(i))
       contractChildren = contractChildren ++ cNodes.flatMap {
-        case n: MptBranch => n.children.collect { case Left(h: MptHash) if h.hash.nonEmpty => h.hash }
-        case MptExtension(_, Left(h)) => Seq(h.hash)
+        case n: BranchNode => n.children.collect { case Some(Left(h)) => h }
+        case ExtensionNode(_, Left(h)) => Seq(h)
         case _ => Seq.empty
       }
 
@@ -132,11 +137,11 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
       }
 
       nodes.foreach { n =>
-        stateStorage = stateStorage + (n.hash -> n)
+        stateStorage = stateStorage + (ByteString(n.hash) -> n)
       }
 
       cNodes.foreach { n =>
-        contractStorage = contractStorage + (n.hash -> n)
+        contractStorage = contractStorage + (ByteString(n.hash) -> n)
       }
 
       if (children.isEmpty && contractChildren.isEmpty && evmTorequest.isEmpty) {

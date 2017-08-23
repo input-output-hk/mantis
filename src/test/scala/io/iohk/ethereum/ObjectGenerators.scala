@@ -9,8 +9,11 @@ import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.vm.UInt256
 import org.scalacheck.{Arbitrary, Gen}
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+
+import scala.collection.immutable
 
 
 trait ObjectGenerators {
@@ -79,20 +82,20 @@ trait ObjectGenerators {
 
   def receiptsGen(n: Int): Gen[Seq[Seq[Receipt]]] = Gen.listOfN(n, Gen.listOf(receiptGen()))
 
-  def branchNodeGen: Gen[MptBranch] = for {
-    children <- Gen.listOfN(16, byteStringOfLengthNGen(32)).map(childrenList => childrenList.map(child => Left(MptHash(child))))
+  def branchNodeGen: Gen[BranchNode] = for {
+    children <- Gen.listOfN(16, byteStringOfLengthNGen(32)).map(childrenList => childrenList.map(child => Some(Left(child))))
     terminator <- byteStringOfLengthNGen(32)
-  } yield MptBranch(children, terminator)
+  } yield BranchNode(children, Some(terminator))
 
-  def extensionNodeGen: Gen[MptExtension] = for {
+  def extensionNodeGen: Gen[ExtensionNode] = for {
     keyNibbles <- byteArrayOfNItemsGen(32)
     value <- byteStringOfLengthNGen(32)
-  } yield MptExtension(ByteString(bytesToNibbles(keyNibbles)), Left(MptHash(value)))
+  } yield ExtensionNode(ByteString(bytesToNibbles(keyNibbles)), Left(value))
 
-  def leafNodeGen: Gen[MptLeaf] = for {
+  def leafNodeGen: Gen[LeafNode] = for {
     keyNibbles <- byteArrayOfNItemsGen(32)
     value <- byteStringOfLengthNGen(32)
-  } yield MptLeaf(ByteString(bytesToNibbles(keyNibbles)), value)
+  } yield LeafNode(ByteString(bytesToNibbles(keyNibbles)), value)
 
   def nodeGen: Gen[MptNode] = Gen.choose(0, 2).flatMap{ i =>
     i match {
