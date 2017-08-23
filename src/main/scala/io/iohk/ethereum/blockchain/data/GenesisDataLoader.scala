@@ -118,8 +118,8 @@ class GenesisDataLoader(
         Failure(new RuntimeException("Genesis data present in the database does not match genesis block from file." +
           " Use different directory for running private blockchains."))
       case None =>
-        // key.tail to remove namespace-prefix keys
-        ephemDataSource.storage.toSeq.foreach { case (key, value) => blockchain.saveNode(ByteString(key.tail.toArray[Byte]), value.toArray[Byte], 0) }
+        ephemDataSource.getAll(nodeStorage.namespace)
+          .foreach { case (key, value) => blockchain.saveNode(ByteString(key.toArray[Byte]), value.toArray[Byte], 0) }
         blockchain.save(Block(header, BlockBody(Nil, Nil)))
         blockchain.save(header.hash, Nil)
         blockchain.save(header.hash, header.difficulty)
