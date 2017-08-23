@@ -150,7 +150,6 @@ class FastSync(
 
     private def removeRequestHandler(handler: ActorRef): Unit = {
       context unwatch handler
-      val peer = assignedHandlers(handler)
       assignedHandlers -= handler
     }
 
