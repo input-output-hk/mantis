@@ -3,27 +3,23 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.{Fixtures, Timeouts, crypto}
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.domain.{BlockHeader, BlockchainImpl, Receipt}
-import io.iohk.ethereum.mpt.HexPrefix
+import io.iohk.ethereum.domain.{BlockHeader, Receipt}
+import io.iohk.ethereum.mpt.{ExtensionNode, HexPrefix, MptNode}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.{EtcPeerManagerActor, PeerId}
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.utils.PruningConfig
+import io.iohk.ethereum.network.{EtcPeerManagerActor, PeerId}
+import io.iohk.ethereum.{Fixtures, Timeouts, crypto}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
+import scala.concurrent.duration.{FiniteDuration, _}
 import scala.language.postfixOps
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
 
 class BlockchainHostActorSpec extends FlatSpec with Matchers {
 
@@ -215,12 +211,12 @@ class BlockchainHostActorSpec extends FlatSpec with Matchers {
     //given
     val exampleNibbles = ByteString(HexPrefix.bytesToNibbles(Hex.decode("ffddaa")))
     val exampleHash = ByteString(Hex.decode("ab"*32))
-    val extensionNode: MptNode = MptExtension(exampleNibbles, Left(MptHash(exampleHash)))
+    val extensionNode: MptNode = ExtensionNode(exampleNibbles, Left(exampleHash))
 
-    storagesInstance.storages.nodesKeyValueStorageFor(Some(0)).update(Nil, Seq(extensionNode.hash -> (extensionNode.toBytes: Array[Byte])))
+    storagesInstance.storages.nodesKeyValueStorageFor(Some(0)).update(Nil, Seq(ByteString(extensionNode.hash) -> (extensionNode.toBytes: Array[Byte])))
 
     //when
-    blockchainHost ! MessageFromPeer(GetNodeData(Seq(extensionNode.hash)), peerId)
+    blockchainHost ! MessageFromPeer(GetNodeData(Seq(ByteString(extensionNode.hash))), peerId)
 
     //then
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(NodeData(Seq(extensionNode.toBytes)), peerId))

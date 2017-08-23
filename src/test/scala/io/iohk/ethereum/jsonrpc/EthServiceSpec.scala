@@ -478,7 +478,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     val mpt =
-      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage), (input: Array[Byte]) => crypto.kec256(input))
+      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))
         .put(crypto.kec256(address.bytes.toArray[Byte]), Account(0, UInt256(0), ByteString(""), ByteString("code hash")))
 
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
@@ -623,7 +623,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     val mpt =
-      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage), (input: Array[Byte]) => crypto.kec256(input))
+      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))
         .put(crypto.kec256(address.bytes.toArray[Byte]), Account(0, UInt256(123), ByteString(""), ByteString("code hash")))
 
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
@@ -653,12 +653,12 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     }
 
     val storageMpt =
-      MerklePatriciaTrie[UInt256, UInt256](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage), crypto.kec256(_: Array[Byte]))(
+      MerklePatriciaTrie[UInt256, UInt256](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))(
         HashByteArraySerializable(byteArrayUInt256Serializer), rlpUInt256Serializer)
         .put(UInt256(333), UInt256(123))
 
     val mpt =
-      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage), (input: Array[Byte]) => crypto.kec256(input))
+      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))
         .put(crypto.kec256(address.bytes.toArray[Byte]), Account(0, UInt256(0), ByteString(storageMpt.getRootHash), ByteString("")))
 
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
@@ -677,7 +677,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     val mpt =
-      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage), (input: Array[Byte]) => crypto.kec256(input))
+      MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))
         .put(crypto.kec256(address.bytes.toArray[Byte]), Account(999, UInt256(0), ByteString(""), ByteString("")))
 
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))

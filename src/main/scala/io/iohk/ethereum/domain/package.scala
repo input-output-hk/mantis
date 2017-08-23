@@ -17,7 +17,6 @@ package object domain {
   }
 
   def storageMpt(rootHash: ByteString, nodeStorage: NodesKeyValueStorage): MerklePatriciaTrie[UInt256, UInt256] =
-    MerklePatriciaTrie[UInt256, UInt256](rootHash.toArray[Byte], nodeStorage,
-      crypto.kec256(_: Array[Byte]))(HashByteArraySerializable(byteArrayUInt256Serializer), rlpUInt256Serializer)
+    MerklePatriciaTrie[UInt256, UInt256](rootHash.toArray[Byte], nodeStorage)(HashByteArraySerializable(byteArrayUInt256Serializer), rlpUInt256Serializer)
 
 }
