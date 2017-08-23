@@ -70,16 +70,37 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
   }
 
   // Block rlp hex decoding, should be done during test and not parsing json as it can fail
-  def decode(s: String): Array[Byte] = {
+  private def decode(s: String): Array[Byte] = {
     val stripped = s.replaceFirst("^0x", "")
     Hex.decode(stripped)
   }
 
-  def decodeBlock(s: String): Option[Block] = {
+  // During decoding we cant expect some failures especially in bcInvalidRlPTests.json
+  private def decodeBlock(s: String): Option[Block] = {
     Try(decode(s).toBlock) match {
       case Success(block) => Some(block)
       case Failure(ex) => {ex.printStackTrace(); None}
     }
+  }
+
+  private def isInvalidBlock(blockDef: BlockDef): Boolean = {
+    blockDef.blockHeader.isEmpty && blockDef.transactions.isEmpty && blockDef.uncleHeaders.isEmpty
+  }
+
+  private def getInvalid: List[BlockDef] = {
+    scenario.blocks.filter(isInvalidBlock)
+  }
+
+  private def getBlocks(blocks: List[BlockDef]): List[Block] = {
+    blocks.flatMap(blockDef => decodeBlock(blockDef.rlp))
+  }
+
+  def getAllBlocks: List[Block] = {
+    getBlocks(scenario.blocks)
+  }
+
+  def getInvalidBlocks: List[Block] = {
+    getBlocks(getInvalid)
   }
 
   private def getWorldState(accounts: Map[Address, AccountState]): InMemoryWorldStateProxy = {

@@ -46,17 +46,20 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
   private def runScenario(scenario: BlockchainScenario, setup: ScenarioSetup): Unit = {
     import setup._
 
-    def getBlocksToProcess() = {
-      scenario.blocks.flatMap(blockDef => decodeBlock(blockDef.rlp))
-    }
-
     val genesisBlock = loadGenesis()
 
     val initialWorld = getInitialWorld()
 
-    val blocksToProcess = getBlocksToProcess()
+    val blocksToProcess = getAllBlocks
+
+    val invalidBlocks = getInvalidBlocks
 
     val newBlocks: (Seq[NewBlock], Seq[BlockExecutionError]) = processBlocks(blocksToProcess, genesisBlock.header.difficulty)
+
+    // If there is more block execution errors than expected invalidblocks, it means we rejected block which should
+    // pass validations, and the final state will not be correct
+    if(newBlocks._2.size > invalidBlocks.size)
+      newBlocks._2.foreach(err => log.info(err.toString))
 
     val lastBlock = getBestBlock()
 
