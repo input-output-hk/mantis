@@ -41,7 +41,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
   after {
     Await.result(system.terminate(), 1.seconds)
   }
-  
+
   "SyncController" should "download target block and request state nodes" in new TestSetup() {
 
     val peer1TestProbe: TestProbe = TestProbe("peer1")(system)
@@ -1050,7 +1050,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     //Attempt to start regular sync
 
-    override lazy val syncConfig = new SyncConfig{
+    override lazy val syncConfig = new SyncConfig {
       override val doFastSync: Boolean = false
 
       override val printStatusInterval: FiniteDuration = 1.hour
@@ -1160,7 +1160,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
       nonce = ByteString("unused"))
 
     blockchain.save(baseBlockHeader.parentHash, BigInt(0))
-    
+
     val startDelayMillis = 200
   }
 
