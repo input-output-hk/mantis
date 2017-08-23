@@ -13,7 +13,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class FastSyncNodesRequestHandler(
     peer: Peer,
@@ -83,9 +83,12 @@ class FastSyncNodesRequestHandler(
       import AccountImplicits._
       //if this fails it means that we have leaf node which is part of MPT that do not stores account
       //we verify if node is paert of the tree by checking its hash before we call handleMptNode() in line 44
-      val account = Try(n.value.toArray[Byte].toAccount)
-        .toEither.left.map(e => log.debug(s"Leaf node without account, error while trying to decode account ${e.getMessage}"))
-        .toOption
+      val account = Try(n.value.toArray[Byte].toAccount) match {
+        case Success(acc) => Some(acc)
+        case Failure(e) =>
+          log.debug(s"Leaf node without account, error while trying to decode account ${e.getMessage}")
+          None
+      }
 
       val evm = account.map(_.codeHash)
       val storage = account.map(_.storageRoot)

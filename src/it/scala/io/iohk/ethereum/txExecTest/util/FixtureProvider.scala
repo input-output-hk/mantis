@@ -22,14 +22,14 @@ import scala.util.Try
 object FixtureProvider {
 
   case class Fixture(
-                      blockByNumber: Map[BigInt, Block],
-                      blockByHash: Map[ByteString, Block],
-                      blockHeaders: Map[ByteString, BlockHeader],
-                      blockBodies: Map[ByteString, BlockBody],
-                      receipts: Map[ByteString, Seq[Receipt]],
-                      stateMpt: Map[ByteString, MptNode],
-                      contractMpts: Map[ByteString, MptNode],
-                      evmCode: Map[ByteString, ByteString]
+    blockByNumber: Map[BigInt, Block],
+    blockByHash: Map[ByteString, Block],
+    blockHeaders: Map[ByteString, BlockHeader],
+    blockBodies: Map[ByteString, BlockBody],
+    receipts: Map[ByteString, Seq[Receipt]],
+    stateMpt: Map[ByteString, MptNode],
+    contractMpts: Map[ByteString, MptNode],
+    evmCode: Map[ByteString, ByteString]
   )
 
   // scalastyle:off
