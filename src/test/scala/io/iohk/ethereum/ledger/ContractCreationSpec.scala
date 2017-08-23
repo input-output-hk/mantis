@@ -5,8 +5,7 @@ import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.domain.{Address, BlockchainImpl, TxLogEntry}
+import io.iohk.ethereum.domain.{Address, BlockchainImpl, TxLogEntry, UInt256}
 import io.iohk.ethereum.ledger.Ledger.PR
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}

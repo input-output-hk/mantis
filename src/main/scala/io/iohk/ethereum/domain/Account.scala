@@ -6,7 +6,6 @@ import io.iohk.ethereum.mpt.ByteArraySerializable
 import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 object Account {

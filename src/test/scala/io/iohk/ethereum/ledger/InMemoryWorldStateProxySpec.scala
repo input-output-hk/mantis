@@ -2,11 +2,8 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl}
-import io.iohk.ethereum.vm.{Generators, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
+import io.iohk.ethereum.vm.Generators
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 

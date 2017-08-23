@@ -3,14 +3,15 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
 import io.iohk.ethereum.mpt.HexPrefix.{bytesToNibbles, encode => hpEncode}
 import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode, _}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
-import MptNode._
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 
 class NodeDataSpec extends FlatSpec with Matchers {
@@ -31,20 +32,20 @@ class NodeDataSpec extends FlatSpec with Matchers {
   val account = Account(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
   val encodedAccount = RLPList(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
 
-  val leafNode = MptLeaf(exampleNibbles, account.toBytes)
+  val leafNode = LeafNode(exampleNibbles, account.toBytes)
   val encodedLeafNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = true), encode(encodedAccount))
 
-  val branchNode = MptBranch(
-    (Seq.fill[Either[MptHash, MptNode]](3)(Left(MptHash(ByteString.empty))) :+ Left(MptHash(exampleHash))) ++
-      (Seq.fill[Either[MptHash, MptNode]](6)(Left(MptHash(ByteString.empty))) :+ Left(MptHash(exampleHash))) ++
-      Seq.fill[Either[MptHash, MptNode]](5)(Left(MptHash(ByteString.empty))), ByteString())
+  val branchNode = new BranchNode(
+    (Seq.fill[Option[Either[ByteString, MptNode]]](3)(None) :+ Some(Left(exampleHash))) ++
+      (Seq.fill[Option[Either[ByteString, MptNode]]](6)(None) :+ Some(Left(exampleHash))) ++
+      Seq.fill[Option[Either[ByteString, MptNode]]](5)(None), None)
 
   val encodedBranchNode = RLPList(
     (Seq.fill[RLPValue](3)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
       (Seq.fill[RLPValue](6)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
       (Seq.fill[RLPValue](5)(RLPValue(Array.emptyByteArray)) :+ (Array.emptyByteArray: RLPEncodeable)): _*)
 
-  val extensionNode = MptExtension(exampleNibbles, Left(MptHash(exampleHash)))
+  val extensionNode = ExtensionNode(exampleNibbles, Left(exampleHash))
   val encodedExtensionNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), RLPValue(exampleHash.toArray[Byte]))
 
   val nodeData = NodeData(Seq(
@@ -89,28 +90,28 @@ class NodeDataSpec extends FlatSpec with Matchers {
       Hex.decode("f84d8080808080de9c32ea07b198667c460bb7d8bc9652f6ffbde7b195d81c17eb614e2b8901808080808080de9c3ffe8cb7f9cebdcb4eca6e682b56ab66f4f45827cf27c11b7f0a91620180808080")
 
     val decodedMptBranch =
-      MptBranch(Seq(
-        Left(MptHash(ByteString.empty)),
-        Left(MptHash(ByteString.empty)),
-        Left(MptHash(ByteString.empty)),
-        Left(MptHash(ByteString.empty)),
-        Left(MptHash(ByteString.empty)),
-        Right(MptLeaf(
-          keyNibbles = ByteString(Hex.decode("020e0a00070b0109080606070c0406000b0b070d080b0c090605020f060f0f0b0d0e070b0109050d08010c01070e0b0601040e020b0809")),
-          value = ByteString(1))),
-        Left(MptHash(ByteString.empty)),
-        Left(MptHash(ByteString.empty)),
-        Left(MptHash(ByteString.empty)),
-        Left(MptHash(ByteString.empty)),
-        Left(MptHash(ByteString.empty)),
-        Left(MptHash(ByteString.empty)),
-        Right(MptLeaf(
-          keyNibbles = ByteString(Hex.decode("0f0f0e080c0b070f090c0e0b0d0c0b040e0c0a060e0608020b05060a0b06060f040f04050802070c0f02070c01010b070f000a09010602")),
-          value = ByteString(1))),
-        Left(MptHash(ByteString.empty)),
-        Left(MptHash(ByteString.empty)),
-        Left(MptHash(ByteString.empty))
-      ), ByteString.empty)
+      new BranchNode(Seq(
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(Right(LeafNode(
+          key = ByteString(Hex.decode("020e0a00070b0109080606070c0406000b0b070d080b0c090605020f060f0f0b0d0e070b0109050d08010c01070e0b0601040e020b0809")),
+          value = ByteString(1)))),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        Some(Right(LeafNode(
+          key = ByteString(Hex.decode("0f0f0e080c0b070f090c0e0b0d0c0b040e0c0a060e0608020b05060a0b06060f040f04050802070c0f02070c01010b070f000a09010602")),
+          value = ByteString(1)))),
+        None,
+        None,
+        None
+      ), None)
 
     //when
     val result: MptNode = encodedMptBranch.toMptNode

@@ -3,10 +3,9 @@ package io.iohk.ethereum.validators
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}
 import io.iohk.ethereum.validators.BlockHeaderError._
-import io.iohk.ethereum.vm.UInt256
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex

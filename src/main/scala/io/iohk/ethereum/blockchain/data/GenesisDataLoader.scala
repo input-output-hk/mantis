@@ -11,12 +11,11 @@ import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
-import io.iohk.ethereum.domain.{Account, Block, BlockHeader, Blockchain}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.utils.Config.DbConfig
-import io.iohk.ethereum.vm.UInt256
 import org.json4s.{CustomSerializer, DefaultFormats, JString, JValue}
 import org.spongycastle.util.encoders.Hex
 
@@ -96,11 +95,11 @@ class GenesisDataLoader(
 
     val ephemDataSource = EphemDataSource()
     val nodeStorage = new NodeStorage(ephemDataSource)
-    val initalRootHash = MerklePatriciaTrie.calculateEmptyRootHash((input: Array[Byte]) => crypto.kec256(input))
+    val initalRootHash = MerklePatriciaTrie.EmptyRootHash
 
     val stateMptRootHash = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, (((address, AllocAccount(balance)), idx))) =>
       val ephemNodeStorage =  PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(Some(idx - genesisData.alloc.size))
-      val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, ephemNodeStorage, (input: Array[Byte]) => crypto.kec256(input))
+      val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, ephemNodeStorage)
       val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
       mpt.put(crypto.kec256(Hex.decode(paddedAddress)),
         Account(blockchainConfig.accountStartNonce, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash)

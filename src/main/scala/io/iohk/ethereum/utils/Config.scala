@@ -6,12 +6,11 @@ import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
-import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.vm.UInt256
 import io.iohk.ethereum.utils.NumericUtils._
 import org.spongycastle.util.encoders.Hex
 

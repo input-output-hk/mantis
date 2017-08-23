@@ -1,6 +1,6 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import org.scalatest.{Matchers, WordSpec}
 import MockWorldState.{PC, PS}
 import akka.util.ByteString

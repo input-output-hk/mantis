@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.{Address, UInt256}
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
 import MockWorldState._

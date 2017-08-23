@@ -4,7 +4,7 @@ import akka.util.ByteString
 import org.scalatest.{Matchers, WordSpec}
 import Assembly._
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
 import org.scalatest.prop.PropertyChecks

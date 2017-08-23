@@ -3,8 +3,9 @@ package io.iohk.ethereum.vm
 import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
 import Generators._
-import UInt256.{One, Two, Zero}
 import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.vm.MockWorldState.PS
 
 class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {

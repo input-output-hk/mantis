@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPList

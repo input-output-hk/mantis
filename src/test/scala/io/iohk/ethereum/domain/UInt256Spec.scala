@@ -1,10 +1,10 @@
-package io.iohk.ethereum.vm
+package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 import io.iohk.ethereum.vm.Generators._
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-import io.iohk.ethereum.vm.UInt256._
+import io.iohk.ethereum.domain.UInt256._
 
 class UInt256Spec extends FunSuite with PropertyChecks {
 
