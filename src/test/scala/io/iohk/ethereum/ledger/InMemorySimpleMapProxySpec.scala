@@ -97,7 +97,7 @@ class InMemorySimpleMapProxySpec extends FlatSpec with Matchers {
 
 
     val nodeStorage = new NodeStorage(EphemDataSource())
-    val mpt: MerklePatriciaTrie[Int, Int] = MerklePatriciaTrie[Int, Int](new ArchiveNodeStorage(nodeStorage), kec256(_: Array[Byte]))
+    val mpt: MerklePatriciaTrie[Int, Int] = MerklePatriciaTrie[Int, Int](new ArchiveNodeStorage(nodeStorage))
   }
 
 }

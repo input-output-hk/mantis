@@ -10,6 +10,8 @@ import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.Peer
@@ -20,6 +22,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 class FastSync(
     val fastSyncStateStorage: FastSyncStateStorage,
@@ -251,48 +254,59 @@ class FastSync(
     }
 
     private def handleMptNode(mptNode: MptNode): Seq[HashType] = mptNode match {
-      case n: MptLeaf =>
-        val evm = n.getAccount.codeHash
-        val storage = n.getAccount.storageRoot
-        blockchain.saveNode(n.hash, n.toBytes, initialSyncState.targetBlock.number)
+      case n: LeafNode =>
+        import AccountImplicits._
+        //if this fails it means that we have leaf node which is part of MPT that do not stores account
+        //we verify if node is paert of the tree by checking its hash before we call handleMptNode() in line 44
+        val account = Try(n.value.toArray[Byte].toAccount) match {
+          case Success(acc) => Some(acc)
+          case Failure(e) =>
+            log.debug(s"Leaf node without account, error while trying to decode account ${e.getMessage}")
+            None
+        }
 
-        val evmRequests =
-          if (evm != Account.EmptyCodeHash) Seq(EvmCodeHash(evm))
-          else Nil
+        val evm = account.map(_.codeHash)
+        val storage = account.map(_.storageRoot)
 
-        val storageRequests =
-          if (storage != Account.EmptyStorageRootHash) Seq(StorageRootHash(storage))
-          else Nil
+        blockchain.saveNode(ByteString(n.hash), n.toBytes, initialSyncState.targetBlock.number)
+
+        val evmRequests = evm
+          .filter(_ != Account.EmptyCodeHash)
+          .map(c => Seq(EvmCodeHash(c))).getOrElse(Nil)
+
+        val storageRequests = storage
+          .filter(_ != Account.EmptyStorageRootHash)
+          .map(s => Seq(StorageRootHash(s))).getOrElse(Nil)
 
         evmRequests ++ storageRequests
 
-      case n: MptBranch =>
-        val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-        blockchain.saveNode(n.hash, n.toBytes, initialSyncState.targetBlock.number)
-        hashes.map(StateMptNodeHash)
+      case n: BranchNode =>
+        val hashes = n.children.collect { case Some(Left(childHash)) => childHash }
+        blockchain.saveNode(ByteString(n.hash), n.toBytes, initialSyncState.targetBlock.number)
+        hashes.map(e => StateMptNodeHash(e))
 
-      case n: MptExtension =>
-        blockchain.saveNode(n.hash, n.toBytes, initialSyncState.targetBlock.number)
-        n.child.fold(
-          mptHash => Seq(StateMptNodeHash(mptHash.hash)),
+      case n: ExtensionNode =>
+        blockchain.saveNode(ByteString(n.hash), n.toBytes, initialSyncState.targetBlock.number)
+        n.next.fold(
+          mptHash => Seq(StateMptNodeHash(mptHash)),
           _ => Nil)
     }
 
     private def handleContractMptNode(mptNode: MptNode): Seq[HashType] = {
       mptNode match {
-        case n: MptLeaf =>
-          blockchain.saveNode(n.hash, n.toBytes, initialSyncState.targetBlock.number)
+        case n: LeafNode =>
+          blockchain.saveNode(ByteString(n.hash), n.toBytes, initialSyncState.targetBlock.number)
           Nil
 
-        case n: MptBranch =>
-          val hashes = n.children.collect { case Left(MptHash(childHash)) => childHash }.filter(_.nonEmpty)
-          blockchain.saveNode(n.hash, n.toBytes, initialSyncState.targetBlock.number)
-          hashes.map(ContractStorageMptNodeHash)
+        case n: BranchNode =>
+          val hashes = n.children.collect { case Some(Left(childHash)) => childHash }
+          blockchain.saveNode(ByteString(n.hash), n.toBytes, initialSyncState.targetBlock.number)
+          hashes.map(e => ContractStorageMptNodeHash(e))
 
-        case n: MptExtension =>
-          blockchain.saveNode(n.hash, n.toBytes, initialSyncState.targetBlock.number)
-          n.child.fold(
-            mptHash => Seq(ContractStorageMptNodeHash(mptHash.hash)),
+        case n: ExtensionNode =>
+          blockchain.saveNode(ByteString(n.hash), n.toBytes, initialSyncState.targetBlock.number)
+          n.next.fold(
+            mptHash => Seq(ContractStorageMptNodeHash(mptHash)),
             _ => Nil)
       }
     }
