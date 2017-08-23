@@ -23,8 +23,6 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
   with Logger
   with PersistentStorage {
 
-  val hashFn = kec256(_: Array[Byte])
-
   val KeySize: Int = 32 + 1 /* Hash size + prefix */
 
   implicit val intByteArraySerializable = new ByteArraySerializable[Int] {
@@ -43,7 +41,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   test("EthereumJ compatibility - Insert of the first 40000 numbers") {
     withNodeStorage { ns =>
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
+      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val shuffledKeys = Random.shuffle(0 to 40000).map(intByteArraySerializable.toBytes)
       val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(key, key) }
       assert(Hex.toHexString(trie.getRootHash) == "3f8b75707975e5c16588fa1ba3e69f8da39f4e7bf3ca28b029c7dcb589923463")
@@ -52,7 +50,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   test("EthereumJ compatibility - Insert of the first 20000 numbers hashed") {
     withNodeStorage { ns =>
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
+      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val shuffledKeys = Random.shuffle(0 to 20000).map(intByteArraySerializable.toBytes)
       val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
 
@@ -64,7 +62,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   test("EthereumJ compatibility - Insert of the first 20000 numbers hashed and then remove half of them") {
     withNodeStorage { ns =>
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
+      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
       val trie = Random.shuffle(keys).foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
 
@@ -79,7 +77,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced)") {
     withNodeStorage { ns =>
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
+      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
 
       // We slice some of the keys so that me test more code coverage (if not we only test keys with the same length)
@@ -96,7 +94,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced) and then remove half of them") {
     withNodeStorage { ns =>
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
+      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
 
       // We slice some of the keys so that me test more code coverage (if not we only test keys with the same length)
@@ -122,20 +120,20 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
   /* Performance test */
   test("Performance test (From: https://github.com/ethereum/wiki/wiki/Benchmarks)") {
     withNodeStorage { ns =>
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
+      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val Rounds = 1000
       val Symmetric = true
 
       val start: Long = System.currentTimeMillis
-      val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new ArchiveNodeStorage(new NodeStorage(EphemDataSource())), hashFn)
+      val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new ArchiveNodeStorage(new NodeStorage(EphemDataSource())))
       var seed: Array[Byte] = Array.fill(32)(0.toByte)
 
       val trieResult = (0 until Rounds).foldLeft(emptyTrie) { case (recTrie, i) =>
-        seed = hashFn(seed)
+        seed = Node.hashFn(seed)
         if (!Symmetric) recTrie.put(seed, seed)
         else {
           val mykey = seed
-          seed = hashFn(seed)
+          seed = Node.hashFn(seed)
           val myval = if ((seed(0) & 0xFF) % 2 == 1) Array[Byte](seed.last) else seed
           recTrie.put(mykey, myval)
         }
