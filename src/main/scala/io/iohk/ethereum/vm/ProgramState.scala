@@ -1,7 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, TxLogEntry}
+import io.iohk.ethereum.domain.{Address, TxLogEntry, UInt256}
 
 object ProgramState {
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramState[W, S] =

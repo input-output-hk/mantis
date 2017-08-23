@@ -1,6 +1,6 @@
 package io.iohk.ethereum.utils
 
-import io.iohk.ethereum.vm.UInt256
+import io.iohk.ethereum.domain.UInt256
 
 object BigIntExtensionMethods {
   implicit class BigIntAsUnsigned(val srcBigInteger: BigInt) extends AnyVal {

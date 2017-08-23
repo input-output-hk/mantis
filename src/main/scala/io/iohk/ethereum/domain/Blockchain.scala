@@ -7,7 +7,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode, NodesKeyValueStorage}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.vm.{Storage, UInt256, WorldStateProxy}
+import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 
 /**

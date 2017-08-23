@@ -11,7 +11,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, LedgerImpl}
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger, MiningConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.validators._
-import io.iohk.ethereum.vm.{UInt256, VM}
+import io.iohk.ethereum.vm.VM
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex

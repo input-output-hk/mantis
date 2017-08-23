@@ -4,7 +4,7 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators.SignedTransactionError._
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.vm.{EvmConfig, UInt256}
+import io.iohk.ethereum.vm.EvmConfig
 
 trait SignedTransactionValidator {
 
