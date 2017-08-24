@@ -11,7 +11,7 @@ import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import akka.actor.ActorRef
 import io.iohk.ethereum.db.storage.AppStateStorage
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
+import io.iohk.ethereum.blockchain.sync.RegularSync
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
@@ -484,7 +484,7 @@ class EthService(
       blockGenerator.getPrepared(req.powHeaderHash) match {
         case Some(pendingBlock) if appStateStorage.getBestBlockNumber() <= pendingBlock.block.header.number =>
           import pendingBlock._
-          syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
+          syncingController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
           Right(SubmitWorkResponse(true))
         case _ =>
           Right(SubmitWorkResponse(false))

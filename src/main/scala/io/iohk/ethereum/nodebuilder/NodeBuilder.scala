@@ -382,11 +382,11 @@ trait SyncControllerBuilder {
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       validators,
-      syncConfig,
       peerEventBus,
       pendingTransactionsManager,
       ommersPool,
-      etcPeerManager), "sync-controller")
+      etcPeerManager,
+      syncConfig), "sync-controller")
 
 }
 
