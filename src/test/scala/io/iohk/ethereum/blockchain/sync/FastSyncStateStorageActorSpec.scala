@@ -6,20 +6,20 @@ import akka.testkit.TestActorRef
 import akka.util.ByteString
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
-import io.iohk.ethereum.blockchain.sync.FastSyncStateActor.GetStorage
+import io.iohk.ethereum.blockchain.sync.FastSyncStateStorageActor.GetStorage
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import io.iohk.ethereum.domain.BlockHeader
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{AsyncFlatSpec, Matchers}
 
-class FastSyncStateActorSpec extends AsyncFlatSpec with Matchers with Eventually with NormalPatience {
+class FastSyncStateStorageActorSpec extends AsyncFlatSpec with Matchers with Eventually with NormalPatience {
 
   "FastSyncStateActor" should "eventually persist a newest state of a fast sync" in {
 
     val dataSource = EphemDataSource()
     implicit val system = ActorSystem("FastSyncStateActorSpec_System")
-    val syncStateActor = TestActorRef(new FastSyncStateActor)
+    val syncStateActor = TestActorRef(new FastSyncStateStorageActor)
     val maxN = 10
 
     val targetBlockHeader = BlockHeader(ByteString(""), ByteString(""), ByteString(""), ByteString(""), ByteString(""),
