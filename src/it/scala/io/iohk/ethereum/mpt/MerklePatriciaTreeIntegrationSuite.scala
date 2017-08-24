@@ -5,7 +5,7 @@ import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.security.MessageDigest
 
-import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.{ObjectGenerators, crypto}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.{EphemDataSource, LevelDBDataSource, LevelDbConfig}
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage, ReferenceCountNodeStorage}
@@ -145,6 +145,29 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
       if (Symmetric) assert(rootHash.take(4) == "36f6" && rootHash.drop(rootHash.length - 4) == "93a3")
       else assert(rootHash.take(4) == "da8a" && rootHash.drop(rootHash.length - 4) == "0ca4")
+    }
+  }
+
+  ignore("MPT benchmark") {
+    withNodeStorage { ns =>
+      val hashFn = crypto.kec256(_: Array[Byte])
+
+      val defaultByteArraySer = MerklePatriciaTrie.defaultByteArraySerializable
+      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)(defaultByteArraySer, defaultByteArraySer)
+
+      var t = System.currentTimeMillis()
+      (1 to 20000000).foldLeft(EmptyTrie){case (trie, i) =>
+        val k = hashFn(("hello" + i).getBytes)
+        val v = hashFn(("world" + i).getBytes)
+
+        if (i % 100000 == 0) {
+          val newT = System.currentTimeMillis()
+          val delta = (newT - t) / 1000.0
+          t = newT
+          log.debug(s"=== $i elements put, time for batch is: $delta sec")
+        }
+        trie.put(k, v)
+      }
     }
   }
 }
