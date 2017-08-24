@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{Actor, ActorLogging}
 import akka.pattern.pipe
 import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
-import io.iohk.ethereum.blockchain.sync.FastSyncStateActor.GetStorage
+import io.iohk.ethereum.blockchain.sync.FastSyncStateStorageActor.GetStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 
 import scala.concurrent.Future
@@ -15,7 +15,7 @@ import scala.util.{Failure, Success, Try}
   * was persisted.
   * If during persisting more than one new state is received then only the last state will be kept in queue.
   */
-class FastSyncStateActor extends Actor with ActorLogging {
+class FastSyncStateStorageActor extends Actor with ActorLogging {
 
   def receive: Receive = {
     // after initialization send a valid Storage reference
@@ -62,6 +62,6 @@ class FastSyncStateActor extends Actor with ActorLogging {
 
 }
 
-object FastSyncStateActor {
+object FastSyncStateStorageActor {
   case object GetStorage
 }
