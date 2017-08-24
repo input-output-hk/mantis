@@ -7,10 +7,7 @@ import org.spongycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
 
-trait Node {
-  val id: ByteString
-  val addr: InetSocketAddress
-
+case class Node(id: ByteString, addr: InetSocketAddress) {
   def toUri: URI = {
     val host = addr.getHostName
     val port = addr.getPort
@@ -18,12 +15,10 @@ trait Node {
   }
 }
 
-case class NodeImpl(id: ByteString, addr: InetSocketAddress) extends Node
-
-object NodeImpl {
-  def fromUri(uri: URI): NodeImpl = {
+object Node {
+  def fromUri(uri: URI): Node = {
     val nodeId = ByteString(Hex.decode(uri.getUserInfo))
-    NodeImpl(nodeId, new InetSocketAddress(uri.getHost, uri.getPort))
+    Node(nodeId, new InetSocketAddress(uri.getHost, uri.getPort))
   }
 }
 
@@ -61,7 +56,7 @@ object NodeParser {
       else if(!hasIPV4Version) //FIXME: We currently don't support IPv6 nodes [EC-295]
         Failure(new Exception(s"Invalid host $host, only IPv4 addresses are currently supported"))
       else
-        Success(NodeImpl(nodeId, address))
+        Success(Node(nodeId, address))
     }
   }
 }

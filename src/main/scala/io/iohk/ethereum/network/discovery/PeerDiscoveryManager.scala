@@ -20,14 +20,14 @@ class PeerDiscoveryManager(
 
   import PeerDiscoveryManager._
 
-  var nodes: Map[ByteString, NodeWithTimestamp] = {
-    val bootStrapNodes = discoveryConfig.bootstrapNodes.map(NodeWithTimestamp.fromNode)
+  var nodesInfo: Map[ByteString, DiscoveryNodeInfo] = {
+    val bootStrapNodesInfo = discoveryConfig.bootstrapNodes.map(DiscoveryNodeInfo.fromNode)
     val knownNodesURIs =
       if (discoveryConfig.discoveryEnabled) knownNodesStorage.getKnownNodes()
       else Set.empty
-    val nodes = bootStrapNodes ++ knownNodesURIs.map(NodeWithTimestamp.fromUri)
+    val nodesInfo = bootStrapNodesInfo ++ knownNodesURIs.map(DiscoveryNodeInfo.fromUri)
 
-    nodes.map { node => node.id -> node }.toMap
+    nodesInfo.map { nodeInfo => nodeInfo.node.id -> nodeInfo }.toMap
   }
 
   if (discoveryConfig.discoveryEnabled) {
@@ -36,10 +36,10 @@ class PeerDiscoveryManager(
   }
 
   def scan(): Unit = {
-    nodes.values.toSeq
+    nodesInfo.values.toSeq
       .sortBy(_.addTimestamp) // take 10 most recent nodes
       .takeRight(discoveryConfig.scanMaxNodes)
-      .foreach { node => sendPing(node.id, node.addr) }
+      .foreach { nodeInfo => sendPing(nodeInfo.node.id, nodeInfo.node.addr) }
   }
 
   override def receive: Receive = {
@@ -48,15 +48,15 @@ class PeerDiscoveryManager(
       sendMessage(Pong(to, packet.mdc, expirationTimestamp), from)
 
     case DiscoveryListener.MessageReceived(pong: Pong, from, packet) =>
-      val newNode = NodeWithTimestamp.fromNode(NodeImpl(packet.nodeId, from))
+      val newNodeInfo = DiscoveryNodeInfo.fromNode(Node(packet.nodeId, from))
 
-      if (nodes.size < discoveryConfig.nodesLimit) {
-        nodes += newNode.id -> newNode
+      if (nodesInfo.size < discoveryConfig.nodesLimit) {
+        nodesInfo += newNodeInfo.node.id -> newNodeInfo
         sendMessage(FindNode(ByteString(nodeStatusHolder().nodeId), expirationTimestamp), from)
       } else {
-        val (earliestNode, _) = nodes.minBy { case (_, node) => node.addTimestamp }
-        nodes -= earliestNode
-        nodes += newNode.id -> newNode
+        val (earliestNode, _) = nodesInfo.minBy { case (_, node) => node.addTimestamp }
+        nodesInfo -= earliestNode
+        nodesInfo += newNodeInfo.node.id -> newNodeInfo
       }
 
     case DiscoveryListener.MessageReceived(findNode: FindNode, from, packet) =>
@@ -64,15 +64,15 @@ class PeerDiscoveryManager(
 
     case DiscoveryListener.MessageReceived(neighbours: Neighbours, from, packet) =>
       val toPing = neighbours.nodes
-        .filterNot(n => nodes.contains(n.nodeId)) // not already on the list
-        .take(discoveryConfig.nodesLimit - nodes.size)
+        .filterNot(n => nodesInfo.contains(n.nodeId)) // not already on the list
+        .take(discoveryConfig.nodesLimit - nodesInfo.size)
 
       toPing.foreach { n =>
         sendPing(n.nodeId, new InetSocketAddress(ByteUtils.bytesToIp(n.endpoint.address), n.endpoint.udpPort))
       }
 
-    case GetDiscoveredNodes =>
-      sender() ! DiscoveredNodes(nodes.values.toSet)
+    case GetDiscoveredNodesInfo =>
+      sender() ! DiscoveredNodesInfo(nodesInfo.values.toSet)
 
     case Scan => scan()
   }
@@ -111,18 +111,18 @@ object PeerDiscoveryManager {
             nodeStatusHolder: Agent[NodeStatus]): Props =
     Props(new PeerDiscoveryManager(discoveryListener, discoveryConfig, knownNodesStorage, nodeStatusHolder))
 
-  object NodeWithTimestamp {
+  object DiscoveryNodeInfo {
 
-    def fromUri(uri: URI): NodeWithTimestamp = fromNode(NodeImpl.fromUri(uri))
+    def fromUri(uri: URI): DiscoveryNodeInfo = fromNode(Node.fromUri(uri))
 
-    def fromNode(node: Node): NodeWithTimestamp = NodeWithTimestamp(node.id, node.addr, System.currentTimeMillis())
+    def fromNode(node: Node): DiscoveryNodeInfo = DiscoveryNodeInfo(node, System.currentTimeMillis())
 
   }
 
-  case class NodeWithTimestamp(id: ByteString, addr: InetSocketAddress, addTimestamp: Long) extends Node
+  case class DiscoveryNodeInfo(node: Node, addTimestamp: Long)
 
-  case object GetDiscoveredNodes
-  case class DiscoveredNodes(nodes: Set[NodeWithTimestamp])
+  case object GetDiscoveredNodesInfo
+  case class DiscoveredNodesInfo(nodes: Set[DiscoveryNodeInfo])
 
   private case object Scan
 }
