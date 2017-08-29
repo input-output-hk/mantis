@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network.discovery
 
-import java.net._
+import java.net.{InetSocketAddress, _}
 
 import akka.util.ByteString
 import org.spongycastle.util.encoders.Hex
@@ -33,30 +33,37 @@ object NodeParser {
     * @param node to be parsed
     * @return the parsed node, or the error detected during parsing
     */
-  def parseNode(node: String): Try[Node] = {
-    val parseResult = for {
-      uri <- Try(new URI(node))
-      scheme = uri.getScheme
-      nodeId <- Try(ByteString(Hex.decode(uri.getUserInfo)))
-      host <- Try(InetAddress.getByName(uri.getHost))
-      port = uri.getPort
-      address <- Try(new InetSocketAddress(host, port))
-    } yield (scheme, nodeId, address)
-    parseResult.flatMap{ case (scheme, nodeId, address) =>
-      val host = address.getAddress
-      val hasIPV4Version = host match {
-        case _: Inet4Address => true
-        case _ => false
+  def parseNode(node: String): Either[Set[Throwable], Node] = {
+
+    val maybeUri = Try(new URI(node))
+
+    val maybeScheme = maybeUri.map(_.getScheme).flatMap { scheme =>
+      if (scheme == NodeScheme) Success(scheme)
+      else Failure(new Exception(s"Invalid node scheme $scheme, it should be $NodeScheme"))
+    }
+
+    val maybeNodeId = maybeUri
+      .flatMap(uri => Try(ByteString(Hex.decode(uri.getUserInfo))))
+      .flatMap { nodeId =>
+        if (nodeId.size == NodeIdSize) Success(nodeId)
+        else Failure(new Exception(s"Invalid nodeId size ${nodeId.size}, it should be $NodeIdSize bytes long"))
       }
 
-      if(scheme != NodeScheme)
-        Failure(new Exception(s"Invalid node scheme $scheme, it should be $NodeScheme"))
-      else if(nodeId.size != NodeIdSize)
-        Failure(new Exception(s"Invalid nodeId size ${nodeId.size}, it should be $NodeIdSize bytes long"))
-      else if(!hasIPV4Version) //FIXME: We currently don't support IPv6 nodes [EC-295]
-        Failure(new Exception(s"Invalid host $host, only IPv4 addresses are currently supported"))
-      else
-        Success(Node(nodeId, address))
+    val maybeAddress = maybeUri
+      .flatMap(uri => Try(InetAddress.getByName(uri.getHost) -> uri.getPort))
+      .flatMap{ case (host, port) => host match {
+        case _: Inet4Address => Success(host -> port)
+        case _ =>
+          //FIXME: We currently don't support IPv6 nodes [EC-295]
+          Failure(new Exception(s"Invalid host $host, only IPv4 addresses are currently supported"))
+      }}
+      .flatMap{ case (host, port) => Try(new InetSocketAddress(host, port))}
+
+    (maybeScheme, maybeNodeId, maybeAddress) match {
+      case (Success(_), Success(n), Success(addr)) =>
+        Right(Node(n, addr))
+      case _ =>
+        Left(Set(maybeScheme, maybeNodeId, maybeAddress).flatMap(_.toEither.left.toSeq))
     }
   }
 }

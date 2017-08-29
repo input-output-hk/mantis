@@ -45,9 +45,9 @@ object DiscoveryConfig extends Logger {
     case (parsedBootstrapNodes, nodeString) =>
       val maybeNode = NodeParser.parseNode(nodeString)
       maybeNode match {
-        case Success(node) => parsedBootstrapNodes + node
-        case Failure(error) =>
-          log.warn(s"Unable to parse node: $nodeString due to: ${error.getMessage}")
+        case Right(node) => parsedBootstrapNodes + node
+        case Left(errors) =>
+          log.warn(s"Unable to parse node: $nodeString due to: ${errors.map(_.getMessage).mkString("; ")}")
           parsedBootstrapNodes
       }
   }

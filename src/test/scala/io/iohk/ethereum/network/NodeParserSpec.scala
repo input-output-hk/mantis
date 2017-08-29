@@ -36,9 +36,9 @@ class NodeParserSpec extends FlatSpec with Matchers with PropertyChecks {
 
     forAll(testVectors) { case (nodeString, valid) =>
         val node = NodeParser.parseNode(nodeString)
-        node.isSuccess shouldEqual valid
+        node.isRight shouldEqual valid
         if(valid)
-          node.get.toUri.toString shouldBe nodeString
+          node.toOption.get.toUri.toString shouldBe nodeString
     }
   }
 
