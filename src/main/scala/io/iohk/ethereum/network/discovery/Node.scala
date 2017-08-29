@@ -3,6 +3,7 @@ package io.iohk.ethereum.network.discovery
 import java.net.{InetSocketAddress, _}
 
 import akka.util.ByteString
+import io.iohk.ethereum.utils.Logger
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
@@ -22,7 +23,7 @@ object Node {
   }
 }
 
-object NodeParser {
+object NodeParser extends Logger {
   val NodeScheme = "enode"
   val NodeIdSize = 64
 
@@ -65,5 +66,22 @@ object NodeParser {
       case _ =>
         Left(Set(maybeScheme, maybeNodeId, maybeAddress).flatMap(_.toEither.left.toSeq))
     }
+  }
+
+  /**
+    * Parses a set of nodes, logging the invalid ones and returning the valid ones
+    *
+    * @param unParsedNodes, nodes to be parsed
+    * @return set of parsed and valid nodes
+    */
+  def parseNodes(unParsedNodes: Set[String]): Set[Node] = unParsedNodes.foldLeft[Set[Node]](Set.empty) {
+    case (parsedNodes, nodeString) =>
+      val maybeNode = NodeParser.parseNode(nodeString)
+      maybeNode match {
+        case Right(node) => parsedNodes + node
+        case Left(errors) =>
+          log.warn(s"Unable to parse node: $nodeString due to: ${errors.map(_.getMessage).mkString("; ")}")
+          parsedNodes
+      }
   }
 }

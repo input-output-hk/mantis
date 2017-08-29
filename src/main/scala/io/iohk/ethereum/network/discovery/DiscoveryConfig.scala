@@ -1,10 +1,7 @@
 package io.iohk.ethereum.network.discovery
 
-import io.iohk.ethereum.utils.Logger
-
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
 
 case class DiscoveryConfig(
     discoveryEnabled: Boolean,
@@ -17,11 +14,11 @@ case class DiscoveryConfig(
     scanInterval: FiniteDuration,
     messageExpiration: FiniteDuration)
 
-object DiscoveryConfig extends Logger {
+object DiscoveryConfig {
   def apply(etcClientConfig: com.typesafe.config.Config): DiscoveryConfig = {
     import scala.collection.JavaConverters._
     val discoveryConfig = etcClientConfig.getConfig("network.discovery")
-    val bootstrapNodes = parseBootstrapNodes(discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet)
+    val bootstrapNodes = NodeParser.parseNodes(discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet)
 
     DiscoveryConfig(
       discoveryEnabled = discoveryConfig.getBoolean("discovery-enabled"),
@@ -35,20 +32,4 @@ object DiscoveryConfig extends Logger {
       messageExpiration = discoveryConfig.getDuration("message-expiration").toMillis.millis)
   }
 
-  /**
-    * Parses all the bootstrap nodes, logging the invalid ones and returning the valid ones
-    *
-    * @param unParsedBootStrapNodes, with the bootstrap nodes to be parsed
-    * @return set of parsed and valid bootstrap nodes
-    */
-  private def parseBootstrapNodes(unParsedBootStrapNodes: Set[String]): Set[Node] = unParsedBootStrapNodes.foldLeft[Set[Node]](Set.empty) {
-    case (parsedBootstrapNodes, nodeString) =>
-      val maybeNode = NodeParser.parseNode(nodeString)
-      maybeNode match {
-        case Right(node) => parsedBootstrapNodes + node
-        case Left(errors) =>
-          log.warn(s"Unable to parse node: $nodeString due to: ${errors.map(_.getMessage).mkString("; ")}")
-          parsedBootstrapNodes
-      }
-  }
 }
