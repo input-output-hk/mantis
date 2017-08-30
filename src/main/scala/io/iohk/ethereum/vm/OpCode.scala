@@ -795,11 +795,13 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
     if (!validCall || result.error.isDefined) {
       val stack2 = stack1.push(UInt256.Zero)
 
-      lazy val memCostAdjustment =
-        if (result.error.isDefined) calcMemCost(state, 0, 0, outOffset, outSize)
-        else calcMemCost(state, inOffset, inSize, outOffset, outSize)
+      val inputMemoryCost = state.config.calcMemCost(state.memory.size, inOffset, inSize)
 
-      val gasAdjustment: BigInt = memCostAdjustment + (if (validCall) 0 else startGas)
+      val callOpMemoryCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
+
+      val memoryGasCostAdjustment = if (callOpMemoryCost == inputMemoryCost) BigInt(0) else callOpMemoryCost
+
+      val gasAdjustment: BigInt = memoryGasCostAdjustment + (if (validCall) 0 else startGas)
 
       state
         .withStack(stack2)
