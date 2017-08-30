@@ -26,8 +26,8 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
     time.advance(6000) // wait for bootstrap nodes scan
 
-    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodes)
-    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodes(bootstrapNodes))
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 2
@@ -41,8 +41,8 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
     time.advance(6000)
 
-    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodes)
-    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodes(bootstrapNodes))
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 2
@@ -60,8 +60,8 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
     peerManager ! "trigger stashed messages..."
 
-    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodes)
-    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodes(bootstrapNodes))
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 2
@@ -75,8 +75,8 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
     time.advance(6000) // connect to 2 bootstrap peers
 
-    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodes)
-    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodes(bootstrapNodes))
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 2
@@ -96,8 +96,8 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
 
     time.advance(6000) // connect to 2 bootstrap peers
 
-    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodes)
-    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodes(bootstrapNodes))
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
+    peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
 
     eventually {
       peerManager.underlyingActor.peers.size shouldBe 2
@@ -123,7 +123,7 @@ class PeerManagerSpec extends FlatSpec with Matchers with Eventually with Normal
     val peerConfiguration = Config.Network.peer
 
     val peerDiscoveryManager = TestProbe()
-    val bootstrapNodes = DiscoveryConfig(Config.config).bootstrapNodes.map(s => PeerDiscoveryManager.Node.fromUri(new URI(s)))
+    val bootstrapNodes = DiscoveryConfig(Config.config).bootstrapNodes.map(PeerDiscoveryManager.DiscoveryNodeInfo.fromNode)
 
     val peerEventBus = TestProbe()
 

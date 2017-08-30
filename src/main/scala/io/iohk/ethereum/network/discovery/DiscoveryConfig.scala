@@ -7,7 +7,7 @@ case class DiscoveryConfig(
     discoveryEnabled: Boolean,
     interface: String,
     port: Int,
-    bootstrapNodes: Set[String],
+    bootstrapNodes: Set[Node],
     nodesLimit: Int /* TODO: remove once proper discovery protocol is in place */,
     scanMaxNodes: Int /* TODO: remove once proper discovery protocol is in place */,
     scanInitialDelay: FiniteDuration,
@@ -18,7 +18,8 @@ object DiscoveryConfig {
   def apply(etcClientConfig: com.typesafe.config.Config): DiscoveryConfig = {
     import scala.collection.JavaConverters._
     val discoveryConfig = etcClientConfig.getConfig("network.discovery")
-    val bootstrapNodes = discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet
+    val bootstrapNodes = NodeParser.parseNodes(discoveryConfig.getStringList("bootstrap-nodes").asScala.toSet)
+
     DiscoveryConfig(
       discoveryEnabled = discoveryConfig.getBoolean("discovery-enabled"),
       interface = discoveryConfig.getString("interface"),
@@ -30,4 +31,5 @@ object DiscoveryConfig {
       scanInterval = discoveryConfig.getDuration("scan-interval").toMillis.millis,
       messageExpiration = discoveryConfig.getDuration("message-expiration").toMillis.millis)
   }
+
 }
