@@ -68,29 +68,21 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     val peer4 = Peer(new InetSocketAddress("127.0.0.1", 0), peer4Probe.ref, false)
 
     //when
-    val peersWithInfo = Map(
-      peer -> initialPeerInfo,
-      peer2 -> initialPeerInfo,
-      peer3 -> initialPeerInfo,
-      peer4 -> initialPeerInfo)
-    val blockBroadcastFirstTwoPeers = new BlockBroadcast {
-      override val etcPeerManager: ActorRef = etcPeerManagerProbe.ref
-
-      override def obtainRandomPeerSubset(peers: Set[Peer]): Set[Peer] = Set(peer, peer2)
-    }
-    blockBroadcastFirstTwoPeers.broadcastBlocks(Seq(firstBlock), peersWithInfo)
+    val peers = Seq(peer, peer2, peer3, peer4)
+    val peersIds = peers.map(_.id)
+    val peersWithInfo = peers.map(_ -> initialPeerInfo).toMap
+    blockBroadcast.broadcastBlocks(Seq(firstBlock), peersWithInfo)
 
     //then
-    etcPeerManagerProbe.expectMsgAllOf(
-      //Only first two peers receive the complete block
-      EtcPeerManagerActor.SendMessage(firstBlock, peer.id),
-      EtcPeerManagerActor.SendMessage(firstBlock, peer2.id),
+    //Only two peers receive the complete block
+    etcPeerManagerProbe.expectMsgPF(){ case EtcPeerManagerActor.SendMessage(b, p) if b.underlyingMsg==firstBlock && peersIds.contains(p) => () }
+    etcPeerManagerProbe.expectMsgPF(){ case EtcPeerManagerActor.SendMessage(b, p) if b.underlyingMsg==firstBlock && peersIds.contains(p) => () }
 
-      //All the peers should receive the block hashes
-      EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer.id),
-      EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer2.id),
-      EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer3.id),
-      EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer4.id))
+    //All the peers should receive the block hashes
+    etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer.id))
+    etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer2.id))
+    etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer3.id))
+    etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(firstBlockNewHashes, peer4.id))
     etcPeerManagerProbe.expectNoMsg()
   }
 
