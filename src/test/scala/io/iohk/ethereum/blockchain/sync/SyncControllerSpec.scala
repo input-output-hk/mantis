@@ -14,7 +14,9 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, Handsha
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
+import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
@@ -395,7 +397,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
         GetBlockHeaders(Left(expectedMaxBlock + 2), syncConfig.blockHeadersPerRequest, 0, reverse = false),
         peer.id),
       EtcPeerManagerActor.SendMessage(
-        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer.id)
+        NewBlockHashes(Seq(PV62.BlockHash(newBlockHeader.hash, newBlockHeader.number))), peer.id)
     )
     etcPeerManager.expectNoMsg()
 
@@ -581,10 +583,10 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
         GetBlockHeaders(Left(expectedMaxBlock + 2), syncConfig.blockHeadersPerRequest, 0, reverse = false),
         peer.id),
       EtcPeerManagerActor.SendMessage(
-        NewBlock(Block(newBlockHeaderParent, BlockBody(Nil, Nil)), commonRootTotalDifficulty + newBlockDifficulty),
+        NewBlockHashes(Seq(PV62.BlockHash(newBlockHeaderParent.hash, newBlockHeaderParent.number))),
         peer.id),
       EtcPeerManagerActor.SendMessage(
-        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), commonRootTotalDifficulty + 2 * newBlockDifficulty),
+        NewBlockHashes(Seq(PV62.BlockHash(newBlockHeader.hash, newBlockHeader.number))),
         peer.id)
     )
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(nextNewBlockHeader.hash)), peer.id))
@@ -738,9 +740,9 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     etcPeerManager.reply(MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer1.id))
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-        NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer1.id))
+        NewBlockHashes(Seq(PV62.BlockHash(newBlockHeader.hash, newBlockHeader.number))), peer1.id))
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-        NewBlock(Block(nextNewBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + 2 * newBlockDifficulty), peer1.id))
+        NewBlockHashes(Seq(PV62.BlockHash(nextNewBlockHeader.hash, nextNewBlockHeader.number))), peer1.id))
 
     ommersPool.expectMsg(RemoveOmmers(newBlockHeader))
     ommersPool.expectMsg(RemoveOmmers(nextNewBlockHeader))
@@ -818,9 +820,9 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     etcPeerManager.reply(MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil), BlockBody(Nil, Nil))), peer1.id))
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer1.id))
+      NewBlockHashes(Seq(PV62.BlockHash(newBlockHeader.hash, newBlockHeader.number))), peer1.id))
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      NewBlock(Block(newBlockHeader, BlockBody(Nil, Nil)), maxBlocTotalDifficulty + newBlockDifficulty), peer2.id))
+      NewBlockHashes(Seq(PV62.BlockHash(newBlockHeader.hash, newBlockHeader.number))), peer2.id))
 
     ommersPool.expectMsg(RemoveOmmers(newBlockHeader))
     pendingTransactionsManager.expectMsg(AddTransactions(Nil))
@@ -1095,8 +1097,17 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil) extends EphemBlockchainTestSetup {
+
+    private def isNewBlock(msg: Message): Boolean = msg match {
+      case _: NewBlock => true
+      case _ => false
+    }
+
     val etcPeerManager = TestProbe()
-    etcPeerManager.ignoreMsg{ case GetHandshakedPeers => true }
+    etcPeerManager.ignoreMsg{
+      case EtcPeerManagerActor.SendMessage(msg, _) if isNewBlock(msg.underlyingMsg) => true
+      case EtcPeerManagerActor.GetHandshakedPeers => true
+    }
 
     val ledger: Ledger = new Mocks.MockLedger(blockchain, (block, _, _) => !blocksForWhichLedgerFails.contains(block.header.number))
 
