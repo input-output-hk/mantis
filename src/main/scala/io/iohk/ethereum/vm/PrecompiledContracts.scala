@@ -65,8 +65,7 @@ object PrecompiledContracts {
       val r = data.slice(64, 96)
       val s = data.slice(96, 128)
 
-      val vAsNumber =  BigInt(v.toArray)
-      if (vAsNumber == ECDSASignature.negativePointSign || vAsNumber == ECDSASignature.positivePointSign) {
+      if (ECDSASignature.hasOnlyLastByteSet(v)) {
         val recovered = Try(ECDSASignature(r, s, v).publicKey(h)).getOrElse(None)
         recovered.map { bytes =>
           val hash = kec256(bytes).slice(12, 32)

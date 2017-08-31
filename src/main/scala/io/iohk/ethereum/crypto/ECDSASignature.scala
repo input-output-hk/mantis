@@ -111,6 +111,12 @@ object ECDSASignature {
     curve.getCurve.decodePoint(compEnc)
   }
 
+  def hasOnlyLastByteSet(v: ByteString): Boolean = {
+    if (v.nonEmpty && v.count(_ != 0) == 1 && v.last != 0)
+      true
+    else
+      false
+  }
 }
 
 /**
