@@ -65,11 +65,16 @@ object PrecompiledContracts {
       val r = data.slice(64, 96)
       val s = data.slice(96, 128)
 
-      val recovered = Try(ECDSASignature(r,s,v).publicKey(h)).getOrElse(None)
-      recovered.map { bytes =>
-        val hash = kec256(bytes).slice(12, 32)
-        ByteUtils.padLeft(hash, 32)
-      }.getOrElse(ByteString.empty)
+      val vAsNumber =  BigInt(v.toArray)
+      if (vAsNumber == ECDSASignature.negativePointSign || vAsNumber == ECDSASignature.positivePointSign) {
+        val recovered = Try(ECDSASignature(r, s, v).publicKey(h)).getOrElse(None)
+        recovered.map { bytes =>
+          val hash = kec256(bytes).slice(12, 32)
+          ByteUtils.padLeft(hash, 32)
+        }.getOrElse(ByteString.empty)
+      } else
+        ByteString.empty
+
     }
 
     def gas(inputDataSize: UInt256): BigInt =
