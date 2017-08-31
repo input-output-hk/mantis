@@ -221,7 +221,7 @@ class RegularSync(
           val (newBlocks, errorOpt) = processBlocks(blocks, blockParentTd)
 
           if(newBlocks.nonEmpty){
-            broadcastNewBlocks(newBlocks, handshakedPeers)
+            broadcastBlocks(newBlocks, handshakedPeers)
             log.debug(s"got new blocks up till block: ${newBlocks.last.block.header.number} " +
               s"with hash ${Hex.toHexString(newBlocks.last.block.header.hash.toArray[Byte])}")
           }
