@@ -135,8 +135,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_syncing" in new TestSetup {
     (appStateStorage.getSyncStartingBlock _).expects().returning(100)
-    (appStateStorage.getBestBlockNumber _).expects().returning(200)
-    (appStateStorage.getEstimatedHighestBlock _).expects().returning(300)
+    (appStateStorage.getBestBlockNumber _).expects().returning(200).twice()
+    (appStateStorage.getEstimatedHighestBlock _).expects().returning(300).twice()
 
     val rpcRequest = JsonRpcRequest("2.0", "eth_syncing", None, Some(1))
 
@@ -454,7 +454,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
-    (appStateStorage.getBestBlockNumber _).expects().returns(1)
+    (appStateStorage.getBestBlockNumber _).expects().returns(1).twice()
+    (appStateStorage.getEstimatedHighestBlock _).expects().returns(1)
     (blockGenerator.generateBlockForMining _).expects(*, *, *, *)
       .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
 
@@ -489,7 +490,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
-    (appStateStorage.getBestBlockNumber _).expects().returns(1)
+    (appStateStorage.getBestBlockNumber _).expects().returns(1).twice()
+    (appStateStorage.getEstimatedHighestBlock _).expects().returns(1)
     (blockGenerator.generateBlockForMining _).expects(*, *, *, *)
       .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
 

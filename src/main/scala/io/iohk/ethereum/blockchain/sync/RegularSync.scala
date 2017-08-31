@@ -67,7 +67,6 @@ class RegularSync(
       waitingForActor = None
       handleBlockBodies(peer, blockBodies)
 
-    //todo improve mined block handling - add info that block was not included because of syncing [EC-250]
     //we allow inclusion of mined block only if we are not syncing / reorganising chain
     case MinedBlock(block) =>
       if (headersQueue.isEmpty && waitingForActor.isEmpty) {

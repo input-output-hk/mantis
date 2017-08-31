@@ -433,26 +433,38 @@ class EthService(
     }
   }
 
+  /**
+    * Implements the eth_getWork method, which returns the data needed for mining: header hash, DAG seed and
+    * target difficulty.
+    * In case the client is mining a NoWork error is returned (and the eth_mining response is not affected)
+    *
+    * @param req
+    * @return mining data or an error
+    */
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] = {
-    reportActive()
-    import io.iohk.ethereum.mining.pow.PowCache._
+    if(isSyncing)
+      Future.successful(Left(JsonRpcErrors.NoWork))
+    else {
+      reportActive()
+      import io.iohk.ethereum.mining.pow.PowCache._
 
-    val blockNumber = appStateStorage.getBestBlockNumber() + 1
+      val blockNumber = appStateStorage.getBestBlockNumber() + 1
 
-    getOmmersFromPool(blockNumber).zip(getTransactionsFromPool).map {
-      case (ommers, pendingTxs) =>
-        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
-          case Right(pb) =>
-            Right(GetWorkResponse(
-              powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
-              dagSeed = seedForBlock(pb.block.header.number),
-              target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
-            ))
-          case Left(err) =>
-            log.error(s"unable to prepare block because of $err")
-            Left(JsonRpcErrors.InternalError)
-        }
+      getOmmersFromPool(blockNumber).zip(getTransactionsFromPool).map {
+        case (ommers, pendingTxs) =>
+          blockGenerator.generateBlockForMining(blockNumber, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
+            case Right(pb) =>
+              Right(GetWorkResponse(
+                powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
+                dagSeed = seedForBlock(pb.block.header.number),
+                target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
+              ))
+            case Left(err) =>
+              log.error(s"unable to prepare block because of $err")
+              Left(JsonRpcErrors.InternalError)
+          }
       }
+    }
   }
 
   private def getOmmersFromPool(blockNumber: BigInt) = {
@@ -498,21 +510,29 @@ class EthService(
     * @return The syncing status if the node is syncing or None if not
     */
  def syncing(req: SyncingRequest): ServiceResponse[SyncingResponse] = Future {
-   val currentBlock = appStateStorage.getBestBlockNumber()
-   val highestBlock = appStateStorage.getEstimatedHighestBlock()
-
-   //The node is syncing if there's any block that other peers have and this peer doesn't
    val maybeSyncStatus =
-     if(currentBlock < highestBlock)
+     if(isSyncing)
        Some(SyncingStatus(
          startingBlock = appStateStorage.getSyncStartingBlock(),
-         currentBlock = currentBlock,
-         highestBlock = highestBlock
+         currentBlock = appStateStorage.getBestBlockNumber(),
+         highestBlock = appStateStorage.getEstimatedHighestBlock()
        ))
      else
        None
    Right(SyncingResponse(maybeSyncStatus))
  }
+
+  /**
+    * Returns whether the client is syncing
+    * The node is assumed to be syncing only if there's any block that other peers have and this peer doesn't
+    *
+    * @return if the node is syncing
+    */
+  private def isSyncing: Boolean = {
+    val currentBlock = appStateStorage.getBestBlockNumber()
+    val highestBlock = appStateStorage.getEstimatedHighestBlock()
+    currentBlock < highestBlock
+  }
 
   def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
     import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionDec

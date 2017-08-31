@@ -347,8 +347,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   it should "return syncing info if the peer is syncing" in new TestSetup {
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
-    (appStateStorage.getEstimatedHighestBlock _).expects().returning(10000)
-    (appStateStorage.getBestBlockNumber _).expects().returning(200)
+    (appStateStorage.getEstimatedHighestBlock _).expects().returning(10000).twice()
+    (appStateStorage.getBestBlockNumber _).expects().returning(200).twice()
     val response = ethService.syncing(SyncingRequest()).futureValue.right.get
 
     response shouldEqual SyncingResponse(Some(EthService.SyncingStatus(
@@ -360,8 +360,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   it should "return no syncing info if the peer is not syncing" in new TestSetup {
     (appStateStorage.getSyncStartingBlock _).expects().returning(999)
-    (appStateStorage.getEstimatedHighestBlock _).expects().returning(1000)
-    (appStateStorage.getBestBlockNumber _).expects().returning(1000)
+    (appStateStorage.getEstimatedHighestBlock _).expects().returning(1000).twice()
+    (appStateStorage.getBestBlockNumber _).expects().returning(1000).twice()
     val response = ethService.syncing(SyncingRequest()).futureValue.right.get
 
     response shouldEqual SyncingResponse(None)
@@ -369,7 +369,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   it should "return requested work" in new TestSetup {
     (blockGenerator.generateBlockForMining _).expects(BigInt(1), Nil, *, *).returning(Right(PendingBlock(block, Nil)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    (appStateStorage.getBestBlockNumber _).expects().returning(0).twice()
+    (appStateStorage.getEstimatedHighestBlock _).expects().returning(0)
 
     val response: ServiceResponse[GetWorkResponse] = ethService.getWork(GetWorkRequest())
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
@@ -523,12 +524,28 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
     (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(PendingBlock(block, Nil)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    (appStateStorage.getBestBlockNumber _).expects().returning(0).twice()
+    (appStateStorage.getEstimatedHighestBlock _).expects().returning(0)
     ethService.getWork(GetWorkRequest())
 
     val response = ethService.getMining(GetMiningRequest())
 
     response.futureValue shouldEqual Right(GetMiningResponse(true))
+  }
+
+  it should "return an error on getWork if client is syncing" in new TestSetup {
+
+    //Client is syncing
+    (appStateStorage.getBestBlockNumber _).expects().returning(200)
+    (appStateStorage.getEstimatedHighestBlock _).expects().returning(10000)
+
+    //No work is returned
+    val getWorkResponse = ethService.getWork(GetWorkRequest())
+    getWorkResponse.futureValue shouldEqual Left(JsonRpcErrors.NoWork)
+
+    //Client still reports it's not mining
+    val isMiningResponse = ethService.getMining(GetMiningRequest())
+    isMiningResponse.futureValue shouldEqual Right(GetMiningResponse(false))
   }
 
   it should "return if node is mining base on submitWork" in new TestSetup {
@@ -555,7 +572,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   it should "return if node is mining after time out" in new TestSetup {
     (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(PendingBlock(block, Nil)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    (appStateStorage.getBestBlockNumber _).expects().returning(0).twice()
+    (appStateStorage.getEstimatedHighestBlock _).expects().returning(0)
     ethService.getWork(GetWorkRequest())
 
     Thread.sleep(miningConfig.activeTimeout.toMillis)
