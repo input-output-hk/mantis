@@ -69,7 +69,7 @@ abstract class TestCallOp(code: Int) extends CallOp(code, 7, 1) {
 
     val transferCost: BigInt = if (endowment.isZero) 0 else G_callvalue - G_callstipend
     val newAccountCost: BigInt = if (!state.world.accountExists(Address(to)) && this == TestCALL) G_newaccount else 0
-    val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
+    val memCost = calcMemCost(state)
 
     G_call + gas + transferCost + newAccountCost + memCost
   }

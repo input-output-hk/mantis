@@ -187,14 +187,17 @@ abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constG
       state.withError(StackOverflow)
     else {
       val constGas: BigInt = constGasFn(state.config.feeSchedule)
+      val memoryPaidState = state.spendGas(calcMemCost(state))
 
-      val gas: BigInt = constGas + varGas(state)
-      if (gas > state.gas)
+      val gas: BigInt = constGas + varGas(memoryPaidState)
+      if (gas > memoryPaidState.gas)
         state.copy(gas = 0).withError(OutOfGas)
       else
-        exec(state).spendGas(gas)
+        exec(memoryPaidState).spendGas(gas)
     }
   }
+
+  protected def calcMemCost[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = 0
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt
 
@@ -797,7 +800,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
 
       val inputMemoryCost = state.config.calcMemCost(state.memory.size, inOffset, inSize)
 
-      val callOpMemoryCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
+      val callOpMemoryCost = calcMemCost(state)
 
       val memoryGasCostAdjustment = if (callOpMemoryCost == inputMemoryCost) BigInt(0) else callOpMemoryCost
 
@@ -839,16 +842,14 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
     val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), _) = getParams(state)
     val endowment = if (this == DELEGATECALL) UInt256.Zero else callValue
 
-    val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
-
     // FIXME: these are calculated twice (for gas and exec), especially account existence. Can we do better? [EC-243]
     val gExtra: BigInt = gasExtra(state, endowment, Address(to))
     val gCap: BigInt = gasCap(state, gas, gExtra)
-    memCost + gCap + gExtra
+    gCap + gExtra
   }
 
-  protected def calcMemCost[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S],
-      inOffset: UInt256, inSize: UInt256, outOffset: UInt256, outSize: UInt256): BigInt = {
+  protected override def calcMemCost[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+    val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
 
     val memCostIn = state.config.calcMemCost(state.memory.size, inOffset, inSize)
     val memCostOut = state.config.calcMemCost(state.memory.size, outOffset, outSize)
