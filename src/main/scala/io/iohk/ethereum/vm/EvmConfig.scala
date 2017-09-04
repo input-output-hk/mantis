@@ -1,6 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.BlockchainConfig
 
 // scalastyle:off number.of.methods
@@ -34,14 +35,16 @@ object EvmConfig {
     opCodes = OpCodes.FrontierOpCodes,
     exceptionalFailedCodeDeposit = false,
     subGasCapDivisor = None,
-    chargeSelfDestructForNewAccount = false)
+    chargeSelfDestructForNewAccount = false,
+    traceInternalTransactions = false)
 
   val HomesteadConfig = EvmConfig(
     feeSchedule = new FeeSchedule.HomesteadFeeSchedule,
     opCodes = OpCodes.HomesteadOpCodes,
     exceptionalFailedCodeDeposit = true,
     subGasCapDivisor = None,
-    chargeSelfDestructForNewAccount = false)
+    chargeSelfDestructForNewAccount = false,
+    traceInternalTransactions = false)
 
   val PostEIP150Config = HomesteadConfig.copy(
     feeSchedule = new FeeSchedule.PostEIP150FeeSchedule,
@@ -57,7 +60,8 @@ case class EvmConfig(
     opCodes: List[OpCode],
     exceptionalFailedCodeDeposit: Boolean,
     subGasCapDivisor: Option[Long],
-    chargeSelfDestructForNewAccount: Boolean) {
+    chargeSelfDestructForNewAccount: Boolean,
+    traceInternalTransactions: Boolean) {
 
   import feeSchedule._
   import EvmConfig._

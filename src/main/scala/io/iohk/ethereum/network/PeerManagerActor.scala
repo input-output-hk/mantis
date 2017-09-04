@@ -61,7 +61,7 @@ class PeerManagerActor(
 
   private def scheduleNodesUpdate(): Unit = {
     scheduler.schedule(peerConfiguration.updateNodesInitialDelay, peerConfiguration.updateNodesInterval) {
-      peerDiscoveryManager ! PeerDiscoveryManager.GetDiscoveredNodes
+      peerDiscoveryManager ! PeerDiscoveryManager.GetDiscoveredNodesInfo
     }
   }
 
@@ -80,21 +80,21 @@ class PeerManagerActor(
     case msg: ConnectToPeer =>
       connect(msg.uri)
 
-    case PeerDiscoveryManager.DiscoveredNodes(nodes) =>
+    case PeerDiscoveryManager.DiscoveredNodesInfo(nodesInfo) =>
       val peerAddresses = outgoingPeers.values.map(_.remoteAddress).toSet
 
-      val nodesToConnect = nodes
-        .filterNot(n => peerAddresses.contains(n.addr)) // not already connected to
+      val nodesToConnect = nodesInfo
+        .filterNot(n => peerAddresses.contains(n.node.addr)) // not already connected to
         .toSeq
         .sortBy(-_.addTimestamp)
         .take(peerConfiguration.maxPeers - peerAddresses.size)
 
-      log.debug(s"Discovered ${nodes.size} nodes, connected to ${peers.size}/${peerConfiguration.maxPeers + peerConfiguration.maxIncomingPeers}. " +
+      log.debug(s"Discovered ${nodesInfo.size} nodes, connected to ${peers.size}/${peerConfiguration.maxPeers + peerConfiguration.maxIncomingPeers}. " +
         s"Trying to connect to ${nodesToConnect.size} more nodes.")
 
       if (nodesToConnect.nonEmpty) {
         log.debug("Trying to connect to {} nodes", nodesToConnect.size)
-        nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
+        nodesToConnect.foreach(n => self ! ConnectToPeer(n.node.toUri))
       }
   }
 

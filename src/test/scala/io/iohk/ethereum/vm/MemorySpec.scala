@@ -5,7 +5,7 @@ import io.iohk.ethereum.vm.Generators._
 import org.scalatest.{FunSuite, Matchers}
 import org.scalatest.prop.PropertyChecks
 import org.scalacheck.{Arbitrary, Gen}
-
+import io.iohk.ethereum.domain.UInt256
 
 class MemorySpec extends FunSuite with PropertyChecks with Matchers {
 

@@ -7,12 +7,11 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.pattern.ask
 import akka.util.Timeout
-import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import akka.actor.ActorRef
-import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
+import io.iohk.ethereum.blockchain.sync.RegularSync
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
@@ -27,7 +26,6 @@ import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
-import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.Future
@@ -167,7 +165,7 @@ object EthService {
 }
 
 class EthService(
-    blockchainStorages: BlockchainStorages,
+    blockchain: Blockchain,
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
     miningConfig: MiningConfig,
@@ -183,8 +181,6 @@ class EthService(
   extends Logger {
 
   import EthService._
-
-  lazy val blockchain = BlockchainImpl(blockchainStorages)
 
   val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] = new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
   val lastActive = new AtomicReference[Option[Date]](None)
@@ -488,7 +484,7 @@ class EthService(
       blockGenerator.getPrepared(req.powHeaderHash) match {
         case Some(pendingBlock) if appStateStorage.getBestBlockNumber() <= pendingBlock.block.header.number =>
           import pendingBlock._
-          syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
+          syncingController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
           Right(SubmitWorkResponse(true))
         case _ =>
           Right(SubmitWorkResponse(false))
@@ -545,7 +541,7 @@ class EthService(
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Future {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        val world = BlockchainImpl(blockchainStorages).getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, Some(block.header.stateRoot))
+        val world = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, Some(block.header.stateRoot))
         GetCodeResponse(world.getCode(req.address))
       }
     }
@@ -722,7 +718,7 @@ class EthService(
       val stx = SignedTransaction(tx, fakeSignature, fromAddress)
 
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        ledger.simulateTransaction(stx, block.header, blockchainStorages)
+        ledger.simulateTransaction(stx, block.header)
       }
     }
 
