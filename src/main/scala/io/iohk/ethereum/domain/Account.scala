@@ -43,6 +43,9 @@ case class Account(
   def withStorage(storageRoot: ByteString): Account =
     copy(storageRoot = storageRoot)
 
+  def clearAccount: Account =
+    copy(nonce = UInt256.Zero, storageRoot = Account.EmptyStorageRootHash, codeHash = Account.EmptyCodeHash)
+
   override def toString: String =
     s"Account(nonce: $nonce, balance: $balance, " +
       s"storageRoot: ${Hex.toHexString(storageRoot.toArray[Byte])}, codeHash: ${Hex.toHexString(codeHash.toArray[Byte])})"
