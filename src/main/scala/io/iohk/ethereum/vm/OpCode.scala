@@ -187,17 +187,14 @@ abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constG
       state.withError(StackOverflow)
     else {
       val constGas: BigInt = constGasFn(state.config.feeSchedule)
-      val memoryPaidState = state.spendGas(calcMemCost(state))
 
-      val gas: BigInt = constGas + varGas(memoryPaidState)
-      if (gas > memoryPaidState.gas)
+      val gas: BigInt = constGas + varGas(state)
+      if (gas > state.gas)
         state.copy(gas = 0).withError(OutOfGas)
       else
-        exec(memoryPaidState).spendGas(gas)
+        exec(state).spendGas(gas)
     }
   }
-
-  protected def calcMemCost[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = 0
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt
 
@@ -751,12 +748,12 @@ case object CREATE extends CreateOp
 
 abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, alpha, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
+    val (params @ Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
 
     val (inputData, mem1) = state.memory.load(inOffset, inSize)
     val endowment = if (this == DELEGATECALL) UInt256.Zero else callValue
 
-    val startGas = calcStartGas(state, gas, endowment, to)
+    val startGas = calcStartGas(state, params, endowment)
 
     lazy val result = {
       val toAddr = Address(to)
@@ -837,14 +834,16 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
     val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), _) = getParams(state)
     val endowment = if (this == DELEGATECALL) UInt256.Zero else callValue
 
+    val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
+
     // FIXME: these are calculated twice (for gas and exec), especially account existence. Can we do better? [EC-243]
     val gExtra: BigInt = gasExtra(state, endowment, Address(to))
-    val gCap: BigInt = gasCap(state, gas, gExtra)
-    gCap + gExtra
+    val gCap: BigInt = gasCap(state, gas, gExtra + memCost)
+    memCost + gCap + gExtra
   }
 
-  protected override def calcMemCost[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
-    val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
+  protected def calcMemCost[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S],
+      inOffset: UInt256, inSize: UInt256, outOffset: UInt256, outSize: UInt256): BigInt = {
 
     val memCostIn = state.config.calcMemCost(state.memory.size, inOffset, inSize)
     val memCostOut = state.config.calcMemCost(state.memory.size, outOffset, outSize)
@@ -858,15 +857,17 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
     Seq(gas, to, value, inOffset, inSize, outOffset, outSize) -> stack3
   }
 
-  protected def calcStartGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], gas: UInt256, endowment: UInt256, to: UInt256): BigInt = {
+  protected def calcStartGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], params: Seq[UInt256], endowment: UInt256): BigInt = {
+    val Seq(gas, to, _, inOffset, inSize, outOffset, outSize) = params
+    val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
     val gExtra = gasExtra(state, endowment, Address(to))
-    val gCap = gasCap(state, gas, gExtra)
+    val gCap = gasCap(state, gas, gExtra + memCost)
     if (endowment.isZero) gCap else gCap + state.config.feeSchedule.G_callstipend
   }
 
-  private def gasCap[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], g: BigInt, gExtra: BigInt): BigInt = {
-    if (state.config.subGasCapDivisor.isDefined && state.gas >= gExtra)
-      g min state.config.gasCap(state.gas - gExtra)
+  private def gasCap[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], g: BigInt, consumedGas: BigInt): BigInt = {
+    if (state.config.subGasCapDivisor.isDefined && state.gas >= consumedGas)
+      g min state.config.gasCap(state.gas - consumedGas)
     else
       g
   }

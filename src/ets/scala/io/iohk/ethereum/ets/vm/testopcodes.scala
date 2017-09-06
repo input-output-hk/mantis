@@ -31,7 +31,7 @@ case object TestCREATE extends CreateOp {
 
 abstract class TestCallOp(code: Int) extends CallOp(code, 7, 1) {
   override protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val (Seq(gas, to, endowment, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
+    val (params @ Seq(gas, to, endowment, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
     val toAddr = Address(to)
 
     val gasBack = -gas.toBigInt // not executing any code so all the gas provided is returned
@@ -43,7 +43,7 @@ abstract class TestCallOp(code: Int) extends CallOp(code, 7, 1) {
 
     } else {
       val stack2 = stack1.push(UInt256.One)
-      val startGas = calcStartGas(state, gas, endowment, to)
+      val startGas = calcStartGas(state, params, endowment)
       val (inputData, mem1) = state.memory.load(inOffset, inSize)
       val internalTx = internalTransaction(state.env, to, startGas, inputData, endowment)
 
@@ -69,8 +69,9 @@ abstract class TestCallOp(code: Int) extends CallOp(code, 7, 1) {
 
     val transferCost: BigInt = if (endowment.isZero) 0 else G_callvalue - G_callstipend
     val newAccountCost: BigInt = if (!state.world.accountExists(Address(to)) && this == TestCALL) G_newaccount else 0
+    val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
 
-    G_call + gas + transferCost + newAccountCost
+    G_call + gas + transferCost + newAccountCost + memCost
   }
 }
 
