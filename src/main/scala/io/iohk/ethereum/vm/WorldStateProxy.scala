@@ -94,6 +94,14 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   def createAddressWithOpCode(creatorAddr: Address): (Address, WS) = {
     val creatorAccount = getGuaranteedAccount(creatorAddr)
     val updatedWorld = saveAccount(creatorAddr, creatorAccount.increaseNonce)
-    updatedWorld.createAddress(creatorAddr) -> updatedWorld
+    val newAddress = updatedWorld.createAddress(creatorAddr)
+
+    updatedWorld.getAccount(newAddress) match {
+      case None =>  newAddress -> updatedWorld
+      case Some(acc@Account(_, _, _, _)) =>
+        val clearedAcc = acc.clearAccount
+        val newWorld = updatedWorld.saveAccount(newAddress, clearedAcc)
+        newAddress -> newWorld
+    }
   }
 }
