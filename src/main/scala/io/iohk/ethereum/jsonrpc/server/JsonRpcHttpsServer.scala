@@ -1,13 +1,14 @@
 package io.iohk.ethereum.jsonrpc.server
 
-import java.io.{FileInputStream, InputStream}
+import java.io.{File, FileInputStream}
 import java.security.{KeyStore, SecureRandom}
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.{ConnectionContext, Http, HttpsConnectionContext}
+import akka.http.scaladsl.{ConnectionContext, Http}
 import akka.stream.ActorMaterializer
 import io.iohk.ethereum.jsonrpc.JsonRpcController
+import io.iohk.ethereum.jsonrpc.server.JsonRpcHttpsServer.HttpsSetupResult
 import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.utils.Logger
 
@@ -22,8 +23,8 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
   def run(): Unit = {
     implicit val materializer = ActorMaterializer()
 
-    val maybeSslContext = (config.certificateKeyStorePath, config.certificatePasswordFile) match {
-      case (Some(certificatePath), Some(passwordFile)) =>
+    val maybeSslContext = validateCertificateFiles(config.certificateKeyStorePath, config.certificatePasswordFile).flatMap{
+      case (certificatePath, passwordFile) =>
         val passwordReader = Source.fromFile(passwordFile)
         try {
           val password = passwordReader.getLines().mkString
@@ -31,12 +32,9 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
         } finally {
           passwordReader.close()
         }
-      case (None, _) => Left("Certificate keystore path required")
-      case (_, None) => Left("Certificate password file required")
     }
 
-    val maybeHttpsContext: Either[String, HttpsConnectionContext] =
-      maybeSslContext.map(sslContext => ConnectionContext.https(sslContext))
+    val maybeHttpsContext = maybeSslContext.map(sslContext => ConnectionContext.https(sslContext))
 
     maybeHttpsContext match {
       case Right(httpsContext) =>
@@ -58,11 +56,11 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
     * @param password for accessing the keystore with the certificate
     * @return the SSL context with the obtained certificate or an error if any happened
     */
-  private def obtainSSLContext(certificateKeyStorePath: String, password: String): Either[String, SSLContext] = {
+  private def obtainSSLContext(certificateKeyStorePath: String, password: String): HttpsSetupResult[SSLContext] = {
     val passwordCharArray: Array[Char] = password.toCharArray
 
     val ks: KeyStore = KeyStore.getInstance("JKS")
-    val keyStoreInitResult: Either[String, Unit] = Option(new FileInputStream(certificateKeyStorePath))
+    val keyStoreInitResult: HttpsSetupResult[Unit] = Option(new FileInputStream(certificateKeyStorePath))
       .toRight("Certificate keystore creation failed")
       .flatMap { keyStore =>
         Try(ks.load(keyStore, passwordCharArray)).toEither.left.map( _.getMessage) }
@@ -81,4 +79,34 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
 
   }
 
+  /**
+    * Validates that the keystore certificate file and password file were configured and that the files exists
+    *
+    * @param maybeCertificatePath, with the path to the keystore certificate if it was configured
+    * @param maybePasswordFile, with the path to the password file if it was configured
+    * @return the certificate path and password file or the error detected
+    */
+  private def validateCertificateFiles(maybeCertificatePath: Option[String],
+                                       maybePasswordFile: Option[String]): HttpsSetupResult[(String, String)] =
+    (maybeCertificatePath, maybePasswordFile) match {
+      case (Some(certificatePath), Some(passwordFile)) =>
+        val certificateFileMissing = !new File(certificatePath).exists()
+        val passwordFileMissing = !new File(passwordFile).exists()
+        if(certificateFileMissing && passwordFileMissing)
+          Left("Certificate keystore path and password file configured but files are missing")
+        else if(certificateFileMissing)
+          Left("Certificate keystore path configured but file is missing")
+        else if(passwordFileMissing)
+          Left("Certificate password file configured but file is missing")
+        else
+          Right(certificatePath -> passwordFile)
+      case (None, None) => Left("Certificate keystore path and password file configuration required")
+      case (None, _) => Left("Certificate keystore path configuration required")
+      case (_, None) => Left("Certificate password file configuration required")
+    }
+
+}
+
+object JsonRpcHttpsServer {
+  type HttpsSetupResult[T] = Either[String, T]
 }
