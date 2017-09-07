@@ -1,5 +1,7 @@
 package io.iohk.ethereum.vm
 
+import io.iohk.ethereum.domain.UInt256
+
 
 /**
   * Account's storage representation. Implementation should be immutable and only keep track of changes to the storage

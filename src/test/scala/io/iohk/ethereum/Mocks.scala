@@ -17,22 +17,22 @@ import io.iohk.ethereum.vm._
 
 object Mocks {
 
-  class MockLedger(shouldExecuteCorrectly: (Block, BlockchainStorages, Validators) => Boolean) extends Ledger{
-    override def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators)
+  class MockLedger(blockchain: BlockchainImpl, shouldExecuteCorrectly: (Block, BlockchainImpl, Validators) => Boolean) extends Ledger{
+    override def executeBlock(block: Block, validators: Validators)
     : Either[BlockExecutionError, Seq[Receipt]] = {
-      if(shouldExecuteCorrectly(block, storages, validators))
+      if(shouldExecuteCorrectly(block, blockchain, validators))
         Right(Nil)
       else
         Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head,
-          StateBeforeFailure(BlockchainImpl(storages).getWorldStateProxy(0, UInt256.Zero),0,Nil),
+          StateBeforeFailure(blockchain.getWorldStateProxy(0, UInt256.Zero),0,Nil),
           "StubLedger was set to fail for this case"))
     }
 
-    override def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators): BlockPreparationResult = {
+    override def prepareBlock(block: Block, validators: Validators): BlockPreparationResult = {
       ???
     }
 
-    override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): Ledger.TxResult = {
+    override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader): Ledger.TxResult = {
       ???
     }
   }
@@ -56,7 +56,7 @@ object Mocks {
   class MockValidatorsFailingOnBlockBodies extends MockValidatorsAlwaysSucceed {
 
     override val blockValidator: BlockValidator = new BlockValidator {
-      override def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]) = Right(block)
+      override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Right(())
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
     }
   }
@@ -64,7 +64,7 @@ object Mocks {
   class MockValidatorsAlwaysSucceed extends Validators {
 
     override val blockValidator: BlockValidator = new BlockValidator {
-      override def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]) = Right(block)
+      override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Right(())
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Right(Block(blockHeader, blockBody))
     }
 
@@ -75,6 +75,8 @@ object Mocks {
     override val signedTransactionValidator: SignedTransactionValidator =
       (stx: SignedTransaction, account: Account, blockHeader: BlockHeader, upfrontGasCost: UInt256, accumGasLimit: BigInt) => Right(())
   }
+
+  object MockValidatorsAlwaysSucceed extends MockValidatorsAlwaysSucceed
 
   object MockValidatorsAlwaysFail extends Validators {
     override val signedTransactionValidator = new SignedTransactionValidator {
@@ -92,7 +94,7 @@ object Mocks {
 
     override val blockValidator = new BlockValidator {
       def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
-      def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
+      def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
     }
   }
 

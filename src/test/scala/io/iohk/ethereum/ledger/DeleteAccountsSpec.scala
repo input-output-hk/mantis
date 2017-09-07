@@ -3,15 +3,17 @@ package io.iohk.ethereum.ledger
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl}
-import io.iohk.ethereum.vm.UInt256
+import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
-class DeleteAccountsSpec extends FlatSpec with Matchers {
+class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
 
   val blockchainConfig = BlockchainConfig(Config.config)
 
-  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchainConfig)
+  val blockchain = mock[BlockchainImpl]
+
+  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig)
 
   it should "delete no accounts when none of them should be deleted" in new TestSetup {
     val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteAccounts(Set.empty)(worldState))

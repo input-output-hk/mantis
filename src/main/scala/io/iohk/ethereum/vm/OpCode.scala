@@ -2,8 +2,8 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Address, TxLogEntry}
-import io.iohk.ethereum.vm.UInt256._
+import io.iohk.ethereum.domain.{Address, TxLogEntry, UInt256}
+import io.iohk.ethereum.domain.UInt256._
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types

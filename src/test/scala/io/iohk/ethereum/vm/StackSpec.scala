@@ -3,6 +3,7 @@ package io.iohk.ethereum.vm
 import org.scalacheck.Gen
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
+import io.iohk.ethereum.domain.UInt256
 
 class StackSpec extends FunSuite with Matchers with PropertyChecks {
 

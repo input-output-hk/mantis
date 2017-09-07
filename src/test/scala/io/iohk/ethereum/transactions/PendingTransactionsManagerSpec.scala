@@ -7,9 +7,13 @@ import akka.pattern.ask
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerManagerActor.Peers
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.HandshakeSuccess
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
@@ -138,6 +142,19 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
       EtcPeerManagerActor.SendMessage(SignedTransactions(List(otherTx)), peer1.id),
       EtcPeerManagerActor.SendMessage(SignedTransactions(List(overrideTx)), peer1.id)
     )
+  }
+
+  it should "broadcast pending transactions to newly connected peers" in new TestSetup {
+    val stx = newStx()
+    pendingTransactionsManager ! AddTransactions(stx)
+
+    peerManager.expectMsg(PeerManagerActor.GetPeers)
+    peerManager.reply(Peers(Map.empty))
+
+    pendingTransactionsManager ! PeerEvent.PeerHandshakeSuccessful(peer1, new HandshakeResult {})
+
+    etcPeerManager.expectMsgAllOf(
+      EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx)), peer1.id))
   }
 
   trait TestSetup extends SecureRandomBuilder {

@@ -3,8 +3,8 @@ package io.iohk.ethereum.ets.common
 import akka.util.ByteString
 import io.circe._
 import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.NumericUtils._
-import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.Try

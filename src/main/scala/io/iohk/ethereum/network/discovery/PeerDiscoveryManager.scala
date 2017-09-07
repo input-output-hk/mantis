@@ -9,7 +9,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.utils.{ByteUtils, NodeStatus, ServerStatus}
-import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -21,15 +20,14 @@ class PeerDiscoveryManager(
 
   import PeerDiscoveryManager._
 
-  var nodes: Map[ByteString, Node] = {
-    val uris = discoveryConfig.bootstrapNodes.map(new URI(_)) ++
-      (if (discoveryConfig.discoveryEnabled) knownNodesStorage.getKnownNodes()
-      else Set.empty)
+  var nodesInfo: Map[ByteString, DiscoveryNodeInfo] = {
+    val bootStrapNodesInfo = discoveryConfig.bootstrapNodes.map(DiscoveryNodeInfo.fromNode)
+    val knownNodesURIs =
+      if (discoveryConfig.discoveryEnabled) knownNodesStorage.getKnownNodes()
+      else Set.empty
+    val nodesInfo = bootStrapNodesInfo ++ knownNodesURIs.map(DiscoveryNodeInfo.fromUri)
 
-    uris.map { uri =>
-      val node = Node.fromUri(uri)
-      node.id -> node
-    }.toMap
+    nodesInfo.map { nodeInfo => nodeInfo.node.id -> nodeInfo }.toMap
   }
 
   if (discoveryConfig.discoveryEnabled) {
@@ -38,10 +36,10 @@ class PeerDiscoveryManager(
   }
 
   def scan(): Unit = {
-    nodes.values.toSeq
+    nodesInfo.values.toSeq
       .sortBy(_.addTimestamp) // take 10 most recent nodes
       .takeRight(discoveryConfig.scanMaxNodes)
-      .foreach { node => sendPing(node.id, node.addr) }
+      .foreach { nodeInfo => sendPing(nodeInfo.node.id, nodeInfo.node.addr) }
   }
 
   override def receive: Receive = {
@@ -50,15 +48,15 @@ class PeerDiscoveryManager(
       sendMessage(Pong(to, packet.mdc, expirationTimestamp), from)
 
     case DiscoveryListener.MessageReceived(pong: Pong, from, packet) =>
-      val newNode = Node(packet.nodeId, from, System.currentTimeMillis())
+      val newNodeInfo = DiscoveryNodeInfo.fromNode(Node(packet.nodeId, from))
 
-      if (nodes.size < discoveryConfig.nodesLimit) {
-        nodes += newNode.id -> newNode
+      if (nodesInfo.size < discoveryConfig.nodesLimit) {
+        nodesInfo += newNodeInfo.node.id -> newNodeInfo
         sendMessage(FindNode(ByteString(nodeStatusHolder().nodeId), expirationTimestamp), from)
       } else {
-        val (earliestNode, _) = nodes.minBy { case (_, node) => node.addTimestamp }
-        nodes -= earliestNode
-        nodes += newNode.id -> newNode
+        val (earliestNode, _) = nodesInfo.minBy { case (_, node) => node.addTimestamp }
+        nodesInfo -= earliestNode
+        nodesInfo += newNodeInfo.node.id -> newNodeInfo
       }
 
     case DiscoveryListener.MessageReceived(findNode: FindNode, from, packet) =>
@@ -66,15 +64,15 @@ class PeerDiscoveryManager(
 
     case DiscoveryListener.MessageReceived(neighbours: Neighbours, from, packet) =>
       val toPing = neighbours.nodes
-        .filterNot(n => nodes.contains(n.nodeId)) // not already on the list
-        .take(discoveryConfig.nodesLimit - nodes.size)
+        .filterNot(n => nodesInfo.contains(n.nodeId)) // not already on the list
+        .take(discoveryConfig.nodesLimit - nodesInfo.size)
 
       toPing.foreach { n =>
         sendPing(n.nodeId, new InetSocketAddress(ByteUtils.bytesToIp(n.endpoint.address), n.endpoint.udpPort))
       }
 
-    case GetDiscoveredNodes =>
-      sender() ! DiscoveredNodes(nodes.values.toSet)
+    case GetDiscoveredNodesInfo =>
+      sender() ! DiscoveredNodesInfo(nodesInfo.values.toSet)
 
     case Scan => scan()
   }
@@ -113,22 +111,18 @@ object PeerDiscoveryManager {
             nodeStatusHolder: Agent[NodeStatus]): Props =
     Props(new PeerDiscoveryManager(discoveryListener, discoveryConfig, knownNodesStorage, nodeStatusHolder))
 
-  object Node {
+  object DiscoveryNodeInfo {
 
-    def fromUri(uri: URI): Node = {
-      val nodeId = ByteString(Hex.decode(uri.getUserInfo))
-      Node(nodeId, new InetSocketAddress(uri.getHost, uri.getPort), System.currentTimeMillis())
-    }
+    def fromUri(uri: URI): DiscoveryNodeInfo = fromNode(Node.fromUri(uri))
+
+    def fromNode(node: Node): DiscoveryNodeInfo = DiscoveryNodeInfo(node, System.currentTimeMillis())
+
   }
 
-  case class Node(id: ByteString, addr: InetSocketAddress, addTimestamp: Long) {
-    def toUri: URI = {
-      new URI(s"enode://${Hex.toHexString(id.toArray[Byte])}@${addr.getAddress.getHostAddress}:${addr.getPort}")
-    }
-  }
+  case class DiscoveryNodeInfo(node: Node, addTimestamp: Long)
 
-  case object GetDiscoveredNodes
-  case class DiscoveredNodes(nodes: Set[Node])
+  case object GetDiscoveredNodesInfo
+  case class DiscoveredNodesInfo(nodes: Set[DiscoveryNodeInfo])
 
   private case object Scan
 }
