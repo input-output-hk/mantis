@@ -2,7 +2,7 @@ package io.iohk.ethereum.ets.blockchain
 
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.Block.BlockDec
-import io.iohk.ethereum.domain.{Account, Address, Block}
+import io.iohk.ethereum.domain.{Account, Address, Block, UInt256}
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger.{BlockExecutionError, InMemoryWorldStateProxy, LedgerImpl}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
@@ -10,7 +10,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ValidatorsBuilder}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.vm.{UInt256, VM}
+import io.iohk.ethereum.vm.VM
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
@@ -25,7 +25,7 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
 
   override lazy val blockchainConfig = buildBlockchainConfig(scenario.network)
 
-  val ledger = new LedgerImpl(VM, blockchainConfig)
+  val ledger = new LedgerImpl(VM, blockchain, blockchainConfig)
 
   def loadGenesis(): Block = {
     val genesisBlock = scenario.genesisRLP match {
@@ -125,7 +125,7 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
 
     case Seq(block, otherBlocks@_*) =>
       val blockHashToDelete = blockchain.getBlockHeaderByNumber(block.header.number).map(_.hash).filter(_ != block.header.hash)
-      val blockExecResult = ledger.executeBlock(block, storagesInstance.storages, validators)
+      val blockExecResult = ledger.executeBlock(block, validators)
       blockExecResult match {
         case Right(receipts) =>
           blockchain.save(block)

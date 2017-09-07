@@ -1,8 +1,7 @@
 package io.iohk.ethereum.ets.common
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.vm.UInt256
+import io.iohk.ethereum.domain.UInt256
 
 case class ScenarioGroup[T](
   name: String,

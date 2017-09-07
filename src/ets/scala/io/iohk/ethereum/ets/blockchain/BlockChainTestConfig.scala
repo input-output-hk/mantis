@@ -1,8 +1,8 @@
 package io.iohk.ethereum.ets.blockchain
 
 import akka.util.ByteString
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig}
-import io.iohk.ethereum.vm.UInt256
 
 trait BlockChainTestConfig extends BlockchainConfig {
 
