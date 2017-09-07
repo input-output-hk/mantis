@@ -99,6 +99,12 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     }
   }
 
+  it should "return a failure if created with gas limit above threshold" in {
+    val validParent = validBlockParent.copy(gasLimit = Long.MaxValue)
+    val invalidBlockHeader = validBlockHeader.copy(gasLimit = BigInt(Long.MaxValue) + 1)
+    blockHeaderValidator.validate(invalidBlockHeader, validParent) shouldBe Left(HeaderGasLimitError)
+  }
+
   it should "return a failure if created based on invalid number" in {
     forAll(bigIntGen) { number =>
       val blockHeader = validBlockHeader.copy(number = number)

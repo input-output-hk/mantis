@@ -109,14 +109,12 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @return BlockHeader if valid, an [[HeaderGasLimitError]] otherwise
     */
   private def validateGasLimit(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
-    if(blockHeader.gasLimit > MaxGasLimit)
-      Left(HeaderGasLimitError)
-    else {
       val gasLimitDiff = (blockHeader.gasLimit - parentHeader.gasLimit).abs
       val gasLimitDiffLimit = parentHeader.gasLimit / GasLimitBoundDivisor
-      if(gasLimitDiff < gasLimitDiffLimit && blockHeader.gasLimit >= MinGasLimit) Right(blockHeader)
-      else Left(HeaderGasLimitError)
-    }
+      if (gasLimitDiff < gasLimitDiffLimit && blockHeader.gasLimit >= MinGasLimit && blockHeader.gasLimit <= MaxGasLimit)
+        Right(blockHeader)
+      else
+        Left(HeaderGasLimitError)
   }
 
   /**
