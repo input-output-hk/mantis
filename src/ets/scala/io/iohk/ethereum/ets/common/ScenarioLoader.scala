@@ -11,11 +11,11 @@ import scala.io.Source
 
 trait ScenarioLoader[T] extends ScenarioParser[T] with Logger {
 
-  def load(path: String, options: TestOptions): List[ScenarioGroup[T]] = {
+  def load(path: String, options: TestOptions, ignoredTestNames: Set[String] = Set.empty): List[ScenarioGroup[T]] = {
     val testDir = new File(getClass.getClassLoader.getResource(path).toURI)
     val files = FileUtils.listFiles(testDir, Array("json"), true).asScala.toList
 
-    files.flatMap { file =>
+    files.filterNot(file => ignoredTestNames.contains(file.getName)).flatMap { file =>
       val name = file.getAbsolutePath.drop(testDir.getAbsolutePath.length + 1).dropRight(".json".length)
 
       if (!options.isGroupIncluded(name))

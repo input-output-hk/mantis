@@ -12,11 +12,27 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
   val unsupportedNetworks = Set("Byzantium","Constantinople", "EIP158", "EIP158ToByzantiumAt5", "HomesteadToDaoAt5")
   val supportedNetworks = Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5")
 
+  val ignoredTestNames = Set(
+    "bcForkUncle.json",
+    "ForkStressTest.json",
+    "GasLimitHigherThan2p63m1.json",
+    "CallContractFromNotBestBlock.json",
+    "ChainAtoChainB_blockorder1.json",
+    "ChainAtoChainBtoChainA.json",
+    "lotsOfBranches.json",
+    "lotsOfBranchesOverrideAtTheMiddle.json",
+    "lotsOfLeafs.json",
+    "sideChainWithMoreTransactions.json",
+    "uncleBlockAtBlock3afterBlock4.json",
+    "blockChainFrontierWithLargerTDvsHomesteadBlockchain.json",
+    "blockChainFrontierWithLargerTDvsHomesteadBlockchain2.json"
+  )
+
   // scalastyle:off
   override def run(testName: Option[String], args: Args): Status = {
 
     val options = TestOptions(args.configMap)
-    val scenarios = BlockchainScenarioLoader.load("ets/BlockchainTests", options)
+    val scenarios = BlockchainScenarioLoader.load("ets/BlockchainTests/", options, ignoredTestNames)
 
     scenarios.foreach { group =>
       group.name - {
