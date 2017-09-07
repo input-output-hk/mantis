@@ -311,25 +311,21 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
   private[ledger] def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy,
                                             config: EvmConfig): PC = {
-    def prepareContextWithoutCollision: PC = {
+    def prepareContext: PC = {
       val address = worldStateProxy.createAddress(creatorAddr = stx.senderAddress)
       val worldAfterTransfer = worldStateProxy.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
-      ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, worldAfterTransfer, config)
-    }
 
-    def prepareContextWithCollision(address: Address)(alreadyExistingAccount: Account): PC = {
-      val emptiedAccount = alreadyExistingAccount.clearAccount
-      val newWorld = worldStateProxy.saveAccount(address, emptiedAccount)
-      val worldAfterTransfer = newWorld.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
-      ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, worldAfterTransfer, config)
+      worldAfterTransfer.getAccount(address) match {
+        case None => ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, worldAfterTransfer, config)
+        case Some(acc) =>
+          val clearedAccount = acc.clearAccount
+          val worldAfterClearingAccount = worldAfterTransfer.saveAccount(address, clearedAccount)
+          ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, worldAfterClearingAccount, config)
+      }
     }
 
     stx.tx.receivingAddress match {
-      case None =>
-        val address = worldStateProxy.createAddress(creatorAddr = stx.senderAddress)
-        val maybeOldAcc = worldStateProxy.getAccount(address)
-        maybeOldAcc.fold(prepareContextWithoutCollision)(prepareContextWithCollision(address))
-
+      case None => prepareContext
       case Some(txReceivingAddress) =>
         val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
         ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, config)
