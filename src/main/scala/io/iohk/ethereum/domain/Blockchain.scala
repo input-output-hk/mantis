@@ -109,6 +109,9 @@ trait Blockchain {
     */
   def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt]
 
+  def getTotalDifficultyByNumber(blockNumber: BigInt): Option[BigInt] =
+    getHashByBlockNumber(blockNumber).flatMap(getTotalDifficultyByHash)
+
   def getTransactionLocation(txHash: ByteString): Option[TransactionLocation]
 
   /**
@@ -122,6 +125,8 @@ trait Blockchain {
   }
 
   def removeBlock(hash: ByteString): Unit
+
+  def removeBlock(blockNumber: BigInt): Unit = getHashByBlockNumber(blockNumber).foreach(removeBlock)
 
   /**
     * Persists a block header in the underlying Blockchain Database
