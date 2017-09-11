@@ -305,21 +305,13 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
 
   private[ledger] def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy,
                                             config: EvmConfig): PC = {
-    def prepareContext: PC = {
-      val address = worldStateProxy.createAddress(creatorAddr = stx.senderAddress)
-      val worldAfterTransfer = worldStateProxy.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
-
-      worldAfterTransfer.getAccount(address) match {
-        case None => ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, worldAfterTransfer, config)
-        case Some(acc) =>
-          val clearedAccount = acc.clearAccount
-          val worldAfterClearingAccount = worldAfterTransfer.saveAccount(address, clearedAccount)
-          ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, worldAfterClearingAccount, config)
-      }
-    }
-
     stx.tx.receivingAddress match {
-      case None => prepareContext
+      case None =>
+        val address = worldStateProxy.createAddress(creatorAddr = stx.senderAddress)
+        val worldAfterTransfer = worldStateProxy.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
+        val clearedAccount = worldAfterTransfer.getGuaranteedAccount(address).clearAccount
+        val savedClearedAccountWorld = worldAfterTransfer.saveAccount(address, clearedAccount)
+        ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, savedClearedAccountWorld, config)
       case Some(txReceivingAddress) =>
         val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
         ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, config)

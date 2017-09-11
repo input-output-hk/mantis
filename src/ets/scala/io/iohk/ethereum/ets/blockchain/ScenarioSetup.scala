@@ -45,7 +45,7 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
     genesisBlock
   }
 
-  def getInitialWorld(): InMemoryWorldStateProxy = {
+  def loadInitialWorld(): InMemoryWorldStateProxy = {
     InMemoryWorldStateProxy.persistState(getWorldState(scenario.pre))
   }
 
@@ -69,7 +69,6 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
     case _ => new FrontierConfig
   }
 
-  // Block rlp hex decoding, should be done during test and not parsing json as it can fail
   private def decode(s: String): Array[Byte] = {
     val stripped = s.replaceFirst("^0x", "")
     Hex.decode(stripped)
@@ -116,7 +115,8 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
   }
 
   // Function copied from RegularSync.scala, as ledger itself do not persis schanges in blockchain
-  // TODO We need to take forks and branches into account
+  // TODO We need to take forks and branches into
+  // https://iohk.myjetbrains.com/youtrack/issue/EC-303
   @tailrec
   final def processBlocks(blocks: Seq[Block], blockParentTd: BigInt,
                             newBlocks: Seq[NewBlock] = Nil, errors: Seq[BlockExecutionError] = Nil): (Seq[NewBlock], Seq[BlockExecutionError]) = blocks match {

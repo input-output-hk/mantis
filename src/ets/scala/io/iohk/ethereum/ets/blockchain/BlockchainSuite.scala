@@ -12,27 +12,30 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
   val unsupportedNetworks = Set("Byzantium","Constantinople", "EIP158", "EIP158ToByzantiumAt5", "HomesteadToDaoAt5")
   val supportedNetworks = Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5")
 
-  val ignoredTestNames = Set(
-    "bcForkUncle.json",
-    "ForkStressTest.json",
-    "GasLimitHigherThan2p63m1.json",
-    "CallContractFromNotBestBlock.json",
-    "ChainAtoChainB_blockorder1.json",
-    "ChainAtoChainBtoChainA.json",
-    "lotsOfBranches.json",
-    "lotsOfBranchesOverrideAtTheMiddle.json",
-    "lotsOfLeafs.json",
-    "sideChainWithMoreTransactions.json",
-    "uncleBlockAtBlock3afterBlock4.json",
-    "blockChainFrontierWithLargerTDvsHomesteadBlockchain.json",
-    "blockChainFrontierWithLargerTDvsHomesteadBlockchain2.json"
+  type GroupName = String
+  type TestName = String
+  type IgnoredTestNames = Set[String]
+
+  //Map of ignored tests, empty set of ignored names means cancellation of whole group
+  val ignoredTests: Map[GroupName, IgnoredTestNames] = Map(
+    "bcForgedTest/bcForkUncle" -> Set("ForkUncle"),
+    "bcForkStressTest/ForkStressTest"  -> Set.empty,
+    "bcInvalidHeaderTest/GasLimitHigherThan2p63m1"  -> Set.empty,
+    "bcMultiChainTest/CallContractFromNotBestBlock" -> Set.empty,
+    "bcMultiChainTest/ChainAtoChainB_blockorder1" -> Set.empty,
+    "bcMultiChainTest/ChainAtoChainBtoChainA" -> Set.empty,
+    "bcTotalDifficultyTest/lotsOfBranches" -> Set.empty,
+    "bcTotalDifficultyTest/lotsOfBranchesOverrideAtTheMiddle"  -> Set.empty,
+    "bcTotalDifficultyTest/lotsOfLeafs"  -> Set.empty,
+    "bcTotalDifficultyTest/sideChainWithMoreTransactions" -> Set.empty,
+    "bcTotalDifficultyTest/uncleBlockAtBlock3afterBlock4" -> Set.empty,
+    "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain"  -> Set.empty,
+    "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain2"  -> Set.empty
   )
 
-  // scalastyle:off
   override def run(testName: Option[String], args: Args): Status = {
-
     val options = TestOptions(args.configMap)
-    val scenarios = BlockchainScenarioLoader.load("ets/BlockchainTests/", options, ignoredTestNames)
+    val scenarios = BlockchainScenarioLoader.load("ets/BlockchainTests/", options)
 
     scenarios.foreach { group =>
       group.name - {
@@ -43,10 +46,10 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
           name in new ScenarioSetup(scenario) {
             if (unsupportedNetworks.contains(scenario.network)) {
               cancel(s"Unsupported network: ${scenario.network}")
-
             } else if (!supportedNetworks.contains(scenario.network)) {
               fail(s"Unknown network: ${scenario.network}")
-
+            } else if (isCanceled(group.name, name)){
+              cancel(s"Test: $name in group: ${group.name} not yet supported")
             } else {
               log.info(s"Running test: ${group.name}/$name")
               runScenario(scenario, this)
@@ -59,12 +62,15 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
     runTests(testName, args)
   }
 
+  private def isCanceled(groupName: String, testName: TestName): Boolean =
+    ignoredTests.get(groupName).isDefined && (ignoredTests(groupName).contains(testName) || ignoredTests(groupName).isEmpty)
+
   private def runScenario(scenario: BlockchainScenario, setup: ScenarioSetup): Unit = {
     import setup._
 
     val genesisBlock = loadGenesis()
 
-    val initialWorld = getInitialWorld()
+    loadInitialWorld()
 
     val blocksToProcess = getAllBlocks
 
@@ -85,7 +91,6 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
     lastBlock.get.header.hash shouldEqual scenario.lastblockhash
     lastBlock.get.header.stateRoot shouldEqual expectedWorldStateHash
   }
-
 }
 
 

@@ -112,10 +112,7 @@ object ECDSASignature {
   }
 
   def hasOnlyLastByteSet(v: ByteString): Boolean = {
-    if (v.nonEmpty && v.count(_ != 0) == 1 && v.last != 0)
-      true
-    else
-      false
+    v.dropWhile(_ == 0).size == 1
   }
 }
 
