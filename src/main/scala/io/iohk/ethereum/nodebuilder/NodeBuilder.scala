@@ -321,7 +321,8 @@ trait KeyStoreBuilder {
 trait JSONRpcControllerBuilder {
   this: Web3ServiceBuilder with EthServiceBuilder with NetServiceBuilder with PersonalServiceBuilder =>
 
-  lazy val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, Config.Network.Rpc)
+  val mantisService = new MantisService(personalService)
+  lazy val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, mantisService, Config.Network.Rpc)
 }
 
 trait JSONRpcHttpServerBuilder {

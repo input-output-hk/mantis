@@ -2,6 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.MantisService.ImportMnemonicRequest
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.Web3Service._
@@ -36,6 +37,7 @@ object JsonRpcController {
     val Admin = "admin"
     val Debug = "debug"
     val Rpc = "rpc"
+    val Mantis = "mantis"
   }
 
 }
@@ -45,6 +47,7 @@ class JsonRpcController(
   netService: NetService,
   ethService: EthService,
   personalService: PersonalService,
+  mantisService: MantisService,
   config: JsonRpcConfig) extends Logger {
 
   import JsonRpcController._
@@ -60,7 +63,8 @@ class JsonRpcController(
     Apis.Personal -> handlePersonalRequest,
     Apis.Rpc -> handleRpcRequest,
     Apis.Admin -> PartialFunction.empty,
-    Apis.Debug -> PartialFunction.empty
+    Apis.Debug -> PartialFunction.empty,
+    Apis.Mantis -> handleMantisRequest
   )
 
   private def enabledApis = config.apis :+ Apis.Rpc // RPC enabled by default
@@ -191,6 +195,11 @@ class JsonRpcController(
 
     case req @ JsonRpcRequest(_, "personal_ecRecover", _, _) =>
       handle[EcRecoverRequest, EcRecoverResponse](personalService.ecRecover, req)
+  }
+
+  private def handleMantisRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "mantis_importMnemonic", _, _) =>
+      handle[ImportMnemonicRequest, ImportRawKeyResponse](mantisService.importMnemonic, req)
   }
 
   private def handleRpcRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {

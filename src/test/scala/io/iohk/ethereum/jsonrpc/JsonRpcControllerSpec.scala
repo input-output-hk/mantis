@@ -15,6 +15,7 @@ import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.{LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.MantisService.ImportMnemonicRequest
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils._
@@ -426,6 +427,24 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
   }
 
+  it should "mantis_importMnemonic" in new TestSetup {
+    val mnemonic = "legal winner thank year wave sausage worth useful legal sausage worth title"
+    val pass = "aaa"
+    val addr = Address("0x00000000000000000000000000000000000000ff")
+
+    (mantisService.importMnemonic _).expects(ImportMnemonicRequest(mnemonic, pass))
+      .returning(Future.successful(Right(ImportRawKeyResponse(addr))))
+
+    val params = JArray(JString(mnemonic) :: JString(pass) :: Nil)
+    val rpcRequest = JsonRpcRequest("2.0", "mantis_importMnemonic", Some(params), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString(addr.toString))
+  }
+
   it should "eth_sendTransaction" in new TestSetup {
     val params = JArray(
       JObject(
@@ -598,7 +617,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_call" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.call _).expects(*).returning(Future.successful(Right(CallResponse(ByteString("asd")))))
 
@@ -624,7 +643,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_estimateGas" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.estimateGas _).expects(*).anyNumberOfTimes().returning(Future.successful(Right(EstimateGasResponse(2310))))
 
@@ -659,7 +678,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_getCode" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.getCode _).expects(*).returning(Future.successful(Right(GetCodeResponse(ByteString(Hex.decode("FFAA22"))))))
 
@@ -682,7 +701,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_getUncleCountByBlockNumber" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.getUncleCountByBlockNumber _).expects(*)
       .returning(Future.successful(Right(GetUncleCountByBlockNumberResponse(2))))
@@ -705,7 +724,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_getUncleCountByBlockHash " in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.getUncleCountByBlockHash _).expects(*)
       .returning(Future.successful(Right(GetUncleCountByBlockHashResponse(3))))
@@ -728,7 +747,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_getBlockTransactionCountByNumber " in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.getBlockTransactionCountByNumber _).expects(*)
       .returning(Future.successful(Right(GetBlockTransactionCountByNumberResponse(17))))
@@ -848,7 +867,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_getBalance" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.getBalance _).expects(*)
       .returning(Future.successful(Right(GetBalanceResponse(17))))
@@ -872,7 +891,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_getStorageAt" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.getStorageAt _).expects(*)
       .returning(Future.successful(Right(GetStorageAtResponse(ByteString("response")))))
@@ -897,7 +916,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_getTransactionCount" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.getTransactionCount _).expects(*)
       .returning(Future.successful(Right(GetTransactionCountResponse(123))))
@@ -921,7 +940,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_getTransactionByHash" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     val txResponse = TransactionResponse(Fixtures.Blocks.Block3125369.body.transactionList.head)
     (mockEthService.getTransactionByHash _).expects(*)
@@ -1020,7 +1039,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_newFilter" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.newFilter _).expects(*)
       .returning(Future.successful(Right(NewFilterResponse(123))))
@@ -1048,7 +1067,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_newBlockFilter" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.newBlockFilter _).expects(*)
       .returning(Future.successful(Right(NewFilterResponse(999))))
@@ -1066,7 +1085,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_newPendingTransactionFilter" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.newPendingTransactionFilter _).expects(*)
       .returning(Future.successful(Right(NewFilterResponse(2))))
@@ -1084,7 +1103,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_uninstallFilter" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.uninstallFilter _).expects(*)
       .returning(Future.successful(Right(UninstallFilterResponse(true))))
@@ -1105,7 +1124,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_getFilterChanges" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.getFilterChanges _).expects(*)
       .returning(Future.successful(Right(GetFilterChangesResponse(FilterManager.LogFilterChanges(Seq(
@@ -1142,7 +1161,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_getFilterLogs" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.getFilterLogs _).expects(*)
       .returning(Future.successful(Right(GetFilterLogsResponse(FilterManager.BlockFilterLogs(Seq(
@@ -1169,7 +1188,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
   it should "eth_getLogs" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     (mockEthService.getLogs _).expects(*)
       .returning(Future.successful(Right(GetLogsResponse(LogFilterLogs(Seq(
@@ -1222,13 +1241,14 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       "rpc" -> "1.0",
       "personal" -> "1.0",
       "eth" -> "1.0",
-      "web3" -> "1.0"
+      "web3" -> "1.0",
+      "mantis" -> "1.0"
     ))
   }
 
   it should "eth_getTransactionReceipt" in new TestSetup {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, mantisService, config)
 
     val arbitraryValue = 42
 
@@ -1321,10 +1341,11 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
+    val mantisService = mock[MantisService]
     val ethService = new EthService(blockchain, blockGenerator, appStateStorage, miningConfig, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
       blockchainConfig, currentProtocolVersion)
-    val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
+    val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, mantisService, config)
 
     val blockHeader = BlockHeader(
       parentHash = ByteString("unused"),

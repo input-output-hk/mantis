@@ -182,7 +182,7 @@ class PersonalService(
     crypto.kec256(prefixed)
   }
 
-  private val handleError: PartialFunction[KeyStore.KeyStoreError, JsonRpcError] = {
+  /*private*/ val handleError: PartialFunction[KeyStore.KeyStoreError, JsonRpcError] = { //FIXME
     case KeyStore.DecryptionFailed => InvalidPassphrase
     case KeyStore.KeyNotFound => KeyNotFound
     case KeyStore.IOError(msg) => LogicError(msg)
