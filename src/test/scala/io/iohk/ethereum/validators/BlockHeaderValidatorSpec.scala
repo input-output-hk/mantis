@@ -28,6 +28,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     override val eip155BlockNumber: BigInt = Long.MaxValue
     override val eip160BlockNumber: BigInt = Long.MaxValue
     override val eip150BlockNumber: BigInt = Long.MaxValue
+    override val eip106BlockNumber: BigInt = 20
     override val chainId: Byte = 0x3d.toByte
     override val daoForkBlockHash: ByteString = ByteString("unused")
     override val monetaryPolicyConfig: MonetaryPolicyConfig = null
@@ -99,7 +100,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     }
   }
 
-  it should "return a failure if created with gas limit above threshold" in {
+  it should "return a failure if created with gas limit above threshold and block number >= eip106 block number" in {
     val validParent = validBlockParent.copy(gasLimit = Long.MaxValue)
     val invalidBlockHeader = validBlockHeader.copy(gasLimit = BigInt(Long.MaxValue) + 1)
     blockHeaderValidator.validate(invalidBlockHeader, validParent) shouldBe Left(HeaderGasLimitError)

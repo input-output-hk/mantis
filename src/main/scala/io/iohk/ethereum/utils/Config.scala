@@ -239,6 +239,7 @@ trait BlockchainConfig {
   val eip150BlockNumber: BigInt
   val eip155BlockNumber: BigInt
   val eip160BlockNumber: BigInt
+  val eip106BlockNumber: BigInt
   val difficultyBombPauseBlockNumber: BigInt
   val difficultyBombContinueBlockNumber: BigInt
 
@@ -280,6 +281,8 @@ object BlockchainConfig {
       }
 
       override val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
+
+      override val eip106BlockNumber: BigInt = Try(blockchainConfig.getString("eip106-block-number")).map(BigInt(_)).getOrElse(Long.MaxValue)
     }
   }
 }
