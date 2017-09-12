@@ -282,7 +282,7 @@ object BlockchainConfig {
 
       override val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
 
-      override val eip106BlockNumber: BigInt = Try(blockchainConfig.getString("eip106-block-number")).map(BigInt(_)).getOrElse(Long.MaxValue)
+      override val eip106BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip106-block-number"))
     }
   }
 }
