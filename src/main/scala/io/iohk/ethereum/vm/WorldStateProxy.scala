@@ -20,6 +20,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   protected def saveAccount(address: Address, account: Account): WS
   protected def deleteAccount(address: Address): WS
   protected def getEmptyAccount: Account
+  def resetAccount(address: Address): WS
 
   /**
     * In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that
@@ -90,14 +91,6 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   def createAddressWithOpCode(creatorAddr: Address): (Address, WS) = {
     val creatorAccount = getGuaranteedAccount(creatorAddr)
     val updatedWorld = saveAccount(creatorAddr, creatorAccount.increaseNonce)
-    val newAddress = updatedWorld.createAddress(creatorAddr)
-
-    updatedWorld.getAccount(newAddress) match {
-      case None =>  newAddress -> updatedWorld
-      case Some(acc@Account(_, _, _, _)) =>
-        val clearedAcc = acc.clearAccount
-        val newWorld = updatedWorld.saveAccount(newAddress, clearedAcc)
-        newAddress -> newWorld
-    }
+    updatedWorld.createAddress(creatorAddr) -> updatedWorld
   }
 }

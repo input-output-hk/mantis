@@ -683,6 +683,7 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
       val (newAddress, world1) = state.world.createAddressWithOpCode(state.env.ownerAddr)
       val world2 = world1.transfer(state.env.ownerAddr, newAddress, endowment)
+      val worldAfterReset = world2.resetAccount(newAddress)
 
       val newEnv = state.env.copy(
         callerAddr = state.env.ownerAddr,
@@ -698,7 +699,7 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
       val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
       val startGas = state.config.gasCap(availableGas)
 
-      val context = ProgramContext[W, S](newEnv, newAddress, startGas, world2, state.config, state.addressesToDelete)
+      val context = ProgramContext[W, S](newEnv, newAddress, startGas, worldAfterReset, state.config, state.addressesToDelete)
       val result = VM.run(context)
 
       val codeDepositGas = state.config.calcCodeDepositCost(result.returnData)

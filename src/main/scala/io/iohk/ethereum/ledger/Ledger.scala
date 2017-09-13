@@ -309,8 +309,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
       case None =>
         val address = worldStateProxy.createAddress(creatorAddr = stx.senderAddress)
         val worldAfterTransfer = worldStateProxy.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
-        val clearedAccount = worldAfterTransfer.getGuaranteedAccount(address).clearAccount
-        val savedClearedAccountWorld = worldAfterTransfer.saveAccount(address, clearedAccount)
+        val savedClearedAccountWorld = worldAfterTransfer.resetAccount(address)
         ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, savedClearedAccountWorld, config)
       case Some(txReceivingAddress) =>
         val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
