@@ -12,17 +12,14 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
   val unsupportedNetworks = Set("Byzantium","Constantinople", "EIP158", "EIP158ToByzantiumAt5", "HomesteadToDaoAt5")
   val supportedNetworks = Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5")
 
-  type GroupName = String
-  type TestName = String
-  type IgnoredTestNames = Set[String]
-
   //Map of ignored tests, empty set of ignored names means cancellation of whole group
-  val ignoredTests: Map[GroupName, IgnoredTestNames] = Map(
+  val ignoredTests: Map[String, Set[String]] = Map(
     "bcForgedTest/bcForkUncle" -> Set("ForkUncle"),
     "bcForkStressTest/ForkStressTest"  -> Set.empty,
     "bcInvalidHeaderTest/GasLimitHigherThan2p63m1"  -> Set.empty,
     "bcMultiChainTest/CallContractFromNotBestBlock" -> Set.empty,
     "bcMultiChainTest/ChainAtoChainB_blockorder1" -> Set.empty,
+    "bcMultiChainTest/ChainAtoChainB_blockorder2" -> Set.empty,
     "bcMultiChainTest/ChainAtoChainBtoChainA" -> Set.empty,
     "bcTotalDifficultyTest/lotsOfBranches" -> Set.empty,
     "bcTotalDifficultyTest/lotsOfBranchesOverrideAtTheMiddle"  -> Set.empty,
@@ -62,7 +59,7 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
     runTests(testName, args)
   }
 
-  private def isCanceled(groupName: String, testName: TestName): Boolean =
+  private def isCanceled(groupName: String, testName: String): Boolean =
     ignoredTests.get(groupName).isDefined && (ignoredTests(groupName).contains(testName) || ignoredTests(groupName).isEmpty)
 
   private def runScenario(scenario: BlockchainScenario, setup: ScenarioSetup): Unit = {
@@ -72,11 +69,11 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
 
     loadInitialWorld()
 
-    val blocksToProcess = getAllBlocks
+    val blocksToProcess = getBlocks(scenario.blocks)
 
-    val invalidBlocks = getInvalidBlocks
+    val invalidBlocks = getBlocks(getInvalid)
 
-    val newBlocks: (Seq[NewBlock], Seq[BlockExecutionError]) = processBlocks(blocksToProcess, genesisBlock.header.difficulty)
+    val newBlocks: (Seq[NewBlock], Seq[BlockExecutionError]) = processBlocks(blocksToProcess)
 
     // If there is more block execution errors than expected invalidblocks, it means we rejected block which should
     // pass validations, and the final state will not be correct

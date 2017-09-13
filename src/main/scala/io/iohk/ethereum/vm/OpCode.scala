@@ -908,10 +908,11 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
     val refundAddr: Address = Address(refund)
     val gasRefund: BigInt = if (state.addressesToDelete contains state.ownAddress) 0 else state.config.feeSchedule.R_selfdestruct
 
-    val world = if (state.ownAddress == refundAddr) {
-      state.world.removeEther(state.ownAddress, state.ownBalance)
-    } else
-      state.world.transfer(state.ownAddress, refundAddr, state.ownBalance)
+    val world =
+      if (state.ownAddress == refundAddr)
+        state.world.removeAllEther(state.ownAddress)
+      else
+        state.world.transfer(state.ownAddress, refundAddr, state.ownBalance)
 
     state
       .withWorld(world)

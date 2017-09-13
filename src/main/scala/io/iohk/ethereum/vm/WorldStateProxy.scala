@@ -65,9 +65,9 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     * see https://github.com/ethereum/wiki/wiki/Subtleties/d5d3583e1b0a53c7c49db2fa670fdd88aa7cabaf#other-operations
     * and https://github.com/ethereum/go-ethereum/blob/ff9a8682323648266d5c73f4f4bce545d91edccb/core/state/statedb.go#L322
     */
-  def removeEther(from: Address, value: UInt256): WS = {
-    val debited = getGuaranteedAccount(from).increaseBalance(-value)
-    saveAccount(from, debited)
+  def removeAllEther(address: Address): WS = {
+    val debited = getGuaranteedAccount(address).copy(balance = 0)
+    saveAccount(address, debited)
   }
 
   /**

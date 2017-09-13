@@ -86,20 +86,12 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
     blockDef.blockHeader.isEmpty && blockDef.transactions.isEmpty && blockDef.uncleHeaders.isEmpty
   }
 
-  private def getInvalid: List[BlockDef] = {
+  def getInvalid: List[BlockDef] = {
     scenario.blocks.filter(isInvalidBlock)
   }
 
-  private def getBlocks(blocks: List[BlockDef]): List[Block] = {
+  def getBlocks(blocks: List[BlockDef]): List[Block] = {
     blocks.flatMap(blockDef => decodeBlock(blockDef.rlp))
-  }
-
-  def getAllBlocks: List[Block] = {
-    getBlocks(scenario.blocks)
-  }
-
-  def getInvalidBlocks: List[Block] = {
-    getBlocks(getInvalid)
   }
 
   private def getWorldState(accounts: Map[Address, AccountState]): InMemoryWorldStateProxy = {
@@ -114,29 +106,23 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
     }
   }
 
-  // Function copied from RegularSync.scala, as ledger itself do not persis schanges in blockchain
   // TODO We need to take forks and branches into
   // https://iohk.myjetbrains.com/youtrack/issue/EC-303
   @tailrec
-  final def processBlocks(blocks: Seq[Block], blockParentTd: BigInt,
+  final def processBlocks(blocks: Seq[Block],
                             newBlocks: Seq[NewBlock] = Nil, errors: Seq[BlockExecutionError] = Nil): (Seq[NewBlock], Seq[BlockExecutionError]) = blocks match {
     case Nil =>
       newBlocks -> errors
 
     case Seq(block, otherBlocks@_*) =>
-      val blockHashToDelete = blockchain.getBlockHeaderByNumber(block.header.number).map(_.hash).filter(_ != block.header.hash)
       val blockExecResult = ledger.executeBlock(block, validators)
       blockExecResult match {
-        case Right(receipts) =>
+        case Right(_) =>
           blockchain.save(block)
-          blockchain.save(block.header.hash, receipts)
           storagesInstance.storages.appStateStorage.putBestBlockNumber(block.header.number)
-          val newTd = blockParentTd + block.header.difficulty
-          blockchain.save(block.header.hash, newTd)
-          blockHashToDelete.foreach(blockchain.removeBlock)
-          processBlocks(otherBlocks, newTd, newBlocks :+ NewBlock(block, newTd))
+          processBlocks(otherBlocks, newBlocks :+ NewBlock(block, block.header.difficulty))
         case Left(error) =>
-          processBlocks(otherBlocks, blockParentTd, newBlocks, errors :+ error)
+          processBlocks(otherBlocks, newBlocks, errors :+ error)
       }
   }
 
