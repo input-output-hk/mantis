@@ -125,7 +125,7 @@ class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[UInt256
   override def load(addr: UInt256): UInt256 = wrapped.get(addr).getOrElse(UInt256.Zero)
 }
 
-class InMemoryWorldStateProxy private(
+class InMemoryWorldStateProxy private[ledger](
   // State MPT proxied nodes storage needed to construct the storage MPT when calling [[getStorage]].
   // Accounts state and accounts storage states are saved within the same storage
   val stateStorage: NodesKeyValueStorage,

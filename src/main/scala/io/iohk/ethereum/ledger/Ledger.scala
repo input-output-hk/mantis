@@ -78,7 +78,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     val initialWorld = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
 
     val inputWorld =
-      if(blockchainConfig.daoForkConfig isDaoForkBlock block.header.number) applyDaoFork(initialWorld, blockchainConfig.daoForkConfig)
+      if(blockchainConfig.daoForkConfig isDaoForkBlock block.header.number) drainDaoForkAccounts(initialWorld, blockchainConfig.daoForkConfig)
       else initialWorld
 
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
@@ -377,13 +377,13 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => world.deleteAccount(address) }
 
   /**
-    * This function updates worldState transfering balance from drainList accounts to refundContract address
+    * This function updates worldState transferring balance from drainList accounts to refundContract address
     *
     * @param worldState Initial world state
     * @param daoForkConfig Dao fork configuration with drainList and refundContract config
     * @return Updated world state proxy
     */
-  private def applyDaoFork(worldState: InMemoryWorldStateProxy, daoForkConfig: DaoForkConfig): InMemoryWorldStateProxy = {
+  private def drainDaoForkAccounts(worldState: InMemoryWorldStateProxy, daoForkConfig: DaoForkConfig): InMemoryWorldStateProxy = {
     daoForkConfig.drainList.foldLeft(worldState) { (ws, address) =>
       ws.getAccount(address)
         .map(acc => ws.transfer(from = address, to = daoForkConfig.refundContract, acc.balance))

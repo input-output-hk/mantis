@@ -248,7 +248,64 @@ object Fixtures {
         mixHash = ByteString(Hex.decode("5b5acbf4bf305f948bd7be176047b20623e1417f75597341a059729165b92397")),
         nonce = ByteString(Hex.decode("bede87201de42426"))
       )
-      override lazy val body: BlockBody = ???
+      override lazy val body: BlockBody = BlockBody(
+        transactionList = Seq[SignedTransaction](
+          SignedTransaction(
+            tx = Transaction(
+              nonce = BigInt("1"),
+              gasPrice = BigInt("20000000000"),
+              gasLimit = BigInt("21000"),
+              receivingAddress = Address(ByteString(Hex.decode("53d284357ec70ce289d6d64134dfac8e511c8a3d"))),
+              value = BigInt("1502561962583879700"),
+              payload = ByteString.empty
+            ),
+            pointSign = 0x1b.toByte,
+            signatureRandom = ByteString(Hex.decode("fdbbc462a8a60ac3d8b13ee236b45af9b7991cf4f0f556d3af46aa5aeca242ab")),
+            signature = ByteString(Hex.decode("5de5dc03fdcb6cf6d14609dbe6f5ba4300b8ff917c7d190325d9ea2144a7a2fb")),
+            chainId = 0x01.toByte
+          ).get,SignedTransaction(
+            tx = Transaction(
+              nonce = BigInt("1"),
+              gasPrice = BigInt("20000000000"),
+              gasLimit = BigInt("21000"),
+              receivingAddress = Address(ByteString(Hex.decode("53d284357ec70ce289d6d64134dfac8e511c8a3d"))),
+              value = BigInt("10046680000000000000"),
+              payload = ByteString.empty
+            ),
+            pointSign = 0x1b.toByte,
+            signatureRandom = ByteString(Hex.decode("8d94a55c7ac7adbfa2285ef7f4b0c955ae1a02647452cd4ead03ee6f449675c6")),
+            signature = ByteString(Hex.decode("67149821b74208176d78fc4dffbe37c8b64eecfd47532406b9727c4ae8eb7c9a")),
+            chainId = 0x01.toByte
+          ).get,SignedTransaction(
+            tx = Transaction(
+              nonce = BigInt("1"),
+              gasPrice = BigInt("20000000000"),
+              gasLimit = BigInt("21000"),
+              receivingAddress = Address(ByteString(Hex.decode("53d284357ec70ce289d6d64134dfac8e511c8a3d"))),
+              value = BigInt("20093780000000000000"),
+              payload = ByteString.empty
+            ),
+            pointSign = 0x1c.toByte,
+            signatureRandom = ByteString(Hex.decode("6d31e3d59bfea97a34103d8ce767a8fe7a79b8e2f30af1e918df53f9e78e69ab")),
+            signature = ByteString(Hex.decode("098e5b80e1cc436421aa54eb17e96b08fe80d28a2fbd46451b56f2bca7a321e7")),
+            chainId = 0x01.toByte
+          ).get,SignedTransaction(
+            tx = Transaction(
+              nonce = BigInt("1"),
+              gasPrice = BigInt("20000000000"),
+              gasLimit = BigInt("21000"),
+              receivingAddress = Address(ByteString(Hex.decode("53d284357ec70ce289d6d64134dfac8e511c8a3d"))),
+              value = BigInt("1022338440000000000"),
+              payload = ByteString.empty
+            ),
+            pointSign = 0x1b.toByte,
+            signatureRandom = ByteString(Hex.decode("bafb9f71cef873b9e0395b9ed89aac4f2a752e2a4b88ba3c9b6c1fea254eae73")),
+            signature = ByteString(Hex.decode("1cef688f6718932f7705d9c1f0dd5a8aad9ddb196b826775f6e5703fdb997706")),
+            chainId = 0x01.toByte
+          ).get
+        ),
+        uncleNodesList = Seq[BlockHeader]()
+      )
 
       override val transactionHashes: Seq[ByteString] = Seq(
         ByteString(Hex.decode("4677a93807b73a0875d3a292eacb450d0af0d6f0eec6f283f8ad927ec539a17b")),

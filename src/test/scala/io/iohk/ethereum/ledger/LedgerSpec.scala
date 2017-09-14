@@ -6,18 +6,16 @@ import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
+import io.iohk.ethereum.daoFork.{DaoForkConfig, DefaultDaoForkConfig}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.{Mocks, rlp}
+import io.iohk.ethereum.{Fixtures, Mocks, rlp}
 import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.vm.{_}
+import io.iohk.ethereum.vm._
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
 import org.spongycastle.crypto.params.ECPublicKeyParameters
@@ -26,11 +24,12 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.validators.BlockValidator.BlockTransactionsHashError
 import io.iohk.ethereum.validators.SignedTransactionError.TransactionSignatureError
 import io.iohk.ethereum.validators._
+import org.scalamock.scalatest.MockFactory
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
 
 // scalastyle:off file.size.limit
-class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
+class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFactory {
 
   val blockchainConfig = BlockchainConfig(Config.config)
 
@@ -756,6 +755,52 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     result match { case (_, executedTxs) => executedTxs shouldBe Seq.empty }
   }
 
+  it should "drain DAO accounts and send the funds to refund address if it's Pro DAO Fork configured" in new DaoForkTestSetup {
+
+    // Check we drain all the accounts and send the balance to refund contract
+    proDaoBlockchainConfig.daoForkConfig.drainList.foreach { addr =>
+      val daoAccountsFakeBalance = UInt256(1000)
+      (worldState.getAccount _).expects(addr).returning(Some(Account(nonce = 1, balance = daoAccountsFakeBalance)))
+      (worldState.transfer _).expects(addr, proDaoBlockchainConfig.daoForkConfig.refundContract, daoAccountsFakeBalance).returning(worldState)
+    }
+
+    val ledger = new LedgerImpl(new MockVM(c => createResult(
+      context = c,
+      gasUsed = UInt256(10),
+      gasLimit = UInt256(10),
+      gasRefund = UInt256.Zero,
+      logs = Seq.empty,
+      addressesToDelete = Set.empty
+    )), testBlockchain, proDaoBlockchainConfig)
+
+    ledger.executeBlockTransactions(
+      proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)), // We don't care about block txs in this test
+      (new Mocks.MockValidatorsAlwaysSucceed).signedTransactionValidator
+    )
+  }
+
+  it should "not drain DAO accounts and send the funds to refund address if it not Pro DAO Fork configured" in new DaoForkTestSetup {
+    // Check we drain all the accounts and send the balance to refund contract
+    proDaoBlockchainConfig.daoForkConfig.drainList.foreach { addr =>
+      val daoAccountsFakeBalance = UInt256(1000)
+      (worldState.transfer _).expects(addr, proDaoBlockchainConfig.daoForkConfig.refundContract, *).never()
+    }
+
+    val ledger = new LedgerImpl(new MockVM(c => createResult(
+      context = c,
+      gasUsed = UInt256(10),
+      gasLimit = UInt256(10),
+      gasRefund = UInt256.Zero,
+      logs = Seq.empty,
+      addressesToDelete = Set.empty
+    )), testBlockchain, blockchainConfig)
+
+    ledger.executeBlockTransactions(
+      proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)), // We don't care about block txs in this test
+      (new Mocks.MockValidatorsAlwaysSucceed).signedTransactionValidator
+    )
+  }
+
   trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
@@ -847,6 +892,36 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       value = defaultValue
     )
     val validStxSignedByOrigin: SignedTransaction = SignedTransaction.sign(validTx, originKeyPair, Some(blockchainConfig.chainId))
+  }
+
+  trait DaoForkTestSetup extends TestSetup {
+    val proDaoBlockchainConfig = new BlockchainConfig {
+      override val frontierBlockNumber: BigInt = blockchainConfig.frontierBlockNumber
+      override val accountStartNonce: UInt256 = blockchainConfig.accountStartNonce
+      override val homesteadBlockNumber: BigInt = blockchainConfig.homesteadBlockNumber
+      override val difficultyBombPauseBlockNumber: BigInt = blockchainConfig.difficultyBombPauseBlockNumber
+      override val eip155BlockNumber: BigInt = blockchainConfig.eip155BlockNumber
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = blockchainConfig.monetaryPolicyConfig
+      override val eip160BlockNumber: BigInt = blockchainConfig.eip160BlockNumber
+      override val eip150BlockNumber: BigInt = blockchainConfig.eip150BlockNumber
+      override val chainId: Byte = 0x01.toByte
+      override val difficultyBombContinueBlockNumber: BigInt = blockchainConfig.difficultyBombContinueBlockNumber
+      override val daoForkConfig: DaoForkConfig = DefaultDaoForkConfig(true, 1920000, ByteString(""))
+      override  val customGenesisFileOpt: Option[String] = None
+    }
+    val testBlockchain = mock[BlockchainImpl]
+    val worldState = mock[InMemoryWorldStateProxy]
+    val proDaoBlock = Fixtures.Blocks.ProDaoForkBlock.block
+
+    (testBlockchain.getBlockHeaderByHash _).expects(proDaoBlock.header.parentHash).returning(Some(Fixtures.Blocks.DaoParentBlock.header))
+    (testBlockchain.getWorldStateProxy _)
+      .expects(proDaoBlock.header.number, proDaoBlockchainConfig.accountStartNonce, Some(Fixtures.Blocks.DaoParentBlock.header.stateRoot))
+      .returning(worldState)
+
+    (worldState.getAccount _)
+      .expects(proDaoBlockchainConfig.daoForkConfig.refundContract)
+      .anyNumberOfTimes()
+      .returning(Some(Account(nonce = 1, balance = UInt256.Zero)))
   }
 
 }
