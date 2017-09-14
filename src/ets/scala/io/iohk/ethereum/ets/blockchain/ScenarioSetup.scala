@@ -110,10 +110,9 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
   // https://iohk.myjetbrains.com/youtrack/issue/EC-303
   @tailrec
   final def processBlocks(blocks: Seq[Block],
-                          newBlocks: Seq[NewBlock] = Nil,
-                          errors: Seq[BlockExecutionError] = Nil): (Seq[NewBlock], Seq[BlockExecutionError]) = blocks match {
+                          errors: Seq[BlockExecutionError] = Nil): Seq[BlockExecutionError] = blocks match {
     case Nil =>
-      newBlocks -> errors
+      errors
 
     case Seq(block, otherBlocks@_*) =>
       val blockExecResult = ledger.executeBlock(block, validators)
@@ -121,9 +120,9 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
         case Right(_) =>
           blockchain.save(block)
           storagesInstance.storages.appStateStorage.putBestBlockNumber(block.header.number)
-          processBlocks(otherBlocks, newBlocks :+ NewBlock(block, block.header.difficulty))
+          processBlocks(otherBlocks, errors)
         case Left(error) =>
-          processBlocks(otherBlocks, newBlocks, errors :+ error)
+          processBlocks(otherBlocks, errors :+ error)
       }
   }
 

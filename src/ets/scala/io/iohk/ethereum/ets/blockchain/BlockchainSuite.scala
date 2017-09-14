@@ -21,13 +21,15 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
     "bcMultiChainTest/ChainAtoChainB_blockorder1" -> Set.empty,
     "bcMultiChainTest/ChainAtoChainB_blockorder2" -> Set.empty,
     "bcMultiChainTest/ChainAtoChainBtoChainA" -> Set.empty,
+    "bcMultiChainTest/UncleFromSideChain" -> Set.empty,
     "bcTotalDifficultyTest/lotsOfBranches" -> Set.empty,
     "bcTotalDifficultyTest/lotsOfBranchesOverrideAtTheMiddle"  -> Set.empty,
     "bcTotalDifficultyTest/lotsOfLeafs"  -> Set.empty,
     "bcTotalDifficultyTest/sideChainWithMoreTransactions" -> Set.empty,
     "bcTotalDifficultyTest/uncleBlockAtBlock3afterBlock4" -> Set.empty,
     "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain"  -> Set.empty,
-    "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain2"  -> Set.empty
+    "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain2"  -> Set.empty,
+    "TransitionTests/bcFrontierToHomestead/HomesteadOverrideFrontier" -> Set.empty
   )
 
   override def run(testName: Option[String], args: Args): Status = {
@@ -65,7 +67,7 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
   private def runScenario(scenario: BlockchainScenario, setup: ScenarioSetup): Unit = {
     import setup._
 
-    val genesisBlock = loadGenesis()
+    loadGenesis()
 
     loadInitialWorld()
 
@@ -73,12 +75,14 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
 
     val invalidBlocks = getBlocks(getInvalid)
 
-    val newBlocks: (Seq[NewBlock], Seq[BlockExecutionError]) = processBlocks(blocksToProcess)
+    val newBlocksErrors: Seq[BlockExecutionError] = processBlocks(blocksToProcess)
 
     // If there is more block execution errors than expected invalidblocks, it means we rejected block which should
     // pass validations, and the final state will not be correct
-    if(newBlocks._2.size > invalidBlocks.size)
-      newBlocks._2.foreach(err => log.info(err.toString))
+    if(newBlocksErrors.size > invalidBlocks.size)
+      newBlocksErrors.foreach(err => log.info(err.toString))
+
+    newBlocksErrors.size shouldEqual invalidBlocks.size
 
     val lastBlock = getBestBlock()
 
