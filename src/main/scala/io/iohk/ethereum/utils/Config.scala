@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
+import io.iohk.ethereum.daoFork.{DaoForkConfig, DefaultDaoForkConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
 import io.iohk.ethereum.domain.{Address, UInt256}
@@ -253,9 +254,8 @@ trait BlockchainConfig {
 
   val customGenesisFileOpt: Option[String]
 
-  val proDaoFork: Boolean
-  val daoForkBlockNumber: BigInt
-  val daoForkBlockHash: ByteString
+  val daoForkConfig: DaoForkConfig
+
   val accountStartNonce: UInt256
 
   val chainId: Byte
@@ -278,9 +278,10 @@ object BlockchainConfig {
 
       override val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
 
-      override val proDaoFork: Boolean = blockchainConfig.getBoolean("pro-dao-fork")
-      override val daoForkBlockNumber: BigInt = BigInt(blockchainConfig.getString("dao-fork-block-number"))
-      override val daoForkBlockHash: ByteString = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
+      val proDaoFork: Boolean = blockchainConfig.getBoolean("pro-dao-fork")
+      val daoForkBlockNumber: BigInt = BigInt(blockchainConfig.getString("dao-fork-block-number"))
+      val daoForkBlockHash: ByteString = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
+      override val daoForkConfig = DefaultDaoForkConfig(proDaoFork, daoForkBlockNumber, daoForkBlockHash)
       override val accountStartNonce: UInt256 = UInt256(BigInt(blockchainConfig.getString("account-start-nonce")))
 
       override val chainId: Byte = {

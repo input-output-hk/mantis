@@ -20,7 +20,7 @@ import io.iohk.ethereum.validators.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.daoFork.DaoForkConfiguration
+import io.iohk.ethereum.daoFork.DaoForkConfig
 
 class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig, miningConfig: MiningConfig,
   ledger: Ledger, validators: Validators, blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider) {
@@ -90,8 +90,7 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
   }
 
   private def prepareHeader(blockNumber: BigInt, ommers: Seq[BlockHeader], beneficiary: Address, parent: Block, blockTimestamp: Long) = {
-    val inInRange = blockchainConfig.daoForkBlockNumber <= blockNumber &&
-      blockchainConfig.daoForkBlockNumber + DaoForkConfiguration.range > blockNumber
+    import blockchainConfig.daoForkConfig
 
     BlockHeader(
       parentHash = parent.header.hash,
@@ -107,7 +106,7 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
       gasLimit = calculateGasLimit(parent.header.gasLimit),
       gasUsed = 0,
       unixTimestamp = blockTimestamp,
-      extraData = if (inInRange && blockchainConfig.proDaoFork) DaoForkConfiguration.blockExtraData else miningConfig.headerExtraData,
+      extraData = if (daoForkConfig requiresExtraData blockNumber) daoForkConfig.blockExtraData else miningConfig.headerExtraData,
       mixHash = ByteString.empty,
       nonce = ByteString.empty
     )

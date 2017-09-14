@@ -1,6 +1,7 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
+import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
@@ -76,8 +77,12 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
 
+    val inputWorld =
+      if(blockchainConfig.daoForkConfig isDaoForkBlock block.header.number) applyDaoFork(initialWorld, blockchainConfig.daoForkConfig)
+      else initialWorld
+
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
-    val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, signedTransactionValidator)
+    val blockTxsExecResult = executeTransactions(block.body.transactionList, inputWorld, block.header, signedTransactionValidator)
     blockTxsExecResult match {
       case Right(_) => log.debug(s"All txs from block ${block.header.hashAsHexString} were executed successfully")
       case Left(error) => log.debug(s"Not all txs from block ${block.header.hashAsHexString} were executed correctly, due to ${error.reason}")
@@ -370,6 +375,21 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     */
   private[ledger] def deleteAccounts(addressesToDelete: Set[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => world.deleteAccount(address) }
+
+  /**
+    * This function updates worldState transfering balance from drainList accounts to refundContract address
+    *
+    * @param worldState Initial world state
+    * @param daoForkConfig Dao fork configuration with drainList and refundContract config
+    * @return Updated world state proxy
+    */
+  private def applyDaoFork(worldState: InMemoryWorldStateProxy, daoForkConfig: DaoForkConfig): InMemoryWorldStateProxy = {
+    daoForkConfig.drainList.foldLeft(worldState) { (ws, address) =>
+      ws.getAccount(address)
+        .map(acc => ws.transfer(from = address, to = daoForkConfig.refundContract, acc.balance))
+        .getOrElse(ws)
+    }
+  }
 
 }
 

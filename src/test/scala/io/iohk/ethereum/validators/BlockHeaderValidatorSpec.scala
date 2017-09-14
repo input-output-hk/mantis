@@ -3,6 +3,7 @@ package io.iohk.ethereum.validators
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.daoFork.{DaoForkConfig, DefaultDaoForkConfig}
 import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}
 import io.iohk.ethereum.validators.BlockHeaderError._
@@ -24,16 +25,18 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     override val difficultyBombContinueBlockNumber: BigInt = 5000000
 
     // unused
-    override val daoForkBlockNumber: BigInt = Long.MaxValue
     override val eip155BlockNumber: BigInt = Long.MaxValue
     override val eip160BlockNumber: BigInt = Long.MaxValue
     override val eip150BlockNumber: BigInt = Long.MaxValue
     override val chainId: Byte = 0x3d.toByte
-    override val daoForkBlockHash: ByteString = ByteString("unused")
     override val monetaryPolicyConfig: MonetaryPolicyConfig = null
     override val customGenesisFileOpt: Option[String] = None
     override val accountStartNonce: UInt256 = UInt256.Zero
-    override val proDaoFork: Boolean = false
+    override val daoForkConfig: DaoForkConfig = DefaultDaoForkConfig(
+      daoForkBlockNumber = Long.MaxValue,
+      daoForkBlockHash = ByteString("unused"),
+      proDaoFork = false
+    )
   }
 
   val blockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)

@@ -71,7 +71,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     lazy val forkResolverOpt =
       if (blockchainConfig.customGenesisFileOpt.isDefined) None
-      else Some(new ForkResolver.EtcForkResolver(blockchainConfig))
+      else Some(new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig))
 
     private val handshakerConfiguration: EtcHandshakerConfiguration =
       new EtcHandshakerConfiguration {

@@ -4,11 +4,28 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import org.spongycastle.util.encoders.Hex
 
-object DaoForkConfiguration {
-  val blockExtraData = ByteString(Hex.decode("64616f2d686172642d666f726b"))
-  val range = 10
-  val refundContract = Address(Hex.decode("bf4ed7b27f1d666546e30d74d50d173d20bca754"))
-  val drainList = Seq(
+trait DaoForkConfig {
+
+  val proDaoFork: Boolean
+  val daoForkBlockNumber: BigInt
+  val daoForkBlockHash: ByteString
+  val blockExtraData: ByteString
+  val range: Int
+  val refundContract: Address
+  val drainList: Seq[Address]
+
+  private val extratadaBlockRange = daoForkBlockNumber to (daoForkBlockNumber + range)
+
+  def isDaoForkBlock(blockNumber: BigInt): Boolean = proDaoFork && (daoForkBlockNumber == blockNumber)
+
+  def requiresExtraData(blockNumber: BigInt): Boolean = proDaoFork && (extratadaBlockRange contains blockNumber)
+}
+
+case class DefaultDaoForkConfig(proDaoFork: Boolean, daoForkBlockNumber: BigInt, daoForkBlockHash: ByteString) extends DaoForkConfig {
+  override val blockExtraData = ByteString(Hex.decode("64616f2d686172642d666f726b"))
+  override val range = 10
+  override val refundContract = Address(Hex.decode("bf4ed7b27f1d666546e30d74d50d173d20bca754"))
+  override val drainList = Seq(
     Address(Hex.decode("d4fe7bc31cedb7bfb8a345f31e668033056b2728")),
     Address(Hex.decode("b3fb0e5aba0e20e5c49d252dfd30e102b171a425")),
     Address(Hex.decode("2c19c7f9ae8b751e37aeb2d93a699722395ae18f")),

@@ -5,6 +5,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.generateKeyPair
+import io.iohk.ethereum.daoFork.{DaoForkConfig, DefaultDaoForkConfig}
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
@@ -145,9 +146,6 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     }
 
     val blockchainConfig = new BlockchainConfig {
-      override val daoForkBlockHash: ByteString = forkBlockHeader.hash
-      override val daoForkBlockNumber: BigInt = forkBlockHeader.number
-
       //unused
       override val frontierBlockNumber: BigInt = 0
       override val homesteadBlockNumber: BigInt = 0
@@ -160,11 +158,15 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val chainId: Byte = 0.toByte
       override val monetaryPolicyConfig: MonetaryPolicyConfig = null
       override val accountStartNonce: UInt256 = UInt256.Zero
-      override val proDaoFork: Boolean = false
+      override val daoForkConfig: DaoForkConfig = DefaultDaoForkConfig(
+        daoForkBlockNumber = forkBlockHeader.number,
+        daoForkBlockHash = forkBlockHeader.hash,
+        proDaoFork = false
+      )
     }
 
     val etcHandshakerConfigurationWithResolver = new MockEtcHandshakerConfiguration {
-      override val forkResolverOpt: Option[ForkResolver] = Some(new ForkResolver.EtcForkResolver(blockchainConfig))
+      override val forkResolverOpt: Option[ForkResolver] = Some(new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig))
     }
 
     val initHandshakerWithoutResolver = EtcHandshaker(new MockEtcHandshakerConfiguration)

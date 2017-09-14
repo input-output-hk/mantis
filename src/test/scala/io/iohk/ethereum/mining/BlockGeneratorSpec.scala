@@ -6,7 +6,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.{Timeouts, crypto}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, LedgerImpl}
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger, MiningConfig, MonetaryPolicyConfig}
@@ -16,16 +15,13 @@ import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.daoFork.DaoForkConfiguration
+import io.iohk.ethereum.daoFork.{DaoForkConfig, DefaultDaoForkConfig}
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.utils.Config.DbConfig
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
 
 class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with Logger {
 
@@ -115,12 +111,14 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
 
       // unused
-      override val daoForkBlockNumber: BigInt = Long.MaxValue
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
-      override val daoForkBlockHash: ByteString = ByteString("unused")
       override val accountStartNonce: UInt256 = UInt256.Zero
-      override val proDaoFork: Boolean = false
+      override val daoForkConfig: DaoForkConfig = DefaultDaoForkConfig(
+        daoForkBlockNumber = Long.MaxValue,
+        daoForkBlockHash = ByteString("unused"),
+        proDaoFork = false
+      )
     }
 
     val generalTx = SignedTransaction.sign(transaction, keyPair, None)
@@ -270,12 +268,10 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
 
       // unused
-      override val daoForkBlockNumber: BigInt = Long.MaxValue
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
-      override val daoForkBlockHash: ByteString = ByteString("unused")
       override val accountStartNonce: UInt256 = UInt256.Zero
-      override val proDaoFork: Boolean = false
+      override val daoForkConfig: DaoForkConfig = DefaultDaoForkConfig(daoForkBlockNumber = Long.MaxValue, daoForkBlockHash = ByteString("unused"), proDaoFork = false)
     }
     lazy val ledger = new LedgerImpl(VM, blockchain, blockchainConfig)
 

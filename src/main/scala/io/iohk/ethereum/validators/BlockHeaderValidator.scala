@@ -2,7 +2,7 @@ package io.iohk.ethereum.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.{kec256, kec512}
-import io.iohk.ethereum.daoFork.DaoForkConfiguration
+import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, DifficultyCalculator}
 import io.iohk.ethereum.utils.BlockchainConfig
 
@@ -60,11 +60,12 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     */
   private def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] =
     if (blockHeader.extraData.length <= MaxExtraDataSize) {
-      val inInRange = blockchainConfig.daoForkBlockNumber <= blockHeader.number &&
-        blockchainConfig.daoForkBlockNumber + DaoForkConfiguration.range > blockHeader.number
-      val daoForkData = blockHeader.extraData == DaoForkConfiguration.blockExtraData
+      import blockchainConfig._
 
-      (inInRange, daoForkData, blockchainConfig.proDaoFork) match {
+      val inInRange = daoForkConfig requiresExtraData blockHeader.number
+      val daoForkData = blockHeader.extraData == daoForkConfig.blockExtraData
+
+      (inInRange, daoForkData, daoForkConfig.proDaoFork) match {
         case (false, _, _) | (true, true, true) | (true, false, false) =>
           Right(blockHeader)
         case _ =>
