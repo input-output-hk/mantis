@@ -8,7 +8,7 @@ import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
@@ -76,8 +76,10 @@ object Config {
       override val updateNodesInterval: FiniteDuration = peerConfig.getDuration("update-nodes-interval").toMillis.millis
     }
 
-    object Rpc extends JsonRpcHttpServerConfig with JsonRpcConfig {
+    object Rpc extends JsonRpcServerConfig with JsonRpcConfig {
       private val rpcConfig = networkConfig.getConfig("rpc")
+
+      val mode = rpcConfig.getString("mode")
 
       val enabled = rpcConfig.getBoolean("enabled")
       val interface = rpcConfig.getString("interface")
@@ -89,6 +91,9 @@ object Config {
         require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
         providedApis
       }
+
+      val certificateKeyStorePath: Option[String] = Try(rpcConfig.getString("certificate-keystore-path")).toOption
+      val certificatePasswordFile: Option[String] = Try(rpcConfig.getString("certificate-password-file")).toOption
 
     }
 
