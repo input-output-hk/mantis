@@ -121,6 +121,7 @@ class GenesisDataLoader(
         blockchain.save(Block(header, BlockBody(Nil, Nil)))
         blockchain.save(header.hash, Nil)
         blockchain.save(header.hash, header.difficulty)
+        blockchain.saveBlockNumber(0, header.hash)
         Success(())
     }
   }

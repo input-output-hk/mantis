@@ -15,26 +15,122 @@ import scala.annotation.tailrec
 
 trait Ledger {
 
-  def executeBlock(block: Block, validators: Validators): Either[BlockExecutionError, Seq[Receipt]]
+  def executeBlock(block: Block): Either[BlockExecutionError, Seq[Receipt]]
 
-  def prepareBlock(block: Block, validators: Validators): BlockPreparationResult
+  def prepareBlock(block: Block): BlockPreparationResult
 
   def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader): TxResult
+
+  def importBlock(block: Block): BlockImportResult
+
+  def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
 }
 
 //FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
-class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig) extends Ledger with Logger {
+class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig, validators: Validators) extends Ledger with Logger {
 
   val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
 
-  def executeBlock(
-    block: Block,
-    validators: Validators): Either[BlockExecutionError, Seq[Receipt]] = {
+  def importBlock(block: Block): BlockImportResult = {
+    // TODO: ignore blocks that are too far behind the head
+    if (blockchain.getBlockByHash(block.header.hash).isDefined)
+      ImportFailedBlockExists
+
+    else
+      blockchain.getBlockByHash(block.header.parentHash) match {
+        case None =>
+          ImportFailedMissingParent
+
+        case Some(parent) =>
+          executeBlock(block) match {
+            case Right(receipts) =>
+              val newTd = blockchain.getTotalDifficultyByHash(parent.header.hash).getOrElse(BigInt(0)) +
+                parent.header.difficulty
+
+              blockchain.save(block)
+              blockchain.save(block.header.hash, receipts)
+              blockchain.save(block.header.hash, newTd)
+
+              val isTop = isTopOfChain(block, newTd)
+              if (isTop) {
+                saveBranchNumbers(block.header)
+                blockchain.saveBestBlockNumber(block.header.number)
+              }
+
+              BlockImported(receipts, newTd, isTop)
+
+            case Left(error) =>
+              ImportFailedExecError(error)
+          }
+      }
+  }
+
+  private def isTopOfChain(block: Block, td: BigInt): Boolean = {
+    val bestBlock = blockchain.getBlockByNumber(blockchain.getBestBlockNumber()).get // TODO: safe?
+    val isChild = bestBlock.header.hash == block.header.parentHash
+    lazy val isHigherTd = td > blockchain.getTotalDifficultyByHash(bestBlock.header.hash).getOrElse(0)
+
+    isChild || isHigherTd
+  }
+
+  private def saveBranchNumbers(topHeader: BlockHeader): Unit = {
+    blockchain.saveBlockNumber(topHeader.number, topHeader.hash)
+
+    // we only save bock numbers for blocks at the top of the chain so both parents are guaranteed to exist
+    val parentByHash = blockchain.getBlockHeaderByHash(topHeader.parentHash).get
+    val parentByNumber = blockchain.getBlockHeaderByNumber(topHeader.number - 1).get
+
+    if (parentByNumber.hash != parentByHash.hash) {
+      saveBranchNumbers(parentByHash)
+    }
+  }
+
+  def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = {
+    if (!checkHeadersChain(headers))
+      InvalidBranch
+    else {
+      val parentByNumber = blockchain.getBlockHeaderByNumber(headers.head.number - 1)
+
+      parentByNumber match {
+        case None =>
+          UnknownBranch
+
+        case Some(parent) =>
+          // find blocks with same numbers in the current chain
+          val oldBranch = getOldBlocks(headers)
+          val currentBranchTotalDifficulty = oldBranch.map(_.header.difficulty).sum
+          val newBranchTotalDifficulty = headers.map(_.difficulty).sum
+
+          if (currentBranchTotalDifficulty < newBranchTotalDifficulty)
+            NewBranch(oldBranch)
+          else
+            OldBranch
+      }
+    }
+  }
+
+  private def checkHeadersChain(headers: Seq[BlockHeader]): Boolean =
+    if (headers.length > 1)
+      headers.zip(headers.tail).forall {
+        case (parent, child) =>
+          parent.hash == child.parentHash && parent.number + 1 == child.number
+      }
+    else
+      true
+
+  private def getOldBlocks(headers: Seq[BlockHeader]): List[Block] = headers match {
+    case Seq(h, tail @ _*) =>
+      blockchain.getBlockByNumber(h.number).map(_ :: getOldBlocks(tail)).getOrElse(Nil)
+    case Seq() =>
+      Nil
+  }
+
+  def executeBlock(block: Block): Either[BlockExecutionError, Seq[Receipt]] = {
 
     val blockExecResult = for {
       _ <- validateBlockBeforeExecution(block, validators)
 
-      execResult <- executeBlockTransactions(block, validators.signedTransactionValidator)
+      execResult <- executeBlockTransactions(block)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
       worldToPersist = payBlockReward(block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
@@ -47,13 +143,11 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     blockExecResult
   }
 
-  def prepareBlock(
-    block: Block,
-    validators: Validators): BlockPreparationResult = {
+  def prepareBlock(block: Block): BlockPreparationResult = {
 
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, parentStateRoot)
-    val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header, validators.signedTransactionValidator)
+    val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header)
 
     prepared match {
       case (execResult@BlockResult(resultingWorldStateProxy, _, _), txExecuted) =>
@@ -67,17 +161,14 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     * This function runs transaction
     *
     * @param block
-    * @param signedTransactionValidator
     */
-  private[ledger] def executeBlockTransactions(
-    block: Block,
-    signedTransactionValidator: SignedTransactionValidator):
+  private[ledger] def executeBlockTransactions(block: Block):
   Either[BlockExecutionError, BlockResult] = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
 
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
-    val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, signedTransactionValidator)
+    val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header)
     blockTxsExecResult match {
       case Right(_) => log.debug(s"All txs from block ${block.header.hashAsHexString} were executed successfully")
       case Left(error) => log.debug(s"Not all txs from block ${block.header.hashAsHexString} were executed correctly, due to ${error.reason}")
@@ -88,17 +179,17 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
   @tailrec
   private[ledger] final def executePreparedTransactions(
     signedTransactions: Seq[SignedTransaction], world: InMemoryWorldStateProxy,
-    blockHeader: BlockHeader, signedTransactionValidator: SignedTransactionValidator,
-    acumGas: BigInt = 0, acumReceipts: Seq[Receipt] = Nil, executed: Seq[SignedTransaction] = Nil): (BlockResult, Seq[SignedTransaction]) = {
+    blockHeader: BlockHeader, acumGas: BigInt = 0, acumReceipts: Seq[Receipt] = Nil,
+    executed: Seq[SignedTransaction] = Nil): (BlockResult, Seq[SignedTransaction]) = {
 
-    val result = executeTransactions(signedTransactions, world, blockHeader, signedTransactionValidator, acumGas, acumReceipts)
+    val result = executeTransactions(signedTransactions, world, blockHeader, acumGas, acumReceipts)
 
     result match {
       case Left(TxsExecutionError(stx, StateBeforeFailure(worldState, gas, receipts), reason)) =>
         log.debug(s"failure while preparing block because of $reason in transaction with hash ${stx.hashAsHexString}")
         val txIndex = signedTransactions.indexWhere(tx => tx.hash == stx.hash)
         executePreparedTransactions(signedTransactions.drop(txIndex + 1),
-          worldState, blockHeader, signedTransactionValidator, gas, receipts, executed ++ signedTransactions.take(txIndex))
+          worldState, blockHeader, gas, receipts, executed ++ signedTransactions.take(txIndex))
       case Right(br) => (br, executed ++ signedTransactions)
     }
   }
@@ -109,7 +200,6 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     * @param signedTransactions from the block that are left to execute
     * @param world that will be updated by the execution of the signedTransactions
     * @param blockHeader of the block we are currently executing
-    * @param signedTransactionValidator used to validate the signed transactions
     * @param acumGas, accumulated gas of the previoulsy executed transactions of the same block
     * @param acumReceipts, accumulated receipts of the previoulsy executed transactions of the same block
     * @return a BlockResult if the execution of all the transactions in the block was successful or a BlockExecutionError
@@ -117,8 +207,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     */
   @tailrec
   private[ledger] final def executeTransactions(signedTransactions: Seq[SignedTransaction], world: InMemoryWorldStateProxy,
-    blockHeader: BlockHeader, signedTransactionValidator: SignedTransactionValidator,
-    acumGas: BigInt = 0, acumReceipts: Seq[Receipt] = Nil): Either[TxsExecutionError, BlockResult] =
+    blockHeader: BlockHeader, acumGas: BigInt = 0, acumReceipts: Seq[Receipt] = Nil): Either[TxsExecutionError, BlockResult] =
   signedTransactions match {
     case Nil =>
       Right(BlockResult(worldState = world, gasUsed = acumGas, receipts = acumReceipts))
@@ -129,7 +218,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
           (Account.empty(blockchainConfig.accountStartNonce), world.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce)))
         )
       val upfrontCost = calculateUpfrontCost(stx.tx)
-      val validatedStx = signedTransactionValidator.validate(stx, senderAccount, blockHeader, upfrontCost, acumGas)
+      val validatedStx = validators.signedTransactionValidator.validate(stx, senderAccount, blockHeader, upfrontCost, acumGas)
 
       validatedStx match {
         case Right(_) =>
@@ -144,7 +233,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
 
           log.debug(s"Receipt generated for tx ${stx.hashAsHexString}, $receipt")
 
-          executeTransactions(otherStxs, newWorld, blockHeader, signedTransactionValidator, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
+          executeTransactions(otherStxs, newWorld, blockHeader, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
         case Left(error) => Left(TxsExecutionError(stx, StateBeforeFailure(world, acumGas, acumReceipts), error.toString))
       }
   }
@@ -392,6 +481,19 @@ object BlockExecutionError {
   case class TxsExecutionError(stx: SignedTransaction, stateBeforeError: StateBeforeFailure, reason: String) extends BlockExecutionError
   case class ValidationAfterExecError(reason: String) extends BlockExecutionError
 }
+
+sealed trait BlockImportResult
+sealed trait BlockImportFailure extends BlockImportResult
+case class BlockImported(receipts: Seq[Receipt], td: BigInt, topOfChain: Boolean) extends BlockImportResult
+case class ImportFailedExecError(error: BlockExecutionError) extends BlockImportFailure
+case object ImportFailedMissingParent extends BlockImportFailure
+case object ImportFailedBlockExists extends BlockImportFailure
+
+sealed trait BranchResolutionResult
+case class  NewBranch(oldBranch: Seq[Block]) extends BranchResolutionResult
+case object OldBranch extends BranchResolutionResult
+case object UnknownBranch extends BranchResolutionResult
+case object InvalidBranch extends BranchResolutionResult
 
 
 trait BlockPreparationError

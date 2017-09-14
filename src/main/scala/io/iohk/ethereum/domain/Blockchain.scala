@@ -111,6 +111,8 @@ trait Blockchain {
 
   def getTransactionLocation(txHash: ByteString): Option[TransactionLocation]
 
+  def getBestBlockNumber(): BigInt
+
   /**
     * Persists a block in the underlying Blockchain Database
     *
@@ -140,6 +142,10 @@ trait Blockchain {
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
 
+  def saveBlockNumber(number: BigInt, hash: ByteString): Unit
+
+  def saveBestBlockNumber(number: BigInt): Unit
+
   /**
     * Returns a block hash given a block number
     *
@@ -158,15 +164,16 @@ trait Blockchain {
 }
 
 class BlockchainImpl(
-                      protected val blockHeadersStorage: BlockHeadersStorage,
-                      protected val blockBodiesStorage: BlockBodiesStorage,
-                      protected val blockNumberMappingStorage: BlockNumberMappingStorage,
-                      protected val receiptStorage: ReceiptStorage,
-                      protected val evmCodeStorage: EvmCodeStorage,
-                      protected val nodesKeyValueStorageFor: Option[BigInt] => NodesKeyValueStorage,
-                      protected val totalDifficultyStorage: TotalDifficultyStorage,
-                      protected val transactionMappingStorage: TransactionMappingStorage
-                    ) extends Blockchain {
+    protected val blockHeadersStorage: BlockHeadersStorage,
+    protected val blockBodiesStorage: BlockBodiesStorage,
+    protected val blockNumberMappingStorage: BlockNumberMappingStorage,
+    protected val receiptStorage: ReceiptStorage,
+    protected val evmCodeStorage: EvmCodeStorage,
+    protected val nodesKeyValueStorageFor: Option[BigInt] => NodesKeyValueStorage,
+    protected val totalDifficultyStorage: TotalDifficultyStorage,
+    protected val transactionMappingStorage: TransactionMappingStorage,
+    protected val appStateStorage: AppStateStorage
+) extends Blockchain {
 
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
     blockHeadersStorage.get(hash)
@@ -179,6 +186,10 @@ class BlockchainImpl(
   override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = evmCodeStorage.get(hash)
 
   override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = totalDifficultyStorage.get(blockhash)
+
+  override def getBestBlockNumber(): BigInt =
+    appStateStorage.getBestBlockNumber()
+
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
     getBlockHeaderByNumber(blockNumber).flatMap { bh =>
@@ -199,7 +210,6 @@ class BlockchainImpl(
   override def save(blockHeader: BlockHeader): Unit = {
     val hash = blockHeader.hash
     blockHeadersStorage.put(hash, blockHeader)
-    saveBlockNumberMapping(blockHeader.number, hash)
   }
 
   override def getMptNodeByHash(hash: ByteString): Option[MptNode] = nodesKeyValueStorageFor(None).get(hash).map(_.toMptNode)
@@ -223,7 +233,11 @@ class BlockchainImpl(
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     blockNumberMappingStorage.get(number)
 
-  private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit = blockNumberMappingStorage.put(number, hash)
+  override def saveBlockNumber(number: BigInt, hash: ByteString): Unit =
+    blockNumberMappingStorage.put(number, hash)
+
+  override def saveBestBlockNumber(number: BigInt): Unit =
+    appStateStorage.putBestBlockNumber(number)
 
   override def removeBlock(blockHash: ByteString): Unit = {
     val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
@@ -275,6 +289,7 @@ trait BlockchainStorages {
   val transactionMappingStorage: TransactionMappingStorage
   val nodeStorage: NodeStorage
   val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage
+  val appStateStorage: AppStateStorage
 }
 
 object BlockchainImpl {
@@ -287,6 +302,7 @@ object BlockchainImpl {
       evmCodeStorage = storages.evmCodeStorage,
       nodesKeyValueStorageFor = storages.nodesKeyValueStorageFor,
       totalDifficultyStorage = storages.totalDifficultyStorage,
-      transactionMappingStorage = storages.transactionMappingStorage
+      transactionMappingStorage = storages.transactionMappingStorage,
+      appStateStorage = storages.appStateStorage
     )
 }
