@@ -62,11 +62,11 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     if (blockHeader.extraData.length <= MaxExtraDataSize) {
       import blockchainConfig._
 
-      val inInRange = daoForkConfig requiresExtraData blockHeader.number
-      val daoForkData = blockHeader.extraData == daoForkConfig.blockExtraData
+      val requiresExtraData = daoForkConfig requiresExtraData blockHeader.number
+      val isDaoForkData = blockHeader.extraData == daoForkConfig.blockExtraData
 
-      (inInRange, daoForkData, daoForkConfig.proDaoFork) match {
-        case (false, _, _) | (true, true, true) | (true, false, false) =>
+      (requiresExtraData, isDaoForkData) match {
+        case (false, _) | (true, true) =>
           Right(blockHeader)
         case _ =>
           Left(DaoHeaderExtraDataError)

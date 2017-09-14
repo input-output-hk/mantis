@@ -230,6 +230,58 @@ object Fixtures {
       override val size: Long = 978L
     }
 
+    object ProDaoForkBlock extends FixtureBlock {
+      override val header: BlockHeader = BlockHeader(
+        parentHash = ByteString(Hex.decode("a218e2c611f21232d857e3c8cecdcdf1f65f25a4477f98f6f47e4063807f2308")),
+        ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
+        beneficiary = ByteString(Hex.decode("bcdfc35b86bedf72f0cda046a3c16829a2ef41d1 ")),
+        stateRoot = ByteString(Hex.decode("c5e389416116e3696cce82ec4533cce33efccb24ce245ae9546a4b8f0d5e9a75")),
+        transactionsRoot = ByteString(Hex.decode("7701df8e07169452554d14aadd7bfa256d4a1d0355c1d174ab373e3e2d0a3743")),
+        receiptsRoot = ByteString(Hex.decode("26cf9d9422e9dd95aedc7914db690b92bab6902f5221d62694a2fa5d065f534b")),
+        logsBloom = ByteString(Hex.decode("0" * 512)),
+        difficulty = BigInt("62413376722602"),
+        number = 1920000,
+        gasLimit = 4712384,
+        gasUsed = 84000,
+        unixTimestamp = 1469020840,
+        extraData = ByteString(Hex.decode("64616f2d686172642d666f726b")),
+        mixHash = ByteString(Hex.decode("5b5acbf4bf305f948bd7be176047b20623e1417f75597341a059729165b92397")),
+        nonce = ByteString(Hex.decode("bede87201de42426"))
+      )
+      override lazy val body: BlockBody = ???
+
+      override val transactionHashes: Seq[ByteString] = Seq(
+        ByteString(Hex.decode("4677a93807b73a0875d3a292eacb450d0af0d6f0eec6f283f8ad927ec539a17b")),
+        ByteString(Hex.decode("6f75b64d9364b71b43cde81a889f95df72e6be004b28477f9083ed0ee471a7f9")),
+        ByteString(Hex.decode("50d8156ee48d01b56cb17b6cb2ac8f29e1bf565be0e604b2d8ffb2fb50a0f611")),
+        ByteString(Hex.decode("2a5177e6d6cea40594c7d4b0115dcd087443be3ec2fa81db3c21946a5e51cea9"))
+      )
+      override val size: Long = 976
+    }
+
+    object DaoParentBlock extends FixtureBlock {
+      override val header: BlockHeader = BlockHeader(
+        parentHash = ByteString(Hex.decode("505ffd21f4cbf2c5c34fa84cd8c92525f3a719b7ad18852bffddad601035f5f4")),
+        ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
+        beneficiary = ByteString(Hex.decode("2a65aca4d5fc5b5c859090a6c34d164135398226")),
+        stateRoot = ByteString(Hex.decode("fdf2fc04580b95ca15defc639080b902e93892dcce288be0c1f7a7bbc778248b")),
+        transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+        receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+        logsBloom = ByteString(Hex.decode("00" * 256)),
+        difficulty = BigInt("62382916183238"),
+        number = 1919999,
+        gasLimit = 4707788,
+        gasUsed = 0,
+        unixTimestamp = 1469020838,
+        extraData = ByteString(Hex.decode("4477617266506f6f6c")),
+        mixHash = ByteString(Hex.decode("7f9ac1ddeafff0f926ed9887b8cf7d50c3f919d902e618b957022c46c8b404a6")),
+        nonce = ByteString(Hex.decode("60832709c8979daa"))
+      )
+      override lazy val body: BlockBody = ???
+      override lazy val transactionHashes: Seq[ByteString] = ???
+      override lazy val size: Long = ???
+    }
+
   }
 
 }

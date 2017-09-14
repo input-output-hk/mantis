@@ -14,7 +14,7 @@ trait DaoForkConfig {
   val refundContract: Address
   val drainList: Seq[Address]
 
-  private val extratadaBlockRange = daoForkBlockNumber to (daoForkBlockNumber + range)
+  private val extratadaBlockRange = daoForkBlockNumber until (daoForkBlockNumber + range)
 
   def isDaoForkBlock(blockNumber: BigInt): Boolean = proDaoFork && (daoForkBlockNumber == blockNumber)
 
@@ -23,7 +23,7 @@ trait DaoForkConfig {
 
 case class DefaultDaoForkConfig(proDaoFork: Boolean, daoForkBlockNumber: BigInt, daoForkBlockHash: ByteString) extends DaoForkConfig {
   override val blockExtraData = ByteString(Hex.decode("64616f2d686172642d666f726b"))
-  override val range = 10
+  override lazy val range = 10
   override val refundContract = Address(Hex.decode("bf4ed7b27f1d666546e30d74d50d173d20bca754"))
   override val drainList = Seq(
     Address(Hex.decode("d4fe7bc31cedb7bfb8a345f31e668033056b2728")),
