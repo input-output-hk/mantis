@@ -79,9 +79,8 @@ object PrecompiledContracts {
     def gas(inputDataSize: UInt256): BigInt =
       3000
 
-    private def hasOnlyLastByteSet(v: ByteString): Boolean = {
+    private def hasOnlyLastByteSet(v: ByteString): Boolean =
       v.dropWhile(_ == 0).size == 1
-    }
   }
 
   object Sha256 extends PrecompiledContract {

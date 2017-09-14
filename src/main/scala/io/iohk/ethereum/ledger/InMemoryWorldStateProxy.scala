@@ -146,11 +146,6 @@ class InMemoryWorldStateProxy private(
 
   override protected def getEmptyAccount: Account = Account.empty(accountStartNonce)
 
-  override def resetAccount(address: Address): InMemoryWorldStateProxy = {
-    val account = getGuaranteedAccount(address).resetAccount(accountStartNonce)
-    saveAccount(address, account)
-  }
-
   override def getGuaranteedAccount(address: Address): Account = super.getGuaranteedAccount(address)
 
   override def saveAccount(address: Address, account: Account): InMemoryWorldStateProxy =

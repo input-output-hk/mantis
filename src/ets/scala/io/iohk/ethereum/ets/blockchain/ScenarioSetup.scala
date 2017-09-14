@@ -110,7 +110,8 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
   // https://iohk.myjetbrains.com/youtrack/issue/EC-303
   @tailrec
   final def processBlocks(blocks: Seq[Block],
-                            newBlocks: Seq[NewBlock] = Nil, errors: Seq[BlockExecutionError] = Nil): (Seq[NewBlock], Seq[BlockExecutionError]) = blocks match {
+                          newBlocks: Seq[NewBlock] = Nil,
+                          errors: Seq[BlockExecutionError] = Nil): (Seq[NewBlock], Seq[BlockExecutionError]) = blocks match {
     case Nil =>
       newBlocks -> errors
 

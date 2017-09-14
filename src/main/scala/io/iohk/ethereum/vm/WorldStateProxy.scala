@@ -20,7 +20,6 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   protected def saveAccount(address: Address, account: Account): WS
   protected def deleteAccount(address: Address): WS
   protected def getEmptyAccount: Account
-  def resetAccount(address: Address): WS
 
   /**
     * In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that
@@ -58,6 +57,15 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     val debited = getGuaranteedAccount(from).increaseBalance(-value)
     val credited = getAccount(to).getOrElse(getEmptyAccount).increaseBalance(value)
     saveAccount(from, debited).saveAccount(to, credited)
+  }
+
+  /**
+    * Method for creating new account and transferring value to it, that handles possible address collisions.
+    */
+  def initialiseAccount(creatorAddress: Address, newAddress: Address, value: UInt256): WS = {
+    val creatorAccount = getGuaranteedAccount(creatorAddress).increaseBalance(-value)
+    val newAccount = getAccount(newAddress).getOrElse(getEmptyAccount).increaseBalance(value).resetAccountPreservingBalance()
+    saveAccount(creatorAddress,creatorAccount).saveAccount(newAddress, newAccount)
   }
 
   /**
