@@ -114,6 +114,10 @@ trait Blockchain {
 
   def getTransactionLocation(txHash: ByteString): Option[TransactionLocation]
 
+  def getBestBlockNumber(): BigInt
+
+  def getBestBlock(): Block
+
   /**
     * Persists a block in the underlying Blockchain Database
     *
@@ -161,15 +165,16 @@ trait Blockchain {
 }
 
 class BlockchainImpl(
-                      protected val blockHeadersStorage: BlockHeadersStorage,
-                      protected val blockBodiesStorage: BlockBodiesStorage,
-                      protected val blockNumberMappingStorage: BlockNumberMappingStorage,
-                      protected val receiptStorage: ReceiptStorage,
-                      protected val evmCodeStorage: EvmCodeStorage,
-                      protected val nodesKeyValueStorageFor: Option[BigInt] => NodesKeyValueStorage,
-                      protected val totalDifficultyStorage: TotalDifficultyStorage,
-                      protected val transactionMappingStorage: TransactionMappingStorage
-                    ) extends Blockchain {
+    protected val blockHeadersStorage: BlockHeadersStorage,
+    protected val blockBodiesStorage: BlockBodiesStorage,
+    protected val blockNumberMappingStorage: BlockNumberMappingStorage,
+    protected val receiptStorage: ReceiptStorage,
+    protected val evmCodeStorage: EvmCodeStorage,
+    protected val nodesKeyValueStorageFor: Option[BigInt] => NodesKeyValueStorage,
+    protected val totalDifficultyStorage: TotalDifficultyStorage,
+    protected val transactionMappingStorage: TransactionMappingStorage,
+    protected val appStateStorage: AppStateStorage
+) extends Blockchain {
 
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
     blockHeadersStorage.get(hash)
@@ -182,6 +187,12 @@ class BlockchainImpl(
   override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = evmCodeStorage.get(hash)
 
   override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = totalDifficultyStorage.get(blockhash)
+
+  override def getBestBlockNumber(): BigInt =
+    appStateStorage.getBestBlockNumber()
+
+  override def getBestBlock(): Block =
+    getBlockByNumber(getBestBlockNumber()).get // TODO: safe?
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
     getBlockHeaderByNumber(blockNumber).flatMap { bh =>
@@ -226,9 +237,15 @@ class BlockchainImpl(
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     blockNumberMappingStorage.get(number)
 
-  private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit = blockNumberMappingStorage.put(number, hash)
+  private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit = {
+    blockNumberMappingStorage.put(number, hash)
+    appStateStorage.putBestBlockNumber(number) // FIXME: mother of consistency?!?!
+  }
 
-  private def removeBlockNumberMapping(number: BigInt): Unit = blockNumberMappingStorage.remove(number)
+  private def removeBlockNumberMapping(number: BigInt): Unit = {
+    blockNumberMappingStorage.remove(number)
+    appStateStorage.putBestBlockNumber(number - 1) // FIXME: mother of consistency?!?!
+  }
 
   override def removeBlock(blockHash: ByteString): Unit = {
     val maybeBlockHeader = getBlockHeaderByHash(blockHash)
@@ -285,6 +302,7 @@ trait BlockchainStorages {
   val transactionMappingStorage: TransactionMappingStorage
   val nodeStorage: NodeStorage
   val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage
+  val appStateStorage: AppStateStorage
 }
 
 object BlockchainImpl {
@@ -297,6 +315,7 @@ object BlockchainImpl {
       evmCodeStorage = storages.evmCodeStorage,
       nodesKeyValueStorageFor = storages.nodesKeyValueStorageFor,
       totalDifficultyStorage = storages.totalDifficultyStorage,
-      transactionMappingStorage = storages.transactionMappingStorage
+      transactionMappingStorage = storages.transactionMappingStorage,
+      appStateStorage = storages.appStateStorage
     )
 }

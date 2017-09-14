@@ -16,7 +16,7 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
 
   val blockchain = mock[BlockchainImpl]
 
-  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig)
+  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig, Mocks.MockValidatorsAlwaysSucceed)
 
   "Reward Calculation" should "pay to the miner if no ommers included" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))

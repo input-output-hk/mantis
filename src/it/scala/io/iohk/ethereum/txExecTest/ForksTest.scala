@@ -47,9 +47,9 @@ class ForksTest extends FlatSpec with Matchers {
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchain = BlockchainImpl(storages)
-      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig)
+      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, validators)
 
-      ledger.executeBlock(fixtures.blockByNumber(blockToExecute), validators) shouldBe noErrors
+      ledger.executeBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }
   }
 

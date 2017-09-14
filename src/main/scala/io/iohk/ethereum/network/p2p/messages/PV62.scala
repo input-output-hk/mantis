@@ -95,6 +95,21 @@ object PV62 {
     }
   }
 
+
+  case class GetBlockHeaders(block: Either[BigInt, ByteString], maxHeaders: BigInt, skip: BigInt, reverse: Boolean) extends Message {
+    override def code: Int = GetBlockHeaders.code
+
+    override def toString: String = {
+      s"""GetBlockHeaders{
+          |block: ${block.fold(a => a, b => Hex.toHexString(b.toArray[Byte]))}
+          |maxHeaders: $maxHeaders
+          |skip: $skip
+          |reverse: $reverse
+          |}
+     """.stripMargin
+    }
+  }
+
   object BlockHeaderImplicits {
     implicit class BlockHeaderEnc(blockHeader: BlockHeader) extends RLPSerializable {
       override def toRLPEncodable: RLPEncodeable = {
@@ -211,20 +226,6 @@ object PV62 {
 
   case class BlockBodies(bodies: Seq[BlockBody]) extends Message {
     val code: Int = BlockBodies.code
-  }
-
-  case class GetBlockHeaders(block: Either[BigInt, ByteString], maxHeaders: BigInt, skip: BigInt, reverse: Boolean) extends Message {
-    override def code: Int = GetBlockHeaders.code
-
-    override def toString: String = {
-      s"""GetBlockHeaders{
-         |block: ${block.fold(a => a, b => Hex.toHexString(b.toArray[Byte]))}
-         |maxHeaders: $maxHeaders
-         |skip: $skip
-         |reverse: $reverse
-         |}
-     """.stripMargin
-    }
   }
 
   object BlockHeaders {

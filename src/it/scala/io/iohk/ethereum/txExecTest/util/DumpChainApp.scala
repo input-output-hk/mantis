@@ -148,4 +148,10 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       accountStartNonce: UInt256,
       stateRootHash: Option[ByteString]
     ): InMemoryWorldStateProxy = ???
+
+    def getBestBlockNumber(): BigInt = ???
+
+    def saveBlockNumber(number: BigInt, hash: NodeHash): Unit = ???
+
+    def saveBestBlockNumber(number: BigInt): Unit = ???
   }
