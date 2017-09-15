@@ -17,6 +17,9 @@ object Assembly {
   }
 
   implicit class ByteAsByteCode(val byte: Byte) extends ByteCode
+
+  def assemblyFromBytes(byteCode: Seq[Byte]): Assembly =
+    Assembly(byteCode.map(b => ByteAsByteCode(b)): _*)
 }
 
 import Assembly._
