@@ -24,6 +24,9 @@ test:
         git submodule update;
         sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*";
       fi
+
+    # As the benchmark tests don't test functionality and should be manually ran, having them compile is enough
+    - sbt benchmark:compile
   post:
     - mkdir -p $CIRCLE_ARTIFACTS/scala-2.12
     - mv target/scala-2.12/coverage-report  $CIRCLE_ARTIFACTS/scala-2.12/coverage-report
