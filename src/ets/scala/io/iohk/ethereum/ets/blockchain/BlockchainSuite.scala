@@ -16,7 +16,6 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
   val ignoredTests: Map[String, Set[String]] = Map(
     "bcForgedTest/bcForkUncle" -> Set("ForkUncle"),
     "bcForkStressTest/ForkStressTest"  -> Set.empty,
-    "bcInvalidHeaderTest/GasLimitHigherThan2p63m1"  -> Set.empty,
     "bcMultiChainTest/CallContractFromNotBestBlock" -> Set.empty,
     "bcMultiChainTest/ChainAtoChainB_blockorder1" -> Set.empty,
     "bcMultiChainTest/ChainAtoChainB_blockorder2" -> Set.empty,
