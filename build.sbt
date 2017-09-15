@@ -6,6 +6,9 @@ val commonSettings = Seq(
   scalaVersion := "2.12.1"
 )
 
+// Temp resolver for LevelDB fork
+resolvers += "stepsoft" at "http://nexus.mcsherrylabs.com/repository/releases/"
+
 val dep = {
   val akkaVersion = "2.4.17"
   val akkaHttpVersion = "10.0.6"
@@ -24,7 +27,8 @@ val dep = {
     "io.suzaku" %% "boopickle" % "1.2.6",
     "org.consensusresearch" %% "scrypto" % "1.2.0-RC3",
     "com.madgag.spongycastle" % "core" % "1.56.0.0",
-    "org.iq80.leveldb" % "leveldb" % "0.9",
+    "org.iq80.leveldb" % "leveldb" % "0.11",
+    "org.iq80.leveldb" % "leveldb-api" % "0.11",
     "org.scorexfoundation" %% "iodb" % "0.3.0",
     "ch.qos.logback" % "logback-classic" % "1.1.9",
     "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
