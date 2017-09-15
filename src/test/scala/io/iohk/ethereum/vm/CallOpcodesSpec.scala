@@ -59,6 +59,10 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       SELFDESTRUCT
     )
 
+    val selfDestructSelfCode = assemblyFromBytes (
+      PUSH32.code +: extAddr.toUInt256.bytes.toSeq :+ SELFDESTRUCT.code
+    )
+
     val sstoreWithClearCode = Assembly(
       //Save a value to the storage
       PUSH1, 10,
@@ -101,6 +105,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     val extProgram = extCode.program
     val invalidProgram = Program(extProgram.code.init :+ INVALID.code)
     val selfDestructProgram = selfDestructCode.program
+    val selfDestructSelfProgram = selfDestructSelfCode.program
     val sstoreWithClearProgram = sstoreWithClearCode.program
 
     val worldWithoutExtAccount = MockWorldState().saveAccount(ownerAddr, initialOwnerAccount)
@@ -111,6 +116,9 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     val worldWithSelfDestructProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
       .saveCode(extAddr, selfDestructProgram.code)
+
+    val worldWithSelfDestructSelfProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
+      .saveCode(extAddr, selfDestructSelfProgram.code)
 
     val worldWithSstoreWithClearProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
       .saveCode(extAddr, sstoreWithClearProgram.code)
@@ -258,6 +266,10 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
+
+      "extend memory" in {
+        UInt256(call.stateOut.memory.size) shouldEqual call.outOffset + call.outSize
+      }
     }
 
     "calling a non-existent account" should {
@@ -330,6 +342,12 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         call.stateOut.gasRefund shouldBe 0
       }
 
+      "destruct ether if own address equals refund address" in {
+        val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructSelfProgram)
+        val call = CallResult(op = CALL, context)
+        call.stateOut.world.getGuaranteedAccount(fxt.extAddr).balance shouldEqual UInt256.Zero
+        call.stateOut.addressesToDelete.contains(fxt.extAddr) shouldBe true
+      }
     }
 
     "calling a program that executes a SSTORE that clears the storage" should {
@@ -349,12 +367,35 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         CallResult(op = CALL, context = context, gas = UInt256.MaxValue / 2)
       }
 
+      def callVarMemCost(config: EvmConfig): CallResult = {
+        val gasFailingBeforeEIP150Fix = 141072
+
+        val context: PC = fxt.context.copy(config = config)
+        CallResult(
+          op = CALL,
+          context = context,
+          inOffset = UInt256.Zero,
+          inSize = fxt.inputData.size,
+          outOffset = fxt.inputData.size,
+          outSize = gasFailingBeforeEIP150Fix
+        )
+      }
+
       "go OOG before EIP-150" in {
         call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
       }
 
       "cap the provided gas after EIP-150" in {
         call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+      }
+
+      "go OOG before EIP-150 becaouse of extensive memory cost" in {
+        callVarMemCost(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+      }
+
+      "cap memory cost post EIP-150" in {
+        val callResult = callVarMemCost(EvmConfig.PostEIP150Config)
+        callResult.stateOut.stack.pop._1 shouldEqual UInt256.One
       }
     }
   }
@@ -463,6 +504,10 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       "consume all call gas" in {
         val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
+      }
+
+      "extend memory" in {
+        UInt256(call.stateOut.memory.size) shouldEqual call.outOffset + call.outSize
       }
     }
 
@@ -630,6 +675,10 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       "consume all call gas" in {
         val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
+      }
+
+      "extend memory" in {
+        UInt256(call.stateOut.memory.size) shouldEqual call.outOffset + call.outSize
       }
     }
 
