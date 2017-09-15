@@ -1109,7 +1109,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
       case EtcPeerManagerActor.GetHandshakedPeers => true
     }
 
-    val ledger: Ledger = new Mocks.MockLedger(blockchain, (block, _, _) => !blocksForWhichLedgerFails.contains(block.header.number))
+    val ledger: Ledger = new Mocks.MockLedger(blockchain, (block, _) => !blocksForWhichLedgerFails.contains(block.header.number))
 
     val peerMessageBus = TestProbe()
     peerMessageBus.ignoreMsg{

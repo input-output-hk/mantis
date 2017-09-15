@@ -6,7 +6,7 @@ import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecu
 import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
-import io.iohk.ethereum.ledger.{BlockExecutionError, BlockPreparationError, InMemoryWorldStateProxy, Ledger}
+import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderNumberError
@@ -17,10 +17,10 @@ import io.iohk.ethereum.vm._
 
 object Mocks {
 
-  class MockLedger(blockchain: BlockchainImpl, shouldExecuteCorrectly: (Block, BlockchainImpl, Validators) => Boolean) extends Ledger{
-    override def executeBlock(block: Block, validators: Validators)
+  class MockLedger(blockchain: BlockchainImpl, shouldExecuteCorrectly: (Block, BlockchainImpl) => Boolean) extends Ledger{
+    override def executeBlock(block: Block)
     : Either[BlockExecutionError, Seq[Receipt]] = {
-      if(shouldExecuteCorrectly(block, blockchain, validators))
+      if(shouldExecuteCorrectly(block, blockchain))
         Right(Nil)
       else
         Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head,
@@ -28,13 +28,17 @@ object Mocks {
           "StubLedger was set to fail for this case"))
     }
 
-    override def prepareBlock(block: Block, validators: Validators): BlockPreparationResult = {
+    override def prepareBlock(block: Block): BlockPreparationResult = {
       ???
     }
 
     override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader): Ledger.TxResult = {
       ???
     }
+
+    def importBlock(block: Block): BlockImportResult = ???
+
+    def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = ???
   }
 
   private val defaultProgramResult: Ledger.PC => Ledger.PR = context => ProgramResult(

@@ -13,7 +13,7 @@ class DeleteAccountsSpec extends FlatSpec with Matchers with MockFactory {
 
   val blockchain = mock[BlockchainImpl]
 
-  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig)
+  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig, Mocks.MockValidatorsAlwaysSucceed)
 
   it should "delete no accounts when none of them should be deleted" in new TestSetup {
     val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteAccounts(Set.empty)(worldState))

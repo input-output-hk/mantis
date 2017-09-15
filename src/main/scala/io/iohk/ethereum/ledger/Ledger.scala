@@ -128,14 +128,14 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
   def executeBlock(block: Block): Either[BlockExecutionError, Seq[Receipt]] = {
 
     val blockExecResult = for {
-      _ <- validateBlockBeforeExecution(block, validators)
+      _ <- validateBlockBeforeExecution(block)
 
       execResult <- executeBlockTransactions(block)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
       worldToPersist = payBlockReward(block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
 
-      _ <- validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed, validators.blockValidator)
+      _ <- validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
     } yield receipts
 
     if(blockExecResult.isRight)
@@ -297,7 +297,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     TxResult(world2, gasLimit - totalGasToRefund, resultWithErrorHandling.logs, result.returnData)
   }
 
-  private def validateBlockBeforeExecution(block: Block, validators: Validators): Either[BlockExecutionError, Unit] = {
+  private def validateBlockBeforeExecution(block: Block): Either[BlockExecutionError, Unit] = {
     val result = for {
       _ <- validators.blockHeaderValidator.validate(block.header, blockchain)
       _ <- validators.blockValidator.validateHeaderAndBody(block.header, block.body)
@@ -316,12 +316,11 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     * @param stateRootHash from the resulting state trie after executing the txs from the block
     * @param receipts associated with the execution of each of the tx from the block
     * @param gasUsed, accumulated gas used for the execution of the txs from the block
-    * @param blockValidator used to validate the receipts with the block
     * @return None if valid else a message with what went wrong
     */
   private[ledger] def validateBlockAfterExecution(block: Block, stateRootHash: ByteString, receipts: Seq[Receipt],
-                                                  gasUsed: BigInt, blockValidator: BlockValidator): Either[BlockExecutionError, Unit] = {
-    lazy val blockAndReceiptsValidation = blockValidator.validateBlockAndReceipts(block.header, receipts)
+                                                  gasUsed: BigInt): Either[BlockExecutionError, Unit] = {
+    lazy val blockAndReceiptsValidation = validators.blockValidator.validateBlockAndReceipts(block.header, receipts)
     if(block.header.gasUsed != gasUsed)
       Left(ValidationAfterExecError(s"Block has invalid gas used, expected ${block.header.gasUsed} but got $gasUsed"))
     else if(block.header.stateRoot != stateRootHash)
