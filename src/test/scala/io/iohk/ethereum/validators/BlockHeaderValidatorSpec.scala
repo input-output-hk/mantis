@@ -3,7 +3,7 @@ package io.iohk.ethereum.validators
 import akka.util.ByteString
 import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.daoFork.{DaoForkConfig, DefaultDaoForkConfig}
+import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}
 import io.iohk.ethereum.validators.BlockHeaderError._
@@ -12,7 +12,6 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
-  import Fixtures.Blocks._
   val ExtraDataSizeLimit = 20
 
   //BlockHeader member's lengths obtained from Yellow paper
@@ -44,7 +43,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
   it should "validate DAO block (extra data)" in {
     import Fixtures.Blocks._
     val cases = Table(
-      ("Block", "Parent Block", "Pro Dao Fork", "Valid"),
+      ("Block", "Parent Block", "Supports Dao Fork", "Valid"),
       (DaoForkBlock.header, DaoParentBlock.header, false, true),
       (DaoForkBlock.header, DaoParentBlock.header, true, false),
       (ProDaoForkBlock.header, DaoParentBlock.header, true, true),
@@ -56,8 +55,8 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
       (ProDaoBlock1920010Header, ProDaoBlock1920009Header, true, true)
     )
 
-    forAll(cases) { (block, parentBlock, proDaoFork, valid ) =>
-      val blockHeaderValidator = new BlockHeaderValidatorImpl(createBlockchainConfig(proDaoFork))
+    forAll(cases) { (block, parentBlock, supportsDaoFork, valid ) =>
+      val blockHeaderValidator = new BlockHeaderValidatorImpl(createBlockchainConfig(supportsDaoFork))
       blockHeaderValidator.validate(block, parentBlock) match {
         case Right(_) => assert(valid)
         case Left(DaoHeaderExtraDataError) => assert(!valid)
@@ -239,14 +238,24 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     nonce = ByteString(Hex.decode("3fc7bc671f7cee70"))
   )
 
-  def createBlockchainConfig(proDaoFork: Boolean = false): BlockchainConfig =
+  def createBlockchainConfig(supportsDaoFork: Boolean = false): BlockchainConfig =
     new BlockchainConfig {
+
+      import Fixtures.Blocks._
+
       override val frontierBlockNumber: BigInt = 0
       override val homesteadBlockNumber: BigInt = 1150000
       override val difficultyBombPauseBlockNumber: BigInt = 3000000
       override val difficultyBombContinueBlockNumber: BigInt = 5000000
 
-      override val daoForkConfig: DaoForkConfig = DefaultDaoForkConfig(proDaoFork, DaoForkBlock.header.number, DaoForkBlock.header.hash)
+      override val daoForkConfig: Option[DaoForkConfig] = Some(new DaoForkConfig {
+        override val blockExtraData: Option[ByteString] = if(supportsDaoFork) Some(ProDaoForkBlock.header.extraData) else None
+        override val range: Int = 10
+        override val drainList: Seq[Address] = Nil
+        override val forkBlockHash: ByteString = if(supportsDaoFork) ProDaoForkBlock.header.hash else DaoForkBlock.header.hash
+        override val forkBlockNumber: BigInt = DaoForkBlock.header.number
+        override val refundContract: Option[Address] = None
+      })
 
       // unused
       override val eip155BlockNumber: BigInt = Long.MaxValue

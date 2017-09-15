@@ -399,7 +399,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
   trait HandshakerSetup extends NodeStatusSetup {
     val handshakerConfiguration = new EtcHandshakerConfiguration {
-      override val forkResolverOpt: Option[ForkResolver] = Some(new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig))
+      override val forkResolverOpt: Option[ForkResolver] = Some(new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get))
       override val nodeStatusHolder: Agent[NodeStatus] = HandshakerSetup.this.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = HandshakerSetup.this.peerConf
       override val blockchain: Blockchain = HandshakerSetup.this.blockchain

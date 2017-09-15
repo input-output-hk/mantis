@@ -58,22 +58,28 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[HeaderExtraDataError]] otherwise
     */
-  private def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] =
-    if (blockHeader.extraData.length <= MaxExtraDataSize) {
-      import blockchainConfig._
+  private def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
 
-      val requiresExtraData = daoForkConfig requiresExtraData blockHeader.number
-      val isDaoForkData = blockHeader.extraData == daoForkConfig.blockExtraData
-
-      (requiresExtraData, isDaoForkData) match {
-        case (false, _) | (true, true) =>
+    def validateDaoForkExtraData(blockHeader: BlockHeader, daoForkConfig: DaoForkConfig): Either[BlockHeaderError, BlockHeader] =
+      (daoForkConfig requiresExtraData blockHeader.number, daoForkConfig.blockExtraData) match {
+        case (false, _) =>
+          Right(blockHeader)
+        case (true, Some(forkExtraData)) if blockHeader.extraData == forkExtraData =>
           Right(blockHeader)
         case _ =>
           Left(DaoHeaderExtraDataError)
       }
+
+    if (blockHeader.extraData.length <= MaxExtraDataSize) {
+      import blockchainConfig._
+
+      if(daoForkConfig.isEmpty) Right(blockHeader)
+      else validateDaoForkExtraData(blockHeader, daoForkConfig.get)
+
     } else {
       Left(HeaderExtraDataError)
     }
+  }
 
   /**
     * Validates [[io.iohk.ethereum.domain.BlockHeader.unixTimestamp]] is greater than the one of its parent

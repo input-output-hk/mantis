@@ -77,9 +77,10 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
 
-    val inputWorld =
-      if(blockchainConfig.daoForkConfig isDaoForkBlock block.header.number) drainDaoForkAccounts(initialWorld, blockchainConfig.daoForkConfig)
-      else initialWorld
+    val inputWorld = blockchainConfig.daoForkConfig match {
+      case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(block.header.number) => drainDaoForkAccounts(initialWorld, daoForkConfig)
+      case _ => initialWorld
+    }
 
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
     val blockTxsExecResult = executeTransactions(block.body.transactionList, inputWorld, block.header, signedTransactionValidator)
@@ -385,9 +386,13 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     */
   private def drainDaoForkAccounts(worldState: InMemoryWorldStateProxy, daoForkConfig: DaoForkConfig): InMemoryWorldStateProxy = {
     daoForkConfig.drainList.foldLeft(worldState) { (ws, address) =>
-      ws.getAccount(address)
-        .map(acc => ws.transfer(from = address, to = daoForkConfig.refundContract, acc.balance))
-        .getOrElse(ws)
+      val afterDrainWS = for {
+        account <- ws.getAccount(address)
+        refundContractAddress <- daoForkConfig.refundContract
+        afterDrainingAddress = ws.transfer(from = address, to = refundContractAddress, account.balance)
+      } yield afterDrainingAddress
+
+      afterDrainWS.getOrElse(ws)
     }
   }
 

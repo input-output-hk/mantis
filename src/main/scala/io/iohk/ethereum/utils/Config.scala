@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
-import io.iohk.ethereum.daoFork.{DaoForkConfig, DefaultDaoForkConfig}
+import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
 import io.iohk.ethereum.domain.{Address, UInt256}
@@ -15,6 +15,7 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
 import org.spongycastle.util.encoders.Hex
 
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -254,7 +255,7 @@ trait BlockchainConfig {
 
   val customGenesisFileOpt: Option[String]
 
-  val daoForkConfig: DaoForkConfig
+  val daoForkConfig: Option[DaoForkConfig]
 
   val accountStartNonce: UInt256
 
@@ -263,7 +264,25 @@ trait BlockchainConfig {
   val monetaryPolicyConfig: MonetaryPolicyConfig
 }
 
+
 object BlockchainConfig {
+
+  def createDaoForkConfig(daoConfig: TypesafeConfig): DaoForkConfig = {
+
+    val theForkBlockNumber = BigInt(daoConfig.getString("fork-block-number"))
+
+    val theForkBlockHash = ByteString(Hex.decode(daoConfig.getString("fork-block-hash")))
+
+    new DaoForkConfig {
+      override val forkBlockNumber = theForkBlockNumber
+      override val forkBlockHash = theForkBlockHash
+      override val blockExtraData = Try(daoConfig.getString("block-extra-data")).toOption.map(ByteString(_))
+      override val range = Try(daoConfig.getInt("block-extra-data-range")).toOption.getOrElse(0)
+      override val refundContract = Try(daoConfig.getString("refund-contract-address")).toOption.map(Address(_))
+      override val drainList = Try(daoConfig.getStringList("drain-list").asScala.toList).toOption.getOrElse(List.empty).map(Address(_))
+    }
+  }
+
   def apply(etcClientConfig: TypesafeConfig): BlockchainConfig = {
     val blockchainConfig = etcClientConfig.getConfig("blockchain")
 
@@ -278,10 +297,7 @@ object BlockchainConfig {
 
       override val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
 
-      val proDaoFork: Boolean = blockchainConfig.getBoolean("pro-dao-fork")
-      val daoForkBlockNumber: BigInt = BigInt(blockchainConfig.getString("dao-fork-block-number"))
-      val daoForkBlockHash: ByteString = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
-      override val daoForkConfig = DefaultDaoForkConfig(proDaoFork, daoForkBlockNumber, daoForkBlockHash)
+      override val daoForkConfig = Try(blockchainConfig.getConfig("dao")).toOption.map(createDaoForkConfig)
       override val accountStartNonce: UInt256 = UInt256(BigInt(blockchainConfig.getString("account-start-nonce")))
 
       override val chainId: Byte = {

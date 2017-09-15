@@ -5,12 +5,12 @@ import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.generateKeyPair
-import io.iohk.ethereum.daoFork.{DaoForkConfig, DefaultDaoForkConfig}
+import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl, UInt256}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -25,6 +25,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnec
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils._
 import org.scalatest.{FlatSpec, Matchers}
+import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -158,15 +159,18 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val chainId: Byte = 0.toByte
       override val monetaryPolicyConfig: MonetaryPolicyConfig = null
       override val accountStartNonce: UInt256 = UInt256.Zero
-      override val daoForkConfig: DaoForkConfig = DefaultDaoForkConfig(
-        daoForkBlockNumber = forkBlockHeader.number,
-        daoForkBlockHash = forkBlockHeader.hash,
-        proDaoFork = false
-      )
+      override val daoForkConfig: Option[DaoForkConfig] = Some(new DaoForkConfig {
+        override val blockExtraData: Option[ByteString] = None
+        override val range: Int = 10
+        override val drainList: Seq[Address] = Nil
+        override val forkBlockHash: ByteString = ByteString(Hex.decode("94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f"))
+        override val forkBlockNumber: BigInt = 1920000
+        override val refundContract: Option[Address] = None
+      })
     }
 
     val etcHandshakerConfigurationWithResolver = new MockEtcHandshakerConfiguration {
-      override val forkResolverOpt: Option[ForkResolver] = Some(new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig))
+      override val forkResolverOpt: Option[ForkResolver] = Some(new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get))
     }
 
     val initHandshakerWithoutResolver = EtcHandshaker(new MockEtcHandshakerConfiguration)

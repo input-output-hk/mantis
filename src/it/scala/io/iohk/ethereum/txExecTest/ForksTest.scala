@@ -1,8 +1,8 @@
 package io.iohk.ethereum.txExecTest
 
 import akka.util.ByteString
-import io.iohk.ethereum.daoFork.{DaoForkConfig, DefaultDaoForkConfig}
-import io.iohk.ethereum.domain.{BlockchainImpl, Receipt, UInt256}
+import io.iohk.ethereum.daoFork.DaoForkConfig
+import io.iohk.ethereum.domain.{Address, BlockchainImpl, Receipt, UInt256}
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig}
@@ -27,7 +27,7 @@ class ForksTest extends FlatSpec with Matchers {
     override val difficultyBombPauseBlockNumber: BigInt = Long.MaxValue
     override val difficultyBombContinueBlockNumber: BigInt = Long.MaxValue
     override val accountStartNonce: UInt256 = UInt256.Zero
-    override val daoForkConfig: DaoForkConfig = DefaultDaoForkConfig(daoForkBlockNumber = 1000, daoForkBlockHash = ByteString("unused"), proDaoFork = false)
+    override val daoForkConfig: Option[DaoForkConfig] = None
   }
 
   val noErrors = a[Right[_, Seq[Receipt]]]

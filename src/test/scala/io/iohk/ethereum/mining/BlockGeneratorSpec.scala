@@ -15,7 +15,7 @@ import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.daoFork.{DaoForkConfig, DefaultDaoForkConfig}
+import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.utils.Config.DbConfig
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
@@ -72,7 +72,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(b.header))
     fullBlock.right.foreach(b => ledger.executeBlock(b, validators) shouldBe a[Right[_, Seq[Receipt]]])
     fullBlock.right.foreach(b => b.body.transactionList shouldBe Seq(signedTransaction))
-    fullBlock.right.foreach(b => b.header.extraData shouldBe miningConfig.headerExtraData)  
+    fullBlock.right.foreach(b => b.header.extraData shouldBe miningConfig.headerExtraData)
   }
 
   it should "filter out transactions exceeding block gas limit and include correct transactions" in new TestSetup {
@@ -114,11 +114,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
       override val accountStartNonce: UInt256 = UInt256.Zero
-      override val daoForkConfig: DaoForkConfig = DefaultDaoForkConfig(
-        daoForkBlockNumber = Long.MaxValue,
-        daoForkBlockHash = ByteString("unused"),
-        proDaoFork = false
-      )
+      override val daoForkConfig: Option[DaoForkConfig] = None
     }
 
     val generalTx = SignedTransaction.sign(transaction, keyPair, None)
@@ -271,7 +267,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
       override val accountStartNonce: UInt256 = UInt256.Zero
-      override val daoForkConfig: DaoForkConfig = DefaultDaoForkConfig(daoForkBlockNumber = Long.MaxValue, daoForkBlockHash = ByteString("unused"), proDaoFork = false)
+      override val daoForkConfig: Option[DaoForkConfig] = None
     }
     lazy val ledger = new LedgerImpl(VM, blockchain, blockchainConfig)
 

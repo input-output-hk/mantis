@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.daoFork.{DaoForkConfig, DefaultDaoForkConfig}
+import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
@@ -351,7 +351,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val customGenesisFileOpt: Option[String] = None
       override val accountStartNonce: UInt256 = UInt256.Zero
       override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
-      override val daoForkConfig: DaoForkConfig = DefaultDaoForkConfig(daoForkBlockNumber = 0, daoForkBlockHash = ByteString.empty, proDaoFork = false)
+      override val daoForkConfig: Option[DaoForkConfig] = None
     }
 
     val wallet = Wallet(address, prvKey)

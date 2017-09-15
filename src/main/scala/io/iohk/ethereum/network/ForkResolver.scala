@@ -1,5 +1,6 @@
 package io.iohk.ethereum.network
 
+import akka.util.ByteString
 import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -21,10 +22,10 @@ object ForkResolver {
     case object AcceptedFork extends Fork
     case object RejectedFork extends Fork
 
-    override def forkBlockNumber: BigInt = daoForkConfig.daoForkBlockNumber
+    override def forkBlockNumber: BigInt = daoForkConfig.forkBlockNumber
 
     override def recognizeFork(blockHeader: BlockHeader): Fork = {
-      if (blockHeader.hash == daoForkConfig.daoForkBlockHash) AcceptedFork
+      if (blockHeader.hash == daoForkConfig.forkBlockHash) AcceptedFork
       else RejectedFork
     }
 

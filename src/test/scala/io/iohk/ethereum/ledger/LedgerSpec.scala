@@ -6,7 +6,7 @@ import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.daoFork.{DaoForkConfig, DefaultDaoForkConfig}
+import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.{Fixtures, Mocks, rlp}
@@ -755,23 +755,21 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     result match { case (_, executedTxs) => executedTxs shouldBe Seq.empty }
   }
 
-  it should "drain DAO accounts and send the funds to refund address if it's Pro DAO Fork configured" in new DaoForkTestSetup {
+  it should "drain DAO accounts and send the funds to refund address if Pro DAO Fork was configured" in new DaoForkTestSetup {
+
+    (worldState.getAccount _)
+      .expects(supportDaoForkConfig.refundContract.get)
+      .anyNumberOfTimes()
+      .returning(Some(Account(nonce = 1, balance = UInt256.Zero)))
 
     // Check we drain all the accounts and send the balance to refund contract
-    proDaoBlockchainConfig.daoForkConfig.drainList.foreach { addr =>
+    supportDaoForkConfig.drainList.foreach { addr =>
       val daoAccountsFakeBalance = UInt256(1000)
       (worldState.getAccount _).expects(addr).returning(Some(Account(nonce = 1, balance = daoAccountsFakeBalance)))
-      (worldState.transfer _).expects(addr, proDaoBlockchainConfig.daoForkConfig.refundContract, daoAccountsFakeBalance).returning(worldState)
+      (worldState.transfer _).expects(addr, supportDaoForkConfig.refundContract.get, daoAccountsFakeBalance).returning(worldState)
     }
 
-    val ledger = new LedgerImpl(new MockVM(c => createResult(
-      context = c,
-      gasUsed = UInt256(10),
-      gasLimit = UInt256(10),
-      gasRefund = UInt256.Zero,
-      logs = Seq.empty,
-      addressesToDelete = Set.empty
-    )), testBlockchain, proDaoBlockchainConfig)
+    val ledger = new LedgerImpl(new MockVM(), testBlockchain, proDaoBlockchainConfig)
 
     ledger.executeBlockTransactions(
       proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)), // We don't care about block txs in this test
@@ -779,21 +777,14 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     )
   }
 
-  it should "not drain DAO accounts and send the funds to refund address if it not Pro DAO Fork configured" in new DaoForkTestSetup {
+  it should "neither drain DAO accounts nor send the funds to refund address if Pro DAO Fork was not configured" in new DaoForkTestSetup {
     // Check we drain all the accounts and send the balance to refund contract
-    proDaoBlockchainConfig.daoForkConfig.drainList.foreach { addr =>
+    supportDaoForkConfig.drainList.foreach { addr =>
       val daoAccountsFakeBalance = UInt256(1000)
-      (worldState.transfer _).expects(addr, proDaoBlockchainConfig.daoForkConfig.refundContract, *).never()
+      (worldState.transfer _).expects(*, *, *).never()
     }
 
-    val ledger = new LedgerImpl(new MockVM(c => createResult(
-      context = c,
-      gasUsed = UInt256(10),
-      gasLimit = UInt256(10),
-      gasRefund = UInt256.Zero,
-      logs = Seq.empty,
-      addressesToDelete = Set.empty
-    )), testBlockchain, blockchainConfig)
+    val ledger = new LedgerImpl(new MockVM(), testBlockchain, blockchainConfig)
 
     ledger.executeBlockTransactions(
       proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)), // We don't care about block txs in this test
@@ -895,6 +886,20 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
   }
 
   trait DaoForkTestSetup extends TestSetup {
+
+    val testBlockchain = mock[BlockchainImpl]
+    val worldState = mock[InMemoryWorldStateProxy]
+    val proDaoBlock = Fixtures.Blocks.ProDaoForkBlock.block
+
+    val supportDaoForkConfig = new DaoForkConfig {
+      override val blockExtraData: Option[ByteString] = Some(ByteString("refund extra data"))
+      override val range: Int = 10
+      override val drainList: Seq[Address] = Seq(Address(1), Address(2), Address(3))
+      override val forkBlockHash: ByteString = proDaoBlock.header.hash
+      override val forkBlockNumber: BigInt = proDaoBlock.header.number
+      override val refundContract: Option[Address] = Some(Address(4))
+    }
+
     val proDaoBlockchainConfig = new BlockchainConfig {
       override val frontierBlockNumber: BigInt = blockchainConfig.frontierBlockNumber
       override val accountStartNonce: UInt256 = blockchainConfig.accountStartNonce
@@ -906,22 +911,14 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       override val eip150BlockNumber: BigInt = blockchainConfig.eip150BlockNumber
       override val chainId: Byte = 0x01.toByte
       override val difficultyBombContinueBlockNumber: BigInt = blockchainConfig.difficultyBombContinueBlockNumber
-      override val daoForkConfig: DaoForkConfig = DefaultDaoForkConfig(true, 1920000, ByteString(""))
+      override val daoForkConfig: Option[DaoForkConfig] = Some(supportDaoForkConfig)
       override  val customGenesisFileOpt: Option[String] = None
     }
-    val testBlockchain = mock[BlockchainImpl]
-    val worldState = mock[InMemoryWorldStateProxy]
-    val proDaoBlock = Fixtures.Blocks.ProDaoForkBlock.block
 
     (testBlockchain.getBlockHeaderByHash _).expects(proDaoBlock.header.parentHash).returning(Some(Fixtures.Blocks.DaoParentBlock.header))
     (testBlockchain.getWorldStateProxy _)
       .expects(proDaoBlock.header.number, proDaoBlockchainConfig.accountStartNonce, Some(Fixtures.Blocks.DaoParentBlock.header.stateRoot))
       .returning(worldState)
-
-    (worldState.getAccount _)
-      .expects(proDaoBlockchainConfig.daoForkConfig.refundContract)
-      .anyNumberOfTimes()
-      .returning(Some(Account(nonce = 1, balance = UInt256.Zero)))
   }
 
 }

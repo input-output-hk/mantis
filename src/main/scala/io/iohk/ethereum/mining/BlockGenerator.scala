@@ -106,7 +106,7 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
       gasLimit = calculateGasLimit(parent.header.gasLimit),
       gasUsed = 0,
       unixTimestamp = blockTimestamp,
-      extraData = if (daoForkConfig requiresExtraData blockNumber) daoForkConfig.blockExtraData else miningConfig.headerExtraData,
+      extraData = daoForkConfig.flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber)).getOrElse(miningConfig.headerExtraData),
       mixHash = ByteString.empty,
       nonce = ByteString.empty
     )
