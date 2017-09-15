@@ -5,7 +5,7 @@ import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockExecutionError, Ledger}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
@@ -14,6 +14,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransactions
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.validators.Validators
 import org.spongycastle.util.encoders.Hex
@@ -82,23 +83,32 @@ class RegularSync(
           case (_, None) =>
             //Something went wrong, we don't have the total difficulty of the latest block
             //TODO: Investigate if we can recover from this error [EC-165]
-            throw new IllegalStateException(s"No total difficulty for the latest block with number $currentBestBlock")
+            log.error(s"No total difficulty for the latest block with number $currentBestBlock")
+            context stop self
+
           case (None, Some(_)) =>
             //The received block should be imported, however we don't have it's parent.
             //This could be caused by our client not being up-to-date or a fork in the blockchain
             //RegularSync is resumed which will lead to the needed reorganization
             log.debug("Resumed regular sync due to receiving NewBlock and not having it's parent")
             resumeRegularSync()
+
           case (Some(parentTd), Some(currentTd)) if currentTd >= parentTd + newBlock.header.difficulty =>
             //The received block is not imported as it's total difficulty is too low, do nothing
             log.debug("Not inserting NewBlock due to having too low total difficulty")
+
           case (Some(parentTd), Some(_)) =>
             val blockProcessResult = processBlock(newBlock, parentTd)
             blockProcessResult match {
               case Right(_) =>
                 //Delete old blocks no longer needed
-                if(newBlock.header.number < currentBestBlock)
-                  ((newBlock.header.number + 1) to currentBestBlock).foreach(blockchain.removeBlock)
+                if(newBlock.header.number < currentBestBlock) {
+                  val oldBlocks = getOldBlocks((newBlock.header.number + 1) to currentBestBlock)
+                  val oldBlocksTxs = oldBlocks.flatMap(_.body.transactionList)
+
+                  pendingTransactionsManager ! AddTransactions(oldBlocksTxs.filterNot(newBlock.body.transactionList.contains))
+                  oldBlocks.foreach{ b => blockchain.removeBlock(b.header.hash) }
+                }
                 log.debug(s"Added new block ${newBlock.header.number} received from $peerId")
               case Left(err) =>
                 blacklist(peerId, blacklistDuration, err.toString)
@@ -216,7 +226,7 @@ class RegularSync(
         //we have same chain prefix
         if (parent.hash == headers.head.parentHash) {
 
-          val oldBranch: Seq[Block] = getOldBlocks(headersQueue)
+          val oldBranch: Seq[Block] = getOldBlocks(headersQueue.map(_.number))
           val currentBranchTotalDifficulty: BigInt = oldBranch.map(_.header.difficulty).sum
 
           val newBranchTotalDifficulty = headersQueue.map(_.difficulty).sum
@@ -265,9 +275,9 @@ class RegularSync(
         responseMsgCode = BlockBodies.code)))
   }
 
-  def getOldBlocks(headers: Seq[BlockHeader]): List[Block] = headers match {
-    case Seq(h, tail @ _*) =>
-      blockchain.getBlockByNumber(h.number).map(_ :: getOldBlocks(tail)).getOrElse(Nil)
+  def getOldBlocks(blockNumbers: Seq[BigInt]): List[Block] = blockNumbers match {
+    case Seq(blockNumber, tail @ _*) =>
+      blockchain.getBlockByNumber(blockNumber).map(_ :: getOldBlocks(tail)).getOrElse(Nil)
     case Seq() =>
       Nil
   }
@@ -301,7 +311,8 @@ class RegularSync(
         case None =>
           //TODO: Investigate if we can recover from this error (EC-165)
           val parentHash = Hex.toHexString(blocks.head.header.parentHash.toArray)
-          throw new IllegalStateException(s"No total difficulty for the latest block with number ${blocks.head.header.number - 1} (and hash $parentHash)")
+          log.error(s"No total difficulty for the latest block with number ${blocks.head.header.number - 1} (and hash $parentHash)")
+          context stop self
       }
 
     } else {

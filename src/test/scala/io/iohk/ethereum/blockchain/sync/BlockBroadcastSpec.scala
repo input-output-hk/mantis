@@ -31,7 +31,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     etcPeerManagerProbe.expectNoMsg()
   }
 
-  it should "not send a new block when it is not known by the peer (known by comparing total difficulties)" in new TestSetup {
+  it should "not send a new block when it is known by the peer (known by comparing total difficulties)" in new TestSetup {
     //given
     //Block that shouldn't be sent as it's number and total difficulty is lower than known by peer
     val blockHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber - 2)
@@ -59,7 +59,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
     etcPeerManagerProbe.expectNoMsg()
   }
 
-  it should "not send a new block only when it is not known by the peer (known by comparing max block number)" in new TestSetup {
+  it should "not send a new block only when it is known by the peer (known by comparing max block number)" in new TestSetup {
     //given
     //Block should already be known by the peer due to max block known
     val blockHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber - 2)
