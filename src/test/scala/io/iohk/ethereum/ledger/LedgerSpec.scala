@@ -66,7 +66,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
             val accountWithBalanceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseBalance(balanceIncrease)
             recWorld.saveAccount(address, accountWithBalanceIncrease)
           case IncreaseNonce =>
-            val accountWithNonceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseNonce
+            val accountWithNonceIncrease = recWorld.getAccount(address).getOrElse(Account.empty()).increaseNonce()
             recWorld.saveAccount(address, accountWithNonceIncrease)
           case DeleteAccount =>
             recWorld.deleteAccount(address)
@@ -642,7 +642,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     // In order to get contract address we need to increase the nonce as ledger will do within the first
     // steps of execution
     val contractAddress = worldWithoutPreexistingAccount
-      .saveAccount(originAddress, originAccount.increaseNonce)
+      .saveAccount(originAddress, originAccount.increaseNonce())
       .createAddress(originAddress)
 
     val preExistingAccount = Account(nonce = UInt256(defaultTx.nonce), balance = 1000)

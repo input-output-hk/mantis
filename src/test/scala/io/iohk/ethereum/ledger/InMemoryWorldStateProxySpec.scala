@@ -3,7 +3,7 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
-import io.iohk.ethereum.vm.Generators
+import io.iohk.ethereum.vm.{EvmConfig, Generators}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -35,7 +35,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val finalWorldState = worldState
       .saveAccount(address1, account)
       .newEmptyAccount(address2)
-      .transfer(address1, address2, UInt256(toTransfer))
+      .transfer(address1, address2, UInt256(toTransfer), config.noEmptyAccounts)
 
     finalWorldState.getGuaranteedAccount(address1).balance shouldEqual (account.balance - toTransfer)
     finalWorldState.getGuaranteedAccount(address2).balance shouldEqual toTransfer
@@ -102,7 +102,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
         .getStorage(address1)
         .store(addr, value))
       .newEmptyAccount(address2)
-      .transfer(address1, address2, UInt256(account.balance))
+      .transfer(address1, address2, UInt256(account.balance), config.noEmptyAccounts)
 
     validateInitialWorld(afterUpdatesWorldState)
 
@@ -115,7 +115,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     validateInitialWorld(newWorldState)
 
     // Update this new WS check everything is ok
-    val updatedNewWorldState = newWorldState.transfer(address2, address1, UInt256(account.balance))
+    val updatedNewWorldState = newWorldState.transfer(address2, address1, UInt256(account.balance), config.noEmptyAccounts)
     updatedNewWorldState.getGuaranteedAccount(address1).balance shouldEqual account.balance
     updatedNewWorldState.getGuaranteedAccount(address2).balance shouldEqual 0
     updatedNewWorldState.getStorage(address1).load(addr) shouldEqual value
@@ -135,7 +135,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val toTransfer = account.balance - 20
     val finalWorldState = worldState
       .saveAccount(address1, account)
-      .transfer(address1, address1, UInt256(toTransfer))
+      .transfer(address1, address1, UInt256(toTransfer), config.noEmptyAccounts)
 
     finalWorldState.getGuaranteedAccount(address1).balance shouldEqual account.balance
 
@@ -144,6 +144,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   trait TestSetup extends EphemBlockchainTestSetup {
 
     val worldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
+
+    val config = EvmConfig.PostEIP160Config
 
     val address1 = Address(0x123456)
     val address2 = Address(0xabcdef)

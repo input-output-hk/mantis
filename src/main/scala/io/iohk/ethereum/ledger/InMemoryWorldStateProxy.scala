@@ -31,7 +31,8 @@ object InMemoryWorldStateProxy {
       evmCodeStorage,
       Map.empty,
       getBlockHashByNumber,
-      accountStartNonce
+      accountStartNonce,
+      Set.empty
     )
   }
 
@@ -137,7 +138,8 @@ class InMemoryWorldStateProxy private(
   // Account's code by Address
   val accountCodes: Map[Address, Code],
   val getBlockByNumber: (BigInt) => Option[ByteString],
-  accountStartNonce: UInt256
+  accountStartNonce: UInt256,
+  val touchedAccounts: Set[Address]
 ) extends WorldStateProxy[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage] {
 
   import InMemoryWorldStateProxy._
@@ -172,6 +174,12 @@ class InMemoryWorldStateProxy private(
   override def saveStorage(address: Address, storage: InMemoryWorldStateProxyStorage): InMemoryWorldStateProxy =
     copyWith(contractStorages = contractStorages + (address -> storage.wrapped))
 
+  override def touchAccount(address: Address): InMemoryWorldStateProxy =
+    copyWith(touchedAccounts = touchedAccounts + address)
+
+  override def touchAccounts(addresses: Set[Address]): InMemoryWorldStateProxy =
+    copyWith(touchedAccounts = touchedAccounts ++ addresses)
+
   /**
     * Returns world state root hash. This value is only updated after persist.
     */
@@ -189,7 +197,8 @@ class InMemoryWorldStateProxy private(
     accountsStateTrie: InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] = accountsStateTrie,
     contractStorages: Map[Address, InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]]] = contractStorages,
     evmCodeStorage: EvmCodeStorage = evmCodeStorage,
-    accountCodes: Map[Address, Code] = accountCodes
+    accountCodes: Map[Address, Code] = accountCodes,
+    touchedAccounts: Set[Address] = touchedAccounts
   ): InMemoryWorldStateProxy =
     new InMemoryWorldStateProxy(
       stateStorage,
@@ -198,7 +207,8 @@ class InMemoryWorldStateProxy private(
       evmCodeStorage,
       accountCodes,
       getBlockByNumber,
-      accountStartNonce
+      accountStartNonce,
+      touchedAccounts
     )
 
   override def getBlockHash(number: UInt256): Option[UInt256] = getBlockByNumber(number).map(UInt256(_))

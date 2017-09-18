@@ -113,6 +113,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val daoForkBlockNumber: BigInt = Long.MaxValue
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
+      override val eip161BlockNumber: BigInt = Long.MaxValue
       override val daoForkBlockHash: ByteString = ByteString("unused")
       override val accountStartNonce: UInt256 = UInt256.Zero
     }
@@ -262,6 +263,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val daoForkBlockNumber: BigInt = Long.MaxValue
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
+      override val eip161BlockNumber: BigInt = Long.MaxValue
       override val daoForkBlockHash: ByteString = ByteString("unused")
       override val accountStartNonce: UInt256 = UInt256.Zero
     }

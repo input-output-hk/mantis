@@ -192,12 +192,18 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     val totalGasToRefund = calcTotalGasToRefund(stx, resultWithErrorHandling)
     val executionGasToPayToMiner = gasLimit - totalGasToRefund
 
-    val refundGasFn = pay(stx.senderAddress, (totalGasToRefund * gasPrice).toUInt256) _
-    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256) _
+    val refundGasFn = pay(stx.senderAddress, (totalGasToRefund * gasPrice).toUInt256, config.noEmptyAccounts) _
+
+    // STATE CHANGE as the block author ("miner") it is recipient of block-rewards or transaction-fees of zero or more.
+    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256, config.noEmptyAccounts) _
+
+    val worldAfterPayments = (refundGasFn andThen payMinerForGasFn)(resultWithErrorHandling.world)
+
     val deleteAccountsFn = deleteAccounts(resultWithErrorHandling.addressesToDelete) _
+    val deleteTouchedAccountsFn = deleteTouchedAccounts(config) _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
 
-    val world2 = (refundGasFn andThen payMinerForGasFn andThen deleteAccountsFn andThen persistStateFn)(resultWithErrorHandling.world)
+    val world2 = (deleteAccountsFn andThen deleteTouchedAccountsFn andThen  persistStateFn)(worldAfterPayments)
 
     log.debug(
       s"""Transaction ${stx.hashAsHexString} execution end. Summary:
@@ -205,7 +211,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
          | - Total Gas to Refund: $totalGasToRefund
          | - Execution gas paid to miner: $executionGasToPayToMiner""".stripMargin)
 
-    TxResult(world2, gasLimit - totalGasToRefund, resultWithErrorHandling.logs, result.returnData)
+    TxResult(world2, executionGasToPayToMiner, resultWithErrorHandling.logs, result.returnData)
   }
 
   private def validateBlockBeforeExecution(block: Block, validators: Validators): Either[BlockExecutionError, Unit] = {
@@ -300,18 +306,19 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
   private[ledger] def updateSenderAccountBeforeExecution(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     val senderAddress = stx.senderAddress
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
-    worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce)
+    worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce())
   }
 
   private[ledger] def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy, config: EvmConfig): PC =
     stx.tx.receivingAddress match {
       case None =>
         val address = worldStateProxy.createAddress(creatorAddr = stx.senderAddress)
-        val world1 = worldStateProxy.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
+        //it is the source or newly-creation of a CREATE operation or contract-creation transaction endowing zero or more value;
+        val world1 = worldStateProxy.initialiseAccount(stx.senderAddress, address, UInt256(stx.tx.value), config.noEmptyAccounts)
         ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, world1, config)
 
       case Some(txReceivingAddress) =>
-        val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
+        val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value), config.noEmptyAccounts)
         ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, config)
     }
 
@@ -350,9 +357,17 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     }
   }
 
-  private def pay(address: Address, value: UInt256)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    val account = world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
-    world.saveAccount(address, account)
+  private def pay(address: Address, value: UInt256, noEmptyAccount: Boolean)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    if (noEmptyAccount && !world.accountExists(address) && value == UInt256(0)) {
+      world
+    } else {
+      val account = world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
+      val worldWithAccount = world.saveAccount(address, account)
+      if (noEmptyAccount)
+        worldWithAccount.touchAccount(address)
+      else
+        worldWithAccount
+    }
   }
 
   /**
@@ -371,6 +386,19 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
   private[ledger] def deleteAccounts(addressesToDelete: Set[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => world.deleteAccount(address) }
 
+
+  private[ledger] def deleteTouchedAccounts(evmConfig: EvmConfig)(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    if (evmConfig.noEmptyAccounts) {
+      worldStateProxy.touchedAccounts.foldLeft(worldStateProxy) {case (world, address) =>
+          if (world.getGuaranteedAccount(address).isEmpty)
+            world.deleteAccount(address)
+          else
+            world
+      }
+    } else {
+      worldStateProxy
+    }
+  }
 }
 
 object Ledger {

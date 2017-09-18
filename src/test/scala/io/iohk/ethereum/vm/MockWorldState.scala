@@ -14,6 +14,7 @@ case class MockWorldState(
   accounts: Map[Address, Account] = Map(),
   codeRepo: Map[Address, ByteString] = Map(),
   storages: Map[Address, MockStorage] = Map(),
+  touchedAccounts: Set[Address] = Set.empty,
   numberOfHashes: UInt256 = 0
 ) extends WorldStateProxy[MockWorldState, MockStorage] {
 
@@ -54,6 +55,12 @@ case class MockWorldState(
       copy(storages = storages + (address -> storage))
 
   def getEmptyAccount: Account = Account.empty()
+
+  def touchAccount(address: Address): MockWorldState =
+    copy(touchedAccounts = touchedAccounts + address)
+
+  def touchAccounts(addresses: Set[Address]): MockWorldState =
+    copy(touchedAccounts = touchedAccounts ++ addresses)
 
   /**
     * Check whether an account at given address is dead,

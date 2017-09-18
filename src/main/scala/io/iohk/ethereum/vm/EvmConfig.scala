@@ -21,7 +21,8 @@ object EvmConfig {
       blockchainConfig.frontierBlockNumber -> FrontierConfig,
       blockchainConfig.homesteadBlockNumber -> HomesteadConfig,
       blockchainConfig.eip150BlockNumber -> PostEIP150Config,
-      blockchainConfig.eip160BlockNumber -> PostEIP160Config)
+      blockchainConfig.eip160BlockNumber -> PostEIP160Config,
+      blockchainConfig.eip161BlockNumber -> PostEIP161Config)
 
     // highest transition block that is less/equal to `blockNumber`
     transitionBlockToConfigMapping
@@ -53,6 +54,10 @@ object EvmConfig {
 
   val PostEIP160Config = PostEIP150Config.copy(
     feeSchedule = new FeeSchedule.PostEIP160FeeSchedule)
+
+  val PostEIP161Config = PostEIP160Config.copy(
+    noEmptyAccounts = true)
+
 }
 
 case class EvmConfig(
@@ -61,7 +66,8 @@ case class EvmConfig(
     exceptionalFailedCodeDeposit: Boolean,
     subGasCapDivisor: Option[Long],
     chargeSelfDestructForNewAccount: Boolean,
-    traceInternalTransactions: Boolean) {
+    traceInternalTransactions: Boolean,
+    noEmptyAccounts: Boolean = false) {
 
   import feeSchedule._
   import EvmConfig._

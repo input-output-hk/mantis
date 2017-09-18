@@ -33,14 +33,20 @@ case class Account(
   def increaseBalance(value: UInt256): Account =
     copy(balance = balance + value)
 
-  def increaseNonce: Account =
-    copy(nonce = nonce + 1)
+  def increaseNonce(value: UInt256 = 1): Account =
+    copy(nonce = nonce + value)
 
   def withCode(codeHash: ByteString): Account =
     copy(codeHash = codeHash)
 
   def withStorage(storageRoot: ByteString): Account =
     copy(storageRoot = storageRoot)
+
+  /**
+    * According to EIP161: An account is considered empty when it has no code and zero nonce and zero balance.
+    */
+  def isEmpty: Boolean =
+    nonce == UInt256.Zero && balance == UInt256.Zero && codeHash == Account.EmptyCodeHash
 
   override def toString: String =
     s"Account(nonce: $nonce, balance: $balance, " +
