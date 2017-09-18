@@ -130,7 +130,6 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   }
 
   it should "be able to do transfers with the same origin and destination" in new TestSetup {
-
     val account = Account(0, 100)
     val toTransfer = account.balance - 20
     val finalWorldState = worldState
@@ -138,7 +137,80 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
       .transfer(address1, address1, UInt256(toTransfer), config.noEmptyAccounts)
 
     finalWorldState.getGuaranteedAccount(address1).balance shouldEqual account.balance
+  }
 
+  "InMemoryWorldStateProxy" should "not allow transfer to create empty accounts post EIP161" in new TestSetup {
+    val account = Account(0, 100)
+    val zeroTransfer = UInt256.Zero
+    val nonZeroTransfer = account.balance - 20
+
+    val worldStateAfterEmptyTransfer = worldState
+      .saveAccount(address1, account)
+      .transfer(address1, address2, zeroTransfer, postEip161Config.noEmptyAccounts)
+
+    worldStateAfterEmptyTransfer.getGuaranteedAccount(address1).balance shouldEqual account.balance
+    worldStateAfterEmptyTransfer.getAccount(address2) shouldBe None
+
+    val finalWorldState = worldStateAfterEmptyTransfer.transfer(address1, address2, nonZeroTransfer, postEip161Config.noEmptyAccounts)
+
+    finalWorldState.getGuaranteedAccount(address1).balance shouldEqual account.balance - nonZeroTransfer
+
+    val secondAccount = finalWorldState.getGuaranteedAccount(address2)
+    secondAccount.balance shouldEqual nonZeroTransfer
+    secondAccount.nonce shouldEqual UInt256.Zero
+  }
+
+  "InMemoryWorldStateProxy" should "should be able to initialise account with correct nonce post EIP161" in new TestSetup {
+    val account = Account(0, 100)
+    val zeroTransfer = UInt256.Zero
+    val nonZeroTransfer = account.balance - 80
+
+    val worldStateAfterFirstTransfer = worldState
+      .saveAccount(address1, account)
+      .initialiseAccount(address1, address2, zeroTransfer, postEip161Config.noEmptyAccounts)
+
+    worldStateAfterFirstTransfer.getGuaranteedAccount(address1).balance shouldEqual account.balance
+
+    val secondAccountPostEIP161 = worldStateAfterFirstTransfer.getAccount(address2)
+    secondAccountPostEIP161 shouldBe defined
+    secondAccountPostEIP161.get.nonce shouldEqual UInt256.One
+
+    val worldStateAfterSecondTransfer = worldStateAfterFirstTransfer
+      .initialiseAccount(address1, address3, nonZeroTransfer, config.noEmptyAccounts)
+
+    val thirdAccountPreEIP161 = worldStateAfterSecondTransfer.getAccount(address3)
+    thirdAccountPreEIP161 shouldBe defined
+    thirdAccountPreEIP161.get.nonce shouldEqual UInt256.Zero
+    thirdAccountPreEIP161.get.balance shouldEqual nonZeroTransfer
+  }
+
+  "InMemoryWorldStateProxy" should "should correctly mark touched accounts post EIP161" in new TestSetup {
+    val account = Account(0, 100)
+    val zeroTransfer = UInt256.Zero
+    val nonZeroTransfer = account.balance - 80
+
+    val worldAfterSelfTransfer = worldState
+      .saveAccount(address1, account)
+      .transfer(address1, address1, nonZeroTransfer, postEip161Config.noEmptyAccounts)
+
+    val worldStateAfterFirstTransfer = worldAfterSelfTransfer
+      .saveAccount(address1, account)
+      .initialiseAccount(address1, address2, zeroTransfer, postEip161Config.noEmptyAccounts)
+
+    val worldStateAfterSecondTransfer = worldStateAfterFirstTransfer
+      .transfer(address1, address3, nonZeroTransfer, postEip161Config.noEmptyAccounts)
+
+    worldStateAfterSecondTransfer.touchedAccounts should contain theSameElementsAs Set(address1, address2, address3)
+  }
+
+  "InMemoryWorldStateProxy" should "should correctly determine if account is dead post EIP161" in new TestSetup {
+    val emptyAccountWorld = worldState.newEmptyAccount(address1)
+
+    emptyAccountWorld.accountExists(address1) shouldBe true
+    emptyAccountWorld.isDead(address1) shouldBe true
+
+    emptyAccountWorld.accountExists(address2) shouldBe false
+    emptyAccountWorld.isDead(address2) shouldBe true
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
@@ -146,9 +218,10 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val worldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
 
     val config = EvmConfig.PostEIP160Config
-
+    val postEip161Config = EvmConfig.PostEIP161Config
     val address1 = Address(0x123456)
     val address2 = Address(0xabcdef)
+    val address3 = Address(0xfedcba)
   }
 
 }

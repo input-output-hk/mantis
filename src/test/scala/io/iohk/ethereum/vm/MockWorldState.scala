@@ -56,11 +56,8 @@ case class MockWorldState(
 
   def getEmptyAccount: Account = Account.empty()
 
-  def touchAccount(address: Address): MockWorldState =
-    copy(touchedAccounts = touchedAccounts + address)
-
-  def touchAccounts(addresses: Set[Address]): MockWorldState =
-    copy(touchedAccounts = touchedAccounts ++ addresses)
+  def touchAccounts(addresses: Address*): MockWorldState =
+    copy(touchedAccounts = touchedAccounts ++ addresses.toSet)
 
   /**
     * Check whether an account at given address is dead,

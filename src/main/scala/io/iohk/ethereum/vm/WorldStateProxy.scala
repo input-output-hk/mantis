@@ -20,8 +20,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   protected def saveAccount(address: Address, account: Account): WS
   protected def deleteAccount(address: Address): WS
   protected def getEmptyAccount: Account
-  protected def touchAccount(address: Address): WS
-  protected def touchAccounts(addresses: Set[Address]): WS
+  protected def touchAccounts(addresses: Address*): WS
   /**
     * In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that
     * transfer value to another. There could be no input to our application that would cause this fail, so we shouldn't
@@ -60,7 +59,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     val world = saveAccount(from, debited).saveAccount(to, credited)
 
     if (noEmptyAccount)
-      world.touchAccounts(Set(from, to))
+      world.touchAccounts(from, to)
     else
       world
   }
@@ -72,7 +71,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     val newAccount = getAccount(newAddress).getOrElse(getEmptyAccount).increaseBalance(value).increaseNonce(nonceOffset)
     val world = saveAccount(creatorAddress,creatorAccount).saveAccount(newAddress, newAccount)
     if (noEmptyAccount)
-      world.touchAccounts(Set(creatorAddress, newAddress))
+      world.touchAccounts(creatorAddress, newAddress)
     else
       world
   }

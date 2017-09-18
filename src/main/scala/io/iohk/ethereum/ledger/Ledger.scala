@@ -203,7 +203,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     val deleteTouchedAccountsFn = deleteTouchedAccounts(config) _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
 
-    val world2 = (deleteAccountsFn andThen deleteTouchedAccountsFn andThen  persistStateFn)(worldAfterPayments)
+    val world2 = (deleteAccountsFn andThen deleteTouchedAccountsFn andThen persistStateFn)(worldAfterPayments)
 
     log.debug(
       s"""Transaction ${stx.hashAsHexString} execution end. Summary:
@@ -364,7 +364,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
       val account = world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
       val worldWithAccount = world.saveAccount(address, account)
       if (noEmptyAccount)
-        worldWithAccount.touchAccount(address)
+        worldWithAccount.touchAccounts(address)
       else
         worldWithAccount
     }

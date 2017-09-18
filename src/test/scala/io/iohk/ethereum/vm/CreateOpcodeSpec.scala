@@ -6,7 +6,7 @@ import MockWorldState.{PC, PS}
 import akka.util.ByteString
 
 class CreateOpcodeSpec extends WordSpec with Matchers {
-  val config = EvmConfig.PostEIP160Config
+  val config = EvmConfig.PostEIP161Config
   import config.feeSchedule._
 
   object fxt {

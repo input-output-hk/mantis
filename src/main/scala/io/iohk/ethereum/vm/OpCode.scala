@@ -877,7 +877,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
 
     val c_new: BigInt =
       if (state.config.noEmptyAccounts){
-        if(!state.world.isDead(to) && this == CALL && isValueTransfer)
+        if (state.world.isDead(to) && this == CALL && isValueTransfer)
           state.config.feeSchedule.G_newaccount
         else
           0
@@ -939,7 +939,7 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
     val refundAddress = Address(refundAddr)
 
     if (state.config.noEmptyAccounts) {
-      if (state.config.chargeSelfDestructForNewAccount &&  isValueTransfer && !state.world.isDead(refundAddress))
+      if (state.config.chargeSelfDestructForNewAccount &&  isValueTransfer && state.world.isDead(refundAddress))
         state.config.feeSchedule.G_newaccount
       else
         0

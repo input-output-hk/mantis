@@ -10,7 +10,7 @@ import io.iohk.ethereum.vm.MockWorldState.PS
 
 class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
 
-  override val config = EvmConfig.PostEIP160Config
+  override val config = EvmConfig.PostEIP161Config
 
   import config.feeSchedule._
 
@@ -477,19 +477,19 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     // Sending refund to a non-existent account
     forAll(stateGen) { stateIn =>
       val (refund, _) = stateIn.stack.pop
-      whenever(stateIn.world.getAccount(Address(refund)).isEmpty) {
+      whenever(stateIn.world.getAccount(Address(refund)).isEmpty && stateIn.ownBalance > 0) {
         val stateOut = op.execute(stateIn)
         stateOut.gasRefund shouldEqual R_selfdestruct
         verifyGas(G_selfdestruct + G_newaccount, stateIn, stateOut)
       }
     }
 
-    // Sending refund to an already existing account
+    // Sending refund to an already existing account not dead account
     forAll(stateGen) { (stateIn) =>
       val (refund, _) = stateIn.stack.pop
       val world = stateIn.world.saveAccount(
         Address(refund),
-        Account.empty())
+        Account.empty().increaseNonce())
       val updatedStateIn = stateIn.withWorld(world)
       val stateOut = op.execute(updatedStateIn)
       verifyGas(G_selfdestruct, updatedStateIn, stateOut)
@@ -499,14 +499,13 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     // Owner account was already selfdestructed
     forAll(stateGen) { stateIn =>
       val (refund, _) = stateIn.stack.pop
-      whenever(stateIn.world.getAccount(Address(refund)).isEmpty) {
+      whenever(stateIn.world.getAccount(Address(refund)).isEmpty && stateIn.ownBalance > 0) {
         val updatedStateIn = stateIn.withAddressToDelete(stateIn.context.env.ownerAddr)
         val stateOut = op.execute(updatedStateIn)
         verifyGas(G_selfdestruct + G_newaccount, updatedStateIn, stateOut)
         stateOut.gasRefund shouldEqual 0
       }
     }
-
   }
 
   verifyAllOpCodesRegistered(except = CREATE, CALL, CALLCODE, DELEGATECALL, INVALID)

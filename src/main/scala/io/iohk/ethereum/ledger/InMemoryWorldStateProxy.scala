@@ -174,11 +174,8 @@ class InMemoryWorldStateProxy private(
   override def saveStorage(address: Address, storage: InMemoryWorldStateProxyStorage): InMemoryWorldStateProxy =
     copyWith(contractStorages = contractStorages + (address -> storage.wrapped))
 
-  override def touchAccount(address: Address): InMemoryWorldStateProxy =
-    copyWith(touchedAccounts = touchedAccounts + address)
-
-  override def touchAccounts(addresses: Set[Address]): InMemoryWorldStateProxy =
-    copyWith(touchedAccounts = touchedAccounts ++ addresses)
+  override def touchAccounts(addresses: Address*): InMemoryWorldStateProxy =
+    copyWith(touchedAccounts = touchedAccounts ++ addresses.toSet)
 
   /**
     * Returns world state root hash. This value is only updated after persist.

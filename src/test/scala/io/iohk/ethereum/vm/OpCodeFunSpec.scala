@@ -13,7 +13,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   import MockWorldState.PS
 
-  override val config = EvmConfig.PostEIP160Config
+  override val config = EvmConfig.PostEIP161Config
 
   def executeOp(op: OpCode, stateIn: PS): PS = {
     // gas is not tested in this spec
@@ -701,7 +701,6 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         val (refundDW, stack1) = stateIn.stack.pop
         val world1 = stateIn.world
           .transfer(stateIn.ownAddress, Address(refundDW), stateIn.ownBalance, config.noEmptyAccounts)
-          .saveAccount(Address(refundDW), Account.empty())
         val expectedState = stateIn
           .withWorld(world1)
           .withAddressToDelete(stateIn.context.env.ownerAddr)

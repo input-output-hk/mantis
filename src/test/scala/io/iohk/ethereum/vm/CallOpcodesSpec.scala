@@ -1,5 +1,6 @@
 package io.iohk.ethereum.vm
 
+import io.iohk.ethereum.crypto.kec256
 import akka.util.ByteString
 import org.scalatest.{Matchers, WordSpec}
 import Assembly._
@@ -12,7 +13,7 @@ import org.scalatest.prop.PropertyChecks
 // scalastyle:off object.name
 class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
-  val config = EvmConfig.PostEIP160Config
+  val config = EvmConfig.PostEIP161Config
 
   import config.feeSchedule._
 
@@ -102,20 +103,25 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     val invalidProgram = Program(extProgram.code.init :+ INVALID.code)
     val selfDestructProgram = selfDestructCode.program
     val sstoreWithClearProgram = sstoreWithClearCode.program
+    val accountWithCode: ByteString => Account = code => Account.empty().withCode(kec256(code))
 
     val worldWithoutExtAccount = MockWorldState().saveAccount(ownerAddr, initialOwnerAccount)
-    val worldWithExtAccount = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
+
+    val worldWithExtAccount = worldWithoutExtAccount.saveAccount(extAddr, accountWithCode(extProgram.code))
       .saveCode(extAddr, extProgram.code)
-    val worldWithInvalidProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
+
+    val worldWithExtEmptyAccount = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
+
+    val worldWithInvalidProgram = worldWithoutExtAccount.saveAccount(extAddr, accountWithCode(invalidProgram.code))
       .saveCode(extAddr, invalidProgram.code)
 
-    val worldWithSelfDestructProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
+    val worldWithSelfDestructProgram = worldWithoutExtAccount.saveAccount(extAddr, accountWithCode(selfDestructProgram.code))
       .saveCode(extAddr, selfDestructProgram.code)
 
-    val worldWithSstoreWithClearProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
+    val worldWithSstoreWithClearProgram = worldWithoutExtAccount.saveAccount(extAddr, accountWithCode(sstoreWithClearProgram.code))
       .saveCode(extAddr, sstoreWithClearProgram.code)
 
-    val worldWithReturnSingleByteCode = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
+    val worldWithReturnSingleByteCode = worldWithoutExtAccount.saveAccount(extAddr, accountWithCode(returnSingleByteProgram.code))
       .saveCode(extAddr, returnSingleByteProgram.code)
 
     val env = ExecEnv(ownerAddr, callerAddr, callerAddr, 1, ByteString.empty, 123, Program(ByteString.empty), null, 0)
@@ -153,6 +159,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
   }
 
   "CALL" when {
+
     "external contract terminates normally" should {
 
       val call = CallResult(op = CALL)
@@ -263,7 +270,11 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     "calling a non-existent account" should {
 
       val context: PC = fxt.context.copy(world = fxt.worldWithoutExtAccount)
+      val contextEmptyAccount: PC = fxt.context.copy(world = fxt.worldWithExtEmptyAccount)
+
       val call = CallResult(op = CALL, context)
+      val callEmptyAccount = CallResult(op = CALL, contextEmptyAccount)
+      val callZeroTransfer = CallResult(op = CALL, contextEmptyAccount, value = UInt256.Zero)
 
       "create new account and add to its balance" in {
         call.extBalance shouldEqual call.value
@@ -277,6 +288,16 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       "consume correct gas (refund call gas, add new account modifier)" in {
         val expectedGas = G_call + G_callvalue + G_newaccount - G_callstipend + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
+      }
+
+      "consume correct gas (refund call gas, add new account modifier) when transferring value to Empty Account" in {
+        val expectedGas = G_call + G_callvalue + G_newaccount - G_callstipend + fxt.expectedMemCost
+        callEmptyAccount.stateOut.gasUsed shouldEqual expectedGas
+      }
+
+      "consume correct gas when transferring no value to Empty Account" in {
+        val expectedGas = G_call + fxt.expectedMemCost
+        callZeroTransfer.stateOut.gasUsed shouldEqual expectedGas
       }
     }
 
