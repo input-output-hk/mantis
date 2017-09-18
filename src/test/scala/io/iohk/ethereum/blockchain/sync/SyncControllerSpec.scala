@@ -184,7 +184,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
       ledger,
       new Mocks.MockValidatorsFailingOnBlockBodies,
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
-      syncConfig)))
+      syncConfig,
+      () => ())))
 
     val peer1TestProbe: TestProbe = TestProbe()(system)
     val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, incomingConnection = false)
@@ -1086,6 +1087,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
       new Mocks.MockValidatorsAlwaysSucceed,
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
       syncConfig,
+      () => (),
       externalSchedulerOpt = None)))
 
     syncControllerWithRegularSync ! SyncController.Start
@@ -1304,6 +1306,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
       new Mocks.MockValidatorsAlwaysSucceed,
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
       syncConfig,
+      () => (),
       externalSchedulerOpt = None)))
 
     lazy val syncConfigWithoutSyncing = obtainSyncConfig(10.minutes)
@@ -1315,6 +1318,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
       new Mocks.MockValidatorsAlwaysSucceed,
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
       syncConfigWithoutSyncing,
+      () => (),
       externalSchedulerOpt = None)))
 
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
