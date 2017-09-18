@@ -32,6 +32,7 @@ class RegularSync(
     val pendingTransactionsManager: ActorRef,
     val ledger: Ledger,
     val syncConfig: SyncConfig,
+    shutdownAppFn: () => Unit,
     implicit val scheduler: Scheduler)
   extends Actor with ActorLogging with PeerListSupport with BlacklistSupport with SyncBlocksValidator with BlockBroadcast {
 
@@ -84,7 +85,7 @@ class RegularSync(
             //Something went wrong, we don't have the total difficulty of the latest block
             //TODO: Investigate if we can recover from this error [EC-165]
             log.error(s"No total difficulty for the latest block with number $currentBestBlock")
-            context stop self
+            shutdownAppFn()
 
           case (None, Some(_)) =>
             //The received block should be imported, however we don't have it's parent.
@@ -312,7 +313,7 @@ class RegularSync(
           //TODO: Investigate if we can recover from this error (EC-165)
           val parentHash = Hex.toHexString(blocks.head.header.parentHash.toArray)
           log.error(s"No total difficulty for the latest block with number ${blocks.head.header.number - 1} (and hash $parentHash)")
-          context stop self
+          shutdownAppFn()
       }
 
     } else {
@@ -374,9 +375,9 @@ object RegularSync {
   // scalastyle:off parameter.number
   def props(appStateStorage: AppStateStorage, blockchain: Blockchain, validators: Validators,
             etcPeerManager: ActorRef, peerEventBus: ActorRef, ommersPool: ActorRef, pendingTransactionsManager: ActorRef, ledger: Ledger,
-            syncConfig: SyncConfig, scheduler: Scheduler): Props =
+            syncConfig: SyncConfig, shutdownAppFn: () => Unit, scheduler: Scheduler): Props =
     Props(new RegularSync(appStateStorage, blockchain, validators, etcPeerManager, peerEventBus, ommersPool, pendingTransactionsManager,
-      ledger, syncConfig, scheduler))
+      ledger, syncConfig, shutdownAppFn, scheduler))
 
   private[sync] case object ResumeRegularSync
   private case class ResolveBranch(peer: ActorRef)
