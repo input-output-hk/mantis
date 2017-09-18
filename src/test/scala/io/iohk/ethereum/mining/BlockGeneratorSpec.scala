@@ -106,6 +106,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val difficultyBombPauseBlockNumber: BigInt = 3000000
       override val difficultyBombContinueBlockNumber: BigInt = 5000000
       override val eip155BlockNumber: BigInt = Long.MaxValue
+      override val eip106BlockNumber: BigInt = Long.MaxValue
       override val chainId: Byte = 0x3d.toByte
       override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
       override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
@@ -259,6 +260,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val difficultyBombPauseBlockNumber: BigInt = 3000000
       override val difficultyBombContinueBlockNumber: BigInt = 5000000
       override val eip155BlockNumber: BigInt = 0
+      override val eip106BlockNumber: BigInt = Long.MaxValue
       override val chainId: Byte = 0x3d.toByte
       override val customGenesisFileOpt: Option[String] = Some("test-genesis.json")
       override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))

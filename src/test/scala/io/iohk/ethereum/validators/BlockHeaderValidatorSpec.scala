@@ -109,6 +109,12 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     }
   }
 
+  it should "return a failure if created with gas limit above threshold and block number >= eip106 block number" in {
+    val validParent = validBlockParent.copy(gasLimit = Long.MaxValue)
+    val invalidBlockHeader = validBlockHeader.copy(gasLimit = BigInt(Long.MaxValue) + 1)
+    blockHeaderValidator.validate(invalidBlockHeader, validParent) shouldBe Left(HeaderGasLimitError)
+  }
+
   it should "return a failure if created based on invalid number" in {
     forAll(bigIntGen) { number =>
       val blockHeader = validBlockHeader.copy(number = number)
@@ -261,11 +267,12 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
       override val eip155BlockNumber: BigInt = Long.MaxValue
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
+      override val eip106BlockNumber: BigInt = 0
       override val chainId: Byte = 0x3d.toByte
       override val monetaryPolicyConfig: MonetaryPolicyConfig = null
       override val customGenesisFileOpt: Option[String] = None
       override val accountStartNonce: UInt256 = UInt256.Zero
-  }
+    }
 
   val ProDaoBlock1920008Header = BlockHeader(
     parentHash = ByteString(Hex.decode("05c45c9671ee31736b9f37ee98faa72c89e314059ecff3257206e6ab498eb9d1")),

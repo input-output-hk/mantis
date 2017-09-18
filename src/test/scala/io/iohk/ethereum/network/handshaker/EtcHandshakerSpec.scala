@@ -153,6 +153,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val eip150BlockNumber: BigInt = 0
       override val eip160BlockNumber: BigInt = 0
       override val eip155BlockNumber: BigInt = 0
+      override val eip106BlockNumber: BigInt = 0
       override val difficultyBombPauseBlockNumber: BigInt = 0
       override val difficultyBombContinueBlockNumber: BigInt = 0
       override val customGenesisFileOpt: Option[String] = None

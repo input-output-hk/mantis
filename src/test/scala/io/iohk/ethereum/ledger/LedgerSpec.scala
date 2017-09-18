@@ -913,6 +913,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       override val difficultyBombContinueBlockNumber: BigInt = blockchainConfig.difficultyBombContinueBlockNumber
       override val daoForkConfig: Option[DaoForkConfig] = Some(supportDaoForkConfig)
       override  val customGenesisFileOpt: Option[String] = None
+      override val eip106BlockNumber = Long.MaxValue
     }
 
     (testBlockchain.getBlockHeaderByHash _).expects(proDaoBlock.header.parentHash).returning(Some(Fixtures.Blocks.DaoParentBlock.header))
