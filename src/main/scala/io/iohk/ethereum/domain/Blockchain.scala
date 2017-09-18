@@ -239,8 +239,8 @@ class BlockchainImpl(
     totalDifficultyStorage.remove(blockHash)
     receiptStorage.remove(blockHash)
     maybeTxList.foreach(removeTxsLocations)
-    maybeBlockHeader.foreach{ case h if getHashByBlockNumber(h.number).contains(blockHash) =>
-      removeBlockNumberMapping(h.number)
+    maybeBlockHeader.foreach{ case h =>
+      if(getHashByBlockNumber(h.number).contains(blockHash)) removeBlockNumberMapping(h.number)
     }
   }
 
