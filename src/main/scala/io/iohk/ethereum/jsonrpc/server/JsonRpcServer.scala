@@ -1,27 +1,24 @@
-package io.iohk.ethereum.jsonrpc.http
+package io.iohk.ethereum.jsonrpc.server
+
+import java.security.SecureRandom
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route}
 import akka.http.scaladsl.server.Directives._
-import akka.stream.ActorMaterializer
+import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route}
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
-import io.iohk.ethereum.jsonrpc.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcErrors, JsonRpcRequest, JsonRpcResponse}
 import io.iohk.ethereum.utils.Logger
 import org.json4s.JsonAST.JInt
 import org.json4s.{DefaultFormats, native}
 
-import scala.util.{Failure, Success}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 
-class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHttpServerConfig)
-                       (implicit val actorSystem: ActorSystem)
-  extends Json4sSupport with Logger {
+trait JsonRpcServer extends Json4sSupport {
+  val jsonRpcController: JsonRpcController
 
   implicit val serialization = native.Serialization
 
@@ -46,16 +43,10 @@ class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHtt
     }
   }
 
-  def run(): Unit = {
-    implicit val materializer = ActorMaterializer()
-
-    val bindingResultF = Http(actorSystem).bindAndHandle(route, config.interface, config.port)
-
-    bindingResultF onComplete {
-      case Success(serverBinding) => log.info(s"JSON RPC server listening on ${serverBinding.localAddress}")
-      case Failure(ex) => log.error("Cannot start JSON RPC server", ex)
-    }
-  }
+  /**
+    * Try to start JSON RPC server
+    */
+  def run(): Unit
 
   private def handleRequest(request: JsonRpcRequest) = {
     complete(jsonRpcController.handleRequest(request))
@@ -64,15 +55,24 @@ class JsonRpcHttpServer(jsonRpcController: JsonRpcController, config: JsonRpcHtt
   private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
     complete(Future.sequence(requests.map(request => jsonRpcController.handleRequest(request))))
   }
-
 }
 
-object JsonRpcHttpServer {
+object JsonRpcServer extends Logger {
 
-  trait JsonRpcHttpServerConfig {
+  def apply(jsonRpcController: JsonRpcController, config: JsonRpcServerConfig, secureRandom: SecureRandom)
+           (implicit actorSystem: ActorSystem): Either[String, JsonRpcServer] = config.mode match {
+    case "http" => Right(new JsonRpcHttpServer(jsonRpcController, config)(actorSystem))
+    case "https" => Right(new JsonRpcHttpsServer(jsonRpcController, config, secureRandom)(actorSystem))
+    case _ => Left(s"Cannot start JSON RPC server: Invalid mode ${config.mode} selected")
+  }
+
+  trait JsonRpcServerConfig {
+    val mode: String
     val enabled: Boolean
     val interface: String
     val port: Int
+    val certificateKeyStorePath: Option[String]
+    val certificatePasswordFile: Option[String]
   }
 
 }

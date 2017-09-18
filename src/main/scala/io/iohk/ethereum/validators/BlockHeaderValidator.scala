@@ -18,6 +18,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
   val GasLimitBoundDivisor: Int = 1024
   val MinGasLimit: BigInt = 5000 //Although the paper states this value is 125000, on the different clients 5000 is used
   val difficulty = new DifficultyCalculator(blockchainConfig)
+  val MaxGasLimit = Long.MaxValue // max gasLimit is equal 2^63-1 according to EIP106
   import BlockHeaderError._
 
   /** This method allows validate a BlockHeader (stated on
@@ -101,15 +102,24 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * Validates [[io.iohk.ethereum.domain.BlockHeader.gasLimit]] follows the restrictions based on its parent gasLimit
     * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
     *
+    * EIP106(https://github.com/ethereum/EIPs/issues/106) adds additional validation of maximum value for gasLimit.
+    *
     * @param blockHeader BlockHeader to validate.
     * @param parentHeader BlockHeader of the parent of the block to validate.
     * @return BlockHeader if valid, an [[HeaderGasLimitError]] otherwise
     */
   private def validateGasLimit(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
-    val gasLimitDiff = (blockHeader.gasLimit - parentHeader.gasLimit).abs
-    val gasLimitDiffLimit = parentHeader.gasLimit / GasLimitBoundDivisor
-    if(gasLimitDiff < gasLimitDiffLimit && blockHeader.gasLimit >= MinGasLimit) Right(blockHeader)
-    else Left(HeaderGasLimitError)
+
+    if (blockHeader.gasLimit > MaxGasLimit && blockHeader.number >= blockchainConfig.eip106BlockNumber)
+      Left(HeaderGasLimitError)
+    else {
+      val gasLimitDiff = (blockHeader.gasLimit - parentHeader.gasLimit).abs
+      val gasLimitDiffLimit = parentHeader.gasLimit / GasLimitBoundDivisor
+      if (gasLimitDiff < gasLimitDiffLimit && blockHeader.gasLimit >= MinGasLimit)
+        Right(blockHeader)
+      else
+        Left(HeaderGasLimitError)
+    }
   }
 
   /**
