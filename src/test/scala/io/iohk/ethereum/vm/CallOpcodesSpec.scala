@@ -55,12 +55,13 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     )
 
     val selfDestructCode = Assembly(
-      PUSH1, callerAddr.toUInt256.toInt,
+      PUSH20, callerAddr.bytes,
       SELFDESTRUCT
     )
 
-    val selfDestructSelfCode = assemblyFromBytes (
-      PUSH32.code +: extAddr.toUInt256.bytes.toSeq :+ SELFDESTRUCT.code
+    val selfDestructTransferringToSelfCode = Assembly(
+      PUSH20, extAddr.bytes,
+      SELFDESTRUCT
     )
 
     val sstoreWithClearCode = Assembly(
@@ -104,9 +105,6 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     val extProgram = extCode.program
     val invalidProgram = Program(extProgram.code.init :+ INVALID.code)
-    val selfDestructProgram = selfDestructCode.program
-    val selfDestructSelfProgram = selfDestructSelfCode.program
-    val sstoreWithClearProgram = sstoreWithClearCode.program
 
     val worldWithoutExtAccount = MockWorldState().saveAccount(ownerAddr, initialOwnerAccount)
     val worldWithExtAccount = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
@@ -115,13 +113,13 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       .saveCode(extAddr, invalidProgram.code)
 
     val worldWithSelfDestructProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
-      .saveCode(extAddr, selfDestructProgram.code)
+      .saveCode(extAddr, selfDestructCode.code)
 
     val worldWithSelfDestructSelfProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
-      .saveCode(extAddr, selfDestructSelfProgram.code)
+      .saveCode(extAddr, selfDestructTransferringToSelfCode.code)
 
     val worldWithSstoreWithClearProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
-      .saveCode(extAddr, sstoreWithClearProgram.code)
+      .saveCode(extAddr, sstoreWithClearCode.code)
 
     val worldWithReturnSingleByteCode = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
       .saveCode(extAddr, returnSingleByteProgram.code)
