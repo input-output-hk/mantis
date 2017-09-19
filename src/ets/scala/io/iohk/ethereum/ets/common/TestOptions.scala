@@ -1,6 +1,6 @@
-package io.iohk.ethereum.ets.vm
+package io.iohk.ethereum.ets.common
 
-import io.iohk.ethereum.ets.vm.TestOptions._
+import io.iohk.ethereum.ets.common.TestOptions._
 import org.scalatest.ConfigMap
 
 object TestOptions {

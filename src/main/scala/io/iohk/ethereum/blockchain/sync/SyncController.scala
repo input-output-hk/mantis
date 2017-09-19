@@ -18,6 +18,7 @@ class SyncController(
     ommersPool: ActorRef,
     etcPeerManager: ActorRef,
     syncConfig: SyncConfig,
+    shutdownAppFn: () => Unit,
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor
     with ActorLogging {
@@ -75,7 +76,7 @@ class SyncController(
 
   def startRegularSync(): Unit = {
     val regularSync = context.actorOf(RegularSync.props(appStateStorage, blockchain, validators, etcPeerManager,
-      peerEventBus, ommersPool, pendingTransactionsManager, ledger, syncConfig, scheduler), "regular-sync")
+      peerEventBus, ommersPool, pendingTransactionsManager, ledger, syncConfig, shutdownAppFn, scheduler), "regular-sync")
     regularSync ! RegularSync.Start
     context become runningRegularSync(regularSync)
   }
@@ -92,9 +93,10 @@ object SyncController {
             pendingTransactionsManager: ActorRef,
             ommersPool: ActorRef,
             etcPeerManager: ActorRef,
-            syncConfig: SyncConfig):
+            syncConfig: SyncConfig,
+            shutdownFn: () => Unit):
   Props = Props(new SyncController(appStateStorage, blockchain, syncStateStorage, ledger, validators,
-    peerEventBus, pendingTransactionsManager, ommersPool, etcPeerManager, syncConfig))
+    peerEventBus, pendingTransactionsManager, ommersPool, etcPeerManager, syncConfig, shutdownFn))
 
   case object Start
 }

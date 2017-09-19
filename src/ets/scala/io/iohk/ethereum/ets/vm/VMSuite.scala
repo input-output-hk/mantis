@@ -1,6 +1,7 @@
 package io.iohk.ethereum.ets.vm
 
 import io.iohk.ethereum.domain.TxLogEntry
+import io.iohk.ethereum.ets.common.{ScenarioLoader, TestOptions}
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.vm.MockWorldState._
 import io.iohk.ethereum.vm._
@@ -11,7 +12,7 @@ class VMSuite extends FreeSpec with Matchers with Logger {
   override def run(testName: Option[String], args: Args): Status = {
 
     val options = TestOptions(args.configMap)
-    val scenarios = ScenarioLoader.load(options)
+    val scenarios = VMScenarioLoader.load("ets/VMTests", options)
 
     scenarios.foreach { group =>
       group.name - {
@@ -20,7 +21,7 @@ class VMSuite extends FreeSpec with Matchers with Logger {
           if options.isScenarioIncluded(name)
         } {
           name in {
-            log.debug(s"Running test: ${group.name}/$name")
+            log.info(s"Running test: ${group.name}/$name")
             runScenario(scenario)
           }
         }
@@ -30,13 +31,13 @@ class VMSuite extends FreeSpec with Matchers with Logger {
     runTests(testName, args)
   }
 
-  private def runScenario(scenario: Scenario): Unit = {
+  private def runScenario(scenario: VMScenario): Unit = {
     val context = ScenarioBuilder.prepareContext(scenario)
     val result = deleteAccounts(VM.run(context))
     verifyResult(result, scenario)
   }
 
-  private def verifyResult(result: PR, scenario: Scenario): Unit = {
+  private def verifyResult(result: PR, scenario: VMScenario): Unit = {
     scenario.gas.foreach { gas =>
       result.gasRemaining shouldEqual gas
     }

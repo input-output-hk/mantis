@@ -141,6 +141,51 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
 
   }
 
+  "InMemoryWorldStateProxy" should "initialise new account and handle address collision correctly" in new TestSetup {
+    val startValue = 100
+    val transferValue = 50
+    val balanceAfterTransfer = startValue + transferValue
+
+    val account = Account(UInt256.One, startValue)
+    val addr = UInt256.One
+    val value = UInt256.MaxValue
+    val code = ByteString(Hex.decode("deadbeefdeadbeefdeadbeef"))
+
+    val initialWorld = InMemoryWorldStateProxy.persistState(worldState.saveAccount(address1, account))
+
+    val worldWithTwoAccounts = InMemoryWorldStateProxy.persistState(
+      initialWorld
+        .saveAccount(address2, account)
+        .saveCode(address2,code)
+        .saveStorage(address2, worldState.getStorage(address2).store(addr,value))
+    )
+
+    val worldAfterInitialisation = worldWithTwoAccounts.initialiseAccount(address1, address2, transferValue)
+
+    val acc2 = worldAfterInitialisation.getGuaranteedAccount(address2)
+
+    acc2.nonce shouldEqual UInt256.Zero
+    acc2.balance shouldEqual balanceAfterTransfer
+    acc2.codeHash shouldEqual Account.EmptyCodeHash
+    acc2.storageRoot shouldEqual Account.EmptyStorageRootHash
+  }
+
+  "InMemoryWorldStateProxy" should "remove all ether from existing account" in new TestSetup {
+    val startValue = 100
+
+    val account = Account(UInt256.One, startValue)
+    val code = ByteString(Hex.decode("deadbeefdeadbeefdeadbeef"))
+
+    val initialWorld = InMemoryWorldStateProxy.persistState(worldState.saveAccount(address1, account))
+
+    val worldAfterEtherRemoval = initialWorld.removeAllEther(address1)
+
+    val acc1 = worldAfterEtherRemoval.getGuaranteedAccount(address1)
+
+    acc1.nonce shouldEqual UInt256.One
+    acc1.balance shouldEqual UInt256.Zero
+  }
+
   trait TestSetup extends EphemBlockchainTestSetup {
 
     val worldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
