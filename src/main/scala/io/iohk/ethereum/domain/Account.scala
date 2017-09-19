@@ -6,7 +6,6 @@ import io.iohk.ethereum.mpt.ByteArraySerializable
 import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 object Account {
@@ -42,6 +41,9 @@ case class Account(
 
   def withStorage(storageRoot: ByteString): Account =
     copy(storageRoot = storageRoot)
+
+  def resetAccountPreservingBalance(startNonce: UInt256 = UInt256.Zero): Account =
+    copy(nonce = startNonce, storageRoot = Account.EmptyStorageRootHash, codeHash = Account.EmptyCodeHash)
 
   override def toString: String =
     s"Account(nonce: $nonce, balance: $balance, " +

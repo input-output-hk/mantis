@@ -7,7 +7,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, _}
-import io.iohk.ethereum.vm.{Storage, UInt256, WorldStateProxy}
+import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
 
 object InMemoryWorldStateProxy {
 
@@ -22,7 +22,7 @@ object InMemoryWorldStateProxy {
   ): InMemoryWorldStateProxy = {
     val accountsStateTrieProxy = createProxiedAccountsStateTrie(
       nodesKeyValueStorage,
-      stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.calculateEmptyRootHash(kec256(_: Array[Byte]))))
+      stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.EmptyRootHash))
     )
     new InMemoryWorldStateProxy(
       nodesKeyValueStorage,
@@ -44,7 +44,7 @@ object InMemoryWorldStateProxy {
     * @param worldState Proxy to commit
     * @return Updated world
     */
-  private[ledger] def persistState(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  def persistState(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     def persistCode(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
       worldState.accountCodes.foldLeft(worldState) {
         case (updatedWorldState, (address, code)) =>
@@ -93,8 +93,7 @@ object InMemoryWorldStateProxy {
     InMemorySimpleMapProxy.wrap[Address, Account, MerklePatriciaTrie[Address, Account]](
       MerklePatriciaTrie[Address, Account](
         stateRootHash.toArray[Byte],
-        accountsStorage,
-        kec256(_: Array[Byte])
+        accountsStorage
       )(Address.hashedAddressEncoder, accountSerializer)
     )
   }

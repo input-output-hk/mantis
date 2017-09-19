@@ -3,10 +3,9 @@ package io.iohk.ethereum.validators
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}
 import io.iohk.ethereum.validators.BlockHeaderError._
-import io.iohk.ethereum.vm.UInt256
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -29,6 +28,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     override val eip155BlockNumber: BigInt = Long.MaxValue
     override val eip160BlockNumber: BigInt = Long.MaxValue
     override val eip150BlockNumber: BigInt = Long.MaxValue
+    override val eip106BlockNumber: BigInt = 20
     override val chainId: Byte = 0x3d.toByte
     override val daoForkBlockHash: ByteString = ByteString("unused")
     override val monetaryPolicyConfig: MonetaryPolicyConfig = null
@@ -98,6 +98,12 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
         assert(validateResult == Left(HeaderGasLimitError))
       else assert(validateResult == Right(blockHeader))
     }
+  }
+
+  it should "return a failure if created with gas limit above threshold and block number >= eip106 block number" in {
+    val validParent = validBlockParent.copy(gasLimit = Long.MaxValue)
+    val invalidBlockHeader = validBlockHeader.copy(gasLimit = BigInt(Long.MaxValue) + 1)
+    blockHeaderValidator.validate(invalidBlockHeader, validParent) shouldBe Left(HeaderGasLimitError)
   }
 
   it should "return a failure if created based on invalid number" in {

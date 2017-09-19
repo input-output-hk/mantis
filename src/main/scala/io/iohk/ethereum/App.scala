@@ -34,11 +34,15 @@ object App {
         discoveryListener ! DiscoveryListener.Start
       }
 
-      syncController ! SyncController.StartSync
+      syncController ! SyncController.Start
 
       peerDiscoveryManager // unlazy
 
-      if (jsonRpcHttpServerConfig.enabled) jsonRpcHttpServer.run()
+      maybeJsonRpcServer match {
+        case Right(jsonRpcServer) if jsonRpcServerConfig.enabled => jsonRpcServer.run()
+        case Left(error) if jsonRpcServerConfig.enabled => log.error(error)
+        case _=> //Nothing
+      }
     }
 
   }

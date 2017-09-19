@@ -2,8 +2,8 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Address, TxLogEntry}
-import io.iohk.ethereum.vm.UInt256._
+import io.iohk.ethereum.domain.{Address, TxLogEntry, UInt256}
+import io.iohk.ethereum.domain.UInt256._
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
@@ -177,7 +177,7 @@ object OpCode {
   * @param delta number of words to be popped from stack
   * @param alpha number of words to be pushed to stack
   */
-sealed abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constGasFn: FeeSchedule => BigInt) {
+abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constGasFn: FeeSchedule => BigInt) extends Product with Serializable {
   def this(code: Int, pop: Int, push: Int, constGasFn: FeeSchedule => BigInt) = this(code.toByte, pop, push, constGasFn)
 
   def execute[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -669,7 +669,7 @@ case object LOG3 extends LogOp(0xa3)
 case object LOG4 extends LogOp(0xa4)
 
 
-case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
+abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(endowment, inOffset, inSize), stack1) = state.stack.pop(3)
 
@@ -682,7 +682,7 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
 
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
       val (newAddress, world1) = state.world.createAddressWithOpCode(state.env.ownerAddr)
-      val world2 = world1.transfer(state.env.ownerAddr, newAddress, endowment)
+      val worldAfterInitialisation = world1.initialiseAccount(state.env.ownerAddr, newAddress, endowment)
 
       val newEnv = state.env.copy(
         callerAddr = state.env.ownerAddr,
@@ -698,7 +698,7 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
       val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
       val startGas = state.config.gasCap(availableGas)
 
-      val context = ProgramContext[W, S](newEnv, newAddress, startGas, world2, state.config, state.addressesToDelete)
+      val context = ProgramContext[W, S](newEnv, newAddress, startGas, worldAfterInitialisation, state.config, state.addressesToDelete)
       val result = VM.run(context)
 
       val codeDepositGas = state.config.calcCodeDepositCost(result.returnData)
@@ -723,7 +723,8 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
             state.withWorld(result.world).spendGas(gasUsedInVm)
           else {
             val world3 = result.world.saveCode(newAddress, result.returnData)
-            state.withWorld(world3).spendGas(totalGasRequired)
+            val internalTx = InternalTransaction(CREATE, state.env.ownerAddr, None, startGas, initCode, endowment)
+            state.withWorld(world3).spendGas(totalGasRequired).withInternalTxs(internalTx +: result.internalTxs)
           }
 
         state1
@@ -743,19 +744,16 @@ case object CREATE extends OpCode(0xf0, 3, 1, _.G_create) {
   }
 }
 
+case object CREATE extends CreateOp
 
-sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, alpha, _.G_zero) {
+abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, alpha, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
+    val (params @ Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
 
     val (inputData, mem1) = state.memory.load(inOffset, inSize)
     val endowment = if (this == DELEGATECALL) UInt256.Zero else callValue
 
-    val startGas = {
-      val gExtra = gasExtra(state, endowment, Address(to))
-      val gCap = gasCap(state, gas, gExtra)
-      if (endowment.isZero) gCap else gCap + state.config.feeSchedule.G_callstipend
-    }
+    val startGas = calcStartGas(state, params, endowment)
 
     lazy val result = {
       val toAddr = Address(to)
@@ -796,11 +794,13 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
 
     if (!validCall || result.error.isDefined) {
       val stack2 = stack1.push(UInt256.Zero)
+
       val gasAdjustment: BigInt = if (validCall) 0 else -startGas
+      val mem2 = mem1.expand(outOffset, outSize)
 
       state
         .withStack(stack2)
-        .withMemory(mem1)
+        .withMemory(mem2)
         .spendGas(gasAdjustment)
         .step()
 
@@ -809,6 +809,7 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
       val sizeCap = outSize.min(result.returnData.size).toInt
       val output = result.returnData.take(sizeCap)
       val mem2 = mem1.store(outOffset, output).expand(outOffset, outSize)
+      val internalTx = internalTransaction(state.env, to, startGas, inputData, endowment)
 
       state
         .spendGas(-result.gasRemaining)
@@ -817,35 +818,56 @@ sealed abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(c
         .withMemory(mem2)
         .withWorld(result.world)
         .withAddressesToDelete(result.addressesToDelete)
+        .withInternalTxs(internalTx +: result.internalTxs)
         .withLogs(result.logs)
         .step()
     }
+  }
+
+  protected def internalTransaction(env: ExecEnv, callee: UInt256, startGas: BigInt, inputData: ByteString, endowment: UInt256): InternalTransaction = {
+    val from = env.ownerAddr
+    val to = if (this == CALL) Address(callee) else env.ownerAddr
+    InternalTransaction(this, from, Some(to), startGas, inputData, endowment)
   }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
     val (Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), _) = getParams(state)
     val endowment = if (this == DELEGATECALL) UInt256.Zero else callValue
 
-    val memCostIn = state.config.calcMemCost(state.memory.size, inOffset, inSize)
-    val memCostOut = state.config.calcMemCost(state.memory.size, outOffset, outSize)
-    val memCost: BigInt = memCostIn max memCostOut
+    val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
 
     // FIXME: these are calculated twice (for gas and exec), especially account existence. Can we do better? [EC-243]
     val gExtra: BigInt = gasExtra(state, endowment, Address(to))
-    val gCap: BigInt = gasCap(state, gas, gExtra)
+    val gCap: BigInt = gasCap(state, gas, gExtra + memCost)
     memCost + gCap + gExtra
   }
 
-  private def getParams[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): (Seq[UInt256], Stack) = {
+  protected def calcMemCost[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S],
+      inOffset: UInt256, inSize: UInt256, outOffset: UInt256, outSize: UInt256): BigInt = {
+
+    val memCostIn = state.config.calcMemCost(state.memory.size, inOffset, inSize)
+    val memCostOut = state.config.calcMemCost(state.memory.size, outOffset, outSize)
+    memCostIn max memCostOut
+  }
+
+  protected def getParams[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): (Seq[UInt256], Stack) = {
     val (Seq(gas, to), stack1) = state.stack.pop(2)
     val (value, stack2) = if (this == DELEGATECALL) (state.env.value, stack1) else stack1.pop
     val (Seq(inOffset, inSize, outOffset, outSize), stack3) = stack2.pop(4)
     Seq(gas, to, value, inOffset, inSize, outOffset, outSize) -> stack3
   }
 
-  private def gasCap[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], g: BigInt, gExtra: BigInt): BigInt = {
-    if (state.config.subGasCapDivisor.isDefined && state.gas >= gExtra)
-      g min state.config.gasCap(state.gas - gExtra)
+  protected def calcStartGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], params: Seq[UInt256], endowment: UInt256): BigInt = {
+    val Seq(gas, to, _, inOffset, inSize, outOffset, outSize) = params
+    val memCost = calcMemCost(state, inOffset, inSize, outOffset, outSize)
+    val gExtra = gasExtra(state, endowment, Address(to))
+    val gCap = gasCap(state, gas, gExtra + memCost)
+    if (endowment.isZero) gCap else gCap + state.config.feeSchedule.G_callstipend
+  }
+
+  private def gasCap[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], g: BigInt, consumedGas: BigInt): BigInt = {
+    if (state.config.subGasCapDivisor.isDefined && state.gas >= consumedGas)
+      g min state.config.gasCap(state.gas - consumedGas)
     else
       g
   }
@@ -884,7 +906,12 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
     val (refund, stack1) = state.stack.pop
     val refundAddr: Address = Address(refund)
     val gasRefund: BigInt = if (state.addressesToDelete contains state.ownAddress) 0 else state.config.feeSchedule.R_selfdestruct
-    val world = state.world.transfer(state.ownAddress, refundAddr, state.ownBalance)
+
+    val world =
+      if (state.ownAddress == refundAddr)
+        state.world.removeAllEther(state.ownAddress)
+      else
+        state.world.transfer(state.ownAddress, refundAddr, state.ownBalance)
 
     state
       .withWorld(world)

@@ -4,12 +4,13 @@ import akka.util.ByteString
 import org.scalatest.{Matchers, WordSpec}
 import Assembly._
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
 import org.scalatest.prop.PropertyChecks
 
 // scalastyle:off object.name
+// scalastyle:off file.size.limit
 class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
   val config = EvmConfig.PostEIP160Config
@@ -55,7 +56,12 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     )
 
     val selfDestructCode = Assembly(
-      PUSH1, callerAddr.toUInt256.toInt,
+      PUSH20, callerAddr.bytes,
+      SELFDESTRUCT
+    )
+
+    val selfDestructTransferringToSelfCode = Assembly(
+      PUSH20, extAddr.bytes,
       SELFDESTRUCT
     )
 
@@ -100,8 +106,6 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     val extProgram = extCode.program
     val invalidProgram = Program(extProgram.code.init :+ INVALID.code)
-    val selfDestructProgram = selfDestructCode.program
-    val sstoreWithClearProgram = sstoreWithClearCode.program
 
     val worldWithoutExtAccount = MockWorldState().saveAccount(ownerAddr, initialOwnerAccount)
     val worldWithExtAccount = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
@@ -110,10 +114,13 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       .saveCode(extAddr, invalidProgram.code)
 
     val worldWithSelfDestructProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
-      .saveCode(extAddr, selfDestructProgram.code)
+      .saveCode(extAddr, selfDestructCode.code)
+
+    val worldWithSelfDestructSelfProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
+      .saveCode(extAddr, selfDestructTransferringToSelfCode.code)
 
     val worldWithSstoreWithClearProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
-      .saveCode(extAddr, sstoreWithClearProgram.code)
+      .saveCode(extAddr, sstoreWithClearCode.code)
 
     val worldWithReturnSingleByteCode = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
       .saveCode(extAddr, returnSingleByteProgram.code)
@@ -258,6 +265,10 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
+
+      "extend memory" in {
+        UInt256(call.stateOut.memory.size) shouldEqual call.outOffset + call.outSize
+      }
     }
 
     "calling a non-existent account" should {
@@ -330,6 +341,12 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         call.stateOut.gasRefund shouldBe 0
       }
 
+      "destruct ether if own address equals refund address" in {
+        val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructSelfProgram)
+        val call = CallResult(op = CALL, context)
+        call.stateOut.world.getGuaranteedAccount(fxt.extAddr).balance shouldEqual UInt256.Zero
+        call.stateOut.addressesToDelete.contains(fxt.extAddr) shouldBe true
+      }
     }
 
     "calling a program that executes a SSTORE that clears the storage" should {
@@ -349,12 +366,40 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         CallResult(op = CALL, context = context, gas = UInt256.MaxValue / 2)
       }
 
+      def callVarMemCost(config: EvmConfig): CallResult = {
+
+        /**
+          * Amount of memory which causes the improper OOG exception, if we don take memcost into account
+          * during calculation of post EIP150 CALLOp gasCap: gasCap(state, gas, gExtra + memCost)
+          */
+        val gasFailingBeforeEIP150Fix = 141072
+
+        val context: PC = fxt.context.copy(config = config)
+        CallResult(
+          op = CALL,
+          context = context,
+          inOffset = UInt256.Zero,
+          inSize = fxt.inputData.size,
+          outOffset = fxt.inputData.size,
+          outSize = gasFailingBeforeEIP150Fix
+        )
+      }
+
       "go OOG before EIP-150" in {
         call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
       }
 
       "cap the provided gas after EIP-150" in {
         call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+      }
+
+      "go OOG before EIP-150 becaouse of extensive memory cost" in {
+        callVarMemCost(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+      }
+
+      "cap memory cost post EIP-150" in {
+        val callResult = callVarMemCost(EvmConfig.PostEIP150Config)
+        callResult.stateOut.stack.pop._1 shouldEqual UInt256.One
       }
     }
   }
@@ -463,6 +508,10 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       "consume all call gas" in {
         val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
+      }
+
+      "extend memory" in {
+        UInt256(call.stateOut.memory.size) shouldEqual call.outOffset + call.outSize
       }
     }
 
@@ -631,6 +680,10 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
+
+      "extend memory" in {
+        UInt256(call.stateOut.memory.size) shouldEqual call.outOffset + call.outSize
+      }
     }
 
     "external account does not exist" should {
@@ -788,5 +841,4 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       }
     }
   }
-
 }

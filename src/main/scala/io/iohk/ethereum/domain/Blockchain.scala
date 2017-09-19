@@ -1,16 +1,14 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie, NodesKeyValueStorage}
+import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode, NodesKeyValueStorage}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
-import io.iohk.ethereum.vm.{Storage, UInt256, WorldStateProxy}
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNode._
+import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
@@ -111,6 +109,9 @@ trait Blockchain {
     */
   def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt]
 
+  def getTotalDifficultyByNumber(blockNumber: BigInt): Option[BigInt] =
+    getHashByBlockNumber(blockNumber).flatMap(getTotalDifficultyByHash)
+
   def getTransactionLocation(txHash: ByteString): Option[TransactionLocation]
 
   /**
@@ -139,6 +140,8 @@ trait Blockchain {
   def save(hash: ByteString, evmCode: ByteString): Unit
 
   def save(blockhash: ByteString, totalDifficulty: BigInt): Unit
+
+  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
 
   /**
     * Returns a block hash given a block number
@@ -184,8 +187,7 @@ class BlockchainImpl(
     getBlockHeaderByNumber(blockNumber).flatMap { bh =>
       val mpt = MerklePatriciaTrie[Address, Account](
         bh.stateRoot.toArray,
-        nodesKeyValueStorageFor(Some(blockNumber)),
-        crypto.kec256(_: Array[Byte])
+        nodesKeyValueStorageFor(Some(blockNumber))
       )
       mpt.get(address)
     }
@@ -218,18 +220,28 @@ class BlockchainImpl(
 
   def save(blockhash: ByteString, td: BigInt): Unit = totalDifficultyStorage.put(blockhash, td)
 
+  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit =
+    nodesKeyValueStorageFor(Some(blockNumber)).put(nodeHash, nodeEncoded)
+
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     blockNumberMappingStorage.get(number)
 
   private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit = blockNumberMappingStorage.put(number, hash)
 
+  private def removeBlockNumberMapping(number: BigInt): Unit = blockNumberMappingStorage.remove(number)
+
   override def removeBlock(blockHash: ByteString): Unit = {
+    val maybeBlockHeader = getBlockHeaderByHash(blockHash)
     val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
+
     blockHeadersStorage.remove(blockHash)
     blockBodiesStorage.remove(blockHash)
     totalDifficultyStorage.remove(blockHash)
     receiptStorage.remove(blockHash)
     maybeTxList.foreach(removeTxsLocations)
+    maybeBlockHeader.foreach{ case h =>
+      if(getHashByBlockNumber(h.number).contains(blockHash)) removeBlockNumberMapping(h.number)
+    }
   }
 
   private def saveTxsLocations(blockHash: ByteString, blockBody: BlockBody): Unit =

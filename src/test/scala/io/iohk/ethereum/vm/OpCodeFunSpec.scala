@@ -2,9 +2,9 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, TxLogEntry}
+import io.iohk.ethereum.domain.{Account, Address, TxLogEntry, UInt256}
 import io.iohk.ethereum.vm.Generators._
-import io.iohk.ethereum.vm.UInt256._
+import io.iohk.ethereum.domain.UInt256._
 import org.scalacheck.Gen
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
@@ -693,15 +693,15 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   test(SELFDESTRUCT) { op =>
     val stateGen = getProgramStateGen(
-      stackGen = getStackGen(elems = 2)
+      stackGen = getStackGen(valueGen = getUInt256Gen().filter(_ != ownerAddr))
     )
+
     forAll(stateGen) { stateIn =>
       val stateOut = executeOp(op, stateIn)
       withStackVerification(op, stateIn, stateOut) {
-        val (refundDW, stack1) = stateIn.stack.pop
+        val (refundAddr, stack1) = stateIn.stack.pop
         val world1 = stateIn.world
-          .transfer(stateIn.ownAddress, Address(refundDW), stateIn.ownBalance)
-          .saveAccount(Address(refundDW), Account.empty())
+          .transfer(stateIn.ownAddress, Address(refundAddr), stateIn.ownBalance)
         val expectedState = stateIn
           .withWorld(world1)
           .withAddressToDelete(stateIn.context.env.ownerAddr)
@@ -709,6 +709,33 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
           .halt
         stateOut shouldEqual expectedState
       }
+    }
+
+
+    // test Ether transfer on SELFDESTRUCT
+    val table = Table[Address, UInt256, UInt256](
+      ("refundAddr", "initialEther", "transferredEther"),
+      (callerAddr, 1000, 1000),
+      (ownerAddr, 1000, 0) // if the Ether is transferred to the about-to-be removed account, the Ether gets destroyed
+    )
+
+    forAll(table) { case (refundAddr, initialEther, transferredEther) =>
+      val stackIn = Stack.empty().push(refundAddr.toUInt256)
+      val stateSample = getProgramStateGen().sample.get
+      val initialWorld = stateSample.world
+        .saveAccount(refundAddr, Account.empty())
+        .saveAccount(ownerAddr, Account.empty().increaseBalance(initialEther))
+      val stateIn = stateSample.copy(world = initialWorld, stack = stackIn)
+
+      val stateOut = executeOp(op, stateIn)
+
+      stateOut.addressesToDelete shouldEqual Set(ownerAddr)
+
+      val ownerBalance = stateOut.world.getBalance(ownerAddr)
+      ownerBalance shouldEqual 0
+
+      val refundBalance = stateOut.world.getBalance(refundAddr)
+      refundBalance shouldEqual transferredEther
     }
   }
 

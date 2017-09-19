@@ -9,7 +9,7 @@ import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl, UInt256}
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -23,7 +23,6 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnect, Hello}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.vm.UInt256
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -155,6 +154,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val eip150BlockNumber: BigInt = 0
       override val eip160BlockNumber: BigInt = 0
       override val eip155BlockNumber: BigInt = 0
+      override val eip106BlockNumber: BigInt = 0
       override val difficultyBombPauseBlockNumber: BigInt = 0
       override val difficultyBombContinueBlockNumber: BigInt = 0
       override val customGenesisFileOpt: Option[String] = None

@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.{Account, Address, BlockHeader}
+import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 import io.iohk.ethereum.vm.MockWorldState._
 import org.scalacheck.{Arbitrary, Gen}
 import org.spongycastle.util.encoders.Hex
@@ -105,7 +105,7 @@ object Generators extends ObjectGenerators {
       world = MockWorldState(numberOfHashes = blockNumber - 1)
         .saveCode(ownerAddr, program.code)
         .saveStorage(ownerAddr, storage)
-        .saveAccount(ownerAddr, Account.empty())
+        .saveAccount(ownerAddr, Account.empty().increaseBalance(value))
 
       context: PC = ProgramContext(env, ownerAddr, gas, world, EvmConfig.PostEIP160Config)
     } yield ProgramState(context).withStack(stack).withMemory(memory)

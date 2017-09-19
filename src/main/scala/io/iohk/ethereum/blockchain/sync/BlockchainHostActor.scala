@@ -10,7 +10,8 @@ import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, PeerManagerActor}
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
+import io.iohk.ethereum.network.EtcPeerManagerActor
 
 /**
   * BlockchainHost actor is in charge of replying to the peer's requests for blockchain data, which includes both
@@ -43,7 +44,7 @@ class BlockchainHostActor(blockchain: Blockchain, peerConfiguration: PeerConfigu
 
       val nodeData: Seq[ByteString] = hashesRequested.flatMap { hash =>
         //Fetch mpt node by hash
-        val maybeMptNodeData = blockchain.getMptNodeByHash(hash).map(_.toBytes: ByteString)
+        val maybeMptNodeData = blockchain.getMptNodeByHash(hash).map(e => e.toBytes: ByteString)
 
         //If no mpt node was found, fetch evm by hash
         maybeMptNodeData.orElse(blockchain.getEvmCodeByHash(hash))

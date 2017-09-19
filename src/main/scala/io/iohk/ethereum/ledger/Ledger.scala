@@ -7,7 +7,7 @@ import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecu
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult, PC, PR, TxResult}
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
-import io.iohk.ethereum.vm.UInt256._
+import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
@@ -15,28 +15,26 @@ import scala.annotation.tailrec
 
 trait Ledger {
 
-  def executeBlock(block: Block, storages: BlockchainStorages, validators: Validators): Either[BlockExecutionError, Seq[Receipt]]
+  def executeBlock(block: Block, validators: Validators): Either[BlockExecutionError, Seq[Receipt]]
 
-  def prepareBlock(block: Block, storages: BlockchainStorages, validators: Validators): BlockPreparationResult
+  def prepareBlock(block: Block, validators: Validators): BlockPreparationResult
 
-  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): TxResult
+  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader): TxResult
 }
 
-class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with Logger {
+//FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
+class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig) extends Ledger with Logger {
 
   val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
 
   def executeBlock(
     block: Block,
-    storages: BlockchainStorages,
     validators: Validators): Either[BlockExecutionError, Seq[Receipt]] = {
 
-    val blockchain = BlockchainImpl(storages)
-
     val blockExecResult = for {
-      _ <- validateBlockBeforeExecution(block, blockchain, validators)
+      _ <- validateBlockBeforeExecution(block, validators)
 
-      execResult <- executeBlockTransactions(block, blockchain, validators.signedTransactionValidator)
+      execResult <- executeBlockTransactions(block, validators.signedTransactionValidator)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
       worldToPersist = payBlockReward(block, resultingWorldStateProxy)
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
@@ -51,10 +49,8 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
 
   def prepareBlock(
     block: Block,
-    storages: BlockchainStorages,
     validators: Validators): BlockPreparationResult = {
 
-    val blockchain = BlockchainImpl(storages)
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, parentStateRoot)
     val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header, validators.signedTransactionValidator)
@@ -71,12 +67,10 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     * This function runs transaction
     *
     * @param block
-    * @param blockchain
     * @param signedTransactionValidator
     */
   private[ledger] def executeBlockTransactions(
     block: Block,
-    blockchain: BlockchainImpl,
     signedTransactionValidator: SignedTransactionValidator):
   Either[BlockExecutionError, BlockResult] = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
@@ -155,13 +149,13 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
       }
   }
 
-  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, storages: BlockchainStorages): TxResult = {
+  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader): TxResult = {
     val stateRoot = blockHeader.stateRoot
 
     val gasLimit = stx.tx.gasLimit
     val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
-    val world1 = BlockchainImpl(storages).getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(stateRoot))
+    val world1 = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(stateRoot))
     val world2 =
       if (world1.getAccount(stx.senderAddress).isEmpty)
         world1.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce))
@@ -214,7 +208,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     TxResult(world2, gasLimit - totalGasToRefund, resultWithErrorHandling.logs, result.returnData)
   }
 
-  private def validateBlockBeforeExecution(block: Block, blockchain: Blockchain, validators: Validators): Either[BlockExecutionError, Unit] = {
+  private def validateBlockBeforeExecution(block: Block, validators: Validators): Either[BlockExecutionError, Unit] = {
     val result = for {
       _ <- validators.blockHeaderValidator.validate(block.header, blockchain)
       _ <- validators.blockValidator.validateHeaderAndBody(block.header, block.body)
@@ -238,7 +232,7 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     */
   private[ledger] def validateBlockAfterExecution(block: Block, stateRootHash: ByteString, receipts: Seq[Receipt],
                                                   gasUsed: BigInt, blockValidator: BlockValidator): Either[BlockExecutionError, Unit] = {
-    lazy val blockAndReceiptsValidation = blockValidator.validateBlockAndReceipts(block, receipts)
+    lazy val blockAndReceiptsValidation = blockValidator.validateBlockAndReceipts(block.header, receipts)
     if(block.header.gasUsed != gasUsed)
       Left(ValidationAfterExecError(s"Block has invalid gas used, expected ${block.header.gasUsed} but got $gasUsed"))
     else if(block.header.stateRoot != stateRootHash)
@@ -309,17 +303,18 @@ class LedgerImpl(vm: VM, blockchainConfig: BlockchainConfig) extends Ledger with
     worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce)
   }
 
-  private[ledger] def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy, config: EvmConfig): PC =
+  private[ledger] def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy,
+                                            config: EvmConfig): PC = {
     stx.tx.receivingAddress match {
       case None =>
         val address = worldStateProxy.createAddress(creatorAddr = stx.senderAddress)
-        val world1 = worldStateProxy.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
-        ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, world1, config)
-
+        val worldAfterInitialisation = worldStateProxy.initialiseAccount(stx.senderAddress, address, UInt256(stx.tx.value))
+        ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, worldAfterInitialisation, config)
       case Some(txReceivingAddress) =>
         val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
         ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, config)
     }
+  }
 
   private def runVM(stx: SignedTransaction, context: PC, config: EvmConfig): PR = {
     val result: PR = vm.run(context)

@@ -5,14 +5,13 @@ import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, GetPendingTransactions, PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig, TxPoolConfig}
-import io.iohk.ethereum.vm.UInt256
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
@@ -182,7 +181,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     val r = ByteString(Hex.decode("d237344891a90a389b7747df6fbd0091da20d1c61adb961b4491a4c82f58dcd2"))
     val s = ByteString(Hex.decode("5425852614593caf3a922f48a6fe5204066dcefbf6c776c4820d3e7522058d00"))
-    val v = ByteString(Hex.decode("1b"))
+    val v = ByteString(Hex.decode("1b")).last
 
     val req = SignRequest(message, address, Some(passphrase))
 
@@ -205,7 +204,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     val r = ByteString(Hex.decode("d237344891a90a389b7747df6fbd0091da20d1c61adb961b4491a4c82f58dcd2"))
     val s = ByteString(Hex.decode("5425852614593caf3a922f48a6fe5204066dcefbf6c776c4820d3e7522058d00"))
-    val v = ByteString(Hex.decode("1b"))
+    val v = ByteString(Hex.decode("1b")).last
 
     val req = SignRequest(message, address, None)
 
@@ -259,7 +258,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     val r: ByteString = ByteString(Hex.decode("117b8d5b518dc428d97e5e0c6f870ad90e561c97de8fe6cad6382a7e82134e61"))
     val s: ByteString = ByteString(Hex.decode("396d881ef1f8bc606ef94b74b83d76953b61f1bcf55c002ef12dd0348edff24b"))
-    val v: ByteString = ByteString(Hex.decode("1b"))
+    val v: Byte = ByteString(Hex.decode("1b")).last
 
     val req = EcRecoverRequest(message, ECDSASignature(r, s, v))
 
@@ -346,6 +345,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val homesteadBlockNumber: BigInt = 0
       override val eip150BlockNumber: BigInt = 0
       override val eip160BlockNumber: BigInt = 0
+      override val eip106BlockNumber: BigInt = 0
       override val difficultyBombPauseBlockNumber: BigInt = 0
       override val difficultyBombContinueBlockNumber: BigInt = 0
       override val customGenesisFileOpt: Option[String] = None

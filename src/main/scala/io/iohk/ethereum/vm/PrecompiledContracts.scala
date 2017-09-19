@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.ByteUtils
 
 import scala.util.Try
@@ -33,10 +33,10 @@ object PrecompiledContracts {
 
   sealed trait PrecompiledContract {
     protected def exec(inputData: ByteString): ByteString
-    protected def gas(inputData: ByteString): BigInt
+    protected def gas(inputDataSize: UInt256): BigInt
 
     def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
-      val g = gas(context.env.inputData)
+      val g = gas(context.env.inputData.size)
 
       val (result, error, gasRemaining): (ByteString, Option[ProgramError], BigInt) =
         if (g <= context.startGas)
@@ -49,6 +49,7 @@ object PrecompiledContracts {
         gasRemaining,
         context.world,
         Set.empty,
+        Nil,
         Nil,
         0,
         error
@@ -64,38 +65,45 @@ object PrecompiledContracts {
       val r = data.slice(64, 96)
       val s = data.slice(96, 128)
 
-      val recovered = Try(ECDSASignature(r,s,v).publicKey(h)).getOrElse(None)
-      recovered.map { bytes =>
-        val hash = kec256(bytes).slice(12, 32)
-        ByteUtils.padLeft(hash, 32)
-      }.getOrElse(ByteString.empty)
+      if (hasOnlyLastByteSet(v)) {
+        val recovered = Try(ECDSASignature(r, s, v.last).publicKey(h)).getOrElse(None)
+        recovered.map { bytes =>
+          val hash = kec256(bytes).slice(12, 32)
+          ByteUtils.padLeft(hash, 32)
+        }.getOrElse(ByteString.empty)
+      } else
+        ByteString.empty
+
     }
 
-    def gas(inputData: ByteString): BigInt =
+    def gas(inputDataSize: UInt256): BigInt =
       3000
+
+    private def hasOnlyLastByteSet(v: ByteString): Boolean =
+      v.dropWhile(_ == 0).size == 1
   }
 
   object Sha256 extends PrecompiledContract {
     def exec(inputData: ByteString): ByteString =
       sha256(inputData)
 
-    def gas(inputData: ByteString): BigInt =
-      60 + 12 * wordsForBytes(inputData.size)
+    def gas(inputDataSize: UInt256): BigInt =
+      60 + 12 * wordsForBytes(inputDataSize)
   }
 
   object Ripemp160 extends PrecompiledContract {
     def exec(inputData: ByteString): ByteString =
       ByteUtils.padLeft(ripemd160(inputData), 32)
 
-    def gas(inputData: ByteString): BigInt =
-      600 + 120 * wordsForBytes(inputData.size)
+    def gas(inputDataSize: UInt256): BigInt =
+      600 + 120 * wordsForBytes(inputDataSize)
   }
 
   object Identity extends PrecompiledContract {
     def exec(inputData: ByteString): ByteString =
       inputData
 
-    def gas(inputData: ByteString): BigInt =
-      15 + 3 * wordsForBytes(inputData.size)
+    def gas(inputDataSize: UInt256): BigInt =
+      15 + 3 * wordsForBytes(inputDataSize)
   }
 }

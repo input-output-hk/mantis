@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPList
@@ -49,10 +49,33 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   def transfer(from: Address, to: Address, value: UInt256): WS = {
     if(from == to) this
     else {
-      val debited = getGuaranteedAccount(from).increaseBalance(-value)
-      val credited = getAccount(to).getOrElse(getEmptyAccount).increaseBalance(value)
-      saveAccount(from, debited).saveAccount(to, credited)
+      guaranteedTransfer(from, to, value)
     }
+  }
+
+  private def guaranteedTransfer(from: Address, to: Address, value: UInt256): WS = {
+    val debited = getGuaranteedAccount(from).increaseBalance(-value)
+    val credited = getAccount(to).getOrElse(getEmptyAccount).increaseBalance(value)
+    saveAccount(from, debited).saveAccount(to, credited)
+  }
+
+  /**
+    * Method for creating new account and transferring value to it, that handles possible address collisions.
+    */
+  def initialiseAccount(creatorAddress: Address, newAddress: Address, value: UInt256): WS = {
+    val creatorAccount = getGuaranteedAccount(creatorAddress).increaseBalance(-value)
+    val newAccount = getAccount(newAddress).getOrElse(getEmptyAccount).increaseBalance(value).resetAccountPreservingBalance()
+    saveAccount(creatorAddress,creatorAccount).saveAccount(newAddress, newAccount)
+  }
+
+  /**
+    * In case of transfer to self, during selfdestruction the ether is actually destroyed
+    * see https://github.com/ethereum/wiki/wiki/Subtleties/d5d3583e1b0a53c7c49db2fa670fdd88aa7cabaf#other-operations
+    * and https://github.com/ethereum/go-ethereum/blob/ff9a8682323648266d5c73f4f4bce545d91edccb/core/state/statedb.go#L322
+    */
+  def removeAllEther(address: Address): WS = {
+    val debited = getGuaranteedAccount(address).copy(balance = 0)
+    saveAccount(address, debited)
   }
 
   /**

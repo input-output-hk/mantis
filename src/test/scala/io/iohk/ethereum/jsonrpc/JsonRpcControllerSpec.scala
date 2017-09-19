@@ -1321,7 +1321,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
-    val ethService = new EthService(storagesInstance.storages, blockGenerator, appStateStorage, miningConfig, ledger,
+    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, miningConfig, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
       blockchainConfig, currentProtocolVersion)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
@@ -1345,7 +1345,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     val r: ByteString = ByteString(Hex.decode("a3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a1"))
     val s: ByteString = ByteString(Hex.decode("2d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee"))
-    val v: ByteString = ByteString(Hex.decode("1b"))
+    val v: Byte = ByteString(Hex.decode("1b")).last
     val sig = ECDSASignature(r, s, v)
   }
 
