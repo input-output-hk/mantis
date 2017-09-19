@@ -45,13 +45,9 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
     genesisBlock
   }
 
-  def loadInitialWorld(): InMemoryWorldStateProxy = {
-    InMemoryWorldStateProxy.persistState(getWorldState(scenario.pre))
-  }
+  val initialWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(getWorldState(scenario.pre))
 
-  def getFinalWorld(): InMemoryWorldStateProxy = {
-    InMemoryWorldStateProxy.persistState(getWorldState(scenario.postState))
-  }
+  val finalWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(getWorldState(scenario.postState))
 
   def getBestBlock(): Option[Block] = {
     val bestBlockNumber = storagesInstance.storages.appStateStorage.getBestBlockNumber()
@@ -59,7 +55,7 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
   }
 
   def getExpectedState(): List[Option[Account]] = {
-    scenario.postState.map((addAcc) => getFinalWorld().getAccount(addAcc._1)).toList
+    scenario.postState.map((addAcc) => finalWorld.getAccount(addAcc._1)).toList
   }
 
   def getResultState(): List[Option[Account]] = {

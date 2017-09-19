@@ -68,8 +68,6 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
 
     loadGenesis()
 
-    loadInitialWorld()
-
     val blocksToProcess = getBlocks(scenario.blocks)
 
     val invalidBlocks = getBlocks(getInvalid)
@@ -85,7 +83,7 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
 
     val lastBlock = getBestBlock()
 
-    val expectedWorldStateHash = getFinalWorld().stateRootHash
+    val expectedWorldStateHash = finalWorld.stateRootHash
 
     lastBlock shouldBe defined
 
