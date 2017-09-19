@@ -6,12 +6,13 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.dataSource.{LevelDBDataSource, LevelDbConfig}
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
-import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, LedgerBuilder, ValidatorsBuilder}
+import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
+import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ValidatorsBuilder}
 import io.iohk.ethereum.snappy.Config.{DualDB, SingleDB}
 import io.iohk.ethereum.snappy.Prerequisites._
 import io.iohk.ethereum.utils.Config.DbConfig
 import io.iohk.ethereum.validators.Validators
+import io.iohk.ethereum.vm.VM
 
 
 object Prerequisites {
@@ -47,24 +48,22 @@ class Prerequisites(config: Config) {
     case SingleDB => None
   }
 
-  val sourceBlockchain: Blockchain = BlockchainImpl(sourceStorages.storages)
-  val targetBlockchain: Option[Blockchain] = targetStorages.map(ts => BlockchainImpl(ts.storages))
+  val sourceBlockchain = BlockchainImpl(sourceStorages.storages)
+  val targetBlockchain = targetStorages.map(ts => BlockchainImpl(ts.storages))
 
-  private val components =
-    new LedgerBuilder
-      with ValidatorsBuilder
-      with BlockchainConfigBuilder
+  val components = new ValidatorsBuilder with BlockchainConfigBuilder
 
 
-  val ledger: Ledger = components.ledger
+  val ledger: Ledger = targetBlockchain match {
+    case Some(tb) => new LedgerImpl(VM, tb, components.blockchainConfig)
+    case None     => new LedgerImpl(VM, sourceBlockchain, components.blockchainConfig)
+  }
 
   val validators: Validators = components.validators
 
-  targetStorages.foreach { ts =>
+  targetBlockchain.foreach { blockchain =>
     val genesisLoader = new GenesisDataLoader(
-      ts.dataSource,
-      BlockchainImpl(ts.storages),
-      ArchivePruning,
+      blockchain,
       components.blockchainConfig,
       new DbConfig {
         val batchSize: Int = 1000
