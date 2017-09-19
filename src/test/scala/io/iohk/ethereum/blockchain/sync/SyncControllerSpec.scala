@@ -27,7 +27,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-import scala.collection.immutable.Queue
+import scala.collection.immutable.{Queue, Set}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -177,14 +177,15 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
   }
 
   it should "request for block bodies again if block bodies validation fails" in new TestSetup() {
-    override val syncController = TestActorRef(Props(new SyncController(
+    override lazy val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       new Mocks.MockValidatorsFailingOnBlockBodies,
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
-      syncConfig)))
+      syncConfig,
+      () => ())))
 
     val peer1TestProbe: TestProbe = TestProbe()(system)
     val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, incomingConnection = false)
@@ -968,6 +969,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     syncController ! SyncController.Start
 
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NewBlock.code), PeerSelector.AllPeers)))
+
     syncController.getSingleChild("regular-sync") ! HandshakedPeers(Map(
       peer -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)))
     peerMessageBus.expectMsg(Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id))))
@@ -1084,6 +1087,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
       new Mocks.MockValidatorsAlwaysSucceed,
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
       syncConfig,
+      () => (),
       externalSchedulerOpt = None)))
 
     syncControllerWithRegularSync ! SyncController.Start
@@ -1094,6 +1098,156 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     //Fast sync node request should be received
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer.id))
+  }
+
+  it should "include a NewBlock if it should be imported" in new TestSetup() {
+    val peer1TestProbe: TestProbe = TestProbe()(system)
+
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
+
+    Thread.sleep(1.seconds.toMillis)
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+
+    val expectedMaxBlock = 399500
+    val maxBlocTotalDifficulty = 12340
+    val maxBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedMaxBlock)
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(maxBlockHeader.number)
+    storagesInstance.storages.blockHeadersStorage.put(maxBlockHeader.hash, maxBlockHeader)
+    storagesInstance.storages.blockNumberMappingStorage.put(maxBlockHeader.number, maxBlockHeader.hash)
+    storagesInstance.storages.totalDifficultyStorage.put(maxBlockHeader.hash, maxBlocTotalDifficulty)
+
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    syncControllerWithoutSyncing ! SyncController.Start
+
+    syncControllerWithoutSyncing.getSingleChild("regular-sync") ! HandshakedPeers(Map(
+      peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)
+    ))
+    syncControllerWithoutSyncing ! RegularSync.ResumeRegularSync
+
+    //Node stops syncing
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(expectedMaxBlock + 1), syncConfig.blockHeadersPerRequest, 0, reverse = false), peer1.id))
+    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Nil), peer1.id))
+
+    //Wait for headers response processing
+    Thread.sleep(1.seconds.toMillis)
+
+    //Node receives new block
+    val block = Block(baseBlockHeader.copy(number = maxBlockHeader.number + 1, parentHash = maxBlockHeader.hash, difficulty = 1), BlockBody(Nil, Nil))
+    syncControllerWithoutSyncing ! MessageFromPeer(NewBlock(block, maxBlocTotalDifficulty + 1), peer1.id)
+
+    //Wait for NewBlock msg processing
+    Thread.sleep(2.seconds.toMillis)
+
+    //The NewBlock was processed and inserted into the blockchain
+    storagesInstance.storages.appStateStorage.getBestBlockNumber() shouldBe maxBlockHeader.number + 1
+  }
+
+  it should "not include a NewBlock if it's total difficulty is too low" in new TestSetup() {
+    val peer1TestProbe: TestProbe = TestProbe()(system)
+
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
+
+    Thread.sleep(1.seconds.toMillis)
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+
+    val firstBlockNumber = 399500
+    val firstBlockTotalDifficulty = 12340
+    val firstBlock: BlockHeader = baseBlockHeader.copy(number = firstBlockNumber)
+    val secondBlockNumber = firstBlockNumber + 1
+    val secondBlockTotalDifficulty = firstBlockTotalDifficulty + 2
+    val secondBlock: BlockHeader = baseBlockHeader.copy(number = secondBlockNumber)
+
+    addBlockToStorages(firstBlock, firstBlockTotalDifficulty)
+    addBlockToStorages(secondBlock, secondBlockTotalDifficulty)
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(secondBlock.number)
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    syncControllerWithoutSyncing ! SyncController.Start
+
+    syncControllerWithoutSyncing.getSingleChild("regular-sync") ! HandshakedPeers(Map(
+      peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)
+    ))
+    syncControllerWithoutSyncing ! RegularSync.ResumeRegularSync
+
+    //Node stops syncing
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(secondBlockNumber + 1), syncConfig.blockHeadersPerRequest, 0, reverse = false), peer1.id))
+    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Nil), peer1.id))
+
+    //Wait for headers response processing
+    Thread.sleep(1.seconds.toMillis)
+
+    //Node receives new block
+    val block = Block(baseBlockHeader.copy(number = firstBlock.number + 1, parentHash = firstBlock.hash, difficulty = 1), BlockBody(Nil, Nil))
+    syncControllerWithoutSyncing ! MessageFromPeer(NewBlock(block, firstBlockTotalDifficulty + 1), peer1.id)
+
+    //Wait for NewBlock msg processing
+    Thread.sleep(2.seconds.toMillis)
+
+    //The NewBlock was processed but not inserted into the blockchain
+    storagesInstance.storages.appStateStorage.getBestBlockNumber() shouldBe secondBlock.number
+  }
+
+  it should "include a NewBlock if it's a better but old block" in new TestSetup() {
+    val peer1TestProbe: TestProbe = TestProbe()(system)
+
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
+
+    Thread.sleep(1.seconds.toMillis)
+
+    val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+
+    val firstBlockNumber = 399500
+    val firstBlockTotalDifficulty = 12340
+    val firstBlock: BlockHeader = baseBlockHeader.copy(number = firstBlockNumber)
+    val secondBlockNumber = firstBlockNumber + 1
+    val secondBlockTotalDifficulty = firstBlockTotalDifficulty + 2
+    val secondBlock: BlockHeader = baseBlockHeader.copy(number = secondBlockNumber)
+    val thirdBlockNumber = secondBlockNumber + 1
+    val thirdBlockTotalDifficulty = secondBlockTotalDifficulty + 2
+    val thirdBlock: BlockHeader = baseBlockHeader.copy(number = thirdBlockNumber)
+
+    addBlockToStorages(firstBlock, firstBlockTotalDifficulty)
+    addBlockToStorages(secondBlock, secondBlockTotalDifficulty)
+    addBlockToStorages(thirdBlock, thirdBlockTotalDifficulty)
+
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(thirdBlock.number)
+    storagesInstance.storages.appStateStorage.fastSyncDone()
+
+    syncControllerWithoutSyncing ! SyncController.Start
+
+    syncControllerWithoutSyncing.getSingleChild("regular-sync") ! HandshakedPeers(Map(
+      peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)
+    ))
+    syncControllerWithoutSyncing ! RegularSync.ResumeRegularSync
+
+    //Node stops syncing
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(thirdBlockNumber + 1), syncConfig.blockHeadersPerRequest, 0, reverse = false), peer1.id))
+    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Nil), peer1.id))
+
+    //Wait for headers response processing
+    Thread.sleep(1.seconds.toMillis)
+
+    //Node receives new block
+    val block = Block(baseBlockHeader.copy(number = firstBlock.number + 1, parentHash = firstBlock.hash, difficulty = 10), BlockBody(Nil, Nil))
+    syncControllerWithoutSyncing ! MessageFromPeer(NewBlock(block, firstBlockTotalDifficulty + 10), peer1.id)
+
+    //Wait for NewBlock msg processing
+    Thread.sleep(2.seconds.toMillis)
+
+    //The NewBlock was processed and inserted into the blockchain
+    storagesInstance.storages.appStateStorage.getBestBlockNumber() shouldBe block.header.number
+
+    //Old blocks were deleted
+    blockchain.getBlockByHash(secondBlock.hash) shouldBe None
+    blockchain.getBlockByHash(thirdBlock.hash) shouldBe None
   }
 
   class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil) extends EphemBlockchainTestSetup {
@@ -1113,20 +1267,21 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     val peerMessageBus = TestProbe()
     peerMessageBus.ignoreMsg{
+      case Subscribe(MessageClassifier(codes, PeerSelector.AllPeers)) if codes == Set(NewBlock.code) => true
       case Subscribe(PeerDisconnectedClassifier(_)) => true
       case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
     }
     val pendingTransactionsManager = TestProbe()
     val ommersPool = TestProbe()
 
-    lazy val syncConfig = new SyncConfig {
+    def obtainSyncConfig(checkingForNewBlockInterval: FiniteDuration): SyncConfig = new SyncConfig {
       override val printStatusInterval: FiniteDuration = 1.hour
       override val persistStateSnapshotInterval: FiniteDuration = 20.seconds
       override val targetBlockOffset: Int = 500
       override val branchResolutionBatchSize: Int = 20
       override val blacklistDuration: FiniteDuration = 5.seconds
       override val syncRetryInterval: FiniteDuration = 1.second
-      override val checkForNewBlockInterval: FiniteDuration = 1.second
+      override val checkForNewBlockInterval: FiniteDuration = checkingForNewBlockInterval
       override val startRetryInterval: FiniteDuration = 500.milliseconds
       override val branchResolutionMaxRequests: Int = 100
       override val blockChainOnlyPeersPoolSize: Int = 100
@@ -1142,7 +1297,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
       override val fastSyncThrottle: FiniteDuration = 100.milliseconds
     }
 
-    val syncController = TestActorRef(Props(new SyncController(
+    lazy val syncConfig = obtainSyncConfig(1.seconds)
+    lazy val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages.fastSyncStateStorage,
@@ -1150,6 +1306,19 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
       new Mocks.MockValidatorsAlwaysSucceed,
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
       syncConfig,
+      () => (),
+      externalSchedulerOpt = None)))
+
+    lazy val syncConfigWithoutSyncing = obtainSyncConfig(10.minutes)
+    lazy val syncControllerWithoutSyncing = TestActorRef(Props(new SyncController(
+      storagesInstance.storages.appStateStorage,
+      blockchain,
+      storagesInstance.storages.fastSyncStateStorage,
+      ledger,
+      new Mocks.MockValidatorsAlwaysSucceed,
+      peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
+      syncConfigWithoutSyncing,
+      () => (),
       externalSchedulerOpt = None)))
 
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
@@ -1173,6 +1342,12 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     blockchain.save(baseBlockHeader.parentHash, BigInt(0))
 
     val startDelayMillis = 200
+
+    def addBlockToStorages(blockHeader: BlockHeader, blockTD: BigInt): Unit = {
+      storagesInstance.storages.blockHeadersStorage.put(blockHeader.hash, blockHeader)
+      storagesInstance.storages.blockNumberMappingStorage.put(blockHeader.number, blockHeader.hash)
+      storagesInstance.storages.totalDifficultyStorage.put(blockHeader.hash, blockTD)
+    }
   }
 
 }

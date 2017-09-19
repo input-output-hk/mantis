@@ -372,7 +372,8 @@ trait SyncControllerBuilder {
     PendingTransactionsManagerBuilder with
     OmmersPoolBuilder with
     EtcPeerManagerActorBuilder with
-    SyncConfigBuilder =>
+    SyncConfigBuilder with
+    ShutdownHookBuilder =>
 
   lazy val syncController = actorSystem.actorOf(
     SyncController.props(
@@ -385,7 +386,8 @@ trait SyncControllerBuilder {
       pendingTransactionsManager,
       ommersPool,
       etcPeerManager,
-      syncConfig), "sync-controller")
+      syncConfig,
+      () => shutdown()), "sync-controller")
 
 }
 
