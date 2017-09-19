@@ -22,7 +22,11 @@ test:
     - if [ -z $SKIP_ETS_TESTS ]; then
         git submodule init;
         git submodule update;
-        sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*";
+        if [ "$CIRCLE_BRANCH" == "master" ]; then
+          sbt "ets:testOnly * -- -Dexg=vmPerf*";
+        else
+          sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*";
+        fi
       fi
 
     # As the benchmark tests don't test functionality and should be manually ran, having them compile is enough
