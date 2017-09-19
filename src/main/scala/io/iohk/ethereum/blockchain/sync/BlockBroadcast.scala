@@ -19,17 +19,15 @@ trait BlockBroadcast {
     * The hash of the block is sent to all of those peers while the block itself is only sent to
     * the square root of the total number of those peers, with the subset being obtained randomly.
     *
-    * @param newBlocks, blocks to broadcast
+    * @param newBlock, block to broadcast
     * @param handshakedPeers, to which the blocks will be broadcasted to
     */
-  def broadcastBlocks(newBlocks: Seq[NewBlock], handshakedPeers: Map[Peer, PeerInfo]): Unit = {
-    newBlocks.foreach { newBlock =>
-      val peersWithoutBlock = handshakedPeers.collect {
-        case (peer, peerInfo) if shouldSendNewBlock(newBlock, peerInfo) => peer }.toSet
+  def broadcastBlock(newBlock: NewBlock, handshakedPeers: Map[Peer, PeerInfo]): Unit = {
+    val peersWithoutBlock = handshakedPeers.collect {
+      case (peer, peerInfo) if shouldSendNewBlock(newBlock, peerInfo) => peer }.toSet
 
-      broadcastNewBlock(newBlock, peersWithoutBlock)
-      broadcastNewBlockHash(newBlock, peersWithoutBlock)
-    }
+    broadcastNewBlock(newBlock, peersWithoutBlock)
+    broadcastNewBlockHash(newBlock, peersWithoutBlock)
   }
 
   private def shouldSendNewBlock(newBlock: NewBlock, peerInfo: PeerInfo): Boolean =
