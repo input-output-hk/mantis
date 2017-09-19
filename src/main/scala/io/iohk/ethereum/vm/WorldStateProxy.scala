@@ -47,8 +47,11 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     getAccount(address).map(a => UInt256(a.balance)).getOrElse(UInt256.Zero)
 
   def transfer(from: Address, to: Address, value: UInt256, noEmptyAccount: Boolean): WS = {
-    if(from == to ||  noEmptyAccount && value == UInt256(0) && !accountExists(to))
-      this
+    if (from == to ||  noEmptyAccount && value == UInt256(0) && !accountExists(to))
+      if (noEmptyAccount)
+        this.touchAccounts(from)
+      else
+        this
     else
       guaranteedTransfer(from, to, value, noEmptyAccount)
   }

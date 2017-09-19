@@ -357,7 +357,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     }
   }
 
-  private def pay(address: Address, value: UInt256, noEmptyAccount: Boolean)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  private[ledger] def pay(address: Address, value: UInt256, noEmptyAccount: Boolean)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     if (noEmptyAccount && !world.accountExists(address) && value == UInt256(0)) {
       world
     } else {
