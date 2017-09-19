@@ -701,7 +701,25 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
         val (refundDW, stack1) = stateIn.stack.pop
         val world1 = stateIn.world
           .transfer(stateIn.ownAddress, Address(refundDW), stateIn.ownBalance)
-          .saveAccount(Address(refundDW), Account.empty())
+        val expectedState = stateIn
+          .withWorld(world1)
+          .withAddressToDelete(stateIn.context.env.ownerAddr)
+          .withStack(stack1)
+          .halt
+        stateOut shouldEqual expectedState
+      }
+    }
+
+    // Refunding gas to self should destroy all account ether
+    val stateGenSelf = getProgramStateGen(
+      stackGen = getStackGen(elems = 2, uint256Gen = getUInt256Gen(ownerAddr.toUInt256, ownerAddr.toUInt256))
+    )
+    forAll(stateGenSelf) { stateIn =>
+      val (refundAddress, stack1) = stateIn.stack.pop
+      val stateOut = executeOp(op, stateIn)
+      withStackVerification(op, stateIn, stateOut) {
+        val world1 = stateIn.world
+          .removeAllEther(Address(refundAddress))
         val expectedState = stateIn
           .withWorld(world1)
           .withAddressToDelete(stateIn.context.env.ownerAddr)

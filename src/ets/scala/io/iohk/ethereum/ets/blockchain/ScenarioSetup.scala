@@ -58,6 +58,15 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
     blockchain.getBlockByNumber(bestBlockNumber)
   }
 
+  def getExpectedState(): List[Option[Account]] = {
+    scenario.postState.map((addAcc) => getFinalWorld().getAccount(addAcc._1)).toList
+  }
+
+  def getResultState(): List[Option[Account]] = {
+    val bestBlockNumber = storagesInstance.storages.appStateStorage.getBestBlockNumber()
+    scenario.postState.map(addAcc => blockchain.getAccount(addAcc._1, bestBlockNumber)).toList
+  }
+
   private def buildBlockchainConfig(network: String): BlockchainConfig =  network match {
     case "EIP150"     => new Eip150Config
     case "Frontier"   => new FrontierConfig

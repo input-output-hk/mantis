@@ -10,6 +10,7 @@ import io.iohk.ethereum.vm.MockWorldState._
 import org.scalatest.prop.PropertyChecks
 
 // scalastyle:off object.name
+// scalastyle:off file.size.limit
 class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
   val config = EvmConfig.PostEIP160Config
@@ -366,6 +367,11 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       }
 
       def callVarMemCost(config: EvmConfig): CallResult = {
+
+        /**
+          * Amount of memory which causes the improper OOG exception, if we don take memcost into account
+          * during calculation of post EIP150 CALLOp gasCap: gasCap(state, gas, gExtra + memCost)
+          */
         val gasFailingBeforeEIP150Fix = 141072
 
         val context: PC = fxt.context.copy(config = config)
@@ -835,5 +841,4 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       }
     }
   }
-
 }

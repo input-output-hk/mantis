@@ -88,6 +88,11 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
     val expectedWorldStateHash = getFinalWorld().stateRootHash
 
     lastBlock shouldBe defined
+
+    val expectedState = getExpectedState()
+    val resultState = getResultState()
+
+    resultState should contain theSameElementsAs expectedState
     lastBlock.get.header.hash shouldEqual scenario.lastblockhash
     lastBlock.get.header.stateRoot shouldEqual expectedWorldStateHash
   }

@@ -170,10 +170,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     acc2.storageRoot shouldEqual Account.EmptyStorageRootHash
   }
 
-  "InMemoryWorldStateProxy" should "remove all ather from existing account" in new TestSetup {
+  "InMemoryWorldStateProxy" should "remove all ether from existing account" in new TestSetup {
     val startValue = 100
-    val transferValue = 50
-    val balanceAfterTransfer = startValue + transferValue
 
     val account = Account(UInt256.One, startValue)
     val code = ByteString(Hex.decode("deadbeefdeadbeefdeadbeef"))
@@ -194,7 +192,6 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
 
     val address1 = Address(0x123456)
     val address2 = Address(0xabcdef)
-    val address3 = Address(0x789101)
   }
 
 }
