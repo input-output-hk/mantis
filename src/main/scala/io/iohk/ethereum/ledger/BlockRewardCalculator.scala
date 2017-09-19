@@ -57,10 +57,6 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig) {
       calcMinerBaseReward(era) * ommerMiningRewardNumer / ommerMiningRewardDenom
   }
 
-  /** era number counting from 0 */
-  private def eraNumber(blockNumber: BigInt): Int =
-    ((blockNumber - 1) / eraDuration).toInt
-
   /**
     * Calculates the miner base reward (without considering the ommers included)
     *
@@ -81,4 +77,8 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig) {
     */
   private def calcMinerRewardPerOmmer(era: Int): BigInt =
     calcMinerBaseReward(era) * ommerInclusionRewardNumer / ommerInclusionRewardDenom
+
+  /** era number counting from 0 */
+  private def eraNumber(blockNumber: BigInt): Int =
+    ((blockNumber - 1) / eraDuration).toInt
 }

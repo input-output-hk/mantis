@@ -23,6 +23,7 @@ class ECIP1017Test extends FlatSpec with Matchers {
     override val eip150BlockNumber: BigInt = 2500000
     override val eip160BlockNumber: BigInt = 3000000
     override val eip155BlockNumber: BigInt = 3000000
+    override val eip106BlockNumber: BigInt = Long.MaxValue
     override val customGenesisFileOpt: Option[String] = None
     override val daoForkBlockNumber: BigInt = 1920000
     override val daoForkBlockHash: ByteString = ByteString("unused")
