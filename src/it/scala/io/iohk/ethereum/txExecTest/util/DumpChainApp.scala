@@ -94,7 +94,9 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       handshaker = handshaker,
       authHandshaker = authHandshaker,
       messageDecoder = EthereumMessageDecoder), "peer-manager")
-    actorSystem.actorOf(DumpChainActor.props(peerManager,peerMessageBus,startBlock,maxBlocks), "dumper")
+    peerManager ! PeerManagerActor.StartConnecting
+
+    actorSystem.actorOf(DumpChainActor.props(peerManager,peerMessageBus,startBlock,maxBlocks, node), "dumper")
   }
 
   class BlockchainMock(genesisHash: ByteString) extends Blockchain {

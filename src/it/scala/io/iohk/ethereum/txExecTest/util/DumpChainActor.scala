@@ -1,12 +1,13 @@
 package io.iohk.ethereum.txExecTest.util
 
 import java.io.FileWriter
+import java.net.URI
 
 import akka.actor.{Actor, ActorRef, _}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{BlockHeader, Receipt}
-import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.{Peer, PeerManagerActor}
 import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -25,7 +26,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock: BigInt, maxBlocks: BigInt) extends Actor {
+class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock: BigInt,
+                     maxBlocks: BigInt, bootstrapNode: String) extends Actor {
   var stateNodesHashes: Set[ByteString] = Set.empty
   var contractNodesHashes: Set[ByteString] = Set.empty
   var evmCodeHashes: Set[ByteString] = Set.empty
@@ -43,6 +45,9 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
   override def preStart(): Unit = {
     context.system.scheduler.scheduleOnce(4 seconds, () => peerManager ! GetPeers)
   }
+
+  //Periodically try to connect to bootstrap peer in case the connection failed before dump termination
+  context.system.scheduler.schedule(0 seconds, 4 seconds, () => peerManager ! PeerManagerActor.ConnectToPeer(new URI(bootstrapNode)))
 
   // scalastyle:off
   override def receive: Receive = {
@@ -95,7 +100,7 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
       val children = nodes.flatMap {
         case n: BranchNode => n.children.collect { case Some(Left(h)) => h }
         case ExtensionNode(_, Left(h)) => Seq(h)
-        case n: LeafNode => Seq.empty
+        case _: LeafNode => Seq.empty
         case _ => Seq.empty
       }
 
@@ -173,8 +178,9 @@ class DumpChainActor(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock
 }
 
 object DumpChainActor {
-  def props(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock: BigInt, maxBlocks: BigInt): Props =
-    Props(new DumpChainActor(peerManager, peerMessageBus: ActorRef, startBlock: BigInt, maxBlocks: BigInt))
+  def props(peerManager: ActorRef, peerMessageBus: ActorRef, startBlock: BigInt,
+            maxBlocks: BigInt, bootstrapNode: String): Props =
+    Props(new DumpChainActor(peerManager, peerMessageBus: ActorRef, startBlock: BigInt, maxBlocks: BigInt, bootstrapNode))
   val emptyStorage = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
   val emptyEvm = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 }

@@ -41,12 +41,9 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig) {
 
   def calcBlockMinerReward(blockNumber: BigInt, ommersCount: Int): BigInt = {
     val era = eraNumber(blockNumber)
-    val eraMultiplier = rewardReductionRateNumer.pow(era)
-    val eraDivisor = rewardReductionRateDenom.pow(era)
 
-    val baseReward = (firstEraBlockReward * eraMultiplier) / eraDivisor
-    val ommersReward = (firstEraBlockReward * ommersCount * ommerInclusionRewardNumer * eraMultiplier) /
-      (ommerInclusionRewardDenom * eraDivisor)
+    val baseReward = calcMinerBaseReward(era)
+    val ommersReward = calcMinerRewardPerOmmer(era) * ommersCount
     baseReward + ommersReward
   }
 
@@ -56,14 +53,32 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig) {
     if (era == 0) {
       val numer = firstEraOmmerMiningRewardMaxNumer - (blockNumber - ommerNumber - 1)
       (firstEraBlockReward * numer) / firstEraOmmerMiningRewardDenom
-    } else {
-      val eraMultiplier = rewardReductionRateNumer.pow(era)
-      val eraDivisor = rewardReductionRateDenom.pow(era)
-      (firstEraBlockReward * ommerMiningRewardNumer * eraMultiplier) / (ommerMiningRewardDenom * eraDivisor)
-    }
+    } else
+      calcMinerBaseReward(era) * ommerMiningRewardNumer / ommerMiningRewardDenom
   }
 
   /** era number counting from 0 */
   private def eraNumber(blockNumber: BigInt): Int =
     ((blockNumber - 1) / eraDuration).toInt
+
+  /**
+    * Calculates the miner base reward (without considering the ommers included)
+    *
+    * @param era to which the mined block belongs
+    * @return miner base reward
+    */
+  private def calcMinerBaseReward(era: Int): BigInt = {
+    val eraMultiplier = rewardReductionRateNumer.pow(era)
+    val eraDivisor = rewardReductionRateDenom.pow(era)
+    firstEraBlockReward * eraMultiplier / eraDivisor
+  }
+
+  /**
+    * Calculates reward given to the miner for each ommer included in the block
+    *
+    * @param era to which the mined block belongs
+    * @return reward given to the miner for each ommer included
+    */
+  private def calcMinerRewardPerOmmer(era: Int): BigInt =
+    calcMinerBaseReward(era) * ommerInclusionRewardNumer / ommerInclusionRewardDenom
 }
