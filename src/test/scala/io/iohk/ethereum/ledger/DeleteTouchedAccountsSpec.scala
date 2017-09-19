@@ -18,34 +18,34 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
   val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig)
 
   it should "delete no accounts when there are no touched accounts" in new TestSetup {
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(postEip161Config)(worldState))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldStatePostEIP161))
     accountAddresses.foreach{ a => assert(newWorld.getAccount(a).isDefined) }
-    newWorld.stateRootHash shouldBe worldState.stateRootHash
+    newWorld.stateRootHash shouldBe worldStatePostEIP161.stateRootHash
   }
 
   it should "delete no accounts when there are no empty touched accounts" in new TestSetup {
-    val worldAfterTransfer = worldState.transfer(validAccountAddress, validAccountAddress2, transferBalance, postEip161Config.noEmptyAccounts)
-    worldAfterTransfer.touchedAccounts.size shouldEqual 2
+    val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validAccountAddress2, transferBalance)
+    worldAfterTransfer.touchedAccounts.get.size shouldEqual 2
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(postEip161Config)(worldAfterTransfer))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldAfterTransfer))
     accountAddresses.foreach{ a => assert(newWorld.getAccount(a).isDefined) }
   }
 
   it should "delete touched empty account" in new TestSetup {
-    val worldAfterTransfer = worldState.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance, postEip161Config.noEmptyAccounts)
-    worldAfterTransfer.touchedAccounts.size shouldEqual 2
+    val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
+    worldAfterTransfer.touchedAccounts.get.size shouldEqual 2
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(postEip161Config)(worldAfterTransfer))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldAfterTransfer))
 
     (accountAddresses - validEmptyAccountAddress).foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
   }
 
   it should "delete touched empty account after transfer to self" in new TestSetup {
-    val worldAfterTransfer = worldState.transfer(validEmptyAccountAddress, validEmptyAccountAddress, zeroTransferBalance, postEip161Config.noEmptyAccounts)
-    worldAfterTransfer.touchedAccounts.size shouldEqual 1
+    val worldAfterTransfer = worldStatePostEIP161.transfer(validEmptyAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
+    worldAfterTransfer.touchedAccounts.get.size shouldEqual 1
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(postEip161Config)(worldAfterTransfer))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldAfterTransfer))
 
     (accountAddresses - validEmptyAccountAddress).foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
@@ -53,28 +53,28 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
 
   it should "not mark for deletion and delete any account pre EIP161" in new TestSetup {
-    val worldAfterTransfer = worldState.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance, postEip160Config.noEmptyAccounts)
+    val worldAfterTransfer = worldStatePreEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 0
 
     val worldAfterPayingToMiner = ledger.pay(validEmptyAccountAddress1, zeroTransferBalance, postEip160Config.noEmptyAccounts)(worldAfterTransfer)
 
     worldAfterPayingToMiner.touchedAccounts.size shouldEqual 0
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(postEip160Config)(worldAfterTransfer))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldAfterTransfer))
 
     accountAddresses.foreach{ a => assert(newWorld.getAccount(a).isDefined) }
   }
 
 
   it should "delete multiple touched empty accounts" in new TestSetup {
-    val worldAfterTransfer = worldState.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance, postEip161Config.noEmptyAccounts)
-    worldAfterTransfer.touchedAccounts.size shouldEqual 2
+    val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
+    worldAfterTransfer.touchedAccounts.get.size shouldEqual 2
 
     val worldAfterPayingToMiner = ledger.pay(validEmptyAccountAddress1, zeroTransferBalance, postEip161Config.noEmptyAccounts)(worldAfterTransfer)
 
-    worldAfterPayingToMiner.touchedAccounts.size shouldEqual 3
+    worldAfterPayingToMiner.touchedAccounts.get.size shouldEqual 3
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(postEip161Config)(worldAfterPayingToMiner))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldAfterPayingToMiner))
 
     (accountAddresses -- Set(validEmptyAccountAddress, validEmptyAccountAddress1)).foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
@@ -82,20 +82,20 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
   }
 
   it should "delete multiple touched empty accounts more operations" in new TestSetup {
-    val worldAfterTransfer = worldState.transfer(validAccountAddress3, validEmptyAccountAddress, zeroTransferBalance, postEip161Config.noEmptyAccounts)
+    val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress3, validEmptyAccountAddress, zeroTransferBalance)
 
-    worldAfterTransfer.touchedAccounts.size shouldEqual 2
+    worldAfterTransfer.touchedAccounts.get.size shouldEqual 2
 
     val worldAfterPayingToMiner = ledger.pay(validEmptyAccountAddress1, zeroTransferBalance, postEip161Config.noEmptyAccounts)(worldAfterTransfer)
 
-    worldAfterPayingToMiner.touchedAccounts.size shouldEqual 3
+    worldAfterPayingToMiner.touchedAccounts.get.size shouldEqual 3
 
     val worldafterInitialisation =
-      worldAfterPayingToMiner.initialiseAccount(validAccountAddress, validCreatedAccountAddress, validAccountBalance, postEip161Config.noEmptyAccounts)
+      worldAfterPayingToMiner.initialiseAccount(validAccountAddress, validCreatedAccountAddress, validAccountBalance)
 
-    worldafterInitialisation.touchedAccounts.size shouldEqual 5
+    worldafterInitialisation.touchedAccounts.get.size shouldEqual 5
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(postEip161Config)(worldafterInitialisation))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldafterInitialisation))
 
     (accountAddresses -- Set(validEmptyAccountAddress, validEmptyAccountAddress1, validAccountAddress) + validCreatedAccountAddress)
       .foreach{ a => assert(newWorld.getAccount(a).isDefined) }
@@ -108,16 +108,18 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
   it should "not delete touched account created by message transaction or createOp" in new TestSetup {
     val worldAfterTransfer =
-      worldState.initialiseAccount(validAccountAddress, validCreatedAccountAddress, zeroTransferBalance, postEip161Config.noEmptyAccounts)
+      worldStatePostEIP161.initialiseAccount(validAccountAddress, validCreatedAccountAddress, zeroTransferBalance)
 
-    worldAfterTransfer.touchedAccounts.size shouldEqual 2
+    worldAfterTransfer.touchedAccounts.get.size shouldEqual 2
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(postEip161Config)(worldAfterTransfer))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldAfterTransfer))
 
     (accountAddresses + validCreatedAccountAddress).foreach{ a => assert(newWorld.getAccount(a).isDefined) }
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
+    val postEip161Config = EvmConfig.PostEIP161Config
+    val postEip160Config = EvmConfig.PostEIP160Config
 
     val validAccountAddress  = Address(0xababab)
     val validAccountBalance = 10
@@ -132,7 +134,15 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
     val accountAddresses = Set(validAccountAddress, validAccountAddress2, validAccountAddress3, validEmptyAccountAddress, validEmptyAccountAddress1)
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
+      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip161Config.noEmptyAccounts)
+        .saveAccount(validAccountAddress, Account(balance = validAccountBalance))
+        .saveAccount(validAccountAddress2, Account(balance = 20))
+        .saveAccount(validAccountAddress3, Account(balance = 30))
+        .saveAccount(validEmptyAccountAddress, Account.empty())
+        .saveAccount(validEmptyAccountAddress1, Account.empty())
+
+    val worldStateWithoutPersistPreEIP161: InMemoryWorldStateProxy =
+      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip160Config.noEmptyAccounts)
         .saveAccount(validAccountAddress, Account(balance = validAccountBalance))
         .saveAccount(validAccountAddress2, Account(balance = 20))
         .saveAccount(validAccountAddress3, Account(balance = 30))
@@ -143,9 +153,8 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
     val transferBalance = 5
     val zeroTransferBalance = 0
 
-    val worldState = InMemoryWorldStateProxy.persistState(worldStateWithoutPersist)
+    val worldStatePostEIP161 = InMemoryWorldStateProxy.persistState(worldStateWithoutPersist)
+    val worldStatePreEIP161 = InMemoryWorldStateProxy.persistState(worldStateWithoutPersistPreEIP161)
 
-    val postEip161Config = EvmConfig.PostEIP161Config
-    val postEip160Config = EvmConfig.PostEIP160Config
   }
 }

@@ -18,7 +18,8 @@ object InMemoryWorldStateProxy {
     nodesKeyValueStorage: NodesKeyValueStorage,
     accountStartNonce: UInt256,
     getBlockHashByNumber: BigInt => Option[ByteString],
-    stateRootHash: Option[ByteString] = None
+    stateRootHash: Option[ByteString] = None,
+    noEmptyAccounts: Boolean
   ): InMemoryWorldStateProxy = {
     val accountsStateTrieProxy = createProxiedAccountsStateTrie(
       nodesKeyValueStorage,
@@ -32,7 +33,7 @@ object InMemoryWorldStateProxy {
       Map.empty,
       getBlockHashByNumber,
       accountStartNonce,
-      Set.empty
+      if (noEmptyAccounts) Some(Set.empty) else None
     )
   }
 
@@ -139,7 +140,7 @@ class InMemoryWorldStateProxy private(
   val accountCodes: Map[Address, Code],
   val getBlockByNumber: (BigInt) => Option[ByteString],
   accountStartNonce: UInt256,
-  val touchedAccounts: Set[Address]
+  val touchedAccounts: Option[Set[Address]]
 ) extends WorldStateProxy[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage] {
 
   import InMemoryWorldStateProxy._
@@ -175,8 +176,9 @@ class InMemoryWorldStateProxy private(
     copyWith(contractStorages = contractStorages + (address -> storage.wrapped))
 
   override def touchAccounts(addresses: Address*): InMemoryWorldStateProxy =
-    copyWith(touchedAccounts = touchedAccounts ++ addresses.toSet)
+    copyWith(touchedAccounts = touchedAccounts.map(oldAddresses => oldAddresses ++ addresses.toSet))
 
+  override def noEmptyAccounts: Boolean = touchedAccounts.isDefined
   /**
     * Returns world state root hash. This value is only updated after persist.
     */
@@ -195,7 +197,7 @@ class InMemoryWorldStateProxy private(
     contractStorages: Map[Address, InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]]] = contractStorages,
     evmCodeStorage: EvmCodeStorage = evmCodeStorage,
     accountCodes: Map[Address, Code] = accountCodes,
-    touchedAccounts: Set[Address] = touchedAccounts
+    touchedAccounts: Option[Set[Address]] = touchedAccounts
   ): InMemoryWorldStateProxy =
     new InMemoryWorldStateProxy(
       stateStorage,

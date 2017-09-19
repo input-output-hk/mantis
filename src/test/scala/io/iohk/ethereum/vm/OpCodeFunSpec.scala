@@ -700,7 +700,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       withStackVerification(op, stateIn, stateOut) {
         val (refundDW, stack1) = stateIn.stack.pop
         val world1 = stateIn.world
-          .transfer(stateIn.ownAddress, Address(refundDW), stateIn.ownBalance, config.noEmptyAccounts)
+          .transfer(stateIn.ownAddress, Address(refundDW), stateIn.ownBalance)
         val expectedState = stateIn
           .withWorld(world1)
           .withAddressToDelete(stateIn.context.env.ownerAddr)

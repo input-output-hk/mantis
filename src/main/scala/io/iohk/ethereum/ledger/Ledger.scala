@@ -74,7 +74,12 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     signedTransactionValidator: SignedTransactionValidator):
   Either[BlockExecutionError, BlockResult] = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
-    val initialWorld = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
+    val initialWorld =
+      blockchain.getWorldStateProxy(
+        block.header.number,
+        blockchainConfig.accountStartNonce,
+        parentStateRoot,
+        EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts)
 
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
     val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, signedTransactionValidator)
@@ -200,7 +205,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     val worldAfterPayments = (refundGasFn andThen payMinerForGasFn)(resultWithErrorHandling.world)
 
     val deleteAccountsFn = deleteAccounts(resultWithErrorHandling.addressesToDelete) _
-    val deleteTouchedAccountsFn = deleteTouchedAccounts(config) _
+    val deleteTouchedAccountsFn = deleteTouchedAccounts _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
 
     val world2 = (deleteAccountsFn andThen deleteTouchedAccountsFn andThen persistStateFn)(worldAfterPayments)
@@ -314,11 +319,11 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
       case None =>
         val address = worldStateProxy.createAddress(creatorAddr = stx.senderAddress)
         //it is the source or newly-creation of a CREATE operation or contract-creation transaction endowing zero or more value;
-        val world1 = worldStateProxy.initialiseAccount(stx.senderAddress, address, UInt256(stx.tx.value), config.noEmptyAccounts)
+        val world1 = worldStateProxy.initialiseAccount(stx.senderAddress, address, UInt256(stx.tx.value))
         ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, world1, config)
 
       case Some(txReceivingAddress) =>
-        val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value), config.noEmptyAccounts)
+        val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
         ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, config)
     }
 
@@ -358,15 +363,12 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
   }
 
   private[ledger] def pay(address: Address, value: UInt256, noEmptyAccount: Boolean)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    if (noEmptyAccount && !world.accountExists(address) && value == UInt256(0)) {
+    if (world.isZeroValueTransferToEmptyAccount(address, value)) {
       world
     } else {
       val account = world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
       val worldWithAccount = world.saveAccount(address, account)
-      if (noEmptyAccount)
-        worldWithAccount.touchAccounts(address)
-      else
-        worldWithAccount
+      worldWithAccount.touchAccounts(address)
     }
   }
 
@@ -387,17 +389,18 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => world.deleteAccount(address) }
 
 
-  private[ledger] def deleteTouchedAccounts(evmConfig: EvmConfig)(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    if (evmConfig.noEmptyAccounts) {
-      worldStateProxy.touchedAccounts.foldLeft(worldStateProxy) {case (world, address) =>
-          if (world.getGuaranteedAccount(address).isEmpty)
-            world.deleteAccount(address)
-          else
-            world
-      }
-    } else {
-      worldStateProxy
+  private[ledger] def deleteTouchedAccounts(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    def deleteEmptyAccounts(addressesToDelete: Set[Address]) =
+      addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => deleteEmptyAccount(world, address) }
+
+    def deleteEmptyAccount(world: InMemoryWorldStateProxy, address: Address) = {
+      if (world.getGuaranteedAccount(address).isEmpty)
+        world.deleteAccount(address)
+      else
+        world
     }
+
+    worldStateProxy.touchedAccounts.map(deleteEmptyAccounts).getOrElse(worldStateProxy)
   }
 }
 

@@ -152,9 +152,9 @@ trait Blockchain {
 
   def genesisBlock: Block = getBlockByNumber(0).get
 
-  def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None): WS
+  def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None, noEmptyAccounts: Boolean = false): WS
 
-  def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt], accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None): WS
+  def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt], accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None, noEmptyAccounts: Boolean = false): WS
 }
 
 class BlockchainImpl(
@@ -245,23 +245,31 @@ class BlockchainImpl(
   override type S = InMemoryWorldStateProxyStorage
   override type WS = InMemoryWorldStateProxy
 
-  override def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy =
+  override def getWorldStateProxy(blockNumber: BigInt,
+                                  accountStartNonce: UInt256,
+                                  stateRootHash: Option[ByteString],
+                                  noEmptyAccount: Boolean = false): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
       nodesKeyValueStorageFor(Some(blockNumber)),
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
-      stateRootHash
+      stateRootHash,
+      noEmptyAccount
     )
 
   //FIXME Maybe we can use this one in regular execution too and persist underlying storage when block execution is successful
-  override def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt], accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy =
+  override def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
+                                          accountStartNonce: UInt256,
+                                          stateRootHash: Option[ByteString],
+                                          noEmptyAccount: Boolean = false): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
       ReadOnlyNodeStorage(nodesKeyValueStorageFor(blockNumber)),
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
-      stateRootHash
+      stateRootHash,
+      noEmptyAccounts = false
     )
 }
 

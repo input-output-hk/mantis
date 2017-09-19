@@ -684,7 +684,7 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
       val (newAddress, world1) = state.world.createAddressWithOpCode(state.env.ownerAddr)
 
       //it is the source or newly-creation of a CREATE operation or contract-creation transaction endowing zero or more value;
-      val world2 = world1.initialiseAccount(state.env.ownerAddr, newAddress, endowment, state.config.noEmptyAccounts)
+      val world2 = world1.initialiseAccount(state.env.ownerAddr, newAddress, endowment)
 
       val newEnv = state.env.copy(
         callerAddr = state.env.ownerAddr,
@@ -763,7 +763,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       val (world1, owner, caller) = this match {
         case CALL =>
           //it is the source or destination of a CALL operation or message-call transaction transferring zero or more value
-          val withTransfer = state.world.transfer(state.ownAddress, toAddr, endowment, state.config.noEmptyAccounts)
+          val withTransfer = state.world.transfer(state.ownAddress, toAddr, endowment)
           (withTransfer, toAddr, state.ownAddress)
 
         case CALLCODE =>
@@ -921,7 +921,7 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
     val (refund, stack1) = state.stack.pop
     val refundAddr: Address = Address(refund)
     val gasRefund: BigInt = if (state.addressesToDelete contains state.ownAddress) 0 else state.config.feeSchedule.R_selfdestruct
-    val world = state.world.transfer(state.ownAddress, refundAddr, state.ownBalance,state.config.noEmptyAccounts)
+    val world = state.world.transfer(state.ownAddress, refundAddr, state.ownBalance)
     //it is the target or refund of a SUICIDE operation for zero or more value;
     state
       .withWorld(world)
