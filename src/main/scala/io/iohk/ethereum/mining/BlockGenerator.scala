@@ -20,7 +20,6 @@ import io.iohk.ethereum.validators.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.daoFork.DaoForkConfig
 
 class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig, miningConfig: MiningConfig,
   ledger: Ledger, validators: Validators, blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider) {

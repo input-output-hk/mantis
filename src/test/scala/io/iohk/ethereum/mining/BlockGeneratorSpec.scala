@@ -8,14 +8,13 @@ import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, LedgerImpl}
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger, MiningConfig, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils._
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.utils.Config.DbConfig
 import org.spongycastle.crypto.AsymmetricCipherKeyPair

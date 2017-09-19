@@ -4,7 +4,6 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
@@ -12,7 +11,7 @@ import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, GetPendingTransactions, PendingTransaction, PendingTransactionsResponse}
-import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig, TxPoolConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig, TxPoolConfig}
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory

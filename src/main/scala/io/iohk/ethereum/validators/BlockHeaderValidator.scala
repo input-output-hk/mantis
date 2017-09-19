@@ -2,24 +2,26 @@ package io.iohk.ethereum.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.{kec256, kec512}
-import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, DifficultyCalculator}
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
 trait BlockHeaderValidator {
-
   def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader]
+}
 
+object BlockHeaderValidatorImpl {
+  val MaxExtraDataSize: Int = 32
+  val GasLimitBoundDivisor: Int = 1024
+  val MinGasLimit: BigInt = 5000 //Although the paper states this value is 125000, on the different clients 5000 is used
+  val MaxGasLimit = Long.MaxValue // max gasLimit is equal 2^63-1 according to EIP106
 }
 
 class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
 
-  val MaxExtraDataSize: Int = 32
-  val GasLimitBoundDivisor: Int = 1024
-  val MinGasLimit: BigInt = 5000 //Although the paper states this value is 125000, on the different clients 5000 is used
-  val difficulty = new DifficultyCalculator(blockchainConfig)
-  val MaxGasLimit = Long.MaxValue // max gasLimit is equal 2^63-1 according to EIP106
+  import BlockHeaderValidatorImpl._
   import BlockHeaderError._
+
+  val difficulty = new DifficultyCalculator(blockchainConfig)
 
   /** This method allows validate a BlockHeader (stated on
     * section 4.4.4 of http://paper.gavwood.com/).
@@ -73,10 +75,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
 
     if (blockHeader.extraData.length <= MaxExtraDataSize) {
       import blockchainConfig._
-
-      if(daoForkConfig.isEmpty) Right(blockHeader)
-      else validateDaoForkExtraData(blockHeader, daoForkConfig.get)
-
+      daoForkConfig.map(c => validateDaoForkExtraData(blockHeader, c)).getOrElse(Right(blockHeader))
     } else {
       Left(HeaderExtraDataError)
     }

@@ -3,15 +3,17 @@ package io.iohk.ethereum.validators
 import akka.util.ByteString
 import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.domain.{UInt256, _}
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.validators.BlockHeaderError._
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.validators.BlockHeaderValidatorImpl._
 
 class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
+
+
   val ExtraDataSizeLimit = 20
 
   //BlockHeader member's lengths obtained from Yellow paper
@@ -32,8 +34,8 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
 
   it should "return a failure if created based on invalid extra data" in {
     forAll(randomSizeByteStringGen(
-      blockHeaderValidator.MaxExtraDataSize + 1,
-      blockHeaderValidator.MaxExtraDataSize + ExtraDataSizeLimit)
+      MaxExtraDataSize + 1,
+      MaxExtraDataSize + ExtraDataSizeLimit)
     ) { wrongExtraData =>
       val invalidBlockHeader = validBlockHeader.copy(extraData = wrongExtraData)
       assert(blockHeaderValidator.validate(invalidBlockHeader, validBlockParent) == Left(HeaderExtraDataError))
@@ -96,9 +98,9 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
   }
 
   it should "return a failure if created based on invalid gas limit" in {
-    val LowerGasLimit = blockHeaderValidator.MinGasLimit.max(
-      validBlockParent.gasLimit - validBlockParent.gasLimit / blockHeaderValidator.GasLimitBoundDivisor + 1)
-    val UpperGasLimit = validBlockParent.gasLimit + validBlockParent.gasLimit / blockHeaderValidator.GasLimitBoundDivisor - 1
+    val LowerGasLimit = MinGasLimit.max(
+      validBlockParent.gasLimit - validBlockParent.gasLimit / GasLimitBoundDivisor + 1)
+    val UpperGasLimit = validBlockParent.gasLimit + validBlockParent.gasLimit / GasLimitBoundDivisor - 1
 
     forAll(bigIntGen) { gasLimit =>
       val blockHeader = validBlockHeader.copy(gasLimit = gasLimit)

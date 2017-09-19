@@ -1,9 +1,7 @@
 package io.iohk.ethereum.network
 
-import akka.util.ByteString
-import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.DaoForkConfig
 
 trait ForkResolver {
   type Fork <: ForkResolver.Fork

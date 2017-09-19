@@ -1,12 +1,11 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult, PC, PR, TxResult}
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
 import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.vm._
@@ -385,15 +384,18 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     * @return Updated world state proxy
     */
   private def drainDaoForkAccounts(worldState: InMemoryWorldStateProxy, daoForkConfig: DaoForkConfig): InMemoryWorldStateProxy = {
-    daoForkConfig.drainList.foldLeft(worldState) { (ws, address) =>
-      val afterDrainWS = for {
-        account <- ws.getAccount(address)
-        refundContractAddress <- daoForkConfig.refundContract
-        afterDrainingAddress = ws.transfer(from = address, to = refundContractAddress, account.balance)
-      } yield afterDrainingAddress
 
-      afterDrainWS.getOrElse(ws)
+    daoForkConfig.refundContract match {
+      case Some(refundContractAddress) =>
+        daoForkConfig.drainList.foldLeft(worldState) { (ws, address) =>
+          ws.getAccount(address)
+            .map(account => ws.transfer(from = address, to = refundContractAddress, account.balance))
+            .getOrElse(ws)
+        }
+      case None => worldState
     }
+
+
   }
 
 }

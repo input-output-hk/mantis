@@ -4,7 +4,6 @@ import java.net.InetSocketAddress
 
 import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
-import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
 import io.iohk.ethereum.domain.{Address, UInt256}
@@ -13,6 +12,7 @@ import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
+import io.iohk.ethereum.validators.BlockHeaderValidatorImpl
 import org.spongycastle.util.encoders.Hex
 
 import scala.collection.JavaConverters._
@@ -219,8 +219,6 @@ object TxPoolConfig {
 }
 
 trait MiningConfig {
-  //duplicated in BlockHeaderValidator
-  val MaxExtraDataSize: Int = 32
   val ommersPoolSize: Int
   val blockCacheSize: Int
   val coinbase: Address
@@ -239,10 +237,52 @@ object MiningConfig {
       val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
       val activeTimeout: FiniteDuration = miningConfig.getDuration("active-timeout").toMillis.millis
       val ommerPoolQueryTimeout: FiniteDuration = miningConfig.getDuration("ommer-pool-query-timeout").toMillis.millis
-      override val headerExtraData: ByteString = ByteString(miningConfig.getString("header-extra-data").getBytes).take(MaxExtraDataSize)
+      override val headerExtraData: ByteString =
+        ByteString(miningConfig
+          .getString("header-extra-data").getBytes)
+          .take(BlockHeaderValidatorImpl.MaxExtraDataSize)
     }
   }
 }
+
+trait DaoForkConfig {
+
+  val forkBlockNumber: BigInt
+  val forkBlockHash: ByteString
+  val blockExtraData: Option[ByteString]
+  val range: Int
+  val refundContract: Option[Address]
+  val drainList: Seq[Address]
+
+  private lazy val extratadaBlockRange = forkBlockNumber until(forkBlockNumber + range)
+
+  def isDaoForkBlock(blockNumber: BigInt): Boolean = forkBlockNumber == blockNumber
+
+  def requiresExtraData(blockNumber: BigInt): Boolean = blockExtraData.isDefined && (extratadaBlockRange contains blockNumber)
+
+  def getExtraData(blockNumber: BigInt): Option[ByteString] =
+    if(requiresExtraData(blockNumber)) blockExtraData
+    else None
+}
+
+object DaoForkConfig {
+  def apply(daoConfig: TypesafeConfig): DaoForkConfig = {
+
+    val theForkBlockNumber = BigInt(daoConfig.getString("fork-block-number"))
+
+    val theForkBlockHash = ByteString(Hex.decode(daoConfig.getString("fork-block-hash")))
+
+    new DaoForkConfig {
+      override val forkBlockNumber: BigInt = theForkBlockNumber
+      override val forkBlockHash: ByteString = theForkBlockHash
+      override val blockExtraData: Option[ByteString] = Try(daoConfig.getString("block-extra-data")).toOption.map(ByteString(_))
+      override val range: Int = Try(daoConfig.getInt("block-extra-data-range")).toOption.getOrElse(0)
+      override val refundContract: Option[Address] = Try(daoConfig.getString("refund-contract-address")).toOption.map(Address(_))
+      override val drainList: List[Address] = Try(daoConfig.getStringList("drain-list").asScala.toList).toOption.getOrElse(List.empty).map(Address(_))
+    }
+  }
+}
+
 
 trait BlockchainConfig {
   val frontierBlockNumber: BigInt
@@ -268,22 +308,6 @@ trait BlockchainConfig {
 
 object BlockchainConfig {
 
-  def createDaoForkConfig(daoConfig: TypesafeConfig): DaoForkConfig = {
-
-    val theForkBlockNumber = BigInt(daoConfig.getString("fork-block-number"))
-
-    val theForkBlockHash = ByteString(Hex.decode(daoConfig.getString("fork-block-hash")))
-
-    new DaoForkConfig {
-      override val forkBlockNumber = theForkBlockNumber
-      override val forkBlockHash = theForkBlockHash
-      override val blockExtraData = Try(daoConfig.getString("block-extra-data")).toOption.map(ByteString(_))
-      override val range = Try(daoConfig.getInt("block-extra-data-range")).toOption.getOrElse(0)
-      override val refundContract = Try(daoConfig.getString("refund-contract-address")).toOption.map(Address(_))
-      override val drainList = Try(daoConfig.getStringList("drain-list").asScala.toList).toOption.getOrElse(List.empty).map(Address(_))
-    }
-  }
-
   def apply(etcClientConfig: TypesafeConfig): BlockchainConfig = {
     val blockchainConfig = etcClientConfig.getConfig("blockchain")
 
@@ -298,7 +322,7 @@ object BlockchainConfig {
 
       override val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
 
-      override val daoForkConfig = Try(blockchainConfig.getConfig("dao")).toOption.map(createDaoForkConfig)
+      override val daoForkConfig = Try(blockchainConfig.getConfig("dao")).toOption.map(DaoForkConfig(_))
       override val accountStartNonce: UInt256 = UInt256(BigInt(blockchainConfig.getString("account-start-nonce")))
 
       override val chainId: Byte = {

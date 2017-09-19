@@ -6,12 +6,11 @@ import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.daoFork.DaoForkConfig
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.{Fixtures, Mocks, rlp}
 import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
