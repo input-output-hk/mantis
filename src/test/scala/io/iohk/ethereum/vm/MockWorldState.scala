@@ -61,5 +61,4 @@ case class MockWorldState(
     */
   def isAccountDead(address: Address): Boolean =
     getAccount(address).forall(_ == Account.empty())
-
 }

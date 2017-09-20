@@ -308,17 +308,18 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce)
   }
 
-  private[ledger] def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy, config: EvmConfig): PC =
+  private[ledger] def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy,
+                                            config: EvmConfig): PC = {
     stx.tx.receivingAddress match {
       case None =>
         val address = worldStateProxy.createAddress(creatorAddr = stx.senderAddress)
-        val world1 = worldStateProxy.transfer(stx.senderAddress, address, UInt256(stx.tx.value))
-        ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, world1, config)
-
+        val worldAfterInitialisation = worldStateProxy.initialiseAccount(stx.senderAddress, address, UInt256(stx.tx.value))
+        ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, worldAfterInitialisation, config)
       case Some(txReceivingAddress) =>
         val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
         ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, config)
     }
+  }
 
   private def runVM(stx: SignedTransaction, context: PC, config: EvmConfig): PR = {
     val result: PR = vm.run(context)

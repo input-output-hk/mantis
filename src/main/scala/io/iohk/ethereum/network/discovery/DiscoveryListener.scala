@@ -132,7 +132,7 @@ object DiscoveryListener {
       val signatureBytes = wire.drop(MdcLength).take(ECDSASignature.EncodedLength)
       val r = signatureBytes.take(ECDSASignature.RLength)
       val s = signatureBytes.drop(ECDSASignature.RLength).take(ECDSASignature.SLength)
-      val v = ByteString(Array[Byte]((signatureBytes(ECDSASignature.EncodedLength - 1) + 27).toByte))
+      val v = (signatureBytes.last + 27).toByte
 
       ECDSASignature(r, s, v)
     }

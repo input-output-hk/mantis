@@ -105,7 +105,7 @@ object Generators extends ObjectGenerators {
       world = MockWorldState(numberOfHashes = blockNumber - 1)
         .saveCode(ownerAddr, program.code)
         .saveStorage(ownerAddr, storage)
-        .saveAccount(ownerAddr, Account.empty())
+        .saveAccount(ownerAddr, Account.empty().increaseBalance(value))
 
       context: PC = ProgramContext(env, ownerAddr, gas, world, EvmConfig.PostEIP160Config)
     } yield ProgramState(context).withStack(stack).withMemory(memory)

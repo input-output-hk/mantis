@@ -1,4 +1,4 @@
-package io.iohk.ethereum.ets.vm
+package io.iohk.ethereum.ets.common
 
 import java.io.File
 
@@ -9,21 +9,21 @@ import scala.collection.JavaConverters._
 import scala.io.Source
 
 
-object ScenarioLoader extends Logger {
+trait ScenarioLoader[T] extends ScenarioParser[T] with Logger {
 
-  def load(options: TestOptions): List[ScenarioGroup] = {
-    val testDir = new File(getClass.getClassLoader.getResource("ets/VMTests").toURI)
+  def load(path: String, options: TestOptions, ignoredTestNames: Set[String] = Set.empty): List[ScenarioGroup[T]] = {
+    val testDir = new File(getClass.getClassLoader.getResource(path).toURI)
     val files = FileUtils.listFiles(testDir, Array("json"), true).asScala.toList
 
-    files.flatMap { file =>
+    files.filterNot(file => ignoredTestNames.contains(file.getName)).flatMap { file =>
       val name = file.getAbsolutePath.drop(testDir.getAbsolutePath.length + 1).dropRight(".json".length)
 
       if (!options.isGroupIncluded(name))
         None
       else {
-        log.debug(s"Loading test scenarios from: $file")
+        log.info(s"Loading test scenarios from: $file")
         val text = Source.fromFile(file).getLines.mkString
-        val scenarios = ScenarioParser.parse(text)
+        val scenarios = parse(text)
         Some(ScenarioGroup(name, scenarios))
       }
     }
