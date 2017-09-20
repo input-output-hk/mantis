@@ -50,7 +50,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     getAccount(address).map(a => UInt256(a.balance)).getOrElse(UInt256.Zero)
 
   def transfer(from: Address, to: Address, value: UInt256): WS = {
-    if (from == to ||  isZeroValueTransferToEmptyAccount(to, value))
+    if (from == to ||  isZeroValueTransferToNonExistentAccount(to, value))
       touchAccounts(from)
     else
       guaranteedTransfer(from, to, value)
@@ -84,7 +84,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     */
   def removeAllEther(address: Address): WS = {
     val debited = getGuaranteedAccount(address).copy(balance = 0)
-    saveAccount(address, debited)
+    saveAccount(address, debited).touchAccounts(address)
   }
 
   /**
@@ -122,6 +122,6 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     getAccount(address).forall(_.isEmpty)
   }
 
-  def isZeroValueTransferToEmptyAccount(address: Address, value: UInt256): Boolean =
+  def isZeroValueTransferToNonExistentAccount(address: Address, value: UInt256): Boolean =
     noEmptyAccounts && value == UInt256(0) && !accountExists(address)
 }

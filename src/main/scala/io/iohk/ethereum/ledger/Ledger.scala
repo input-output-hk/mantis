@@ -364,7 +364,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
   }
 
   private[ledger] def pay(address: Address, value: UInt256)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    if (world.isZeroValueTransferToEmptyAccount(address, value)) {
+    if (world.isZeroValueTransferToNonExistentAccount(address, value)) {
       world
     } else {
       val account = world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
@@ -390,6 +390,22 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => world.deleteAccount(address) }
 
 
+  /**
+    * EIP161 - State trie clearing
+    * Delete all accounts that have been touched (involved in any potentially state-changing operation) during transaction execution.
+    *
+    * All potentially state-changing operation are:
+    * Account is the target or refund of a SUICIDE operation for zero or more value;
+    * Account is the source or destination of a CALL operation or message-call transaction transferring zero or more value;
+    * Account is the source or newly-creation of a CREATE operation or contract-creation transaction endowing zero or more value;
+    * as the block author ("miner") it is recipient of block-rewards or transaction-fees of zero or more.
+    *
+    * Deletion of touched account should be executed immediately following the execution of the suicide list
+    *
+    * @param worldStateProxy world after execution of all potentially state-changing operations
+    * @return a worldState equal worldStateProxy except that the accounts touched during exection are deleted and touched
+    *         Set is cleared
+    */
   private[ledger] def deleteTouchedAccounts(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     def deleteEmptyAccounts(addressesToDelete: Set[Address]) =
       addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => deleteEmptyAccount(world, address) }

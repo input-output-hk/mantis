@@ -11,6 +11,7 @@ trait BlockChainTestConfig extends BlockchainConfig {
   val eip150BlockNumber: BigInt = Long.MaxValue
   val eip155BlockNumber: BigInt = Long.MaxValue
   val homesteadBlockNumber: BigInt = Long.MaxValue
+  val eip161BlockNumber: BigInt = Long.MaxValue
   //Enabling maxGasLimit in all Configs and all blocks
   override val eip106BlockNumber: BigInt = 0
   // unused
