@@ -45,7 +45,7 @@ class ECIP1017Test extends FlatSpec with Matchers {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/ecip1017Test")
 
     val startBlock = 1
-    val endBlock = 100
+    val endBlock = 602
 
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
