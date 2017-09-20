@@ -2,13 +2,14 @@ package io.iohk.ethereum.ets.vm
 
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.domain.{Account, Address, BlockHeader}
+import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.vm.MockWorldState._
 import io.iohk.ethereum.vm._
 
 object ScenarioBuilder {
 
-  def prepareContext(scenario: Scenario): PC = {
+  def prepareContext(scenario: VMScenario): PC = {
     val blockHeader = prepareHeader(scenario.env)
     val execEnv = prepareExecEnv(scenario.exec, blockHeader)
     val world = prepareWorld(scenario.pre, scenario.env.currentNumber)
