@@ -63,6 +63,16 @@ case class MockWorldState(
     copy(touchedAccounts = touchedAccounts.map(_.empty))
 
   def noEmptyAccounts: Boolean = touchedAccounts.isDefined
+
+  def combineTouchedAccounts(world: MockWorldState): MockWorldState = {
+    val accounts = for {
+      oldAccounts <- touchedAccounts
+      newAccounts <- world.touchedAccounts
+    } yield oldAccounts ++ newAccounts
+
+    copy(touchedAccounts = accounts)
+  }
+
   /**
     * Check whether an account at given address is dead,
     * according to the EIP-161 definition of 'dead' (inexistent or empty)

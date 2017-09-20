@@ -801,9 +801,12 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       val gasAdjustment: BigInt = if (validCall) 0 else -startGas
       val mem2 = mem1.expand(outOffset, outSize)
 
+      val updateWorld = if (validCall) state.world.combineTouchedAccounts(result.world) else state.world
+
       state
         .withStack(stack2)
         .withMemory(mem2)
+        .withWorld(updateWorld)
         .spendGas(gasAdjustment)
         .step()
 
@@ -931,7 +934,7 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
         state.world.removeAllEther(state.ownAddress)
       else
         state.world.transfer(state.ownAddress, refundAddr, state.ownBalance)
-    //it is the target or refund of a SUICIDE operation for zero or more value;
+
     state
       .withWorld(world)
       .refundGas(gasRefund)

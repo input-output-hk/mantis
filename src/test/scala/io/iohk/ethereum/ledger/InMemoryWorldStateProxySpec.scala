@@ -206,7 +206,31 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     worldStateAfterSecondTransfer.touchedAccounts.map(_ should contain theSameElementsAs Set(address1, address2, address3))
   }
 
-  "InMemoryWorldStateProxy" should "should correctly determine if account is dead post EIP161" in new TestSetup {
+  "InMemoryWorldStateProxy" should "should update touched account based on oldWorld" in new TestSetup {
+    val account = Account(0, 100)
+    val zeroTransfer = UInt256.Zero
+    val nonZeroTransfer = account.balance - 80
+
+    val worldAfterSelfTransfer = postEIP161WorldState
+      .saveAccount(address1, account)
+      .transfer(address1, address1, nonZeroTransfer)
+
+    val worldStateAfterFirstTransfer = worldAfterSelfTransfer
+      .saveAccount(address1, account)
+      .initialiseAccount(address1, address2, zeroTransfer)
+
+    val worldStateAfterSecondTransfer = worldStateAfterFirstTransfer
+      .transfer(address1, address3, nonZeroTransfer)
+
+    val postEip161UpdatedWorld = postEIP161WorldState.combineTouchedAccounts(worldStateAfterSecondTransfer)
+
+    val preEip161UpdatedWorld = worldState.combineTouchedAccounts(worldStateAfterSecondTransfer)
+
+    postEip161UpdatedWorld.touchedAccounts.map(_ should contain theSameElementsAs Set(address1, address2, address3))
+    preEip161UpdatedWorld.touchedAccounts shouldBe None
+  }
+
+  "InMemoryWorldStateProxy" should "should correctly determine if account is dead" in new TestSetup {
     val emptyAccountWorld = worldState.newEmptyAccount(address1)
 
     emptyAccountWorld.accountExists(address1) shouldBe true
@@ -262,19 +286,15 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-
-    val worldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
-
-
-    val config = EvmConfig.PostEIP160Config
     val postEip161Config = EvmConfig.PostEIP161Config
 
+    val worldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
     val postEIP161WorldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip161Config.noEmptyAccounts)
+
     val address1 = Address(0x123456)
     val address2 = Address(0xabcdef)
     val address3 = Address(0xfedcba)
   }
-
 }
 
 

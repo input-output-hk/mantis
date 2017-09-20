@@ -182,6 +182,16 @@ class InMemoryWorldStateProxy private(
     copyWith(touchedAccounts = touchedAccounts.map(_.empty))
 
   override def noEmptyAccounts: Boolean = touchedAccounts.isDefined
+
+  def combineTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    val accounts = for {
+      oldAccounts <- touchedAccounts
+      newAccounts <- world.touchedAccounts
+    } yield oldAccounts ++ newAccounts
+
+    copyWith(touchedAccounts = accounts)
+  }
+
   /**
     * Returns world state root hash. This value is only updated after persist.
     */

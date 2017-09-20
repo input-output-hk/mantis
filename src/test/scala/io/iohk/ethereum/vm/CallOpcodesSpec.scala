@@ -262,8 +262,8 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       val context: PC = fxt.context.copy(world = fxt.worldWithInvalidProgram)
       val call = CallResult(op = CALL, context)
 
-      "not modify world state" in {
-        call.world shouldEqual fxt.worldWithInvalidProgram
+      "modify only touched acounts in world state" in {
+        call.world shouldEqual fxt.worldWithInvalidProgram.touchAccounts(fxt.ownerAddr, fxt.extAddr)
       }
 
       "return 0" in {

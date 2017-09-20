@@ -38,6 +38,12 @@ class Eip150Config extends BlockChainTestConfig {
   override val homesteadBlockNumber: BigInt = -1
   override val eip150BlockNumber = 0
 }
+
+class Eip158Config extends BlockChainTestConfig {
+  override val homesteadBlockNumber: BigInt = -1
+  override val eip161BlockNumber = 0
+}
+
 class FrontierToHomesteadAt5 extends BlockChainTestConfig {
   override val frontierBlockNumber = 0
   override val homesteadBlockNumber = 5

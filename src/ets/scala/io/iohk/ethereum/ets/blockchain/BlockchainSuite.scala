@@ -9,8 +9,8 @@ import org.scalatest._
 
 class BlockchainSuite extends FreeSpec with Matchers with Logger {
 
-  val unsupportedNetworks = Set("Byzantium","Constantinople", "EIP158", "EIP158ToByzantiumAt5", "HomesteadToDaoAt5")
-  val supportedNetworks = Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5")
+  val unsupportedNetworks = Set("Byzantium","Constantinople", "EIP158ToByzantiumAt5", "HomesteadToDaoAt5")
+  val supportedNetworks = Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5", "EIP158")
 
   //Map of ignored tests, empty set of ignored names means cancellation of whole group
   val ignoredTests: Map[String, Set[String]] = Map(
@@ -28,7 +28,9 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
     "bcTotalDifficultyTest/uncleBlockAtBlock3afterBlock4" -> Set.empty,
     "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain"  -> Set.empty,
     "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain2"  -> Set.empty,
-    "TransitionTests/bcFrontierToHomestead/HomesteadOverrideFrontier" -> Set.empty
+    "TransitionTests/bcFrontierToHomestead/HomesteadOverrideFrontier" -> Set.empty,
+    // Test makes silent assumption that after EIP158, maxCodeSize Limit is already implemented
+    "GeneralStateTests/stCodeSizeLimit/codesizeOOGInvalidSize_d0g0v0" -> Set("codesizeOOGInvalidSize_d0g0v0_EIP158")
   )
 
   override def run(testName: Option[String], args: Args): Status = {

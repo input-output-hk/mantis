@@ -198,8 +198,6 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     val executionGasToPayToMiner = gasLimit - totalGasToRefund
 
     val refundGasFn = pay(stx.senderAddress, (totalGasToRefund * gasPrice).toUInt256) _
-
-    // STATE CHANGE as the block author ("miner") it is recipient of block-rewards or transaction-fees of zero or more.
     val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256) _
 
     val worldAfterPayments = (refundGasFn andThen payMinerForGasFn)(resultWithErrorHandling.world)
@@ -319,7 +317,6 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     stx.tx.receivingAddress match {
       case None =>
         val address = worldStateProxy.createAddress(creatorAddr = stx.senderAddress)
-        //it is the source or newly-creation of a CREATE operation or contract-creation transaction endowing zero or more value;
         val worldAfterInitialisation = worldStateProxy.initialiseAccount(stx.senderAddress, address, UInt256(stx.tx.value))
         ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, worldAfterInitialisation, config)
       case Some(txReceivingAddress) =>
@@ -368,8 +365,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
       world
     } else {
       val account = world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
-      val worldWithAccount = world.saveAccount(address, account)
-      worldWithAccount.touchAccounts(address)
+      world.saveAccount(address, account).touchAccounts(address)
     }
   }
 

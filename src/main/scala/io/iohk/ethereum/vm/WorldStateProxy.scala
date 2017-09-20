@@ -23,7 +23,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   protected def touchAccounts(addresses: Address*): WS
   protected def clearTouchedAccounts: WS
   protected def noEmptyAccounts: Boolean
-
+  def combineTouchedAccounts(world: WS): WS
   /**
     * In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that
     * transfer value to another. There could be no input to our application that would cause this fail, so we shouldn't
@@ -53,14 +53,13 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     if (from == to ||  isZeroValueTransferToNonExistentAccount(to, value))
       touchAccounts(from)
     else
-      guaranteedTransfer(from, to, value)
+      guaranteedTransfer(from, to, value).touchAccounts(from, to)
   }
 
   def guaranteedTransfer(from: Address, to: Address, value: UInt256): WS = {
     val debited = getGuaranteedAccount(from).increaseBalance(-value)
     val credited = getAccount(to).getOrElse(getEmptyAccount).increaseBalance(value)
-    val world = saveAccount(from, debited).saveAccount(to, credited)
-    world.touchAccounts(from, to)
+    saveAccount(from, debited).saveAccount(to, credited)
   }
 
   /**
@@ -73,8 +72,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     val newAccount = getAccount(newAddress).getOrElse(getEmptyAccount)
       .resetAccountPreservingBalance().increaseBalance(value)
       .increaseNonce(nonceOffset)
-    val world = saveAccount(creatorAddress,creatorAccount).saveAccount(newAddress, newAccount)
-    world.touchAccounts(creatorAddress, newAddress)
+    saveAccount(creatorAddress,creatorAccount).saveAccount(newAddress, newAccount).touchAccounts(creatorAddress, newAddress)
   }
 
   /**
