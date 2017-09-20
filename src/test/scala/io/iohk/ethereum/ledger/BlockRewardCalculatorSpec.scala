@@ -11,6 +11,8 @@ class BlockRewardCalculatorSpec extends FlatSpec with Matchers with PropertyChec
 
     val testMP = MonetaryPolicyConfig(10, 0.5, 5000000)
 
+    val lowEraDurationMP = MonetaryPolicyConfig(3, 0.2, 5000000000000000000L)
+
     val table = Table[MonetaryPolicyConfig, BigInt, List[BigInt], BigInt, List[BigInt]](
       ("config", "blockNumber", "ommersNumbers", "expectedBlockReward", "expectedOmmersRewards"),
       (standardMP, 1, Nil, 5000000000000000000L, Nil),
@@ -29,7 +31,13 @@ class BlockRewardCalculatorSpec extends FlatSpec with Matchers with PropertyChec
       (testMP, 10, List(9, 8), 5312500, List(4375000, 3750000)),
       (testMP, 11, List(9, 8), 2656250, List(78125, 78125)),
       (testMP, 20, Nil, 2500000, Nil),
-      (testMP, 21, List(20), 1289062, List(39062))
+      (testMP, 21, List(20), 1289062, List(39062)),
+
+      //Era 21, which causes exponentiation vs loop error rounding error (See https://github.com/paritytech/parity/issues/6523)
+      (lowEraDurationMP, 66, Nil, BigInt("46116860184273879"), Nil),
+
+      //Causes ommer count multiplication rounding error, when calculating the reward given to the miner for including 2 ommers
+      (lowEraDurationMP, 78, List(77, 77), BigInt("20070057552195990"), List(BigInt("590295810358705"), BigInt("590295810358705")))
     )
 
     forAll(table) { (config, blockNumber, ommersNumbers, expectedBlockReward, expectedOmmersRewards) =>
