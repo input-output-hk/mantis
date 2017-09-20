@@ -63,13 +63,28 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     world.touchAccounts(from, to)
   }
 
+  /**
+    * Method for creating new account and transferring value to it, that handles possible address collisions.
+    */
   def initialiseAccount(creatorAddress: Address, newAddress: Address, value: UInt256): WS = {
     val nonceOffset = if (noEmptyAccounts) 1 else 0
 
     val creatorAccount = getGuaranteedAccount(creatorAddress).increaseBalance(-value)
-    val newAccount = getAccount(newAddress).getOrElse(getEmptyAccount).increaseBalance(value).increaseNonce(nonceOffset)
+    val newAccount = getAccount(newAddress).getOrElse(getEmptyAccount)
+      .resetAccountPreservingBalance().increaseBalance(value)
+      .increaseNonce(nonceOffset)
     val world = saveAccount(creatorAddress,creatorAccount).saveAccount(newAddress, newAccount)
     world.touchAccounts(creatorAddress, newAddress)
+  }
+
+  /**
+    * In case of transfer to self, during selfdestruction the ether is actually destroyed
+    * see https://github.com/ethereum/wiki/wiki/Subtleties/d5d3583e1b0a53c7c49db2fa670fdd88aa7cabaf#other-operations
+    * and https://github.com/ethereum/go-ethereum/blob/ff9a8682323648266d5c73f4f4bce545d91edccb/core/state/statedb.go#L322
+    */
+  def removeAllEther(address: Address): WS = {
+    val debited = getGuaranteedAccount(address).copy(balance = 0)
+    saveAccount(address, debited)
   }
 
   /**

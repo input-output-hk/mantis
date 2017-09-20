@@ -2,9 +2,12 @@
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} %X{akkaSource} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{18} - %msg%n</pattern>
         </encoder>
     </appender>
+
+    <logger name="io.iohk.ethereum.vm.VM" level="OFF" />
+    <logger name="io.iohk.ethereum.ledger.LedgerImpl" level="OFF" />
 
     <root level="INFO">
         <appender-ref ref="STDOUT" />

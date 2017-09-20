@@ -109,6 +109,9 @@ trait Blockchain {
     */
   def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt]
 
+  def getTotalDifficultyByNumber(blockNumber: BigInt): Option[BigInt] =
+    getHashByBlockNumber(blockNumber).flatMap(getTotalDifficultyByHash)
+
   def getTransactionLocation(txHash: ByteString): Option[TransactionLocation]
 
   /**
@@ -225,13 +228,20 @@ class BlockchainImpl(
 
   private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit = blockNumberMappingStorage.put(number, hash)
 
+  private def removeBlockNumberMapping(number: BigInt): Unit = blockNumberMappingStorage.remove(number)
+
   override def removeBlock(blockHash: ByteString): Unit = {
+    val maybeBlockHeader = getBlockHeaderByHash(blockHash)
     val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
+
     blockHeadersStorage.remove(blockHash)
     blockBodiesStorage.remove(blockHash)
     totalDifficultyStorage.remove(blockHash)
     receiptStorage.remove(blockHash)
     maybeTxList.foreach(removeTxsLocations)
+    maybeBlockHeader.foreach{ case h =>
+      if(getHashByBlockNumber(h.number).contains(blockHash)) removeBlockNumberMapping(h.number)
+    }
   }
 
   private def saveTxsLocations(blockHash: ByteString, blockBody: BlockBody): Unit =

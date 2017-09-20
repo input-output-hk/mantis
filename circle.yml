@@ -22,8 +22,13 @@ test:
     - if [ -z $SKIP_ETS_TESTS ]; then
         git submodule init;
         git submodule update;
-        sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*";
+        if [ "$CIRCLE_BRANCH" == "master" ]; then
+          sbt "ets:testOnly * -- -Dexg=vmPerf*";
+        else
+          sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*";
+        fi
       fi
+
   post:
     - mkdir -p $CIRCLE_ARTIFACTS/scala-2.12
     - mv target/scala-2.12/coverage-report  $CIRCLE_ARTIFACTS/scala-2.12/coverage-report

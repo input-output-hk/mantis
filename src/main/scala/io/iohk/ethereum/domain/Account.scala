@@ -42,6 +42,9 @@ case class Account(
   def withStorage(storageRoot: ByteString): Account =
     copy(storageRoot = storageRoot)
 
+  def resetAccountPreservingBalance(startNonce: UInt256 = UInt256.Zero): Account =
+    copy(nonce = startNonce, storageRoot = Account.EmptyStorageRootHash, codeHash = Account.EmptyCodeHash)
+
   /**
     * According to EIP161: An account is considered empty when it has no code and zero nonce and zero balance.
     */

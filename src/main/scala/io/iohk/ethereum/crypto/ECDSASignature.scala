@@ -25,8 +25,8 @@ object ECDSASignature {
 
   val allowedPointSigns = Set(negativePointSign, positivePointSign)
 
-  def apply(r: ByteString, s: ByteString, v: ByteString): ECDSASignature = {
-    ECDSASignature(BigInt(1, r.toArray), BigInt(1, s.toArray), BigInt(v.toArray).toByte)
+  def apply(r: ByteString, s: ByteString, v: Byte): ECDSASignature = {
+    ECDSASignature(BigInt(1, r.toArray), BigInt(1, s.toArray), v)
   }
 
   def sign(message: Array[Byte], keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte] = None): ECDSASignature = {
@@ -110,7 +110,6 @@ object ECDSASignature {
     compEnc(0) = if (recId == ECDSASignature.positivePointSign) 3.toByte else 2.toByte
     curve.getCurve.decodePoint(compEnc)
   }
-
 }
 
 /**
