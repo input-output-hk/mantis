@@ -59,6 +59,9 @@ case class MockWorldState(
   def touchAccounts(addresses: Address*): MockWorldState =
     copy(touchedAccounts = touchedAccounts.map(oldAddresses => oldAddresses ++ addresses.toSet))
 
+  def clearTouchedAccounts: MockWorldState =
+    copy(touchedAccounts = touchedAccounts.map(_.empty))
+
   def noEmptyAccounts: Boolean = touchedAccounts.isDefined
   /**
     * Check whether an account at given address is dead,

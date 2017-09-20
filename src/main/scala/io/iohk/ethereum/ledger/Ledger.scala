@@ -197,10 +197,10 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     val totalGasToRefund = calcTotalGasToRefund(stx, resultWithErrorHandling)
     val executionGasToPayToMiner = gasLimit - totalGasToRefund
 
-    val refundGasFn = pay(stx.senderAddress, (totalGasToRefund * gasPrice).toUInt256, config.noEmptyAccounts) _
+    val refundGasFn = pay(stx.senderAddress, (totalGasToRefund * gasPrice).toUInt256) _
 
     // STATE CHANGE as the block author ("miner") it is recipient of block-rewards or transaction-fees of zero or more.
-    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256, config.noEmptyAccounts) _
+    val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256) _
 
     val worldAfterPayments = (refundGasFn andThen payMinerForGasFn)(resultWithErrorHandling.world)
 
@@ -362,7 +362,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     }
   }
 
-  private[ledger] def pay(address: Address, value: UInt256, noEmptyAccount: Boolean)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  private[ledger] def pay(address: Address, value: UInt256)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     if (world.isZeroValueTransferToEmptyAccount(address, value)) {
       world
     } else {
@@ -394,13 +394,13 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
       addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => deleteEmptyAccount(world, address) }
 
     def deleteEmptyAccount(world: InMemoryWorldStateProxy, address: Address) = {
-      if (world.getGuaranteedAccount(address).isEmpty)
+      if (world.getAccount(address).exists(_.isEmpty))
         world.deleteAccount(address)
       else
         world
     }
 
-    worldStateProxy.touchedAccounts.map(deleteEmptyAccounts).getOrElse(worldStateProxy)
+    worldStateProxy.touchedAccounts.map(deleteEmptyAccounts).getOrElse(worldStateProxy).clearTouchedAccounts
   }
 }
 

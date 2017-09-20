@@ -932,7 +932,6 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
   }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
-
     val isValueTransfer = state.ownBalance > 0
 
     val (refundAddr, _) = state.stack.pop
@@ -943,7 +942,6 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
         state.config.feeSchedule.G_newaccount
       else
         0
-
     } else {
       if (state.config.chargeSelfDestructForNewAccount && !state.world.accountExists(refundAddress))
         state.config.feeSchedule.G_newaccount

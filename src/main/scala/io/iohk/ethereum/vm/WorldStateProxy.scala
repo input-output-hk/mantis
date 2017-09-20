@@ -21,6 +21,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   protected def deleteAccount(address: Address): WS
   protected def getEmptyAccount: Account
   protected def touchAccounts(addresses: Address*): WS
+  protected def clearTouchedAccounts: WS
   protected def noEmptyAccounts: Boolean
 
   /**
