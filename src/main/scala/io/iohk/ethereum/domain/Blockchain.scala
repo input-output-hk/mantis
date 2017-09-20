@@ -155,9 +155,15 @@ trait Blockchain {
 
   def genesisBlock: Block = getBlockByNumber(0).get
 
-  def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None, noEmptyAccounts: Boolean = false): WS
+  def getWorldStateProxy(blockNumber: BigInt,
+                         accountStartNonce: UInt256,
+                         stateRootHash: Option[ByteString] = None,
+                         noEmptyAccounts: Boolean = false): WS
 
-  def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt], accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None, noEmptyAccounts: Boolean = false): WS
+  def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
+                                 accountStartNonce: UInt256,
+                                 stateRootHash: Option[ByteString] = None,
+                                 noEmptyAccounts: Boolean = false): WS
 }
 
 class BlockchainImpl(
