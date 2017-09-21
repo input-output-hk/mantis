@@ -157,17 +157,11 @@ object Config {
     }
   }
 
-  trait DbConfig {
-    val batchSize: Int
-  }
-
-  object Db extends DbConfig {
+  object Db {
 
     private val dbConfig = config.getConfig("db")
     private val iodbConfig = dbConfig.getConfig("iodb")
     private val levelDbConfig = dbConfig.getConfig("leveldb")
-
-    val batchSize = dbConfig.getInt("batch-size")
 
     object Iodb  {
       val path: String = iodbConfig.getString("path")

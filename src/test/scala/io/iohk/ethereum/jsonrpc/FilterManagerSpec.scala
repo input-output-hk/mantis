@@ -257,7 +257,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
 
     val createResp =
-      (filterManager ? FilterManager.NewBlockFilter())
+      (filterManager ? FilterManager.NewBlockFilter)
         .mapTo[FilterManager.NewFilterResponse].futureValue
 
     (appStateStorage.getBestBlockNumber _).expects().returning(3)
@@ -290,7 +290,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
 
     val createResp =
-      (filterManager ? FilterManager.NewPendingTransactionFilter())
+      (filterManager ? FilterManager.NewPendingTransactionFilter)
         .mapTo[FilterManager.NewFilterResponse].futureValue
 
     (appStateStorage.getBestBlockNumber _).expects().returning(3)
@@ -327,7 +327,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     (appStateStorage.getBestBlockNumber _).expects().returning(3).twice()
 
     val createResp =
-      (filterManager ? FilterManager.NewPendingTransactionFilter())
+      (filterManager ? FilterManager.NewPendingTransactionFilter)
         .mapTo[FilterManager.NewFilterResponse].futureValue
 
     (appStateStorage.getBestBlockNumber _).expects().returning(3)

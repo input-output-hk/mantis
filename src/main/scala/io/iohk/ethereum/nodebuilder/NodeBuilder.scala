@@ -410,7 +410,7 @@ trait GenesisDataLoaderBuilder {
     with StorageBuilder
     with BlockchainConfigBuilder =>
 
-  lazy val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig, Config.Db)
+  lazy val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
 }
 
 trait SecureRandomBuilder {
