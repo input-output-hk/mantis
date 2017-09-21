@@ -29,6 +29,9 @@ test:
         fi
       fi
 
+    # snappy test is not run on Circle - this is just to prevent compilation regression
+    - sbt snappy:compile
+
   post:
     - mkdir -p $CIRCLE_ARTIFACTS/scala-2.12
     - mv target/scala-2.12/coverage-report  $CIRCLE_ARTIFACTS/scala-2.12/coverage-report
