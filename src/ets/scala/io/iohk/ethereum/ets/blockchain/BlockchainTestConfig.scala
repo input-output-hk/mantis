@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig}
 
-trait BlockChainTestConfig extends BlockchainConfig {
+trait BlockchainTestConfig extends BlockchainConfig {
 
   val frontierBlockNumber: BigInt = Long.MaxValue
   val eip160BlockNumber: BigInt = Long.MaxValue
@@ -24,24 +24,24 @@ trait BlockChainTestConfig extends BlockchainConfig {
   override val accountStartNonce: UInt256 = UInt256.Zero
 }
 
-class FrontierConfig extends BlockChainTestConfig {
+class FrontierConfig extends BlockchainTestConfig {
   override val frontierBlockNumber = 0
 }
-class HomesteadConfig extends BlockChainTestConfig {
+class HomesteadConfig extends BlockchainTestConfig {
   override val homesteadBlockNumber = 0
 }
-class Eip150Config extends BlockChainTestConfig {
+class Eip150Config extends BlockchainTestConfig {
 
   // To keep difficulty calculation relevant, we need to have network order
   // frontier >> homestead >> eip150
   override val homesteadBlockNumber: BigInt = -1
   override val eip150BlockNumber = 0
 }
-class FrontierToHomesteadAt5 extends BlockChainTestConfig {
+class FrontierToHomesteadAt5 extends BlockchainTestConfig {
   override val frontierBlockNumber = 0
   override val homesteadBlockNumber = 5
 }
-class HomesteadToEIP150At5 extends BlockChainTestConfig {
+class HomesteadToEIP150At5 extends BlockchainTestConfig {
   override val eip150BlockNumber = 5
   override val homesteadBlockNumber = 0
 }

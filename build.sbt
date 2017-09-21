@@ -55,14 +55,17 @@ val Evm = config("evm") extend Test
 
 val Ets = config("ets") extend Test
 
+val Snappy = config("snappy") extend Test
+
 val root = project.in(file("."))
-    .configs(Integration, Benchmark, Evm, Ets)
+    .configs(Integration, Benchmark, Evm, Ets, Snappy)
     .settings(commonSettings: _*)
     .settings(libraryDependencies ++= dep)
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
     .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
     .settings(inConfig(Evm)(Defaults.testSettings) : _*)
     .settings(inConfig(Ets)(Defaults.testSettings) : _*)
+    .settings(inConfig(Snappy)(Defaults.testSettings) : _*)
 
 scalacOptions := Seq(
   "-unchecked",
