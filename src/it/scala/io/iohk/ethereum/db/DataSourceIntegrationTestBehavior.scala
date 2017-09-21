@@ -40,172 +40,203 @@ trait DataSourceIntegrationTestBehavior
     }
   }
 
+  var accumTime: Long = 0
+
+  def time[R](block: => R): R = {
+    val t0 = System.nanoTime()
+    val result = block    // call-by-name
+    val t1 = System.nanoTime()
+    val time = (t1 - t0)
+    println("Elapsed time: " + time + "ns")
+    accumTime += time
+  //  println("Accum time= " + accumTime)
+    result
+  }
+
   // scalastyle:off
   def dataSource(createDataSource: => String => DataSource): Unit = {
     it should "be able to insert keys in separate updates" in {
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-        withDir { path =>
-          val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = updateInSeparateCalls(
-            dataSource = createDataSource(path),
-            toUpsert = keyList.zip(keyList)
-          )
-          keyList.foreach { key => assert(db.get(OtherNamespace, key).contains(key)) }
+      time {
+        forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+          withDir { path =>
+            val keyList = unFilteredKeyList.take(KeyNumberLimit)
+            val db = updateInSeparateCalls(
+              dataSource = createDataSource(path),
+              toUpsert = keyList.zip(keyList)
+            )
+            keyList.foreach { key => assert(db.get(OtherNamespace, key).contains(key)) }
 
-          db.destroy()
+            db.destroy()
+          }
         }
       }
     }
 
     it should "be able to insert keys in a single update" in {
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-        withDir { path =>
-          val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = createDataSource(path).update(OtherNamespace, Seq(), keyList.zip(keyList))
+      time {
+        forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+          withDir { path =>
+            val keyList = unFilteredKeyList.take(KeyNumberLimit)
+            val db = createDataSource(path).update(OtherNamespace, Seq(), keyList.zip(keyList))
 
-          keyList.foreach { key => assert(db.get(OtherNamespace, key).contains(key)) }
+            keyList.foreach { key => assert(db.get(OtherNamespace, key).contains(key)) }
 
-          db.destroy()
+            db.destroy()
+          }
         }
       }
     }
 
     it should "be able to update keys in separate updates" in {
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-        withDir { path =>
-          val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = createDataSource(path).update(OtherNamespace, Seq(), keyList.zip(keyList))
+      time {
+        forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+          withDir { path =>
+            val keyList = unFilteredKeyList.take(KeyNumberLimit)
+            val db = createDataSource(path).update(OtherNamespace, Seq(), keyList.zip(keyList))
 
-          val keyListWithExtraByte = keyList.map(1.toByte +: _)
-          val dbAfterUpdate = updateInSeparateCalls(db, keyList.zip(keyListWithExtraByte))
+            val keyListWithExtraByte = keyList.map(1.toByte +: _)
+            val dbAfterUpdate = updateInSeparateCalls(db, keyList.zip(keyListWithExtraByte))
 
-          keyList.zip(keyListWithExtraByte).foreach { case (key, value) =>
-            assert(dbAfterUpdate.get(OtherNamespace, key).contains(value))
+            keyList.zip(keyListWithExtraByte).foreach { case (key, value) =>
+              assert(dbAfterUpdate.get(OtherNamespace, key).contains(value))
+            }
+
+            dbAfterUpdate.destroy()
           }
-
-          dbAfterUpdate.destroy()
         }
       }
     }
 
     it should "be able to update keys in a single update" in {
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-        withDir { path =>
-          val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = createDataSource(path).update(OtherNamespace, Seq(), keyList.zip(keyList))
+      time {
+        forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+          withDir { path =>
+            val keyList = unFilteredKeyList.take(KeyNumberLimit)
+            val db = createDataSource(path).update(OtherNamespace, Seq(), keyList.zip(keyList))
 
-          val keyListWithExtraByte = keyList.map(1.toByte +: _)
-          val dbAfterUpdate = db.update(OtherNamespace, Seq(), keyList.zip(keyListWithExtraByte))
+            val keyListWithExtraByte = keyList.map(1.toByte +: _)
+            val dbAfterUpdate = db.update(OtherNamespace, Seq(), keyList.zip(keyListWithExtraByte))
 
-          keyList.zip(keyListWithExtraByte).foreach { case (key, value) =>
-            assert(dbAfterUpdate.get(OtherNamespace, key).contains(value))
+            keyList.zip(keyListWithExtraByte).foreach { case (key, value) =>
+              assert(dbAfterUpdate.get(OtherNamespace, key).contains(value))
+            }
+
+            dbAfterUpdate.destroy()
           }
-
-          dbAfterUpdate.destroy()
         }
       }
     }
 
     it should "be cleared" in {
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-        withDir { path =>
-          val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = createDataSource(path).update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
-            .clear
+      time {
+        forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+          withDir { path =>
+            val keyList = unFilteredKeyList.take(KeyNumberLimit)
+            val db = createDataSource(path).update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
+              .clear
 
-          keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
+            keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
 
-          db.destroy()
+            db.destroy()
+          }
         }
       }
     }
 
     it should "be able to be closed and then continuing using it" in {
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-        withDir { path =>
-          val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = createDataSource(path).update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
-          db.close()
+      time {
+        forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+          withDir { path =>
+            val keyList = unFilteredKeyList.take(KeyNumberLimit)
+            val db = createDataSource(path).update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
+            db.close()
 
-          val dbAfterClose = createDataSource(path)
-          keyList.foreach { key => assert(dbAfterClose.get(OtherNamespace, key).contains(key)) }
+            val dbAfterClose = createDataSource(path)
+            keyList.foreach { key => assert(dbAfterClose.get(OtherNamespace, key).contains(key)) }
 
-          dbAfterClose.destroy()
+            dbAfterClose.destroy()
+          }
         }
       }
     }
 
     it should "be destroyed" in {
-      withDir { path =>
-        forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-          val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = createDataSource(path).update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
-          db.destroy()
+      time {
+        withDir { path =>
+          forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+            val keyList = unFilteredKeyList.take(KeyNumberLimit)
+            val db = createDataSource(path).update(namespace = OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
+            db.destroy()
 
-          assert(!new File("/tmp/iodbDestroy").exists())
+            assert(!new File("/tmp/iodbDestroy").exists())
 
-          val dbAfterDestroy = createDataSource(path)
-          keyList.foreach { key => assert(dbAfterDestroy.get(OtherNamespace, key).isEmpty) }
+            val dbAfterDestroy = createDataSource(path)
+            keyList.foreach { key => assert(dbAfterDestroy.get(OtherNamespace, key).isEmpty) }
 
-          dbAfterDestroy.destroy()
+            dbAfterDestroy.destroy()
+          }
         }
       }
     }
 
     it should "be able to handle inserts to multiple namespaces with the same key" in {
-      val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('o'.toByte)
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-        withDir { path =>
-          val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = createDataSource(path)
+      time {
+        val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('o'.toByte)
+        forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+          withDir { path =>
+            val keyList = unFilteredKeyList.take(KeyNumberLimit)
+            val db = createDataSource(path)
 
-          val valList1 = keyList.map(1.toByte +: _)
-          db.update(OtherNamespace, Seq(), keyList.zip(valList1))
+            val valList1 = keyList.map(1.toByte +: _)
+            db.update(OtherNamespace, Seq(), keyList.zip(valList1))
 
-          val valList2 = keyList.map(2.toByte +: _)
-          db.update(OtherNamespace2, Seq(), keyList.zip(valList2))
+            val valList2 = keyList.map(2.toByte +: _)
+            db.update(OtherNamespace2, Seq(), keyList.zip(valList2))
 
-          keyList.zip(valList1).foreach { case (key, value) =>
-            assert(db.get(OtherNamespace, key).contains(value))
+            keyList.zip(valList1).foreach { case (key, value) =>
+              assert(db.get(OtherNamespace, key).contains(value))
+            }
+
+            keyList.zip(valList2).foreach { case (key, value) =>
+              assert(db.get(OtherNamespace2, key).contains(value))
+            }
+
+            db.destroy()
           }
-
-          keyList.zip(valList2).foreach { case (key, value) =>
-            assert(db.get(OtherNamespace2, key).contains(value))
-          }
-
-          db.destroy()
         }
       }
     }
 
     it should "be able to handle removals from multiple namespaces with the same key" in {
-      val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('o'.toByte)
-      forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
-        withDir { path =>
-          val keyList = unFilteredKeyList.take(KeyNumberLimit)
-          val db = createDataSource(path)
+      time {
+        val OtherNamespace2: IndexedSeq[Byte] = IndexedSeq[Byte]('o'.toByte)
+        forAll(seqByteStringOfNItemsGen(KeySizeWithoutPrefix)) { unFilteredKeyList: Seq[ByteString] =>
+          withDir { path =>
+            val keyList = unFilteredKeyList.take(KeyNumberLimit)
+            val db = createDataSource(path)
 
-          val valList1 = keyList.map(1.toByte +: _)
-          db.update(OtherNamespace, Seq(), keyList.zip(valList1))
+            val valList1 = keyList.map(1.toByte +: _)
+            db.update(OtherNamespace, Seq(), keyList.zip(valList1))
 
-          val valList2 = keyList.map(2.toByte +: _)
-          db.update(OtherNamespace2, Seq(), keyList.zip(valList2))
+            val valList2 = keyList.map(2.toByte +: _)
+            db.update(OtherNamespace2, Seq(), keyList.zip(valList2))
 
-          //Removal of keys from the OtherNamespace namespace
-          db.update(OtherNamespace, keyList, Nil)
+            //Removal of keys from the OtherNamespace namespace
+            db.update(OtherNamespace, keyList, Nil)
 
-          keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
-          keyList.zip(valList2).foreach { case (key, value) =>
-            assert(db.get(OtherNamespace2, key).contains(value))
+            keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
+            keyList.zip(valList2).foreach { case (key, value) =>
+              assert(db.get(OtherNamespace2, key).contains(value))
+            }
+
+            //Removal of keys from the OtherNamespace2 namespace
+            db.update(OtherNamespace2, keyList, Nil)
+
+            keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
+            keyList.foreach { key => assert(db.get(OtherNamespace2, key).isEmpty) }
+
+            db.destroy()
           }
-
-          //Removal of keys from the OtherNamespace2 namespace
-          db.update(OtherNamespace2, keyList, Nil)
-
-          keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }
-          keyList.foreach { key => assert(db.get(OtherNamespace2, key).isEmpty) }
-
-          db.destroy()
         }
       }
     }
