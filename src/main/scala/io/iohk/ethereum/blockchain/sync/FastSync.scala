@@ -454,7 +454,7 @@ class FastSync(
           .intersect(blockChainPeers)
           .take(maxConcurrentRequests - assignedHandlers.size)
           .toSeq.sortBy(_.ref.toString())
-          .foreach(assignBlockChainWork)
+          .foreach(assignBlockchainWork)
       }
     }
 
@@ -462,11 +462,11 @@ class FastSync(
       if (syncState.nonMptNodesQueue.nonEmpty || syncState.mptNodesQueue.nonEmpty) {
         requestNodes(peer)
       } else {
-        assignBlockChainWork(peer)
+        assignBlockchainWork(peer)
       }
     }
 
-    def assignBlockChainWork(peer: Peer): Unit = {
+    def assignBlockchainWork(peer: Peer): Unit = {
       if (syncState.receiptsQueue.nonEmpty) {
         requestReceipts(peer)
       } else if (syncState.blockBodiesQueue.nonEmpty) {
