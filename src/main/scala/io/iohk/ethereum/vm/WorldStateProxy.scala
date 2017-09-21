@@ -56,7 +56,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
       guaranteedTransfer(from, to, value).touchAccounts(from, to)
   }
 
-  def guaranteedTransfer(from: Address, to: Address, value: UInt256): WS = {
+  private def guaranteedTransfer(from: Address, to: Address, value: UInt256): WS = {
     val debited = getGuaranteedAccount(from).increaseBalance(-value)
     val credited = getAccount(to).getOrElse(getEmptyAccount).increaseBalance(value)
     saveAccount(from, debited).saveAccount(to, credited)

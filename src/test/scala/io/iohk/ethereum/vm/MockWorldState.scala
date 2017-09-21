@@ -72,11 +72,4 @@ case class MockWorldState(
 
     copy(touchedAccounts = accounts)
   }
-
-  /**
-    * Check whether an account at given address is dead,
-    * according to the EIP-161 definition of 'dead' (inexistent or empty)
-    */
-  def isAccountDead(address: Address): Boolean =
-    getAccount(address).forall(_ == Account.empty())
 }

@@ -178,12 +178,12 @@ class InMemoryWorldStateProxy private(
   override def touchAccounts(addresses: Address*): InMemoryWorldStateProxy =
     copyWith(touchedAccounts = touchedAccounts.map(oldAddresses => oldAddresses ++ addresses.toSet))
 
-  def clearTouchedAccounts: InMemoryWorldStateProxy =
+  override def clearTouchedAccounts: InMemoryWorldStateProxy =
     copyWith(touchedAccounts = touchedAccounts.map(_.empty))
 
   override def noEmptyAccounts: Boolean = touchedAccounts.isDefined
 
-  def combineTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  override def combineTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     val accounts = for {
       oldAccounts <- touchedAccounts
       newAccounts <- world.touchedAccounts

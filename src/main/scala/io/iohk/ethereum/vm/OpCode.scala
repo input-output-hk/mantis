@@ -683,7 +683,6 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
       val (newAddress, world1) = state.world.createAddressWithOpCode(state.env.ownerAddr)
 
-      //it is the source or newly-creation of a CREATE operation or contract-creation transaction endowing zero or more value;
       val worldAfterInitialisation = world1.initialiseAccount(state.env.ownerAddr, newAddress, endowment)
 
       val newEnv = state.env.copy(
@@ -762,7 +761,6 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
 
       val (world1, owner, caller) = this match {
         case CALL =>
-          //it is the source or destination of a CALL operation or message-call transaction transferring zero or more value
           val withTransfer = state.world.transfer(state.ownAddress, toAddr, endowment)
           (withTransfer, toAddr, state.ownAddress)
 
@@ -882,19 +880,17 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
 
     val isValueTransfer = endowment > 0
 
-    val c_new: BigInt =
-      if (state.config.noEmptyAccounts){
-        if (state.world.isDead(to) && this == CALL && isValueTransfer)
-          state.config.feeSchedule.G_newaccount
-        else
-          0
-      } else {
-        if (!state.world.accountExists(to) && this == CALL)
-          state.config.feeSchedule.G_newaccount
-        else
-          0
-      }
+    def postEip161CostCondition: Boolean =
+      state.world.isDead(to) && this == CALL && isValueTransfer
 
+    def preEip161CostCondition: Boolean =
+      !state.world.accountExists(to) && this == CALL
+
+    val c_new: BigInt =
+      if (state.config.noEmptyAccounts)
+        if (postEip161CostCondition) state.config.feeSchedule.G_newaccount else 0
+      else
+        if (preEip161CostCondition) state.config.feeSchedule.G_newaccount else 0
 
     val c_xfer: BigInt = if (endowment.isZero) 0 else state.config.feeSchedule.G_callvalue
     state.config.feeSchedule.G_call + c_xfer + c_new
@@ -949,16 +945,18 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
     val (refundAddr, _) = state.stack.pop
     val refundAddress = Address(refundAddr)
 
-    if (state.config.noEmptyAccounts) {
-      if (state.config.chargeSelfDestructForNewAccount &&  isValueTransfer && state.world.isDead(refundAddress))
-        state.config.feeSchedule.G_newaccount
-      else
-        0
-    } else {
-      if (state.config.chargeSelfDestructForNewAccount && !state.world.accountExists(refundAddress))
-        state.config.feeSchedule.G_newaccount
-      else
-        0
-    }
+    def postEip161CostCondition: Boolean =
+        state.config.chargeSelfDestructForNewAccount &&
+        isValueTransfer &&
+        state.world.isDead(refundAddress)
+
+    def preEip161CostCondition: Boolean =
+      state.config.chargeSelfDestructForNewAccount && !state.world.accountExists(refundAddress)
+
+
+    if (state.config.noEmptyAccounts)
+      if (postEip161CostCondition) state.config.feeSchedule.G_newaccount else 0
+    else
+      if (preEip161CostCondition) state.config.feeSchedule.G_newaccount else 0
   }
 }
