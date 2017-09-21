@@ -35,11 +35,11 @@ class Prerequisites(config: Config) {
       }
     )
 
-  val sourceStorages: Storages = new Storages {
+  private val sourceStorages: Storages = new Storages {
     override lazy val dataSource = levelDb(config.sourceDbPath)
   }
 
-  val targetStorages: Option[Storages] = config.mode match {
+  private val targetStorages: Option[Storages] = config.mode match {
     case DualDB =>
       Some(new Storages {
         override lazy val dataSource = levelDb(config.targetDbPath)
@@ -51,7 +51,7 @@ class Prerequisites(config: Config) {
   val sourceBlockchain = BlockchainImpl(sourceStorages.storages)
   val targetBlockchain = targetStorages.map(ts => BlockchainImpl(ts.storages))
 
-  val components = new ValidatorsBuilder with BlockchainConfigBuilder
+  private val components = new ValidatorsBuilder with BlockchainConfigBuilder
 
 
   val ledger: Ledger = targetBlockchain match {

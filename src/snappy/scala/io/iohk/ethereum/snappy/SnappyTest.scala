@@ -51,8 +51,8 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
   }
 
   private def executeBlock(block: Block): Either[Any, Seq[Receipt]] =
-    targetStorages match {
-      case Some(storages) =>
+    targetBlockchain match {
+      case Some(_) =>
         ledger.executeBlock(block, validators)
 
       case None =>
@@ -61,6 +61,7 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
         Right(result.blockResult.receipts)
     }
 
+  // TODO: replace with blockchain.getBestBlockNumber() - not implemented yet
   private def findHighestBlockNumber(blockchain: Blockchain, n: BigInt = 1000000, bottom: BigInt = 0, top: BigInt = -1): BigInt = {
     if (top - bottom == 1)
       n
