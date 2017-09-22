@@ -45,7 +45,7 @@ class HomesteadToEIP150At5 extends BlockchainTestConfig {
   override val eip150BlockNumber = 5
   override val homesteadBlockNumber = 0
 }
-class HomesteadToDaoAt5 extends BlockChainTestConfig {
+class HomesteadToDaoAt5 extends BlockchainTestConfig {
   override val homesteadBlockNumber = 0
   override val daoForkConfig: Option[DaoForkConfig] = Some(
     new DaoForkConfig {
