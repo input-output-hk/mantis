@@ -128,9 +128,8 @@ trait BlockchainBuilder {
 trait ForkResolverBuilder {
   self: BlockchainConfigBuilder =>
 
-  lazy val forkResolverOpt =
-    if (blockchainConfig.customGenesisFileOpt.isDefined) None
-    else Some(new ForkResolver.EtcForkResolver(blockchainConfig))
+  lazy val forkResolverOpt = blockchainConfig.daoForkConfig.map(new ForkResolver.EtcForkResolver(_))
+
 }
 
 trait HandshakerBuilder {

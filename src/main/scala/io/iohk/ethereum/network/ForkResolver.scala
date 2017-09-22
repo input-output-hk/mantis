@@ -1,7 +1,7 @@
 package io.iohk.ethereum.network
 
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.DaoForkConfig
 
 trait ForkResolver {
   type Fork <: ForkResolver.Fork
@@ -15,15 +15,15 @@ object ForkResolver {
 
   trait Fork
 
-  class EtcForkResolver(blockchainConfig: BlockchainConfig) extends ForkResolver {
+  class EtcForkResolver(daoForkConfig: DaoForkConfig) extends ForkResolver {
     sealed trait Fork extends ForkResolver.Fork
     case object AcceptedFork extends Fork
     case object RejectedFork extends Fork
 
-    override def forkBlockNumber: BigInt = blockchainConfig.daoForkBlockNumber
+    override def forkBlockNumber: BigInt = daoForkConfig.forkBlockNumber
 
     override def recognizeFork(blockHeader: BlockHeader): Fork = {
-      if (blockHeader.hash == blockchainConfig.daoForkBlockHash) AcceptedFork
+      if (blockHeader.hash == daoForkConfig.forkBlockHash) AcceptedFork
       else RejectedFork
     }
 
