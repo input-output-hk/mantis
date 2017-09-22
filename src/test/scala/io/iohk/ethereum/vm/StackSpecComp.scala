@@ -54,12 +54,10 @@ class StackSpecComp extends FunSuite with Matchers with PropertyChecks with Logg
 
     val statsStack = getStats(measures)
     val statsStackList = getStats(measuresList)
-    log.info(s"Time of $results Swap\t: " + sumOfAllRuns(measures) + "ms, for Vector based Stack" )
     log.info(s"Avarage time of vector based Swap is : ${statsStack._1} ns, with dev ${statsStack._2}")
     log.info(s"Median time of vector based Swap is : ${statsStack._3} ns \n")
 
 
-    log.info(s"Time of $results Swap\t: " + sumOfAllRuns(measuresList) + "ms, for List  based Stack")
     log.info(s"Avarage time of list based Swap is : ${statsStackList._1} ns, with dev ${statsStackList._2}")
     log.info(s"Median time of list based Swap is : ${statsStackList._3} ns \n")
   }
@@ -90,12 +88,10 @@ class StackSpecComp extends FunSuite with Matchers with PropertyChecks with Logg
 
     val statsStack = getStats(measures)
     val statsStackList = getStats(measuresList)
-    log.info(s"Time of $results Dup\t: " + sumOfAllRuns(measures) + "ms, for Vector based Stack" )
     log.info(s"Avarage time of vector based Dup is : ${statsStack._1} ns, with dev ${statsStack._2}")
     log.info(s"Median time of vector based Dup is : ${statsStack._3} ns \n")
 
 
-    log.info(s"Time of $results Dup\t: " + sumOfAllRuns(measuresList) + "ms, for List  based Stack")
     log.info(s"Avarage time of list based Dup is : ${statsStackList._1} ns, with dev ${statsStackList._2}")
     log.info(s"Median time of list based Dup is : ${statsStackList._3} ns \n")
   }
@@ -124,12 +120,10 @@ class StackSpecComp extends FunSuite with Matchers with PropertyChecks with Logg
 
     val statsStack = getStats(measures)
     val statsStackList = getStats(measuresList)
-    log.info(s"Time of $results Push\t: " + sumOfAllRuns(measures) + "ms, for Vector based Stack" )
     log.info(s"Avarage time of vector based Push is : ${statsStack._1} ns, with dev ${statsStack._2}")
     log.info(s"Median time of vector based Push is : ${statsStack._3} ns \n")
 
 
-    log.info(s"Time of $results Push\t: " + sumOfAllRuns(measuresList) + "ms, for List  based Stack")
     log.info(s"Avarage time of list based Push is : ${statsStackList._1} ns, with dev ${statsStackList._2}")
     log.info(s"Median time of list based Push is : ${statsStackList._3} ns \n")
   }
@@ -158,12 +152,10 @@ class StackSpecComp extends FunSuite with Matchers with PropertyChecks with Logg
 
     val statsStack = getStats(measures)
     val statsStackList = getStats(measuresList)
-    log.info(s"Time of $results Push\t: " + sumOfAllRuns(measures) + "ms, for Vector based Stack" )
     log.info(s"Avarage time of vector based Push is : ${statsStack._1} ns, with dev ${statsStack._2}")
     log.info(s"Median time of vector based Push is : ${statsStack._3} ns \n")
 
 
-    log.info(s"Time of $results Push\t: " + sumOfAllRuns(measuresList) + "ms, for List  based Stack")
     log.info(s"Avarage time of list based Push is : ${statsStackList._1} ns, with dev ${statsStackList._2}")
     log.info(s"Median time of list based Push is : ${statsStackList._3} ns \n")
 
@@ -196,12 +188,10 @@ class StackSpecComp extends FunSuite with Matchers with PropertyChecks with Logg
 
     val statsStack = getStats(measures)
     val statsStackList = getStats(measuresList)
-    log.info(s"Time of $results Pop\t: " + sumOfAllRuns(measures) + "ms, for Vector based Stack" )
     log.info(s"Avarage time of vector based Pop is : ${statsStack._1} ns, with dev ${statsStack._2}")
     log.info(s"Median time of vector based Pop is : ${statsStack._3} ns \n")
 
 
-    log.info(s"Time of $results Pop\t: " + sumOfAllRuns(measuresList) + "ms, for List  based Stack")
     log.info(s"Avarage time of list based Pop is : ${statsStackList._1} ns, with dev ${statsStackList._2}")
     log.info(s"Median time of list based Pop is : ${statsStackList._3} ns \n")
   }
@@ -239,19 +229,17 @@ class StackSpecComp extends FunSuite with Matchers with PropertyChecks with Logg
 
     val statsStack = getStats(measures)
     val statsStackList = getStats(measuresList)
-    log.info(s"Time of $results Pop\t: " + sumOfAllRuns(measures) + "ms, for Vector based Stack" )
     log.info(s"Avarage time of vector based Pop is : ${statsStack._1} ns, with dev ${statsStack._2}")
     log.info(s"Median time of vector based Pop is : ${statsStack._3} ns \n")
 
 
-    log.info(s"Time of $results Pop\t: " + sumOfAllRuns(measuresList) + "ms, for List  based Stack")
     log.info(s"Avarage time of list based Pop is : ${statsStackList._1} ns, with dev ${statsStackList._2}")
     log.info(s"Median time of list based Pop is : ${statsStackList._3} ns \n")
   }
 
 
   private def getStats(list: ListBuffer[Long]) = {
-    val interval = 500
+    val interval = 1000
     val mid = results / 2
 
     val impres = list.takeRight(results).sorted.slice(mid - interval, mid + interval)
@@ -262,9 +250,4 @@ class StackSpecComp extends FunSuite with Matchers with PropertyChecks with Logg
     val dev = math.sqrt(variance)
     (mean, dev, median)
   }
-
-  private def sumOfAllRuns(list: ListBuffer[Long]): Double = {
-    list.takeRight(results).sum.toDouble / 1000000.0
-  }
-
 }
