@@ -5,7 +5,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult, PC, PR, TxResult}
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
 import io.iohk.ethereum.validators.{BlockValidator, SignedTransactionValidator}
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.vm._
@@ -76,8 +76,13 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
     val initialWorld = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
 
+    val inputWorld = blockchainConfig.daoForkConfig match {
+      case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(block.header.number) => drainDaoForkAccounts(initialWorld, daoForkConfig)
+      case _ => initialWorld
+    }
+
     log.debug(s"About to execute ${block.body.transactionList.size} txs from block ${block.header.number} (with hash: ${block.header.hashAsHexString})")
-    val blockTxsExecResult = executeTransactions(block.body.transactionList, initialWorld, block.header, signedTransactionValidator)
+    val blockTxsExecResult = executeTransactions(block.body.transactionList, inputWorld, block.header, signedTransactionValidator)
     blockTxsExecResult match {
       case Right(_) => log.debug(s"All txs from block ${block.header.hashAsHexString} were executed successfully")
       case Left(error) => log.debug(s"Not all txs from block ${block.header.hashAsHexString} were executed correctly, due to ${error.reason}")
@@ -378,6 +383,28 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     */
   private[ledger] def deleteAccounts(addressesToDelete: Set[Address])(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => world.deleteAccount(address) }
+
+  /**
+    * This function updates worldState transferring balance from drainList accounts to refundContract address
+    *
+    * @param worldState Initial world state
+    * @param daoForkConfig Dao fork configuration with drainList and refundContract config
+    * @return Updated world state proxy
+    */
+  private def drainDaoForkAccounts(worldState: InMemoryWorldStateProxy, daoForkConfig: DaoForkConfig): InMemoryWorldStateProxy = {
+
+    daoForkConfig.refundContract match {
+      case Some(refundContractAddress) =>
+        daoForkConfig.drainList.foldLeft(worldState) { (ws, address) =>
+          ws.getAccount(address)
+            .map(account => ws.transfer(from = address, to = refundContractAddress, account.balance))
+            .getOrElse(ws)
+        }
+      case None => worldState
+    }
+
+
+  }
 
 }
 

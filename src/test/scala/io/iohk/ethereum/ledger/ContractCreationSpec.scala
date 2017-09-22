@@ -8,7 +8,7 @@ import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain.{Address, BlockchainImpl, TxLogEntry, UInt256}
 import io.iohk.ethereum.ledger.Ledger.PR
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.vm._
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
@@ -71,8 +71,8 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
       override val maxCodeSize: Option[BigInt] = Some(codeSizeLimit)
 
       //unused
+      override val daoForkConfig: Option[DaoForkConfig] = None
       override val customGenesisFileOpt: Option[String] = defaultBlockchainConfig.customGenesisFileOpt
-      override val daoForkBlockNumber: BigInt = defaultBlockchainConfig.daoForkBlockNumber
       override val difficultyBombContinueBlockNumber: BigInt = defaultBlockchainConfig.difficultyBombContinueBlockNumber
       override val eip160BlockNumber: BigInt = defaultBlockchainConfig.eip160BlockNumber
       override val eip150BlockNumber: BigInt = defaultBlockchainConfig.eip150BlockNumber
@@ -81,7 +81,6 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
       override val chainId: Byte = defaultBlockchainConfig.chainId
       override val frontierBlockNumber: BigInt = defaultBlockchainConfig.frontierBlockNumber
       override val monetaryPolicyConfig: MonetaryPolicyConfig = defaultBlockchainConfig.monetaryPolicyConfig
-      override val daoForkBlockHash: ByteString = defaultBlockchainConfig.daoForkBlockHash
       override val difficultyBombPauseBlockNumber: BigInt = defaultBlockchainConfig.difficultyBombPauseBlockNumber
       override val homesteadBlockNumber: BigInt = defaultBlockchainConfig.homesteadBlockNumber
       override val accountStartNonce: UInt256 = defaultBlockchainConfig.accountStartNonce

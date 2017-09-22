@@ -11,7 +11,7 @@ import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, GetPendingTransactions, PendingTransaction, PendingTransactionsResponse}
-import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig, TxPoolConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig, TxPoolConfig}
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
@@ -350,10 +350,9 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val difficultyBombPauseBlockNumber: BigInt = 0
       override val difficultyBombContinueBlockNumber: BigInt = 0
       override val customGenesisFileOpt: Option[String] = None
-      override val daoForkBlockNumber: BigInt = 0
-      override val daoForkBlockHash: ByteString = ByteString.empty
       override val accountStartNonce: UInt256 = UInt256.Zero
       override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
+      override val daoForkConfig: Option[DaoForkConfig] = None
     }
 
     val wallet = Wallet(address, prvKey)

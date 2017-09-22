@@ -1,41 +1,26 @@
 package io.iohk.ethereum.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{UInt256, _}
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.validators.BlockHeaderError._
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.validators.BlockHeaderValidatorImpl._
 
 class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
+
+
   val ExtraDataSizeLimit = 20
 
   //BlockHeader member's lengths obtained from Yellow paper
   val NonceLength = 8 //64bit
   val MixHashLength = 32 //256bit
 
-  val blockchainConfig = new BlockchainConfig {
-    override val frontierBlockNumber: BigInt = 0
-    override val homesteadBlockNumber: BigInt = 1150000
-    override val difficultyBombPauseBlockNumber: BigInt = 3000000
-    override val difficultyBombContinueBlockNumber: BigInt = 5000000
-
-    // unused
-    override val maxCodeSize: Option[BigInt] = None
-    override val daoForkBlockNumber: BigInt = Long.MaxValue
-    override val eip155BlockNumber: BigInt = Long.MaxValue
-    override val eip160BlockNumber: BigInt = Long.MaxValue
-    override val eip150BlockNumber: BigInt = Long.MaxValue
-    override val eip106BlockNumber: BigInt = 20
-    override val chainId: Byte = 0x3d.toByte
-    override val daoForkBlockHash: ByteString = ByteString("unused")
-    override val monetaryPolicyConfig: MonetaryPolicyConfig = null
-    override val customGenesisFileOpt: Option[String] = None
-    override val accountStartNonce: UInt256 = UInt256.Zero
-  }
+  val blockchainConfig = createBlockchainConfig()
 
   val blockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
   val difficultyCalculator = new DifficultyCalculator(blockchainConfig)
@@ -49,11 +34,36 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
 
   it should "return a failure if created based on invalid extra data" in {
     forAll(randomSizeByteStringGen(
-      blockHeaderValidator.MaxExtraDataSize + 1,
-      blockHeaderValidator.MaxExtraDataSize + ExtraDataSizeLimit)
+      MaxExtraDataSize + 1,
+      MaxExtraDataSize + ExtraDataSizeLimit)
     ) { wrongExtraData =>
       val invalidBlockHeader = validBlockHeader.copy(extraData = wrongExtraData)
       assert(blockHeaderValidator.validate(invalidBlockHeader, validBlockParent) == Left(HeaderExtraDataError))
+    }
+  }
+
+  it should "validate DAO block (extra data)" in {
+    import Fixtures.Blocks._
+    val cases = Table(
+      ("Block", "Parent Block", "Supports Dao Fork", "Valid"),
+      (DaoForkBlock.header, DaoParentBlock.header, false, true),
+      (DaoForkBlock.header, DaoParentBlock.header, true, false),
+      (ProDaoForkBlock.header, DaoParentBlock.header, true, true),
+      (ProDaoForkBlock.header, DaoParentBlock.header, false, true), // We don't care for extra data if no pro dao
+      (ProDaoForkBlock.header.copy(extraData = ByteString("Wrond DAO Extra")), DaoParentBlock.header, true, false),
+      // We need to check extradata up to 10 blocks after
+      (ProDaoBlock1920009Header, ProDaoBlock1920008Header, true, true),
+      (ProDaoBlock1920009Header.copy(extraData = ByteString("Wrond DAO Extra")), ProDaoBlock1920008Header, true, false),
+      (ProDaoBlock1920010Header, ProDaoBlock1920009Header, true, true)
+    )
+
+    forAll(cases) { (block, parentBlock, supportsDaoFork, valid ) =>
+      val blockHeaderValidator = new BlockHeaderValidatorImpl(createBlockchainConfig(supportsDaoFork))
+      blockHeaderValidator.validate(block, parentBlock) match {
+        case Right(_) => assert(valid)
+        case Left(DaoHeaderExtraDataError) => assert(!valid)
+        case _ => fail()
+      }
     }
   }
 
@@ -88,9 +98,9 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
   }
 
   it should "return a failure if created based on invalid gas limit" in {
-    val LowerGasLimit = blockHeaderValidator.MinGasLimit.max(
-      validBlockParent.gasLimit - validBlockParent.gasLimit / blockHeaderValidator.GasLimitBoundDivisor + 1)
-    val UpperGasLimit = validBlockParent.gasLimit + validBlockParent.gasLimit / blockHeaderValidator.GasLimitBoundDivisor - 1
+    val LowerGasLimit = MinGasLimit.max(
+      validBlockParent.gasLimit - validBlockParent.gasLimit / GasLimitBoundDivisor + 1)
+    val UpperGasLimit = validBlockParent.gasLimit + validBlockParent.gasLimit / GasLimitBoundDivisor - 1
 
     forAll(bigIntGen) { gasLimit =>
       val blockHeader = validBlockHeader.copy(gasLimit = gasLimit)
@@ -235,5 +245,91 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     mixHash = ByteString(Hex.decode("7f9ac1ddeafff0f926ed9887b8cf7d50c3f919d902e618b957022c46c8b404a6")),
     nonce = ByteString(Hex.decode("3fc7bc671f7cee70"))
   )
+
+  def createBlockchainConfig(supportsDaoFork: Boolean = false): BlockchainConfig =
+    new BlockchainConfig {
+
+      import Fixtures.Blocks._
+
+      override val frontierBlockNumber: BigInt = 0
+      override val homesteadBlockNumber: BigInt = 1150000
+      override val difficultyBombPauseBlockNumber: BigInt = 3000000
+      override val difficultyBombContinueBlockNumber: BigInt = 5000000
+
+      override val daoForkConfig: Option[DaoForkConfig] = Some(new DaoForkConfig {
+        override val blockExtraData: Option[ByteString] = if(supportsDaoFork) Some(ProDaoForkBlock.header.extraData) else None
+        override val range: Int = 10
+        override val drainList: Seq[Address] = Nil
+        override val forkBlockHash: ByteString = if(supportsDaoFork) ProDaoForkBlock.header.hash else DaoForkBlock.header.hash
+        override val forkBlockNumber: BigInt = DaoForkBlock.header.number
+        override val refundContract: Option[Address] = None
+      })
+
+      // unused
+      override val maxCodeSize: Option[BigInt] = None
+      override val eip155BlockNumber: BigInt = Long.MaxValue
+      override val eip160BlockNumber: BigInt = Long.MaxValue
+      override val eip150BlockNumber: BigInt = Long.MaxValue
+      override val eip106BlockNumber: BigInt = 0
+      override val chainId: Byte = 0x3d.toByte
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = null
+      override val customGenesisFileOpt: Option[String] = None
+      override val accountStartNonce: UInt256 = UInt256.Zero
+    }
+
+  val ProDaoBlock1920008Header = BlockHeader(
+    parentHash = ByteString(Hex.decode("05c45c9671ee31736b9f37ee98faa72c89e314059ecff3257206e6ab498eb9d1")),
+    ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
+    beneficiary = ByteString(Hex.decode("2a65aca4d5fc5b5c859090a6c34d164135398226")),
+    stateRoot = ByteString(Hex.decode("fa8d3b3cbd37caba2faf09d5e472ae6c47a58d846751bc72306166a71d0fa4fa")),
+    transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+    receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+    logsBloom = ByteString(Hex.decode("00" * 256)),
+    difficulty = BigInt("62230570926948"),
+    number = 1920008,
+    gasLimit = 4707788,
+    gasUsed = 0,
+    unixTimestamp = 1469021025,
+    extraData = ByteString(Hex.decode("64616f2d686172642d666f726b")),
+    mixHash = ByteString(Hex.decode("e73421390c1b084a9806754b238715ec333cdccc8d09b90cb6e38a9d1e247d6f")),
+    nonce = ByteString(Hex.decode("c207c8381305bef2"))
+  )
+
+  val ProDaoBlock1920009Header = BlockHeader(
+    parentHash = ByteString(Hex.decode("41254723e12eb736ddef151371e4c3d614233e6cad95f2d9017de2ab8b469a18")),
+    ommersHash = ByteString(Hex.decode("808d06176049aecfd504197dde49f46c3dd75f1af055e417d100228162eefdd8")),
+    beneficiary = ByteString(Hex.decode("ea674fdde714fd979de3edf0f56aa9716b898ec8")),
+    stateRoot = ByteString(Hex.decode("49eb333152713b78d920440ef065ed7f681611e0c2e6933d657d6f4a7f1936ee")),
+    transactionsRoot = ByteString(Hex.decode("a8060f1391fd4cbde4b03d83b32a1bda445578cd6ec6b7982db20c499ed3682b")),
+    receiptsRoot = ByteString(Hex.decode("ab66b1986e713eaf5621059e79f04ba9c528187c1b9da969f46442c3f915c120")),
+    logsBloom = ByteString(Hex.decode("00000000000000020000000000020000000000000008000000000000000000000000000000000000000000000000400000000000000000000000000000202010000000000000000000000008000000000000000000000000400000000000000000000800000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000001001000020000000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000004000000000000000000000000000000010000000000000000000000000000000100000000000000000000000000000")),
+    difficulty = BigInt("62230571058020"),
+    number = 1920009,
+    gasLimit = 4712384,
+    gasUsed = 109952,
+    unixTimestamp = 1469021040,
+    extraData = ByteString(Hex.decode("64616f2d686172642d666f726b")),
+    mixHash = ByteString(Hex.decode("5bde79f4dc5be28af2d956e748a0d6ebc1f8eb5c1397e76729269e730611cb99")),
+    nonce = ByteString(Hex.decode("2b4b464c0a4da82a"))
+  )
+
+  val ProDaoBlock1920010Header = BlockHeader(
+    parentHash = ByteString(Hex.decode("69d04aec94ad69d7d190d3b51d24cd42dded0c4767598a1d30480363509acbef")),
+    ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
+    beneficiary = ByteString(Hex.decode("4bb96091ee9d802ed039c4d1a5f6216f90f81b01")),
+    stateRoot = ByteString(Hex.decode("6ee63abee7416d3a671bcbefa01aa5d4ea427e246d548e15c5f3d9a108e738fd")),
+    transactionsRoot = ByteString(Hex.decode("0c6d4a643ed081f92e384a5853f14d7f5ff5d68b65d0c90b46159584a80effe0")),
+    receiptsRoot = ByteString(Hex.decode("a7d1ddb80060d4b77c07007e9a9f0b83413bd2c5de71501683ba4764982eef4b")),
+    logsBloom = ByteString(Hex.decode("00000000000000020000000000020000001000000000000000000000000000000008000000000000000000000000400000000000000000000000000000202000000000000800000000000008000000000000000000000000400000000008000000000000000000000000000000000000000000000000000000000010000000000000000000000000000221000000000000000000080400000000000000011000020000000200001000000000000000000000000000000000400000000000000000000002000000000100000000000000000000000040000000000000000000000010000000000000000000000000000000000000000000000000000000000000")),
+    difficulty = BigInt("62230571189092"),
+    number = 1920010,
+    gasLimit = 4712388,
+    gasUsed = 114754,
+    unixTimestamp = 1469021050,
+    extraData = ByteString(Hex.decode("657468706f6f6c2e6f7267202855533129")),
+    mixHash = ByteString(Hex.decode("8f86617d6422c26a89b8b349b160973ca44f90326e758f1ef669c4046741dd06")),
+    nonce = ByteString(Hex.decode("c7de19e00a8c3e32"))
+  )
+
 
 }
