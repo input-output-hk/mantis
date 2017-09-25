@@ -6,7 +6,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class NodeParserSpec extends FlatSpec with Matchers with PropertyChecks {
 
-  it should "correctly parse nodes" in {
+  it should "correctly parse IPv4 nodes" in {
     val testVectors = Table[String, Boolean](
       ("nodes", "isValid"),
 
@@ -20,8 +20,6 @@ class NodeParserSpec extends FlatSpec with Matchers with PropertyChecks {
         false), //Has invalid IP format
       ("enode://a5a07e283d517a2680bcfc7aeb498ac2d246d756556a2ebd5edeb39496491c47a6d27e27f82833b7d7d12defc8de994de04bb58beb72472649f9a323006820@41.135.121.6:30303",
         false), //Has invalid node id size
-      ("enode://c94b6f71c2f3d84ed5587ff936172138cfd4af4951e4ca784b9ea5330f76ed8d77d23a7178b18716947a17a8ef59f18519bc0064e7f3f12e0c1c5934cac147a0@[ce90:c2c:7000:0:10::]:30303",
-        false), //Has IPv6 address
       ("enode://zba5a07e283d517a2680bcfc7aeb498ac2d246d756556a2ebd5edeb39496491c47a6d27e27f82833b7d7d12defc8de994de04bb58beb72472649f9a323006820@41.135.121.6:30303",
         false), //Node id has invalid 'z' character
       ("enode://@41.135.121.6:30303",
@@ -39,6 +37,35 @@ class NodeParserSpec extends FlatSpec with Matchers with PropertyChecks {
         node.isRight shouldEqual valid
         if(valid)
           node.toOption.get.toUri.toString shouldBe nodeString
+    }
+  }
+
+  it should "correctly parse IPv6 nodes" in {
+    val testVectors = Table[String, Option[String]](
+      ("nodes", "expectedOutput"),
+
+      ("enode://c94b6f71c2f3d84ed5587ff936172138cfd4af4951e4ca784b9ea5330f76ed8d77d23a7178b18716947a17a8ef59f18519bc0064e7f3f12e0c1c5934cac147a0@[ce90:c2c:7000:0:10:0:0:0]:30303",
+        Some("enode://c94b6f71c2f3d84ed5587ff936172138cfd4af4951e4ca784b9ea5330f76ed8d77d23a7178b18716947a17a8ef59f18519bc0064e7f3f12e0c1c5934cac147a0@[ce90:c2c:7000:0:10:0:0:0]:30303")
+      ), //Has full IPv6 address
+      ("enode://c94b6f71c2f3d84ed5587ff936172138cfd4af4951e4ca784b9ea5330f76ed8d77d23a7178b18716947a17a8ef59f18519bc0064e7f3f12e0c1c5934cac147a0@[ce90:c2c:7000:0:10::]:30303",
+        Some("enode://c94b6f71c2f3d84ed5587ff936172138cfd4af4951e4ca784b9ea5330f76ed8d77d23a7178b18716947a17a8ef59f18519bc0064e7f3f12e0c1c5934cac147a0@[ce90:c2c:7000:0:10:0:0:0]:30303")
+      ), //Has partial IPv6 address
+      ("enode://c94b6f71c2f3d84ed5587ff936172138cfd4af4951e4ca784b9ea5330f76ed8d77d23a7178b18716947a17a8ef59f18519bc0064e7f3f12e0c1c5934cac147a0@ip6-localhost:30303",
+        Some("enode://c94b6f71c2f3d84ed5587ff936172138cfd4af4951e4ca784b9ea5330f76ed8d77d23a7178b18716947a17a8ef59f18519bc0064e7f3f12e0c1c5934cac147a0@ip6-localhost:30303")
+      ), //Has localhost IPv6 address
+      ("enode://c94b6f71c2f3d84ed5587ff936172138cfd4af4951e4ca784b9ea5330f76ed8d77d23a7178b18716947a17a8ef59f18519bc0064e7f3f12e0c1c5934cac147a0@[::]:30303",
+        Some("enode://c94b6f71c2f3d84ed5587ff936172138cfd4af4951e4ca784b9ea5330f76ed8d77d23a7178b18716947a17a8ef59f18519bc0064e7f3f12e0c1c5934cac147a0@[0:0:0:0:0:0:0:0]:30303")
+      ), //Has partial localhost IPv6 address
+      ("enode://c94b6f71c2f3d84ed5587ff936172138cfd4af4951e4ca784b9ea5330f76ed8d77d23a7178b18716947a17a8ef59f18519bc0064e7f3f12e0c1c5934cac147a0@[0:0:0]:30303",
+        None
+      ) //Has short localhost IPv6 address
+    )
+
+    forAll(testVectors) { case (nodeString, maybeExpectedOutput) =>
+      val node = NodeParser.parseNode(nodeString)
+      node.isRight shouldEqual maybeExpectedOutput.nonEmpty
+      if(maybeExpectedOutput.nonEmpty)
+        node.toOption.get.toUri.toString shouldBe maybeExpectedOutput.get
     }
   }
 

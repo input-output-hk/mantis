@@ -37,7 +37,7 @@ class ServerActor(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) ex
   }
 
   def listening: Receive = {
-    case Connected(remoteAddress, localAddress) =>
+    case Connected(remoteAddress, _) =>
       val connection = sender()
       peerManager ! PeerManagerActor.HandlePeerConnection(connection, remoteAddress)
   }
