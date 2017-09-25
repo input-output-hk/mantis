@@ -111,6 +111,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
 
       // unused
+      override val maxCodeSize: Option[BigInt] = None
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
       override val accountStartNonce: UInt256 = UInt256.Zero
@@ -265,6 +266,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
 
       // unused
+      override val maxCodeSize: Option[BigInt] = None
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
       override val accountStartNonce: UInt256 = UInt256.Zero
