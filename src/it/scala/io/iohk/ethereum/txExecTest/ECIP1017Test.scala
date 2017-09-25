@@ -17,6 +17,7 @@ class ECIP1017Test extends FlatSpec with Matchers {
     override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(EraDuration, 0.2, 5000000000000000000L)
 
     // unused
+    override val maxCodeSize: Option[BigInt] = None
     override val chainId: Byte = 0x3d
     override val frontierBlockNumber: BigInt = 0
     override val homesteadBlockNumber: BigInt = 1150000
@@ -43,7 +44,8 @@ class ECIP1017Test extends FlatSpec with Matchers {
   /**
     * Tests the block reward calculation through out all the monetary policy through all the eras till block
     * mining reward goes to zero. Block mining reward is tested till era 200 (that starts at block number 602)
-    * as the reward reaches zero at era 193 (which starts at block number 579), given an eraDuration of 3.
+    * as the reward reaches zero at era 193 (which starts at block number 579), given an eraDuration of 3,
+    * a rewardReductionRate of 0.2 and a firstEraBlockReward of 5 ether.
     */
   "Ledger" should "execute blocks with respect to block reward changed by ECIP 1017" in {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/ecip1017Test")
