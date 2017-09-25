@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network.discovery
 
-import java.net.{InetSocketAddress, URI}
+import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.agent.Agent
