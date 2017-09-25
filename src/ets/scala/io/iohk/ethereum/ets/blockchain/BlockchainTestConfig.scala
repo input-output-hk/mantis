@@ -15,6 +15,7 @@ trait BlockchainTestConfig extends BlockchainConfig {
   //Enabling maxGasLimit in all Configs and all blocks
   override val eip106BlockNumber: BigInt = 0
   // unused
+  override val maxCodeSize: Option[BigInt] = None
   override val difficultyBombPauseBlockNumber: BigInt = 3000000
   override val difficultyBombContinueBlockNumber: BigInt = 5000000
   override val chainId: Byte = 0x3d.toByte
