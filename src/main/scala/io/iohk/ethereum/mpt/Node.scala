@@ -7,13 +7,19 @@ import io.iohk.ethereum.rlp.{encode => encodeRLP}
 /**
   * Trie elements
   */
-sealed trait MptNode {
+sealed abstract class MptNode {
+  val cachedHash: Option[Array[Byte]]
+  val cachedRlpEncoded: Option[Array[Byte]]
 
   import MerklePatriciaTrie._
 
-  lazy val encode: Array[Byte] = encodeRLP[MptNode](this)
+  def withCachedHash(cachedHash: Array[Byte]): MptNode
 
-  lazy val hash: Array[Byte] = Node.hashFn(encode)
+  def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode
+
+  lazy val encode: Array[Byte] = cachedRlpEncoded.getOrElse(encodeRLP[MptNode](this))
+
+  lazy val hash: Array[Byte] = cachedHash.getOrElse(Node.hashFn(encode))
 
   def capped: ByteString = {
     val encoded = encode
@@ -25,11 +31,26 @@ object Node {
   val hashFn: (Array[Byte]) => Array[Byte] = (input: Array[Byte]) => crypto.kec256(input)
 }
 
-case class LeafNode(key: ByteString, value: ByteString) extends MptNode
+case class LeafNode(key: ByteString, value: ByteString,
+                    cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None) extends MptNode {
+  def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
 
-case class ExtensionNode(sharedKey: ByteString, next: Either[ByteString, MptNode]) extends MptNode
+  def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
+}
 
-case class BranchNode(children: Seq[Option[Either[ByteString, MptNode]]], terminator: Option[ByteString]) extends MptNode {
+case class ExtensionNode(sharedKey: ByteString, next: Either[ByteString, MptNode],
+                         cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None) extends MptNode {
+  def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
+
+  def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
+}
+
+case class BranchNode(children: Seq[Option[Either[ByteString, MptNode]]], terminator: Option[ByteString],
+                      cachedHash: Option[Array[Byte]] = None, cachedRlpEncoded: Option[Array[Byte]] = None) extends MptNode {
+  def withCachedHash(cachedHash: Array[Byte]): MptNode = copy(cachedHash = Some(cachedHash))
+
+  def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode = copy(cachedRlpEncoded = Some(cachedEncode))
+
   require(children.length == 16, "MptBranch childHashes length have to be 16")
 
   /**
