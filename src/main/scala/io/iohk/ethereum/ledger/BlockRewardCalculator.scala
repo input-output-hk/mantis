@@ -4,8 +4,10 @@ import io.iohk.ethereum.utils.MonetaryPolicyConfig
 
 /**
   * Calculates rewards for mining blocks and ommers.
-  * Avoids floating point arithmetic. Because of that the formulas may look a bit unintuitive, but the important
-  * thing here is that we want to defer any division to be a single and final operation
+  * To be compatible with Geth division was not defered to be a single and final operation, which produces expected
+  * rounding errors.
+  * A Geth issue (ethereumproject/go-ethereum#352) and a comment on the ECIP (https://github.com/ethereumproject/ECIPs/issues/15#issuecomment-330660976)
+  * were created to check whether this should be changed
   */
 class BlockRewardCalculator(config: MonetaryPolicyConfig) {
   /** Era duration in blocks */
@@ -41,12 +43,9 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig) {
 
   def calcBlockMinerReward(blockNumber: BigInt, ommersCount: Int): BigInt = {
     val era = eraNumber(blockNumber)
-    val eraMultiplier = rewardReductionRateNumer.pow(era)
-    val eraDivisor = rewardReductionRateDenom.pow(era)
 
-    val baseReward = (firstEraBlockReward * eraMultiplier) / eraDivisor
-    val ommersReward = (firstEraBlockReward * ommersCount * ommerInclusionRewardNumer * eraMultiplier) /
-      (ommerInclusionRewardDenom * eraDivisor)
+    val baseReward = calcMinerBaseReward(era)
+    val ommersReward = calcMinerRewardPerOmmer(era) * ommersCount
     baseReward + ommersReward
   }
 
@@ -56,12 +55,30 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig) {
     if (era == 0) {
       val numer = firstEraOmmerMiningRewardMaxNumer - (blockNumber - ommerNumber - 1)
       (firstEraBlockReward * numer) / firstEraOmmerMiningRewardDenom
-    } else {
-      val eraMultiplier = rewardReductionRateNumer.pow(era)
-      val eraDivisor = rewardReductionRateDenom.pow(era)
-      (firstEraBlockReward * ommerMiningRewardNumer * eraMultiplier) / (ommerMiningRewardDenom * eraDivisor)
-    }
+    } else
+      calcMinerBaseReward(era) * ommerMiningRewardNumer / ommerMiningRewardDenom
   }
+
+  /**
+    * Calculates the miner base reward (without considering the ommers included)
+    *
+    * @param era to which the mined block belongs
+    * @return miner base reward
+    */
+  private def calcMinerBaseReward(era: Int): BigInt = {
+    val eraMultiplier = rewardReductionRateNumer.pow(era)
+    val eraDivisor = rewardReductionRateDenom.pow(era)
+    firstEraBlockReward * eraMultiplier / eraDivisor
+  }
+
+  /**
+    * Calculates reward given to the miner for each ommer included in the block
+    *
+    * @param era to which the mined block belongs
+    * @return reward given to the miner for each ommer included
+    */
+  private def calcMinerRewardPerOmmer(era: Int): BigInt =
+    calcMinerBaseReward(era) * ommerInclusionRewardNumer / ommerInclusionRewardDenom
 
   /** era number counting from 0 */
   private def eraNumber(blockNumber: BigInt): Int =
