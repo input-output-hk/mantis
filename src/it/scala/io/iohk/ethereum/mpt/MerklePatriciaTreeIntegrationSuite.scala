@@ -6,9 +6,8 @@ import java.nio.file.Files
 import java.security.MessageDigest
 
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.{EphemDataSource, LevelDBDataSource, LevelDbConfig}
-import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage, ReferenceCountNodeStorage}
+import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.utils.Logger
 import org.scalatest.FunSuite

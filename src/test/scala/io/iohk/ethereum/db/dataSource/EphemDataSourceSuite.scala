@@ -5,7 +5,6 @@ import io.iohk.ethereum.ObjectGenerators
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
-import scala.util.Try
 
 class EphemDataSourceSuite extends FunSuite
   with PropertyChecks

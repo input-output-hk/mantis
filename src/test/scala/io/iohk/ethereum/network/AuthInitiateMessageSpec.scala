@@ -1,7 +1,5 @@
 package io.iohk.ethereum.network
 
-import java.security.SecureRandom
-
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network.rlpx.{AuthHandshaker, AuthInitiateMessage}

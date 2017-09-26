@@ -2,7 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam

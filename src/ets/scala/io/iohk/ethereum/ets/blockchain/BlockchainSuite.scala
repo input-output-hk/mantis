@@ -2,7 +2,6 @@ package io.iohk.ethereum.ets.blockchain
 
 import io.iohk.ethereum.ets.common.TestOptions
 import io.iohk.ethereum.ledger.BlockExecutionError
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.utils.Logger
 import org.scalatest._
 
