@@ -6,7 +6,7 @@ import java.nio.file.Files
 import java.security.MessageDigest
 
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.{EphemDataSource, LevelDBDataSource, LevelDbConfig}
+import io.iohk.ethereum.db.dataSource.{LevelDBDataSource, LevelDbConfig}
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.utils.Logger
@@ -116,36 +116,6 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
     }
   }
 
-  /* Performance test */
-  test("Performance test (From: https://github.com/ethereum/wiki/wiki/Benchmarks)") {
-    withNodeStorage { ns =>
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
-      val Rounds = 1000
-      val Symmetric = true
-
-      val start: Long = System.currentTimeMillis
-      val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new ArchiveNodeStorage(new NodeStorage(EphemDataSource())))
-      var seed: Array[Byte] = Array.fill(32)(0.toByte)
-
-      val trieResult = (0 until Rounds).foldLeft(emptyTrie) { case (recTrie, i) =>
-        seed = Node.hashFn(seed)
-        if (!Symmetric) recTrie.put(seed, seed)
-        else {
-          val mykey = seed
-          seed = Node.hashFn(seed)
-          val myval = if ((seed(0) & 0xFF) % 2 == 1) Array[Byte](seed.last) else seed
-          recTrie.put(mykey, myval)
-        }
-      }
-      val rootHash = Hex.toHexString(trieResult.getRootHash)
-
-      log.debug("Time taken(ms): " + (System.currentTimeMillis - start))
-      log.debug("Root hash obtained: " + rootHash)
-
-      if (Symmetric) assert(rootHash.take(4) == "36f6" && rootHash.drop(rootHash.length - 4) == "93a3")
-      else assert(rootHash.take(4) == "da8a" && rootHash.drop(rootHash.length - 4) == "0ca4")
-    }
-  }
 }
 
 trait PersistentStorage {

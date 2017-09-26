@@ -13,7 +13,7 @@ class OpCodeFunSpec extends FunSuite with OpCodeTesting with Matchers with Prope
 
   import MockWorldState.PS
 
-  override val config = EvmConfig.PostEIP160Config
+  override val config = EvmConfig.PostEIP160ConfigBuilder(None)
 
   def executeOp(op: OpCode, stateIn: PS): PS = {
     // gas is not tested in this spec

@@ -88,24 +88,28 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
     transactionsForBlock
   }
 
-  private def prepareHeader(blockNumber: BigInt, ommers: Seq[BlockHeader], beneficiary: Address, parent: Block, blockTimestamp: Long) = BlockHeader(
-    parentHash = parent.header.hash,
-    ommersHash = ByteString(kec256(ommers.toBytes: Array[Byte])),
-    beneficiary = beneficiary.bytes,
-    stateRoot = ByteString.empty,
-    //we are not able to calculate transactionsRoot here because we do not know if they will fail
-    transactionsRoot = ByteString.empty,
-    receiptsRoot = ByteString.empty,
-    logsBloom = ByteString.empty,
-    difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
-    number = blockNumber,
-    gasLimit = calculateGasLimit(parent.header.gasLimit),
-    gasUsed = 0,
-    unixTimestamp = blockTimestamp,
-    extraData = ByteString("mined with etc scala"),
-    mixHash = ByteString.empty,
-    nonce = ByteString.empty
-  )
+  private def prepareHeader(blockNumber: BigInt, ommers: Seq[BlockHeader], beneficiary: Address, parent: Block, blockTimestamp: Long) = {
+    import blockchainConfig.daoForkConfig
+
+    BlockHeader(
+      parentHash = parent.header.hash,
+      ommersHash = ByteString(kec256(ommers.toBytes: Array[Byte])),
+      beneficiary = beneficiary.bytes,
+      stateRoot = ByteString.empty,
+      //we are not able to calculate transactionsRoot here because we do not know if they will fail
+      transactionsRoot = ByteString.empty,
+      receiptsRoot = ByteString.empty,
+      logsBloom = ByteString.empty,
+      difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
+      number = blockNumber,
+      gasLimit = calculateGasLimit(parent.header.gasLimit),
+      gasUsed = 0,
+      unixTimestamp = blockTimestamp,
+      extraData = daoForkConfig.flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber)).getOrElse(miningConfig.headerExtraData),
+      mixHash = ByteString.empty,
+      nonce = ByteString.empty
+    )
+  }
 
   def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] = {
     cache.getAndUpdate(new UnaryOperator[List[PendingBlock]] {

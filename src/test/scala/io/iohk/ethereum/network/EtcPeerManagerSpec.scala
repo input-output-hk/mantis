@@ -251,7 +251,7 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
     blockchain.save(Fixtures.Blocks.Genesis.header)
 
     val blockchainConfig = BlockchainConfig(Config.config)
-    val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig)
+    val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)
 
     val peerStatus = Status(
       protocolVersion = Versions.PV63,

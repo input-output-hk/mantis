@@ -119,7 +119,7 @@ trait NodeStatusBuilder {
   lazy val nodeStatusHolder = Agent(nodeStatus)
 }
 
-trait BlockChainBuilder {
+trait BlockchainBuilder {
   self: StorageBuilder =>
 
   lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages)
@@ -128,13 +128,12 @@ trait BlockChainBuilder {
 trait ForkResolverBuilder {
   self: BlockchainConfigBuilder =>
 
-  lazy val forkResolverOpt =
-    if (blockchainConfig.customGenesisFileOpt.isDefined) None
-    else Some(new ForkResolver.EtcForkResolver(blockchainConfig))
+  lazy val forkResolverOpt = blockchainConfig.daoForkConfig.map(new ForkResolver.EtcForkResolver(_))
+
 }
 
 trait HandshakerBuilder {
-  self: BlockChainBuilder
+  self: BlockchainBuilder
     with NodeStatusBuilder
     with StorageBuilder
     with PeerManagerActorBuilder
@@ -203,7 +202,7 @@ trait EtcPeerManagerActorBuilder {
 
 trait BlockchainHostBuilder {
   self: ActorSystemBuilder
-    with BlockChainBuilder
+    with BlockchainBuilder
     with PeerManagerActorBuilder
     with EtcPeerManagerActorBuilder
     with PeerEventBusBuilder =>
@@ -217,7 +216,7 @@ trait ServerActorBuilder {
 
   self: ActorSystemBuilder
     with NodeStatusBuilder
-    with BlockChainBuilder
+    with BlockchainBuilder
     with PeerManagerActorBuilder =>
 
   lazy val networkConfig = Config.Network
@@ -251,7 +250,7 @@ trait PendingTransactionsManagerBuilder {
 
 trait FilterManagerBuilder {
   self: ActorSystemBuilder
-    with BlockChainBuilder
+    with BlockchainBuilder
     with BlockGeneratorBuilder
     with StorageBuilder
     with KeyStoreBuilder
@@ -276,14 +275,14 @@ trait BlockGeneratorBuilder {
     ValidatorsBuilder with
     LedgerBuilder with
     MiningConfigBuilder with
-    BlockChainBuilder =>
+    BlockchainBuilder =>
 
   lazy val blockGenerator = new BlockGenerator(blockchain, blockchainConfig, miningConfig, ledger, validators)
 }
 
 trait EthServiceBuilder {
   self: StorageBuilder with
-    BlockChainBuilder with
+    BlockchainBuilder with
     BlockGeneratorBuilder with
     BlockchainConfigBuilder with
     PendingTransactionsManagerBuilder with
@@ -303,7 +302,7 @@ trait EthServiceBuilder {
 
 trait PersonalServiceBuilder {
   self: KeyStoreBuilder with
-    BlockChainBuilder with
+    BlockchainBuilder with
     BlockchainConfigBuilder with
     PendingTransactionsManagerBuilder with
     StorageBuilder with
@@ -326,7 +325,7 @@ trait JSONRpcControllerBuilder {
 
 trait JSONRpcHttpServerBuilder {
 
-  self: ActorSystemBuilder with BlockChainBuilder with JSONRpcControllerBuilder with SecureRandomBuilder =>
+  self: ActorSystemBuilder with BlockchainBuilder with JSONRpcControllerBuilder with SecureRandomBuilder =>
 
   lazy val jsonRpcServerConfig: JsonRpcServerConfig = Config.Network.Rpc
 
@@ -335,7 +334,7 @@ trait JSONRpcHttpServerBuilder {
 
 trait OmmersPoolBuilder {
   self: ActorSystemBuilder with
-    BlockChainBuilder with
+    BlockchainBuilder with
     MiningConfigBuilder =>
 
   lazy val ommersPool: ActorRef = actorSystem.actorOf(OmmersPool.props(blockchain, miningConfig))
@@ -354,7 +353,7 @@ trait ValidatorsBuilder {
 
 trait LedgerBuilder {
   self: BlockchainConfigBuilder
-    with BlockChainBuilder =>
+    with BlockchainBuilder =>
 
   lazy val ledger: Ledger = new LedgerImpl(VM, blockchain, blockchainConfig)
 }
@@ -363,7 +362,7 @@ trait SyncControllerBuilder {
 
   self: ActorSystemBuilder with
     ServerActorBuilder with
-    BlockChainBuilder with
+    BlockchainBuilder with
     NodeStatusBuilder with
     StorageBuilder with
     BlockchainConfigBuilder with
@@ -406,7 +405,7 @@ trait ShutdownHookBuilder {
 }
 
 trait GenesisDataLoaderBuilder {
-  self: BlockChainBuilder
+  self: BlockchainBuilder
     with StorageBuilder
     with BlockchainConfigBuilder =>
 
@@ -421,7 +420,7 @@ trait SecureRandomBuilder {
 trait Node extends NodeKeyBuilder
   with ActorSystemBuilder
   with StorageBuilder
-  with BlockChainBuilder
+  with BlockchainBuilder
   with NodeStatusBuilder
   with ForkResolverBuilder
   with HandshakerBuilder

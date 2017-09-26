@@ -8,9 +8,9 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.{Mocks, rlp}
+import io.iohk.ethereum.{Fixtures, Mocks, rlp}
 import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
@@ -23,11 +23,12 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.validators.BlockValidator.BlockTransactionsHashError
 import io.iohk.ethereum.validators.SignedTransactionError.TransactionSignatureError
 import io.iohk.ethereum.validators._
+import org.scalamock.scalatest.MockFactory
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.util.encoders.Hex
 
 // scalastyle:off file.size.limit
-class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
+class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFactory {
 
   val blockchainConfig = BlockchainConfig(Config.config)
 
@@ -753,6 +754,43 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
     result match { case (_, executedTxs) => executedTxs shouldBe Seq.empty }
   }
 
+  it should "drain DAO accounts and send the funds to refund address if Pro DAO Fork was configured" in new DaoForkTestSetup {
+
+    (worldState.getAccount _)
+      .expects(supportDaoForkConfig.refundContract.get)
+      .anyNumberOfTimes()
+      .returning(Some(Account(nonce = 1, balance = UInt256.Zero)))
+
+    // Check we drain all the accounts and send the balance to refund contract
+    supportDaoForkConfig.drainList.foreach { addr =>
+      val daoAccountsFakeBalance = UInt256(1000)
+      (worldState.getAccount _).expects(addr).returning(Some(Account(nonce = 1, balance = daoAccountsFakeBalance)))
+      (worldState.transfer _).expects(addr, supportDaoForkConfig.refundContract.get, daoAccountsFakeBalance).returning(worldState)
+    }
+
+    val ledger = new LedgerImpl(new MockVM(), testBlockchain, proDaoBlockchainConfig)
+
+    ledger.executeBlockTransactions(
+      proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)), // We don't care about block txs in this test
+      (new Mocks.MockValidatorsAlwaysSucceed).signedTransactionValidator
+    )
+  }
+
+  it should "neither drain DAO accounts nor send the funds to refund address if Pro DAO Fork was not configured" in new DaoForkTestSetup {
+    // Check we drain all the accounts and send the balance to refund contract
+    supportDaoForkConfig.drainList.foreach { addr =>
+      val daoAccountsFakeBalance = UInt256(1000)
+      (worldState.transfer _).expects(*, *, *).never()
+    }
+
+    val ledger = new LedgerImpl(new MockVM(), testBlockchain, blockchainConfig)
+
+    ledger.executeBlockTransactions(
+      proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)), // We don't care about block txs in this test
+      (new Mocks.MockValidatorsAlwaysSucceed).signedTransactionValidator
+    )
+  }
+
   trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
@@ -844,6 +882,44 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers {
       value = defaultValue
     )
     val validStxSignedByOrigin: SignedTransaction = SignedTransaction.sign(validTx, originKeyPair, Some(blockchainConfig.chainId))
+  }
+
+  trait DaoForkTestSetup extends TestSetup {
+
+    val testBlockchain = mock[BlockchainImpl]
+    val worldState = mock[InMemoryWorldStateProxy]
+    val proDaoBlock = Fixtures.Blocks.ProDaoForkBlock.block
+
+    val supportDaoForkConfig = new DaoForkConfig {
+      override val blockExtraData: Option[ByteString] = Some(ByteString("refund extra data"))
+      override val range: Int = 10
+      override val drainList: Seq[Address] = Seq(Address(1), Address(2), Address(3))
+      override val forkBlockHash: ByteString = proDaoBlock.header.hash
+      override val forkBlockNumber: BigInt = proDaoBlock.header.number
+      override val refundContract: Option[Address] = Some(Address(4))
+    }
+
+    val proDaoBlockchainConfig = new BlockchainConfig {
+      override val frontierBlockNumber: BigInt = blockchainConfig.frontierBlockNumber
+      override val accountStartNonce: UInt256 = blockchainConfig.accountStartNonce
+      override val homesteadBlockNumber: BigInt = blockchainConfig.homesteadBlockNumber
+      override val difficultyBombPauseBlockNumber: BigInt = blockchainConfig.difficultyBombPauseBlockNumber
+      override val eip155BlockNumber: BigInt = blockchainConfig.eip155BlockNumber
+      override val monetaryPolicyConfig: MonetaryPolicyConfig = blockchainConfig.monetaryPolicyConfig
+      override val eip160BlockNumber: BigInt = blockchainConfig.eip160BlockNumber
+      override val eip150BlockNumber: BigInt = blockchainConfig.eip150BlockNumber
+      override val chainId: Byte = 0x01.toByte
+      override val difficultyBombContinueBlockNumber: BigInt = blockchainConfig.difficultyBombContinueBlockNumber
+      override val daoForkConfig: Option[DaoForkConfig] = Some(supportDaoForkConfig)
+      override val customGenesisFileOpt: Option[String] = None
+      override val eip106BlockNumber = Long.MaxValue
+      override val maxCodeSize: Option[BigInt] = None
+    }
+
+    (testBlockchain.getBlockHeaderByHash _).expects(proDaoBlock.header.parentHash).returning(Some(Fixtures.Blocks.DaoParentBlock.header))
+    (testBlockchain.getWorldStateProxy _)
+      .expects(proDaoBlock.header.number, proDaoBlockchainConfig.accountStartNonce, Some(Fixtures.Blocks.DaoParentBlock.header.stateRoot))
+      .returning(worldState)
   }
 
 }
