@@ -608,9 +608,11 @@ object FastSync {
         case _: StateMptNodeHash | _: ContractStorageMptNodeHash => true
         case _: EvmCodeHash | _: StorageRootHash => false
       }
+      // Nodes are prepended in order to traverse mpt in-depth. For mpt nodes is not needed but to keep it consistent,
+      // that was applied to
       copy(
-        mptNodesQueue = mptNodesQueue ++ mpt,
-        nonMptNodesQueue = nonMptNodesQueue ++ nonMpt)
+        mptNodesQueue = mpt ++ mptNodesQueue,
+        nonMptNodesQueue = nonMpt ++ nonMptNodesQueue)
     }
 
     def anythingQueued: Boolean =
@@ -625,6 +627,7 @@ object FastSync {
   sealed trait HashType {
     def v: ByteString
   }
+
   case class StateMptNodeHash(v: ByteString) extends HashType
   case class ContractStorageMptNodeHash(v: ByteString) extends HashType
   case class EvmCodeHash(v: ByteString) extends HashType
