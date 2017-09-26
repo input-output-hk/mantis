@@ -10,7 +10,7 @@ import io.iohk.ethereum.vm.MockWorldState.PS
 
 class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
 
-  override val config = EvmConfig.PostEIP161Config
+  override val config = EvmConfig.PostEIP161ConfigBuilder(None)
 
   import config.feeSchedule._
 

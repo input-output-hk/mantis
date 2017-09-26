@@ -12,8 +12,10 @@ import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
+import io.iohk.ethereum.validators.BlockHeaderValidatorImpl
 import org.spongycastle.util.encoders.Hex
 
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -222,6 +224,7 @@ trait MiningConfig {
   val coinbase: Address
   val activeTimeout: FiniteDuration
   val ommerPoolQueryTimeout: FiniteDuration
+  val headerExtraData: ByteString
 }
 
 object MiningConfig {
@@ -234,9 +237,52 @@ object MiningConfig {
       val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
       val activeTimeout: FiniteDuration = miningConfig.getDuration("active-timeout").toMillis.millis
       val ommerPoolQueryTimeout: FiniteDuration = miningConfig.getDuration("ommer-pool-query-timeout").toMillis.millis
+      override val headerExtraData: ByteString =
+        ByteString(miningConfig
+          .getString("header-extra-data").getBytes)
+          .take(BlockHeaderValidatorImpl.MaxExtraDataSize)
     }
   }
 }
+
+trait DaoForkConfig {
+
+  val forkBlockNumber: BigInt
+  val forkBlockHash: ByteString
+  val blockExtraData: Option[ByteString]
+  val range: Int
+  val refundContract: Option[Address]
+  val drainList: Seq[Address]
+
+  private lazy val extratadaBlockRange = forkBlockNumber until(forkBlockNumber + range)
+
+  def isDaoForkBlock(blockNumber: BigInt): Boolean = forkBlockNumber == blockNumber
+
+  def requiresExtraData(blockNumber: BigInt): Boolean = blockExtraData.isDefined && (extratadaBlockRange contains blockNumber)
+
+  def getExtraData(blockNumber: BigInt): Option[ByteString] =
+    if(requiresExtraData(blockNumber)) blockExtraData
+    else None
+}
+
+object DaoForkConfig {
+  def apply(daoConfig: TypesafeConfig): DaoForkConfig = {
+
+    val theForkBlockNumber = BigInt(daoConfig.getString("fork-block-number"))
+
+    val theForkBlockHash = ByteString(Hex.decode(daoConfig.getString("fork-block-hash")))
+
+    new DaoForkConfig {
+      override val forkBlockNumber: BigInt = theForkBlockNumber
+      override val forkBlockHash: ByteString = theForkBlockHash
+      override val blockExtraData: Option[ByteString] = Try(daoConfig.getString("block-extra-data")).toOption.map(ByteString(_))
+      override val range: Int = Try(daoConfig.getInt("block-extra-data-range")).toOption.getOrElse(0)
+      override val refundContract: Option[Address] = Try(daoConfig.getString("refund-contract-address")).toOption.map(Address(_))
+      override val drainList: List[Address] = Try(daoConfig.getStringList("drain-list").asScala.toList).toOption.getOrElse(List.empty).map(Address(_))
+    }
+  }
+}
+
 
 trait BlockchainConfig {
   val frontierBlockNumber: BigInt
@@ -246,13 +292,14 @@ trait BlockchainConfig {
   val eip160BlockNumber: BigInt
   val eip161BlockNumber: BigInt
   val eip106BlockNumber: BigInt
+  val maxCodeSize: Option[BigInt]
   val difficultyBombPauseBlockNumber: BigInt
   val difficultyBombContinueBlockNumber: BigInt
 
   val customGenesisFileOpt: Option[String]
 
-  val daoForkBlockNumber: BigInt
-  val daoForkBlockHash: ByteString
+  val daoForkConfig: Option[DaoForkConfig]
+
   val accountStartNonce: UInt256
 
   val chainId: Byte
@@ -260,7 +307,9 @@ trait BlockchainConfig {
   val monetaryPolicyConfig: MonetaryPolicyConfig
 }
 
+
 object BlockchainConfig {
+
   def apply(etcClientConfig: TypesafeConfig): BlockchainConfig = {
     val blockchainConfig = etcClientConfig.getConfig("blockchain")
 
@@ -271,13 +320,13 @@ object BlockchainConfig {
       override val eip155BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip155-block-number"))
       override val eip160BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip160-block-number"))
       override val eip161BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip161-block-number"))
+      override val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
       override val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
       override val difficultyBombContinueBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-continue-block-number"))
 
       override val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
 
-      override val daoForkBlockNumber: BigInt = BigInt(blockchainConfig.getString("dao-fork-block-number"))
-      override val daoForkBlockHash: ByteString = ByteString(Hex.decode(blockchainConfig.getString("dao-fork-block-hash")))
+      override val daoForkConfig = Try(blockchainConfig.getConfig("dao")).toOption.map(DaoForkConfig(_))
       override val accountStartNonce: UInt256 = UInt256(BigInt(blockchainConfig.getString("account-start-nonce")))
 
       override val chainId: Byte = {

@@ -14,7 +14,7 @@ import org.scalatest.prop.PropertyChecks
 // scalastyle:off file.size.limit
 class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
-  val config = EvmConfig.PostEIP161Config
+  val config = EvmConfig.PostEIP161ConfigBuilder(None)
 
   import config.feeSchedule._
 
@@ -412,19 +412,19 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       }
 
       "go OOG before EIP-150" in {
-        call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+        call(EvmConfig.HomesteadConfigBuilder(None)).stateOut.error shouldEqual Some(OutOfGas)
       }
 
       "cap the provided gas after EIP-150" in {
-        call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+        call(EvmConfig.PostEIP150ConfigBuilder(None)).stateOut.stack.pop._1 shouldEqual UInt256.One
       }
 
       "go OOG before EIP-150 becaouse of extensive memory cost" in {
-        callVarMemCost(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+        callVarMemCost(EvmConfig.HomesteadConfigBuilder(None)).stateOut.error shouldEqual Some(OutOfGas)
       }
 
       "cap memory cost post EIP-150" in {
-        val callResult = callVarMemCost(EvmConfig.PostEIP150Config)
+        val callResult = callVarMemCost(EvmConfig.PostEIP150ConfigBuilder(None))
         callResult.stateOut.stack.pop._1 shouldEqual UInt256.One
       }
     }
@@ -619,11 +619,11 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       }
 
       "go OOG before EIP-150" in {
-        call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+        call(EvmConfig.HomesteadConfigBuilder(None)).stateOut.error shouldEqual Some(OutOfGas)
       }
 
       "cap the provided gas after EIP-150" in {
-        call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+        call(EvmConfig.PostEIP150ConfigBuilder(None)).stateOut.stack.pop._1 shouldEqual UInt256.One
       }
     }
   }
@@ -790,11 +790,11 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       }
 
       "go OOG before EIP-150" in {
-        call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+        call(EvmConfig.HomesteadConfigBuilder(None)).stateOut.error shouldEqual Some(OutOfGas)
       }
 
       "cap the provided gas after EIP-150" in {
-        call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+        call(EvmConfig.PostEIP150ConfigBuilder(None)).stateOut.stack.pop._1 shouldEqual UInt256.One
       }
     }
   }
