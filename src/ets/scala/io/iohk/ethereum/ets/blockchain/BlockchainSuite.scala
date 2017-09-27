@@ -28,7 +28,11 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
     "bcTotalDifficultyTest/uncleBlockAtBlock3afterBlock4" -> Set.empty,
     "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain"  -> Set.empty,
     "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain2"  -> Set.empty,
-    "TransitionTests/bcFrontierToHomestead/HomesteadOverrideFrontier" -> Set.empty
+    "TransitionTests/bcFrontierToHomestead/HomesteadOverrideFrontier" -> Set.empty,
+    "TransitionTests/bcHomesteadToDao/DaoTransactions" -> Set.empty,
+    "TransitionTests/bcHomesteadToDao/DaoTransactions_EmptyTransactionAndForkBlocksAhead" -> Set.empty,
+    "TransitionTests/bcHomesteadToDao/DaoTransactions_UncleExtradata" -> Set.empty,
+    "TransitionTests/bcHomesteadToDao/DaoTransactions_XBlockm1" -> Set.empty
   )
   override def run(testName: Option[String], args: Args): Status = {
     val options = TestOptions(args.configMap)
