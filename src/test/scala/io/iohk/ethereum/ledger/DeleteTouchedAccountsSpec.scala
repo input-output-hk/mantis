@@ -122,8 +122,8 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    val postEip161Config = EvmConfig.PostEIP161Config
-    val postEip160Config = EvmConfig.PostEIP160Config
+    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(None)
+    val postEip160Config = EvmConfig.PostEIP160ConfigBuilder(None)
 
     val validAccountAddress  = Address(0xababab)
     val validAccountBalance = 10

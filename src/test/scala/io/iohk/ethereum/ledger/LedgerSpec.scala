@@ -906,6 +906,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       override val difficultyBombPauseBlockNumber: BigInt = blockchainConfig.difficultyBombPauseBlockNumber
       override val eip155BlockNumber: BigInt = blockchainConfig.eip155BlockNumber
       override val monetaryPolicyConfig: MonetaryPolicyConfig = blockchainConfig.monetaryPolicyConfig
+      override val eip161BlockNumber: BigInt = blockchainConfig.eip161BlockNumber
       override val eip160BlockNumber: BigInt = blockchainConfig.eip160BlockNumber
       override val eip150BlockNumber: BigInt = blockchainConfig.eip150BlockNumber
       override val chainId: Byte = 0x01.toByte
@@ -918,7 +919,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     (testBlockchain.getBlockHeaderByHash _).expects(proDaoBlock.header.parentHash).returning(Some(Fixtures.Blocks.DaoParentBlock.header))
     (testBlockchain.getWorldStateProxy _)
-      .expects(proDaoBlock.header.number, proDaoBlockchainConfig.accountStartNonce, Some(Fixtures.Blocks.DaoParentBlock.header.stateRoot))
+      .expects(proDaoBlock.header.number, proDaoBlockchainConfig.accountStartNonce, Some(Fixtures.Blocks.DaoParentBlock.header.stateRoot), false)
       .returning(worldState)
   }
 

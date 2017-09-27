@@ -28,11 +28,8 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
     "bcTotalDifficultyTest/uncleBlockAtBlock3afterBlock4" -> Set.empty,
     "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain"  -> Set.empty,
     "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain2"  -> Set.empty,
-    "TransitionTests/bcFrontierToHomestead/HomesteadOverrideFrontier" -> Set.empty,
-    // Test makes silent assumption that after EIP158, maxCodeSize Limit is already implemented
-    "GeneralStateTests/stCodeSizeLimit/codesizeOOGInvalidSize_d0g0v0" -> Set("codesizeOOGInvalidSize_d0g0v0_EIP158")
+    "TransitionTests/bcFrontierToHomestead/HomesteadOverrideFrontier" -> Set.empty
   )
-
   override def run(testName: Option[String], args: Args): Status = {
     val options = TestOptions(args.configMap)
     val scenarios = BlockchainScenarioLoader.load("ets/BlockchainTests/", options)
