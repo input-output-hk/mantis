@@ -144,6 +144,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
 
     val blockchainConfig = new BlockchainConfig {
       //unused
+      override val maxCodeSize: Option[BigInt] = None
       override val frontierBlockNumber: BigInt = 0
       override val homesteadBlockNumber: BigInt = 0
       override val eip150BlockNumber: BigInt = 0

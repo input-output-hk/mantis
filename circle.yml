@@ -29,6 +29,8 @@ test:
         fi
       fi
 
+    # As the benchmark tests don't test functionality and should be manually ran, having them compile is enough
+    - sbt benchmark:compile
     # snappy test is not run on Circle - this is just to prevent compilation regression
     - sbt snappy:compile
 

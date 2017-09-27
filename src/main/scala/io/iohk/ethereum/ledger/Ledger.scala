@@ -291,7 +291,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     * @param tx Target transaction
     * @return Upfront cost
     */
-  private[ledger] def calculateUpfrontCost(tx: Transaction): UInt256 =
+  private def calculateUpfrontCost(tx: Transaction): UInt256 =
     UInt256(calculateUpfrontGas(tx) + tx.value)
 
   /**
@@ -302,13 +302,13 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     * @param worldStateProxy
     * @return
     */
-  private[ledger] def updateSenderAccountBeforeExecution(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  private def updateSenderAccountBeforeExecution(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     val senderAddress = stx.senderAddress
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
     worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce)
   }
 
-  private[ledger] def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy,
+  private def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy,
                                             config: EvmConfig): PC = {
     stx.tx.receivingAddress match {
       case None =>
@@ -329,14 +329,21 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
       result
   }
 
-  private def saveNewContract(address: Address, result: PR, config: EvmConfig): PR = {
-    val codeDepositCost = config.calcCodeDepositCost(result.returnData)
-    if (result.gasRemaining < codeDepositCost) {
-      if (config.exceptionalFailedCodeDeposit)
-        result.copy(error = Some(OutOfGas))
-      else
-        result
+  private[ledger] def saveNewContract(address: Address, result: PR, config: EvmConfig): PR = {
+    val contractCode = result.returnData
+    val codeDepositCost = config.calcCodeDepositCost(contractCode)
+
+    val maxCodeSizeExceeded = blockchainConfig.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
+    val codeStoreOutOfGas = result.gasRemaining < codeDepositCost
+
+    if (maxCodeSizeExceeded || (codeStoreOutOfGas && config.exceptionalFailedCodeDeposit)) {
+      // Code size too big or code storage causes out-of-gas with exceptionalFailedCodeDeposit enabled
+      result.copy(error = Some(OutOfGas))
+    } else if (codeStoreOutOfGas && !config.exceptionalFailedCodeDeposit) {
+      // Code storage causes out-of-gas with exceptionalFailedCodeDeposit disabled
+      result
     } else {
+      // Code storage succeeded
       result.copy(
         gasRemaining = result.gasRemaining - codeDepositCost,
         world = result.world.saveCode(address, result.returnData))
