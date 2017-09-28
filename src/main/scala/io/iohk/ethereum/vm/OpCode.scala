@@ -803,12 +803,12 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       val gasAdjustment: BigInt = if (validCall) 0 else -startGas
       val mem2 = mem1.expand(outOffset, outSize)
 
-      val updateWorld = if (validCall) state.world.combineTouchedAccounts(result.world) else state.world
+      val world1 = if (validCall) state.world.combineTouchedAccounts(result.world) else state.world
 
       state
         .withStack(stack2)
         .withMemory(mem2)
-        .withWorld(updateWorld)
+        .withWorld(world1)
         .spendGas(gasAdjustment)
         .step()
 
@@ -885,7 +885,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
     val isValueTransfer = endowment > 0
 
     def postEip161CostCondition: Boolean =
-      state.world.isDead(to) && this == CALL && isValueTransfer
+      state.world.isAccountDead(to) && this == CALL && isValueTransfer
 
     def preEip161CostCondition: Boolean =
       !state.world.accountExists(to) && this == CALL
@@ -952,7 +952,7 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
     def postEip161CostCondition: Boolean =
         state.config.chargeSelfDestructForNewAccount &&
         isValueTransfer &&
-        state.world.isDead(refundAddress)
+        state.world.isAccountDead(refundAddress)
 
     def preEip161CostCondition: Boolean =
       state.config.chargeSelfDestructForNewAccount && !state.world.accountExists(refundAddress)

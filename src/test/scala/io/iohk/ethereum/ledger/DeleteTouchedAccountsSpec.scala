@@ -17,7 +17,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
   val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig)
 
   it should "delete no accounts when there are no touched accounts" in new TestSetup {
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldStatePostEIP161))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldStatePostEIP161))
     accountAddresses.foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.stateRootHash shouldBe worldStatePostEIP161.stateRootHash
   }
@@ -26,7 +26,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validAccountAddress2, transferBalance)
     worldAfterTransfer.touchedAccounts.get.size shouldEqual 2
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldAfterTransfer))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldAfterTransfer))
     accountAddresses.foreach{ a => assert(newWorld.getAccount(a).isDefined) }
   }
 
@@ -34,7 +34,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.get.size shouldEqual 2
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldAfterTransfer))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldAfterTransfer))
 
     (accountAddresses - validEmptyAccountAddress).foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
@@ -45,7 +45,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
     val worldAfterTransfer = worldStatePostEIP161.transfer(validEmptyAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.get.size shouldEqual 1
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldAfterTransfer))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldAfterTransfer))
 
     (accountAddresses - validEmptyAccountAddress).foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
@@ -61,7 +61,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
     worldAfterPayingToMiner.touchedAccounts.size shouldEqual 0
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldAfterTransfer))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldAfterTransfer))
 
     accountAddresses.foreach{ a => assert(newWorld.getAccount(a).isDefined) }
   }
@@ -75,7 +75,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
     worldAfterPayingToMiner.touchedAccounts.get.size shouldEqual 3
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldAfterPayingToMiner))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldAfterPayingToMiner))
 
     (accountAddresses -- Set(validEmptyAccountAddress, validEmptyAccountAddress1)).foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
@@ -97,7 +97,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
     worldafterInitialisation.touchedAccounts.get.size shouldEqual 5
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldafterInitialisation))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldafterInitialisation))
 
     (accountAddresses -- Set(validEmptyAccountAddress, validEmptyAccountAddress1, validAccountAddress) + validCreatedAccountAddress)
       .foreach{ a => assert(newWorld.getAccount(a).isDefined) }
@@ -115,7 +115,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
     worldAfterTransfer.touchedAccounts.get.size shouldEqual 2
 
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteTouchedAccounts(worldAfterTransfer))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldAfterTransfer))
 
     (accountAddresses + validCreatedAccountAddress).foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.touchedAccounts.get.size shouldEqual 0

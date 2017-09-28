@@ -116,7 +116,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     * @param address, the address of the checked account
     * @return true if account is dead, false otherwise
     */
-  def isDead(address: Address): Boolean = {
+  def isAccountDead(address: Address): Boolean = {
     getAccount(address).forall(_.isEmpty)
   }
 

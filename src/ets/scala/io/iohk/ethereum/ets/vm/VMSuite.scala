@@ -57,12 +57,12 @@ class VMSuite extends FreeSpec with Matchers with Logger {
       // See: https://github.com/ethereum/cpp-ethereum/issues/4281
 
       val postWorld = ScenarioBuilder.prepareWorld(post, scenario.env.currentNumber)
-      val deadAccounts = postWorld.accounts.keys.filter(postWorld.isDead)
+      val deadAccounts = postWorld.accounts.keys.filter(postWorld.isAccountDead)
       val expectedWorld = deadAccounts.foldLeft(postWorld)(_ deleteAccount _)
       val actualWorldNoDead = deadAccounts.foldLeft(result.world)(_ deleteAccount _)
 
       actualWorldNoDead shouldEqual expectedWorld
-      deadAccounts.foreach(addr => result.world.isDead(addr) shouldBe true)
+      deadAccounts.foreach(addr => result.world.isAccountDead(addr) shouldBe true)
     }
 
     scenario.logs.foreach { logs =>

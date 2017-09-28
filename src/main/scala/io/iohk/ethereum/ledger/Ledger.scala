@@ -208,7 +208,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     val worldAfterPayments = (refundGasFn andThen payMinerForGasFn)(resultWithErrorHandling.world)
 
     val deleteAccountsFn = deleteAccounts(resultWithErrorHandling.addressesToDelete) _
-    val deleteTouchedAccountsFn = deleteTouchedAccounts _
+    val deleteTouchedAccountsFn = deleteEmptyTouchedAccounts _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
 
     val world2 = (deleteAccountsFn andThen deleteTouchedAccountsFn andThen persistStateFn)(worldAfterPayments)
@@ -430,10 +430,10 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     * Deletion of touched account should be executed immediately following the execution of the suicide list
     *
     * @param worldStateProxy world after execution of all potentially state-changing operations
-    * @return a worldState equal worldStateProxy except that the accounts touched during exection are deleted and touched
+    * @return a worldState equal worldStateProxy except that the accounts touched during execution are deleted and touched
     *         Set is cleared
     */
-  private[ledger] def deleteTouchedAccounts(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  private[ledger] def deleteEmptyTouchedAccounts(worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     def deleteEmptyAccounts(addressesToDelete: Set[Address]) =
       addressesToDelete.foldLeft(worldStateProxy){ case (world, address) => deleteEmptyAccount(world, address) }
 

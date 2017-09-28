@@ -234,10 +234,10 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val emptyAccountWorld = worldState.newEmptyAccount(address1)
 
     emptyAccountWorld.accountExists(address1) shouldBe true
-    emptyAccountWorld.isDead(address1) shouldBe true
+    emptyAccountWorld.isAccountDead(address1) shouldBe true
 
     emptyAccountWorld.accountExists(address2) shouldBe false
-    emptyAccountWorld.isDead(address2) shouldBe true
+    emptyAccountWorld.isAccountDead(address2) shouldBe true
   }
 
   "InMemoryWorldStateProxy" should "initialise new account and handle address collision correctly" in new TestSetup {

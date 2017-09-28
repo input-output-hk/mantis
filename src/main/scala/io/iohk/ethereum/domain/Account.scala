@@ -47,6 +47,7 @@ case class Account(
 
   /**
     * According to EIP161: An account is considered empty when it has no code and zero nonce and zero balance.
+    * An account's storage is not relevant when determining emptiness.
     */
   def isEmpty: Boolean =
     nonce == UInt256.Zero && balance == UInt256.Zero && codeHash == Account.EmptyCodeHash

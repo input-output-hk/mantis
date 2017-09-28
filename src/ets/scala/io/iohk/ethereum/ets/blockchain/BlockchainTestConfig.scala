@@ -8,13 +8,13 @@ import org.spongycastle.util.encoders.Hex
 trait BlockchainTestConfig extends BlockchainConfig {
 
   val frontierBlockNumber: BigInt = Long.MaxValue
-  val eip161BlockNumber: BigInt = Long.MaxValue
-  val eip160BlockNumber: BigInt = Long.MaxValue
-  val eip150BlockNumber: BigInt = Long.MaxValue
-  val eip155BlockNumber: BigInt = Long.MaxValue
   val homesteadBlockNumber: BigInt = Long.MaxValue
   //Enabling maxGasLimit in all Configs and all blocks
-  override val eip106BlockNumber: BigInt = 0
+  val eip106BlockNumber: BigInt = 0
+  val eip150BlockNumber: BigInt = Long.MaxValue
+  val eip155BlockNumber: BigInt = Long.MaxValue
+  val eip160BlockNumber: BigInt = Long.MaxValue
+  val eip161BlockNumber: BigInt = Long.MaxValue
   // unused
   override val maxCodeSize: Option[BigInt] = None
   override val difficultyBombPauseBlockNumber: BigInt = 3000000

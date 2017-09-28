@@ -29,6 +29,9 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
     "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain"  -> Set.empty,
     "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain2"  -> Set.empty,
     "TransitionTests/bcFrontierToHomestead/HomesteadOverrideFrontier" -> Set.empty,
+    // bcHomesteadToDao test are temporarily disabled until the update of Blockchain test suite, because
+    // they are failing on older version and success on fresh on. Blockchain test suite should be updated
+    // after introduction of EIP684.
     "TransitionTests/bcHomesteadToDao/DaoTransactions" -> Set.empty,
     "TransitionTests/bcHomesteadToDao/DaoTransactions_EmptyTransactionAndForkBlocksAhead" -> Set.empty,
     "TransitionTests/bcHomesteadToDao/DaoTransactions_UncleExtradata" -> Set.empty,
