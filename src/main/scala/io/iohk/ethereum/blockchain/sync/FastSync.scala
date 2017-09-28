@@ -609,7 +609,7 @@ object FastSync {
         case _: EvmCodeHash | _: StorageRootHash => false
       }
       // Nodes are prepended in order to traverse mpt in-depth. For mpt nodes is not needed but to keep it consistent,
-      // that was applied to
+      // it was applied too
       copy(
         pendingMptNodes = mpt ++ pendingMptNodes,
         pendingNonMptNodes = nonMpt ++ pendingNonMptNodes)
