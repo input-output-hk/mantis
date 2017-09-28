@@ -16,7 +16,7 @@ import org.json4s.{DefaultFormats, Formats}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 trait JsonMethodsImplicits {
 
@@ -250,8 +250,13 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val personal_unlockAccount = new Codec[UnlockAccountRequest, UnlockAccountResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, UnlockAccountRequest] = {
       params match {
-        case Some(JArray(JString(addr) :: JString(passphrase) :: _)) =>
-          extractAddress(addr).map(UnlockAccountRequest(_, passphrase))
+        case Some(JArray(JString(addr) :: JString(passphrase) :: JString(duration) :: _)) =>
+          Try(duration.toInt) match {
+            case Success(parsedDuration) => extractAddress(addr).map(UnlockAccountRequest(_, passphrase, Some(parsedDuration)))
+            case Failure(_) => Left(InvalidParams("Duration should be an number of seconds, less than 2^31 - 1"))
+          }
+        case Some(JArray(JString(addr) :: JString(passphrase) ::  _)) =>
+          extractAddress(addr).map(UnlockAccountRequest(_, passphrase, None))
         case _ =>
           Left(InvalidParams())
       }

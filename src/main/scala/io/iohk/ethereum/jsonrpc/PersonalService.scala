@@ -1,24 +1,23 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.pattern.ask
+import java.time.Duration
+
 import akka.actor.ActorRef
+import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Account, Address, Blockchain}
+import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
-import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
-import io.iohk.ethereum.transactions.PendingTransactionsManager.AddTransactions
-import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, PendingTransactionsResponse}
-import io.iohk.ethereum.utils.TxPoolConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, TxPoolConfig}
 
-import scala.collection.mutable
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.util.Try
 
 object PersonalService {
@@ -32,7 +31,7 @@ object PersonalService {
   case class ListAccountsRequest()
   case class ListAccountsResponse(addresses: List[Address])
 
-  case class UnlockAccountRequest(address: Address, passphrase: String)
+  case class UnlockAccountRequest(address: Address, passphrase: String, duration: Option[Int])
   case class UnlockAccountResponse(result: Boolean)
 
   case class LockAccountRequest(address: Address)
@@ -56,6 +55,7 @@ object PersonalService {
   val KeyNotFound = LogicError("No key found for the given address")
 
   val PrivateKeyLength = 32
+  val defaultUnlockTime = 300
 }
 
 class PersonalService(
@@ -66,7 +66,7 @@ class PersonalService(
   blockchainConfig: BlockchainConfig,
   txPoolConfig: TxPoolConfig) {
 
-  private val unlockedWallets: mutable.Map[Address, Wallet] = mutable.Map.empty
+  private val unlockedWallets: ExpiringMap[Address, Wallet] = ExpiringMap.empty(Duration.ofSeconds(defaultUnlockTime))
 
   def importRawKey(req: ImportRawKeyRequest): ServiceResponse[ImportRawKeyResponse] = Future {
     for {
@@ -91,13 +91,14 @@ class PersonalService(
     keyStore.unlockAccount(request.address, request.passphrase)
       .left.map(handleError)
       .map { wallet =>
-        unlockedWallets += request.address -> wallet
+        val duration = request.duration.map(Duration.ofSeconds(_))
+        unlockedWallets.add(request.address, wallet, duration)
         UnlockAccountResponse(true)
       }
   }
 
   def lockAccount(request: LockAccountRequest): ServiceResponse[LockAccountResponse] = Future.successful {
-    unlockedWallets -= request.address
+    unlockedWallets.remove(request.address)
     Right(LockAccountResponse(true))
   }
 
@@ -105,7 +106,7 @@ class PersonalService(
     import request._
 
     val accountWallet = {
-      if(passphrase.isDefined) keyStore.unlockAccount(address, passphrase.get).left.map(handleError)
+      if (passphrase.isDefined) keyStore.unlockAccount(address, passphrase.get).left.map(handleError)
       else unlockedWallets.get(request.address).toRight(AccountLocked)
     }
 
