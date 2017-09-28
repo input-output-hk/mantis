@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import java.time.Duration
+
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Address
@@ -39,6 +41,9 @@ trait JsonMethodsImplicits {
 
   protected def extractAddress(input: String): Either[JsonRpcError, Address] =
     Try(Address(input)).toEither.left.map(_ => InvalidAddress)
+
+  protected def extractDuration(input: String): Either[JsonRpcError, Duration] =
+    Try(Duration.ofSeconds(input.toInt)).toEither.left.map(_ => InvalidParams("Duration should be an number of seconds, less than 2^31 - 1"))
 
   protected def extractAddress(input: JString): Either[JsonRpcError, Address] =
     extractAddress(input.s)
@@ -250,11 +255,10 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val personal_unlockAccount = new Codec[UnlockAccountRequest, UnlockAccountResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, UnlockAccountRequest] = {
       params match {
-        case Some(JArray(JString(addr) :: JString(passphrase) :: JString(duration) :: _)) =>
-          Try(duration.toInt) match {
-            case Success(parsedDuration) => extractAddress(addr).map(UnlockAccountRequest(_, passphrase, Some(parsedDuration)))
-            case Failure(_) => Left(InvalidParams("Duration should be an number of seconds, less than 2^31 - 1"))
-          }
+        case Some(JArray(JString(addr) :: JString(passphrase) :: JString(duration) :: _)) => for {
+            addr <- extractAddress(addr)
+            duration <- extractDuration(duration)
+          } yield UnlockAccountRequest(addr, passphrase, Some(duration))
         case Some(JArray(JString(addr) :: JString(passphrase) ::  _)) =>
           extractAddress(addr).map(UnlockAccountRequest(_, passphrase, None))
         case _ =>

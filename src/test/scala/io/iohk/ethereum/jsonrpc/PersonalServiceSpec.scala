@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import java.time.Duration
+
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
@@ -343,7 +345,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     val reqSign = SignRequest(message, address, None)
 
-    val req = UnlockAccountRequest(address, passphrase, Some(2))
+    val req = UnlockAccountRequest(address, passphrase, Some(Duration.ofSeconds(2)))
     val res = personal.unlockAccount(req).futureValue
     res shouldEqual Right(UnlockAccountResponse(true))
 

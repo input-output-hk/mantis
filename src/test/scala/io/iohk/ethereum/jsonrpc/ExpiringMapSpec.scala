@@ -64,11 +64,9 @@ class ExpiringMapSpec extends FlatSpec with Matchers with Eventually {
       expiringMap.get(address2) shouldEqual Some(account2)
     }
 
-
     eventually {
       expiringMap.get(address2) shouldBe None
     }
-
   }
 
   it should "Put element in, for default amount of time and not retain it afterwards" in new TestSetup {
@@ -106,6 +104,4 @@ class ExpiringMapSpec extends FlatSpec with Matchers with Eventually {
     val account1 = Account.empty()
     val account2 = Account.empty().increaseBalance(10)
   }
-
-
 }

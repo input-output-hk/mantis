@@ -31,7 +31,7 @@ object PersonalService {
   case class ListAccountsRequest()
   case class ListAccountsResponse(addresses: List[Address])
 
-  case class UnlockAccountRequest(address: Address, passphrase: String, duration: Option[Int])
+  case class UnlockAccountRequest(address: Address, passphrase: String, duration: Option[Duration])
   case class UnlockAccountResponse(result: Boolean)
 
   case class LockAccountRequest(address: Address)
@@ -91,8 +91,7 @@ class PersonalService(
     keyStore.unlockAccount(request.address, request.passphrase)
       .left.map(handleError)
       .map { wallet =>
-        val duration = request.duration.map(Duration.ofSeconds(_))
-        unlockedWallets.add(request.address, wallet, duration)
+        unlockedWallets.add(request.address, wallet, request.duration)
         UnlockAccountResponse(true)
       }
   }
