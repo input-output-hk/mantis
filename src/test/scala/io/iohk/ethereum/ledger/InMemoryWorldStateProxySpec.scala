@@ -203,7 +203,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val worldStateAfterSecondTransfer = worldStateAfterFirstTransfer
       .transfer(address1, address3, nonZeroTransfer)
 
-    worldStateAfterSecondTransfer.touchedAccounts.map(_ should contain theSameElementsAs Set(address1, address2, address3))
+    worldStateAfterSecondTransfer.touchedAccounts should contain theSameElementsAs Set(address1, address2, address3)
   }
 
   "InMemoryWorldStateProxy" should "should update touched account based on oldWorld" in new TestSetup {
@@ -226,8 +226,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
 
     val preEip161UpdatedWorld = worldState.combineTouchedAccounts(worldStateAfterSecondTransfer)
 
-    postEip161UpdatedWorld.touchedAccounts.map(_ should contain theSameElementsAs Set(address1, address2, address3))
-    preEip161UpdatedWorld.touchedAccounts shouldBe None
+    postEip161UpdatedWorld.touchedAccounts should contain theSameElementsAs Set(address1, address2, address3)
+    preEip161UpdatedWorld.touchedAccounts.size shouldEqual 3
   }
 
   "InMemoryWorldStateProxy" should "should correctly determine if account is dead" in new TestSetup {

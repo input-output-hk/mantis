@@ -111,7 +111,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     val sstoreWithClearProgram = sstoreWithClearCode.program
     val accountWithCode: ByteString => Account = code => Account.empty().withCode(kec256(code))
 
-    val worldWithoutExtAccount = MockWorldState(touchedAccounts = Some(Set.empty)).saveAccount(ownerAddr, initialOwnerAccount)
+    val worldWithoutExtAccount = MockWorldState(touchedAccounts = Set.empty, noEmptyAccountsCond = true).saveAccount(ownerAddr, initialOwnerAccount)
 
     val worldWithExtAccount = worldWithoutExtAccount.saveAccount(extAddr, accountWithCode(extProgram.code))
       .saveCode(extAddr, extProgram.code)
@@ -354,7 +354,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructProgram)
         val call = CallResult(op = CALL, context)
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_selfdestruct
-        call.world.touchedAccounts.get.size shouldEqual 3
+        call.world.touchedAccounts.size shouldEqual 3
       }
 
       "not refund gas if account was already self destructed" in {
@@ -363,7 +363,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
           initialAddressesToDelete = Set(fxt.extAddr))
         val call = CallResult(op = CALL, context)
         call.stateOut.gasRefund shouldBe 0
-        call.world.touchedAccounts.get.size shouldEqual 3
+        call.world.touchedAccounts.size shouldEqual 3
       }
 
       "destruct ether if own address equals refund address" in {
@@ -371,7 +371,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         val call = CallResult(op = CALL, context)
         call.stateOut.world.getGuaranteedAccount(fxt.extAddr).balance shouldEqual UInt256.Zero
         call.stateOut.addressesToDelete.contains(fxt.extAddr) shouldBe true
-        call.world.touchedAccounts.get.size shouldEqual 2
+        call.world.touchedAccounts.size shouldEqual 2
       }
     }
 

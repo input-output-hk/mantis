@@ -444,7 +444,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
         world
     }
 
-    worldStateProxy.touchedAccounts.map(deleteEmptyAccounts).getOrElse(worldStateProxy).clearTouchedAccounts
+    deleteEmptyAccounts(worldStateProxy.touchedAccounts).clearTouchedAccounts
   }
 }
 

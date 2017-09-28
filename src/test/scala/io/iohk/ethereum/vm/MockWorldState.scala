@@ -15,7 +15,8 @@ case class MockWorldState(
   codeRepo: Map[Address, ByteString] = Map(),
   storages: Map[Address, MockStorage] = Map(),
   numberOfHashes: UInt256 = 0,
-  touchedAccounts: Option[Set[Address]] = None
+  touchedAccounts: Set[Address] = Set.empty,
+  noEmptyAccountsCond: Boolean = false
 ) extends WorldStateProxy[MockWorldState, MockStorage] {
 
   def getAccount(address: Address): Option[Account] =
@@ -56,20 +57,18 @@ case class MockWorldState(
 
   def getEmptyAccount: Account = Account.empty()
 
-  def touchAccounts(addresses: Address*): MockWorldState =
-    copy(touchedAccounts = touchedAccounts.map(oldAddresses => oldAddresses ++ addresses.toSet))
+  override def touchAccounts(addresses: Address*): MockWorldState =
+    if (noEmptyAccounts)
+      copy(touchedAccounts = touchedAccounts ++ addresses.toSet)
+    else
+      this
 
   def clearTouchedAccounts: MockWorldState =
-    copy(touchedAccounts = touchedAccounts.map(_.empty))
+    copy(touchedAccounts = touchedAccounts.empty)
 
-  def noEmptyAccounts: Boolean = touchedAccounts.isDefined
+  def noEmptyAccounts: Boolean = noEmptyAccountsCond
 
   def combineTouchedAccounts(world: MockWorldState): MockWorldState = {
-    val accounts = for {
-      oldAccounts <- touchedAccounts
-      newAccounts <- world.touchedAccounts
-    } yield oldAccounts ++ newAccounts
-
-    copy(touchedAccounts = accounts)
+    copy(touchedAccounts = touchedAccounts ++ world.touchedAccounts)
   }
 }

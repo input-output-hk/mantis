@@ -24,7 +24,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
   it should "delete no accounts when there are no empty touched accounts" in new TestSetup {
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validAccountAddress2, transferBalance)
-    worldAfterTransfer.touchedAccounts.get.size shouldEqual 2
+    worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
     val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldAfterTransfer))
     accountAddresses.foreach{ a => assert(newWorld.getAccount(a).isDefined) }
@@ -32,24 +32,24 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
   it should "delete touched empty account" in new TestSetup {
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
-    worldAfterTransfer.touchedAccounts.get.size shouldEqual 2
+    worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
     val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldAfterTransfer))
 
     (accountAddresses - validEmptyAccountAddress).foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
-    newWorld.touchedAccounts.get.size shouldEqual 0
+    newWorld.touchedAccounts.size shouldEqual 0
   }
 
   it should "delete touched empty account after transfer to self" in new TestSetup {
     val worldAfterTransfer = worldStatePostEIP161.transfer(validEmptyAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
-    worldAfterTransfer.touchedAccounts.get.size shouldEqual 1
+    worldAfterTransfer.touchedAccounts.size shouldEqual 1
 
     val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldAfterTransfer))
 
     (accountAddresses - validEmptyAccountAddress).foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
-    newWorld.touchedAccounts.get.size shouldEqual 0
+    newWorld.touchedAccounts.size shouldEqual 0
   }
 
 
@@ -69,33 +69,33 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
   it should "delete multiple touched empty accounts" in new TestSetup {
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
-    worldAfterTransfer.touchedAccounts.get.size shouldEqual 2
+    worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
     val worldAfterPayingToMiner = ledger.pay(validEmptyAccountAddress1, zeroTransferBalance)(worldAfterTransfer)
 
-    worldAfterPayingToMiner.touchedAccounts.get.size shouldEqual 3
+    worldAfterPayingToMiner.touchedAccounts.size shouldEqual 3
 
     val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldAfterPayingToMiner))
 
     (accountAddresses -- Set(validEmptyAccountAddress, validEmptyAccountAddress1)).foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
     newWorld.getAccount(validEmptyAccountAddress1) shouldBe None
-    newWorld.touchedAccounts.get.size shouldEqual 0
+    newWorld.touchedAccounts.size shouldEqual 0
   }
 
   it should "delete multiple touched empty accounts more operations" in new TestSetup {
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress3, validEmptyAccountAddress, zeroTransferBalance)
 
-    worldAfterTransfer.touchedAccounts.get.size shouldEqual 2
+    worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
     val worldAfterPayingToMiner = ledger.pay(validEmptyAccountAddress1, zeroTransferBalance)(worldAfterTransfer)
 
-    worldAfterPayingToMiner.touchedAccounts.get.size shouldEqual 3
+    worldAfterPayingToMiner.touchedAccounts.size shouldEqual 3
 
     val worldafterInitialisation =
       worldAfterPayingToMiner.initialiseAccount(validAccountAddress, validCreatedAccountAddress, validAccountBalance)
 
-    worldafterInitialisation.touchedAccounts.get.size shouldEqual 5
+    worldafterInitialisation.touchedAccounts.size shouldEqual 5
 
     val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldafterInitialisation))
 
@@ -105,7 +105,7 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
     newWorld.getAccount(validEmptyAccountAddress1) shouldBe None
     newWorld.getAccount(validAccountAddress) shouldBe None
-    newWorld.touchedAccounts.get.size shouldEqual 0
+    newWorld.touchedAccounts.size shouldEqual 0
   }
 
 
@@ -113,12 +113,12 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
     val worldAfterTransfer =
       worldStatePostEIP161.initialiseAccount(validAccountAddress, validCreatedAccountAddress, zeroTransferBalance)
 
-    worldAfterTransfer.touchedAccounts.get.size shouldEqual 2
+    worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
     val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldAfterTransfer))
 
     (accountAddresses + validCreatedAccountAddress).foreach{ a => assert(newWorld.getAccount(a).isDefined) }
-    newWorld.touchedAccounts.get.size shouldEqual 0
+    newWorld.touchedAccounts.size shouldEqual 0
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
