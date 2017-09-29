@@ -9,10 +9,6 @@ import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.{Fixtures, Timeouts}
 import io.iohk.ethereum.Mocks.{MockHandshakerAlwaysFails, MockHandshakerAlwaysSucceeds}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor.{ConnectTo, GetStatus, StatusResponse}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -25,8 +21,6 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello, Po
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.utils.Config
 import org.scalatest.{FlatSpec, Matchers}
-
-import scala.concurrent.duration._
 
 class PeerActorHandshakingSpec extends FlatSpec with Matchers {
 

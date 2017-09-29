@@ -1,9 +1,7 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.EvmCodeStorage.Code
-import io.iohk.ethereum.db.storage.NodeStorage
 
 package object mpt {
 

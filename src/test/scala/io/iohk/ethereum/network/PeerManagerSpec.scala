@@ -1,16 +1,13 @@
 package io.iohk.ethereum.network
 
-import java.net.{InetSocketAddress, URI}
+import java.net.InetSocketAddress
 
-import io.iohk.ethereum.network.PeerActor.Status.Handshaking
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import org.scalatest.concurrent.Eventually
 import akka.actor._
 import akka.testkit.{TestActorRef, TestProbe}
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.utils.Config
 import org.scalatest.{FlatSpec, Matchers}
-import PeerActor.Status
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.Publish

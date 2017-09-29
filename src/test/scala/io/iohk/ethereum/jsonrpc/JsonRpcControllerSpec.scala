@@ -5,12 +5,9 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl}
+import io.iohk.ethereum.domain.{Address, Block, BlockHeader}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.{LogFilterLogs, TxLog}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig

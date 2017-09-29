@@ -1,10 +1,7 @@
 package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.{Fixtures, Mocks}
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.scalamock.scalatest.MockFactory
