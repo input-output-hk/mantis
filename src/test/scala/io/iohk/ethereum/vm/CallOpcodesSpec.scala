@@ -17,7 +17,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
   import config.feeSchedule._
 
   val fxt = new CallOpFixture(config, startState)
-  
+
   "CALL" when {
 
     "external contract terminates normally" should {

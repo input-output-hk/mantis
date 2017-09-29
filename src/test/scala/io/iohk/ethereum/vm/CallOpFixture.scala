@@ -153,5 +153,4 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     val ownStorage: MockStorage = world.getStorage(context.env.ownerAddr)
     val extStorage: MockStorage = world.getStorage(to)
   }
-
 }
