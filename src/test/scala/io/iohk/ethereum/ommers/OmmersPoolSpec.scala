@@ -5,7 +5,7 @@ import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures.Blocks.Block3125369
 import io.iohk.ethereum.Timeouts
-import io.iohk.ethereum.domain.{Address, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.domain.{Address, BlockchainImpl}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers, RemoveOmmers}
 import io.iohk.ethereum.utils.MiningConfig
 import org.scalamock.scalatest.MockFactory

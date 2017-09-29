@@ -15,7 +15,6 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.utils.Config.DbConfig
 import org.json4s.{CustomSerializer, DefaultFormats, Formats, JString, JValue}
 import org.spongycastle.util.encoders.Hex
 
@@ -24,8 +23,7 @@ import scala.util.{Failure, Success, Try}
 
 class GenesisDataLoader(
     blockchain: Blockchain,
-    blockchainConfig: BlockchainConfig,
-    dbConfig: DbConfig)
+    blockchainConfig: BlockchainConfig)
   extends Logger{
 
   private val bloomLength = 512

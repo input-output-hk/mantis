@@ -2,9 +2,8 @@ package io.iohk.ethereum.db.dataSource
 
 import java.io.File
 
-import io.iohk.ethereum.utils.Config
 import org.iq80.leveldb.{DB, Options, WriteOptions}
-import org.iq80.leveldb.impl.{Iq80DBFactory, WriteBatchImpl}
+import org.iq80.leveldb.impl.Iq80DBFactory
 
 
 class LevelDBDataSource(

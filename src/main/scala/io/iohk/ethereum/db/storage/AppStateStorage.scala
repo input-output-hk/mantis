@@ -2,7 +2,6 @@ package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.AppStateStorage._
-import io.iohk.ethereum.db.storage.pruning.PruneResult
 import io.iohk.ethereum.db.storage.pruning.PruningMode.PruneFn
 
 /**

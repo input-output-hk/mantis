@@ -1,9 +1,8 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.{Fixtures, crypto}
+import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.ArchiveNodeStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import org.scalatest.{FlatSpec, Matchers}
