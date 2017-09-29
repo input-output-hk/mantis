@@ -4,7 +4,6 @@ import java.io.{ByteArrayInputStream, IOException}
 import java.math.BigInteger
 import java.security.SecureRandom
 
-import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.crypto.digests.{SHA1Digest, SHA256Digest}
 import org.spongycastle.crypto.engines.AESEngine
 import org.spongycastle.crypto.generators.ECKeyPairGenerator

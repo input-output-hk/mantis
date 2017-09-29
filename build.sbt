@@ -71,7 +71,10 @@ scalacOptions := Seq(
   "-unchecked",
   "-deprecation",
   "-feature",
-  "-Xfatal-warnings"
+  "-Xfatal-warnings",
+  "-Xlint:unsound-match",
+  "-Ywarn-inaccessible",
+  "-Ywarn-unused-import"
 )
 
 parallelExecution in Test := false

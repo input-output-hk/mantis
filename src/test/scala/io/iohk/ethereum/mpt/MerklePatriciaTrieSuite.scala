@@ -5,7 +5,6 @@ import java.security.MessageDigest
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable

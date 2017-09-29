@@ -4,9 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.BlockHeadersStorage.BlockHeaderHash
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
-import io.iohk.ethereum.utils.Config
 
 /**
   * This class is used to store the BlockHeader, by using:

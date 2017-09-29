@@ -1,7 +1,7 @@
 package io.iohk.ethereum.ets.vm
 
 import io.iohk.ethereum.domain.TxLogEntry
-import io.iohk.ethereum.ets.common.{ScenarioLoader, TestOptions}
+import io.iohk.ethereum.ets.common.TestOptions
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.vm.MockWorldState._
 import io.iohk.ethereum.vm._

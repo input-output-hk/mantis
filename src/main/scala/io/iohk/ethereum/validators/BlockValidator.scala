@@ -8,8 +8,6 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.ByteUtils.or
 import io.iohk.ethereum.validators.BlockValidator.BlockError
 
-import scala.language.reflectiveCalls
-
 trait BlockValidator {
 
   def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody): Either[BlockError, Block]
