@@ -3,7 +3,7 @@ package io.iohk.ethereum.ledger
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.vm.EvmConfig
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
