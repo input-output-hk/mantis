@@ -891,10 +891,8 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       !state.world.accountExists(to) && this == CALL
 
     val c_new: BigInt =
-      if (state.config.noEmptyAccounts)
-        if (postEip161CostCondition) state.config.feeSchedule.G_newaccount else 0
-      else
-        if (preEip161CostCondition) state.config.feeSchedule.G_newaccount else 0
+      if (state.config.noEmptyAccounts && postEip161CostCondition || !state.config.noEmptyAccounts && preEip161CostCondition)
+        state.config.feeSchedule.G_newaccount else 0
 
     val c_xfer: BigInt = if (endowment.isZero) 0 else state.config.feeSchedule.G_callvalue
     state.config.feeSchedule.G_call + c_xfer + c_new
@@ -957,10 +955,7 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
     def preEip161CostCondition: Boolean =
       state.config.chargeSelfDestructForNewAccount && !state.world.accountExists(refundAddress)
 
-
-    if (state.config.noEmptyAccounts)
-      if (postEip161CostCondition) state.config.feeSchedule.G_newaccount else 0
-    else
-      if (preEip161CostCondition) state.config.feeSchedule.G_newaccount else 0
+    if (state.config.noEmptyAccounts && postEip161CostCondition || !state.config.noEmptyAccounts && preEip161CostCondition)
+      state.config.feeSchedule.G_newaccount else 0
   }
 }

@@ -76,6 +76,7 @@ object Generators extends ObjectGenerators {
     mixHash = ByteString(Hex.decode("6bc729364c9b682cfa923ba9480367ebdfa2a9bca2a652fe975e8d5958f696dd")),
     nonce = ByteString(Hex.decode("797a8f3a494f937b")))
 
+  // scalastyle:off
   def getProgramStateGen(
     stackGen: Gen[Stack] = getStackGen(),
     memGen: Gen[Memory] = getMemoryGen(),
@@ -84,7 +85,8 @@ object Generators extends ObjectGenerators {
     codeGen: Gen[ByteString] = getByteStringGen(0, 0),
     inputDataGen: Gen[ByteString] = getByteStringGen(0, 0),
     valueGen: Gen[UInt256] = getUInt256Gen(),
-    blockNumberGen: Gen[UInt256] = getUInt256Gen(0, 300)
+    blockNumberGen: Gen[UInt256] = getUInt256Gen(0, 300),
+    evmConfig: EvmConfig = EvmConfig.PostEIP160ConfigBuilder(None)
   ): Gen[PS] =
     for {
       stack <- stackGen
@@ -107,7 +109,7 @@ object Generators extends ObjectGenerators {
         .saveStorage(ownerAddr, storage)
         .saveAccount(ownerAddr, Account.empty().increaseBalance(value))
 
-      context: PC = ProgramContext(env, ownerAddr, gas, world, EvmConfig.PostEIP161ConfigBuilder(None))
+      context: PC = ProgramContext(env, ownerAddr, gas, world, evmConfig)
     } yield ProgramState(context).withStack(stack).withMemory(memory)
 
 }
