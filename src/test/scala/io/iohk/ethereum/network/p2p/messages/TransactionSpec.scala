@@ -2,7 +2,6 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.BlockchainConfig

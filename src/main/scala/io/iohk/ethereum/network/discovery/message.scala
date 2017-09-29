@@ -5,8 +5,6 @@ import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPEncoder, RLPList}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 
-import scala.util.Try
-
 sealed trait Message {
   def packetType: Byte
 }

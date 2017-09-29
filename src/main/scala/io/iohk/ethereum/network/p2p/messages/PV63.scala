@@ -2,15 +2,13 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Account, Address, Receipt, TxLogEntry}
-import io.iohk.ethereum.mpt.HexPrefix.{decode => hpDecode, encode => hpEncode}
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MerklePatriciaTrie, MptNode}
+import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
+import io.iohk.ethereum.rlp._
 import org.spongycastle.util.encoders.Hex
 
-import scala.language.implicitConversions
 
 
 object PV63 {

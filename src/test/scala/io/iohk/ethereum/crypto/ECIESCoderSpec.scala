@@ -1,7 +1,6 @@
 package io.iohk.ethereum.crypto
 
 import java.math.BigInteger
-import java.security.SecureRandom
 
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import org.scalatest.{FlatSpec, Matchers}

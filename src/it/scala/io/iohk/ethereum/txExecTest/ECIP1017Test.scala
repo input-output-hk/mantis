@@ -1,6 +1,5 @@
 package io.iohk.ethereum.txExecTest
 
-import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockchainImpl, Receipt, UInt256}
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
