@@ -2,7 +2,6 @@ package io.iohk.ethereum.utils
 
 import java.math.BigInteger
 import java.nio.ByteBuffer
-import java.security.SecureRandom
 
 import akka.util.ByteString
 

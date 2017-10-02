@@ -5,12 +5,11 @@ import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.dataSource.{LevelDBDataSource, LevelDbConfig}
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
-import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
+import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ValidatorsBuilder}
 import io.iohk.ethereum.snappy.Config.{DualDB, SingleDB}
 import io.iohk.ethereum.snappy.Prerequisites._
-import io.iohk.ethereum.utils.Config.DbConfig
 import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.vm.VM
 
@@ -64,10 +63,7 @@ class Prerequisites(config: Config) {
   targetBlockchain.foreach { blockchain =>
     val genesisLoader = new GenesisDataLoader(
       blockchain,
-      components.blockchainConfig,
-      new DbConfig {
-        val batchSize: Int = 1000
-      }
+      components.blockchainConfig
     )
 
     genesisLoader.loadGenesisData()

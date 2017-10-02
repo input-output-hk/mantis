@@ -2,15 +2,14 @@ package io.iohk.ethereum.ets.blockchain
 
 import io.iohk.ethereum.ets.common.TestOptions
 import io.iohk.ethereum.ledger.BlockExecutionError
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.utils.Logger
 import org.scalatest._
 
 
 class BlockchainSuite extends FreeSpec with Matchers with Logger {
 
-  val unsupportedNetworks = Set("Byzantium","Constantinople", "EIP158", "EIP158ToByzantiumAt5")
-  val supportedNetworks = Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5", "HomesteadToDaoAt5")
+  val unsupportedNetworks = Set("Byzantium","Constantinople", "EIP158ToByzantiumAt5")
+  val supportedNetworks = Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5", "HomesteadToDaoAt5", "EIP158")
 
   //Map of ignored tests, empty set of ignored names means cancellation of whole group
   val ignoredTests: Map[String, Set[String]] = Map(
@@ -28,9 +27,15 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
     "bcTotalDifficultyTest/uncleBlockAtBlock3afterBlock4" -> Set.empty,
     "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain"  -> Set.empty,
     "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain2"  -> Set.empty,
-    "TransitionTests/bcFrontierToHomestead/HomesteadOverrideFrontier" -> Set.empty
+    "TransitionTests/bcFrontierToHomestead/HomesteadOverrideFrontier" -> Set.empty,
+    // bcHomesteadToDao test are temporarily disabled until the update of Blockchain test suite, because
+    // they are failing on older version and success on fresh on. Blockchain test suite should be updated
+    // after introduction of EIP684.
+    "TransitionTests/bcHomesteadToDao/DaoTransactions" -> Set.empty,
+    "TransitionTests/bcHomesteadToDao/DaoTransactions_EmptyTransactionAndForkBlocksAhead" -> Set.empty,
+    "TransitionTests/bcHomesteadToDao/DaoTransactions_UncleExtradata" -> Set.empty,
+    "TransitionTests/bcHomesteadToDao/DaoTransactions_XBlockm1" -> Set.empty
   )
-
   override def run(testName: Option[String], args: Args): Status = {
     val options = TestOptions(args.configMap)
     val scenarios = BlockchainScenarioLoader.load("ets/BlockchainTests/", options)

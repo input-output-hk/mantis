@@ -342,6 +342,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
       //unused
       override val maxCodeSize: Option[BigInt] = None
+      override val eip161BlockNumber: BigInt = 0
       override val frontierBlockNumber: BigInt = 0
       override val homesteadBlockNumber: BigInt = 0
       override val eip150BlockNumber: BigInt = 0

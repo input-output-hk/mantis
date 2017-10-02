@@ -1,7 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{Actor, ActorLogging, Cancellable, Scheduler}
 import io.iohk.ethereum.network.PeerId
 

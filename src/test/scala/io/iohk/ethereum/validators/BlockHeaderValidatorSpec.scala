@@ -269,6 +269,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
       override val maxCodeSize: Option[BigInt] = None
       override val eip155BlockNumber: BigInt = Long.MaxValue
       override val eip160BlockNumber: BigInt = Long.MaxValue
+      override val eip161BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
       override val eip106BlockNumber: BigInt = 0
       override val chainId: Byte = 0x3d.toByte

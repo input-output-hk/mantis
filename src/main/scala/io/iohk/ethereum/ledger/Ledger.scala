@@ -74,7 +74,12 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     signedTransactionValidator: SignedTransactionValidator):
   Either[BlockExecutionError, BlockResult] = {
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
-    val initialWorld = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, parentStateRoot)
+    val initialWorld =
+      blockchain.getWorldStateProxy(
+        block.header.number,
+        blockchainConfig.accountStartNonce,
+        parentStateRoot,
+        EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts)
 
     val inputWorld = blockchainConfig.daoForkConfig match {
       case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(block.header.number) => drainDaoForkAccounts(initialWorld, daoForkConfig)
@@ -199,10 +204,14 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
 
     val refundGasFn = pay(stx.senderAddress, (totalGasToRefund * gasPrice).toUInt256) _
     val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256) _
+
+    val worldAfterPayments = (refundGasFn andThen payMinerForGasFn)(resultWithErrorHandling.world)
+
     val deleteAccountsFn = deleteAccounts(resultWithErrorHandling.addressesToDelete) _
+    val deleteTouchedAccountsFn = deleteEmptyTouchedAccounts _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
 
-    val world2 = (refundGasFn andThen payMinerForGasFn andThen deleteAccountsFn andThen persistStateFn)(resultWithErrorHandling.world)
+    val world2 = (deleteAccountsFn andThen deleteTouchedAccountsFn andThen persistStateFn)(worldAfterPayments)
 
     log.debug(
       s"""Transaction ${stx.hashAsHexString} execution end. Summary:
@@ -210,7 +219,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
          | - Total Gas to Refund: $totalGasToRefund
          | - Execution gas paid to miner: $executionGasToPayToMiner""".stripMargin)
 
-    TxResult(world2, gasLimit - totalGasToRefund, resultWithErrorHandling.logs, result.returnData)
+    TxResult(world2, executionGasToPayToMiner, resultWithErrorHandling.logs, result.returnData)
   }
 
   private def validateBlockBeforeExecution(block: Block, validators: Validators): Either[BlockExecutionError, Unit] = {
@@ -305,7 +314,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
   private def updateSenderAccountBeforeExecution(stx: SignedTransaction, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     val senderAddress = stx.senderAddress
     val account = worldStateProxy.getGuaranteedAccount(senderAddress)
-    worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce)
+    worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce())
   }
 
   private def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy,
@@ -363,9 +372,13 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     }
   }
 
-  private def pay(address: Address, value: UInt256)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    val account = world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
-    world.saveAccount(address, account)
+  private[ledger] def pay(address: Address, value: UInt256)(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    if (world.isZeroValueTransferToNonExistentAccount(address, value)) {
+      world
+    } else {
+      val account = world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
+      world.saveAccount(address, account).touchAccounts(address)
+    }
   }
 
   /**
@@ -402,10 +415,36 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
         }
       case None => worldState
     }
-
-
   }
 
+  /**
+    * EIP161 - State trie clearing
+    * Delete all accounts that have been touched (involved in any potentially state-changing operation) during transaction execution.
+    *
+    * All potentially state-changing operation are:
+    * Account is the target or refund of a SUICIDE operation for zero or more value;
+    * Account is the source or destination of a CALL operation or message-call transaction transferring zero or more value;
+    * Account is the source or newly-creation of a CREATE operation or contract-creation transaction endowing zero or more value;
+    * as the block author ("miner") it is recipient of block-rewards or transaction-fees of zero or more.
+    *
+    * Deletion of touched account should be executed immediately following the execution of the suicide list
+    *
+    * @param world world after execution of all potentially state-changing operations
+    * @return a worldState equal worldStateProxy except that the accounts touched during execution are deleted and touched
+    *         Set is cleared
+    */
+  private[ledger] def deleteEmptyTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    def deleteEmptyAccount(world: InMemoryWorldStateProxy, address: Address) = {
+      if (world.getAccount(address).exists(_.isEmpty))
+        world.deleteAccount(address)
+      else
+        world
+    }
+
+    world.touchedAccounts
+      .foldLeft(world)(deleteEmptyAccount)
+      .clearTouchedAccounts
+  }
 }
 
 object Ledger {

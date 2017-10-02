@@ -68,10 +68,10 @@ class FastSync(
   def startFromScratch(): Unit = {
     val targetBlockSelector = context.actorOf(FastSyncTargetBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "target-block-selector")
     targetBlockSelector ! FastSyncTargetBlockSelector.ChooseTargetBlock
-    context become waitingForTargetBlock(targetBlockSelector)
+    context become waitingForTargetBlock
   }
 
-  def waitingForTargetBlock(targetBlockChoose: ActorRef): Receive = handleCommonMessages orElse {
+  def waitingForTargetBlock: Receive = handleCommonMessages orElse {
     case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
       if (targetBlockHeader.number < 1) {
         log.info("Unable to start block synchronization in fast mode: target block is less than 1")

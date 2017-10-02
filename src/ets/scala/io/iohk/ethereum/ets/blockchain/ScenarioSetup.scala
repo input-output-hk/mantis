@@ -5,7 +5,6 @@ import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.domain.{Account, Address, Block, UInt256}
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger.{BlockExecutionError, InMemoryWorldStateProxy, LedgerImpl}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ValidatorsBuilder}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
@@ -69,6 +68,7 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
     case "Homestead"  => new HomesteadConfig
     case "FrontierToHomesteadAt5" => new FrontierToHomesteadAt5
     case "HomesteadToEIP150At5" => new HomesteadToEIP150At5
+    case "EIP158" => new Eip158Config
     case "HomesteadToDaoAt5" => new HomesteadToDaoAt5
 
     // Some default config, test will fail or be canceled

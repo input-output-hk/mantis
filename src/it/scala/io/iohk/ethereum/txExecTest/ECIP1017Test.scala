@@ -1,6 +1,5 @@
 package io.iohk.ethereum.txExecTest
 
-import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockchainImpl, Receipt, UInt256}
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
@@ -30,6 +29,7 @@ class ECIP1017Test extends FlatSpec with Matchers {
     override val difficultyBombPauseBlockNumber: BigInt = Long.MaxValue
     override val difficultyBombContinueBlockNumber: BigInt = Long.MaxValue
     override val accountStartNonce: UInt256 = UInt256.Zero
+    override val eip161BlockNumber: BigInt = Long.MaxValue
   }
 
   val noErrors = a[Right[_, Seq[Receipt]]]

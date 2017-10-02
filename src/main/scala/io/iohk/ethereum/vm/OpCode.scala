@@ -682,6 +682,7 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
 
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
       val (newAddress, world1) = state.world.createAddressWithOpCode(state.env.ownerAddr)
+
       val worldAfterInitialisation = world1.initialiseAccount(state.env.ownerAddr, newAddress, endowment)
 
       val newEnv = state.env.copy(
@@ -752,7 +753,7 @@ case object CREATE extends CreateOp
 
 abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, delta, alpha, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val (params @ Seq(gas, to, callValue, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
+    val (params @ Seq(_, to, callValue, inOffset, inSize, outOffset, outSize), stack1) = getParams(state)
 
     val (inputData, mem1) = state.memory.load(inOffset, inSize)
     val endowment = if (this == DELEGATECALL) UInt256.Zero else callValue
@@ -802,9 +803,12 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       val gasAdjustment: BigInt = if (validCall) 0 else -startGas
       val mem2 = mem1.expand(outOffset, outSize)
 
+      val world1 = if (validCall) state.world.combineTouchedAccounts(result.world) else state.world
+
       state
         .withStack(stack2)
         .withMemory(mem2)
+        .withWorld(world1)
         .spendGas(gasAdjustment)
         .step()
 
@@ -877,7 +881,19 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
   }
 
   private def gasExtra[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], endowment: UInt256, to: Address): BigInt = {
-    val c_new: BigInt = if (!state.world.accountExists(to) && this == CALL) state.config.feeSchedule.G_newaccount else 0
+
+    val isValueTransfer = endowment > 0
+
+    def postEip161CostCondition: Boolean =
+      state.world.isAccountDead(to) && this == CALL && isValueTransfer
+
+    def preEip161CostCondition: Boolean =
+      !state.world.accountExists(to) && this == CALL
+
+    val c_new: BigInt =
+      if (state.config.noEmptyAccounts && postEip161CostCondition || !state.config.noEmptyAccounts && preEip161CostCondition)
+        state.config.feeSchedule.G_newaccount else 0
+
     val c_xfer: BigInt = if (endowment.isZero) 0 else state.config.feeSchedule.G_callvalue
     state.config.feeSchedule.G_call + c_xfer + c_new
   }
@@ -926,13 +942,20 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
   }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+    val isValueTransfer = state.ownBalance > 0
+
     val (refundAddr, _) = state.stack.pop
     val refundAddress = Address(refundAddr)
 
-    if (state.config.chargeSelfDestructForNewAccount && !state.world.accountExists(refundAddress))
-      state.config.feeSchedule.G_newaccount
-    else
-      0
+    def postEip161CostCondition: Boolean =
+        state.config.chargeSelfDestructForNewAccount &&
+        isValueTransfer &&
+        state.world.isAccountDead(refundAddress)
 
+    def preEip161CostCondition: Boolean =
+      state.config.chargeSelfDestructForNewAccount && !state.world.accountExists(refundAddress)
+
+    if (state.config.noEmptyAccounts && postEip161CostCondition || !state.config.noEmptyAccounts && preEip161CostCondition)
+      state.config.feeSchedule.G_newaccount else 0
   }
 }
