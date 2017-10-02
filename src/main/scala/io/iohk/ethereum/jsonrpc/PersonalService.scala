@@ -93,7 +93,13 @@ class PersonalService(
     keyStore.unlockAccount(request.address, request.passphrase)
       .left.map(handleError)
       .map { wallet =>
-        unlockedWallets.add(request.address, wallet, request.duration)
+        request.duration.fold(unlockedWallets.add(request.address, wallet))(duration =>
+          if (duration.isZero)
+            unlockedWallets.addForever(request.address, wallet)
+          else
+            unlockedWallets.add(request.address, wallet, duration)
+        )
+
         UnlockAccountResponse(true)
       }
   }

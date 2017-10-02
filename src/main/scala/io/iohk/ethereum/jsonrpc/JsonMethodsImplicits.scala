@@ -12,13 +12,13 @@ import io.iohk.ethereum.jsonrpc.JsonSerializers.{AddressJsonSerializer, OptionNo
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
+import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Formats}
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 trait JsonMethodsImplicits {
 

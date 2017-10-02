@@ -1,6 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.time.Duration
+import java.time.{Duration, Instant}
+
 import io.iohk.ethereum.domain.{Account, Address}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.time.{Millis, Span}
@@ -27,6 +28,12 @@ class ExpiringMapSpec extends FlatSpec with Matchers with Eventually {
     }
 
     expiringMap.get(address1) shouldBe None
+  }
+
+  it should "Put element in, for negative duration (element will be inaccessible and removed at first occasion)" in new TestSetup {
+    expiringMap.add(address1, account1, Duration.ofMillis(-50))
+
+    expiringMap.get(address1) shouldEqual None
   }
 
   it should "Put new element in with new holdTime, for correct amount of time and not retain it afterwards" in new TestSetup {
@@ -79,6 +86,24 @@ class ExpiringMapSpec extends FlatSpec with Matchers with Eventually {
     }
 
     expiringMap.get(address1) shouldBe None
+  }
+
+  it should "Put element in, until some time and not retain it afterwards" in new TestSetup {
+    expiringMap.addUntil(address1, account1, Instant.now.plus(holdTimeDur))
+
+    expiringMap.get(address1) shouldEqual Some(account1)
+
+    eventually {
+      expiringMap.get(address1) shouldBe None
+    }
+
+    expiringMap.get(address1) shouldBe None
+  }
+
+  it should "not overflow and throw exception when adding duration with max seconds" in new TestSetup {
+    expiringMap.add(address1, account1, Duration.ofSeconds(Long.MaxValue))
+
+    expiringMap.get(address1) shouldEqual Some(account1)
   }
 
   it should "It should remove existing element" in new TestSetup {

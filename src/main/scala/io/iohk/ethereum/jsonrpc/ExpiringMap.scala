@@ -5,6 +5,7 @@ import java.time.{Clock, Duration, Instant}
 import io.iohk.ethereum.jsonrpc.ExpiringMap.ValueWithDuration
 
 import scala.collection.mutable
+import scala.util.Try
 
 object ExpiringMap {
 
@@ -22,17 +23,20 @@ class ExpiringMap[K, V] private (val underLaying: mutable.Map[K, ValueWithDurati
                                  val clock: Clock,
                                  val defaultRetentionTime: Duration) {
 
-  def add(k: K, v: V, duration: Duration): ExpiringMap[K, V] = {
-    underLaying += k -> ValueWithDuration(v, Instant.now(clock).plus(duration))
+  def addUntil(k: K, v: V, until: Instant): ExpiringMap[K, V] = {
+    underLaying += k -> ValueWithDuration(v, until)
     this
   }
 
+  def add(k: K, v: V, duration: Duration): ExpiringMap[K, V] = {
+    addUntil(k, v, Try(Instant.now(clock).plus(duration)).getOrElse(Instant.MAX))
+  }
+
+  def addForever(k: K, v: V): ExpiringMap[K, V] =
+    addUntil(k, v, Instant.MAX)
+
   def add(k: K, v: V): ExpiringMap[K, V] =
     add(k, v, defaultRetentionTime)
-
-
-  def add(k: K, v: V, duration: Option[Duration]): ExpiringMap[K, V] =
-    duration.fold(add(k, v))(add(k, v, _))
 
   def remove(k: K): ExpiringMap[K, V] = {
     underLaying -= k
