@@ -26,7 +26,7 @@ class ServerActor(nodeStatusHolder: Agent[NodeStatus], peerManager: ActorRef) ex
       log.info("Listening on {}", localAddress)
       log.info("Node address: enode://{}@{}:{}",
         Hex.toHexString(nodeStatus.nodeId),
-        localAddress.getAddress.getHostAddress,
+        getHostName(localAddress.getAddress),
         localAddress.getPort)
       nodeStatusHolder.send(_.copy(serverStatus = ServerStatus.Listening(localAddress)))
       context become listening

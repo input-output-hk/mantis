@@ -57,15 +57,15 @@ package object network {
 
   /**
     * Given an address, returns the corresponding host name for the URI.
-    * All IPv6 addresses except 'ip6-localhost' are enclosed in square brackets.
+    * All IPv6 addresses are enclosed in square brackets.
     *
     * @param address, whose host name will be obtained
     * @return host name associated with the address
     */
   def getHostName(address: InetAddress): String = {
-    val hostName = address.getHostName
+    val hostName = address.getHostAddress
     address match {
-      case _: Inet6Address if hostName != "ip6-localhost" => s"[$hostName]"
+      case _: Inet6Address => s"[$hostName]"
       case _ => hostName
     }
   }
