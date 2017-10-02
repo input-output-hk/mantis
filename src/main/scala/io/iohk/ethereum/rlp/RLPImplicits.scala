@@ -4,8 +4,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.rlp.RLP._
 import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 
-import scala.language.implicitConversions
-
 
 object RLPImplicits {
 

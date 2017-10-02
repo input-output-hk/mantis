@@ -3,7 +3,6 @@ package io.iohk.ethereum.db.dataSource
 import java.io.File
 import java.nio.file.Files
 
-import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import org.scalatest.FlatSpec
 import org.scalatest.prop.PropertyChecks

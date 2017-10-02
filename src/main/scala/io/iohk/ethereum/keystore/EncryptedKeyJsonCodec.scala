@@ -5,7 +5,6 @@ import java.util.UUID
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.EncryptedKey._
-import org.json4s
 import org.json4s.JsonAST.{JObject, JString, JValue}
 import org.json4s.JsonDSL._
 import org.json4s.native.JsonMethods._
