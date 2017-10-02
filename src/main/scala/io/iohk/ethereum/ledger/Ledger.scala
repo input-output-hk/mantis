@@ -442,7 +442,7 @@ class LedgerImpl(vm: VM, blockchain: BlockchainImpl, blockchainConfig: Blockchai
     }
 
     world.touchedAccounts
-      .foldLeft(world){ case (actualWorld, address) => deleteEmptyAccount(actualWorld, address) }
+      .foldLeft(world)(deleteEmptyAccount)
       .clearTouchedAccounts
   }
 }
