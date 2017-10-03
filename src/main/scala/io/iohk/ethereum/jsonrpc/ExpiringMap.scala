@@ -1,6 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.time.{Clock, Duration, Instant}
+import java.time.temporal.ChronoUnit
+import java.time.Duration
 
 import io.iohk.ethereum.jsonrpc.ExpiringMap.ValueWithDuration
 
@@ -9,34 +10,35 @@ import scala.util.Try
 
 object ExpiringMap {
 
- case class ValueWithDuration[V](value: V, expiration: Instant)
+ case class ValueWithDuration[V](value: V, expiration: Duration)
 
-  def empty[K, V](defaultElementRetentionTime: Duration,
-                  clock: Clock = Clock.systemUTC()): ExpiringMap[K, V] =
-    new ExpiringMap(mutable.Map.empty, clock, defaultElementRetentionTime)
+  def empty[K, V](defaultElementRetentionTime: Duration): ExpiringMap[K, V] =
+    new ExpiringMap(mutable.Map.empty, defaultElementRetentionTime)
 }
 /**
   * Simple wrapper around mutable map which enriches each element with expiration time (specified by user or default)
-  * Map is passive which means it only check for expiration and remove expired element during get function
+  * Map is passive which means it only check for expiration and remove expired element during get function.
+  * Duration in all calls is relative to current System.nanoTime()
   */
+//TODO: Make class thread safe
 class ExpiringMap[K, V] private (val underLaying: mutable.Map[K, ValueWithDuration[V]],
-                                 val clock: Clock,
                                  val defaultRetentionTime: Duration) {
+  private val maxHoldDuration = ChronoUnit.CENTURIES.getDuration
 
-  def addUntil(k: K, v: V, until: Instant): ExpiringMap[K, V] = {
-    underLaying += k -> ValueWithDuration(v, until)
+  def addUntil(k: K, v: V, duration: Duration): ExpiringMap[K, V] = {
+    underLaying += k -> ValueWithDuration(v, Try(currentPlus(duration)).getOrElse(currentPlus(maxHoldDuration)))
     this
   }
 
   def add(k: K, v: V, duration: Duration): ExpiringMap[K, V] = {
-    addUntil(k, v, Try(Instant.now(clock).plus(duration)).getOrElse(Instant.MAX))
+    addUntil(k, v, duration)
   }
 
   def addForever(k: K, v: V): ExpiringMap[K, V] =
-    addUntil(k, v, Instant.MAX)
+    addUntil(k, v, maxHoldDuration)
 
   def add(k: K, v: V): ExpiringMap[K, V] =
-    add(k, v, defaultRetentionTime)
+    addUntil(k, v, defaultRetentionTime)
 
   def remove(k: K): ExpiringMap[K, V] = {
     underLaying -= k
@@ -55,6 +57,13 @@ class ExpiringMap[K, V] private (val underLaying: mutable.Map[K, ValueWithDurati
   }
 
   private def isNotExpired(value: ValueWithDuration[V]) =
-    Duration.between(value.expiration, Instant.now(clock)).isNegative
+    currentNanoDuration.minus(value.expiration).isNegative
+
+  private def currentPlus(duration: Duration) =
+    currentNanoDuration.plus(duration)
+
+  private def currentNanoDuration =
+    Duration.ofNanos(System.nanoTime())
+
 }
 

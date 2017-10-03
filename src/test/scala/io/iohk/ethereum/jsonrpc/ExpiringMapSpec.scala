@@ -1,6 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.time.{Duration, Instant}
+import java.time.Duration
 
 import io.iohk.ethereum.domain.{Account, Address}
 import org.scalatest.concurrent.Eventually
@@ -89,7 +89,7 @@ class ExpiringMapSpec extends FlatSpec with Matchers with Eventually {
   }
 
   it should "Put element in, until some time and not retain it afterwards" in new TestSetup {
-    expiringMap.addUntil(address1, account1, Instant.now.plus(holdTimeDur))
+    expiringMap.addUntil(address1, account1, holdTimeDur)
 
     expiringMap.get(address1) shouldEqual Some(account1)
 
