@@ -21,32 +21,32 @@ object ExpiringMap {
   * Duration in all calls is relative to current System.nanoTime()
   */
 //TODO: Make class thread safe
-class ExpiringMap[K, V] private (val underLaying: mutable.Map[K, ValueWithDuration[V]],
+class ExpiringMap[K, V] private (val underlying: mutable.Map[K, ValueWithDuration[V]],
                                  val defaultRetentionTime: Duration) {
   private val maxHoldDuration = ChronoUnit.CENTURIES.getDuration
 
-  def addUntil(k: K, v: V, duration: Duration): ExpiringMap[K, V] = {
-    underLaying += k -> ValueWithDuration(v, Try(currentPlus(duration)).getOrElse(currentPlus(maxHoldDuration)))
+  def addFor(k: K, v: V, duration: Duration): ExpiringMap[K, V] = {
+    underlying += k -> ValueWithDuration(v, Try(currentPlus(duration)).getOrElse(currentPlus(maxHoldDuration)))
     this
   }
 
   def add(k: K, v: V, duration: Duration): ExpiringMap[K, V] = {
-    addUntil(k, v, duration)
+    addFor(k, v, duration)
   }
 
   def addForever(k: K, v: V): ExpiringMap[K, V] =
-    addUntil(k, v, maxHoldDuration)
+    addFor(k, v, maxHoldDuration)
 
   def add(k: K, v: V): ExpiringMap[K, V] =
-    addUntil(k, v, defaultRetentionTime)
+    addFor(k, v, defaultRetentionTime)
 
   def remove(k: K): ExpiringMap[K, V] = {
-    underLaying -= k
+    underlying -= k
     this
   }
 
   def get(k: K): Option[V] = {
-    underLaying.get(k).flatMap(value =>
+    underlying.get(k).flatMap(value =>
       if (isNotExpired(value))
         Some(value.value)
       else {
@@ -57,12 +57,12 @@ class ExpiringMap[K, V] private (val underLaying: mutable.Map[K, ValueWithDurati
   }
 
   private def isNotExpired(value: ValueWithDuration[V]) =
-    currentNanoDuration.minus(value.expiration).isNegative
+    currentNanoDuration().minus(value.expiration).isNegative
 
   private def currentPlus(duration: Duration) =
-    currentNanoDuration.plus(duration)
+    currentNanoDuration().plus(duration)
 
-  private def currentNanoDuration =
+  private def currentNanoDuration() =
     Duration.ofNanos(System.nanoTime())
 
 }

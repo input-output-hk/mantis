@@ -89,7 +89,7 @@ class ExpiringMapSpec extends FlatSpec with Matchers with Eventually {
   }
 
   it should "Put element in, until some time and not retain it afterwards" in new TestSetup {
-    expiringMap.addUntil(address1, account1, holdTimeDur)
+    expiringMap.addFor(address1, account1, holdTimeDur)
 
     expiringMap.get(address1) shouldEqual Some(account1)
 
