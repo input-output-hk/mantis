@@ -3,7 +3,7 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
-import io.iohk.ethereum.vm.Generators
+import io.iohk.ethereum.vm.{EvmConfig, Generators}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -130,7 +130,6 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   }
 
   it should "be able to do transfers with the same origin and destination" in new TestSetup {
-
     val account = Account(0, 100)
     val toTransfer = account.balance - 20
     val finalWorldState = worldState
@@ -138,7 +137,107 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
       .transfer(address1, address1, UInt256(toTransfer))
 
     finalWorldState.getGuaranteedAccount(address1).balance shouldEqual account.balance
+  }
 
+  "InMemoryWorldStateProxy" should "not allow transfer to create empty accounts post EIP161" in new TestSetup {
+    val account = Account(0, 100)
+    val zeroTransfer = UInt256.Zero
+    val nonZeroTransfer = account.balance - 20
+
+    val worldStateAfterEmptyTransfer = postEIP161WorldState
+      .saveAccount(address1, account)
+      .transfer(address1, address2, zeroTransfer)
+
+    worldStateAfterEmptyTransfer.getGuaranteedAccount(address1).balance shouldEqual account.balance
+    worldStateAfterEmptyTransfer.getAccount(address2) shouldBe None
+
+    val finalWorldState = worldStateAfterEmptyTransfer.transfer(address1, address2, nonZeroTransfer)
+
+    finalWorldState.getGuaranteedAccount(address1).balance shouldEqual account.balance - nonZeroTransfer
+
+    val secondAccount = finalWorldState.getGuaranteedAccount(address2)
+    secondAccount.balance shouldEqual nonZeroTransfer
+    secondAccount.nonce shouldEqual UInt256.Zero
+  }
+
+  "InMemoryWorldStateProxy" should "should be able to initialise account with correct nonce" in new TestSetup {
+    val account = Account(0, 100)
+    val zeroTransfer = UInt256.Zero
+    val nonZeroTransfer = account.balance - 80
+
+    // POST EIP161
+    val worldStateAfterFirstTransfer = postEIP161WorldState
+      .saveAccount(address1, account)
+      .initialiseAccount(address1, address2, zeroTransfer)
+
+    worldStateAfterFirstTransfer.getGuaranteedAccount(address1).balance shouldEqual account.balance
+
+    val secondAccountPostEIP161 = worldStateAfterFirstTransfer.getAccount(address2)
+    secondAccountPostEIP161 shouldBe defined
+    secondAccountPostEIP161.get.nonce shouldEqual UInt256.One
+
+    //PRE EIP161
+    val worldStateAfterSecondTransfer = worldState
+      .saveAccount(address1, account)
+      .initialiseAccount(address1, address3, nonZeroTransfer)
+
+    val thirdAccountPreEIP161 = worldStateAfterSecondTransfer.getAccount(address3)
+    thirdAccountPreEIP161 shouldBe defined
+    thirdAccountPreEIP161.get.nonce shouldEqual UInt256.Zero
+    thirdAccountPreEIP161.get.balance shouldEqual nonZeroTransfer
+  }
+
+  "InMemoryWorldStateProxy" should "should correctly mark touched accounts post EIP161" in new TestSetup {
+    val account = Account(0, 100)
+    val zeroTransfer = UInt256.Zero
+    val nonZeroTransfer = account.balance - 80
+
+    val worldAfterSelfTransfer = postEIP161WorldState
+      .saveAccount(address1, account)
+      .transfer(address1, address1, nonZeroTransfer)
+
+    val worldStateAfterFirstTransfer = worldAfterSelfTransfer
+      .saveAccount(address1, account)
+      .initialiseAccount(address1, address2, zeroTransfer)
+
+    val worldStateAfterSecondTransfer = worldStateAfterFirstTransfer
+      .transfer(address1, address3, nonZeroTransfer)
+
+    worldStateAfterSecondTransfer.touchedAccounts should contain theSameElementsAs Set(address1, address2, address3)
+  }
+
+  "InMemoryWorldStateProxy" should "should update touched account based on oldWorld" in new TestSetup {
+    val account = Account(0, 100)
+    val zeroTransfer = UInt256.Zero
+    val nonZeroTransfer = account.balance - 80
+
+    val worldAfterSelfTransfer = postEIP161WorldState
+      .saveAccount(address1, account)
+      .transfer(address1, address1, nonZeroTransfer)
+
+    val worldStateAfterFirstTransfer = worldAfterSelfTransfer
+      .saveAccount(address1, account)
+      .initialiseAccount(address1, address2, zeroTransfer)
+
+    val worldStateAfterSecondTransfer = worldStateAfterFirstTransfer
+      .transfer(address1, address3, nonZeroTransfer)
+
+    val postEip161UpdatedWorld = postEIP161WorldState.combineTouchedAccounts(worldStateAfterSecondTransfer)
+
+    val preEip161UpdatedWorld = worldState.combineTouchedAccounts(worldStateAfterSecondTransfer)
+
+    postEip161UpdatedWorld.touchedAccounts should contain theSameElementsAs Set(address1, address2, address3)
+    preEip161UpdatedWorld.touchedAccounts.size shouldEqual 3
+  }
+
+  "InMemoryWorldStateProxy" should "should correctly determine if account is dead" in new TestSetup {
+    val emptyAccountWorld = worldState.newEmptyAccount(address1)
+
+    emptyAccountWorld.accountExists(address1) shouldBe true
+    emptyAccountWorld.isAccountDead(address1) shouldBe true
+
+    emptyAccountWorld.accountExists(address2) shouldBe false
+    emptyAccountWorld.isAccountDead(address2) shouldBe true
   }
 
   "InMemoryWorldStateProxy" should "initialise new account and handle address collision correctly" in new TestSetup {
@@ -187,13 +286,15 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
+    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(None)
 
     val worldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
+    val postEIP161WorldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip161Config.noEmptyAccounts)
 
     val address1 = Address(0x123456)
     val address2 = Address(0xabcdef)
+    val address3 = Address(0xfedcba)
   }
-
 }
 
 

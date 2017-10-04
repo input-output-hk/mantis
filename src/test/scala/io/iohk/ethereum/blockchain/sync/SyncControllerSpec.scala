@@ -115,7 +115,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val bestBlockHeaderNumber: BigInt = targetBlockHeader.number - 1
     storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState(targetBlockHeader)
       .copy(bestBlockHeaderNumber = bestBlockHeaderNumber,
-        mptNodesQueue = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
+        pendingMptNodes = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
 
     Thread.sleep(1.seconds.toMillis)
 
@@ -199,7 +199,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val bestBlockHeaderNumber: BigInt = targetBlockHeader.number - 1
     storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState(targetBlockHeader)
       .copy(bestBlockHeaderNumber = bestBlockHeaderNumber,
-        mptNodesQueue = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
+        pendingMptNodes = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
 
     Thread.sleep(1.seconds.toMillis)
 
@@ -267,7 +267,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val bestBlockHeaderNumber: BigInt = targetBlockHeader.number - 1
     storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState(targetBlockHeader)
       .copy(bestBlockHeaderNumber = bestBlockHeaderNumber,
-        mptNodesQueue = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
+        pendingMptNodes = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
 
     Thread.sleep(1.seconds.toMillis)
 
@@ -323,7 +323,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
     storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState(targetBlockHeader)
       .copy(bestBlockHeaderNumber = targetBlockHeader.number,
-        mptNodesQueue = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
+        pendingMptNodes = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
 
     syncController ! SyncController.Start
 
@@ -1050,7 +1050,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val peer1Status= Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
 
     //Save previous incomplete attempt to fast sync
-    val syncState = SyncState(targetBlock = Fixtures.Blocks.Block3125369.header, mptNodesQueue = Seq(StateMptNodeHash(ByteString("node_hash"))))
+    val syncState = SyncState(targetBlock = Fixtures.Blocks.Block3125369.header, pendingMptNodes = Seq(StateMptNodeHash(ByteString("node_hash"))))
     storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
 
     //Attempt to start regular sync

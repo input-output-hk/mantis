@@ -1,9 +1,11 @@
 package io.iohk.ethereum.vm
 
-import org.scalatest.FunSuiteLike
+import io.iohk.ethereum.vm.MockWorldState.PS
+import org.scalatest.{FunSuiteLike, Matchers}
 
 
 trait OpCodeTesting extends FunSuiteLike {
+  matchers:  Matchers =>
 
   val config: EvmConfig
 
@@ -34,6 +36,19 @@ trait OpCodeTesting extends FunSuiteLike {
         succeed
       else
         fail("Unregistered opcodes: " + untested.mkString(", "))
+    }
+  }
+
+  def verifyGas(expectedGas: BigInt, stateIn: PS, stateOut: PS, allowOOG: Boolean = true): Unit = {
+    if (stateOut.error.contains(OutOfGas) && allowOOG)
+      stateIn.gas should be < expectedGas
+    else if (stateOut.error.contains(OutOfGas) && !allowOOG)
+      fail(s"Unexpected $OutOfGas error")
+    else if (stateOut.error.isDefined && stateOut.error.collect{ case InvalidJump(dest) => dest }.isEmpty)
+    //Found error that is not an InvalidJump
+      fail(s"Unexpected ${stateOut.error.get} error")
+    else {
+      stateOut.gas shouldEqual (stateIn.gas - expectedGas)
     }
   }
 }
