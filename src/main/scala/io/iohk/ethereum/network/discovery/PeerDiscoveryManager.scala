@@ -68,7 +68,10 @@ class PeerDiscoveryManager(
         .take(discoveryConfig.nodesLimit - nodesInfo.size)
 
       toPing.foreach { n =>
-        sendPing(n.nodeId, new InetSocketAddress(ByteUtils.bytesToIp(n.endpoint.address), n.endpoint.udpPort))
+        val ipAddress = ByteUtils.bytesToIp(n.endpoint.address)
+        ipAddress.foreach { addr =>
+          sendPing(n.nodeId, new InetSocketAddress(addr, n.endpoint.udpPort))
+        }
       }
 
     case GetDiscoveredNodesInfo =>

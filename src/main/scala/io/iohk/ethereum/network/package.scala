@@ -1,6 +1,7 @@
 package io.iohk.ethereum
 
 import java.io.{File, PrintWriter}
+import java.net.{Inet6Address, InetAddress}
 import java.security.SecureRandom
 
 import io.iohk.ethereum.crypto._
@@ -51,6 +52,21 @@ package object network {
       } finally {
         reader.close()
       }
+    }
+  }
+
+  /**
+    * Given an address, returns the corresponding host name for the URI.
+    * All IPv6 addresses are enclosed in square brackets.
+    *
+    * @param address, whose host name will be obtained
+    * @return host name associated with the address
+    */
+  def getHostName(address: InetAddress): String = {
+    val hostName = address.getHostAddress
+    address match {
+      case _: Inet6Address => s"[$hostName]"
+      case _ => hostName
     }
   }
 
