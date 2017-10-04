@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import java.time.Duration
+
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Address
@@ -10,11 +12,11 @@ import io.iohk.ethereum.jsonrpc.JsonSerializers.{AddressJsonSerializer, OptionNo
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
+import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Formats}
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 
 import scala.util.Try
 
@@ -39,6 +41,9 @@ trait JsonMethodsImplicits {
 
   protected def extractAddress(input: String): Either[JsonRpcError, Address] =
     Try(Address(input)).toEither.left.map(_ => InvalidAddress)
+
+  protected def extractDuration(input: String): Either[JsonRpcError, Duration] =
+    Try(Duration.ofSeconds(input.toInt)).toEither.left.map(_ => InvalidParams("Duration should be an number of seconds, less than 2^31 - 1"))
 
   protected def extractAddress(input: JString): Either[JsonRpcError, Address] =
     extractAddress(input.s)
@@ -250,8 +255,12 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val personal_unlockAccount = new Codec[UnlockAccountRequest, UnlockAccountResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, UnlockAccountRequest] = {
       params match {
-        case Some(JArray(JString(addr) :: JString(passphrase) :: _)) =>
-          extractAddress(addr).map(UnlockAccountRequest(_, passphrase))
+        case Some(JArray(JString(addr) :: JString(passphrase) :: JString(duration) :: _)) => for {
+            addr <- extractAddress(addr)
+            duration <- extractDuration(duration)
+          } yield UnlockAccountRequest(addr, passphrase, Some(duration))
+        case Some(JArray(JString(addr) :: JString(passphrase) ::  _)) =>
+          extractAddress(addr).map(UnlockAccountRequest(_, passphrase, None))
         case _ =>
           Left(InvalidParams())
       }

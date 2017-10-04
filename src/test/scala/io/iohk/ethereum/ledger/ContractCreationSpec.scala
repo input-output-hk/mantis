@@ -74,6 +74,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
       override val daoForkConfig: Option[DaoForkConfig] = None
       override val customGenesisFileOpt: Option[String] = defaultBlockchainConfig.customGenesisFileOpt
       override val difficultyBombContinueBlockNumber: BigInt = defaultBlockchainConfig.difficultyBombContinueBlockNumber
+      override val eip161BlockNumber: BigInt = defaultBlockchainConfig.eip161BlockNumber
       override val eip160BlockNumber: BigInt = defaultBlockchainConfig.eip160BlockNumber
       override val eip150BlockNumber: BigInt = defaultBlockchainConfig.eip150BlockNumber
       override val eip155BlockNumber: BigInt = defaultBlockchainConfig.eip155BlockNumber

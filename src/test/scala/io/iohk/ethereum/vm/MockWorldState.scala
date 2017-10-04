@@ -14,7 +14,9 @@ case class MockWorldState(
   accounts: Map[Address, Account] = Map(),
   codeRepo: Map[Address, ByteString] = Map(),
   storages: Map[Address, MockStorage] = Map(),
-  numberOfHashes: UInt256 = 0
+  numberOfHashes: UInt256 = 0,
+  touchedAccounts: Set[Address] = Set.empty,
+  noEmptyAccountsCond: Boolean = false
 ) extends WorldStateProxy[MockWorldState, MockStorage] {
 
   def getAccount(address: Address): Option[Account] =
@@ -55,10 +57,18 @@ case class MockWorldState(
 
   def getEmptyAccount: Account = Account.empty()
 
-  /**
-    * Check whether an account at given address is dead,
-    * according to the EIP-161 definition of 'dead' (inexistent or empty)
-    */
-  def isAccountDead(address: Address): Boolean =
-    getAccount(address).forall(_ == Account.empty())
+  override def touchAccounts(addresses: Address*): MockWorldState =
+    if (noEmptyAccounts)
+      copy(touchedAccounts = touchedAccounts ++ addresses.toSet)
+    else
+      this
+
+  def clearTouchedAccounts: MockWorldState =
+    copy(touchedAccounts = touchedAccounts.empty)
+
+  def noEmptyAccounts: Boolean = noEmptyAccountsCond
+
+  def combineTouchedAccounts(world: MockWorldState): MockWorldState = {
+    copy(touchedAccounts = touchedAccounts ++ world.touchedAccounts)
+  }
 }

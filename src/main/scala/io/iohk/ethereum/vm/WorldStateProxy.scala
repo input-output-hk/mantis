@@ -20,7 +20,10 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   protected def saveAccount(address: Address, account: Account): WS
   protected def deleteAccount(address: Address): WS
   protected def getEmptyAccount: Account
-
+  protected def touchAccounts(addresses: Address*): WS
+  protected def clearTouchedAccounts: WS
+  protected def noEmptyAccounts: Boolean
+  def combineTouchedAccounts(world: WS): WS
   /**
     * In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that
     * transfer value to another. There could be no input to our application that would cause this fail, so we shouldn't
@@ -47,10 +50,10 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     getAccount(address).map(a => UInt256(a.balance)).getOrElse(UInt256.Zero)
 
   def transfer(from: Address, to: Address, value: UInt256): WS = {
-    if(from == to) this
-    else {
-      guaranteedTransfer(from, to, value)
-    }
+    if (from == to ||  isZeroValueTransferToNonExistentAccount(to, value))
+      touchAccounts(from)
+    else
+      guaranteedTransfer(from, to, value).touchAccounts(from, to)
   }
 
   private def guaranteedTransfer(from: Address, to: Address, value: UInt256): WS = {
@@ -63,9 +66,13 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     * Method for creating new account and transferring value to it, that handles possible address collisions.
     */
   def initialiseAccount(creatorAddress: Address, newAddress: Address, value: UInt256): WS = {
+    val nonceOffset = if (noEmptyAccounts) 1 else 0
+
     val creatorAccount = getGuaranteedAccount(creatorAddress).increaseBalance(-value)
-    val newAccount = getAccount(newAddress).getOrElse(getEmptyAccount).increaseBalance(value).resetAccountPreservingBalance()
-    saveAccount(creatorAddress,creatorAccount).saveAccount(newAddress, newAccount)
+    val newAccount = getAccount(newAddress).getOrElse(getEmptyAccount)
+      .resetAccountPreservingBalance().increaseBalance(value)
+      .increaseNonce(nonceOffset)
+    saveAccount(creatorAddress,creatorAccount).saveAccount(newAddress, newAccount).touchAccounts(creatorAddress, newAddress)
   }
 
   /**
@@ -75,7 +82,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     */
   def removeAllEther(address: Address): WS = {
     val debited = getGuaranteedAccount(address).copy(balance = 0)
-    saveAccount(address, debited)
+    saveAccount(address, debited).touchAccounts(address)
   }
 
   /**
@@ -98,7 +105,21 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     */
   def createAddressWithOpCode(creatorAddr: Address): (Address, WS) = {
     val creatorAccount = getGuaranteedAccount(creatorAddr)
-    val updatedWorld = saveAccount(creatorAddr, creatorAccount.increaseNonce)
+    val updatedWorld = saveAccount(creatorAddr, creatorAccount.increaseNonce())
     updatedWorld.createAddress(creatorAddr) -> updatedWorld
   }
+
+  /**
+    * Determines if account of provided address is dead.
+    * According to EIP161: An account is considered dead when either it is non-existent or it is empty
+    *
+    * @param address, the address of the checked account
+    * @return true if account is dead, false otherwise
+    */
+  def isAccountDead(address: Address): Boolean = {
+    getAccount(address).forall(_.isEmpty)
+  }
+
+  def isZeroValueTransferToNonExistentAccount(address: Address, value: UInt256): Boolean =
+    noEmptyAccounts && value == UInt256(0) && !accountExists(address)
 }
