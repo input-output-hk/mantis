@@ -158,7 +158,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
   it should "remove transaction on timeout" in new TestSetup {
     override val txPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 300
-      override val transactionTimeout: FiniteDuration = 1.seconds
+      override val transactionTimeout: FiniteDuration = 500.millis
 
       //unused
       override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.veryLongTimeout
@@ -173,7 +173,7 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
     val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
     pendingTxs.pendingTransactions.map(_.stx).toSet shouldBe Set(stx)
 
-    Thread.sleep(1100)
+    Thread.sleep(550)
 
     val pendingTxsAfter = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
     pendingTxsAfter.pendingTransactions.map(_.stx).toSet shouldBe Set.empty
