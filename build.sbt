@@ -30,7 +30,6 @@ val dep = {
     "org.iq80.leveldb" % "leveldb" % "0.12",
     "org.iq80.leveldb" % "leveldb-api" % "0.12",
     "org.scorexfoundation" %% "iodb" % "0.3.0",
-    "ch.qos.logback" % "logback-classic" % "1.1.9",
     "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
     "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % "test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "it,test",
