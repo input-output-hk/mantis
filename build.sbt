@@ -125,7 +125,8 @@ val root = project.in(file("."))
         excludedJars = Nil,
         warnOnUnverifiedFiles = false,
         warnOnUnusedVerifications = false
-      )
+      ),
+      dist in Universal := ((dist in Universal) dependsOn verify).value
     )
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
     .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
