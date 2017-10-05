@@ -3,6 +3,7 @@ package io.iohk.ethereum.network.discovery
 import java.net.{InetSocketAddress, _}
 
 import akka.util.ByteString
+import io.iohk.ethereum.network
 import io.iohk.ethereum.utils.Logger
 import org.spongycastle.util.encoders.Hex
 
@@ -10,7 +11,7 @@ import scala.util.{Failure, Success, Try}
 
 case class Node(id: ByteString, addr: InetSocketAddress) {
   def toUri: URI = {
-    val host = addr.getHostName
+    val host = network.getHostName(addr.getAddress)
     val port = addr.getPort
     new URI(s"enode://${Hex.toHexString(id.toArray[Byte])}@$host:$port")
   }
@@ -29,7 +30,7 @@ object NodeParser extends Logger {
 
   /**
     * Parse a node string, for it to be valid it should have the format:
-    * "enode://[128 char (64bytes) hex string]@[IPv4 address]:[port]"
+    * "enode://[128 char (64bytes) hex string]@[IPv4 address | '['IPv6 address']' ]:[port]"
     *
     * @param node to be parsed
     * @return the parsed node, or the error detected during parsing
@@ -53,10 +54,9 @@ object NodeParser extends Logger {
     val maybeAddress = maybeUri
       .flatMap(uri => Try(InetAddress.getByName(uri.getHost) -> uri.getPort))
       .flatMap{ case (host, port) => host match {
-        case _: Inet4Address => Success(host -> port)
+        case _: Inet4Address | _: Inet6Address => Success(host -> port)
         case _ =>
-          //FIXME: We currently don't support IPv6 nodes [EC-295]
-          Failure(new Exception(s"Invalid host $host, only IPv4 addresses are currently supported"))
+          Failure(new Exception(s"Invalid host $host, only IPv4 and IPv6 addresses are currently supported"))
       }}
       .flatMap{ case (host, port) => Try(new InetSocketAddress(host, port))}
 
