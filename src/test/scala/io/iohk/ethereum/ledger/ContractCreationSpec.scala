@@ -2,12 +2,14 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
+import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain.{Address, BlockchainImpl, TxLogEntry, UInt256}
 import io.iohk.ethereum.ledger.Ledger.PR
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.vm._
 import org.scalatest.{FlatSpec, Matchers}
@@ -41,7 +43,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     val resultBeforeSaving = createResult(emptyWorld, gasUsed = defaultGasLimit / 2,
       gasLimit = defaultGasLimit, gasRefund = 0, error = None, returnData = longContractCode)
 
-    val ledger = new LedgerImpl(new MockVM(), blockchain, blockchainConfig)
+    val ledger = new LedgerImpl(new MockVM(), blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
     val resultAfterSaving = ledger.saveNewContract(contractAddress, resultBeforeSaving, config)
     resultAfterSaving.error shouldBe Some(OutOfGas)
   }
@@ -51,7 +53,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     val resultBeforeSaving = createResult(emptyWorld, gasUsed = defaultGasLimit / 2,
       gasLimit = defaultGasLimit, gasRefund = 0, error = None, returnData = shortContractCode)
 
-    val ledger = new LedgerImpl(new MockVM(), blockchain, blockchainConfig)
+    val ledger = new LedgerImpl(new MockVM(), blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
     val resultAfterSaving = ledger.saveNewContract(contractAddress, resultBeforeSaving, config)
     resultAfterSaving.error shouldBe None
   }
@@ -84,6 +86,9 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
       override val difficultyBombPauseBlockNumber: BigInt = defaultBlockchainConfig.difficultyBombPauseBlockNumber
       override val homesteadBlockNumber: BigInt = defaultBlockchainConfig.homesteadBlockNumber
       override val accountStartNonce: UInt256 = defaultBlockchainConfig.accountStartNonce
+      val gasTieBreaker: Boolean = false
     }
+
+    val syncConfig = SyncConfig(Config.config)
   }
 }

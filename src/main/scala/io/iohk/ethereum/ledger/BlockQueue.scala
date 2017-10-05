@@ -3,6 +3,7 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.ledger.BlockQueue.{Leaf, QueuedBlock}
+import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.Logger
 import org.spongycastle.util.encoders.Hex
 
@@ -15,12 +16,11 @@ object BlockQueue {
   case class Leaf(hash: ByteString, totalDifficulty: BigInt)
 }
 
-class BlockQueue(blockchain: Blockchain) extends Logger {
+class BlockQueue(blockchain: Blockchain, syncConfig: SyncConfig) extends Logger {
 
   private val blocks = mutable.Map[ByteString, QueuedBlock]()
   private val parentToChildren = mutable.Map[ByteString, Set[ByteString]]()
 
-  // TODO: add pre-exec validation?
   /**
     * Enqueue a block for optional later inclusion into the blockchain
     *
@@ -28,12 +28,19 @@ class BlockQueue(blockchain: Blockchain) extends Logger {
     * @return if the newly enqueued block is part of a known branch (rooted somewhere on the main chain), return
     *         the leaf hash and its total difficulty, otherwise None
     */
-  def enqueueBlock(block: Block): Option[Leaf] = {
+  def enqueueBlock(block: Block, bestBlockNumber: BigInt = blockchain.getBestBlockNumber()): Option[Leaf] = {
     import block.header._
+
+    cleanUp(bestBlockNumber)
 
     blocks.get(hash) match {
 
       case Some(_) =>
+        log.debug(s"Block (${blockId(block)}) already in queue. ")
+        None
+
+      case None if isNumberOutOfRange(number, bestBlockNumber) =>
+        log.debug(s"Block (${blockId(block)} is outside accepted range. Current best block number is: $bestBlockNumber")
         None
 
       case None =>
@@ -42,24 +49,19 @@ class BlockQueue(blockchain: Blockchain) extends Logger {
         parentTd match {
 
           case Some(_) =>
-            // consistency check
-            // TODO: replace assert with logging and branch removal
-            assert(blocks.get(parentHash).isEmpty)
-
             addBlock(block, parentTd)
-
-            log.debug(s"Enqueued new block (${block.header.number}: ${Hex.toHexString(block.header.hash.toArray)}) with parent on the main chain")
+            log.debug(s"Enqueued new block (${blockId(block)}) with parent on the main chain")
             updateTotalDifficulties(hash)
 
           case None =>
             addBlock(block, parentTd)
             findClosestChainedAncestor(block) match {
               case Some(ancestor) =>
-                log.debug(s"Enqueued new block (${block.header.number}: ${Hex.toHexString(block.header.hash.toArray)}) to a rooted sidechain")
+                log.debug(s"Enqueued new block (${blockId(block)}) to a rooted sidechain")
                 updateTotalDifficulties(ancestor)
 
               case None =>
-                log.debug(s"Enqueued new block (${block.header.number}: ${Hex.toHexString(block.header.hash.toArray)}) with unknown relation to the main chain")
+                log.debug(s"Enqueued new block (${blockId(block)}) with unknown relation to the main chain")
                 None
             }
         }
@@ -78,7 +80,7 @@ class BlockQueue(blockchain: Blockchain) extends Logger {
   def removeBranch(descendant: ByteString): List[Block] = {
 
     def recur(hash: ByteString, childShared: Boolean): List[Block] = {
-      blocks.get(descendant) match {
+      blocks.get(hash) match {
         case Some(QueuedBlock(block, _)) =>
           import block.header.parentHash
 
@@ -99,11 +101,31 @@ class BlockQueue(blockchain: Blockchain) extends Logger {
     recur(descendant, false).reverse
   }
 
-  // TODO: remove a subtree when the ancestor fails to execute
-  def removeSubtree(ancestor: ByteString): Unit = ???
+  /**
+    * Removes a whole subtree begining with the ancestor. To be used when ancestor fails to execute
+    * @param ancestor hash of the ancestor block
+    */
+  def removeSubtree(ancestor: ByteString): Unit =
+    blocks.get(ancestor).foreach { case QueuedBlock(block, _) =>
+      val children = parentToChildren.getOrElse(ancestor, Set.empty)
+      children.foreach(removeSubtree)
+      blocks -= block.header.hash
+      parentToChildren -= block.header.hash
+    }
 
-  // TODO: remove blocks that are too old or too far ahead
-  def cleanUp(): Unit = ???
+  /**
+    * Removes stale blocks - too old or too young in relation the current best block number
+    * @param bestBlockNumber - best block number of the main chain
+    */
+  private def cleanUp(bestBlockNumber: BigInt): Unit = {
+    val staleHashes = blocks.values.collect {
+      case QueuedBlock(b, _) if isNumberOutOfRange(b.header.number, bestBlockNumber) =>
+        b.header.hash
+    }
+
+    blocks --= staleHashes
+    parentToChildren --= staleHashes
+  }
 
   /**
     * Updated total difficulties for a subtree.
@@ -146,8 +168,7 @@ class BlockQueue(blockchain: Blockchain) extends Logger {
         None
     }
 
-  // TODO: scaladoc
-  def addBlock(block: Block, parentTd: Option[BigInt]): Unit = {
+  private def addBlock(block: Block, parentTd: Option[BigInt]): Unit = {
     import block.header._
 
     val td = parentTd.map(_ + difficulty)
@@ -156,4 +177,11 @@ class BlockQueue(blockchain: Blockchain) extends Logger {
     val siblings = parentToChildren.getOrElse(parentHash, Set.empty)
     parentToChildren += parentHash -> (siblings + hash)
   }
+
+  private def isNumberOutOfRange(blockNumber: BigInt, bestBlockNumber: BigInt): Boolean =
+    blockNumber - bestBlockNumber > syncConfig.maxQueuedBlockNumberAhead ||
+    bestBlockNumber - blockNumber > syncConfig.maxQueuedBlockNumberBehind
+
+  private def blockId(block: Block): String =
+    s"${block.header.number}: ${Hex.toHexString(block.header.hash.toArray)}"
 }

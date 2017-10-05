@@ -125,6 +125,9 @@ object Config {
     val blockChainOnlyPeersPoolSize: Int
     val branchResolutionMaxRequests: Int
     val fastSyncThrottle: FiniteDuration
+
+    val maxQueuedBlockNumberAhead: Int
+    val maxQueuedBlockNumberBehind: Int
   }
 
   object SyncConfig {
@@ -155,6 +158,9 @@ object Config {
         val blockChainOnlyPeersPoolSize: Int = syncConfig.getInt("fastsync-block-chain-only-peers-pool")
         val branchResolutionMaxRequests: Int = syncConfig.getInt("branch-resolution-max-requests")
         val fastSyncThrottle: FiniteDuration = syncConfig.getDuration("fastsync-throttle").toMillis.millis
+
+        val maxQueuedBlockNumberBehind: Int = syncConfig.getInt("max-queued-block-number-behind")
+        val maxQueuedBlockNumberAhead: Int = syncConfig.getInt("max-queued-block-number-ahead")
       }
     }
   }
@@ -287,10 +293,10 @@ object DaoForkConfig {
 trait BlockchainConfig {
   val frontierBlockNumber: BigInt
   val homesteadBlockNumber: BigInt
+  val eip106BlockNumber: BigInt
   val eip150BlockNumber: BigInt
   val eip155BlockNumber: BigInt
   val eip160BlockNumber: BigInt
-  val eip106BlockNumber: BigInt
   val maxCodeSize: Option[BigInt]
   val difficultyBombPauseBlockNumber: BigInt
   val difficultyBombContinueBlockNumber: BigInt
@@ -304,6 +310,8 @@ trait BlockchainConfig {
   val chainId: Byte
 
   val monetaryPolicyConfig: MonetaryPolicyConfig
+
+  val gasTieBreaker: Boolean
 }
 
 
@@ -315,6 +323,7 @@ object BlockchainConfig {
     new BlockchainConfig {
       override val frontierBlockNumber: BigInt = BigInt(blockchainConfig.getString("frontier-block-number"))
       override val homesteadBlockNumber: BigInt = BigInt(blockchainConfig.getString("homestead-block-number"))
+      override val eip106BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip106-block-number"))
       override val eip150BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip150-block-number"))
       override val eip155BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip155-block-number"))
       override val eip160BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip160-block-number"))
@@ -336,7 +345,7 @@ object BlockchainConfig {
 
       override val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
 
-      override val eip106BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip106-block-number"))
+      val gasTieBreaker: Boolean = blockchainConfig.getBoolean("gas-tie-breaker")
     }
   }
 }

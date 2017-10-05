@@ -6,7 +6,7 @@ import io.iohk.ethereum.domain.{Account, Address, Block, UInt256}
 import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ValidatorsBuilder}
+import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, SyncConfigBuilder, ValidatorsBuilder}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.VM
@@ -17,13 +17,14 @@ import scala.util.{Failure, Success, Try}
 abstract class ScenarioSetup(scenario: BlockchainScenario)
   extends EphemBlockchainTestSetup
   with ValidatorsBuilder
+  with SyncConfigBuilder
   with BlockchainConfigBuilder {
 
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
 
   override lazy val blockchainConfig = buildBlockchainConfig(scenario.network)
 
-  val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, validators)
+  val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
 
   def loadGenesis(): Block = {
     val genesisBlock = scenario.genesisRLP match {
@@ -40,8 +41,6 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
     blockchain.save(genesisBlock)
     blockchain.save(genesisBlock.header.hash, Nil)
     blockchain.save(genesisBlock.header.hash, genesisBlock.header.difficulty)
-    blockchain.saveBlockNumber(0, genesisBlock.header.hash)
-    blockchain.saveBestBlockNumber(0)
     genesisBlock
   }
 
@@ -111,22 +110,4 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
       worldWithAccountAndCode.saveStorage(address, updatedStorage)
     }
   }
-
-
-  // TODO We need to take forks and branches into
-  // https://iohk.myjetbrains.com/youtrack/issue/EC-303
-  final def processBlocks(blocks: Seq[Block]): Seq[BlockImportFailure] =
-//  blocks.flatMap { bl =>
-//    import bl.header._
-//    println(s"About to import block:\n\thash:  ${Hex.toHexString(hash.toArray)}\n\tparent: ${Hex.toHexString(parentHash.toArray)}\n\tnumber: $number")
-//    ledger.importBlock(bl) match {
-//      case _: BlockImported => println("Success!\n"); None
-//      case failure: BlockImportFailure => println(s"$failure\n"); Some(failure)
-//    }
-//  }
-    blocks.map(ledger.importBlock).flatMap {
-      case _: BlockImported => None
-      case failure: BlockImportFailure => Some(failure)
-    }
-
 }

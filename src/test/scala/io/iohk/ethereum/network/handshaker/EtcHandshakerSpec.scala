@@ -165,6 +165,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
         override val forkBlockNumber: BigInt = 1920000
         override val refundContract: Option[Address] = None
       })
+      val gasTieBreaker: Boolean = false
     }
 
     val etcHandshakerConfigurationWithResolver = new MockEtcHandshakerConfiguration {

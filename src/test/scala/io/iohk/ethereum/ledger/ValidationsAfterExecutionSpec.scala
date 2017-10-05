@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.validators.BlockValidator
 import org.scalamock.scalatest.MockFactory
@@ -18,7 +19,9 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
     override val blockValidator = BlockValidator
   }
 
-  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, BlockchainConfig(Config.config), validators)
+  val syncConfig = SyncConfig(Config.config)
+
+  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, BlockchainConfig(Config.config), syncConfig, validators)
 
   val block: Block = Block(
     BlockHeader(

@@ -109,9 +109,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
 
     val etcPeerManagerProbe = TestProbe()
 
-    val blockBroadcast = new BlockBroadcast {
-      override val etcPeerManager: ActorRef = etcPeerManagerProbe.ref
-    }
+    val blockBroadcast = new BlockBroadcast(etcPeerManagerProbe.ref)
 
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
 

@@ -1,10 +1,10 @@
 package io.iohk.ethereum.txExecTest
 
-import akka.util.ByteString
 import io.iohk.ethereum.domain.{BlockchainImpl, Receipt, UInt256}
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
 import org.scalatest.{FlatSpec, Matchers}
@@ -30,7 +30,10 @@ class ECIP1017Test extends FlatSpec with Matchers {
     override val difficultyBombPauseBlockNumber: BigInt = Long.MaxValue
     override val difficultyBombContinueBlockNumber: BigInt = Long.MaxValue
     override val accountStartNonce: UInt256 = UInt256.Zero
+    val gasTieBreaker: Boolean = false
   }
+
+  val syncConfig = SyncConfig(Config.config)
 
   val noErrors = a[Right[_, Seq[Receipt]]]
 
@@ -56,9 +59,9 @@ class ECIP1017Test extends FlatSpec with Matchers {
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchain = BlockchainImpl(storages)
-      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig)
+      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
 
-      ledger.executeBlock(fixtures.blockByNumber(blockToExecute), validators) shouldBe noErrors
+      ledger.executeBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }
   }
 

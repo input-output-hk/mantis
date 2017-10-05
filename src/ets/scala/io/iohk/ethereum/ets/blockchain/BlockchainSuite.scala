@@ -1,11 +1,8 @@
 package io.iohk.ethereum.ets.blockchain
 
 import io.iohk.ethereum.ets.common.TestOptions
-import io.iohk.ethereum.ledger.BlockExecutionError
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.utils.Logger
 import org.scalatest._
-import org.spongycastle.util.encoders.Hex
 
 
 class BlockchainSuite extends FreeSpec with Matchers with Logger {
@@ -73,17 +70,7 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
 
     val invalidBlocks = getBlocks(getInvalid)
 
-    val importFailures = processBlocks(blocksToProcess)
-
-    val lastBlockHash = blockchain.getBlockByNumber(blockchain.getBestBlockNumber()).get.header.hash
-    //println(s"LastBlockHash: ${Hex.toHexString(lastBlockHash.toArray)}")
-
-    // If there is more block execution errors than expected invalidblocks, it means we rejected block which should
-    // pass validations, and the final state will not be correct
-//    if(importFailures.size > invalidBlocks.size)
-//      importFailures.foreach(err => log.info(err.toString))
-//
-//    importFailures.size shouldEqual invalidBlocks.size
+    blocksToProcess.foreach(ledger.importBlock)
 
     val lastBlock = getBestBlock()
 

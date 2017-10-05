@@ -53,11 +53,11 @@ class SnappyTest extends FreeSpec with Matchers with Logger {
   private def executeBlock(block: Block): Either[Any, Seq[Receipt]] =
     targetBlockchain match {
       case Some(_) =>
-        ledger.executeBlock(block, validators)
+        ledger.executeBlock(block)
 
       case None =>
         // this seems to discard failures, for better errors messages we might want to implement a different method (simulateBlock?)
-        val result = ledger.prepareBlock(block, validators)
+        val result = ledger.prepareBlock(block)
         Right(result.blockResult.receipts)
     }
 

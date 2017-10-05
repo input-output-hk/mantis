@@ -154,4 +154,6 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     def saveBlockNumber(number: BigInt, hash: NodeHash): Unit = ???
 
     def saveBestBlockNumber(number: BigInt): Unit = ???
+
+    def getBestBlock(): Block = ???
   }
