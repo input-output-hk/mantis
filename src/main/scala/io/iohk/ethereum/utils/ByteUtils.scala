@@ -66,7 +66,24 @@ object ByteUtils {
     ByteString(data)
   }
 
-  def bytesToIp(bytesIp: ByteString): String = {
+  val IPv4AddressLength = 4
+  val IPv6AddressLength = 16
+
+  /**
+    * Obtains the IP address from a 4-byte array (IPv4) or 16-byte array (IPv6)
+    *
+    * @param bytesIp
+    * @return the corresponding IP address
+    */
+  def bytesToIp(bytesIp: ByteString): Option[String] = {
+    bytesIp.length match {
+      case IPv4AddressLength => Some(bytesToIPv4(bytesIp))
+      case IPv6AddressLength => Some(bytesToIPv6(bytesIp))
+      case _ => None
+    }
+  }
+
+  private def bytesToIPv4(bytesIp: ByteString): String = {
     val sb = new StringBuilder()
     sb.append(bytesIp(0) & 0xFF)
     sb.append(".")
@@ -75,6 +92,18 @@ object ByteUtils {
     sb.append(bytesIp(2) & 0xFF)
     sb.append(".")
     sb.append(bytesIp(3) & 0xFF)
+    sb.toString()
+  }
+
+  private def bytesToIPv6(bytesIp: ByteString): String = {
+    val sb = new StringBuilder()
+    sb.append("[")
+    sb.append(bytesIp(0) & 0xFF)
+    (1 until IPv6AddressLength).foreach { i =>
+      sb.append(":")
+      sb.append(bytesIp(i) & 0xFF)
+    }
+    sb.append("]")
     sb.toString()
   }
 }
