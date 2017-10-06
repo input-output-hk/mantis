@@ -73,10 +73,10 @@ class PeerManagerActor(
       }
 
     case HandlePeerConnection(connection, remoteAddress) =>
-      handleConnection(connection, remoteAddress)
+      handleConnectionFrom(connection, remoteAddress)
 
     case msg: ConnectToPeer =>
-      connect(msg.uri)
+      connectTo(msg.uri)
 
     case PeerDiscoveryManager.DiscoveredNodesInfo(nodesInfo) =>
       val peerAddresses = managerState.outgoingPeers.values.map(_.remoteAddress).toSet
@@ -98,32 +98,37 @@ class PeerManagerActor(
       }
   }
 
-  def handleConnection(connection: ActorRef, remoteAddress: InetSocketAddress): Unit = {
-    if (!managerState.isConnectionHandled(remoteAddress)) {
-      if (managerState.pendingIncomingPeers.size < peerConfiguration.maxPendingPeers) {
-        val peer = createPeer(remoteAddress, incomingConnection = true)
+  def handleConnectionFrom(connection: ActorRef, remoteAddress: InetSocketAddress): Unit = {
+    val validatedConnection = for {
+      firstValidation  <- connectionAlreadyHandled(remoteAddress, IncomingConnectionAlreadyHandled(remoteAddress, connection))
+      secondValidation <- maxConnections(firstValidation,
+                                         MaxIncomingPendingConnections(connection),
+                                         managerState.pendingIncomingPeers.size < peerConfiguration.maxPendingPeers)
+    } yield secondValidation
+
+    validatedConnection match {
+      case Right(addr) =>
+        val peer = createPeer(addr, incomingConnection = true)
         peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
-      } else {
-        log.debug("Maximum number of pending incoming peers reached.")
-        connection ! PoisonPill
-      }
-    } else {
-      log.debug("Another connection with {} is already opened. Disconnecting.", remoteAddress)
-      connection ! PoisonPill
+
+      case Left(error) => handleConnectionErrors(error)
     }
   }
 
-  def connect(uri: URI): Unit = {
-    val addr = new InetSocketAddress(uri.getHost, uri.getPort)
-    if (!managerState.isConnectionHandled(addr)) {
-      if (managerState.outgoingPeers.size < peerConfiguration.maxPeers) {
+  def connectTo(uri: URI): Unit = {
+    val remoteAddress = new InetSocketAddress(uri.getHost, uri.getPort)
+
+    val validatedConnection = for {
+      firstValidation <- connectionAlreadyHandled(remoteAddress, OutgoingConnectionAlreadyHandled(uri))
+      secondValidation <- maxConnections(firstValidation, MaxOutgoingConnections, managerState.outgoingPeers.size < peerConfiguration.maxPeers)
+    } yield secondValidation
+
+    validatedConnection match {
+      case Right(addr) =>
         val peer = createPeer(addr, incomingConnection = false)
         peer.ref ! PeerActor.ConnectTo(uri)
-      } else {
-        log.debug("Maximum number of connected peers reached.")
-      }
-    } else {
-      log.debug("Another connection with {} is already opened", uri)
+
+      case Left(error) => handleConnectionErrors(error)
     }
   }
 
@@ -170,6 +175,36 @@ class PeerManagerActor(
     }.map(r => Peers.apply(r.collect { case Success(v) => v }.toMap))
   }
 
+
+  private def connectionAlreadyHandled(remoteAddress: InetSocketAddress, error: ConnectionError): Either[ConnectionError, InetSocketAddress] = {
+    if (!managerState.isConnectionHandled(remoteAddress))
+      Right(remoteAddress)
+    else
+      Left(error)
+  }
+
+  private def maxConnections(remoteAddress: InetSocketAddress, error: ConnectionError, stateCondition: Boolean): Either[ConnectionError, InetSocketAddress] = {
+    if (stateCondition)
+      Right(remoteAddress)
+    else
+      Left(error)
+  }
+
+  private def handleConnectionErrors(error: ConnectionError): Unit = error match {
+    case MaxIncomingPendingConnections(connection)  =>
+      log.debug("Maximum number of pending incoming peers reached.")
+      connection ! PoisonPill
+
+    case IncomingConnectionAlreadyHandled(remoteAddress, connection) =>
+      log.debug("Another connection with {} is already opened. Disconnecting.", remoteAddress)
+      connection ! PoisonPill
+
+    case MaxOutgoingConnections =>
+      log.debug("Maximum number of connected peers reached.")
+
+    case OutgoingConnectionAlreadyHandled(uri) =>
+      log.debug("Another connection with {} is already opened", uri)
+  }
 }
 
 object PeerManagerActor {
@@ -265,4 +300,9 @@ object PeerManagerActor {
 
   }
 
+  sealed abstract class ConnectionError
+  case class MaxIncomingPendingConnections(connection: ActorRef) extends ConnectionError
+  case class IncomingConnectionAlreadyHandled(address: InetSocketAddress, connection: ActorRef) extends ConnectionError
+  case object MaxOutgoingConnections extends ConnectionError
+  case class OutgoingConnectionAlreadyHandled(uri: URI) extends ConnectionError
 }
