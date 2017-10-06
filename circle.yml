@@ -26,7 +26,7 @@ test:
           sbt "ets:testOnly * -- -Dexg=vmPerf*";
         else
           sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*" &&
-          sbt "ets:testOnly *BlockchainSuite -- -Ding=bcForkStress*,bcMulti*,bcState*,bcTotalDiff*,bcValidBlock*,Transition*"
+          sbt "ets:testOnly *BlockchainSuite -- -Ding=bcForkStress*,bcMulti*,bcState*,bcTotalDiff*,bcValidBlock*,Transition*";
         fi
       fi
 
