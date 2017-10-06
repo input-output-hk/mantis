@@ -6,7 +6,6 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.{Mocks, ObjectGenerators}
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
-import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
@@ -15,7 +14,6 @@ import org.scalatest.{FlatSpec, Matchers}
 
 import scala.language.reflectiveCalls
 import scala.collection.mutable
-import scala.util.Random
 
 
 class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
