@@ -1,6 +1,7 @@
 dependencies:
   pre:
     - sudo add-apt-repository -y ppa:ethereum/ethereum; sudo apt-get update; sudo apt-get install -y solc
+    - git clone https://github.com/input-output-hk/sbt-verify.git; cd sbt-verify; sbt publishLocal
 
   # We want override the dependency steps inferred by CircleCI, which happens to be `sbt test:compile`. This is redundant
   # because tests need to be recompiled anyway, with coverage. Note that an empty list doesn't work here.
