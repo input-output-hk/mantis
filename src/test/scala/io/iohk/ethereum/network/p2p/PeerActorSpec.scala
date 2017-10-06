@@ -386,6 +386,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       override val disconnectPoisonPillTimeout: FiniteDuration = 5 seconds
       override val maxPeers = 10
       override val maxIncomingPeers = 5
+      override val maxPendingPeers = 5
       override val networkId: Int = 1
 
       override val updateNodesInitialDelay: FiniteDuration = 5.seconds
