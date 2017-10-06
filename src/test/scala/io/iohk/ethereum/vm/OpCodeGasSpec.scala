@@ -1,12 +1,10 @@
 package io.iohk.ethereum.vm
 
-import org.scalatest.{FunSuite, Matchers}
-import org.scalatest.prop.PropertyChecks
-import Generators._
-import io.iohk.ethereum.domain.{Account, Address}
-import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.domain.UInt256._
-import io.iohk.ethereum.vm.MockWorldState.PS
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.vm.Generators._
+import org.scalatest.prop.PropertyChecks
+import org.scalatest.{FunSuite, Matchers}
 
 class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
 
@@ -60,18 +58,6 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     JUMPDEST -> G_jumpdest
   ) ++ stackOpsFees ++ constOpsFees
 
-  def verifyGas(expectedGas: BigInt, stateIn: PS, stateOut: PS, allowOOG: Boolean = true): Unit = {
-    if (stateOut.error.contains(OutOfGas) && allowOOG)
-      stateIn.gas should be < expectedGas
-    else if (stateOut.error.contains(OutOfGas) && !allowOOG)
-      fail(s"Unexpected $OutOfGas error")
-    else if (stateOut.error.isDefined && stateOut.error.collect{ case InvalidJump(dest) => dest }.isEmpty)
-      //Found error that is not an InvalidJump
-      fail(s"Unexpected ${stateOut.error.get} error")
-    else {
-      stateOut.gas shouldEqual (stateIn.gas - expectedGas)
-    }
-  }
 
   test("wordsForBytes helper") {
     val testData = Table(("bytes", "words"),

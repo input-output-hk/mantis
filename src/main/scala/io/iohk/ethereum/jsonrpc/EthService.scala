@@ -626,7 +626,7 @@ class EthService(
   def newBlockFilter(req: NewBlockFilterRequest): ServiceResponse[NewFilterResponse] = {
     implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
-    (filterManager ? FilterManager.NewBlockFilter()).mapTo[FilterManager.NewFilterResponse].map { resp =>
+    (filterManager ? FilterManager.NewBlockFilter).mapTo[FilterManager.NewFilterResponse].map { resp =>
       Right(NewFilterResponse(resp.id))
     }
   }
@@ -634,7 +634,7 @@ class EthService(
   def newPendingTransactionFilter(req: NewPendingTransactionFilterRequest): ServiceResponse[NewFilterResponse] = {
     implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
-    (filterManager ? FilterManager.NewPendingTransactionFilter()).mapTo[FilterManager.NewFilterResponse].map { resp =>
+    (filterManager ? FilterManager.NewPendingTransactionFilter).mapTo[FilterManager.NewFilterResponse].map { resp =>
       Right(NewFilterResponse(resp.id))
     }
   }
@@ -642,7 +642,7 @@ class EthService(
   def uninstallFilter(req: UninstallFilterRequest): ServiceResponse[UninstallFilterResponse] = {
     implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
-    (filterManager ? FilterManager.UninstallFilter(req.filterId)).mapTo[FilterManager.UninstallFilterResponse].map { _ =>
+    (filterManager ? FilterManager.UninstallFilter(req.filterId)).map { _ =>
       Right(UninstallFilterResponse(success = true))
     }
   }

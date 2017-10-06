@@ -7,12 +7,10 @@ import akka.pattern.ask
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerManagerActor.Peers
-import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.HandshakeSuccess
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
@@ -157,6 +155,30 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
       EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx)), peer1.id))
   }
 
+  it should "remove transaction on timeout" in new TestSetup {
+    override val txPoolConfig = new TxPoolConfig {
+      override val txPoolSize: Int = 300
+      override val transactionTimeout: FiniteDuration = 500.millis
+
+      //unused
+      override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.veryLongTimeout
+    }
+
+    override val pendingTransactionsManager = system.actorOf(
+      PendingTransactionsManager.props(txPoolConfig, peerManager.ref, etcPeerManager.ref, peerMessageBus.ref))
+
+    val stx = newStx()
+    pendingTransactionsManager ! AddTransactions(stx)
+
+    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    pendingTxs.pendingTransactions.map(_.stx).toSet shouldBe Set(stx)
+
+    Thread.sleep(550)
+
+    val pendingTxsAfter = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    pendingTxsAfter.pendingTransactions.map(_.stx).toSet shouldBe Set.empty
+  }
+
   trait TestSetup extends SecureRandomBuilder {
     implicit val system = ActorSystem("test-system")
 
@@ -177,8 +199,10 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
     val txPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 300
+
       //unused
       override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.veryLongTimeout
+      override val transactionTimeout: FiniteDuration = Timeouts.veryLongTimeout
     }
 
     val peerManager = TestProbe()

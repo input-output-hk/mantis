@@ -23,6 +23,7 @@ class ForksTest extends FlatSpec with Matchers {
 
     // unused
     override val maxCodeSize: Option[BigInt] = None
+    override val eip161BlockNumber: BigInt = Long.MaxValue
     override val customGenesisFileOpt: Option[String] = None
     override val difficultyBombPauseBlockNumber: BigInt = Long.MaxValue
     override val difficultyBombContinueBlockNumber: BigInt = Long.MaxValue

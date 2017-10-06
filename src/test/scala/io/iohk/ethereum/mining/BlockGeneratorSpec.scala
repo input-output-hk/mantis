@@ -16,7 +16,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
-import io.iohk.ethereum.utils.Config.{DbConfig, SyncConfig}
+import io.iohk.ethereum.utils.Config.SyncConfig
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
 
@@ -114,6 +114,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val maxCodeSize: Option[BigInt] = None
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
+      override val eip161BlockNumber: BigInt = Long.MaxValue
       override val accountStartNonce: UInt256 = UInt256.Zero
       override val daoForkConfig: Option[DaoForkConfig] = None
       val gasTieBreaker: Boolean = false
@@ -270,6 +271,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val maxCodeSize: Option[BigInt] = None
       override val eip160BlockNumber: BigInt = Long.MaxValue
       override val eip150BlockNumber: BigInt = Long.MaxValue
+      override val eip161BlockNumber: BigInt = Long.MaxValue
       override val accountStartNonce: UInt256 = UInt256.Zero
       override val daoForkConfig: Option[DaoForkConfig] = None
       val gasTieBreaker: Boolean = false
@@ -286,9 +288,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     lazy val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
 
-    val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig, new DbConfig {
-      override val batchSize: Int = 1000
-    })
+    val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
     genesisDataLoader.loadGenesisData()
 
     val miningConfig = new MiningConfig {

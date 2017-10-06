@@ -68,10 +68,10 @@ class FastSync(
   def startFromScratch(): Unit = {
     val targetBlockSelector = context.actorOf(FastSyncTargetBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "target-block-selector")
     targetBlockSelector ! FastSyncTargetBlockSelector.ChooseTargetBlock
-    context become waitingForTargetBlock(targetBlockSelector)
+    context become waitingForTargetBlock
   }
 
-  def waitingForTargetBlock(targetBlockChoose: ActorRef): Receive = handleCommonMessages orElse {
+  def waitingForTargetBlock: Receive = handleCommonMessages orElse {
     case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
       if (targetBlockHeader.number < 1) {
         log.info("Unable to start block synchronization in fast mode: target block is less than 1")
@@ -79,7 +79,7 @@ class FastSync(
         context become idle
         syncController ! Done
       } else {
-        val initialSyncState = SyncState(targetBlockHeader, mptNodesQueue = Seq(StateMptNodeHash(targetBlockHeader.stateRoot)))
+        val initialSyncState = SyncState(targetBlockHeader, pendingMptNodes = Seq(StateMptNodeHash(targetBlockHeader.stateRoot)))
         startWithState(initialSyncState)
       }
   }
@@ -223,7 +223,7 @@ class FastSync(
       val receivedHashes = nodeData.values.map(v => ByteString(kec256(v.toArray[Byte])))
       val remainingHashes = requestedHashes.filterNot(h => receivedHashes.contains(h.v))
       if (remainingHashes.nonEmpty) {
-        syncState = syncState.enqueueNodes(remainingHashes)
+        syncState = syncState.addPendingNodes(remainingHashes)
       }
 
       val hashesToRequest = (nodeData.values.indices zip receivedHashes) flatMap { case (idx, valueHash) =>
@@ -246,7 +246,7 @@ class FastSync(
       }
 
       syncState = syncState
-        .enqueueNodes(hashesToRequest.flatten)
+        .addPendingNodes(hashesToRequest.flatten)
         .copy(downloadedNodesCount = syncState.downloadedNodesCount + nodeData.values.size)
 
       processSyncing()
@@ -314,8 +314,8 @@ class FastSync(
       removeRequestHandler(handler)
 
       syncState = syncState
-        .enqueueNodes(requestedMptNodes.getOrElse(handler, Nil))
-        .enqueueNodes(requestedNonMptNodes.getOrElse(handler, Nil))
+        .addPendingNodes(requestedMptNodes.getOrElse(handler, Nil))
+        .addPendingNodes(requestedNonMptNodes.getOrElse(handler, Nil))
         .enqueueBlockBodies(requestedBlockBodies.getOrElse(handler, Nil))
         .enqueueReceipts(requestedReceipts.getOrElse(handler, Nil))
 
@@ -344,8 +344,8 @@ class FastSync(
 
     private def persistSyncState(): Unit = {
       syncStateStorageActor ! syncState.copy(
-        mptNodesQueue = requestedMptNodes.values.flatten.toSeq.distinct ++ syncState.mptNodesQueue,
-        nonMptNodesQueue = requestedNonMptNodes.values.flatten.toSeq.distinct ++ syncState.nonMptNodesQueue,
+        pendingMptNodes = requestedMptNodes.values.flatten.toSeq.distinct ++ syncState.pendingMptNodes,
+        pendingNonMptNodes = requestedNonMptNodes.values.flatten.toSeq.distinct ++ syncState.pendingNonMptNodes,
         blockBodiesQueue = requestedBlockBodies.values.flatten.toSeq.distinct ++ syncState.blockBodiesQueue,
         receiptsQueue = requestedReceipts.values.flatten.toSeq.distinct ++ syncState.receiptsQueue)
     }
@@ -459,7 +459,7 @@ class FastSync(
     }
 
     def assignWork(peer: Peer): Unit = {
-      if (syncState.nonMptNodesQueue.nonEmpty || syncState.mptNodesQueue.nonEmpty) {
+      if (syncState.pendingNonMptNodes.nonEmpty || syncState.pendingMptNodes.nonEmpty) {
         requestNodes(peer)
       } else {
         assignBlockchainWork(peer)
@@ -527,8 +527,8 @@ class FastSync(
     }
 
     def requestNodes(peer: Peer): Unit = {
-      val (nonMptNodesToGet, remainingNonMptNodes) = syncState.nonMptNodesQueue.splitAt(nodesPerRequest)
-      val (mptNodesToGet, remainingMptNodes) = syncState.mptNodesQueue.splitAt(nodesPerRequest - nonMptNodesToGet.size)
+      val (nonMptNodesToGet, remainingNonMptNodes) = syncState.pendingNonMptNodes.splitAt(nodesPerRequest)
+      val (mptNodesToGet, remainingMptNodes) = syncState.pendingMptNodes.splitAt(nodesPerRequest - nonMptNodesToGet.size)
       val nodesToGet = nonMptNodesToGet ++ mptNodesToGet
 
       val handler = context.actorOf(
@@ -541,8 +541,8 @@ class FastSync(
       assignedHandlers += (handler -> peer)
       peerRequestsTime += (peer -> Instant.now())
       syncState = syncState.copy(
-        nonMptNodesQueue = remainingNonMptNodes,
-        mptNodesQueue = remainingMptNodes)
+        pendingNonMptNodes = remainingNonMptNodes,
+        pendingMptNodes = remainingMptNodes)
       requestedMptNodes += handler -> mptNodesToGet
       requestedNonMptNodes += handler -> nonMptNodesToGet
     }
@@ -590,8 +590,8 @@ object FastSync {
 
   case class SyncState(
     targetBlock: BlockHeader,
-    mptNodesQueue: Seq[HashType] = Nil,
-    nonMptNodesQueue: Seq[HashType] = Nil,
+    pendingMptNodes: Seq[HashType] = Nil,
+    pendingNonMptNodes: Seq[HashType] = Nil,
     blockBodiesQueue: Seq[ByteString] = Nil,
     receiptsQueue: Seq[ByteString] = Nil,
     downloadedNodesCount: Int = 0,
@@ -603,28 +603,31 @@ object FastSync {
     def enqueueReceipts(receipts: Seq[ByteString]): SyncState =
       copy(receiptsQueue = receiptsQueue ++ receipts)
 
-    def enqueueNodes(hashes: Seq[HashType]): SyncState = {
+    def addPendingNodes(hashes: Seq[HashType]): SyncState = {
       val (mpt, nonMpt) = hashes.partition {
         case _: StateMptNodeHash | _: ContractStorageMptNodeHash => true
         case _: EvmCodeHash | _: StorageRootHash => false
       }
+      // Nodes are prepended in order to traverse mpt in-depth. For mpt nodes is not needed but to keep it consistent,
+      // it was applied too
       copy(
-        mptNodesQueue = mptNodesQueue ++ mpt,
-        nonMptNodesQueue = nonMptNodesQueue ++ nonMpt)
+        pendingMptNodes = mpt ++ pendingMptNodes,
+        pendingNonMptNodes = nonMpt ++ pendingNonMptNodes)
     }
 
     def anythingQueued: Boolean =
-      nonMptNodesQueue.nonEmpty ||
-      mptNodesQueue.nonEmpty ||
+      pendingNonMptNodes.nonEmpty ||
+      pendingMptNodes.nonEmpty ||
       blockBodiesQueue.nonEmpty ||
       receiptsQueue.nonEmpty
 
-    val totalNodesCount: Int = downloadedNodesCount + mptNodesQueue.size + nonMptNodesQueue.size
+    val totalNodesCount: Int = downloadedNodesCount + pendingMptNodes.size + pendingNonMptNodes.size
   }
 
   sealed trait HashType {
     def v: ByteString
   }
+
   case class StateMptNodeHash(v: ByteString) extends HashType
   case class ContractStorageMptNodeHash(v: ByteString) extends HashType
   case class EvmCodeHash(v: ByteString) extends HashType

@@ -15,10 +15,7 @@ import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.{Fixtures, Mocks, Timeouts, crypto}
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerEventBusActor}
@@ -106,6 +103,8 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
   it should "successfully connect to ETC peer" in new TestSetup {
     val uri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@localhost:9000")
+    val completeUri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@127.0.0.1:9000")
+    peer ! PeerActor.ConnectTo(uri)
     peer ! PeerActor.ConnectTo(uri)
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
@@ -135,7 +134,43 @@ class PeerActorSpec extends FlatSpec with Matchers {
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(Ping()))
     rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Pong()))
 
-    knownNodesManager.expectMsg(KnownNodesManager.AddKnownNode(uri))
+    knownNodesManager.expectMsg(KnownNodesManager.AddKnownNode(completeUri))
+    knownNodesManager.expectNoMsg()
+  }
+
+  it should "successfully connect to and IPv6 peer" in new TestSetup {
+    val uri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@[::]:9000")
+    val completeUri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@[0:0:0:0:0:0:0:0]:9000")
+    peer ! PeerActor.ConnectTo(uri)
+
+    rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
+
+    //Hello exchange
+    val remoteHello = Hello(4, "test-client", Seq(Capability("eth", Versions.PV63.toByte)), 9000, ByteString("unused"))
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
+
+    val remoteStatus = Status(
+      protocolVersion = Versions.PV63,
+      networkId = 0,
+      totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
+      bestHash = ByteString("blockhash"),
+      genesisHash = genesisHash)
+
+    //Node status exchange
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
+
+    //Fork block exchange
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: GetBlockHeadersEnc) => () }
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(BlockHeaders(Seq(etcForkBlockHeader))))
+
+    //Check that peer is connected
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(Ping()))
+    rlpxConnection.expectMsg(RLPxConnectionHandler.SendMessage(Pong()))
+
+    knownNodesManager.expectMsg(KnownNodesManager.AddKnownNode(completeUri))
     knownNodesManager.expectNoMsg()
   }
 

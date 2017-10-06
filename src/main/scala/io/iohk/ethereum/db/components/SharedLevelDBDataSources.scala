@@ -1,6 +1,6 @@
 package io.iohk.ethereum.db.components
 
-import io.iohk.ethereum.db.dataSource.{DataSource, IodbDataSource, LevelDBDataSource}
+import io.iohk.ethereum.db.dataSource.{DataSource, LevelDBDataSource}
 import io.iohk.ethereum.utils.Config
 
 trait SharedLevelDBDataSources extends DataSourcesComponent {

@@ -9,8 +9,6 @@ import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.language.postfixOps
-
 class ContractTest extends FlatSpec with Matchers {
   val blockchainConfig = BlockchainConfig(Config.config)
   val syncConfig = SyncConfig(Config.config)

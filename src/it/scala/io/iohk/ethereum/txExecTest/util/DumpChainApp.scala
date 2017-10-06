@@ -17,7 +17,7 @@ import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
-import io.iohk.ethereum.network.p2p.messages.{PV62, PV63}
+import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
@@ -141,12 +141,16 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     override type S = InMemoryWorldStateProxyStorage
     override type WS = InMemoryWorldStateProxy
 
-    override def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy = ???
+    override def getWorldStateProxy(blockNumber: BigInt,
+                                    accountStartNonce: UInt256,
+                                    stateRootHash: Option[ByteString],
+                                    noEmptyAccounts: Boolean): InMemoryWorldStateProxy = ???
 
     override def getReadOnlyWorldStateProxy(
       blockNumber: Option[BigInt],
       accountStartNonce: UInt256,
-      stateRootHash: Option[ByteString]
+      stateRootHash: Option[ByteString],
+      noEmptyAccounts: Boolean
     ): InMemoryWorldStateProxy = ???
 
     def getBestBlockNumber(): BigInt = ???

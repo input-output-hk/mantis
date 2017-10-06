@@ -68,6 +68,7 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
     case "Homestead"  => new HomesteadConfig
     case "FrontierToHomesteadAt5" => new FrontierToHomesteadAt5
     case "HomesteadToEIP150At5" => new HomesteadToEIP150At5
+    case "EIP158" => new Eip158Config
     case "HomesteadToDaoAt5" => new HomesteadToDaoAt5
 
     // Some default config, test will fail or be canceled

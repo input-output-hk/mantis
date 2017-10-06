@@ -8,8 +8,6 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{RLPList, _}
 import org.spongycastle.util.encoders.Hex
 
-import scala.language.implicitConversions
-
 object PV62 {
   object BlockHash {
 
