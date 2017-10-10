@@ -200,6 +200,7 @@ object FilterConfig {
 trait TxPoolConfig {
   val txPoolSize: Int
   val pendingTxManagerQueryTimeout: FiniteDuration
+  val transactionTimeout: FiniteDuration
 }
 
 object TxPoolConfig {
@@ -209,6 +210,7 @@ object TxPoolConfig {
     new TxPoolConfig {
       val txPoolSize: Int = txPoolConfig.getInt("tx-pool-size")
       val pendingTxManagerQueryTimeout: FiniteDuration = txPoolConfig.getDuration("pending-tx-manager-query-timeout").toMillis.millis
+      val transactionTimeout: FiniteDuration = txPoolConfig.getDuration("transaction-timeout").toMillis.millis
     }
   }
 }

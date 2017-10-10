@@ -155,6 +155,30 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
       EtcPeerManagerActor.SendMessage(SignedTransactions(Seq(stx)), peer1.id))
   }
 
+  it should "remove transaction on timeout" in new TestSetup {
+    override val txPoolConfig = new TxPoolConfig {
+      override val txPoolSize: Int = 300
+      override val transactionTimeout: FiniteDuration = 500.millis
+
+      //unused
+      override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.veryLongTimeout
+    }
+
+    override val pendingTransactionsManager = system.actorOf(
+      PendingTransactionsManager.props(txPoolConfig, peerManager.ref, etcPeerManager.ref, peerMessageBus.ref))
+
+    val stx = newStx()
+    pendingTransactionsManager ! AddTransactions(stx)
+
+    val pendingTxs = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    pendingTxs.pendingTransactions.map(_.stx).toSet shouldBe Set(stx)
+
+    Thread.sleep(550)
+
+    val pendingTxsAfter = (pendingTransactionsManager ? GetPendingTransactions).mapTo[PendingTransactionsResponse].futureValue
+    pendingTxsAfter.pendingTransactions.map(_.stx).toSet shouldBe Set.empty
+  }
+
   trait TestSetup extends SecureRandomBuilder {
     implicit val system = ActorSystem("test-system")
 
@@ -175,8 +199,10 @@ class PendingTransactionsManagerSpec extends FlatSpec with Matchers with ScalaFu
 
     val txPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 300
+
       //unused
       override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.veryLongTimeout
+      override val transactionTimeout: FiniteDuration = Timeouts.veryLongTimeout
     }
 
     val peerManager = TestProbe()

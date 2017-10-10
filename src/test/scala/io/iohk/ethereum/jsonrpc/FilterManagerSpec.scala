@@ -382,6 +382,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
     val txPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 30
       override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.longTimeout
+      override val transactionTimeout: FiniteDuration = Timeouts.normalTimeout
     }
 
     val time = new VirtualTime
