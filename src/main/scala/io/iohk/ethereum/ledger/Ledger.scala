@@ -69,18 +69,33 @@ class LedgerImpl(
       val isTopOfChain = block.header.parentHash == bestBlock.header.hash
 
       if (isTopOfChain) {
-        executeBlock(block) match {
-          case Right(receipts) =>
-            val newTd = currentTd + block.header.difficulty
-            blockchain.save(block)
-            blockchain.save(block.header.hash, receipts)
-            blockchain.save(block.header.hash, newTd)
-            log.debug(s"Imported new block (${block.header.number}: ${Hex.toHexString(block.header.hash.toArray)}) to the top of chain")
-            BlockImportedToTop(newTd)
+        val topBlockHash = blockQueue.enqueueBlock(block, bestBlock.header.number).get.hash
+        val topBlocks = blockQueue.removeBranch(topBlockHash)
+        val (importedBlocks, maybeError) = executeBlocks(topBlocks, currentTd)
+        val totalDifficulties = importedBlocks.foldLeft(List(currentTd)) {(tds, b) =>
+          (tds.head + b.header.difficulty) :: tds
+        }.reverse.tail
 
-          case Left(error) =>
+        val result = maybeError match {
+          case None =>
+            BlockImportedToTop(importedBlocks, totalDifficulties)
+
+          case Some(error) if importedBlocks.isEmpty =>
+            blockQueue.removeSubtree(block.header.hash)
             BlockImportFailed(error.toString)
+
+          case Some(error) =>
+            topBlocks.drop(importedBlocks.length).headOption.foreach { failedBlock =>
+              blockQueue.removeSubtree(failedBlock.header.hash)
+            }
+            BlockImportedToTop(importedBlocks, totalDifficulties)
         }
+
+        importedBlocks.foreach { b =>
+          log.debug(s"Imported new block (${b.header.number}: ${Hex.toHexString(b.header.hash.toArray)}) to the top of chain")
+        }
+        result
+
       } else {
 
         // compares the total difficulties of branches, and resolves the tie by gas if enabled
@@ -121,13 +136,14 @@ class LedgerImpl(
     val newBranch = blockQueue.removeBranch(queuedLeaf)
     val parent = newBranch.head.header.parentHash
     val bestNumber = blockchain.getBestBlockNumber()
+    val parentTd = blockchain.getTotalDifficultyByHash(parent).get
 
     val staleBlocksWithReceiptsAndTDs = removeBlocksUntil(parent, bestNumber).reverse
     val staleBlocks = staleBlocksWithReceiptsAndTDs.map(_._1)
     val staleTd = (for (block <- staleBlocks) yield blockQueue.enqueueBlock(block))
       .lastOption.flatten.map(_.totalDifficulty).getOrElse(0)
 
-    val (executedBlocks, maybeError) = executeBlocks(newBranch)
+    val (executedBlocks, maybeError) = executeBlocks(newBranch, parentTd)
     maybeError match {
       case None =>
         Right(staleBlocks, executedBlocks)
@@ -160,17 +176,17 @@ class LedgerImpl(
     * @param blocks block to be executed
     * @return a list of blocks that were correctly executed and an optional [[BlockExecutionError]]
     */
-  private def executeBlocks(blocks: List[Block]): (List[Block], Option[BlockExecutionError]) = {
+  private def executeBlocks(blocks: List[Block], parentTd: BigInt): (List[Block], Option[BlockExecutionError]) = {
     blocks match {
       case block :: remainingBlocks =>
         executeBlock (block) match {
           case Right (receipts) =>
-            val td = blockchain.getTotalDifficultyByHash(block.header.parentHash).get + block.header.difficulty
+            val td = parentTd + block.header.difficulty
             blockchain.save(block)
             blockchain.save(block.header.hash, receipts)
             blockchain.save(block.header.hash, td)
 
-            val (executedBlocks, error) = executeBlocks(remainingBlocks)
+            val (executedBlocks, error) = executeBlocks(remainingBlocks, td)
             (block :: executedBlocks, error)
 
           case Left(error) =>
@@ -688,7 +704,7 @@ object BlockExecutionError {
 }
 
 sealed trait BlockImportResult
-case class BlockImportedToTop(td: BigInt) extends BlockImportResult
+case class BlockImportedToTop(imported: List[Block], totalDifficulties: List[BigInt]) extends BlockImportResult
 case object BlockEnqueued extends BlockImportResult
 case object DuplicateBlock extends BlockImportResult
 case class ChainReorganised(oldBranch: List[Block], newBranch: List[Block], totalDifficulties: List[BigInt]) extends BlockImportResult

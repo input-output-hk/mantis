@@ -42,7 +42,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       "handle import to the main chain" in new TestSetup {
         val block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(defaultTd))
+        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(block), List(defaultTd)))
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
 
         sendNewBlockMsg(block)
@@ -113,7 +113,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       "handle import to the main chain" in new TestSetup {
         val block = getBlock()
 
-        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(defaultTd))
+        (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(block), List(defaultTd)))
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
 
         sendMinedBlockMsg(block)

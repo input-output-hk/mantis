@@ -86,30 +86,22 @@ class RegularSync(
         val importResult = ledger.importBlock(newBlock)
 
         importResult match {
-          case BlockImportedToTop(td) =>
-            broadcaster.broadcastBlock(NewBlock(newBlock, td), handshakedPeers)
-            ommersPool ! RemoveOmmers((newBlock.header +: newBlock.body.uncleNodesList).toList)
-            pendingTransactionsManager ! PendingTransactionsManager.RemoveTransactions(newBlock.body.transactionList)
+          case BlockImportedToTop(newBlocks, newTds) =>
+            broadcastBlocks(newBlocks, newTds)
+            updateTxAndOmmerPools(newBlocks, Nil)
             log.debug(s"Added new block ${newBlock.header.number} to the top of the chain received from $peerId")
 
           case BlockEnqueued =>
-            log.debug(s"Block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId " +
-              s"added to queue")
             ommersPool ! AddOmmers(newBlock.header)
+            log.debug(s"Block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId " +
+            s"added to queue")
 
           case DuplicateBlock =>
             log.debug(s"Ignoring duplicate block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId")
 
           case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
-            ommersPool ! AddOmmers(oldBranch.head.header)
-            oldBranch.foreach(block => pendingTransactionsManager ! AddTransactions(block.body.transactionList.toList))
-
-            newBranch.zip(totalDifficulties).foreach { case (block, td) =>
-              ommersPool ! RemoveOmmers(block.header :: block.body.uncleNodesList.toList)
-              pendingTransactionsManager ! RemoveTransactions(block.body.transactionList)
-              broadcaster.broadcastBlock(NewBlock(block, td), handshakedPeers)
-            }
-
+            updateTxAndOmmerPools(newBranch, oldBranch)
+            broadcastBlocks(newBranch, totalDifficulties)
             log.debug(s"Imported block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId, " +
               s"resulting in chain reorganisation: new branch of length ${newBranch.size} with head at block " +
               s"${newBranch.last.header.number} (${Hex.toHexString(newBranch.last.header.hash.toArray)})")
@@ -149,22 +141,15 @@ class RegularSync(
         val importResult = ledger.importBlock(block)
 
         importResult match {
-          case BlockImportedToTop(td) =>
+          case BlockImportedToTop(blocks, totalDifficulties) =>
             log.debug(s"Added new mined block ${block.header.number} to top of the chain")
-            broadcaster.broadcastBlock(NewBlock(block, td), handshakedPeers)
-            pendingTransactionsManager ! RemoveTransactions(block.body.transactionList)
+            broadcastBlocks(blocks, totalDifficulties)
+            updateTxAndOmmerPools(blocks, Nil)
 
           case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
             log.debug(s"Added new mined block ${block.header.number} resulting in chain reorganization")
-
-            ommersPool ! AddOmmers(oldBranch.head.header)
-            oldBranch.foreach(block => pendingTransactionsManager ! AddTransactions(block.body.transactionList.toList))
-
-            newBranch.zip(totalDifficulties).foreach { case (b, td) =>
-              broadcaster.broadcastBlock(NewBlock(b, td), handshakedPeers)
-              ommersPool ! RemoveOmmers(block.header :: block.body.uncleNodesList.toList)
-              pendingTransactionsManager ! RemoveTransactions(b.body.transactionList)
-            }
+            broadcastBlocks(newBranch, totalDifficulties)
+            updateTxAndOmmerPools(newBranch, oldBranch)
 
           case DuplicateBlock =>
             log.warning(s"Mined block is a duplicate, this should never happen")
@@ -271,7 +256,7 @@ class RegularSync(
 
           case block :: tail =>
             ledger.importBlock(block) match {
-              case BlockImportedToTop(_) =>
+              case BlockImportedToTop(_, _) =>
                 importBlocks(tail, block :: importedBlocks)
 
               case ChainReorganised(_, newBranch, _) =>
@@ -330,6 +315,22 @@ class RegularSync(
 
     if (peersToUse.nonEmpty) Some(peersToUse.maxBy { case (_, td) => td }._1)
     else None
+  }
+
+  private def updateTxAndOmmerPools(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
+    ommersPool ! AddOmmers(blocksRemoved.head.header)
+    blocksRemoved.foreach(block => pendingTransactionsManager ! AddTransactions(block.body.transactionList.toList))
+
+    blocksAdded.foreach { block =>
+      ommersPool ! RemoveOmmers(block.header :: block.body.uncleNodesList.toList)
+      pendingTransactionsManager ! RemoveTransactions(block.body.transactionList)
+    }
+  }
+
+  private def broadcastBlocks(blocks: Seq[Block], totalDifficulties: Seq[BigInt]): Unit = {
+    blocks.zip(totalDifficulties).foreach { case (block, td) =>
+      broadcaster.broadcastBlock(NewBlock(block, td), handshakedPeers)
+    }
   }
 
 }
