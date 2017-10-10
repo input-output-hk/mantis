@@ -65,7 +65,7 @@ class PeerManagerActor(
 
   def listening: Receive = handleCommonMessages orElse {
     case KnownNodesManager.KnownNodes(nodes) =>
-      val nodesToConnect = nodes.take(peerConfiguration.maxPeers)
+      val nodesToConnect = nodes.take(peerConfiguration.maxOutgoingPeers)
 
       if (nodesToConnect.nonEmpty) {
         log.debug("Trying to connect to {} known nodes", nodesToConnect.size)
@@ -85,10 +85,11 @@ class PeerManagerActor(
         .filterNot(n => peerAddresses.contains(n.node.addr)) // not already connected to
         .toSeq
         .sortBy(-_.addTimestamp)
-        .take(peerConfiguration.maxPeers - peerAddresses.size)
+        .take(peerConfiguration.maxOutgoingPeers - peerAddresses.size)
 
       log.debug(
-        s"Discovered ${nodesInfo.size} nodes, connected to ${managerState.peers.size}/${peerConfiguration.maxPeers + peerConfiguration.maxIncomingPeers}. " +
+        s"Discovered ${nodesInfo.size} nodes, " +
+        s"connected to ${managerState.peers.size}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}. " +
         s"Trying to connect to ${nodesToConnect.size} more nodes."
       )
 
@@ -100,11 +101,11 @@ class PeerManagerActor(
 
   def handleConnectionFrom(connection: ActorRef, remoteAddress: InetSocketAddress): Unit = {
     val validatedConnection = for {
-      firstValidation  <- connectionAlreadyHandled(remoteAddress, IncomingConnectionAlreadyHandled(remoteAddress, connection))
-      secondValidation <- maxConnections(firstValidation,
-                                         MaxIncomingPendingConnections(connection),
-                                         managerState.pendingIncomingPeers.size < peerConfiguration.maxPendingPeers)
-    } yield secondValidation
+      connectionHandlerValidation  <- connectionAlreadyHandled(remoteAddress, IncomingConnectionAlreadyHandled(remoteAddress, connection))
+      connectionNumberValidation   <- maxConnections(connectionHandlerValidation,
+                                                     MaxIncomingPendingConnections(connection),
+                                                     managerState.pendingIncomingPeers.size < peerConfiguration.maxPendingPeers)
+    } yield connectionNumberValidation
 
     validatedConnection match {
       case Right(addr) =>
@@ -119,9 +120,11 @@ class PeerManagerActor(
     val remoteAddress = new InetSocketAddress(uri.getHost, uri.getPort)
 
     val validatedConnection = for {
-      firstValidation <- connectionAlreadyHandled(remoteAddress, OutgoingConnectionAlreadyHandled(uri))
-      secondValidation <- maxConnections(firstValidation, MaxOutgoingConnections, managerState.outgoingPeers.size < peerConfiguration.maxPeers)
-    } yield secondValidation
+      connectionHandlerValidation <- connectionAlreadyHandled(remoteAddress, OutgoingConnectionAlreadyHandled(uri))
+      connectionNumberValidation  <- maxConnections(connectionHandlerValidation,
+                                                    MaxOutgoingConnections,
+                                                    managerState.outgoingPeers.size < peerConfiguration.maxOutgoingPeers)
+    } yield connectionNumberValidation
 
     validatedConnection match {
       case Right(addr) =>
@@ -177,17 +180,11 @@ class PeerManagerActor(
 
 
   private def connectionAlreadyHandled(remoteAddress: InetSocketAddress, error: ConnectionError): Either[ConnectionError, InetSocketAddress] = {
-    if (!managerState.isConnectionHandled(remoteAddress))
-      Right(remoteAddress)
-    else
-      Left(error)
+    Either.cond(!managerState.isConnectionHandled(remoteAddress), remoteAddress, error)
   }
 
   private def maxConnections(remoteAddress: InetSocketAddress, error: ConnectionError, stateCondition: Boolean): Either[ConnectionError, InetSocketAddress] = {
-    if (stateCondition)
-      Right(remoteAddress)
-    else
-      Left(error)
+    Either.cond(stateCondition, remoteAddress, error)
   }
 
   private def handleConnectionErrors(error: ConnectionError): Unit = error match {
@@ -240,7 +237,7 @@ object PeerManagerActor {
     val waitForChainCheckTimeout: FiniteDuration
     val fastSyncHostConfiguration: FastSyncHostConfiguration
     val rlpxConfiguration: RLPxConfiguration
-    val maxPeers: Int
+    val maxOutgoingPeers: Int
     val maxIncomingPeers: Int
     val maxPendingPeers: Int
     val networkId: Int
