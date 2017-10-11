@@ -22,7 +22,13 @@ class BlockQueue(blockchain: Blockchain, syncConfig: SyncConfig) extends Logger 
   private val parentToChildren = mutable.Map[ByteString, Set[ByteString]]()
 
   /**
-    * Enqueue a block for optional later inclusion into the blockchain
+    * Enqueue a block for optional later inclusion into the blockchain.
+    * Queued blocks are stored as trees with bi-directional relations. Therefore when a younger blocks arrives,
+    * for which the total difficulty is known, we can update total difficulties of all its descendants.
+    *
+    * The queue is bounded by configured limits in relation to current best block number - i.e. if the block to be
+    * enqueued is too far behind or too far ahead the current best block number it will not be added. Also other such
+    * blocks, that are already enqueued, will be removed.
     *
     * @param block the block to be enqueued
     * @return if the newly enqueued block is part of a known branch (rooted somewhere on the main chain), return

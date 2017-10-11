@@ -318,7 +318,7 @@ class RegularSync(
   }
 
   private def updateTxAndOmmerPools(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
-    ommersPool ! AddOmmers(blocksRemoved.head.header)
+    blocksRemoved.headOption.foreach(block => ommersPool ! AddOmmers(block.header))
     blocksRemoved.foreach(block => pendingTransactionsManager ! AddTransactions(block.body.transactionList.toList))
 
     blocksAdded.foreach { block =>
@@ -348,6 +348,11 @@ object RegularSync {
   private case object PrintStatus
 
   case object Start
+
+  /**
+    * This start the actor without asking for headers, currently only used in tests
+    */
   case object StartIdle
+
   case class MinedBlock(block: Block)
 }

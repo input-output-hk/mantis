@@ -116,9 +116,7 @@ class GenesisDataLoader(
       case None =>
         ephemDataSource.getAll(nodeStorage.namespace)
           .foreach { case (key, value) => blockchain.saveNode(ByteString(key.toArray[Byte]), value.toArray[Byte], 0) }
-        blockchain.save(Block(header, BlockBody(Nil, Nil)))
-        blockchain.save(header.hash, Nil)
-        blockchain.save(header.hash, header.difficulty)
+        blockchain.save(Block(header, BlockBody(Nil, Nil)), Nil, header.difficulty, saveAsBestBlock = true)
         Success(())
     }
   }

@@ -43,7 +43,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     (blockQueue.removeBranch _).expects(block.header.hash).returning(List(block))
 
     val newTd = currentTd + block.header.difficulty
-    expectBlockSaved(block, receipts, newTd)
+    expectBlockSaved(block, receipts, newTd, true)
 
     ledger.importBlock(block) shouldEqual BlockImportedToTop(List(block), List(newTd))
   }
@@ -77,9 +77,9 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val oldTd2 = td1 + oldBlock2.header.difficulty
     val oldTd3 = oldTd2 + oldBlock3.header.difficulty
 
-    saveBlock(block1, Nil, td1)
-    saveBlock(oldBlock2, receipts, oldTd2)
-    saveBlock(oldBlock3, Nil, oldTd3)
+    blockchain.save(block1, Nil, td1, true)
+    blockchain.save(oldBlock2, receipts, oldTd2, true)
+    blockchain.save(oldBlock3, Nil, oldTd3, true)
 
     ledger.setExecutionResult(newBlock2, Right(Nil))
     ledger.setExecutionResult(newBlock3, Right(receipts))
@@ -108,9 +108,9 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val oldTd2 = td1 + oldBlock2.header.difficulty
     val oldTd3 = oldTd2 + oldBlock3.header.difficulty
 
-    saveBlock(block1, Nil, td1)
-    saveBlock(oldBlock2, receipts, oldTd2)
-    saveBlock(oldBlock3, Nil, oldTd3)
+    blockchain.save(block1, Nil, td1, true)
+    blockchain.save(oldBlock2, receipts, oldTd2, true)
+    blockchain.save(oldBlock3, Nil, oldTd3, true)
 
     ledger.setExecutionResult(newBlock2, Right(Nil))
     ledger.setExecutionResult(newBlock3, Left(execError))
@@ -135,7 +135,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val block3Td = block2Td + block3.header.difficulty
 
 
-    saveBlock(block0, Nil, block0Td)
+    blockchain.save(block0, Nil, block0Td, true)
 
     blocks.foreach(ledger.setExecutionResult(_, Right(Nil)))
 
@@ -266,12 +266,6 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
   trait EphemBlockchain extends EphemBlockchainTestSetup { self: TestSetup =>
     val blockQueue = new BlockQueue(blockchain, SyncConfig(Config.config))
-
-    def saveBlock(block: Block, receipts: Seq[Receipt], td: BigInt): Unit = {
-      blockchain.save(block)
-      blockchain.save(block.header.hash, receipts)
-      blockchain.save(block.header.hash, td)
-    }
   }
 
   trait MockBlockchain { self: TestSetup =>
@@ -294,10 +288,9 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     def setTotalDifficultyForBlock(block: Block, td: BigInt) =
       (blockchain.getTotalDifficultyByHash _).expects(block.header.hash).returning(Some(td))
 
-    def expectBlockSaved(block: Block, receipts: Seq[Receipt], td: BigInt) = {
-      (blockchain.save(_: Block)).expects(block).once()
-      (blockchain.save(_: ByteString, _: Seq[Receipt])).expects(block.header.hash, receipts).once()
-      (blockchain.save(_: ByteString, _: BigInt)).expects(block.header.hash, td).once()
+    def expectBlockSaved(block: Block, receipts: Seq[Receipt], td: BigInt, saveAsBestBlock: Boolean) = {
+      (blockchain.save(_: Block, _: Seq[Receipt], _: BigInt, _: Boolean))
+        .expects(block, receipts, td, saveAsBestBlock).once()
     }
 
     def setHeaderByHash(hash: ByteString, header: Option[BlockHeader]) =

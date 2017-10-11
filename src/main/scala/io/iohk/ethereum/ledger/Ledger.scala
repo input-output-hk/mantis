@@ -28,7 +28,7 @@ trait Ledger {
 }
 
 //FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
-//TODO: This has grown a bit large, consider splitting the aspects block import, block exec and TX exec
+//TODO: EC-313: this has grown a bit large, consider splitting the aspects block import, block exec and TX exec
 class LedgerImpl(
     vm: VM,
     blockchain: BlockchainImpl,
@@ -64,65 +64,71 @@ class LedgerImpl(
 
     else {
       val bestBlock = blockchain.getBestBlock()
-      val currentTd = blockchain.getTotalDifficultyByHash(bestBlock.header.hash).get // TODO: safe?
+      val currentTd = blockchain.getTotalDifficultyByHash(bestBlock.header.hash).get
 
       val isTopOfChain = block.header.parentHash == bestBlock.header.hash
 
-      if (isTopOfChain) {
-        val topBlockHash = blockQueue.enqueueBlock(block, bestBlock.header.number).get.hash
-        val topBlocks = blockQueue.removeBranch(topBlockHash)
-        val (importedBlocks, maybeError) = executeBlocks(topBlocks, currentTd)
-        val totalDifficulties = importedBlocks.foldLeft(List(currentTd)) {(tds, b) =>
-          (tds.head + b.header.difficulty) :: tds
-        }.reverse.tail
+      if (isTopOfChain)
+        importBlockToTop(block, bestBlock.header.number, currentTd)
+      else
+        enqueueBlockOrReorganiseChain(block, bestBlock, currentTd)
+    }
+  }
 
-        val result = maybeError match {
-          case None =>
-            BlockImportedToTop(importedBlocks, totalDifficulties)
+  private def importBlockToTop(block: Block, bestBlockNumber: BigInt, currentTd: BigInt): BlockImportResult = {
+    val topBlockHash = blockQueue.enqueueBlock(block, bestBlockNumber).get.hash
+    val topBlocks = blockQueue.removeBranch(topBlockHash)
+    val (importedBlocks, maybeError) = executeBlocks(topBlocks, currentTd)
+    val totalDifficulties = importedBlocks.foldLeft(List(currentTd)) {(tds, b) =>
+      (tds.head + b.header.difficulty) :: tds
+    }.reverse.tail
 
-          case Some(error) if importedBlocks.isEmpty =>
-            blockQueue.removeSubtree(block.header.hash)
-            BlockImportFailed(error.toString)
+    val result = maybeError match {
+      case None =>
+        BlockImportedToTop(importedBlocks, totalDifficulties)
 
-          case Some(error) =>
-            topBlocks.drop(importedBlocks.length).headOption.foreach { failedBlock =>
-              blockQueue.removeSubtree(failedBlock.header.hash)
+      case Some(error) if importedBlocks.isEmpty =>
+        blockQueue.removeSubtree(block.header.hash)
+        BlockImportFailed(error.toString)
+
+      case Some(error) =>
+        topBlocks.drop(importedBlocks.length).headOption.foreach { failedBlock =>
+          blockQueue.removeSubtree(failedBlock.header.hash)
+        }
+        BlockImportedToTop(importedBlocks, totalDifficulties)
+    }
+
+    importedBlocks.foreach { b =>
+      log.debug(s"Imported new block (${b.header.number}: ${Hex.toHexString(b.header.hash.toArray)}) to the top of chain")
+    }
+    result
+  }
+
+
+  private def enqueueBlockOrReorganiseChain(block: Block, bestBlock: Block, currentTd: BigInt): BlockImportResult = {
+    // compares the total difficulties of branches, and resolves the tie by gas if enabled
+    // yes, apparently only the gas from last block is checked:
+    // https://github.com/ethereum/cpp-ethereum/blob/develop/libethereum/BlockChain.cpp#L811
+    def isBetterBranch(newTd: BigInt) =
+    newTd > currentTd ||
+      (blockchainConfig.gasTieBreaker && newTd == currentTd && block.header.gasUsed > bestBlock.header.gasUsed)
+
+    blockQueue.enqueueBlock(block, bestBlock.header.number) match {
+      case Some(Leaf(leafHash, leafTd)) if isBetterBranch(leafTd) =>
+        log.debug("Found a better chain, about to reorganise")
+        reorganiseChainFromQueue(leafHash) match {
+          case Right((oldBranch, newBranch)) =>
+            val totalDifficulties = newBranch.tail.foldRight(List(leafTd)) { (b, tds) =>
+              (tds.head - b.header.difficulty) :: tds
             }
-            BlockImportedToTop(importedBlocks, totalDifficulties)
+            ChainReorganised(oldBranch, newBranch, totalDifficulties)
+
+          case Left(error) =>
+            BlockImportFailed(s"Error while trying to reorganise chain: $error")
         }
 
-        importedBlocks.foreach { b =>
-          log.debug(s"Imported new block (${b.header.number}: ${Hex.toHexString(b.header.hash.toArray)}) to the top of chain")
-        }
-        result
-
-      } else {
-
-        // compares the total difficulties of branches, and resolves the tie by gas if enabled
-        // yes, apparently only the gas from last block is checked:
-        // https://github.com/ethereum/cpp-ethereum/blob/develop/libethereum/BlockChain.cpp#L811
-        def isBetterBranch(newTd: BigInt) =
-          newTd > currentTd ||
-            (blockchainConfig.gasTieBreaker && newTd == currentTd && block.header.gasUsed > bestBlock.header.gasUsed)
-
-        blockQueue.enqueueBlock(block, bestBlock.header.number) match {
-          case Some(Leaf(leafHash, leafTd)) if isBetterBranch(leafTd) =>
-            log.debug("Found a better chain, about to reorganise")
-            reorganiseChainFromQueue(leafHash) match {
-              case Right((oldBranch, newBranch)) =>
-                val totalDifficulties = newBranch.tail.foldRight(List(leafTd)) { (b, tds) =>
-                  (tds.head - b.header.difficulty) :: tds
-                }
-                ChainReorganised(oldBranch, newBranch, totalDifficulties)
-
-              case Left(error) =>
-                BlockImportFailed(s"Error while trying to reorganise chain: $error")
-            }
-
-          case _ =>
-            BlockEnqueued
-        }
-      }
+      case _ =>
+        BlockEnqueued
     }
   }
 
@@ -140,8 +146,8 @@ class LedgerImpl(
 
     val staleBlocksWithReceiptsAndTDs = removeBlocksUntil(parent, bestNumber).reverse
     val staleBlocks = staleBlocksWithReceiptsAndTDs.map(_._1)
-    val staleTd = (for (block <- staleBlocks) yield blockQueue.enqueueBlock(block))
-      .lastOption.flatten.map(_.totalDifficulty).getOrElse(0)
+
+    for (block <- staleBlocks) yield blockQueue.enqueueBlock(block)
 
     val (executedBlocks, maybeError) = executeBlocks(newBranch, parentTd)
     maybeError match {
@@ -149,25 +155,36 @@ class LedgerImpl(
         Right(staleBlocks, executedBlocks)
 
       case Some(error) =>
-        // executed blocks were saved in the blockchain, we need to remove them...
-        if (executedBlocks.nonEmpty) {
-          removeBlocksUntil(executedBlocks.head.header.parentHash, executedBlocks.last.header.number)
-        }
-
-        // ... and bring back the old ones
-        staleBlocksWithReceiptsAndTDs.foreach { case (block, receipts, td) =>
-          blockchain.save(block)
-          blockchain.save(block.header.hash, receipts)
-          blockchain.save(block.header.hash, td)
-        }
-
-        executedBlocks.foreach(blockQueue.enqueueBlock(_, bestNumber))
-
-        newBranch.diff(executedBlocks).headOption.foreach { block =>
-          blockQueue.removeSubtree(block.header.hash)
-        }
-
+        revertChainReorganisation(newBranch, staleBlocksWithReceiptsAndTDs, executedBlocks)
         Left(error)
+    }
+  }
+
+  /**
+    * Used to revert chain reorganisation in the event that one of the blocks from new branch
+    * fails to execute
+    *
+    * @param newBranch - new blocks
+    * @param oldBranch - old blocks along with corresponding receipts and totalDifficulties
+    * @param executedBlocks - sub-sequence of new branch that was executed correctly
+    */
+  private def revertChainReorganisation(newBranch: List[Block], oldBranch: List[(Block, Seq[Receipt], BigInt)],
+    executedBlocks: List[Block]): Unit = {
+
+    if (executedBlocks.nonEmpty) {
+      removeBlocksUntil(executedBlocks.head.header.parentHash, executedBlocks.last.header.number)
+    }
+
+    oldBranch.foreach { case (block, receipts, td) =>
+      blockchain.save(block, receipts, td, saveAsBestBlock = false)
+    }
+
+    val bestNumber = oldBranch.last._1.header.number
+    blockchain.saveBestBlockNumber(bestNumber)
+    executedBlocks.foreach(blockQueue.enqueueBlock(_, bestNumber))
+
+    newBranch.diff(executedBlocks).headOption.foreach { block =>
+      blockQueue.removeSubtree(block.header.hash)
     }
   }
 
@@ -182,9 +199,7 @@ class LedgerImpl(
         executeBlock (block) match {
           case Right (receipts) =>
             val td = parentTd + block.header.difficulty
-            blockchain.save(block)
-            blockchain.save(block.header.hash, receipts)
-            blockchain.save(block.header.hash, td)
+            blockchain.save(block, receipts, td, saveAsBestBlock = true)
 
             val (executedBlocks, error) = executeBlocks(remainingBlocks, td)
             (block :: executedBlocks, error)
@@ -212,7 +227,9 @@ class LedgerImpl(
       case Some(block) =>
         val receipts = blockchain.getReceiptsByHash(block.header.hash).get
         val td = blockchain.getTotalDifficultyByHash(block.header.hash).get
-        blockchain.removeBlock(block.header.hash)
+
+        //not updating best block number for efficiency, it will be updated in the callers anyway
+        blockchain.removeBlock(block.header.hash, saveParentAsBestBlock = false)
         (block, receipts, td) :: removeBlocksUntil(parent, fromNumber - 1)
 
       case None =>
