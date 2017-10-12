@@ -4,7 +4,7 @@ import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.dataSource.{LevelDBDataSource, LevelDbConfig}
-import io.iohk.ethereum.db.storage.pruning.ArchivePruning
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning}
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
 import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ValidatorsBuilder}
@@ -20,6 +20,11 @@ object Prerequisites {
   }
 
   trait Storages extends SharedLevelDBDataSources with NoPruning with Storages.DefaultStorages
+
+  trait WithPruning extends PruningModeComponent {
+      val pruningMode = BasicPruning(1000)
+    }
+  trait TargetStorages extends SharedLevelDBDataSources with WithPruning with Storages.DefaultStorages
 }
 
 class Prerequisites(config: Config) {
@@ -34,13 +39,13 @@ class Prerequisites(config: Config) {
       }
     )
 
-  private val sourceStorages: Storages = new Storages {
+  val sourceStorages: Storages = new Storages {
     override lazy val dataSource = levelDb(config.sourceDbPath)
   }
 
-  private val targetStorages: Option[Storages] = config.mode match {
+  val targetStorages: Option[TargetStorages] = config.mode match {
     case DualDB =>
-      Some(new Storages {
+      Some(new TargetStorages {
         override lazy val dataSource = levelDb(config.targetDbPath)
       })
 
