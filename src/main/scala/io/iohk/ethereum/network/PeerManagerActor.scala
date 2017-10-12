@@ -23,6 +23,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
+//TODO Refactor to mutate state only via context.become [EC-316]
 class PeerManagerActor(
     peerEventBus: ActorRef,
     peerDiscoveryManager: ActorRef,
