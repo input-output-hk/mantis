@@ -284,7 +284,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
         val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(temporalBranchNode, searchKey, value)
         NodeInsertResult(
           newNode = newBranchNode,
-          toDeleteFromStorage = node +: toDeleteFromStorage,
+          toDeleteFromStorage = node +: toDeleteFromStorage.filterNot(_ == temporalBranchNode),
           toUpdateInStorage = maybeNewLeaf.toList ++ toUpdateInStorage
         )
       case ml =>
@@ -297,7 +297,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
         val newExtNode = ExtensionNode(ByteString(searchKeyPrefix), newBranchNode)
         NodeInsertResult(
           newNode = newExtNode,
-          toDeleteFromStorage = node +: toDeleteFromStorage,
+          toDeleteFromStorage = node +: toDeleteFromStorage.filterNot(_ == temporalNode),
           toUpdateInStorage = newExtNode +: toUpdateInStorage
         )
     }
@@ -309,7 +309,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
       case 0 =>
         // There is no common prefix with the node which means we have to replace it for a branch node
         val sharedKeyHead = sharedKey(0)
-        val (temporalBranchNode, maybeNewLeaf) = {
+        val (temporalBranchNode, maybeNewExtNode) = {
           // Direct extension, we just replace the extension with a branch
           if (sharedKey.length == 1) BranchNode.withSingleChild(sharedKeyHead, next, None) -> None
           else {
@@ -321,8 +321,8 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
         val NodeInsertResult(newBranchNode: BranchNode, toDeleteFromStorage, toUpdateInStorage) = put(temporalBranchNode, searchKey, value)
         NodeInsertResult(
           newNode = newBranchNode,
-          toDeleteFromStorage = extensionNode +: toDeleteFromStorage,
-          toUpdateInStorage = maybeNewLeaf.toList ++ toUpdateInStorage
+          toDeleteFromStorage = extensionNode +: toDeleteFromStorage.filterNot(_ == temporalBranchNode),
+          toUpdateInStorage = maybeNewExtNode.toList ++ toUpdateInStorage
         )
       case ml if ml == sharedKey.length =>
         // Current extension node's key is a prefix of the one being inserted, so we insert recursively on the extension's child
@@ -342,7 +342,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
         val newExtNode = ExtensionNode(sharedKeyPrefix, newBranchNode)
         NodeInsertResult(
           newNode = newExtNode,
-          toDeleteFromStorage = extensionNode +: toDeleteFromStorage,
+          toDeleteFromStorage = extensionNode +: toDeleteFromStorage.filterNot(_ == temporalExtensionNode),
           toUpdateInStorage = newExtNode +: toUpdateInStorage
         )
     }
