@@ -27,8 +27,6 @@ val dep = {
     "io.suzaku" %% "boopickle" % "1.2.6",
     "org.consensusresearch" %% "scrypto" % "1.2.0-RC3",
     "com.madgag.spongycastle" % "core" % "1.56.0.0",
-    "org.iq80.leveldb" % "leveldb" % "0.12",
-    "org.iq80.leveldb" % "leveldb-api" % "0.12",
     "org.scorexfoundation" %% "iodb" % "0.3.0",
     "org.scalatest" %% "scalatest" % "3.0.1" % "it,test",
     "org.scalamock" %% "scalamock-scalatest-support" % "3.5.0" % "test",
@@ -77,8 +75,6 @@ val verifyDeps = Seq(
   "com.google.guava" % "guava" sha1 "6ce200f6b23222af3d8abb6b6459e6c44f4bb0e9",
   "org.whispersystems" % "curve25519-java" sha1 "09091eb56d696d0d0d70d00b84e6037dcd3d98b6",
   "com.madgag.spongycastle" % "core" sha1 "9622d6de1407dd3506254fb9b0292eb1206f6991",
-  "org.iq80.leveldb" % "leveldb" sha1 "e9b071b63a7b40f7d01ae01e99259a2de72426f6",
-  "org.iq80.leveldb" % "leveldb-api" sha1 "d71173b159a38acd8036d9694f1243afe6be9108",
   "org.scorexfoundation" % "iodb" sha1 "0d4b86fe17008bfc5ec0fe4317d6d9c39a81dc85",
   "net.jpountz.lz4" % "lz4" sha1 "c708bb2590c0652a642236ef45d9f99ff842a2ce",
   "org.slf4j" % "slf4j-api" sha1 "432be7c915d6389efd927e32937a30f7d5556f3e",
@@ -124,8 +120,8 @@ val root = project.in(file("."))
         excludedJars = Nil,
         warnOnUnverifiedFiles = false,
         warnOnUnusedVerifications = false
-      ),
-      dist in Universal := ((dist in Universal) dependsOn verify).value
+      )
+      //dist in Universal := ((dist in Universal) dependsOn verify).value
     )
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
     .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
