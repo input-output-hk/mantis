@@ -2,6 +2,7 @@ package io.iohk.ethereum.db.dataSource
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.common.{Removal, Upsert}
 import org.scalacheck.Gen
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
@@ -15,13 +16,13 @@ class EphemDataSourceSuite extends FunSuite
   val OtherNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('e'.toByte)
   def putMultiple(dataSource: DataSource, toInsert: Seq[(ByteString, ByteString)]): DataSource = {
     toInsert.foldLeft(dataSource){ case (recDB, keyValuePair) =>
-      recDB.update(OtherNamespace, Seq(), Seq(keyValuePair))
+      recDB.update(OtherNamespace, Seq(Upsert(keyValuePair)))
     }
   }
 
   def removeMultiple(dataSource: DataSource, toDelete: Seq[ByteString]): DataSource = {
     toDelete.foldLeft(dataSource){ case (recDB, key) =>
-      recDB.update(OtherNamespace, Seq(key), Seq())
+      recDB.update(OtherNamespace, Seq(Removal(key)))
     }
   }
 
@@ -55,7 +56,7 @@ class EphemDataSourceSuite extends FunSuite
   test("EphemDataSource clear") {
     forAll(seqByteStringOfNItemsGen(KeySize)) { keyList: Seq[ByteString] =>
       val db = EphemDataSource()
-        .update(OtherNamespace, toRemove = Seq(), toUpsert = keyList.zip(keyList))
+        .update(OtherNamespace, keyList.zip(keyList).map(t => Upsert[IndexedSeq[Byte], IndexedSeq[Byte]](t)))
         .clear
 
       keyList.foreach { key => assert(db.get(OtherNamespace, key).isEmpty) }

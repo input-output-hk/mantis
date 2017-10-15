@@ -4,6 +4,8 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLong
 
+import io.iohk.ethereum.common.{BatchOperation, Removal, Upsert}
+import io.iohk.ethereum.db.dataSource.DataSource.{Key, Namespace, Value}
 import io.iohk.iodb.{ByteArrayWrapper, LSMStore}
 
 class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) extends DataSource {
@@ -16,20 +18,35 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
     lSMStore.get(ByteArrayWrapper(keyPadded)).map(v => v.data.toIndexedSeq)
   }
 
-  override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
-    require(
-      toRemove.forall{ keyToRemove => namespace.length + keyToRemove.length <= keySize } &&
-        toUpsert.forall{ case (keyToUpSert, _) => namespace.length + keyToUpSert.length <= keySize },
-      "Wrong key size in IODB update"
-    )
-    val toRemovePadded = toRemove.map(key => padToKeySize(namespace, key, keySize))
-    val toUpsertPadded = toUpsert.map{case (key, value) => padToKeySize(namespace, key, keySize) -> value}
+  /**
+    * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
+    *
+    * @param namespace from which the (key-value) pairs will be removed and inserted.
+    * @param batchOperations sequence of operations to be applied
+    * @return the new DataSource after the removals and insertions were done.
+    */
+  override def update(namespace: Namespace, batchOperations: Seq[BatchOperation[Key, Value]]): IodbDataSource = {
+    def keySizeOk(k: Key) = namespace.length + k.length <= keySize
+
+    val (toRemove, toUpsert) = batchOperations.foldLeft(Seq.empty[ByteArrayWrapper], Seq.empty[(ByteArrayWrapper, ByteArrayWrapper)]) {
+      (acc, bOp) =>
+        bOp match {
+          case Removal(k) =>
+            require(keySizeOk(k), "Wrong key size in IODB update")
+            (acc._1 :+ ByteArrayWrapper(padToKeySize(namespace, k, keySize).toArray), acc._2)
+          case Upsert(k, v) =>
+            require(keySizeOk(k), "Wrong key size in IODB update")
+            (acc._1, acc._2 :+ (ByteArrayWrapper(padToKeySize(namespace, k, keySize).toArray) -> ByteArrayWrapper(v.toArray)))
+        }
+    }
+
     lSMStore.update(
       ByteArrayWrapper(storageVersionGen()),
-      toRemovePadded.map(key => ByteArrayWrapper(key.toArray)),
-      asStorables(toUpsertPadded))
+      toRemove,
+      toUpsert)
     new IodbDataSource(lSMStore, keySize, path)
   }
+
 
   override def clear: DataSource = {
     destroy()
@@ -46,9 +63,6 @@ class IodbDataSource private (lSMStore: LSMStore, keySize: Int, path: String) ex
       assert(directoryDeletionSuccess, "Iodb folder destruction failed")
     }
   }
-
-  private def asStorables(keyValues: Seq[(Key, Value)]): Seq[(ByteArrayWrapper, ByteArrayWrapper)] =
-    keyValues.map{ case (key, value) => ByteArrayWrapper(key.toArray) -> ByteArrayWrapper(value.toArray) }
 }
 
 

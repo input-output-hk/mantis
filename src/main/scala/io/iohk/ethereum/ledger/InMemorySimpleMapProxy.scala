@@ -1,11 +1,12 @@
 package io.iohk.ethereum.ledger
 
-import io.iohk.ethereum.common.SimpleMap
+import io.iohk.ethereum.common.{BatchOperation, Removal, SimpleMap, Upsert}
 
 object InMemorySimpleMapProxy {
   def wrap[K, V, I <: SimpleMap[K, V, I]](inner: I): InMemorySimpleMapProxy[K, V, I] =
     new InMemorySimpleMapProxy(inner, Map.empty[K, Option[V]])
 }
+
 /**
   * This class keeps holds changes made to the inner [[io.iohk.ethereum.common.SimpleMap]] until data is commited
   *
@@ -33,7 +34,9 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private(val inner: I
     */
   def persist(): InMemorySimpleMapProxy[K, V, I] = {
     val changesToApply = changes
-    new InMemorySimpleMapProxy[K, V, I](inner.update(changesToApply._1, changesToApply._2), Map.empty)
+    new InMemorySimpleMapProxy[K, V, I](inner.update(
+      changesToApply._1.map(Removal[K, V]) ++ changesToApply._2.map(i => Upsert(i._1, i._2))
+    ), Map.empty)
   }
 
   /**
@@ -56,14 +59,17 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private(val inner: I
   /**
     * This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
     *
-    * @param toRemove which includes all the keys to be removed from the KeyValueStore.
-    * @param toUpsert which includes all the (key-value) pairs to be inserted into the KeyValueStore.
-    *                 If a key is already in the DataSource its value will be updated.
+    * @param batchOperations sequence of operations to be applied
     * @return the new DataSource after the removals and insertions were done.
     */
-  override def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): InMemorySimpleMapProxy[K, V, I] = {
-    val afterRemoval = toRemove.foldLeft(cache) { (updated, key) => updated + (key -> None) }
-    val afterInserts = toUpsert.foldLeft(afterRemoval) { (updated, toUpsert) => updated + (toUpsert._1 -> Some(toUpsert._2)) }
-    new InMemorySimpleMapProxy[K, V, I](inner, afterInserts)
+  override def update(batchOperations: Seq[BatchOperation[K, V]]): InMemorySimpleMapProxy[K, V, I] = {
+    val updated = batchOperations.foldLeft(cache) {
+      (acc, bOp) =>
+        bOp match {
+          case Removal(key) => acc + (key -> None)
+          case Upsert(key, value) => acc + (key -> Some(value))
+        }
+    }
+    new InMemorySimpleMapProxy[K, V, I](inner, updated)
   }
 }

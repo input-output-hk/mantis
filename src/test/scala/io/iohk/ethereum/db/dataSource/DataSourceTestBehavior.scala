@@ -4,6 +4,7 @@ import java.io.File
 import java.nio.file.Files
 
 import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.common.{Removal, Upsert}
 import org.scalatest.FlatSpec
 import org.scalatest.prop.PropertyChecks
 
@@ -32,7 +33,7 @@ trait DataSourceTestBehavior
       val someByteString = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
       withDir { path =>
         val dataSource = createDataSource(path)
-        dataSource.update(OtherNamespace, Seq(), Seq(someByteString -> someByteString))
+        dataSource.update(OtherNamespace, Seq(Upsert(someByteString -> someByteString)))
 
         dataSource.get(OtherNamespace, someByteString) match {
           case Some(b) if b == someByteString => succeed
@@ -49,12 +50,12 @@ trait DataSourceTestBehavior
       withDir { path =>
         val dataSource = createDataSource(path)
 
-        dataSource.update(OtherNamespace, Seq(), Seq(key1 -> key1, key2 -> key2))
+        dataSource.update(OtherNamespace, Seq(Upsert(key1, key1), Upsert(key2, key2)))
 
         assert(dataSource.get(OtherNamespace, key1).isDefined)
         assert(dataSource.get(OtherNamespace, key2).isDefined)
 
-        dataSource.update(OtherNamespace, Seq(key1), Seq())
+        dataSource.update(OtherNamespace, Seq(Removal(key1)))
 
         assert(dataSource.get(OtherNamespace, key1).isEmpty)
         assert(dataSource.get(OtherNamespace, key2).isDefined)
@@ -68,7 +69,7 @@ trait DataSourceTestBehavior
       withDir { path =>
         val dataSource = createDataSource(path)
 
-        dataSource.update(OtherNamespace, Seq(), Seq(someByteString -> someByteString))
+        dataSource.update(OtherNamespace, Seq(Upsert(someByteString, someByteString)))
 
         assert(dataSource.get(OtherNamespace, someByteString).isDefined)
 
@@ -89,14 +90,14 @@ trait DataSourceTestBehavior
         val dataSource = createDataSource(path)
 
         //Insertion
-        dataSource.update(OtherNamespace, Seq(), Seq(someByteString -> someValue1))
-        dataSource.update(OtherNamespace2, Seq(), Seq(someByteString -> someValue2))
+        dataSource.update(OtherNamespace, Seq(Upsert(someByteString, someValue1)))
+        dataSource.update(OtherNamespace2, Seq(Upsert(someByteString, someValue2)))
 
         assert(dataSource.get(OtherNamespace, someByteString).contains(someValue1))
         assert(dataSource.get(OtherNamespace2, someByteString).contains(someValue2))
 
         //Removal
-        dataSource.update(OtherNamespace2, Seq(someByteString), Nil)
+        dataSource.update(OtherNamespace2, Seq(Removal(someByteString)))
 
         assert(dataSource.get(OtherNamespace, someByteString).contains(someValue1))
         assert(dataSource.get(OtherNamespace2, someByteString).isEmpty)

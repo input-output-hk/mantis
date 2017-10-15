@@ -1,7 +1,8 @@
 package io.iohk.ethereum.db.storage
 
-import io.iohk.ethereum.common.SimpleMap
+import io.iohk.ethereum.common.{BatchOperation, Removal, SimpleMap, Upsert}
 import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.dataSource.DataSource.{Key, Value}
 
 trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, V, T]{
 
@@ -22,19 +23,18 @@ trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, 
   def get(key: K): Option[V] = dataSource.get(namespace, keySerializer(key)).map(valueDeserializer)
 
   /**
-    * This function updates the KeyValueStorage by deleting, updating and inserting new (key-value) pairs
-    * in the current namespace.
+    * This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
     *
-    * @param toRemove which includes all the keys to be removed from the KeyValueStorage.
-    * @param toUpsert which includes all the (key-value) pairs to be inserted into the KeyValueStorage.
-    *                 If a key is already in the DataSource its value will be updated.
-    * @return the new KeyValueStorage after the removals and insertions were done.
+    * @param batchOperations sequence of operations to be applied
+    * @return the new DataSource after the removals and insertions were done.
     */
-  def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): T = {
+  def update(batchOperations: Seq[BatchOperation[K, V]]): T = {
     val newDataSource = dataSource.update(
       namespace = namespace,
-      toRemove = toRemove.map(keySerializer),
-      toUpsert = toUpsert.map { case (k, v) => keySerializer(k) -> valueSerializer(v) }
+      batchOperations.map {
+        case Upsert(k, v) => Upsert[Key, Value](keySerializer(k), valueSerializer(v))
+        case Removal(k) => Removal[Key, Value](keySerializer(k))
+      }
     )
     apply(newDataSource)
   }

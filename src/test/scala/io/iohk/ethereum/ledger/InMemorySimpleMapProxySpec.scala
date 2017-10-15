@@ -2,7 +2,7 @@ package io.iohk.ethereum.ledger
 
 import java.nio.ByteBuffer
 
-import io.iohk.ethereum.common.SimpleMap
+import io.iohk.ethereum.common.{Removal, SimpleMap, Upsert}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
@@ -66,7 +66,7 @@ class InMemorySimpleMapProxySpec extends FlatSpec with Matchers {
   }
 
   "InMemoryTrieProxy" should "handle batch operations" in new TestSetup {
-    val updatedProxy = InMemorySimpleMapProxy.wrap[Int, Int, MerklePatriciaTrie[Int, Int]](mpt).update(Seq(1), Seq((2, 2), (2, 3)))
+    val updatedProxy = InMemorySimpleMapProxy.wrap[Int, Int, MerklePatriciaTrie[Int, Int]](mpt).update(Seq(Removal(1), Upsert(2, 2), Upsert(2, 3)))
     assertNotContainsKey(updatedProxy, 1)
     assertContains(updatedProxy, 2, 3)
   }

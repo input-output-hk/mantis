@@ -57,11 +57,11 @@ object FixtureProvider {
 
       def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
         case Some(m: BranchNode) =>
-          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
+          storages.nodesKeyValueStorageFor(Some(block.header.number)).put(ByteString(m.hash), m.toBytes)
           m.children.collect { case Some(Left(hash)) => hash}.foreach(e => traverse(e))
 
         case Some(m: ExtensionNode) =>
-          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
+          storages.nodesKeyValueStorageFor(Some(block.header.number)).put(ByteString(m.hash), m.toBytes)
           m.next match {
             case Left(hash) if hash.nonEmpty => traverse(hash)
             case _ =>
@@ -69,7 +69,7 @@ object FixtureProvider {
 
         case Some(m: LeafNode) =>
           import AccountImplicits._
-          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
+          storages.nodesKeyValueStorageFor(Some(block.header.number)).put(ByteString(m.hash), m.toBytes)
           Try(m.value.toArray[Byte].toAccount).toOption.foreach { account =>
             if (account.codeHash != DumpChainActor.emptyEvm) {
               storages.evmCodeStorage.put(account.codeHash, fixtures.evmCode(account.codeHash))

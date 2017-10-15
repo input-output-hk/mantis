@@ -1,10 +1,11 @@
 package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
+import io.iohk.ethereum.common.{BatchOperation, Removal, Upsert}
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.db.storage.pruning.{PruningNodesKeyValueStorage, PruneResult, RangePrune}
+import io.iohk.ethereum.db.storage.encoding._
+import io.iohk.ethereum.db.storage.pruning.{PruneResult, PruningNodesKeyValueStorage, RangePrune}
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
-import encoding._
 
 /**
   * This class helps to deal with two problems regarding MptNodes storage:
@@ -30,54 +31,53 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
 
   override def get(key: ByteString): Option[NodeEncoded] = nodeStorage.get(key).map(storedNodeFromBytes).map(_.nodeEncoded.toArray)
 
-  override def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesKeyValueStorage = {
-
+  override def update(batchOperations: Seq[BatchOperation[NodeHash, NodeEncoded]]): NodesKeyValueStorage = {
     require(blockNumber.isDefined)
 
     val bn = blockNumber.get
-    // Process upsert changes. As the same node might be changed twice within the same update, we need to keep changes
-    // within a map
-    val upsertChanges = toUpsert.foldLeft(Map.empty[NodeHash, StoredNode]) { (storedNodes, toUpsertItem) =>
-      val (nodeKey, nodeEncoded) = toUpsertItem
-      val storedNode: StoredNode = storedNodes.get(nodeKey) // get from current changes
-        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes)) // or get from DB
-        .getOrElse(StoredNode(ByteString(nodeEncoded), 0)) // if it's new, return an empty stored node
-        .incrementReferences(1)
-
-      storedNodes + (nodeKey -> storedNode)
-    }
-
     // Look for block_number -> key prune candidates in order to update it if some node reaches 0 references
     val toPruneInThisBlockKey = pruneKey(bn)
     val pruneCandidates = nodeStorage.get(toPruneInThisBlockKey).map(pruneCandidatesFromBytes).getOrElse(PruneCandidates(Nil))
 
-    val changes = toRemove.foldLeft(upsertChanges, pruneCandidates) { (acc, nodeKey) =>
+    val changes = batchOperations.foldLeft(Map.empty[NodeHash, StoredNode], pruneCandidates) { (acc, bOp: BatchOperation[NodeHash, NodeEncoded]) =>
       val (storedNodes, toDeleteInBlock) = acc
-      val storedNode: Option[StoredNode] = storedNodes.get(nodeKey) // get from current changes
-        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes)) // or db
-        .map(_.decrementReferences(1))
+      bOp match {
+        case Upsert(nodeKey: NodeHash, nodeEncoded: NodeEncoded) =>
+          // Process upsert changes. As the same node might be changed twice within the same update, we need to keep changes
+          // within a map
+          val storedNode: StoredNode = storedNodes.get(nodeKey) // get from current changes
+            .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes)) // or get from DB
+            .getOrElse(StoredNode(ByteString(nodeEncoded), 0)) // if it's new, return an empty stored node
+            .incrementReferences(1)
 
-      if (storedNode.isDefined) {
-        val pruneCanditatesUpdated =
-          // if references is 0, mark it as prune candidate for current block tag
-          if (storedNode.get.references == 0) toDeleteInBlock.copy(nodeKeys = nodeKey +: toDeleteInBlock.nodeKeys)
-          else toDeleteInBlock
-        (storedNodes + (nodeKey -> storedNode.get), pruneCanditatesUpdated)
+          (storedNodes + (nodeKey -> storedNode), toDeleteInBlock)
+        case Removal(nodeKey: NodeHash) =>
+          val storedNode: Option[StoredNode] = storedNodes.get(nodeKey) // get from current changes
+            .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes)) // or db
+            .map(_.decrementReferences(1))
+
+          if (storedNode.isDefined) {
+            val pruneCanditatesUpdated =
+            // if references is 0, mark it as prune candidate for current block tag
+              if (storedNode.get.references == 0) toDeleteInBlock.copy(nodeKeys = nodeKey +: toDeleteInBlock.nodeKeys)
+              else toDeleteInBlock
+            (storedNodes + (nodeKey -> storedNode.get), pruneCanditatesUpdated)
+          }
+          else acc
       }
-      else acc
     }
 
     // map stored nodes to bytes in order to save them
     val toUpsertUpdated = changes._1.map {
-      case (nodeKey: NodeHash, storedNode: StoredNode) => nodeKey -> storedNodeToBytes(storedNode)
+      case (nodeKey: NodeHash, storedNode: StoredNode) => Upsert[NodeHash, NodeEncoded](nodeKey, storedNodeToBytes(storedNode))
     }.toSeq
 
     val toMarkAsDeleted =
-      // Update prune candidates for current block tag if it references at least one block that should be removed
-      if (changes._2.nodeKeys.nonEmpty) Seq(toPruneInThisBlockKey -> pruneCandiatesToBytes(changes._2))
+    // Update prune candidates for current block tag if it references at least one block that should be removed
+      if (changes._2.nodeKeys.nonEmpty) Seq(Upsert[NodeHash, NodeEncoded](toPruneInThisBlockKey, pruneCandiatesToBytes(changes._2)))
       else Nil
 
-    nodeStorage.update(Nil, toUpsertUpdated ++ toMarkAsDeleted)
+    nodeStorage.update(toUpsertUpdated ++ toMarkAsDeleted)
 
     this
   }
@@ -117,12 +117,13 @@ object ReferenceCountNodeStorage {
         val pruneCandidateNodes = pruneCandidates.nodeKeys.map(nodeStorage.get)
         val pruneCandidateNodesWithKeys = pruneCandidateNodes.zip(pruneCandidates.nodeKeys)
         pruneCandidateNodesWithKeys.collect {
-          case (Some(candidate), candidateKey) if storedNodeFromBytes(candidate).references == 0 => candidateKey }
+          case (Some(candidate), candidateKey) if storedNodeFromBytes(candidate).references == 0 => Removal[NodeHash, NodeEncoded](candidateKey)
+        }
       }.map(nodeKeysToDelete => {
-        // Update nodestorage removing all nodes that are no longer being used
-        nodeStorage.update(key +: nodeKeysToDelete, Nil)
-        nodeKeysToDelete.size
-      }).getOrElse(0)
+      // Update nodestorage removing all nodes that are no longer being used
+      nodeStorage.update(Removal[NodeHash, NodeEncoded](key) +: nodeKeysToDelete)
+      nodeKeysToDelete.size
+    }).getOrElse(0)
   }
 
   /**

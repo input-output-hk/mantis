@@ -1,6 +1,7 @@
 package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.common.{Removal, Upsert}
 import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
@@ -39,7 +40,7 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
 
       val intsInStorageIndexedSeq = intsInStorage.map{ IntStorage.intSerializer(_) }
       val initialIntDataSource = EphemDataSource()
-        .update(IntStorage.intNamespace, Seq(), intsInStorageIndexedSeq.zip(intsInStorageIndexedSeq))
+        .update(IntStorage.intNamespace, intsInStorageIndexedSeq.zip(intsInStorageIndexedSeq).map(t => Upsert(t)))
       val keyValueStorage = new IntStorage(initialIntDataSource)
       intsInStorage.foreach{ i => assert(keyValueStorage.get(i).contains(i)) }
       intsNotInStorage.foreach{ i => assert(keyValueStorage.get(i).isEmpty) }
@@ -50,7 +51,7 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
     forAll(Gen.listOfN(iterationsNumber, Gen.listOf(intGen))) { listOfListOfInt =>
 
       val keyValueStorage = listOfListOfInt.foldLeft(initialIntStorage){ case (recKeyValueStorage, intList) =>
-        recKeyValueStorage.update(Seq(), intList.zip(intList))
+        recKeyValueStorage.update(intList.zip(intList).map(t => Upsert(t)))
       }
 
       listOfListOfInt.flatten.foreach{ i =>
@@ -62,11 +63,11 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
   test("Delete ints from KeyValueStorage") {
     forAll(Gen.listOf(intGen)) { listOfInt =>
       //Insert of keys
-      val intStorage = initialIntStorage.update(Seq(), listOfInt.zip(listOfInt))
+      val intStorage = initialIntStorage.update(listOfInt.zip(listOfInt).map(t => Upsert(t)))
 
       //Delete of ints
       val (toDelete, toLeave) = listOfInt.splitAt(Gen.choose(0, listOfInt.size).sample.get)
-      val keyValueStorage = intStorage.update(toDelete, Seq())
+      val keyValueStorage = intStorage.update(toDelete.map(Removal[Int, Int]))
 
       toDelete.foreach{ i =>
         assert(keyValueStorage.get(i).isEmpty)
@@ -92,7 +93,7 @@ class KeyValueStorageSuite extends FunSuite with PropertyChecks with ObjectGener
   test("Remove ints from KeyValueStorage") {
     forAll(Gen.listOf(intGen)) { listOfInt =>
       //Insert of keys
-      val intStorage = initialIntStorage.update(Seq(), listOfInt.zip(listOfInt))
+      val intStorage = initialIntStorage.update(listOfInt.zip(listOfInt).map(t => Upsert(t)))
 
       //Delete of ints
       val (toDelete, toLeave) = listOfInt.splitAt(Gen.choose(0, listOfInt.size).sample.get)

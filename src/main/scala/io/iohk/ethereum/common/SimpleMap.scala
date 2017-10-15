@@ -20,7 +20,7 @@ trait SimpleMap[K, V, T <: SimpleMap[K, V, T]] {
     * @param value
     * @return New trie with the (key-value) pair inserted.
     */
-  def put(key: K, value: V): T = update(Nil, Seq(key -> value))
+  def put(key: K, value: V): T = update(Seq(Upsert(key, value)))
 
   /**
     * This function inserts a (key-value) pair into the trie. If the key is already asociated with another value it is updated.
@@ -37,7 +37,7 @@ trait SimpleMap[K, V, T <: SimpleMap[K, V, T]] {
     * @param key
     * @return New trie with the (key-value) pair associated with the key passed deleted from the trie.
     */
-  def remove(key: K): T = update(Seq(key), Nil)
+  def remove(key: K): T = update(Seq(Removal(key)))
 
   /**
     * This function deletes a (key-value) pair from the trie. If no (key-value) pair exists with the passed trie then there's no effect on it.
@@ -51,11 +51,9 @@ trait SimpleMap[K, V, T <: SimpleMap[K, V, T]] {
   /**
     * This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
     *
-    * @param toRemove which includes all the keys to be removed from the KeyValueStore.
-    * @param toUpsert which includes all the (key-value) pairs to be inserted into the KeyValueStore.
-    *                 If a key is already in the DataSource its value will be updated.
+    * @param batchOperations sequence of operations to be applied
     * @return the new DataSource after the removals and insertions were done.
     */
-  def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): T
+  def update(batchOperations: Seq[BatchOperation[K, V]]): T
 
 }

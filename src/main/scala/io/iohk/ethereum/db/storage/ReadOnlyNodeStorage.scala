@@ -1,5 +1,6 @@
 package io.iohk.ethereum.db.storage
 
+import io.iohk.ethereum.common.BatchOperation
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.ledger.InMemorySimpleMapProxy
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
@@ -21,16 +22,13 @@ class ReadOnlyNodeStorage private(wrapped: InMemorySimpleMapProxy[NodeHash, Node
   /**
     * This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
     *
-    * @param toRemove which includes all the keys to be removed from the KeyValueStore.
-    * @param toUpsert which includes all the (key-value) pairs to be inserted into the KeyValueStore.
-    *                 If a key is already in the DataSource its value will be updated.
+    * @param batchOperations sequence of operations to be applied
     * @return the new DataSource after the removals and insertions were done.
     */
-  override def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesKeyValueStorage = {
-    val updatedCache = wrapped.update(toRemove, toUpsert)
+  override def update(batchOperations: Seq[BatchOperation[NodeHash, NodeEncoded]]): NodesKeyValueStorage = {
+    val updatedCache = wrapped.update(batchOperations)
     new ReadOnlyNodeStorage(updatedCache)
   }
-
 }
 
 object ReadOnlyNodeStorage {

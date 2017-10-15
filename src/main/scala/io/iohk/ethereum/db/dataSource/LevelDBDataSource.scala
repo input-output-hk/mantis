@@ -2,6 +2,8 @@ package io.iohk.ethereum.db.dataSource
 
 import java.io.File
 
+import io.iohk.ethereum.common.{BatchOperation, Removal, Upsert}
+import io.iohk.ethereum.db.dataSource.DataSource.{Key, Namespace, Value}
 import org.iq80.leveldb.{DB, Options, WriteOptions}
 import org.iq80.leveldb.impl.Iq80DBFactory
 
@@ -25,16 +27,18 @@ class LevelDBDataSource(
     * This function updates the DataSource by deleting, updating and inserting new (key-value) pairs.
     *
     * @param namespace from which the (key-value) pairs will be removed and inserted.
-    * @param toRemove  which includes all the keys to be removed from the DataSource.
-    * @param toUpsert  which includes all the (key-value) pairs to be inserted into the DataSource.
-    *                  If a key is already in the DataSource its value will be updated.
+    * @param batchOperations sequence of operations to be applied
     * @return the new DataSource after the removals and insertions were done.
     */
-  override def update(namespace: Namespace, toRemove: Seq[Key], toUpsert: Seq[(Key, Value)]): DataSource = {
+  override def update(namespace: Namespace, batchOperations: Seq[BatchOperation[Key, Value]]): DataSource = {
     val batch = db.createWriteBatch()
-    toRemove.foreach { key => batch.delete((namespace ++ key).toArray) }
-    toUpsert.foreach { item => batch.put((namespace ++ item._1).toArray, item._2.toArray) }
+    batchOperations.foreach {
+      case Removal(key) => batch.delete((namespace ++ key).toArray)
+      case Upsert(key, value) => batch.put((namespace ++ key).toArray, value.toArray)
+    }
+
     db.write(batch, new WriteOptions())
+
     this
   }
 
