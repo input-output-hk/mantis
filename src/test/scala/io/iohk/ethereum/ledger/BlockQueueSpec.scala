@@ -153,7 +153,7 @@ class BlockQueueSpec extends FlatSpec with Matchers with MockFactory {
   trait TestConfig {
     val syncConfig = SyncConfig(Config.config)
     val blockchain = mock[BlockchainImpl]
-    val blockQueue = new BlockQueue(blockchain, syncConfig)
+    val blockQueue = BlockQueue(blockchain, syncConfig)
 
     def setBestBlockNumber(n: BigInt) =
       (blockchain.getBestBlockNumber _).expects().returning(n)

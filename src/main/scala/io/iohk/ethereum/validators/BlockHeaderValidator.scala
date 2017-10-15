@@ -7,6 +7,7 @@ import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
 trait BlockHeaderValidator {
   def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader]
+  def validatePreImport(blockHeader: BlockHeader, minDifficulty: BigInt): Either[BlockHeaderError, BlockHeader]
 }
 
 object BlockHeaderValidatorImpl {
@@ -51,6 +52,17 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     for {
       blockHeaderParent <- obtainBlockParentHeader(blockHeader, blockchain)
       _ <- validate(blockHeader, blockHeaderParent)
+    } yield blockHeader
+  }
+
+  /** Validates blockHeader prior to importing (enqueueing) - PoW + minimum difficulty validation
+    *
+    * @param blockHeader BlockHeader to validate.
+    */
+  def validatePreImport(blockHeader: BlockHeader, minDifficulty: BigInt): Either[BlockHeaderError, BlockHeader] = {
+    for {
+      _ <- validatePoW(blockHeader)
+      _ <- if (blockHeader.difficulty >= minDifficulty) Right(BlockHeader) else Left(HeaderDifficultyError)
     } yield blockHeader
   }
 

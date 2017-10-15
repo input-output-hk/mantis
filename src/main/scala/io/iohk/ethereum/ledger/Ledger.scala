@@ -30,6 +30,10 @@ trait Ledger {
 //FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
 //TODO: EC-313: this has grown a bit large, consider splitting the aspects block import, block exec and TX exec
 // scalastyle:off number.of.methods
+/**
+  * Ledger handles importing and executing blocks.
+  * Note: this class thread-unsafe because of its dependencies on Blockchain and BlockQueue
+  */
 class LedgerImpl(
     vm: VM,
     blockchain: BlockchainImpl,
@@ -40,7 +44,7 @@ class LedgerImpl(
 
   def this(vm: VM, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig,
     syncConfig: SyncConfig, validators: Validators) =
-    this(vm, blockchain, new BlockQueue(blockchain, syncConfig), blockchainConfig, validators)
+    this(vm, blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, validators)
 
   val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
 
@@ -56,23 +60,32 @@ class LedgerImpl(
     *         - [[BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
     */
   def importBlock(block: Block): BlockImportResult = {
-    val isDuplicate = blockchain.getBlockByHash(block.header.hash).isDefined || blockQueue.isQueued(block.header.hash)
+    val bestBlock = blockchain.getBestBlock()
+    val minDifficulty = getMinDifficultyForImport(bestBlock.header.number)
 
-    if (isDuplicate) {
-      log.debug(s"Ignoring duplicate block: (${block.header.number}: ${Hex.toHexString(block.header.hash.toArray)})")
-      DuplicateBlock
-    }
+    validators.blockHeaderValidator.validatePreImport(block.header, minDifficulty) match {
+      case Left(error) =>
+        log.debug(s"Block(${block.header.number}: ${Hex.toHexString(block.header.hash.toArray)}) failed pre-import validation")
+        BlockImportFailed(error.toString)
 
-    else {
-      val bestBlock = blockchain.getBestBlock()
-      val currentTd = blockchain.getTotalDifficultyByHash(bestBlock.header.hash).get
+      case Right(_) =>
+        val isDuplicate = blockchain.getBlockByHash(block.header.hash).isDefined || blockQueue.isQueued(block.header.hash)
 
-      val isTopOfChain = block.header.parentHash == bestBlock.header.hash
+        if (isDuplicate) {
+          log.debug(s"Ignoring duplicate block: (${block.header.number}: ${Hex.toHexString(block.header.hash.toArray)})")
+          DuplicateBlock
+        }
 
-      if (isTopOfChain)
-        importBlockToTop(block, bestBlock.header.number, currentTd)
-      else
-        enqueueBlockOrReorganiseChain(block, bestBlock, currentTd)
+        else {
+          val currentTd = blockchain.getTotalDifficultyByHash(bestBlock.header.hash).get
+
+          val isTopOfChain = block.header.parentHash == bestBlock.header.hash
+
+          if (isTopOfChain)
+            importBlockToTop(block, bestBlock.header.number, currentTd)
+          else
+            enqueueBlockOrReorganiseChain(block, bestBlock, currentTd)
+        }
     }
   }
 
@@ -237,6 +250,11 @@ class LedgerImpl(
         log.error(s"Unexpected missing block number: $fromNumber")
         Nil
     }
+  }
+
+  private def getMinDifficultyForImport(currentBestNumber: BigInt): BigInt = {
+    val ancestorNumber = (currentBestNumber - blockQueue.maxQueuedBlockNumberBehind).max(0)
+    blockchain.getBlockHeaderByNumber(ancestorNumber).get.difficulty
   }
 
   /**

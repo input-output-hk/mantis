@@ -14,10 +14,14 @@ import scala.collection.mutable
 object BlockQueue {
   case class QueuedBlock(block: Block, totalDifficulty: Option[BigInt])
   case class Leaf(hash: ByteString, totalDifficulty: BigInt)
+
+  def apply(blockchain: Blockchain, syncConfig: SyncConfig): BlockQueue =
+    new BlockQueue(blockchain, syncConfig.maxQueuedBlockNumberAhead, syncConfig.maxQueuedBlockNumberBehind)
 }
 
-class BlockQueue(blockchain: Blockchain, syncConfig: SyncConfig) extends Logger {
+class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val maxQueuedBlockNumberBehind: Int) extends Logger {
 
+  // note these two maps make this class thread-unsafe
   private val blocks = mutable.Map[ByteString, QueuedBlock]()
   private val parentToChildren = mutable.Map[ByteString, Set[ByteString]]()
 
@@ -185,8 +189,8 @@ class BlockQueue(blockchain: Blockchain, syncConfig: SyncConfig) extends Logger 
   }
 
   private def isNumberOutOfRange(blockNumber: BigInt, bestBlockNumber: BigInt): Boolean =
-    blockNumber - bestBlockNumber > syncConfig.maxQueuedBlockNumberAhead ||
-    bestBlockNumber - blockNumber > syncConfig.maxQueuedBlockNumberBehind
+    blockNumber - bestBlockNumber > maxQueuedBlockNumberAhead ||
+    bestBlockNumber - blockNumber > maxQueuedBlockNumberBehind
 
   private def blockId(block: Block): String =
     s"${block.header.number}: ${Hex.toHexString(block.header.hash.toArray)}"
