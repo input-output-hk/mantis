@@ -59,8 +59,9 @@ object Config {
       val waitForHelloTimeout: FiniteDuration = peerConfig.getDuration("wait-for-hello-timeout").toMillis.millis
       val waitForStatusTimeout: FiniteDuration = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
       val waitForChainCheckTimeout: FiniteDuration = peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
-      val maxPeers: Int = peerConfig.getInt("max-peers")
+      val maxOutgoingPeers: Int = peerConfig.getInt("max-outgoing-peers")
       val maxIncomingPeers: Int = peerConfig.getInt("max-incoming-peers")
+      val maxPendingPeers: Int = peerConfig.getInt("max-pending-peers")
       val networkId: Int = peerConfig.getInt("network-id")
 
       val rlpxConfiguration = new RLPxConfiguration {
@@ -199,6 +200,7 @@ object FilterConfig {
 trait TxPoolConfig {
   val txPoolSize: Int
   val pendingTxManagerQueryTimeout: FiniteDuration
+  val transactionTimeout: FiniteDuration
 }
 
 object TxPoolConfig {
@@ -208,6 +210,7 @@ object TxPoolConfig {
     new TxPoolConfig {
       val txPoolSize: Int = txPoolConfig.getInt("tx-pool-size")
       val pendingTxManagerQueryTimeout: FiniteDuration = txPoolConfig.getDuration("pending-tx-manager-query-timeout").toMillis.millis
+      val transactionTimeout: FiniteDuration = txPoolConfig.getDuration("transaction-timeout").toMillis.millis
     }
   }
 }
@@ -281,10 +284,11 @@ object DaoForkConfig {
 trait BlockchainConfig {
   val frontierBlockNumber: BigInt
   val homesteadBlockNumber: BigInt
+  val eip106BlockNumber: BigInt
   val eip150BlockNumber: BigInt
   val eip155BlockNumber: BigInt
   val eip160BlockNumber: BigInt
-  val eip106BlockNumber: BigInt
+  val eip161BlockNumber: BigInt
   val maxCodeSize: Option[BigInt]
   val difficultyBombPauseBlockNumber: BigInt
   val difficultyBombContinueBlockNumber: BigInt
@@ -309,9 +313,11 @@ object BlockchainConfig {
     new BlockchainConfig {
       override val frontierBlockNumber: BigInt = BigInt(blockchainConfig.getString("frontier-block-number"))
       override val homesteadBlockNumber: BigInt = BigInt(blockchainConfig.getString("homestead-block-number"))
+      override val eip106BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip106-block-number"))
       override val eip150BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip150-block-number"))
       override val eip155BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip155-block-number"))
       override val eip160BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip160-block-number"))
+      override val eip161BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip161-block-number"))
       override val maxCodeSize: Option[BigInt] = Try(BigInt(blockchainConfig.getString("max-code-size"))).toOption
       override val difficultyBombPauseBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-pause-block-number"))
       override val difficultyBombContinueBlockNumber: BigInt = BigInt(blockchainConfig.getString("difficulty-bomb-continue-block-number"))
@@ -329,8 +335,6 @@ object BlockchainConfig {
       }
 
       override val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
-
-      override val eip106BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip106-block-number"))
     }
   }
 }

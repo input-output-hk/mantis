@@ -76,8 +76,8 @@ class PeerActor[R <: HandshakeResult](
   def waitingForConnectionResult(rlpxConnection: RLPxConnection, numRetries: Int = 0): Receive =
     handleTerminated(rlpxConnection) orElse stashMessages orElse {
       case RLPxConnectionHandler.ConnectionEstablished(remoteNodeId) =>
-        val uri =
-          new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray)}@${rlpxConnection.remoteAddress.getHostName}:${rlpxConnection.remoteAddress.getPort}")
+        val host = getHostName(rlpxConnection.remoteAddress.getAddress)
+        val uri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray)}@$host:${rlpxConnection.remoteAddress.getPort}")
         processHandshakerNextMessage(initHandshaker, rlpxConnection.copy(uriOpt = Some(uri)), numRetries)
 
       case RLPxConnectionHandler.ConnectionFailed =>
@@ -214,6 +214,10 @@ class PeerActor[R <: HandshakeResult](
 
   class HandshakedPeer(rlpxConnection: RLPxConnection, handshakeResult: R) {
 
+    if (incomingConnection) {
+      context.parent ! IncomingConnectionHandshakeSuccess(peerId, peer)
+    }
+
     peerEventBus ! Publish(PeerHandshakeSuccessful(peer, handshakeResult))
 
     /**
@@ -274,6 +278,8 @@ object PeerActor {
   }
 
   case class HandleConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
+
+  case class IncomingConnectionHandshakeSuccess(peerId: PeerId, peer: Peer)
 
   case class ConnectTo(uri: URI)
 
