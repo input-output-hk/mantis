@@ -435,7 +435,7 @@ class EthService(
 
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] = {
     reportActive()
-    import io.iohk.ethereum.mining.pow.PowCache._
+    import io.iohk.ethereum.consensus.Ethash.seed
 
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
 
@@ -445,7 +445,7 @@ class EthService(
           case Right(pb) =>
             Right(GetWorkResponse(
               powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
-              dagSeed = seedForBlock(pb.block.header.number),
+              dagSeed = seed(pb.block.header.number.toLong),
               target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
             ))
           case Left(err) =>

@@ -1,7 +1,7 @@
 package io.iohk.ethereum.validators
 
-import akka.util.ByteString
-import io.iohk.ethereum.crypto.{kec256, kec512}
+import io.iohk.ethereum.consensus.Ethash
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, DifficultyCalculator}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
@@ -20,6 +20,10 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
 
   import BlockHeaderValidatorImpl._
   import BlockHeaderError._
+
+  // fixme: we need a better way to store pow cache, this is a temporary solution
+  var powCacheEpoch: Long = 0
+  var powCache: Option[Array[Int]] = None
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
@@ -159,20 +163,25 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[HeaderPoWError]] otherwise
     */
-  //FIXME: Simple PoW validation without using DAG [EC-88]
   private def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
-    val powBoundary = BigInt(2).pow(256) / blockHeader.difficulty
-    val powValue = BigInt(1, calculatePoWValue(blockHeader).toArray)
-    if(powValue <= powBoundary) Right(blockHeader)
-    else Left(HeaderPoWError)
-  }
+    val currentEpoch = Ethash.epoch(blockHeader.number.toLong)
+    val cache = powCache match {
+      case Some(c) if powCacheEpoch == currentEpoch => c
+      case _ =>
+        val newCache = Ethash.makeCache(blockHeader.number.toLong)
+        powCacheEpoch = currentEpoch
+        powCache = Some(newCache)
+        newCache
+    }
 
-  private def calculatePoWValue(blockHeader: BlockHeader): ByteString = {
-    val nonceReverted = blockHeader.nonce.reverse
-    val hashBlockWithoutNonce = kec256(BlockHeader.getEncodedWithoutNonce(blockHeader))
-    val seedHash = kec512(hashBlockWithoutNonce ++ nonceReverted)
+    val proofOfWork = Ethash.hashimotoLight(crypto.kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)),
+      blockHeader.nonce.toArray[Byte], Ethash.dagSize(blockHeader.number.toLong), cache)
 
-    ByteString(kec256(seedHash ++ blockHeader.mixHash))
+    if (proofOfWork.mixHash == blockHeader.mixHash &&
+      Ethash.checkDifficulty(blockHeader, proofOfWork))
+      Right(blockHeader)
+    else
+      Left(HeaderPoWError)
   }
 
   /**
