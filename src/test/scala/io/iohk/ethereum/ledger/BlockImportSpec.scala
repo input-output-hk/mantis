@@ -27,13 +27,9 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val block1 = getBlock()
     val block2 = getBlock()
 
-    setBestBlock(getBlock())
-    setAncestorForValidation(1)
     setBlockExists(block1, inChain = true, inQueue = false)
     ledger.importBlock(block1) shouldEqual DuplicateBlock
 
-    setBestBlock(getBlock())
-    setAncestorForValidation(1)
     setBlockExists(block2, inChain = false, inQueue = true)
     ledger.importBlock(block2) shouldEqual DuplicateBlock
   }
@@ -43,7 +39,6 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
     setBlockExists(block, false, false)
     setBestBlock(bestBlock)
-    setAncestorForValidation(bestNum)
     setTotalDifficultyForBlock(bestBlock, currentTd)
     ledger.setExecutionResult(block, Right(receipts))
 
@@ -62,7 +57,6 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
     setBlockExists(block, false, false)
     setBestBlock(bestBlock)
-    setAncestorForValidation(bestNum)
     setTotalDifficultyForBlock(bestBlock, currentTd)
     ledger.setExecutionResult(block, Left(execError))
 
@@ -163,18 +157,15 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     blockchain.getBestBlock() shouldEqual block3
   }
 
+  // TODO: update this test when implementing EC-319
   it should "validate blocks prior to import" in new TestSetup with MockBlockchain {
     val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
     val ledgerWithMockedValidators = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig, validators)
 
-    val minDifficulty: BigInt = 100
-    setBestBlock(getBlock(15, 110))
-    setAncestorForValidation(15, minDifficulty)
-
-    val newBlock = getBlock(16, 99)
-    (validators.blockHeaderValidator.validatePreImport _).expects(newBlock.header, minDifficulty).returning(Left(HeaderDifficultyError))
+    val newBlock = getBlock()
+    (validators.blockHeaderValidator.validatePreImport _).expects(newBlock.header, blockchain).returning(Left(HeaderDifficultyError))
 
     ledgerWithMockedValidators.importBlock(newBlock) shouldEqual BlockImportFailed(HeaderDifficultyError.toString)
   }
@@ -313,12 +304,6 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     def setBestBlock(block: Block) = {
       (blockchain.getBestBlock _).expects().returning(block)
       (blockchain.getBestBlockNumber _).expects().anyNumberOfTimes().returning(block.header.number)
-    }
-
-    def setAncestorForValidation(bestNum: BigInt, requiredDifficulty: BigInt = 0) = {
-      val number = (bestNum - blockQueue.maxQueuedBlockNumberBehind).max(0)
-      val header = getBlock(number, difficulty = requiredDifficulty).header
-      (blockchain.getBlockHeaderByNumber _).expects(number).returning(Some(header))
     }
 
     def setBestBlockNumber(num: BigInt) =

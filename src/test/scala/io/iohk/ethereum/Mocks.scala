@@ -73,7 +73,7 @@ object Mocks {
     }
 
     override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
-      def validatePreImport(blockHeader: BlockHeader, minDifficulty: BigInt): Either[BlockHeaderError, BlockHeader] =
+      def validatePreImport(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] =
         Right(blockHeader)
 
       def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] =
@@ -97,7 +97,7 @@ object Mocks {
     override val blockHeaderValidator = new BlockHeaderValidator {
       def validate(blockHeader: BlockHeader, blockchain: Blockchain) = Left(HeaderNumberError)
 
-      def validatePreImport(blockHeader: BlockHeader, minDifficulty: BigInt): Either[BlockHeaderError, BlockHeader] =
+      def validatePreImport(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] =
         Left(HeaderDifficultyError)
     }
 

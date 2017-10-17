@@ -60,10 +60,9 @@ class LedgerImpl(
     *         - [[BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
     */
   def importBlock(block: Block): BlockImportResult = {
-    val bestBlock = blockchain.getBestBlock()
-    val minDifficulty = getMinDifficultyForImport(bestBlock.header.number)
-
-    validators.blockHeaderValidator.validatePreImport(block.header, minDifficulty) match {
+    //val validationResult: Either[Nothing, BlockHeader] = Right(block.header)
+    val validationResult = validators.blockHeaderValidator.validatePreImport(block.header, blockchain)
+    validationResult match {
       case Left(error) =>
         log.debug(s"Block(${block.header.number}: ${Hex.toHexString(block.header.hash.toArray)}) failed pre-import validation")
         BlockImportFailed(error.toString)
@@ -77,6 +76,7 @@ class LedgerImpl(
         }
 
         else {
+          val bestBlock = blockchain.getBestBlock()
           val currentTd = blockchain.getTotalDifficultyByHash(bestBlock.header.hash).get
 
           val isTopOfChain = block.header.parentHash == bestBlock.header.hash
@@ -250,11 +250,6 @@ class LedgerImpl(
         log.error(s"Unexpected missing block number: $fromNumber")
         Nil
     }
-  }
-
-  private def getMinDifficultyForImport(currentBestNumber: BigInt): BigInt = {
-    val ancestorNumber = (currentBestNumber - blockQueue.maxQueuedBlockNumberBehind).max(0)
-    blockchain.getBlockHeaderByNumber(ancestorNumber).get.difficulty
   }
 
   /**
