@@ -143,6 +143,11 @@ scalacOptions := Seq(
   "-Ywarn-unused-import"
 )
 
+scalacOptions in (Compile, console) ~= (_.filterNot(Set(
+  "-Ywarn-unused-import",
+  "-Xfatal-warnings"
+)))
+
 parallelExecution in Test := false
 
 testOptions in Test += Tests.Argument("-oD")
