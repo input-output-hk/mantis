@@ -63,7 +63,7 @@ class RegularSync(
       context become running
   }
 
-  def running: Receive = handleBasicMessages orElse handleTopOfChainMessages orElse handleResumingAndPrinting
+  def running: Receive = handleBasicMessages orElse handleAdditionalMessages orElse handleResumingAndPrinting
 
   def handleBasicMessages: Receive = handleCommonMessages orElse handleResponseToRequest
 
@@ -75,7 +75,7 @@ class RegularSync(
       log.info(s"Block: ${appStateStorage.getBestBlockNumber()}. Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted)")
   }
 
-  def handleTopOfChainMessages: Receive = handleBroadcastedBlockMessages orElse handleMinedBlock orElse handleNewBlockHashesMessages
+  def handleAdditionalMessages: Receive = handleBroadcastedBlockMessages orElse handleMinedBlock orElse handleNewBlockHashesMessages
 
   private def resumeRegularSync(): Unit = {
     resumeRegularSyncTimeout.foreach(_.cancel)
@@ -90,13 +90,10 @@ class RegularSync(
       scheduleResume()
   }
 
-  /**
-    * Handles broadcasted blocks, should only import them when we are top of the chain
-    */
   def handleBroadcastedBlockMessages: Receive = {
     case MessageFromPeer(NewBlock(newBlock, _), peerId) =>
       //we allow inclusion of new block only if we are not syncing
-      if (notDownloadingAndTopOfTheChain()) {
+      if (notDownloading()) {
         val importResult = ledger.importBlock(newBlock)
 
         importResult match {
@@ -132,8 +129,9 @@ class RegularSync(
   def handleNewBlockHashesMessages: Receive = {
     case MessageFromPeer(NewBlockHashes(hashes), peerId) =>
       val maybePeer = peersToDownloadFrom.find(peer => peer._1.id == peerId)
-      //we allow asking for new hashes when we are not syncing and we can download from specified peer
-      if (notDownloadingAndTopOfTheChain() && maybePeer.isDefined) {
+      //we allow asking for new hashes when we are not syncing and we can download from specified peer and we are
+      //top of the chain
+      if (notDownloading() && topOfTheChain && maybePeer.isDefined) {
         val (peer, _) = maybePeer.get
         val hashesToCheck = hashes.take(syncConfig.maxNewHashes)
 
@@ -195,15 +193,12 @@ class RegularSync(
       scheduleResume()
   }
 
-  /**
-    * Handles MinedBlock, should only cover this message when we are top of the chain
-    */
   def handleMinedBlock: Receive = {
 
     //todo improve mined block handling - add info that block was not included because of syncing [EC-250]
     //we allow inclusion of mined block only if we are not syncing / reorganising chain
     case MinedBlock(block) =>
-      if (notDownloadingAndTopOfTheChain()) {
+      if (notDownloading()) {
         val importResult = ledger.importBlock(block)
 
         importResult match {
@@ -399,8 +394,8 @@ class RegularSync(
     }
   }
 
-  private def notDownloadingAndTopOfTheChain(): Boolean =
-    headersQueue.isEmpty && waitingForActor.isEmpty && topOfTheChain
+  private def notDownloading(): Boolean =
+    headersQueue.isEmpty && waitingForActor.isEmpty
 
 }
 

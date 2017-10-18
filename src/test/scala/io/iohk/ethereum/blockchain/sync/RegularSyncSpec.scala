@@ -45,8 +45,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(block), List(defaultTd)))
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
 
-        sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendNewBlockMsg(block)
 
         ommersPool.expectMsg(RemoveOmmers(block.header :: block.body.uncleNodesList.toList))
@@ -61,8 +59,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
           .returning(ChainReorganised(List(oldBlock), List(newBlock), List(defaultTd)))
         (broadcaster.broadcastBlock _).expects(NewBlock(newBlock, defaultTd), handshakedPeers)
 
-        sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendNewBlockMsg(newBlock)
 
         ommersPool.expectMsg(AddOmmers(List(oldBlock.header)))
@@ -78,8 +74,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (ledger.importBlock _).expects(block).returning(DuplicateBlock)
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
-        sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendNewBlockMsg(block)
 
         ommersPool.expectNoMsg(1.second)
@@ -92,8 +86,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (ledger.importBlock _).expects(block).returning(BlockEnqueued)
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
-        sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendNewBlockMsg(block)
 
         ommersPool.expectMsg(AddOmmers(List(block.header)))
@@ -106,8 +98,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (ledger.importBlock _).expects(block).returning(BlockImportFailed("error"))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
-        sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendNewBlockMsg(block)
 
         ommersPool.expectNoMsg(1.second)
@@ -187,8 +177,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(block), List(defaultTd)))
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
 
-        sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendMinedBlockMsg(block)
 
         txPool.expectMsg(RemoveTransactions(block.body.transactionList.toList))
@@ -202,8 +190,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
           .returning(ChainReorganised(List(oldBlock), List(newBlock), List(defaultTd)))
         (broadcaster.broadcastBlock _).expects(NewBlock(newBlock, defaultTd), handshakedPeers)
 
-        sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendMinedBlockMsg(newBlock)
 
         ommersPool.expectMsg(AddOmmers(List(oldBlock.header)))
@@ -219,8 +205,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (ledger.importBlock _).expects(block).returning(DuplicateBlock)
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
-        sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendMinedBlockMsg(block)
 
         ommersPool.expectNoMsg(1.second)
@@ -233,8 +217,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (ledger.importBlock _).expects(block).returning(BlockEnqueued)
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
-        sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendMinedBlockMsg(block)
 
         ommersPool.expectMsg(AddOmmers(List(block.header)))
@@ -247,8 +229,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (ledger.importBlock _).expects(block).returning(BlockImportFailed("error"))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
-        sendBlockHeaders(Seq.empty)
-        regularSync.underlyingActor.topOfTheChain shouldEqual true
         sendMinedBlockMsg(block)
 
         ommersPool.expectNoMsg(1.second)
