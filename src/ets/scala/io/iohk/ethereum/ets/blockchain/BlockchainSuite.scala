@@ -1,7 +1,6 @@
 package io.iohk.ethereum.ets.blockchain
 
 import io.iohk.ethereum.ets.common.TestOptions
-import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.utils.Logger
 import org.scalatest._
 
@@ -13,22 +12,6 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
 
   //Map of ignored tests, empty set of ignored names means cancellation of whole group
   val ignoredTests: Map[String, Set[String]] = Map(
-    "bcForgedTest/bcForkUncle" -> Set("ForkUncle"),
-    "bcForkStressTest/ForkStressTest"  -> Set.empty,
-    "bcMultiChainTest/CallContractFromNotBestBlock" -> Set.empty,
-    "bcMultiChainTest/ChainAtoChainB_blockorder1" -> Set.empty,
-    "bcMultiChainTest/ChainAtoChainB_blockorder2" -> Set.empty,
-    "bcMultiChainTest/ChainAtoChainBtoChainA" -> Set.empty,
-    "bcMultiChainTest/UncleFromSideChain" -> Set.empty,
-    "bcTotalDifficultyTest/lotsOfBranches" -> Set.empty,
-    "bcTotalDifficultyTest/lotsOfBranchesOverrideAtTheMiddle"  -> Set.empty,
-    "bcTotalDifficultyTest/lotsOfLeafs"  -> Set.empty,
-    "bcTotalDifficultyTest/sideChainWithMoreTransactions" -> Set.empty,
-    "bcTotalDifficultyTest/uncleBlockAtBlock3afterBlock4" -> Set.empty,
-    "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain"  -> Set.empty,
-    "TransitionTests/bcFrontierToHomestead/blockChainFrontierWithLargerTDvsHomesteadBlockchain2"  -> Set.empty,
-    "TransitionTests/bcFrontierToHomestead/HomesteadOverrideFrontier" -> Set.empty,
-    // bcHomesteadToDao test are temporarily disabled until the update of Blockchain test suite, because
     // they are failing on older version and success on fresh on. Blockchain test suite should be updated
     // after introduction of EIP684.
     "TransitionTests/bcHomesteadToDao/DaoTransactions" -> Set.empty,
@@ -36,6 +19,7 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
     "TransitionTests/bcHomesteadToDao/DaoTransactions_UncleExtradata" -> Set.empty,
     "TransitionTests/bcHomesteadToDao/DaoTransactions_XBlockm1" -> Set.empty
   )
+
   override def run(testName: Option[String], args: Args): Status = {
     val options = TestOptions(args.configMap)
     val scenarios = BlockchainScenarioLoader.load("ets/BlockchainTests/", options)
@@ -77,14 +61,7 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
 
     val invalidBlocks = getBlocks(getInvalid)
 
-    val newBlocksErrors: Seq[BlockExecutionError] = processBlocks(blocksToProcess)
-
-    // If there is more block execution errors than expected invalidblocks, it means we rejected block which should
-    // pass validations, and the final state will not be correct
-    if(newBlocksErrors.size > invalidBlocks.size)
-      newBlocksErrors.foreach(err => log.info(err.toString))
-
-    newBlocksErrors.size shouldEqual invalidBlocks.size
+    blocksToProcess.foreach(ledger.importBlock)
 
     val lastBlock = getBestBlock()
 

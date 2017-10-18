@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.domain.{Block, BlockHeader}
@@ -109,9 +109,7 @@ class BlockBroadcastSpec extends FlatSpec with Matchers  {
 
     val etcPeerManagerProbe = TestProbe()
 
-    val blockBroadcast = new BlockBroadcast {
-      override val etcPeerManager: ActorRef = etcPeerManagerProbe.ref
-    }
+    val blockBroadcast = new BlockBroadcast(etcPeerManagerProbe.ref)
 
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
 

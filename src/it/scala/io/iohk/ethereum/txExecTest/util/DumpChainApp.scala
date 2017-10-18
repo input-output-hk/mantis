@@ -46,8 +46,9 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val waitForStatusTimeout: FiniteDuration = Config.Network.peer.waitForStatusTimeout
       override val waitForChainCheckTimeout: FiniteDuration = Config.Network.peer.waitForChainCheckTimeout
       override val fastSyncHostConfiguration: PeerManagerActor.FastSyncHostConfiguration = Config.Network.peer.fastSyncHostConfiguration
-      override val maxPeers: Int = Config.Network.peer.maxPeers
+      override val maxOutgoingPeers: Int = Config.Network.peer.maxOutgoingPeers
       override val maxIncomingPeers: Int = Config.Network.peer.maxIncomingPeers
+      override val maxPendingPeers: Int = Config.Network.peer.maxPendingPeers
       override val networkId: Int = privateNetworkId
       override val updateNodesInitialDelay: FiniteDuration = 5.seconds
       override val updateNodesInterval: FiniteDuration = 20.seconds
@@ -124,7 +125,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
 
-    override def removeBlock(hash: ByteString): Unit = ???
+    override def removeBlock(hash: ByteString, saveParentAsBestBlock: Boolean): Unit = ???
 
     override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = ???
 
@@ -152,4 +153,12 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       stateRootHash: Option[ByteString],
       noEmptyAccounts: Boolean
     ): InMemoryWorldStateProxy = ???
+
+    def getBestBlockNumber(): BigInt = ???
+
+    def saveBlockNumber(number: BigInt, hash: NodeHash): Unit = ???
+
+    def saveBestBlockNumber(number: BigInt): Unit = ???
+
+    def getBestBlock(): Block = ???
   }

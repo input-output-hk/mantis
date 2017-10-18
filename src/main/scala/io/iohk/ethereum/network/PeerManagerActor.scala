@@ -2,27 +2,28 @@ package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
 
-import akka.util.Timeout
-import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.concurrent.duration._
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
+import akka.util.Timeout
+import io.iohk.ethereum.network.PeerActor.IncomingConnectionHandshakeSuccess
+import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
+//TODO Refactor to mutate state only via context.become [EC-316]
 class PeerManagerActor(
     peerEventBus: ActorRef,
     peerDiscoveryManager: ActorRef,
@@ -32,12 +33,10 @@ class PeerManagerActor(
     externalSchedulerOpt: Option[Scheduler] = None)
   extends Actor with ActorLogging with Stash {
 
-  import akka.pattern.{ask, pipe}
   import PeerManagerActor._
+  import akka.pattern.{ask, pipe}
 
-  var peers: Map[PeerId, Peer] = Map.empty
-  private def incomingPeers = peers.filter { case (_, p) => p.incomingConnection }
-  private def outgoingPeers = peers.filter { case (_, p) => !p.incomingConnection }
+  val managerState = new PeerManagerState(Map.empty, Map.empty)
 
   private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
@@ -67,7 +66,7 @@ class PeerManagerActor(
 
   def listening: Receive = handleCommonMessages orElse {
     case KnownNodesManager.KnownNodes(nodes) =>
-      val nodesToConnect = nodes.take(peerConfiguration.maxPeers)
+      val nodesToConnect = nodes.take(peerConfiguration.maxOutgoingPeers)
 
       if (nodesToConnect.nonEmpty) {
         log.debug("Trying to connect to {} known nodes", nodesToConnect.size)
@@ -75,22 +74,25 @@ class PeerManagerActor(
       }
 
     case HandlePeerConnection(connection, remoteAddress) =>
-      handleConnection(connection, remoteAddress)
+      handleConnectionFrom(connection, remoteAddress)
 
     case msg: ConnectToPeer =>
-      connect(msg.uri)
+      connectTo(msg.uri)
 
     case PeerDiscoveryManager.DiscoveredNodesInfo(nodesInfo) =>
-      val peerAddresses = outgoingPeers.values.map(_.remoteAddress).toSet
+      val peerAddresses = managerState.outgoingPeers.values.map(_.remoteAddress).toSet
 
       val nodesToConnect = nodesInfo
         .filterNot(n => peerAddresses.contains(n.node.addr)) // not already connected to
         .toSeq
         .sortBy(-_.addTimestamp)
-        .take(peerConfiguration.maxPeers - peerAddresses.size)
+        .take(peerConfiguration.maxOutgoingPeers - peerAddresses.size)
 
-      log.debug(s"Discovered ${nodesInfo.size} nodes, connected to ${peers.size}/${peerConfiguration.maxPeers + peerConfiguration.maxIncomingPeers}. " +
-        s"Trying to connect to ${nodesToConnect.size} more nodes.")
+      log.debug(
+        s"Discovered ${nodesInfo.size} nodes, " +
+        s"connected to ${managerState.peers.size}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}. " +
+        s"Trying to connect to ${nodesToConnect.size} more nodes."
+      )
 
       if (nodesToConnect.nonEmpty) {
         log.debug("Trying to connect to {} nodes", nodesToConnect.size)
@@ -98,52 +100,63 @@ class PeerManagerActor(
       }
   }
 
-  def handleConnection(connection: ActorRef, remoteAddress: InetSocketAddress): Unit = {
-    if (!isConnectionHandled(remoteAddress)) {
-      val peer = createPeer(remoteAddress, incomingConnection = true)
-      peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
+  def handleConnectionFrom(connection: ActorRef, remoteAddress: InetSocketAddress): Unit = {
+    val validatedConnection = for {
+      connectionHandlerValidation  <- connectionAlreadyHandled(remoteAddress, IncomingConnectionAlreadyHandled(remoteAddress, connection))
+      connectionNumberValidation   <- maxConnections(connectionHandlerValidation,
+                                                     MaxIncomingPendingConnections(connection),
+                                                     managerState.pendingIncomingPeers.size < peerConfiguration.maxPendingPeers)
+    } yield connectionNumberValidation
 
-      if (incomingPeers.size > peerConfiguration.maxIncomingPeers) {
-        peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
-        log.debug("Maximum number of incoming peer connections reached.")
-      }
-    } else {
-      log.debug("Another connection with {} is already opened. Disconnecting.", remoteAddress)
-      connection ! PoisonPill
+    validatedConnection match {
+      case Right(addr) =>
+        val peer = createPeer(addr, incomingConnection = true)
+        peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
+
+      case Left(error) => handleConnectionErrors(error)
     }
   }
 
-  def connect(uri: URI): Unit = {
-    if (!isConnectionHandled(new InetSocketAddress(uri.getHost, uri.getPort))) {
-      if (outgoingPeers.size < peerConfiguration.maxPeers) {
-        val addr = new InetSocketAddress(uri.getHost, uri.getPort)
+  def connectTo(uri: URI): Unit = {
+    val remoteAddress = new InetSocketAddress(uri.getHost, uri.getPort)
+
+    val validatedConnection = for {
+      connectionHandlerValidation <- connectionAlreadyHandled(remoteAddress, OutgoingConnectionAlreadyHandled(uri))
+      connectionNumberValidation  <- maxConnections(connectionHandlerValidation,
+                                                    MaxOutgoingConnections,
+                                                    managerState.outgoingPeers.size < peerConfiguration.maxOutgoingPeers)
+    } yield connectionNumberValidation
+
+    validatedConnection match {
+      case Right(addr) =>
         val peer = createPeer(addr, incomingConnection = false)
         peer.ref ! PeerActor.ConnectTo(uri)
-      } else {
-        log.debug("Maximum number of connected peers reached.")
-      }
-    } else {
-      log.debug("Maximum number of connected peers reached. Not connecting to {}", uri)
-    }
-  }
 
-  def isConnectionHandled(addr: InetSocketAddress): Boolean = {
-    peers.values.map(_.remoteAddress).toSet.contains(addr)
+      case Left(error) => handleConnectionErrors(error)
+    }
   }
 
   def handleCommonMessages: Receive = {
     case GetPeers =>
       getPeers().pipeTo(sender())
 
-    case SendMessage(message, peerId) if peers.contains(peerId) =>
-      val peer = peers(peerId)
+    case SendMessage(message, peerId) if managerState.peers.contains(peerId) =>
+      val peer = managerState.peers(peerId)
       peer.ref ! PeerActor.SendMessage(message)
 
     case Terminated(ref) =>
-      val maybePeerId = peers.collect{ case (id, Peer(_, peerRef, _)) if peerRef == ref => id }
-      maybePeerId.foreach{ peerId =>
+      val maybePeerId = managerState.findTerminatedPeer(ref)
+      maybePeerId.foreach { peerId =>
         peerEventBus ! Publish(PeerDisconnected(peerId))
-        peers -= peerId
+        managerState.removeTerminatedPeer(peerId)
+      }
+
+    case IncomingConnectionHandshakeSuccess(peerId, peer) =>
+      if (managerState.incomingPeers.size >= peerConfiguration.maxIncomingPeers) {
+        managerState.removePendingIncomingPeer(peerId)
+        peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
+      } else {
+        managerState.promotePendingToHandshaked(peerId, peer)
       }
   }
 
@@ -151,14 +164,14 @@ class PeerManagerActor(
     val ref = peerFactory(context, addr, incomingConnection)
     context watch ref
     val peer = Peer(addr, ref, incomingConnection)
-    peers += peer.id -> peer
+    managerState.addPeer(peer.id, peer)
     peer
   }
 
   def getPeers(): Future[Peers] = {
     implicit val timeout = Timeout(2.seconds)
 
-    Future.traverse(peers.values) { peer =>
+    Future.traverse(managerState.peers.values) { peer =>
       (peer.ref ? PeerActor.GetStatus)
         .mapTo[PeerActor.StatusResponse]
         .map { sr => Success((peer, sr.status)) }
@@ -166,6 +179,30 @@ class PeerManagerActor(
     }.map(r => Peers.apply(r.collect { case Success(v) => v }.toMap))
   }
 
+
+  private def connectionAlreadyHandled(remoteAddress: InetSocketAddress, error: ConnectionError): Either[ConnectionError, InetSocketAddress] = {
+    Either.cond(!managerState.isConnectionHandled(remoteAddress), remoteAddress, error)
+  }
+
+  private def maxConnections(remoteAddress: InetSocketAddress, error: ConnectionError, stateCondition: Boolean): Either[ConnectionError, InetSocketAddress] = {
+    Either.cond(stateCondition, remoteAddress, error)
+  }
+
+  private def handleConnectionErrors(error: ConnectionError): Unit = error match {
+    case MaxIncomingPendingConnections(connection)  =>
+      log.debug("Maximum number of pending incoming peers reached.")
+      connection ! PoisonPill
+
+    case IncomingConnectionAlreadyHandled(remoteAddress, connection) =>
+      log.debug("Another connection with {} is already opened. Disconnecting.", remoteAddress)
+      connection ! PoisonPill
+
+    case MaxOutgoingConnections =>
+      log.debug("Maximum number of connected peers reached.")
+
+    case OutgoingConnectionAlreadyHandled(uri) =>
+      log.debug("Another connection with {} is already opened", uri)
+  }
 }
 
 object PeerManagerActor {
@@ -201,8 +238,9 @@ object PeerManagerActor {
     val waitForChainCheckTimeout: FiniteDuration
     val fastSyncHostConfiguration: FastSyncHostConfiguration
     val rlpxConfiguration: RLPxConfiguration
-    val maxPeers: Int
+    val maxOutgoingPeers: Int
     val maxIncomingPeers: Int
+    val maxPendingPeers: Int
     val networkId: Int
     val updateNodesInitialDelay: FiniteDuration
     val updateNodesInterval: FiniteDuration
@@ -227,4 +265,42 @@ object PeerManagerActor {
   }
 
   case class SendMessage(message: MessageSerializable, peerId: PeerId)
+
+  class PeerManagerState(var pendingIncomingPeers: Map[PeerId, Peer], var peers: Map[PeerId, Peer]) {
+    def incomingPeers: Map[PeerId, Peer] = peers.filter { case (_, p) => p.incomingConnection }
+    def outgoingPeers: Map[PeerId, Peer] = peers.filter { case (_, p) => !p.incomingConnection }
+
+    def removePendingIncomingPeer(peerId: PeerId): Unit =
+      pendingIncomingPeers -= peerId
+
+    def addPeer(peerId: PeerId, peer: Peer): Unit = {
+      if (peer.incomingConnection)
+        pendingIncomingPeers += peer.id -> peer
+      else
+        peers += peer.id -> peer
+    }
+
+    def promotePendingToHandshaked(peerId: PeerId, peer: Peer): Unit = {
+      pendingIncomingPeers -= peerId
+      peers += peerId -> peer
+    }
+
+    def findTerminatedPeer(ref: ActorRef): Iterable[PeerId] =
+      (peers ++ pendingIncomingPeers).collect { case (id, Peer(_, peerRef, _)) if peerRef == ref => id }
+
+    def removeTerminatedPeer(peerId: PeerId): Unit = {
+      peers -= peerId
+      pendingIncomingPeers -= peerId
+    }
+
+    def isConnectionHandled(addr: InetSocketAddress): Boolean =
+      (peers ++ pendingIncomingPeers).values.map(_.remoteAddress).toSet.contains(addr)
+
+  }
+
+  sealed abstract class ConnectionError
+  case class MaxIncomingPendingConnections(connection: ActorRef) extends ConnectionError
+  case class IncomingConnectionAlreadyHandled(address: InetSocketAddress, connection: ActorRef) extends ConnectionError
+  case object MaxOutgoingConnections extends ConnectionError
+  case class OutgoingConnectionAlreadyHandled(uri: URI) extends ConnectionError
 }

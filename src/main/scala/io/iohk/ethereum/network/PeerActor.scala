@@ -214,6 +214,10 @@ class PeerActor[R <: HandshakeResult](
 
   class HandshakedPeer(rlpxConnection: RLPxConnection, handshakeResult: R) {
 
+    if (incomingConnection) {
+      context.parent ! IncomingConnectionHandshakeSuccess(peerId, peer)
+    }
+
     peerEventBus ! Publish(PeerHandshakeSuccessful(peer, handshakeResult))
 
     /**
@@ -274,6 +278,8 @@ object PeerActor {
   }
 
   case class HandleConnection(connection: ActorRef, remoteAddress: InetSocketAddress)
+
+  case class IncomingConnectionHandshakeSuccess(peerId: PeerId, peer: Peer)
 
   case class ConnectTo(uri: URI)
 

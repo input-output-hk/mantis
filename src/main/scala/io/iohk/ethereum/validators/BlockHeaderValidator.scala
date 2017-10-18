@@ -7,6 +7,7 @@ import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
 trait BlockHeaderValidator {
   def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader]
+  def validatePreImport(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader]
 }
 
 object BlockHeaderValidatorImpl {
@@ -52,6 +53,13 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
       blockHeaderParent <- obtainBlockParentHeader(blockHeader, blockchain)
       _ <- validate(blockHeader, blockHeaderParent)
     } yield blockHeader
+  }
+
+  /** TODO: implement EC-319
+    * should consist of validating PoW and that difficulty is in a certain range (parent unknown)
+    */
+  def validatePreImport(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] = {
+    Right(blockHeader)
   }
 
   /**

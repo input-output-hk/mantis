@@ -6,10 +6,10 @@ import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecu
 import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
-import io.iohk.ethereum.ledger.{BlockExecutionError, Ledger}
+import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.validators.BlockHeaderError.HeaderNumberError
+import io.iohk.ethereum.validators.BlockHeaderError.{HeaderDifficultyError, HeaderNumberError}
 import io.iohk.ethereum.validators.BlockValidator.BlockTransactionsHashError
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError.OmmersNotValidError
 import io.iohk.ethereum.validators._
@@ -17,10 +17,10 @@ import io.iohk.ethereum.vm._
 
 object Mocks {
 
-  class MockLedger(blockchain: BlockchainImpl, shouldExecuteCorrectly: (Block, BlockchainImpl, Validators) => Boolean) extends Ledger{
-    override def executeBlock(block: Block, validators: Validators)
+  class MockLedger(blockchain: BlockchainImpl, shouldExecuteCorrectly: (Block, BlockchainImpl) => Boolean) extends Ledger{
+    override def executeBlock(block: Block)
     : Either[BlockExecutionError, Seq[Receipt]] = {
-      if(shouldExecuteCorrectly(block, blockchain, validators))
+      if(shouldExecuteCorrectly(block, blockchain))
         Right(Nil)
       else
         Left(TxsExecutionError(Fixtures.Blocks.Block3125369.body.transactionList.head,
@@ -28,13 +28,17 @@ object Mocks {
           "StubLedger was set to fail for this case"))
     }
 
-    override def prepareBlock(block: Block, validators: Validators): BlockPreparationResult = {
+    override def prepareBlock(block: Block): BlockPreparationResult = {
       ???
     }
 
     override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader): Ledger.TxResult = {
       ???
     }
+
+    def importBlock(block: Block): BlockImportResult = ???
+
+    def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = ???
   }
 
   private val defaultProgramResult: Ledger.PC => Ledger.PR = context => ProgramResult(
@@ -68,7 +72,13 @@ object Mocks {
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Right(Block(blockHeader, blockBody))
     }
 
-    override val blockHeaderValidator: BlockHeaderValidator = (blockHeader: BlockHeader, blockchain: Blockchain) => Right(blockHeader)
+    override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
+      def validatePreImport(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] =
+        Right(blockHeader)
+
+      def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] =
+        Right(blockHeader)
+    }
 
     override val ommersValidator: OmmersValidator = (blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain) => Right(())
 
@@ -86,6 +96,9 @@ object Mocks {
 
     override val blockHeaderValidator = new BlockHeaderValidator {
       def validate(blockHeader: BlockHeader, blockchain: Blockchain) = Left(HeaderNumberError)
+
+      def validatePreImport(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] =
+        Left(HeaderDifficultyError)
     }
 
     override val ommersValidator = new OmmersValidator {

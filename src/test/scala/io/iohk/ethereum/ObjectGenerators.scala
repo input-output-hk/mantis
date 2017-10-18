@@ -152,3 +152,5 @@ trait ObjectGenerators {
   def seqBlockHeaderGen: Gen[Seq[BlockHeader]] = Gen.listOf(blockHeaderGen)
 
 }
+
+object ObjectGenerators extends ObjectGenerators
