@@ -41,8 +41,8 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
       val (nodeKey, nodeEncoded) = toUpsertItem
       val storedNode: StoredNode = storedNodes.get(nodeKey) // get from current changes
         .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes)) // or get from DB
-        .getOrElse(StoredNode(ByteString(nodeEncoded), 0)) // if it's new, return an empty stored node
-        .incrementReferences(1)
+        .getOrElse(StoredNode(ByteString(nodeEncoded), 0, bn)) // if it's new, return an empty stored node
+        .incrementReferences(1, bn)
 
       storedNodes + (nodeKey -> storedNode)
     }
@@ -55,7 +55,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
       val (storedNodes, toDeleteInBlock) = acc
       val storedNode: Option[StoredNode] = storedNodes.get(nodeKey) // get from current changes
         .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes)) // or db
-        .map(_.decrementReferences(1))
+        .map(_.decrementReferences(1, bn))
 
       if (storedNode.isDefined) {
         val pruneCanditatesUpdated =
@@ -92,7 +92,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
   override def prune(lastPruned: => BigInt, bestBlockNumber: => BigInt): PruneResult = {
     val from = lastPruned + 1
     val to = from.max(bestBlockNumber - pruningOffset)
-    pruneBetween(from, to, bn => ReferenceCountNodeStorage.prune(bn, nodeStorage))
+    pruneBetween(from, to, bn => ReferenceCountNodeStorage.prune(bn, pruningOffset, nodeStorage))
   }
 }
 
@@ -106,7 +106,7 @@ object ReferenceCountNodeStorage {
     * @param nodeStorage
     * @return
     */
-  private def prune(blockNumber: BigInt, nodeStorage: NodeStorage): Int = {
+  private def prune(blockNumber: BigInt, pruningOffset: BigInt, nodeStorage: NodeStorage): Int = {
 
     val key = pruneKey(blockNumber)
 
@@ -116,8 +116,15 @@ object ReferenceCountNodeStorage {
         // Get Node from storage and filter ones which have references = 0 now (maybe they were added again after blockNumber)
         val pruneCandidateNodes = pruneCandidates.nodeKeys.map(nodeStorage.get)
         val pruneCandidateNodesWithKeys = pruneCandidateNodes.zip(pruneCandidates.nodeKeys)
-        pruneCandidateNodesWithKeys.collect {
-          case (Some(candidate), candidateKey) if storedNodeFromBytes(candidate).references == 0 => candidateKey }
+        pruneCandidateNodesWithKeys.foldLeft(Seq.empty[NodeHash]) { (nodeHashesToDelete, candidate) =>
+          candidate match {
+            case (Some(serializedNode), candidateKey) =>
+              val deserialized = storedNodeFromBytes(serializedNode)
+              if(deserialized.references == 0 && (blockNumber - deserialized.lastUpdateAt >= pruningOffset)) candidateKey +: nodeHashesToDelete
+              else nodeHashesToDelete
+            case _ => nodeHashesToDelete
+          }
+        }
       }.map(nodeKeysToDelete => {
         // Update nodestorage removing all nodes that are no longer being used
         nodeStorage.update(key +: nodeKeysToDelete, Nil)
@@ -136,10 +143,10 @@ object ReferenceCountNodeStorage {
     * @param nodeEncoded Encoded Mpt Node to be used in MerklePatriciaTrie
     * @param references  Number of references the node has. Each time it's updated references are increased and everytime it's deleted, decreased
     */
-  case class StoredNode(nodeEncoded: ByteString, references: Int) {
-    def incrementReferences(amount: Int): StoredNode = copy(references = references + amount)
+  case class StoredNode(nodeEncoded: ByteString, references: Int, lastUpdateAt: BigInt) {
+    def incrementReferences(amount: Int, blockNumber: BigInt): StoredNode = copy(references = references + amount, lastUpdateAt = blockNumber)
 
-    def decrementReferences(amount: Int): StoredNode = copy(references = references - amount)
+    def decrementReferences(amount: Int, blockNumber: BigInt): StoredNode = copy(references = references - amount, lastUpdateAt = blockNumber)
   }
 
   /**
