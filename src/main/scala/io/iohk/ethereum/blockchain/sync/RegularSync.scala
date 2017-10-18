@@ -5,15 +5,15 @@ import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.spongycastle.util.encoders.Hex
@@ -21,6 +21,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 
+//TODO Refactor to get rid of most of mutable state [EC-320]
 class RegularSync(
     val appStateStorage: AppStateStorage,
     val etcPeerManager: ActorRef,
@@ -39,11 +40,12 @@ class RegularSync(
   private var headersQueue: Seq[BlockHeader] = Nil
   private var waitingForActor: Option[ActorRef] = None
   var resolvingBranches: Boolean = false
+  var topOfTheChain: Boolean = false
   private var resumeRegularSyncTimeout: Option[Cancellable] = None
 
   scheduler.schedule(printStatusInterval, printStatusInterval, self, PrintStatus)
 
-  peerEventBus ! Subscribe(MessageClassifier(Set(NewBlock.code), PeerSelector.AllPeers))
+  peerEventBus ! Subscribe(MessageClassifier(Set(NewBlock.code, NewBlockHashes.code), PeerSelector.AllPeers))
 
   def handleCommonMessages: Receive = handlePeerListMessages orElse handleBlacklistMessages
 
@@ -61,8 +63,11 @@ class RegularSync(
       context become running
   }
 
-  def running: Receive = handleCommonMessages orElse handleBroadcastedBlockMessages orElse handleResponseToRequest orElse
-    handleMinedBlock orElse {
+  def running: Receive = handleBasicMessages orElse handleTopOfChainMessages orElse handleResumingAndPrinting
+
+  def handleBasicMessages: Receive = handleCommonMessages orElse handleResponseToRequest
+
+  def handleResumingAndPrinting: Receive = {
     case ResumeRegularSync =>
       resumeRegularSync()
 
@@ -70,19 +75,28 @@ class RegularSync(
       log.info(s"Block: ${appStateStorage.getBestBlockNumber()}. Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted)")
   }
 
+  def handleTopOfChainMessages: Receive = handleBroadcastedBlockMessages orElse handleMinedBlock orElse handleNewBlockHashesMessages
+
   private def resumeRegularSync(): Unit = {
     resumeRegularSyncTimeout.foreach(_.cancel)
     resumeRegularSyncTimeout = None
-    askForHeaders()
+
+    // The case that waitingForActor is defined (we are waiting for some response),
+    // can happen when we are on top of the chain and currently handling newBlockHashes message
+
+    if (waitingForActor.isEmpty)
+      askForHeaders()
+    else
+      scheduleResume()
   }
 
   /**
-    * Handles broadcasted blocks, importing them if we're not currently syncing
+    * Handles broadcasted blocks, should only import them when we are top of the chain
     */
   def handleBroadcastedBlockMessages: Receive = {
     case MessageFromPeer(NewBlock(newBlock, _), peerId) =>
       //we allow inclusion of new block only if we are not syncing
-      if (headersQueue.isEmpty && waitingForActor.isEmpty) {
+      if (notDownloadingAndTopOfTheChain()) {
         val importResult = ledger.importBlock(newBlock)
 
         importResult match {
@@ -112,6 +126,55 @@ class RegularSync(
       }
   }
 
+  /**
+    * Handles NewHashesMessege, should only cover this message when we are top of the chain
+    */
+  def handleNewBlockHashesMessages: Receive = {
+    case MessageFromPeer(NewBlockHashes(hashes), peerId) =>
+      val maybePeer = peersToDownloadFrom.find(peer => peer._1.id == peerId)
+      //we allow asking for new hashes when we are not syncing and we can download from specified peer
+      if (notDownloadingAndTopOfTheChain() && maybePeer.isDefined) {
+        val (peer, _) = maybePeer.get
+        val hashesToCheck = hashes.take(syncConfig.maxNewHashes)
+
+        if (!containsAncientBlockHash(hashesToCheck)) {
+          val filteredHashes = getValidHashes(hashesToCheck)
+
+          if (filteredHashes.nonEmpty) {
+            val request = GetBlockHeaders(Right(filteredHashes.head.hash), filteredHashes.length, BigInt(0), reverse = false)
+            requestBlockHeaders(peer, request)
+            resolvingBranches = false
+          } else {
+            log.debug("All received hashes all already in Chain, or Queue ")
+          }
+        } else {
+          blacklist(peerId, blacklistDuration, "received ancient blockHash")
+        }
+      }
+  }
+
+  private def getValidHashes(unfilteredHashes: Seq[BlockHash]): Seq[BlockHash] = unfilteredHashes.foldLeft(Seq.empty[BlockHash])((hashesList, blockHash) =>
+    ledger.checkBlockStatus(blockHash.hash) match {
+      case InChain =>
+        log.debug(s"BlockHash with Number: ${blockHash.number} and Hash: ${Hex.toHexString(blockHash.hash.toArray)} already in chain")
+        hashesList
+      case Queued =>
+        log.debug(s"BlockHash with Number: ${blockHash.number} and Hash: ${Hex.toHexString(blockHash.hash.toArray)} already in queue")
+        hashesList
+      case UnknownBlock =>
+        log.debug(s"Preparing to download unknown block with number ${blockHash.number} and hash ${Hex.toHexString(blockHash.hash.toArray)}")
+        hashesList :+ blockHash
+    }
+  )
+
+  private def containsAncientBlockHash(hashes: Seq[BlockHash]): Boolean = {
+    val currentBestBlock = appStateStorage.getBestBlockNumber()
+    hashes.exists(bh => ancientBlockHash(bh, currentBestBlock))
+  }
+
+  private def ancientBlockHash(blockHash: BlockHash, currentBestBlockNumber: BigInt) =
+    currentBestBlockNumber > blockHash.number && currentBestBlockNumber - blockHash.number > syncConfig.maxNewBlockHashAge
+
   def handleResponseToRequest: Receive = {
     case ResponseReceived(peer: Peer, BlockHeaders(headers), timeTaken) =>
       log.info("Received {} block headers in {} ms", headers.size, timeTaken)
@@ -132,12 +195,15 @@ class RegularSync(
       scheduleResume()
   }
 
+  /**
+    * Handles MinedBlock, should only cover this message when we are top of the chain
+    */
   def handleMinedBlock: Receive = {
 
     //todo improve mined block handling - add info that block was not included because of syncing [EC-250]
     //we allow inclusion of mined block only if we are not syncing / reorganising chain
     case MinedBlock(block) =>
-      if (headersQueue.isEmpty && waitingForActor.isEmpty) {
+      if (notDownloadingAndTopOfTheChain()) {
         val importResult = ledger.importBlock(block)
 
         importResult match {
@@ -195,6 +261,7 @@ class RegularSync(
     processBlockHeaders(peer, message)
   } else {
     //no new headers to process, schedule to ask again in future, we are at the top of chain
+    topOfTheChain = true
     scheduleResume()
   }
 
@@ -276,7 +343,6 @@ class RegularSync(
         log.debug(s"got new blocks up till block: ${importedBlocks.last.header.number} " +
           s"with hash ${Hex.toHexString(importedBlocks.last.header.hash.toArray[Byte])}")
       }
-
       errorOpt match {
         case Some(error) =>
           resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.toString}")
@@ -332,6 +398,9 @@ class RegularSync(
       broadcaster.broadcastBlock(NewBlock(block, td), handshakedPeers)
     }
   }
+
+  private def notDownloadingAndTopOfTheChain(): Boolean =
+    headersQueue.isEmpty && waitingForActor.isEmpty && topOfTheChain
 
 }
 

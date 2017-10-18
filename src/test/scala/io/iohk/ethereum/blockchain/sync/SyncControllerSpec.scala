@@ -392,7 +392,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val peerMessageBus = TestProbe()
     peerMessageBus.ignoreMsg{
-      case Subscribe(MessageClassifier(codes, PeerSelector.AllPeers)) if codes == Set(NewBlock.code) => true
+      case Subscribe(MessageClassifier(codes, PeerSelector.AllPeers)) if codes == Set(NewBlock.code, NewBlockHashes.code) => true
       case Subscribe(PeerDisconnectedClassifier(_)) => true
       case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
     }

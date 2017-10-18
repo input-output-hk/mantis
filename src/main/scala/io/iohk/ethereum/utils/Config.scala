@@ -129,6 +129,10 @@ object Config {
 
     val maxQueuedBlockNumberAhead: Int
     val maxQueuedBlockNumberBehind: Int
+
+    // HardCoded values based on parity client
+    val maxNewBlockHashAge = 20
+    val maxNewHashes = 64
   }
 
   object SyncConfig {
