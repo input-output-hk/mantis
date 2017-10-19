@@ -79,7 +79,7 @@ object Ethash {
     else highestPrimeBelow(n - 2 * len, len)
   }
 
-  def isPrime(n: BigInt): Boolean = {
+  private def isPrime(n: BigInt): Boolean = {
     @tailrec
     def isPrime(n: BigInt, i: BigInt): Boolean =
       (n % i != 0) && ((i * i > n) || isPrime(n, i + 2))
