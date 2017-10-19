@@ -1,8 +1,8 @@
 package io.iohk.ethereum.db.storage
 
-import akka.util.ByteString
-import io.iohk.ethereum.db.storage.ReferenceCountNodeStorage.{PruneCandidates, StoredNode}
-import io.iohk.ethereum.rlp.RLPImplicitConversions.{toRlpList, _}
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage.ReferenceCountNodeStorage.StoredNode
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
 
@@ -10,11 +10,11 @@ package object encoding {
 
   private[storage] def storedNodeFromBytes(encoded: Array[Byte]): StoredNode = decode(encoded)(storedNodeEncDec)
 
-  private[storage] def pruneCandidatesFromBytes(array: Array[Byte]): PruneCandidates = decode(array)(pruneCandidatesEncDec)
+  private[storage] def storedNodesFromBytes(encoded: Array[Byte]): Seq[(NodeHash, StoredNode)] = decode(encoded)(storedNodesEncDec)
 
-  private[storage] def storedNodeToBytes(storedNode: StoredNode): Array[Byte] = storedNodeEncDec.encode(storedNode)
+  private[storage] def storedNodeToBytes(storedNode: StoredNode): Array[Byte] = rlpEncode(storedNodeEncDec.encode(storedNode))
 
-  private[storage] def pruneCandiatesToBytes(pruneCandidates: PruneCandidates): Array[Byte] = pruneCandidatesEncDec.encode(pruneCandidates)
+  private[storage] def storedNodesToBytes(storedNodes: Seq[(NodeHash, StoredNode)]): Array[Byte] = rlpEncode(storedNodesEncDec.encode(storedNodes))
 
   private val storedNodeEncDec = new RLPDecoder[StoredNode] with RLPEncoder[StoredNode] {
     override def decode(rlp: RLPEncodeable): StoredNode = rlp match {
@@ -22,15 +22,18 @@ package object encoding {
       case _ => throw new RuntimeException("Error when decoding stored node")
     }
 
-    override def encode(obj: StoredNode): RLPEncodeable = rlpEncode(RLPList(obj.nodeEncoded, obj.references))
+    override def encode(obj: StoredNode): RLPEncodeable = RLPList(obj.nodeEncoded, obj.references)
   }
 
-  private val pruneCandidatesEncDec = new RLPEncoder[PruneCandidates] with RLPDecoder[PruneCandidates] {
-    override def encode(obj: PruneCandidates): RLPEncodeable = rlpEncode(toRlpList(obj.nodeKeys))
-
-    override def decode(rlp: RLPEncodeable): PruneCandidates = rlp match {
-      case RLPList(candidates@_*) => PruneCandidates(candidates.map(b => b: ByteString))
-      case _ => throw new RuntimeException("Error when decoding pruning candidate")
+  private val storedNodesEncDec = new RLPDecoder[Seq[(NodeHash, StoredNode)]] with RLPEncoder[Seq[(NodeHash, StoredNode)]] {
+    override def decode(rlp: RLPEncodeable) = rlp match {
+      case rlpList: RLPList => rlpList.items.map {
+        case RLPList(nodeHash, storedNode) => byteStringFromEncodeable(nodeHash) -> storedNodeEncDec.decode(storedNode)
+        case _ => throw new RuntimeException("Error when decoding stored nodes")
+      }
+      case _ => throw new RuntimeException("Error when decoding stored nodes")
     }
+
+    override def encode(objs: Seq[(NodeHash, StoredNode)]) = RLPList(objs.map(obj => RLPList(obj._1, storedNodeEncDec.encode(obj._2))):_*)
   }
 }

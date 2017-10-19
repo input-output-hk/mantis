@@ -16,12 +16,12 @@ class ReadOnlyNodeStorageSpec extends FlatSpec with Matchers {
     val val1 = ByteString("Value1").toArray
     referenceCountNodeStorage.put(key1, val1)
 
-    dataSource.storage.size shouldEqual 1
+    val previousSize = dataSource.storage.size
     readOnlyNodeStorage.get(key1).get shouldEqual val1
 
     readOnlyNodeStorage.remove(key1)
 
-    dataSource.storage.size shouldEqual 1
+    dataSource.storage.size shouldEqual previousSize
     readOnlyNodeStorage.get(key1).get shouldEqual val1
   }
 

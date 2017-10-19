@@ -2,7 +2,7 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.db.storage.pruning.{PruningNodesKeyValueStorage, PruneResult, RangePrune}
+import io.iohk.ethereum.db.storage.pruning.{PruneResult, PruningNodesKeyValueStorage, RangePrune}
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import encoding._
 
@@ -37,47 +37,44 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
     val bn = blockNumber.get
     // Process upsert changes. As the same node might be changed twice within the same update, we need to keep changes
     // within a map
-    val upsertChanges = toUpsert.foldLeft(Map.empty[NodeHash, StoredNode]) { (storedNodes, toUpsertItem) =>
+    val upsertChanges = toUpsert.foldLeft(Map.empty[NodeHash, (StoredNode, StoredNode)]) { (storedNodes, toUpsertItem) =>
       val (nodeKey, nodeEncoded) = toUpsertItem
-      val storedNode: StoredNode = storedNodes.get(nodeKey) // get from current changes
-        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes)) // or get from DB
-        .getOrElse(StoredNode(ByteString(nodeEncoded), 0)) // if it's new, return an empty stored node
-        .incrementReferences(1)
+      val (storedNode, snapshot) = storedNodes.get(nodeKey) // get from current changes
+        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes).map(s => s -> s)) // or get from DB
+        .getOrElse(StoredNode(ByteString(nodeEncoded), 0) -> StoredNode(ByteString(nodeEncoded), 0)) // if it's new, return an empty stored node
 
-      storedNodes + (nodeKey -> storedNode)
+      storedNodes + (nodeKey -> (storedNode.incrementReferences(1), snapshot))
     }
 
-    // Look for block_number -> key prune candidates in order to update it if some node reaches 0 references
-    val toPruneInThisBlockKey = pruneKey(bn)
-    val pruneCandidates = nodeStorage.get(toPruneInThisBlockKey).map(pruneCandidatesFromBytes).getOrElse(PruneCandidates(Nil))
+    val changes = toRemove.foldLeft(upsertChanges) { (storedNodes, nodeKey) =>
+      val maybeStoredNode: Option[(StoredNode, StoredNode)] = storedNodes.get(nodeKey) // get from current changes
+        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes).map(s => s -> s)) // or db
 
-    val changes = toRemove.foldLeft(upsertChanges, pruneCandidates) { (acc, nodeKey) =>
-      val (storedNodes, toDeleteInBlock) = acc
-      val storedNode: Option[StoredNode] = storedNodes.get(nodeKey) // get from current changes
-        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes)) // or db
-        .map(_.decrementReferences(1))
-
-      if (storedNode.isDefined) {
-        val pruneCanditatesUpdated =
-          // if references is 0, mark it as prune candidate for current block tag
-          if (storedNode.get.references == 0) toDeleteInBlock.copy(nodeKeys = nodeKey +: toDeleteInBlock.nodeKeys)
-          else toDeleteInBlock
-        (storedNodes + (nodeKey -> storedNode.get), pruneCanditatesUpdated)
+      if (maybeStoredNode.isDefined) {
+        val (storedNode, snapshot) = maybeStoredNode.get
+        storedNodes + (nodeKey -> (storedNode.decrementReferences(1), snapshot))
       }
-      else acc
+      else storedNodes
     }
 
-    // map stored nodes to bytes in order to save them
-    val toUpsertUpdated = changes._1.map {
-      case (nodeKey: NodeHash, storedNode: StoredNode) => nodeKey -> storedNodeToBytes(storedNode)
-    }.toSeq
+    val (toRemoveUpdated, toUpsertUpdated, snapshot) =
+      changes.foldLeft(Seq.empty[NodeHash], Seq.empty[(NodeHash, NodeEncoded)], Seq.empty[(NodeHash, StoredNode)]) {
+        case ((toRemoveUpdated, toUpsertUpdated, previous), (key, (storedNode, snapshot))) =>
+          if(storedNode.references == 0) (toRemoveUpdated :+ key, toUpsertUpdated, previous :+ (key -> snapshot))
+          else (toRemoveUpdated, toUpsertUpdated :+ (key -> storedNodeToBytes(storedNode)), previous :+ (key -> snapshot))
+      }
 
-    val toMarkAsDeleted =
-      // Update prune candidates for current block tag if it references at least one block that should be removed
-      if (changes._2.nodeKeys.nonEmpty) Seq(toPruneInThisBlockKey -> pruneCandiatesToBytes(changes._2))
+    val snapshotToSave = {
+      if(snapshot.nonEmpty) {
+        // If non empty, try append the new values to the ones stored in DB
+        val key = snapshotKey(bn)
+        val updated = nodeStorage.get(key).map(storedNodesFromBytes).getOrElse(Seq.empty) ++ snapshot
+        (key -> storedNodesToBytes(updated)) :: Nil
+      }
       else Nil
+    }
 
-    nodeStorage.update(Nil, toUpsertUpdated ++ toMarkAsDeleted)
+    nodeStorage.update(toRemoveUpdated, toUpsertUpdated ++ snapshotToSave)
 
     this
   }
@@ -94,6 +91,21 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
     val to = from.max(bestBlockNumber - pruningOffset)
     pruneBetween(from, to, bn => ReferenceCountNodeStorage.prune(bn, nodeStorage))
   }
+
+  override def rollbackChanges(blockNumber: BigInt): Unit = {
+    val theSnapshotKey = snapshotKey(blockNumber)
+    nodeStorage
+      .get(theSnapshotKey)
+      .map(storedNodesFromBytes)
+      .map { snapshot =>
+        val (toRemove, toUpsert) = snapshot.foldLeft(Seq.empty[NodeHash], Seq.empty[(NodeHash, NodeEncoded)]) {
+          // Undo Actions
+          case((r, u), (nodeHash, sn)) if sn.references > 0 => (r, (nodeHash -> storedNodeToBytes(sn)) +: u)
+          case((r, u), (nodeHash, sn)) if sn.references <= 0 => (nodeHash +: r, u)
+        }
+        nodeStorage.update(toRemove :+ theSnapshotKey, toUpsert) // remove snapshot as we have done a rollback
+      }
+  }
 }
 
 object ReferenceCountNodeStorage {
@@ -106,29 +118,8 @@ object ReferenceCountNodeStorage {
     * @param nodeStorage
     * @return
     */
-  private def prune(blockNumber: BigInt, nodeStorage: NodeStorage): Int = {
-
-    val key = pruneKey(blockNumber)
-
-    nodeStorage.get(key)
-      .map(pruneCandidatesFromBytes)
-      .map { pruneCandidates: PruneCandidates =>
-        // Get Node from storage and filter ones which have references = 0 now (maybe they were added again after blockNumber)
-        val pruneCandidateNodes = pruneCandidates.nodeKeys.map(nodeStorage.get)
-        val pruneCandidateNodesWithKeys = pruneCandidateNodes.zip(pruneCandidates.nodeKeys)
-        pruneCandidateNodesWithKeys.collect {
-          case (Some(candidate), candidateKey) if storedNodeFromBytes(candidate).references == 0 => candidateKey }
-      }.map(nodeKeysToDelete => {
-        // Update nodestorage removing all nodes that are no longer being used
-        nodeStorage.update(key +: nodeKeysToDelete, Nil)
-        nodeKeysToDelete.size
-      }).getOrElse(0)
-  }
-
-  /**
-    * Model to be used to store, by block number, which block keys are no longer needed (and can potentially be deleted)
-    */
-  case class PruneCandidates(nodeKeys: Seq[ByteString])
+  private def prune(blockNumber: BigInt, nodeStorage: NodeStorage): Unit =
+    nodeStorage.remove(snapshotKey(blockNumber))
 
   /**
     * Wrapper of MptNode in order to store number of references it has.
@@ -148,6 +139,6 @@ object ReferenceCountNodeStorage {
     * @param blockNumber Block Number Tag
     * @return Key
     */
-  private def pruneKey(blockNumber: BigInt): ByteString = ByteString('d'.toByte +: blockNumber.toByteArray)
+  private def snapshotKey(blockNumber: BigInt): ByteString = ByteString('a'.toByte +: blockNumber.toByteArray)
 
 }

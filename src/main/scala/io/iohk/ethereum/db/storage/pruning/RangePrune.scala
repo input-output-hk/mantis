@@ -10,12 +10,11 @@ trait RangePrune extends Logger {
     * @param pruneFn function that given a certain block number prunes the data and returns how many nodes were deleted
     * @return resulting PruneResult
     */
-  def pruneBetween(start: BigInt, end: BigInt, pruneFn: BigInt => Int): PruneResult = {
+  def pruneBetween(start: BigInt, end: BigInt, pruneFn: BigInt => Unit): PruneResult = {
+    require(end >= start, "Pruning end should be greater or equal than start")
     log.debug(s"Pruning start for range $start - $end")
-    val prunedCount = (start until end).foldLeft(0) { (acc, bn) =>
-      acc + pruneFn(bn)
-    }
-    val result = PruneResult(end - 1, prunedCount)
+    (start until end).foreach(bn => pruneFn(bn))
+    val result = PruneResult(end - 1, (end - start).toInt)
     log.debug(s"Pruning finished for range $start - $end. $result.")
     result
   }

@@ -26,4 +26,6 @@ class ArchiveNodeStorage(nodeStorage: NodeStorage) extends PruningNodesKeyValueS
     * @return PruneResult
     */
   override def prune(lastPruned: => BigInt, bestBlockNumber: => BigInt): PruneResult = PruneResult(0, 0)
+
+  override def rollbackChanges(blockNumber: BigInt): Unit = ()
 }

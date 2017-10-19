@@ -45,7 +45,7 @@ object FixtureProvider {
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(EphemDataSource())
       override val nodeStorage: NodeStorage = new NodeStorage(EphemDataSource())
       override val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage = bn => PruningMode.nodesKeyValueStorage(ArchivePruning, nodeStorage)(bn)
-      override val appStateStorage: AppStateStorage = new AppStateStorage(EphemDataSource(), PruningMode.nodesKeyValueStorage(ArchivePruning, nodeStorage)(None).prune)
+      override val appStateStorage: AppStateStorage = new AppStateStorage(EphemDataSource())
     }
 
     val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile { case (number, _) => number <= blockNumber }

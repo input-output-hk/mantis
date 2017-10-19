@@ -2,32 +2,18 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.pruning.PruneResult
 import org.scalatest.{FlatSpec, Matchers}
 
 class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
 
-  "ReferenceCountNodeStorage" should "prune nodes releasing dataSource space" in new TestSetup {
+  "ReferenceCountNodeStorage" should "should remove a key if no more references" in new TestSetup {
     val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
 
     val inserted = insertRangeKeys(4, storage)
     val (key1, val1) = inserted.head
 
-    dataSource.storage.size shouldEqual 4
-
     storage.remove(key1)
-    storage.get(key1).get sameElements val1.toArray[Byte] // Data exists until pruning
-
-    storage.prune(0, 2) shouldEqual PruneResult(1, pruned = 1)
-    storage.get(key1) shouldBe None // Data exists until pruning
-    dataSource.storage.size shouldEqual 3
-  }
-
-  it should "not prune any data if no values were removed" in new TestSetup {
-    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
-
-    insertRangeKeys(3, storage)
-    storage.prune(0, 2) shouldEqual PruneResult(1, pruned = 0)
+    storage.get(key1) shouldBe None
   }
 
   it should "not delete a key that's still referenced" in new TestSetup {
@@ -39,13 +25,14 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage.put(key1, val1).remove(key1) // add key1 again and remove it
     storage.remove(key2).put(key2, val2) // remove and add key2
 
-    storage.get(key1).get sameElements val1.toArray[Byte] // Data exists until pruning
-    storage.get(key2).get sameElements val2.toArray[Byte] // Data exists until pruning
+    storage.get(key1).get sameElements val1.toArray[Byte]
+    storage.get(key2).get sameElements val2.toArray[Byte]
 
-    storage.prune(0, 2) shouldEqual PruneResult(1, pruned = 0)
-    storage.get(key1).get sameElements val1 // Data after pruning
-    storage.get(key2).get sameElements val2 // Data after pruning
-    dataSource.storage.size shouldEqual 4
+    // After removal, they should be remmoved
+    storage.remove(key1)
+    storage.remove(key2)
+    storage.get(key1) shouldEqual None
+    storage.get(key2) shouldEqual None
   }
 
   it should "not throw an error when deleting a key that does not exist" in new TestSetup {
@@ -54,6 +41,83 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage.remove(ByteString("doesnotexist"))
 
     dataSource.storage.size shouldEqual 0
+  }
+
+  it should "allow to rollback operations within the same block" in new TestSetup {
+    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
+
+    val inserted = insertRangeKeys(4, storage)
+    val (key1, val1) :: (key2, val2) :: xs = inserted.toList
+
+    storage.remove(key1).remove(key2)
+    val key3 = ByteString("anotherKey")
+    val val3 = ByteString("anotherValue").toArray[Byte]
+    storage.put(key3, val3)
+
+    storage.get(key1) shouldEqual None
+    storage.get(key2) shouldEqual None
+    storage.get(key3).get sameElements val3
+
+    storage.rollbackChanges(1)
+
+    storage.get(key1).get sameElements val1
+    storage.get(key2).get sameElements val2
+    storage.get(key3) shouldEqual None
+
+  }
+
+  it should "allow to rollback operations from a specific block" in new TestSetup {
+    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
+
+    val inserted = insertRangeKeys(4, storage)
+    val (key1, val1) :: (key2, val2) :: xs = inserted.toList
+
+    storage.remove(key1).remove(key2)
+    val key3 = ByteString("anotherKey")
+    val val3 = ByteString("anotherValue").toArray[Byte]
+    val storage2 = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(2))
+    storage2.put(key3, val3)
+
+    storage2.get(key1) shouldEqual None
+    storage2.get(key2) shouldEqual None
+    storage2.get(key3).get sameElements val3
+
+    storage2.rollbackChanges(2)
+
+    storage2.get(key1) shouldEqual None
+    storage2.get(key2) shouldEqual None
+    storage2.get(key3) shouldEqual None
+
+  }
+
+  it should "allow pruning" in new TestSetup {
+
+    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
+
+    val inserted = insertRangeKeys(4, storage)
+    val (key1, val1) :: (key2, val2) :: xs = inserted.toList
+
+    storage.remove(key1).remove(key2)
+
+    val storage2 = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(2))
+    val key3 = ByteString("anotherKey")
+    val val3 = ByteString("anotherValue").toArray[Byte]
+    storage2.put(key3, val3)
+
+    val prevDatasourceSize: Int = dataSource.storage.size
+    storage2.prune(0, 2)
+    (dataSource.storage.size < prevDatasourceSize) shouldBe true
+
+    // Data is correct
+    storage2.get(key1) shouldEqual None
+    storage2.get(key2) shouldEqual None
+    storage2.get(key3).get sameElements val3
+
+    // We can still rollback
+    storage2.rollbackChanges(2)
+    storage2.rollbackChanges(1)
+    storage2.get(key3) shouldEqual None
+
   }
 
   trait TestSetup {

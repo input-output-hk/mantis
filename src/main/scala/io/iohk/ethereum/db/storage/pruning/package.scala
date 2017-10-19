@@ -13,6 +13,8 @@ package object pruning {
       * @return PruneResult
       */
     def prune(lastPruned: => BigInt, bestBlockNumber: => BigInt): PruneResult
+
+    def rollbackChanges(blockNumber: BigInt): Unit
   }
 
   trait PruningNodesKeyValueStorage extends NodesKeyValueStorage with PruningSupport

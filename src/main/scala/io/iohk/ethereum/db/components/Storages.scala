@@ -35,10 +35,7 @@ object Storages {
       override val totalDifficultyStorage: TotalDifficultyStorage =
         new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
 
-      override val appStateStorage: AppStateStorage = new AppStateStorage(
-        dataSources.appStateDataSource,
-        PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(None).prune
-      )
+      override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
 
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
 
@@ -78,10 +75,7 @@ object Storages {
       override val totalDifficultyStorage: TotalDifficultyStorage =
         new TotalDifficultyStorage(dataSources.totalDifficultyDataSource)
 
-      override val appStateStorage: AppStateStorage = new AppStateStorage(
-        dataSources.appStateDataSource,
-        PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(None).prune
-      )
+      override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
 
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
 
