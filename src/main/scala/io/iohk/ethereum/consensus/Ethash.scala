@@ -79,8 +79,15 @@ object Ethash {
     else highestPrimeBelow(n - 2 * len, len)
   }
 
-  private def isPrime(n: BigInt): Boolean =
-    n > 1 && !((2 to Math.floor(Math.sqrt(n.toLong)).toLong) exists (n % _ == 0))
+  def isPrime(n: BigInt): Boolean = {
+    @tailrec
+    def isPrime(n: BigInt, i: BigInt): Boolean =
+      (n % i != 0) && ((i * i > n) || isPrime(n, i + 2))
+
+    if (n == 2 || n == 3) true
+    else if (n < 2 || n % 2 == 0) false
+    else isPrime(n, 3)
+  }
 
   def makeCache(blockNumber: Long): Array[Int] = {
     /* watch out, arrays are mutable here */
