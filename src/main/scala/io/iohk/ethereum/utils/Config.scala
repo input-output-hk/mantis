@@ -126,6 +126,9 @@ object Config {
     val blockChainOnlyPeersPoolSize: Int
     val branchResolutionMaxRequests: Int
     val fastSyncThrottle: FiniteDuration
+
+    val maxQueuedBlockNumberAhead: Int
+    val maxQueuedBlockNumberBehind: Int
   }
 
   object SyncConfig {
@@ -156,6 +159,9 @@ object Config {
         val blockChainOnlyPeersPoolSize: Int = syncConfig.getInt("fastsync-block-chain-only-peers-pool")
         val branchResolutionMaxRequests: Int = syncConfig.getInt("branch-resolution-max-requests")
         val fastSyncThrottle: FiniteDuration = syncConfig.getDuration("fastsync-throttle").toMillis.millis
+
+        val maxQueuedBlockNumberBehind: Int = syncConfig.getInt("max-queued-block-number-behind")
+        val maxQueuedBlockNumberAhead: Int = syncConfig.getInt("max-queued-block-number-ahead")
       }
     }
   }
@@ -302,6 +308,8 @@ trait BlockchainConfig {
   val chainId: Byte
 
   val monetaryPolicyConfig: MonetaryPolicyConfig
+
+  val gasTieBreaker: Boolean
 }
 
 
@@ -335,6 +343,8 @@ object BlockchainConfig {
       }
 
       override val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
+
+      val gasTieBreaker: Boolean = blockchainConfig.getBoolean("gas-tie-breaker")
     }
   }
 }

@@ -9,9 +9,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
 
 import scala.util.Random
 
-trait BlockBroadcast {
-
-  val etcPeerManager: ActorRef
+class BlockBroadcast(val etcPeerManager: ActorRef) {
 
   /**
     * Broadcasts various NewBlock's messages to handshaked peers, considering that a block should not be sent to a peer

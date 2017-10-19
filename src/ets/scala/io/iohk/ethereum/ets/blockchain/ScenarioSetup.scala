@@ -4,27 +4,27 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.domain.{Account, Address, Block, UInt256}
 import io.iohk.ethereum.ets.common.AccountState
-import io.iohk.ethereum.ledger.{BlockExecutionError, InMemoryWorldStateProxy, LedgerImpl}
+import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ValidatorsBuilder}
+import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, SyncConfigBuilder, ValidatorsBuilder}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.VM
 import org.spongycastle.util.encoders.Hex
 
-import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
 abstract class ScenarioSetup(scenario: BlockchainScenario)
   extends EphemBlockchainTestSetup
   with ValidatorsBuilder
+  with SyncConfigBuilder
   with BlockchainConfigBuilder {
 
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
 
   override lazy val blockchainConfig = buildBlockchainConfig(scenario.network)
 
-  val ledger = new LedgerImpl(VM, blockchain, blockchainConfig)
+  val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
 
   def loadGenesis(): Block = {
     val genesisBlock = scenario.genesisRLP match {
@@ -111,25 +111,4 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
       worldWithAccountAndCode.saveStorage(address, updatedStorage)
     }
   }
-
-  // TODO We need to take forks and branches into
-  // https://iohk.myjetbrains.com/youtrack/issue/EC-303
-  @tailrec
-  final def processBlocks(blocks: Seq[Block],
-                          errors: Seq[BlockExecutionError] = Nil): Seq[BlockExecutionError] = blocks match {
-    case Nil =>
-      errors
-
-    case Seq(block, otherBlocks@_*) =>
-      val blockExecResult = ledger.executeBlock(block, validators)
-      blockExecResult match {
-        case Right(_) =>
-          blockchain.save(block)
-          storagesInstance.storages.appStateStorage.putBestBlockNumber(block.header.number)
-          processBlocks(otherBlocks, errors)
-        case Left(error) =>
-          processBlocks(otherBlocks, errors :+ error)
-      }
-  }
-
 }

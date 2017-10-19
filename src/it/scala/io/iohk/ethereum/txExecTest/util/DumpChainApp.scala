@@ -125,7 +125,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
 
-    override def removeBlock(hash: ByteString): Unit = ???
+    override def removeBlock(hash: ByteString, saveParentAsBestBlock: Boolean): Unit = ???
 
     override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = ???
 
@@ -153,4 +153,12 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       stateRootHash: Option[ByteString],
       noEmptyAccounts: Boolean
     ): InMemoryWorldStateProxy = ???
+
+    def getBestBlockNumber(): BigInt = ???
+
+    def saveBlockNumber(number: BigInt, hash: NodeHash): Unit = ???
+
+    def saveBestBlockNumber(number: BigInt): Unit = ???
+
+    def getBestBlock(): Block = ???
   }

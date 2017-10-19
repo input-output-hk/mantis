@@ -24,6 +24,9 @@ trait BlockchainTestConfig extends BlockchainConfig {
   override val monetaryPolicyConfig: MonetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"))
   override val daoForkConfig: Option[DaoForkConfig] = None
   override val accountStartNonce: UInt256 = UInt256.Zero
+
+  // TODO: only place where this was supposed to be used but now it seems it's not, remove? Issue: EC-312
+  val gasTieBreaker: Boolean = false
 }
 
 class FrontierConfig extends BlockchainTestConfig {

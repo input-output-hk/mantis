@@ -30,6 +30,7 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
   val OmmerGenerationLimit: Int = 6 //Stated on section 11.1, eq. (143) of the YP
   val OmmerSizeLimit: Int = 2
 
+  // FIXME: scaladoc
   /**
     * This method allows validating the ommers of a Block. It performs the following validations (stated on
     * section 11.1 of the YP):
@@ -47,15 +48,19 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
     * @return ommers if valid, an [[OmmersValidator.OmmersError]] otherwise
     */
   def validate(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit] = {
-    for {
-      _ <- validateOmmersLength(ommers)
-      _ <- validateDuplicatedOmmers(ommers)
-      _ <- validateOmmersHeaders(ommers, blockchain)
-      _ <- validateOmmersAncestors(blockNumber, ommers, blockchain)
-      _ <- validateOmmersNotUsed(blockNumber, ommers, blockchain)
-    } yield ()
+    if (ommers.isEmpty)
+      Right(())
+    else
+      for {
+        _ <- validateOmmersLength(ommers)
+        _ <- validateDuplicatedOmmers(ommers)
+        _ <- validateOmmersHeaders(ommers, blockchain)
+        _ <- validateOmmersAncestors(blockNumber, ommers, blockchain)
+        _ <- validateOmmersNotUsed(blockNumber, ommers, blockchain)
+      } yield ()
   }
 
+  // FIXME: scaladoc
   /**
     * Validates ommers length
     * based on validations stated in section 11.1 of the YP
@@ -68,6 +73,7 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
     else Left(OmmersLengthError)
   }
 
+  // FIXME: scaladoc
   /**
     * Validates that each ommer's header is valid
     * based on validations stated in section 11.1 of the YP
@@ -81,6 +87,7 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
     else Left(OmmersNotValidError)
   }
 
+  // FIXME: scaladoc
   /**
     * Validates that each ommer is not too old and that it is a sibling as one of the current block's ancestors
     * based on validations stated in section 11.1 of the YP
@@ -103,6 +110,7 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
     else Left(OmmersAncestorsError)
   }
 
+  // FIXME: scaladoc
   /**
     * Validates that each ommer was not previously used
     * based on validations stated in the white paper (https://github.com/ethereum/wiki/wiki/White-Paper)
@@ -119,6 +127,7 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
     else Left(OmmersUsedBeforeError)
   }
 
+  // FIXME: scaladoc
   /**
     * Validates that there are no duplicated ommers
     * based on validations stated in the white paper (https://github.com/ethereum/wiki/wiki/White-Paper)

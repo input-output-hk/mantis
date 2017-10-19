@@ -3,6 +3,7 @@ package io.iohk.ethereum.ledger
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
+import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.vm.EvmConfig
 import org.scalamock.scalatest.MockFactory
@@ -11,10 +12,11 @@ import org.scalatest.{FlatSpec, Matchers}
 class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory {
 
   val blockchainConfig = BlockchainConfig(Config.config)
+  val syncConfig = SyncConfig(Config.config)
 
   val blockchain = mock[BlockchainImpl]
 
-  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig)
+  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
 
   it should "delete no accounts when there are no touched accounts" in new TestSetup {
     val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldStatePostEIP161))

@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.validators.BlockValidator
 import org.scalamock.scalatest.MockFactory
@@ -14,7 +15,13 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
 
   val blockchain = mock[BlockchainImpl]
 
-  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, BlockchainConfig(Config.config))
+  val validators = new Mocks.MockValidatorsAlwaysSucceed {
+    override val blockValidator = BlockValidator
+  }
+
+  val syncConfig = SyncConfig(Config.config)
+
+  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, BlockchainConfig(Config.config), syncConfig, validators)
 
   val block: Block = Block(
     BlockHeader(
@@ -123,22 +130,22 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
   val gasUsed = block.header.gasUsed
 
   it should "report valid results from execution as correct" in {
-    ledger.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed, BlockValidator) shouldBe Right(())
+    ledger.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe Right(())
   }
 
   it should "report as invalid a block that doesn't have the correct gas used" in {
     val invalidGasUsed = gasUsed + 1
-    assert(ledger.validateBlockAfterExecution(block, stateRootHash, receipts, invalidGasUsed, BlockValidator).isLeft)
+    assert(ledger.validateBlockAfterExecution(block, stateRootHash, receipts, invalidGasUsed).isLeft)
   }
 
   it should "report as invalid a block that doesn't have the correct state root hash" in {
     val invalidStateRootHash: ByteString = (stateRootHash.head + 1).toByte +: stateRootHash.tail
-    assert(ledger.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed, BlockValidator).isLeft)
+    assert(ledger.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed).isLeft)
   }
 
   it should "report as invalid a block that doesn't have the correct receipts information" in {
     val invalidReceipts: Seq[Receipt] = Seq()
-    assert(ledger.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed, BlockValidator).isLeft)
+    assert(ledger.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed).isLeft)
   }
 
 }
