@@ -13,6 +13,7 @@ import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 
+/** REVISION 23 of https://github.com/ethereum/wiki/wiki/Ethash */
 object Ethash {
 
   // scalastyle:off magic.number
@@ -72,13 +73,14 @@ object Ethash {
     highestPrimeBelow(sz, MIX_BYTES)
   }
 
+  @tailrec
   private def highestPrimeBelow(n: Long, len: Long): Long = {
     if (isPrime(n / len)) n
     else highestPrimeBelow(n - 2 * len, len)
   }
 
   private def isPrime(n: BigInt): Boolean =
-    !((2 until n.toInt-1) exists (n % _ == 0))
+    n > 1 && !((2 to Math.floor(Math.sqrt(n.toLong)).toLong) exists (n % _ == 0))
 
   def makeCache(blockNumber: Long): Array[Int] = {
     /* watch out, arrays are mutable here */

@@ -24,6 +24,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
   // fixme: we need a better way to store pow cache, this is a temporary solution
   var powCacheEpoch: Long = 0
   var powCache: Option[Array[Int]] = None
+  var currentEpochDataSize: Long = 0
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
@@ -171,11 +172,12 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
         val newCache = Ethash.makeCache(blockHeader.number.toLong)
         powCacheEpoch = currentEpoch
         powCache = Some(newCache)
+        currentEpochDataSize = Ethash.dagSize(blockHeader.number.toLong)
         newCache
     }
 
     val proofOfWork = Ethash.hashimotoLight(crypto.kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)),
-      blockHeader.nonce.toArray[Byte], Ethash.dagSize(blockHeader.number.toLong), cache)
+      blockHeader.nonce.toArray[Byte], currentEpochDataSize, cache)
 
     if (proofOfWork.mixHash == blockHeader.mixHash &&
       Ethash.checkDifficulty(blockHeader, proofOfWork))
