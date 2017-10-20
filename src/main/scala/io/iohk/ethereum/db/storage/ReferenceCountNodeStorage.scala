@@ -2,9 +2,9 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.db.storage.pruning.{PruneResult, PruningNodesKeyValueStorage, RangePrune}
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import encoding._
+import io.iohk.ethereum.utils.Logger
 
 /**
   * This class helps to deal with two problems regarding MptNodes storage:
@@ -22,9 +22,8 @@ import encoding._
   * - Instead of saving KEY -> VALUE, it will store KEY -> (VALUE, REFERENCE_COUNT)
   * - Also, the following index will be appended: BLOCK_NUMBER_TAG -> Seq(KEY1, KEY2, ..., KEYn)
   */
-class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt, blockNumber: Option[BigInt] = None)
-  extends PruningNodesKeyValueStorage
-  with RangePrune {
+class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[BigInt] = None)
+  extends NodesKeyValueStorage {
 
   import ReferenceCountNodeStorage._
 
@@ -59,9 +58,9 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
 
     val (toRemoveUpdated, toUpsertUpdated, snapshot) =
       changes.foldLeft(Seq.empty[NodeHash], Seq.empty[(NodeHash, NodeEncoded)], Seq.empty[(NodeHash, StoredNode)]) {
-        case ((toRemoveUpdated, toUpsertUpdated, previous), (key, (storedNode, snapshot))) =>
-          if(storedNode.references == 0) (toRemoveUpdated :+ key, toUpsertUpdated, previous :+ (key -> snapshot))
-          else (toRemoveUpdated, toUpsertUpdated :+ (key -> storedNodeToBytes(storedNode)), previous :+ (key -> snapshot))
+        case ((removeAcc, upsertAcc, snapshotAcc), (key, (storedNode, theSnapshot))) =>
+          if(storedNode.references == 0) (removeAcc :+ key, upsertAcc, snapshotAcc :+ (key -> theSnapshot))
+          else (removeAcc, upsertAcc :+ (key -> storedNodeToBytes(storedNode)), snapshotAcc :+ (key -> theSnapshot))
       }
 
     val snapshotToSave = {
@@ -78,21 +77,23 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
 
     this
   }
+}
+
+object ReferenceCountNodeStorage extends Logger {
 
   /**
     * Determines and prunes mpt nodes based on last pruned block number tag and the current best block number
     *
-    * @param lastPruned      Last pruned block number tag
-    * @param bestBlockNumber Current best block number
+    * @param bn Block Number to prune
     * @return PruneResult
     */
-  override def prune(lastPruned: => BigInt, bestBlockNumber: => BigInt): PruneResult = {
-    val from = lastPruned + 1
-    val to = from.max(bestBlockNumber - pruningOffset)
-    pruneBetween(from, to, bn => ReferenceCountNodeStorage.prune(bn, nodeStorage))
+  def prune(bn: BigInt, nodeStorage: NodeStorage): Unit = {
+    log.debug(s"Pruning block $bn")
+    nodeStorage.remove(snapshotKey(bn))
+    log.debug(s"Pruned block $bn")
   }
 
-  override def rollbackChanges(blockNumber: BigInt): Unit = {
+  def rollbackChanges(blockNumber: BigInt, nodeStorage: NodeStorage): Unit = {
     val theSnapshotKey = snapshotKey(blockNumber)
     nodeStorage
       .get(theSnapshotKey)
@@ -106,20 +107,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, pruningOffset: BigInt,
         nodeStorage.update(toRemove :+ theSnapshotKey, toUpsert) // remove snapshot as we have done a rollback
       }
   }
-}
 
-object ReferenceCountNodeStorage {
-
-  /**
-    * Based on a block number tag, looks for no longer needed nodes and deletes them if it corresponds (a node that was
-    * marked as unused in a certain block number tag, might be used later)
-    *
-    * @param blockNumber
-    * @param nodeStorage
-    * @return
-    */
-  private def prune(blockNumber: BigInt, nodeStorage: NodeStorage): Unit =
-    nodeStorage.remove(snapshotKey(blockNumber))
 
   /**
     * Wrapper of MptNode in order to store number of references it has.

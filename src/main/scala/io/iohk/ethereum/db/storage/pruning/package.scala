@@ -4,44 +4,28 @@ import io.iohk.ethereum.mpt.NodesKeyValueStorage
 
 package object pruning {
 
-  trait PruningSupport {
-    /**
-      * Determines and prunes mpt nodes based on last pruned block number tag and the current best block number
-      *
-      * @param lastPruned      Last pruned block number tag
-      * @param bestBlockNumber Current best block number
-      * @return PruneResult
-      */
-    def prune(lastPruned: => BigInt, bestBlockNumber: => BigInt): PruneResult
-
-    def rollbackChanges(blockNumber: BigInt): Unit
-  }
-
-  trait PruningNodesKeyValueStorage extends NodesKeyValueStorage with PruningSupport
-
   sealed trait PruningMode
   case object ArchivePruning extends PruningMode
   case class BasicPruning(history: Int) extends PruningMode
 
   object PruningMode {
-    type PruneFn = (=> BigInt, => BigInt) => PruneResult
-
     /**
       * Create a NodesKeyValueStorage to be used within MerklePatriciaTrie
       *
       * @param blockNumber block number to be used as tag when doing update / removal operations. None can be sent if read only
       * @return Storage to be used
       */
-    def nodesKeyValueStorage(pruningMode: PruningMode, nodeStorage: NodeStorage)(blockNumber: Option[BigInt]): PruningNodesKeyValueStorage =
+    def nodesKeyValueStorage(pruningMode: PruningMode, nodeStorage: NodeStorage)(blockNumber: Option[BigInt]): NodesKeyValueStorage =
       pruningMode match {
         case ArchivePruning => new ArchiveNodeStorage(nodeStorage)
-        case BasicPruning(history) => new ReferenceCountNodeStorage(nodeStorage, history, blockNumber)
+        case BasicPruning(history) => new ReferenceCountNodeStorage(nodeStorage, blockNumber)
+      }
+
+    def prune(pruningMode: PruningMode, blockNumber: BigInt, nodeStorage: NodeStorage): Unit =
+      pruningMode match {
+        case ArchivePruning => ArchiveNodeStorage.prune(blockNumber)
+        case BasicPruning(history) => ReferenceCountNodeStorage.prune(blockNumber - history, nodeStorage)
       }
 
   }
-
-  case class PruneResult(lastPrunedBlockNumber: BigInt, pruned: Int) {
-    override def toString: String = s"Number of mpt nodes deleted: $pruned. Last Pruned Block: $lastPrunedBlockNumber"
-  }
-
 }

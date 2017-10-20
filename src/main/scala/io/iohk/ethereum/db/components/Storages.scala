@@ -2,7 +2,6 @@ package io.iohk.ethereum.db.components
 
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
-import io.iohk.ethereum.mpt.NodesKeyValueStorage
 
 object Storages {
 
@@ -38,8 +37,6 @@ object Storages {
       override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
 
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
-
-      override val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage = bn => PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(bn)
 
       override val knownNodesStorage: KnownNodesStorage = new KnownNodesStorage(dataSources.knownNodesDataSource)
 
@@ -78,9 +75,6 @@ object Storages {
       override val appStateStorage: AppStateStorage = new AppStateStorage(dataSources.appStateDataSource)
 
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSources.transactionMappingDataSource)
-
-      override val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage =
-        (bn: Option[BigInt]) => PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(bn)
 
       override val knownNodesStorage: KnownNodesStorage = new KnownNodesStorage(dataSources.knownNodesDataSource)
     }

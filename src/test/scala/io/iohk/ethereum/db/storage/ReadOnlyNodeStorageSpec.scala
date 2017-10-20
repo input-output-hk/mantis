@@ -29,7 +29,7 @@ class ReadOnlyNodeStorageSpec extends FlatSpec with Matchers {
     val dataSource = EphemDataSource()
     val nodeStorage = new NodeStorage(dataSource)
 
-    val referenceCountNodeStorage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
+    val referenceCountNodeStorage = new ReferenceCountNodeStorage(nodeStorage, blockNumber = Some(1))
     val readOnlyNodeStorage = ReadOnlyNodeStorage(referenceCountNodeStorage)
   }
 }

@@ -161,4 +161,8 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     def saveBestBlockNumber(number: BigInt): Unit = ???
 
     def getBestBlock(): Block = ???
+
+    override def pruneState(blockNumber: BigInt): Unit = ???
+
+    override def rollbackState(blockNumber: BigInt): Unit = ???
   }

@@ -7,7 +7,7 @@ import org.scalatest.{FlatSpec, Matchers}
 class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
 
   "ReferenceCountNodeStorage" should "should remove a key if no more references" in new TestSetup {
-    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
+    val storage = new ReferenceCountNodeStorage(nodeStorage, blockNumber = Some(1))
 
     val inserted = insertRangeKeys(4, storage)
     val (key1, val1) = inserted.head
@@ -17,7 +17,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
   }
 
   it should "not delete a key that's still referenced" in new TestSetup {
-    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
+    val storage = new ReferenceCountNodeStorage(nodeStorage, blockNumber = Some(1))
 
     val inserted = insertRangeKeys(4, storage)
     val (key1, val1) :: (key2, val2) :: xs = inserted.toList
@@ -36,7 +36,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
   }
 
   it should "not throw an error when deleting a key that does not exist" in new TestSetup {
-    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
+    val storage = new ReferenceCountNodeStorage(nodeStorage, blockNumber = Some(1))
 
     storage.remove(ByteString("doesnotexist"))
 
@@ -44,7 +44,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
   }
 
   it should "allow to rollback operations within the same block" in new TestSetup {
-    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
+    val storage = new ReferenceCountNodeStorage(nodeStorage, blockNumber = Some(1))
 
     val inserted = insertRangeKeys(4, storage)
     val (key1, val1) :: (key2, val2) :: xs = inserted.toList
@@ -58,7 +58,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage.get(key2) shouldEqual None
     storage.get(key3).get sameElements val3
 
-    storage.rollbackChanges(1)
+    ReferenceCountNodeStorage.rollbackChanges(1, nodeStorage)
 
     storage.get(key1).get sameElements val1
     storage.get(key2).get sameElements val2
@@ -67,7 +67,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
   }
 
   it should "allow to rollback operations from a specific block" in new TestSetup {
-    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
+    val storage = new ReferenceCountNodeStorage(nodeStorage, blockNumber = Some(1))
 
     val inserted = insertRangeKeys(4, storage)
     val (key1, val1) :: (key2, val2) :: xs = inserted.toList
@@ -75,14 +75,14 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage.remove(key1).remove(key2)
     val key3 = ByteString("anotherKey")
     val val3 = ByteString("anotherValue").toArray[Byte]
-    val storage2 = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(2))
+    val storage2 = new ReferenceCountNodeStorage(nodeStorage, blockNumber = Some(2))
     storage2.put(key3, val3)
 
     storage2.get(key1) shouldEqual None
     storage2.get(key2) shouldEqual None
     storage2.get(key3).get sameElements val3
 
-    storage2.rollbackChanges(2)
+    ReferenceCountNodeStorage.rollbackChanges(2, nodeStorage)
 
     storage2.get(key1) shouldEqual None
     storage2.get(key2) shouldEqual None
@@ -92,20 +92,20 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
 
   it should "allow pruning" in new TestSetup {
 
-    val storage = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(1))
+    val storage = new ReferenceCountNodeStorage(nodeStorage, blockNumber = Some(1))
 
     val inserted = insertRangeKeys(4, storage)
     val (key1, val1) :: (key2, val2) :: xs = inserted.toList
 
     storage.remove(key1).remove(key2)
 
-    val storage2 = new ReferenceCountNodeStorage(nodeStorage, pruningOffset = 0, blockNumber = Some(2))
+    val storage2 = new ReferenceCountNodeStorage(nodeStorage, blockNumber = Some(2))
     val key3 = ByteString("anotherKey")
     val val3 = ByteString("anotherValue").toArray[Byte]
     storage2.put(key3, val3)
 
     val prevDatasourceSize: Int = dataSource.storage.size
-    storage2.prune(0, 2)
+    ReferenceCountNodeStorage.prune(1, nodeStorage)
     (dataSource.storage.size < prevDatasourceSize) shouldBe true
 
     // Data is correct
@@ -114,8 +114,8 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage2.get(key3).get sameElements val3
 
     // We can still rollback
-    storage2.rollbackChanges(2)
-    storage2.rollbackChanges(1)
+    ReferenceCountNodeStorage.rollbackChanges(2, nodeStorage)
+    ReferenceCountNodeStorage.rollbackChanges(1, nodeStorage)
     storage2.get(key3) shouldEqual None
 
   }
