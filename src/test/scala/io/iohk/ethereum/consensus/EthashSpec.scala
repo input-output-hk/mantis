@@ -9,17 +9,18 @@ import org.spongycastle.util.encoders.Hex
 
 class EthashSpec extends FlatSpec with Matchers with PropertyChecks {
 
+  import Ethash._
+
   "Ethash" should "generate correct hash" in {
     forAll(Arbitrary.arbitrary[Long].filter(_ < 15000000)) { blockNumber =>
-      Ethash.seed(blockNumber) shouldBe seedForBlockReference(blockNumber)
+      seed(epoch(blockNumber)) shouldBe seedForBlockReference(blockNumber)
     }
   }
 
   it should "calculate cache size" in {
     val cacheSizes = Seq(16776896, 16907456, 17039296, 17170112, 17301056, 17432512, 17563072)
     cacheSizes.zipWithIndex.foreach { case (referenceSize, epoch) =>
-      val blockNumber = epoch * Ethash.EPOCH_LENGTH
-      Ethash.cacheSize(blockNumber) shouldBe referenceSize
+      cacheSize(epoch) shouldBe referenceSize
     }
   }
 
@@ -31,8 +32,8 @@ class EthashSpec extends FlatSpec with Matchers with PropertyChecks {
     val boundary = Array(0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84).map(_.toByte)
 
     val blockNumber = 486382
-    val cache = Ethash.makeCache(blockNumber)
-    val proofOfWork = Ethash.hashimotoLight(hash, nonce, Ethash.dagSize(blockNumber), cache)
+    val cache = makeCache(epoch(blockNumber))
+    val proofOfWork = hashimotoLight(hash, nonce, dagSize(epoch(blockNumber)), cache)
 
     proofOfWork.mixHash shouldBe ByteString(mixHash)
     proofOfWork.difficultyBoundary shouldBe ByteString(boundary)
@@ -51,20 +52,20 @@ class EthashSpec extends FlatSpec with Matchers with PropertyChecks {
       (100,"41944a94a42695180b1ca231720a87825f17d36475112b659c23dea1542e0977","37129c7f29a9364b","5bb43c0772e58084b221c8e0c859a45950c103c712c5b8f11d9566ee078a4501"))
 
     forAll(table) { (blockNumber, hashWithoutNonce, nonce, mixHash) =>
-      val cache = Ethash.makeCache(blockNumber)
-      val proofOfWork = Ethash.hashimotoLight(Hex.decode(hashWithoutNonce), Hex.decode(nonce), Ethash.dagSize(blockNumber), cache)
+      val cache = makeCache(epoch(blockNumber))
+      val proofOfWork = hashimotoLight(Hex.decode(hashWithoutNonce), Hex.decode(nonce), dagSize(epoch(blockNumber)), cache)
       proofOfWork.mixHash shouldBe ByteString(Hex.decode(mixHash))
     }
   }
 
   def seedForBlockReference(blockNumber: BigInt): ByteString = {
-    if (blockNumber < Ethash.EPOCH_LENGTH) {
+    if (blockNumber < EPOCH_LENGTH) {
       //wrong version from YP:
       //ByteString(kec256(Hex.decode("00" * 32)))
       //working version:
       ByteString(Hex.decode("00" * 32))
     } else {
-      kec256(seedForBlockReference(blockNumber - Ethash.EPOCH_LENGTH))
+      kec256(seedForBlockReference(blockNumber - EPOCH_LENGTH))
     }
   }
 

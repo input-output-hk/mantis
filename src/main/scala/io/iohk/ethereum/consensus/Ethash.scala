@@ -56,20 +56,20 @@ object Ethash {
 
   // scalastyle:on magic.number
 
-  def seed(blockNumber: Long): ByteString = {
-    (BigInt(0) until epoch(blockNumber))
+  def seed(epoch: Long): ByteString = {
+    (BigInt(0) until epoch)
       .foldLeft(ByteString(Hex.decode("00" * 32))) { case (b, _) => kec256(b) }
   }
 
   def epoch(blockNumber: Long): Long = blockNumber / EPOCH_LENGTH
 
-  def cacheSize(blockNumber: Long): Long = {
-    val sz = (CACHE_BYTES_INIT + CACHE_BYTES_GROWTH * epoch(blockNumber)) - HASH_BYTES
+  def cacheSize(epoch: Long): Long = {
+    val sz = (CACHE_BYTES_INIT + CACHE_BYTES_GROWTH * epoch) - HASH_BYTES
     highestPrimeBelow(sz, HASH_BYTES)
   }
 
-  def dagSize(blockNumber: Long): Long = {
-    val sz = DATASET_BYTES_INIT + DATASET_BYTES_GROWTH * epoch(blockNumber) - MIX_BYTES
+  def dagSize(epoch: Long): Long = {
+    val sz = DATASET_BYTES_INIT + DATASET_BYTES_GROWTH * epoch - MIX_BYTES
     highestPrimeBelow(sz, MIX_BYTES)
   }
 
@@ -89,11 +89,11 @@ object Ethash {
     else isPrime(n, 3)
   }
 
-  def makeCache(blockNumber: Long): Array[Int] = {
+  def makeCache(epoch: Long): Array[Int] = {
     /* watch out, arrays are mutable here */
 
-    val n = (cacheSize(blockNumber) / HASH_BYTES).toInt
-    val s = seed(blockNumber).toArray[Byte]
+    val n = (cacheSize(epoch) / HASH_BYTES).toInt
+    val s = seed(epoch).toArray[Byte]
 
     val bytes = new Array[Array[Byte]](n)
     bytes(0) = kec512(s)

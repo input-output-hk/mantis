@@ -15,6 +15,9 @@ object BlockHeaderValidatorImpl {
   val GasLimitBoundDivisor: Int = 1024
   val MinGasLimit: BigInt = 5000 //Although the paper states this value is 125000, on the different clients 5000 is used
   val MaxGasLimit = Long.MaxValue // max gasLimit is equal 2^63-1 according to EIP106
+  val MaxPowCaches: Int = 2 // maximum number of epochs for which PoW cache is stored in memory
+
+  case class PowCacheData(cache: Array[Int], dagSize: Long)
 }
 
 class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
@@ -22,10 +25,8 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
   import BlockHeaderValidatorImpl._
   import BlockHeaderError._
 
-  // fixme: we need a better way to store pow cache, this is a temporary solution
-  var powCacheEpoch: Long = 0
-  var powCache: Option[Array[Int]] = None
-  var currentEpochDataSize: Long = 0
+  // we need concurrent map since validators can be used from multiple places
+  val powCaches: java.util.Map[Long, PowCacheData] = new java.util.concurrent.ConcurrentHashMap[Long, PowCacheData]()
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
@@ -173,25 +174,34 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @return BlockHeader if valid, an [[HeaderPoWError]] otherwise
     */
   private def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
-    val currentEpoch = Ethash.epoch(blockHeader.number.toLong)
-    val cache = powCache match {
-      case Some(c) if powCacheEpoch == currentEpoch => c
-      case _ =>
-        val newCache = Ethash.makeCache(blockHeader.number.toLong)
-        powCacheEpoch = currentEpoch
-        powCache = Some(newCache)
-        currentEpochDataSize = Ethash.dagSize(blockHeader.number.toLong)
-        newCache
+    import Ethash._
+    import scala.collection.JavaConverters._
+
+    def getPowCacheData(epoch: Long): PowCacheData = {
+      Option(powCaches.get(epoch)) match {
+        case Some(pcd) => pcd
+        case None =>
+          val data = PowCacheData(
+            cache = Ethash.makeCache(epoch),
+            dagSize = Ethash.dagSize(epoch))
+
+          val keys = powCaches.keySet().asScala
+          val keysToRemove = keys.toSeq.sorted.take(keys.size - MaxPowCaches + 1)
+          keysToRemove.foreach(powCaches.remove)
+
+          powCaches.put(epoch, data)
+
+          data
+      }
     }
 
-    val proofOfWork = Ethash.hashimotoLight(crypto.kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)),
-      blockHeader.nonce.toArray[Byte], currentEpochDataSize, cache)
+    val powCacheData = getPowCacheData(epoch(blockHeader.number.toLong))
 
-    if (proofOfWork.mixHash == blockHeader.mixHash &&
-      Ethash.checkDifficulty(blockHeader, proofOfWork))
-      Right(blockHeader)
-    else
-      Left(HeaderPoWError)
+    val proofOfWork = hashimotoLight(crypto.kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)),
+      blockHeader.nonce.toArray[Byte], powCacheData.dagSize, powCacheData.cache)
+
+    if (proofOfWork.mixHash == blockHeader.mixHash && checkDifficulty(blockHeader, proofOfWork)) Right(blockHeader)
+    else Left(HeaderPoWError)
   }
 
   /**
