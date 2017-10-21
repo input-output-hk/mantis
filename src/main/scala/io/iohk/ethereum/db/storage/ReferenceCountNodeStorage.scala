@@ -4,23 +4,24 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import encoding._
+import io.iohk.ethereum.db.storage.pruning.PruneSupport
 import io.iohk.ethereum.utils.Logger
 
 /**
   * This class helps to deal with two problems regarding MptNodes storage:
-  * 1) Define a way to delete ones that are no longer needed
-  * 2) Avoids removal of nodes that can be used in diferent trie branches because the hash it's the same
+  * 1) Define a way to delete ones that are no longer needed but allow rollbacks to be performed
+  * 2) Avoids removal of nodes that can be used in different trie branches because the hash it's the same
   *
-  * To deal with (1) when a node is no longer needed it's tagged with the corresponding block number in order to be
-  * able to release disk space used (as it's not going to be accessed any more)
+  * To deal with (1) when a node is no longer needed, block number alongside with a stored node snapshot is saved so
+  * it can be restored in case of rollback
   *
   * In order to solve (2), before saving a node, its wrapped with the number of references it has. The inverse operation
   * is done when getting a node.
   *
   * Using this storage will change data to be stored in nodeStorage in two ways (and it will, as consequence, make
   * different pruning mechanisms incompatible):
-  * - Instead of saving KEY -> VALUE, it will store KEY -> (VALUE, REFERENCE_COUNT)
-  * - Also, the following index will be appended: BLOCK_NUMBER_TAG -> Seq(KEY1, KEY2, ..., KEYn)
+  * - Instead of saving KEY -> VALUE, it will store STORED_NODE = KEY -> (VALUE, REFERENCE_COUNT)
+  * - Also, the following index will be appended: BLOCK_NUMBER_TAG -> Seq(STORED_NODE1,..., STORED_NODEn)
   */
 class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[BigInt] = None)
   extends NodesKeyValueStorage {
@@ -35,12 +36,12 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
 
     val bn = blockNumber.get
     // Process upsert changes. As the same node might be changed twice within the same update, we need to keep changes
-    // within a map
+    // within a map. There is also stored the snapshot version ebfore changes
     val upsertChanges = toUpsert.foldLeft(Map.empty[NodeHash, (StoredNode, StoredNode)]) { (storedNodes, toUpsertItem) =>
       val (nodeKey, nodeEncoded) = toUpsertItem
       val (storedNode, snapshot) = storedNodes.get(nodeKey) // get from current changes
-        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes).map(s => s -> s)) // or get from DB
-        .getOrElse(StoredNode(ByteString(nodeEncoded), 0) -> StoredNode(ByteString(nodeEncoded), 0)) // if it's new, return an empty stored node
+        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes).map(sn => sn -> sn)) // or get from DB
+        .getOrElse(StoredNode.withoutReferences(nodeEncoded) -> StoredNode.withoutReferences(nodeEncoded)) // if it's new, return an empty stored node
 
       storedNodes + (nodeKey -> (storedNode.incrementReferences(1), snapshot))
     }
@@ -59,13 +60,14 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
     val (toRemoveUpdated, toUpsertUpdated, snapshot) =
       changes.foldLeft(Seq.empty[NodeHash], Seq.empty[(NodeHash, NodeEncoded)], Seq.empty[(NodeHash, StoredNode)]) {
         case ((removeAcc, upsertAcc, snapshotAcc), (key, (storedNode, theSnapshot))) =>
+          // If no more references, move it to the list to be removed
           if(storedNode.references == 0) (removeAcc :+ key, upsertAcc, snapshotAcc :+ (key -> theSnapshot))
           else (removeAcc, upsertAcc :+ (key -> storedNodeToBytes(storedNode)), snapshotAcc :+ (key -> theSnapshot))
       }
 
     val snapshotToSave = {
       if(snapshot.nonEmpty) {
-        // If non empty, try append the new values to the ones stored in DB
+        // If non empty, try append the new node snapshots to the ones stored in DB
         val key = snapshotKey(bn)
         val updated = nodeStorage.get(key).map(storedNodesFromBytes).getOrElse(Seq.empty) ++ snapshot
         (key -> storedNodesToBytes(updated)) :: Nil
@@ -79,21 +81,26 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
   }
 }
 
-object ReferenceCountNodeStorage extends Logger {
+object ReferenceCountNodeStorage extends PruneSupport with Logger {
 
   /**
-    * Determines and prunes mpt nodes based on last pruned block number tag and the current best block number
-    *
-    * @param bn Block Number to prune
-    * @return PruneResult
+    * Removes snapshots stored in the DB that are not longer needed, which means, cannot be rolled back to
+    * @param blockNumber BlockNumber to prune
+    * @param nodeStorage NodeStorage
     */
-  def prune(bn: BigInt, nodeStorage: NodeStorage): Unit = {
-    log.debug(s"Pruning block $bn")
-    nodeStorage.remove(snapshotKey(bn))
-    log.debug(s"Pruned block $bn")
+  override def prune(blockNumber: BigInt, nodeStorage: NodeStorage): Unit = {
+    log.debug(s"Pruning block $blockNumber")
+    nodeStorage.remove(snapshotKey(blockNumber))
+    log.debug(s"Pruned block $blockNumber")
   }
 
-  def rollbackChanges(blockNumber: BigInt, nodeStorage: NodeStorage): Unit = {
+  /**
+    * Looks for the StoredNode snapshots based on block number and saves (or deletes) them
+    *
+    * @param blockNumber BlockNumber to rollback
+    * @param nodeStorage NodeStorage
+    */
+  override def rollback(blockNumber: BigInt, nodeStorage: NodeStorage): Unit = {
     val theSnapshotKey = snapshotKey(blockNumber)
     nodeStorage
       .get(theSnapshotKey)
@@ -104,7 +111,8 @@ object ReferenceCountNodeStorage extends Logger {
           case((r, u), (nodeHash, sn)) if sn.references > 0 => (r, (nodeHash -> storedNodeToBytes(sn)) +: u)
           case((r, u), (nodeHash, sn)) if sn.references <= 0 => (nodeHash +: r, u)
         }
-        nodeStorage.update(toRemove :+ theSnapshotKey, toUpsert) // remove snapshot as we have done a rollback
+        // also remove snapshot as we have done a rollback
+        nodeStorage.update(toRemove :+ theSnapshotKey, toUpsert)
       }
   }
 
@@ -119,6 +127,10 @@ object ReferenceCountNodeStorage extends Logger {
     def incrementReferences(amount: Int): StoredNode = copy(references = references + amount)
 
     def decrementReferences(amount: Int): StoredNode = copy(references = references - amount)
+  }
+
+  object StoredNode {
+    def withoutReferences(nodeEncoded: Array[Byte]): StoredNode = new StoredNode(ByteString(nodeEncoded), 0)
   }
 
   /**

@@ -58,7 +58,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage.get(key2) shouldEqual None
     storage.get(key3).get sameElements val3
 
-    ReferenceCountNodeStorage.rollbackChanges(1, nodeStorage)
+    ReferenceCountNodeStorage.rollback(1, nodeStorage)
 
     storage.get(key1).get sameElements val1
     storage.get(key2).get sameElements val2
@@ -82,7 +82,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage2.get(key2) shouldEqual None
     storage2.get(key3).get sameElements val3
 
-    ReferenceCountNodeStorage.rollbackChanges(2, nodeStorage)
+    ReferenceCountNodeStorage.rollback(2, nodeStorage)
 
     storage2.get(key1) shouldEqual None
     storage2.get(key2) shouldEqual None
@@ -114,8 +114,8 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     storage2.get(key3).get sameElements val3
 
     // We can still rollback
-    ReferenceCountNodeStorage.rollbackChanges(2, nodeStorage)
-    ReferenceCountNodeStorage.rollbackChanges(1, nodeStorage)
+    ReferenceCountNodeStorage.rollback(2, nodeStorage)
+    ReferenceCountNodeStorage.rollback(1, nodeStorage)
     storage2.get(key3) shouldEqual None
 
   }

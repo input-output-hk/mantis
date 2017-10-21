@@ -1,6 +1,7 @@
 package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.db.storage.pruning.PruneSupport
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 
 /**
@@ -18,8 +19,20 @@ class ArchiveNodeStorage(nodeStorage: NodeStorage) extends NodesKeyValueStorage 
   override def get(key: NodeHash): Option[NodeEncoded] = nodeStorage.get(key)
 }
 
-object ArchiveNodeStorage {
-  def prune(blockNumber: BigInt): Unit = ()
+object ArchiveNodeStorage extends PruneSupport {
+  /**
+    * Remove unused data for the given block number
+    *
+    * @param blockNumber BlockNumber to prune
+    * @param nodeStorage NodeStorage
+    */
+  override def prune(blockNumber: BigInt, nodeStorage: NodeStorage): Unit = ()
 
-  def rollbackChanges(blockNumber: BigInt): Unit = ()
+  /**
+    * Rollbacks blocknumber changes
+    *
+    * @param blockNumber BlockNumber to rollback
+    * @param nodeStorage NodeStorage
+    */
+  override def rollback(blockNumber: BigInt, nodeStorage: NodeStorage): Unit = ()
 }

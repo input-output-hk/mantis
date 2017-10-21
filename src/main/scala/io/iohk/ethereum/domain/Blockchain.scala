@@ -342,7 +342,7 @@ class BlockchainImpl(
 
   def pruneState(blockNumber: BigInt): Unit = PruningMode.prune(pruningMode, blockNumber, nodeStorage)
 
-  def rollbackState(blockNumber: BigInt): Unit = PruningMode.prune(pruningMode, blockNumber, nodeStorage)
+  def rollbackState(blockNumber: BigInt): Unit = PruningMode.rollback(pruningMode, blockNumber, nodeStorage)
 }
 
 trait BlockchainStorages {
