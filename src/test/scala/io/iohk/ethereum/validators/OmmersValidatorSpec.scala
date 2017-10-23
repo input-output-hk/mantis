@@ -14,7 +14,8 @@ import org.spongycastle.util.encoders.Hex
 
 class OmmersValidatorSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
 
-  val ommersValidator = new OmmersValidatorImpl(BlockchainConfig(Config.config))
+  val blockchainConfig = BlockchainConfig(Config.config)
+  val ommersValidator = new OmmersValidatorImpl(blockchainConfig, new BlockHeaderValidatorImpl(blockchainConfig))
 
   it should "validate correctly a valid list of ommers" in new BlockUtils {
     ommersValidator.validate(ommersBlockNumber, ommers, blockchain) match {
