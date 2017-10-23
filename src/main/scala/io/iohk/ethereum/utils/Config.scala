@@ -130,9 +130,8 @@ object Config {
     val maxQueuedBlockNumberAhead: Int
     val maxQueuedBlockNumberBehind: Int
 
-    // HardCoded values based on parity client
-    val maxNewBlockHashAge = 20
-    val maxNewHashes = 64
+    val maxNewBlockHashAge: Int
+    val maxNewHashes: Int
   }
 
   object SyncConfig {
@@ -166,6 +165,8 @@ object Config {
 
         val maxQueuedBlockNumberBehind: Int = syncConfig.getInt("max-queued-block-number-behind")
         val maxQueuedBlockNumberAhead: Int = syncConfig.getInt("max-queued-block-number-ahead")
+        val maxNewBlockHashAge: Int = syncConfig.getInt("max-new-block-hash-age")
+        val maxNewHashes: Int = syncConfig.getInt("max-new-hashes")
       }
     }
   }

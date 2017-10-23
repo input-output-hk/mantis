@@ -78,8 +78,7 @@ class RegularSync(
   def handleAdditionalMessages: Receive = handleBroadcastedBlockMessages orElse handleMinedBlock orElse handleNewBlockHashesMessages
 
   private def resumeRegularSync(): Unit = {
-    resumeRegularSyncTimeout.foreach(_.cancel)
-    resumeRegularSyncTimeout = None
+    cancelScheduledResume()
 
     // The case that waitingForActor is defined (we are waiting for some response),
     // can happen when we are on top of the chain and currently handling newBlockHashes message
@@ -90,10 +89,15 @@ class RegularSync(
       scheduleResume()
   }
 
+  private def cancelScheduledResume(): Unit = {
+    resumeRegularSyncTimeout.foreach(_.cancel)
+    resumeRegularSyncTimeout = None
+  }
+
   def handleBroadcastedBlockMessages: Receive = {
     case MessageFromPeer(NewBlock(newBlock, _), peerId) =>
       //we allow inclusion of new block only if we are not syncing
-      if (notDownloading()) {
+      if (notDownloading() && topOfTheChain) {
         val importResult = ledger.importBlock(newBlock)
 
         importResult match {
@@ -142,6 +146,7 @@ class RegularSync(
             val request = GetBlockHeaders(Right(filteredHashes.head.hash), filteredHashes.length, BigInt(0), reverse = false)
             requestBlockHeaders(peer, request)
             resolvingBranches = false
+            cancelScheduledResume()
           } else {
             log.debug("All received hashes all already in Chain, or Queue ")
           }

@@ -352,6 +352,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       override val fastSyncThrottle: FiniteDuration = 100.milliseconds
       val maxQueuedBlockNumberAhead: Int = 10
       val maxQueuedBlockNumberBehind: Int = 10
+      val maxNewBlockHashAge: Int = 20
+      val maxNewHashes: Int = 64
     }
 
     val syncControllerWithRegularSync = TestActorRef(Props(new SyncController(
@@ -422,6 +424,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       override val fastSyncThrottle: FiniteDuration = 100.milliseconds
       val maxQueuedBlockNumberAhead: Int = 10
       val maxQueuedBlockNumberBehind: Int = 10
+      val maxNewBlockHashAge: Int = 20
+      val maxNewHashes: Int = 64
     }
 
     lazy val syncConfig = obtainSyncConfig(1.seconds)
