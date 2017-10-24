@@ -54,7 +54,10 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
 
     val invalidBlocks = getBlocks(getInvalid)
 
-    blocksToProcess.foreach(ledger.importBlock)
+    blocksToProcess.foreach { b =>
+      val r = ledger.importBlock(b)
+      log.debug(s"Block (${b.idTag}) import result: $r")
+    }
 
     val lastBlock = getBestBlock()
 
@@ -65,8 +68,8 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
     val expectedState = getExpectedState()
     val resultState = getResultState()
 
-    resultState should contain theSameElementsAs expectedState
     lastBlock.get.header.hash shouldEqual scenario.lastblockhash
+    resultState should contain theSameElementsAs expectedState
     lastBlock.get.header.stateRoot shouldEqual expectedWorldStateHash
   }
 }

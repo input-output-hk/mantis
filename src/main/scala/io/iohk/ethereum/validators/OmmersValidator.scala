@@ -1,13 +1,32 @@
 package io.iohk.ethereum.validators
 
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
+import akka.util.ByteString
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.validators.OmmersValidator.OmmersError
+import io.iohk.ethereum.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack, OmmersError}
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError._
 
 trait OmmersValidator {
 
-  def validate(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit]
+  def validate(
+    parentHash: ByteString,
+    blockNumber: BigInt,
+    ommers: Seq[BlockHeader],
+    getBlockHeaderByHash: GetBlockHeaderByHash,
+    getNBlocksBack: GetNBlocksBack): Either[OmmersError, Unit]
+
+  def validate(
+    parentHash: ByteString,
+    blockNumber: BigInt,
+    ommers: Seq[BlockHeader],
+    blockchain: Blockchain): Either[OmmersError, Unit] = {
+
+    val getBlockHeaderByHash: ByteString => Option[BlockHeader] = blockchain.getBlockHeaderByHash
+    val getNBlocksBack: (ByteString, Int) => List[Block] =
+      (_, n) => ((blockNumber - n) until blockNumber).toList.flatMap(blockchain.getBlockByNumber)
+
+    validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
+  }
 
 }
 
@@ -21,6 +40,9 @@ object OmmersValidator {
     case object OmmersAncestorsError extends OmmersError
     case object OmmersDuplicatedError extends OmmersError
   }
+
+  type GetBlockHeaderByHash = ByteString => Option[BlockHeader]
+  type GetNBlocksBack = (ByteString, Int) => Seq[Block]
 }
 
 class OmmersValidatorImpl(blockchainConfig: BlockchainConfig, blockHeaderValidator: BlockHeaderValidator) extends OmmersValidator {
@@ -40,21 +62,29 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig, blockHeaderValidat
     *   - OmmersValidator.validateOmmersNotUsed
     *   - OmmersValidator.validateDuplicatedOmmers
     *
+    * @param parentHash    The hash of the parent of the block to which the ommers belong
     * @param blockNumber    The number of the block to which the ommers belong
     * @param ommers         The list of ommers to validate
-    * @param blockchain     from where the previous blocks are obtained
+    * @param getBlockHeaderByHash function to obtain an ancestor block header by hash
+    * @param getNBlocksBack function to obtain N blocks including one given by hash and its N-1 ancestors
     * @return ommers if valid, an [[OmmersValidator.OmmersError]] otherwise
     */
-  def validate(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit] = {
+  def validate(
+    parentHash: ByteString,
+    blockNumber: BigInt,
+    ommers: Seq[BlockHeader],
+    getBlockHeaderByHash: GetBlockHeaderByHash,
+    getNBlocksBack: GetNBlocksBack): Either[OmmersError, Unit] = {
+
     if (ommers.isEmpty)
       Right(())
     else
       for {
         _ <- validateOmmersLength(ommers)
         _ <- validateDuplicatedOmmers(ommers)
-        _ <- validateOmmersHeaders(ommers, blockchain)
-        _ <- validateOmmersAncestors(blockNumber, ommers, blockchain)
-        _ <- validateOmmersNotUsed(blockNumber, ommers, blockchain)
+        _ <- validateOmmersHeaders(ommers, getBlockHeaderByHash)
+        _ <- validateOmmersAncestors(parentHash, blockNumber, ommers, getNBlocksBack)
+        _ <- validateOmmersNotUsed(parentHash, blockNumber, ommers, getNBlocksBack)
       } yield ()
   }
 
@@ -67,7 +97,7 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig, blockHeaderValidat
     * @return ommers if valid, an [[OmmersLengthError]] otherwise
     */
   private def validateOmmersLength(ommers: Seq[BlockHeader]): Either[OmmersError, Unit] = {
-    if(ommers.length <= OmmerSizeLimit) Right(())
+    if (ommers.length <= OmmerSizeLimit) Right(())
     else Left(OmmersLengthError)
   }
 
@@ -77,11 +107,11 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig, blockHeaderValidat
     * based on validations stated in section 11.1 of the YP
     *
     * @param ommers         The list of ommers to validate
-    * @param blockchain     from where the ommer's parents will be obtained
+    * @param getBlockByHash     function to obtain ommers' parents
     * @return ommers if valid, an [[OmmersNotValidError]] otherwise
     */
-  private def validateOmmersHeaders(ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit] = {
-    if(ommers.forall(blockHeaderValidator.validate(_, blockchain).isRight)) Right(())
+  private def validateOmmersHeaders(ommers: Seq[BlockHeader], getBlockByHash: GetBlockHeaderByHash): Either[OmmersError, Unit] = {
+    if (ommers.forall(blockHeaderValidator.validate(_, getBlockByHash).isRight)) Right(())
     else Left(OmmersNotValidError)
   }
 
@@ -90,13 +120,19 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig, blockHeaderValidat
     * Validates that each ommer is not too old and that it is a sibling as one of the current block's ancestors
     * based on validations stated in section 11.1 of the YP
     *
+    * @param parentHash  The hash of the parent of the block to which the ommers belong
     * @param blockNumber    The number of the block to which the ommers belong
     * @param ommers         The list of ommers to validate
-    * @param blockchain     from where the ommer's parents will be obtained
+    * @param getNBlocksBack     from where the ommers' parents will be obtained
     * @return ommers if valid, an [[OmmersUsedBeforeError]] otherwise
     */
-  private def validateOmmersAncestors(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit] = {
-    val ancestorsOpt = collectAncestors(blockNumber, OmmerGenerationLimit, blockchain)
+  private def validateOmmersAncestors(
+    parentHash: ByteString,
+    blockNumber: BigInt,
+    ommers: Seq[BlockHeader],
+    getNBlocksBack: GetNBlocksBack): Either[OmmersError, Unit] = {
+
+    val ancestorsOpt = collectAncestors(parentHash, blockNumber, getNBlocksBack)
 
     val validOmmersAncestors: Seq[BlockHeader] => Boolean = ancestors =>
       ommers.forall{ ommer =>
@@ -104,7 +140,7 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig, blockHeaderValidat
         val ommersParentIsAncestor = ancestors.exists(_.parentHash == ommer.parentHash)
         ommerIsNotAncestor && ommersParentIsAncestor
       }
-    if(ancestorsOpt.exists(validOmmersAncestors)) Right(())
+    if (ancestorsOpt.exists(validOmmersAncestors)) Right(())
     else Left(OmmersAncestorsError)
   }
 
@@ -113,15 +149,21 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig, blockHeaderValidat
     * Validates that each ommer was not previously used
     * based on validations stated in the white paper (https://github.com/ethereum/wiki/wiki/White-Paper)
     *
+    * @param parentHash  The hash of the parent of the block to which the ommers belong
     * @param blockNumber    The number of the block to which the ommers belong
     * @param ommers         The list of ommers to validate
-    * @param blockchain     from where the ommer's parents will be obtained
+    * @param getNBlocksBack     from where the ommers' parents will be obtained
     * @return ommers if valid, an [[OmmersUsedBeforeError]] otherwise
     */
-  private def validateOmmersNotUsed(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit] = {
-    val ommersFromAncestorsOpt = collectOmmersFromAncestors(blockNumber, OmmerGenerationLimit, blockchain)
+  private def validateOmmersNotUsed(
+    parentHash: ByteString,
+    blockNumber: BigInt,
+    ommers: Seq[BlockHeader],
+    getNBlocksBack: GetNBlocksBack): Either[OmmersError, Unit] = {
 
-    if(ommersFromAncestorsOpt.exists(ommers.intersect(_).isEmpty)) Right(())
+    val ommersFromAncestorsOpt = collectOmmersFromAncestors(parentHash, blockNumber, getNBlocksBack)
+
+    if (ommersFromAncestorsOpt.exists(ommers.intersect(_).isEmpty)) Right(())
     else Left(OmmersUsedBeforeError)
   }
 
@@ -134,27 +176,19 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig, blockHeaderValidat
     * @return ommers if valid, an [[OmmersDuplicatedError]] otherwise
     */
   private def validateDuplicatedOmmers(ommers: Seq[BlockHeader]): Either[OmmersError, Unit] = {
-    if(ommers.distinct.length == ommers.length) Right(())
+    if (ommers.distinct.length == ommers.length) Right(())
     else Left(OmmersDuplicatedError)
   }
 
-  private def collectAncestors(blockNumber: BigInt, numberOfBlocks: Int, blockchain: Blockchain): Option[Seq[BlockHeader]] = {
-    val ancestors: Seq[Option[BlockHeader]] = ancestorsBlockNumbers(blockNumber, numberOfBlocks)
-      .map{ num => blockchain.getBlockHeaderByNumber(num) }
-
-    if(ancestors.exists(_.isEmpty)) None
-    else Some(ancestors.flatten)
+  private def collectAncestors(parentHash: ByteString, blockNumber: BigInt, getNBlocksBack: GetNBlocksBack): Option[Seq[BlockHeader]] = {
+    val numberOfBlocks = blockNumber.min(OmmerGenerationLimit).toInt
+    val ancestors = getNBlocksBack(parentHash, numberOfBlocks).map(_.header)
+    Some(ancestors).filter(_.length == numberOfBlocks)
   }
 
-  private def collectOmmersFromAncestors(blockNumber: BigInt, numberOfBlocks: Int, blockchain: Blockchain): Option[Seq[BlockHeader]] = {
-    val ancestorsNumbers = ancestorsBlockNumbers(blockNumber, numberOfBlocks)
-    val ommersFromAncestors: Seq[Seq[BlockHeader]] = ancestorsNumbers
-      .flatMap{ num => blockchain.getBlockByNumber(num).map(_.body.uncleNodesList) }
-
-    if(ommersFromAncestors.length == ancestorsNumbers.length) Some(ommersFromAncestors.flatten)
-    else None
+  private def collectOmmersFromAncestors(parentHash: ByteString, blockNumber: BigInt, getNBlocksBack: GetNBlocksBack): Option[Seq[BlockHeader]] = {
+    val numberOfBlocks = blockNumber.min(OmmerGenerationLimit).toInt
+    val ancestors = getNBlocksBack(parentHash, numberOfBlocks).map(_.body.uncleNodesList)
+    Some(ancestors).filter(_.length == numberOfBlocks).map(_.flatten)
   }
-
-  private def ancestorsBlockNumbers(blockNumber: BigInt, numberOfBlocks: Int): Seq[BigInt] =
-    (blockNumber - numberOfBlocks).max(0) until blockNumber
 }

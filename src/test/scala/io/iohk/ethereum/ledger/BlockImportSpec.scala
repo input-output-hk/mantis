@@ -44,7 +44,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
     (blockQueue.enqueueBlock _).expects(block, bestNum)
       .returning(Some(Leaf(block.header.hash, currentTd + block.header.difficulty)))
-    (blockQueue.removeBranch _).expects(block.header.hash).returning(List(block))
+    (blockQueue.getBranch _).expects(block.header.hash, true).returning(List(block))
 
     val newTd = currentTd + block.header.difficulty
     expectBlockSaved(block, receipts, newTd, true)
@@ -62,7 +62,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
     (blockQueue.enqueueBlock _).expects(block, bestNum)
       .returning(Some(Leaf(block.header.hash, currentTd + block.header.difficulty)))
-    (blockQueue.removeBranch _).expects(block.header.hash).returning(List(block))
+    (blockQueue.getBranch _).expects(block.header.hash, true).returning(List(block))
     (blockQueue.removeSubtree _).expects(block.header.hash)
 
     ledger.importBlock(block) shouldEqual BlockImportFailed(execError.toString)
@@ -135,29 +135,6 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     blockQueue.isQueued(newBlock3.header.hash) shouldBe false
   }
 
-  it should "import blocks out of order" in new TestSetup with EphemBlockchain {
-    val block0 = getBlock(0)
-    val blocks @ block1 :: block2 :: block3 :: Nil = getChain(1, 3, block0.header.hash)
-
-    val block0Td = currentTd + block0.header.difficulty
-    val block1Td = block0Td + block1.header.difficulty
-    val block2Td = block1Td + block2.header.difficulty
-    val block3Td = block2Td + block3.header.difficulty
-
-
-    blockchain.save(block0, Nil, block0Td, true)
-
-    blocks.foreach(ledger.setExecutionResult(_, Right(Nil)))
-
-    ledger.importBlock(block3) shouldEqual BlockEnqueued
-    ledger.importBlock(block2) shouldEqual BlockEnqueued
-    ledger.importBlock(block1) shouldEqual BlockImportedToTop(blocks, List(block1Td, block2Td, block3Td))
-
-    blocks.foreach(b => blockQueue.isQueued(b.header.hash) shouldBe false)
-    blockchain.getBestBlock() shouldEqual block3
-  }
-
-  // TODO: update this test when implementing EC-319
   it should "validate blocks prior to import" in new TestSetup with MockBlockchain {
     val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
@@ -165,7 +142,11 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val ledgerWithMockedValidators = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig, validators)
 
     val newBlock = getBlock()
-    (validators.blockHeaderValidator.validatePreImport _).expects(newBlock.header, blockchain).returning(Left(HeaderDifficultyError))
+
+    (validators.blockHeaderValidator.validate(_: BlockHeader, _: ByteString => Option[BlockHeader]))
+      .expects(newBlock.header, *).returning(Left(HeaderDifficultyError))
+
+    (blockchain.getBlockHeaderByHash _).expects(newBlock.header.parentHash).returning(Some(getBlock().header))
 
     ledgerWithMockedValidators.importBlock(newBlock) shouldEqual BlockImportFailed(HeaderDifficultyError.toString)
   }
@@ -224,7 +205,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     lazy val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig, Mocks.MockValidatorsAlwaysSucceed) {
       private val results = mutable.Map[ByteString, Either[BlockExecutionError, Seq[Receipt]]]()
 
-      override def executeBlock(block: Block): Either[BlockExecutionError, Seq[Receipt]] =
+      override def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] =
         results(block.header.hash)
 
       def setExecutionResult(block: Block, result: Either[BlockExecutionError, Seq[Receipt]]): Unit =

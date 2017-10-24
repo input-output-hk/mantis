@@ -437,11 +437,11 @@ class EthService(
     reportActive()
     import io.iohk.ethereum.consensus.Ethash.{seed, epoch}
 
-    val blockNumber = appStateStorage.getBestBlockNumber() + 1
+    val bestBlock = blockchain.getBestBlock()
 
-    getOmmersFromPool(blockNumber).zip(getTransactionsFromPool).map {
+    getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map {
       case (ommers, pendingTxs) =>
-        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
+        blockGenerator.generateBlockForMining(bestBlock, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
           case Right(pb) =>
             Right(GetWorkResponse(
               powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),

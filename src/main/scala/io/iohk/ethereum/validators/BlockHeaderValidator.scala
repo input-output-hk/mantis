@@ -1,13 +1,16 @@
 package io.iohk.ethereum.validators
 
+import akka.util.ByteString
 import io.iohk.ethereum.consensus.Ethash
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, DifficultyCalculator}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
 trait BlockHeaderValidator {
-  def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader]
-  def validatePreImport(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader]
+  def validate(blockHeader: BlockHeader, getBlockHeaderByHash: ByteString => Option[BlockHeader]): Either[BlockHeaderError, BlockHeader]
+
+  def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] =
+    validate(blockHeader, blockchain.getBlockHeaderByHash _)
 }
 
 object BlockHeaderValidatorImpl {
@@ -18,6 +21,14 @@ object BlockHeaderValidatorImpl {
   val MaxPowCaches: Int = 2 // maximum number of epochs for which PoW cache is stored in memory
 
   class PowCacheData(val cache: Array[Int], val dagSize: Long)
+
+  // FIXME: this is used to speed up ETS Blockchain tests. All blocks in those tests have low numbers (1, 2, 3 ...)
+  // so keeping the cache for epoch 0 avoids recalculating it for each individual test. The difference in test runtime
+  // can be dramatic - full suite: 26 hours vs 21 minutes on same machine
+  // It might be desirable to find a better solution for this - one that doesn't keep this cache unnecessarily
+  lazy val epoch0PowCache = new PowCacheData(
+    cache = Ethash.makeCache(0),
+    dagSize = Ethash.dagSize(0))
 }
 
 class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
@@ -52,20 +63,13 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * section 4.4.4 of http://paper.gavwood.com/).
     *
     * @param blockHeader BlockHeader to validate.
-    * @param blockchain from where the header of the parent of the block will be fetched.
+    * @param getBlockHeaderByHash function to obtain the parent header.
     */
-  def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] = {
+  def validate(blockHeader: BlockHeader, getBlockHeaderByHash: ByteString => Option[BlockHeader]): Either[BlockHeaderError, BlockHeader] = {
     for {
-      blockHeaderParent <- obtainBlockParentHeader(blockHeader, blockchain)
+      blockHeaderParent <- getBlockHeaderByHash(blockHeader.parentHash).map(Right(_)).getOrElse(Left(HeaderParentNotFoundError))
       _ <- validate(blockHeader, blockHeaderParent)
     } yield blockHeader
-  }
-
-  /** TODO: implement EC-319
-    * should consist of validating PoW and that difficulty is in a certain range (parent unknown)
-    */
-  def validatePreImport(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] = {
-    Right(blockHeader)
   }
 
   /**
@@ -178,6 +182,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     import scala.collection.JavaConverters._
 
     def getPowCacheData(epoch: Long): PowCacheData = {
+      if (epoch == 0) BlockHeaderValidatorImpl.epoch0PowCache else
       Option(powCaches.get(epoch)) match {
         case Some(pcd) => pcd
         case None =>
@@ -202,21 +207,6 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
 
     if (proofOfWork.mixHash == blockHeader.mixHash && checkDifficulty(blockHeader, proofOfWork)) Right(blockHeader)
     else Left(HeaderPoWError)
-  }
-
-  /**
-    * Retrieves the header of the parent of a block from the Blockchain, if it exists.
-    *
-    * @param blockHeader BlockHeader whose parent we want to fetch.
-    * @param blockchain where the header of the parent of the block will be fetched.
-    * @return the BlockHeader of the parent if it exists, an [[HeaderParentNotFoundError]] otherwise
-    */
-  private def obtainBlockParentHeader(blockHeader: BlockHeader,
-                                      blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] = {
-    blockchain.getBlockHeaderByHash(blockHeader.parentHash) match {
-      case Some(blockParentHeader) => Right(blockParentHeader)
-      case None => Left(HeaderParentNotFoundError)
-    }
   }
 }
 

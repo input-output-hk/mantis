@@ -507,8 +507,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
-    (appStateStorage.getBestBlockNumber _).expects().returns(1)
-    (blockGenerator.generateBlockForMining _).expects(*, *, *, *)
+    blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
+    (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *)
       .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
 
     val request: JsonRpcRequest = JsonRpcRequest(
@@ -542,8 +542,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
-    (appStateStorage.getBestBlockNumber _).expects().returns(1)
-    (blockGenerator.generateBlockForMining _).expects(*, *, *, *)
+    blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
+    (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *)
       .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
 
     val request: JsonRpcRequest = JsonRpcRequest(
@@ -1396,6 +1396,10 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       extraData = ByteString("unused"),
       mixHash = ByteString("unused"),
       nonce = ByteString("unused"))
+
+    val block = Block(blockHeader, BlockBody(Nil, Nil))
+
+    val parentBlock = Block(blockHeader.copy(number = 1), BlockBody(Nil, Nil))
 
     val r: ByteString = ByteString(Hex.decode("a3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a1"))
     val s: ByteString = ByteString(Hex.decode("2d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee"))

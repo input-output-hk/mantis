@@ -99,6 +99,10 @@ class RegularSync(
           case DuplicateBlock =>
             log.debug(s"Ignoring duplicate block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId")
 
+          case UnknownParent =>
+            // This is normal when receiving broadcasted blocks
+            log.debug(s"Ignoring orphaned block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId")
+
           case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
             updateTxAndOmmerPools(newBranch, oldBranch)
             broadcastBlocks(newBranch, totalDifficulties)
@@ -157,6 +161,9 @@ class RegularSync(
           case BlockEnqueued =>
             log.debug(s"Mined block ${block.header.number} was added to the queue")
             ommersPool ! AddOmmers(block.header)
+
+          case UnknownParent =>
+            log.warning(s"Mined block has no parent on the main chain")
 
           case BlockImportFailed(err) =>
             log.warning(s"Failed to execute mined block because of $err")
@@ -249,7 +256,7 @@ class RegularSync(
       val blocks = headersQueue.zip(m).map{ case (header, body) => Block(header, body) }
 
       @tailrec
-      def importBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil): (List[Block], Option[BlockImportFailed]) =
+      def importBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil): (List[Block], Option[Any]) =
         blocks match {
           case Nil =>
             (importedBlocks, None)
@@ -265,7 +272,7 @@ class RegularSync(
               case r @ (DuplicateBlock | BlockEnqueued) =>
                 importBlocks(tail, importedBlocks)
 
-              case err @ BlockImportFailed(_) =>
+              case err @ (UnknownParent | BlockImportFailed(_)) =>
                 (importedBlocks, Some(err))
             }
         }
