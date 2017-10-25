@@ -13,12 +13,12 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     worldState.newEmptyAccount(address1).accountExists(address1) shouldBe true
   }
 
-  "InMemoryWorldStateProxy" should "allow to save and retrieve code" in new TestSetup {
+  it should "allow to save and retrieve code" in new TestSetup {
     val code = Generators.getByteStringGen(1, 100).sample.get
     worldState.saveCode(address1, code).getCode(address1) shouldEqual code
   }
 
-  "InMemoryWorldStateProxy" should "allow to save and get storage" in new TestSetup {
+  it should "allow to save and get storage" in new TestSetup {
     val addr = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue)
     val value = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue)
 
@@ -29,7 +29,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     worldState.saveStorage(address1, storage).getStorage(address1).load(addr) shouldEqual value
   }
 
-  "InMemoryWorldStateProxy" should "allow to transfer value to other address" in new TestSetup {
+  it should "allow to transfer value to other address" in new TestSetup {
     val account = Account(0, 100)
     val toTransfer = account.balance - 20
     val finalWorldState = worldState
@@ -41,7 +41,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     finalWorldState.getGuaranteedAccount(address2).balance shouldEqual toTransfer
   }
 
-  "InMemoryWorldStateProxy" should "not store within contract store if value is zero" in new TestSetup {
+  it should "not store within contract store if value is zero" in new TestSetup {
     val account = Account(0, 100)
     val worldStateWithAnAccount = worldState.saveAccount(address1, account)
     val persistedWorldStateWithAnAccount = InMemoryWorldStateProxy.persistState(worldStateWithAnAccount)
@@ -55,7 +55,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     persistedWorldStateWithAnAccount.stateRootHash shouldEqual persistedWithContractStorageValue.stateRootHash
   }
 
-  "InMemoryWorldStateProxy" should "storing a zero on a contract store position should remove it from the underlying tree" in new TestSetup {
+  it should "storing a zero on a contract store position should remove it from the underlying tree" in new TestSetup {
     val account = Account(0, 100)
     val worldStateWithAnAccount = worldState.saveAccount(address1, account)
     val persistedWorldStateWithAnAccount = InMemoryWorldStateProxy.persistState(worldStateWithAnAccount)
@@ -78,7 +78,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     persistedWorldStateWithAnAccount.stateRootHash shouldEqual persistedWithZero.stateRootHash
   }
 
-  "InMemoryWorldStateProxy" should "be able to persist changes and continue working after that" in new TestSetup {
+  it should "be able to persist changes and continue working after that" in new TestSetup {
 
     val account = Account(0, 100)
     val addr = UInt256.Zero
@@ -139,7 +139,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     finalWorldState.getGuaranteedAccount(address1).balance shouldEqual account.balance
   }
 
-  "InMemoryWorldStateProxy" should "not allow transfer to create empty accounts post EIP161" in new TestSetup {
+  it should "not allow transfer to create empty accounts post EIP161" in new TestSetup {
     val account = Account(0, 100)
     val zeroTransfer = UInt256.Zero
     val nonZeroTransfer = account.balance - 20
@@ -160,34 +160,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     secondAccount.nonce shouldEqual UInt256.Zero
   }
 
-  "InMemoryWorldStateProxy" should "should be able to initialise account with correct nonce" in new TestSetup {
-    val account = Account(0, 100)
-    val zeroTransfer = UInt256.Zero
-    val nonZeroTransfer = account.balance - 80
-
-    // POST EIP161
-    val worldStateAfterFirstTransfer = postEIP161WorldState
-      .saveAccount(address1, account)
-      .initialiseAccount(address1, address2, zeroTransfer)
-
-    worldStateAfterFirstTransfer.getGuaranteedAccount(address1).balance shouldEqual account.balance
-
-    val secondAccountPostEIP161 = worldStateAfterFirstTransfer.getAccount(address2)
-    secondAccountPostEIP161 shouldBe defined
-    secondAccountPostEIP161.get.nonce shouldEqual UInt256.One
-
-    //PRE EIP161
-    val worldStateAfterSecondTransfer = worldState
-      .saveAccount(address1, account)
-      .initialiseAccount(address1, address3, nonZeroTransfer)
-
-    val thirdAccountPreEIP161 = worldStateAfterSecondTransfer.getAccount(address3)
-    thirdAccountPreEIP161 shouldBe defined
-    thirdAccountPreEIP161.get.nonce shouldEqual UInt256.Zero
-    thirdAccountPreEIP161.get.balance shouldEqual nonZeroTransfer
-  }
-
-  "InMemoryWorldStateProxy" should "should correctly mark touched accounts post EIP161" in new TestSetup {
+  it should "correctly mark touched accounts post EIP161" in new TestSetup {
     val account = Account(0, 100)
     val zeroTransfer = UInt256.Zero
     val nonZeroTransfer = account.balance - 80
@@ -197,16 +170,15 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
       .transfer(address1, address1, nonZeroTransfer)
 
     val worldStateAfterFirstTransfer = worldAfterSelfTransfer
-      .saveAccount(address1, account)
-      .initialiseAccount(address1, address2, zeroTransfer)
+      .transfer(address1, address2, zeroTransfer)
 
     val worldStateAfterSecondTransfer = worldStateAfterFirstTransfer
       .transfer(address1, address3, nonZeroTransfer)
 
-    worldStateAfterSecondTransfer.touchedAccounts should contain theSameElementsAs Set(address1, address2, address3)
+    worldStateAfterSecondTransfer.touchedAccounts should contain theSameElementsAs Set(address1, address3)
   }
 
-  "InMemoryWorldStateProxy" should "should update touched account based on oldWorld" in new TestSetup {
+  it should "update touched accounts using combineTouchedAccounts method" in new TestSetup {
     val account = Account(0, 100)
     val zeroTransfer = UInt256.Zero
     val nonZeroTransfer = account.balance - 80
@@ -217,20 +189,17 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
 
     val worldStateAfterFirstTransfer = worldAfterSelfTransfer
       .saveAccount(address1, account)
-      .initialiseAccount(address1, address2, zeroTransfer)
+      .transfer(address1, address2, zeroTransfer)
 
     val worldStateAfterSecondTransfer = worldStateAfterFirstTransfer
       .transfer(address1, address3, nonZeroTransfer)
 
     val postEip161UpdatedWorld = postEIP161WorldState.combineTouchedAccounts(worldStateAfterSecondTransfer)
 
-    val preEip161UpdatedWorld = worldState.combineTouchedAccounts(worldStateAfterSecondTransfer)
-
-    postEip161UpdatedWorld.touchedAccounts should contain theSameElementsAs Set(address1, address2, address3)
-    preEip161UpdatedWorld.touchedAccounts.size shouldEqual 3
+    postEip161UpdatedWorld.touchedAccounts should contain theSameElementsAs Set(address1, address3)
   }
 
-  "InMemoryWorldStateProxy" should "should correctly determine if account is dead" in new TestSetup {
+  it should "correctly determine if account is dead" in new TestSetup {
     val emptyAccountWorld = worldState.newEmptyAccount(address1)
 
     emptyAccountWorld.accountExists(address1) shouldBe true
@@ -240,36 +209,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     emptyAccountWorld.isAccountDead(address2) shouldBe true
   }
 
-  "InMemoryWorldStateProxy" should "initialise new account and handle address collision correctly" in new TestSetup {
-    val startValue = 100
-    val transferValue = 50
-    val balanceAfterTransfer = startValue + transferValue
-
-    val account = Account(UInt256.One, startValue)
-    val addr = UInt256.One
-    val value = UInt256.MaxValue
-    val code = ByteString(Hex.decode("deadbeefdeadbeefdeadbeef"))
-
-    val initialWorld = InMemoryWorldStateProxy.persistState(worldState.saveAccount(address1, account))
-
-    val worldWithTwoAccounts = InMemoryWorldStateProxy.persistState(
-      initialWorld
-        .saveAccount(address2, account)
-        .saveCode(address2,code)
-        .saveStorage(address2, worldState.getStorage(address2).store(addr,value))
-    )
-
-    val worldAfterInitialisation = worldWithTwoAccounts.initialiseAccount(address1, address2, transferValue)
-
-    val acc2 = worldAfterInitialisation.getGuaranteedAccount(address2)
-
-    acc2.nonce shouldEqual UInt256.Zero
-    acc2.balance shouldEqual balanceAfterTransfer
-    acc2.codeHash shouldEqual Account.EmptyCodeHash
-    acc2.storageRoot shouldEqual Account.EmptyStorageRootHash
-  }
-
-  "InMemoryWorldStateProxy" should "remove all ether from existing account" in new TestSetup {
+  it should "remove all ether from existing account" in new TestSetup {
     val startValue = 100
 
     val account = Account(UInt256.One, startValue)

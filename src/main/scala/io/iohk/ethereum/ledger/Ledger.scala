@@ -430,7 +430,7 @@ class LedgerImpl(
 
       validatedStx match {
         case Right(_) =>
-          val TxResult(newWorld, gasUsed, logs, _) = executeTransaction(stx, blockHeader, worldForTx)
+          val TxResult(newWorld, gasUsed, logs, _, _) = executeTransaction(stx, blockHeader, worldForTx)
 
           val receipt = Receipt(
             postTransactionStateHash = newWorld.stateRootHash,
@@ -466,7 +466,7 @@ class LedgerImpl(
 
     val totalGasToRefund = calcTotalGasToRefund(stx, result)
 
-    TxResult(result.world, gasLimit - totalGasToRefund, result.logs, result.returnData)
+    TxResult(result.world, gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
   }
 
   private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
@@ -480,7 +480,7 @@ class LedgerImpl(
     val result = runVM(stx, context, config)
 
     val resultWithErrorHandling: PR =
-      if(result.error.isDefined) {
+      if (result.error.isDefined) {
         //Rollback to the world before transfer was done if an error happened
         result.copy(world = checkpointWorldState, addressesToDelete = Set.empty, logs = Nil)
       } else
@@ -506,7 +506,7 @@ class LedgerImpl(
          | - Total Gas to Refund: $totalGasToRefund
          | - Execution gas paid to miner: $executionGasToPayToMiner""".stripMargin)
 
-    TxResult(world2, executionGasToPayToMiner, resultWithErrorHandling.logs, result.returnData)
+    TxResult(world2, executionGasToPayToMiner, resultWithErrorHandling.logs, result.returnData, result.error)
   }
 
   private def validateBlockBeforeExecution(block: Block): Either[BlockExecutionError, Unit] = {
@@ -603,15 +603,21 @@ class LedgerImpl(
     worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce())
   }
 
-  private def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, worldStateProxy: InMemoryWorldStateProxy,
-                                            config: EvmConfig): PC = {
+  private def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy,
+      config: EvmConfig): PC = {
     stx.tx.receivingAddress match {
       case None =>
-        val address = worldStateProxy.createAddress(creatorAddr = stx.senderAddress)
-        val worldAfterInitialisation = worldStateProxy.initialiseAccount(stx.senderAddress, address, UInt256(stx.tx.value))
-        ProgramContext(stx, address,  Program(stx.tx.payload), blockHeader, worldAfterInitialisation, config)
+        val address = world.createAddress(creatorAddr = stx.senderAddress)
+
+        // EIP-684
+        val conflict = world.nonEmptyCodeOrNonceAccount(address)
+        val code = if (conflict) ByteString(INVALID.code) else stx.tx.payload
+
+        val world1 = world.initialiseAccount(address).transfer(stx.senderAddress, address, UInt256(stx.tx.value))
+        ProgramContext(stx, address,  Program(code), blockHeader, world1, config)
+
       case Some(txReceivingAddress) =>
-        val world1 = worldStateProxy.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
+        val world1 = world.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
         ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, config)
     }
   }
@@ -721,7 +727,7 @@ class LedgerImpl(
     */
   private[ledger] def deleteEmptyTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     def deleteEmptyAccount(world: InMemoryWorldStateProxy, address: Address) = {
-      if (world.getAccount(address).exists(_.isEmpty))
+      if (world.getAccount(address).exists(_.isEmpty(blockchainConfig.accountStartNonce)))
         world.deleteAccount(address)
       else
         world
@@ -739,7 +745,8 @@ object Ledger {
 
   case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
   case class BlockPreparationResult(block: Block, blockResult: BlockResult, stateRootHash: ByteString)
-  case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry], vmReturnData: ByteString)
+  case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry],
+    vmReturnData: ByteString, vmError: Option[ProgramError])
 }
 
 sealed trait BlockExecutionError{

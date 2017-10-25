@@ -1,10 +1,14 @@
 package io.iohk.ethereum.ets.vm
 
+import akka.util.ByteString
 import io.iohk.ethereum.domain.TxLogEntry
 import io.iohk.ethereum.ets.common.TestOptions
+import io.iohk.ethereum.network.p2p.messages.PV63.TxLogEntryImplicits._
+import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.vm.MockWorldState._
 import io.iohk.ethereum.vm._
+import io.iohk.ethereum.crypto.kec256
 import org.scalatest._
 
 class VMSuite extends FreeSpec with Matchers with Logger {
@@ -65,9 +69,8 @@ class VMSuite extends FreeSpec with Matchers with Logger {
       deadAccounts.foreach(addr => result.world.isAccountDead(addr) shouldBe true)
     }
 
-    scenario.logs.foreach { logs =>
-      val expectedLogs = logs.map(l => TxLogEntry(l.address, l.topics, l.data))
-      result.logs shouldEqual expectedLogs
+    scenario.logs.foreach { expectedLogHash =>
+      hashLogs(result.logs) shouldEqual expectedLogHash
     }
 
     scenario.callcreates.foreach { callcreates =>
@@ -89,6 +92,11 @@ class VMSuite extends FreeSpec with Matchers with Logger {
   private def deleteAccounts(result: PR): PR = {
     val worldAfterDel = result.addressesToDelete.foldLeft(result.world)(_ deleteAccount _)
     result.copy(world = worldAfterDel)
+  }
+
+  private def hashLogs(logs: Seq[TxLogEntry]): ByteString = {
+    val rlpLogs = RLPList(logs.map(_.toRLPEncodable): _*)
+    ByteString(kec256(encode(rlpLogs)))
   }
 
 }

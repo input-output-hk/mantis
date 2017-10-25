@@ -140,7 +140,7 @@ class InMemoryWorldStateProxy private[ledger](
   // Account's code by Address
   val accountCodes: Map[Address, Code],
   val getBlockByNumber: (BigInt) => Option[ByteString],
-  accountStartNonce: UInt256,
+  override val accountStartNonce: UInt256,
   // touchedAccounts and noEmptyAccountsCond are introduced by EIP161 to track accounts touched during the transaction
   // execution. Touched account are only added to Set if noEmptyAccountsCond == true, otherwise all other operations
   // operate on empty set.
