@@ -10,7 +10,7 @@ case class VMScenario(
   callcreates: Option[List[CallCreate]],
   pre: Map[Address, AccountState],
   post: Option[Map[Address, AccountState]],
-  logs: Option[List[LogEntry]],
+  logs: Option[ByteString],
   gas: Option[BigInt],
   out: Option[ByteString]
 )
@@ -40,11 +40,5 @@ case class CallCreate(
   destination: Option[Address],
   gasLimit: BigInt,
   value: BigInt
-)
-
-case class LogEntry(
-  address: Address,
-  data: ByteString,
-  topics: List[ByteString]
 )
 
