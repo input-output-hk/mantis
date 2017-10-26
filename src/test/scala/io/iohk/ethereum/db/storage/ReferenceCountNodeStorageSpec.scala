@@ -104,16 +104,17 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     val val3 = ByteString("anotherValue").toArray[Byte]
     storage2.put(key3, val3)
 
-    val prevDatasourceSize: Int = dataSource.storage.size
+    dataSource.storage.size shouldEqual (3 + 2 + 7) // 3 keys + 2 block index + 7 snapshots
+
     ReferenceCountNodeStorage.prune(1, nodeStorage)
-    (dataSource.storage.size < prevDatasourceSize) shouldBe true
+    dataSource.storage.size shouldEqual (3 + 1 + 1) // 5 keys + 1 block index + 1 snapshots
 
     // Data is correct
     storage2.get(key1) shouldEqual None
     storage2.get(key2) shouldEqual None
     storage2.get(key3).get sameElements val3
 
-    // We can still rollback
+    // We can still rollback without error
     ReferenceCountNodeStorage.rollback(2, nodeStorage)
     ReferenceCountNodeStorage.rollback(1, nodeStorage)
     storage2.get(key3) shouldEqual None
