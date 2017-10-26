@@ -17,7 +17,7 @@ object BlockHeaderValidatorImpl {
   val MaxGasLimit = Long.MaxValue // max gasLimit is equal 2^63-1 according to EIP106
   val MaxPowCaches: Int = 2 // maximum number of epochs for which PoW cache is stored in memory
 
-  case class PowCacheData(cache: Array[Int], dagSize: Long)
+  class PowCacheData(val cache: Array[Int], val dagSize: Long)
 }
 
 class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
@@ -181,7 +181,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
       Option(powCaches.get(epoch)) match {
         case Some(pcd) => pcd
         case None =>
-          val data = PowCacheData(
+          val data = new PowCacheData(
             cache = Ethash.makeCache(epoch),
             dagSize = Ethash.dagSize(epoch))
 
