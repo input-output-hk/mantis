@@ -51,6 +51,9 @@ object PersonalService {
   case class EcRecoverRequest(message: ByteString, signature: ECDSASignature)
   case class EcRecoverResponse(address: Address)
 
+  case class DeleteAccountRequest(address: Address)
+  case class DeleteAccountResponse(result: Boolean)
+
   val InvalidKey = InvalidParams("Invalid key provided, expected 32 bytes (64 hex digits)")
   val InvalidAddress = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
   val InvalidPassphrase = LogicError("Could not decrypt key with given passphrase")
@@ -150,6 +153,14 @@ class PersonalService(
       case None =>
         Future.successful(Left(AccountLocked))
     }
+  }
+
+  def deleteAccount(request: DeleteAccountRequest): ServiceResponse[DeleteAccountResponse] = Future {
+    unlockedWallets.remove(request.address)
+
+    keyStore.deleteAccount(request.address)
+      .map(DeleteAccountResponse.apply)
+      .left.map(handleError)
   }
 
   private def sendTransaction(request: TransactionRequest, wallet: Wallet): Future[ByteString] = {

@@ -70,6 +70,9 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
 
     val res3 = keyStore.listAccounts()
     res3 should matchPattern { case Left(IOError(_)) => }
+
+    val res4 = keyStore.deleteAccount(Address(key))
+    res4 should matchPattern { case Left(IOError(_)) => }
   }
 
   it should "unlock an account provided a correct passphrase" in new TestSetup {
@@ -89,6 +92,25 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
     val res = keyStore.unlockAccount(addr1, "bbb")
     res shouldEqual Left(KeyNotFound)
   }
+
+  it should "return an error deleting not existing account" in new TestSetup {
+    val res = keyStore.deleteAccount(addr1)
+    res shouldEqual Left(KeyNotFound)
+  }
+
+  it should "delete existing account " in new TestSetup {
+    val newAddr1 = keyStore.newAccount("aaa").right.get
+    val listOfNewAccounts = keyStore.listAccounts().right.get
+    listOfNewAccounts.toSet shouldEqual Set(newAddr1)
+
+
+    val res = keyStore.deleteAccount(newAddr1).right.get
+    res shouldBe true
+
+    val listOfNewAccountsAfterDelete = keyStore.listAccounts().right.get
+    listOfNewAccountsAfterDelete.toSet shouldEqual Set.empty
+  }
+
 
   trait TestSetup {
     val keyStore = new KeyStoreImpl(Config.keyStoreDir, secureRandom)

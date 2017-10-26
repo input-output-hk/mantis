@@ -357,6 +357,23 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     }
   }
 
+  it should "delete existing account" in new TestSetup {
+    (keyStore.deleteAccount _ ).expects(address)
+      .returning(Right(true))
+
+    val delRes = personal.deleteAccount(DeleteAccountRequest(address)).futureValue
+    delRes shouldEqual Right(DeleteAccountResponse(true))
+  }
+
+  it should "return error when deleting not existing account" in new TestSetup {
+    (keyStore.deleteAccount _ ).expects(address)
+      .returning(Left(KeyStore.KeyNotFound))
+
+    val delRes = personal.deleteAccount(DeleteAccountRequest(address)).futureValue
+    delRes shouldEqual Left(KeyNotFound)
+  }
+
+
   trait TestSetup {
     val prvKey = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
     val address = Address(Hex.decode("aa6826f00d01fe4085f0c3dd12778e206ce4e2ac"))

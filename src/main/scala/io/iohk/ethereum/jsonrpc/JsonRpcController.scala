@@ -191,6 +191,9 @@ class JsonRpcController(
 
     case req @ JsonRpcRequest(_, "personal_ecRecover", _, _) =>
       handle[EcRecoverRequest, EcRecoverResponse](personalService.ecRecover, req)
+
+    case req @ JsonRpcRequest(_, "personal_deleteAccount", _, _) =>
+      handle[DeleteAccountRequest, DeleteAccountResponse](personalService.deleteAccount, req)
   }
 
   private def handleRpcRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
