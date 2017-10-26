@@ -164,7 +164,7 @@ class PeerManagerActor(
     val ref = peerFactory(context, addr, incomingConnection)
     context watch ref
     val peer = Peer(addr, ref, incomingConnection)
-    managerState.addPeer(peer.id, peer)
+    managerState.addPeer(peer)
     peer
   }
 
@@ -273,7 +273,7 @@ object PeerManagerActor {
     def removePendingIncomingPeer(peerId: PeerId): Unit =
       pendingIncomingPeers -= peerId
 
-    def addPeer(peerId: PeerId, peer: Peer): Unit = {
+    def addPeer(peer: Peer): Unit = {
       if (peer.incomingConnection)
         pendingIncomingPeers += peer.id -> peer
       else
