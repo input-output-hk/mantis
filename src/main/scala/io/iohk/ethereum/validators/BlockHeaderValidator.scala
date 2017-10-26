@@ -1,7 +1,7 @@
 package io.iohk.ethereum.validators
 
-import akka.util.ByteString
-import io.iohk.ethereum.crypto.{kec256, kec512}
+import io.iohk.ethereum.consensus.Ethash
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain, DifficultyCalculator}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
@@ -15,12 +15,18 @@ object BlockHeaderValidatorImpl {
   val GasLimitBoundDivisor: Int = 1024
   val MinGasLimit: BigInt = 5000 //Although the paper states this value is 125000, on the different clients 5000 is used
   val MaxGasLimit = Long.MaxValue // max gasLimit is equal 2^63-1 according to EIP106
+  val MaxPowCaches: Int = 2 // maximum number of epochs for which PoW cache is stored in memory
+
+  class PowCacheData(val cache: Array[Int], val dagSize: Long)
 }
 
 class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
 
   import BlockHeaderValidatorImpl._
   import BlockHeaderError._
+
+  // we need concurrent map since validators can be used from multiple places
+  val powCaches: java.util.Map[Long, PowCacheData] = new java.util.concurrent.ConcurrentHashMap[Long, PowCacheData]()
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
@@ -167,20 +173,35 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[HeaderPoWError]] otherwise
     */
-  //FIXME: Simple PoW validation without using DAG [EC-88]
   private def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
-    val powBoundary = BigInt(2).pow(256) / blockHeader.difficulty
-    val powValue = BigInt(1, calculatePoWValue(blockHeader).toArray)
-    if(powValue <= powBoundary) Right(blockHeader)
+    import Ethash._
+    import scala.collection.JavaConverters._
+
+    def getPowCacheData(epoch: Long): PowCacheData = {
+      Option(powCaches.get(epoch)) match {
+        case Some(pcd) => pcd
+        case None =>
+          val data = new PowCacheData(
+            cache = Ethash.makeCache(epoch),
+            dagSize = Ethash.dagSize(epoch))
+
+          val keys = powCaches.keySet().asScala
+          val keysToRemove = keys.toSeq.sorted.take(keys.size - MaxPowCaches + 1)
+          keysToRemove.foreach(powCaches.remove)
+
+          powCaches.put(epoch, data)
+
+          data
+      }
+    }
+
+    val powCacheData = getPowCacheData(epoch(blockHeader.number.toLong))
+
+    val proofOfWork = hashimotoLight(crypto.kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)),
+      blockHeader.nonce.toArray[Byte], powCacheData.dagSize, powCacheData.cache)
+
+    if (proofOfWork.mixHash == blockHeader.mixHash && checkDifficulty(blockHeader, proofOfWork)) Right(blockHeader)
     else Left(HeaderPoWError)
-  }
-
-  private def calculatePoWValue(blockHeader: BlockHeader): ByteString = {
-    val nonceReverted = blockHeader.nonce.reverse
-    val hashBlockWithoutNonce = kec256(BlockHeader.getEncodedWithoutNonce(blockHeader))
-    val seedHash = kec512(hashBlockWithoutNonce ++ nonceReverted)
-
-    ByteString(kec256(seedHash ++ blockHeader.mixHash))
   }
 
   /**
