@@ -704,7 +704,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       override val signedTransactionValidator =
         (stx: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => {
           if (stx.tx.receivingAddress == Some(Address(42))) {
-            Right(())
+            Right(SignedTransactionValid)
           } else {
             Left(TransactionSignatureError)
           }

@@ -12,6 +12,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.BlockHeaderError.{HeaderDifficultyError, HeaderNumberError}
 import io.iohk.ethereum.validators.BlockValidator.BlockTransactionsHashError
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError.OmmersNotValidError
+import io.iohk.ethereum.validators.OmmersValidator.OmmersValid
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm._
 
@@ -80,10 +81,10 @@ object Mocks {
         Right(blockHeader)
     }
 
-    override val ommersValidator: OmmersValidator = (blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain) => Right(())
+    override val ommersValidator: OmmersValidator = (blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain) => Right(OmmersValid)
 
     override val signedTransactionValidator: SignedTransactionValidator =
-      (stx: SignedTransaction, account: Account, blockHeader: BlockHeader, upfrontGasCost: UInt256, accumGasLimit: BigInt) => Right(())
+      (stx: SignedTransaction, account: Account, blockHeader: BlockHeader, upfrontGasCost: UInt256, accumGasLimit: BigInt) => Right(SignedTransactionValid)
   }
 
   object MockValidatorsAlwaysSucceed extends MockValidatorsAlwaysSucceed
