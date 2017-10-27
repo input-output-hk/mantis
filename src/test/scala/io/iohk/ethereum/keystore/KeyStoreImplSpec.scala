@@ -71,7 +71,7 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
     val res3 = keyStore.listAccounts()
     res3 should matchPattern { case Left(IOError(_)) => }
 
-    val res4 = keyStore.deleteAccount(Address(key))
+    val res4 = keyStore.deleteWallet(Address(key))
     res4 should matchPattern { case Left(IOError(_)) => }
   }
 
@@ -93,18 +93,18 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
     res shouldEqual Left(KeyNotFound)
   }
 
-  it should "return an error deleting not existing account" in new TestSetup {
-    val res = keyStore.deleteAccount(addr1)
+  it should "return an error deleting not existing wallet" in new TestSetup {
+    val res = keyStore.deleteWallet(addr1)
     res shouldEqual Left(KeyNotFound)
   }
 
-  it should "delete existing account " in new TestSetup {
+  it should "delete existing wallet " in new TestSetup {
     val newAddr1 = keyStore.newAccount("aaa").right.get
     val listOfNewAccounts = keyStore.listAccounts().right.get
     listOfNewAccounts.toSet shouldEqual Set(newAddr1)
 
 
-    val res = keyStore.deleteAccount(newAddr1).right.get
+    val res = keyStore.deleteWallet(newAddr1).right.get
     res shouldBe true
 
     val listOfNewAccountsAfterDelete = keyStore.listAccounts().right.get

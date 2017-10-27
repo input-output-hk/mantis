@@ -35,7 +35,7 @@ trait KeyStore {
 
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet]
 
-  def deleteAccount(address: Address): Either[KeyStoreError, Boolean]
+  def deleteWallet(address: Address): Either[KeyStoreError, Boolean]
 }
 
 class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyStore with Logger {
@@ -67,7 +67,7 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet] =
     load(address).flatMap(_.decrypt(passphrase).left.map(_ => DecryptionFailed)).map(key => Wallet(address, key))
 
-  def deleteAccount(address: Address): Either[KeyStoreError, Boolean] = for {
+  def deleteWallet(address: Address): Either[KeyStoreError, Boolean] = for {
     fileName <- findKeyFileName(address)
     deleted  <- deleteFile(fileName)
   } yield deleted

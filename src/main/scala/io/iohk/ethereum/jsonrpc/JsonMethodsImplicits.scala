@@ -284,17 +284,17 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
       JBool(t.result)
   }
 
-  implicit val personal_deleteAccount = new Codec[DeleteAccountRequest, DeleteAccountResponse] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, DeleteAccountRequest] = {
+  implicit val personal_deleteWallet = new Codec[DeleteWalletRequest, DeleteWalletResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, DeleteWalletRequest] = {
       params match {
         case Some(JArray(JString(addr) :: _)) =>
-          extractAddress(addr).map(DeleteAccountRequest)
+          extractAddress(addr).map(DeleteWalletRequest)
         case _ =>
           Left(InvalidParams())
       }
     }
 
-    def encodeJson(t: DeleteAccountResponse): JValue =
+    def encodeJson(t: DeleteWalletResponse): JValue =
       JBool(t.result)
   }
 

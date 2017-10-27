@@ -51,8 +51,8 @@ object PersonalService {
   case class EcRecoverRequest(message: ByteString, signature: ECDSASignature)
   case class EcRecoverResponse(address: Address)
 
-  case class DeleteAccountRequest(address: Address)
-  case class DeleteAccountResponse(result: Boolean)
+  case class DeleteWalletRequest(address: Address)
+  case class DeleteWalletResponse(result: Boolean)
 
   val InvalidKey = InvalidParams("Invalid key provided, expected 32 bytes (64 hex digits)")
   val InvalidAddress = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
@@ -155,11 +155,11 @@ class PersonalService(
     }
   }
 
-  def deleteAccount(request: DeleteAccountRequest): ServiceResponse[DeleteAccountResponse] = Future {
+  def deleteWallet(request: DeleteWalletRequest): ServiceResponse[DeleteWalletResponse] = Future {
     unlockedWallets.remove(request.address)
 
-    keyStore.deleteAccount(request.address)
-      .map(DeleteAccountResponse.apply)
+    keyStore.deleteWallet(request.address)
+      .map(DeleteWalletResponse.apply)
       .left.map(handleError)
   }
 

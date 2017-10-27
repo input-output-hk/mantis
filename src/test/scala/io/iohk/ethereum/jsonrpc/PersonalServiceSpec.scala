@@ -357,19 +357,19 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     }
   }
 
-  it should "delete existing account" in new TestSetup {
-    (keyStore.deleteAccount _ ).expects(address)
+  it should "delete existing wallet" in new TestSetup {
+    (keyStore.deleteWallet _ ).expects(address)
       .returning(Right(true))
 
-    val delRes = personal.deleteAccount(DeleteAccountRequest(address)).futureValue
-    delRes shouldEqual Right(DeleteAccountResponse(true))
+    val delRes = personal.deleteWallet(DeleteWalletRequest(address)).futureValue
+    delRes shouldEqual Right(DeleteWalletResponse(true))
   }
 
-  it should "return error when deleting not existing account" in new TestSetup {
-    (keyStore.deleteAccount _ ).expects(address)
+  it should "return error when deleting not existing wallet" in new TestSetup {
+    (keyStore.deleteWallet _ ).expects(address)
       .returning(Left(KeyStore.KeyNotFound))
 
-    val delRes = personal.deleteAccount(DeleteAccountRequest(address)).futureValue
+    val delRes = personal.deleteWallet(DeleteWalletRequest(address)).futureValue
     delRes shouldEqual Left(KeyNotFound)
   }
 
