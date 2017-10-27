@@ -37,25 +37,8 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
     val bn = blockNumber.get
     // Process upsert changes. As the same node might be changed twice within the same update, we need to keep changes
     // within a map. There is also stored the snapshot version before changes
-    val upsertChanges = toUpsert.foldLeft(Map.empty[NodeHash, (StoredNode, StoredNodeSnapshot)]) { (storedNodes, toUpsertItem) =>
-      val (nodeKey, nodeEncoded) = toUpsertItem
-      val (storedNode, snapshot) = storedNodes.get(nodeKey) // get from current changes
-        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes).map(sn => sn -> StoredNodeSnapshot(nodeKey, Some(sn)))) // or get from DB
-        .getOrElse(StoredNode.withoutReferences(nodeEncoded) -> StoredNodeSnapshot(nodeKey, None)) // if it's new, return an empty stored node
-
-      storedNodes + (nodeKey -> (storedNode.incrementReferences(1), snapshot))
-    }
-
-    val changes = toRemove.foldLeft(upsertChanges) { (storedNodes, nodeKey) =>
-      val maybeStoredNode: Option[(StoredNode, StoredNodeSnapshot)] = storedNodes.get(nodeKey) // get from current changes
-        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes).map(s => s -> StoredNodeSnapshot(nodeKey, Some(s)))) // or db
-
-      if (maybeStoredNode.isDefined) {
-        val (storedNode, snapshot) = maybeStoredNode.get
-        storedNodes + (nodeKey -> (storedNode.decrementReferences(1), snapshot))
-      }
-      else storedNodes
-    }
+    val upsertChanges = applyUpsertChanges(toUpsert)
+    val changes = applyRemovalChanges(toRemove, upsertChanges)
 
     val (toRemoveUpdated, toUpsertUpdated, snapshots) =
       changes.foldLeft(Seq.empty[NodeHash], Seq.empty[(NodeHash, NodeEncoded)], Seq.empty[StoredNodeSnapshot]) {
@@ -65,25 +48,49 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
           else (removeAcc, upsertAcc :+ (key -> storedNodeToBytes(storedNode)), snapshotAcc :+ theSnapshot)
       }
 
-    val snapshotToSave = {
-      if(snapshots.nonEmpty) {
-        // If not empty, snapshots will be stored indexed by block number and index
-        val snapshotCountKey = getSnapshotsCountKey(bn)
-        val blockNumberSnapshotsCount: BigInt = nodeStorage.get(snapshotCountKey).map(snapshotsCountFromBytes).getOrElse(0)
-        val snapshotsToSave = snapshots.zipWithIndex.map { case (snapshot, index) =>
-          getSnapshotKey(bn, blockNumberSnapshotsCount + index + 1) -> snapshotToBytes(snapshot)
-        }
-        // Save snapshots and latest snapshot index
-        (snapshotCountKey -> snapshotsCountToBytes(blockNumberSnapshotsCount + snapshotsToSave.size)) +: snapshotsToSave
-      }
-      else Nil
-    }
+    val snapshotToSave: Seq[(NodeHash, Array[Byte])] = getSnapshotsToSave(bn, snapshots)
     nodeStorage.update(toRemoveUpdated, toUpsertUpdated ++ snapshotToSave)
     this
   }
+
+  private def applyUpsertChanges(toUpsert: Seq[(NodeHash, NodeEncoded)]): Changes =
+    toUpsert.foldLeft(Map.empty[NodeHash, (StoredNode, StoredNodeSnapshot)]) { (storedNodes, toUpsertItem) =>
+      val (nodeKey, nodeEncoded) = toUpsertItem
+      val (storedNode, snapshot) = storedNodes.get(nodeKey) // get from current changes
+        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes).map(sn => sn -> StoredNodeSnapshot(nodeKey, Some(sn)))) // or get from DB
+        .getOrElse(StoredNode.withoutReferences(nodeEncoded) -> StoredNodeSnapshot(nodeKey, None)) // if it's new, return an empty stored node
+
+      storedNodes + (nodeKey -> (storedNode.incrementReferences(1), snapshot))
+    }
+
+  private def applyRemovalChanges(toRemove: Seq[NodeHash], changes: Map[NodeHash, (StoredNode, StoredNodeSnapshot)]): Changes =
+    toRemove.foldLeft(changes) { (storedNodes, nodeKey) =>
+      val maybeStoredNode: Option[(StoredNode, StoredNodeSnapshot)] = storedNodes.get(nodeKey) // get from current changes
+        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes).map(s => s -> StoredNodeSnapshot(nodeKey, Some(s)))) // or db
+
+      maybeStoredNode.fold(storedNodes) {
+        case (storedNode, snapshot) => storedNodes + (nodeKey -> (storedNode.decrementReferences(1), snapshot))
+      }
+    }
+
+  private def getSnapshotsToSave(blockNumber: BigInt, snapshots: Seq[StoredNodeSnapshot]): Seq[(NodeHash, Array[Byte])] =
+    if(snapshots.nonEmpty) {
+      // If not empty, snapshots will be stored indexed by block number and index
+      val snapshotCountKey = getSnapshotsCountKey(blockNumber)
+      val getSnapshotKeyFn = getSnapshotKey(blockNumber)(_)
+      val blockNumberSnapshotsCount: BigInt = nodeStorage.get(snapshotCountKey).map(snapshotsCountFromBytes).getOrElse(0)
+      val snapshotsToSave = snapshots.zipWithIndex.map { case (snapshot, index) =>
+        getSnapshotKeyFn(blockNumberSnapshotsCount + index + 1) -> snapshotToBytes(snapshot)
+      }
+      // Save snapshots and latest snapshot index
+      (snapshotCountKey -> snapshotsCountToBytes(blockNumberSnapshotsCount + snapshotsToSave.size)) +: snapshotsToSave
+    }
+    else Nil
 }
 
 object ReferenceCountNodeStorage extends PruneSupport with Logger {
+
+  type Changes = Map[NodeHash, (StoredNode, StoredNodeSnapshot)]
 
   /**
     * Removes snapshots stored in the DB that are not longer needed, which means, cannot be rolled back to
@@ -124,7 +131,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
       nodeStorage.update(toRemove :+ snapshotsCountKey, toUpsert)
     }
 
-  private def withSnapshotCount(blockNumber: BigInt, nodeStorage: NodeStorage)(f: (ByteString, BigInt) => Unit) = {
+  private def withSnapshotCount(blockNumber: BigInt, nodeStorage: NodeStorage)(f: (ByteString, BigInt) => Unit): Unit = {
     val snapshotsCountKey = getSnapshotsCountKey(blockNumber)
     // Look for snapshot count for given block number
     val maybeSnapshotCount = nodeStorage.get(snapshotsCountKey).map(snapshotsCountFromBytes)
@@ -134,8 +141,10 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     }
   }
 
-  private def snapshotKeysUpTo(blockNumber: BigInt, snapshotCount: BigInt): Seq[ByteString] =
-    (BigInt(0) to snapshotCount).map(snapshotIndex => getSnapshotKey(blockNumber, snapshotIndex))
+  private def snapshotKeysUpTo(blockNumber: BigInt, snapshotCount: BigInt): Seq[ByteString] = {
+    val getSnapshotKeyFn = getSnapshotKey(blockNumber)(_)
+    (BigInt(0) to snapshotCount).map(snapshotIndex => getSnapshotKeyFn(snapshotIndex))
+  }
 
   /**
     * Wrapper of MptNode in order to store number of references it has.
@@ -167,7 +176,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     * @param index Snapshot Index
     * @return
     */
-  private def getSnapshotKey(blockNumber: BigInt, index: BigInt): ByteString = ByteString(("sk".getBytes ++ blockNumber.toByteArray) ++ index.toByteArray)
+  private def getSnapshotKey(blockNumber: BigInt)(index: BigInt): ByteString = ByteString(("sk".getBytes ++ blockNumber.toByteArray) ++ index.toByteArray)
 
   /**
     * Used to store a node snapshot in the db. This will be used to rollback a transaction.
