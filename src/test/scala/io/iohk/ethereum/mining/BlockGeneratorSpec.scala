@@ -29,9 +29,9 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
-    val minedNonce = ByteString(Hex.decode("ce1b500070aeec4f"))
-    val minedMixHash = ByteString(Hex.decode("40d9bd2064406d7f22390766d6fe5eccd2a67aa89bf218e99df35b2dbb425fb1"))
-    val miningTimestamp = 1494604913
+    val minedNonce = ByteString(Hex.decode("eb49a2da108d63de"))
+    val minedMixHash = ByteString(Hex.decode("a91c44e62d17005c4b22f6ed116f485ea30d8b63f2429745816093b304eb4f73"))
+    val miningTimestamp = 1508751768
 
     val fullBlock: Either[BlockPreparationError, Block] = result.right
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
@@ -45,9 +45,9 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
-    val minedNonce = ByteString(Hex.decode("5e8d5c12cea7e0c7"))
-    val minedMixHash = ByteString(Hex.decode("9247b81258f97159f987a5f4f9e94df1d95e10eeabff2836020eafb27a8228b0"))
-    val miningTimestamp = 1494604913
+    val minedNonce = ByteString(Hex.decode("4139b957dae0488d"))
+    val minedMixHash = ByteString(Hex.decode("dc25764fb562d778e5d1320f4c3ba4b09021a2603a0816235e16071e11f342ea"))
+    val miningTimestamp = 1508752265
 
     val fullBlock: Either[BlockPreparationError, Block] = result.right
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
@@ -62,9 +62,9 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
-    val minedNonce = ByteString(Hex.decode("5e8d5c12cea7e0c7"))
-    val minedMixHash = ByteString(Hex.decode("9247b81258f97159f987a5f4f9e94df1d95e10eeabff2836020eafb27a8228b0"))
-    val miningTimestamp = 1494604913
+    val minedNonce = ByteString(Hex.decode("12cb47f9208d1e81"))
+    val minedMixHash = ByteString(Hex.decode("908471b57f2d3e70649f9ce0c9c318d61146d3ce19f70d2f94309f135b87b64a"))
+    val miningTimestamp = 1508752389
 
     val fullBlock: Either[BlockPreparationError, Block] = result.right
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
@@ -86,9 +86,9 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
-    val minedNonce = ByteString(Hex.decode("5e8d5c12cea7e0c7"))
-    val minedMixHash = ByteString(Hex.decode("9247b81258f97159f987a5f4f9e94df1d95e10eeabff2836020eafb27a8228b0"))
-    val miningTimestamp = 1494604913
+    val minedNonce = ByteString(Hex.decode("38026e10fb18b458"))
+    val minedMixHash = ByteString(Hex.decode("806f26f0efb12a0c0c16e587984227186c46f25fc4e76698a68996183edf2cf1"))
+    val miningTimestamp = 1508752492
 
     val fullBlock: Either[BlockPreparationError, Block] = result.right
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
@@ -224,9 +224,9 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     result shouldBe a[Right[_, Block]]
 
     //mined with mantis + ethminer
-    val minedNonce = ByteString(Hex.decode("5e8d5c12cea7e0c7"))
-    val minedMixHash = ByteString(Hex.decode("9247b81258f97159f987a5f4f9e94df1d95e10eeabff2836020eafb27a8228b0"))
-    val miningTimestamp = 1494604913
+    val minedNonce = ByteString(Hex.decode("14d7000ac544b38e"))
+    val minedMixHash = ByteString(Hex.decode("270f6b2618c5bef6a188397927129c803e5fd41c85492835486832f6825a8d78"))
+    val miningTimestamp = 1508752698
 
     val fullBlock: Either[BlockPreparationError, Block] = result.right
       .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
@@ -282,7 +282,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     lazy val validators = new Validators {
       val blockValidator: BlockValidator = BlockValidator
       val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
-      val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig)
+      val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator)
       val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
     }
 
