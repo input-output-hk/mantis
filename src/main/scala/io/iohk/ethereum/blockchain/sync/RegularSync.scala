@@ -75,7 +75,7 @@ class RegularSync(
       log.info(s"Block: ${appStateStorage.getBestBlockNumber()}. Peers: ${handshakedPeers.size} (${blacklistedPeers.size} blacklisted)")
   }
 
-  def handleAdditionalMessages: Receive = handleBroadcastedBlockMessages orElse handleMinedBlock orElse handleNewBlockHashesMessages
+  def handleAdditionalMessages: Receive = handleNewBlockMessages orElse handleMinedBlock orElse handleNewBlockHashesMessages
 
   private def resumeRegularSync(): Unit = {
     cancelScheduledResume()
@@ -94,7 +94,7 @@ class RegularSync(
     resumeRegularSyncTimeout = None
   }
 
-  def handleBroadcastedBlockMessages: Receive = {
+  def handleNewBlockMessages: Receive = {
     case MessageFromPeer(NewBlock(newBlock, _), peerId) =>
       //we allow inclusion of new block only if we are not syncing
       if (notDownloading() && topOfTheChain) {
