@@ -572,4 +572,17 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       data = data.getOrElse(ByteString("")))
   }
 
+  implicit val eth_getAccountRecentTransactions = new JsonDecoder[GetAccountRecentTransactionsRequest] with JsonEncoder[GetAccountRecentTransactionsResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetAccountRecentTransactionsRequest] =
+      params match {
+        case Some(JArray((address: JString) :: Nil)) =>
+          for {
+            addr <- extractAddress(address)
+          } yield GetAccountRecentTransactionsRequest(addr)
+        case _ => Left(InvalidParams())
+      }
+
+    override def encodeJson(t: GetAccountRecentTransactionsResponse): JValue =
+      JObject("sent" -> t.sent.map(Extraction.decompose), "received" -> t.received.map(Extraction.decompose))
+  }
 }

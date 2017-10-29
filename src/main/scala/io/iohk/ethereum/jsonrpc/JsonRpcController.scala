@@ -165,6 +165,8 @@ class JsonRpcController(
       // Even if it's under eth_xxx this method actually does the same as personal_sign but needs the account
       // to be unlocked before calling
       handle[SignRequest, SignResponse](personalService.sign, req)(eth_sign, personal_sign)
+    case req @ JsonRpcRequest(_, "eth_getAccountRecentTransactions", _, _) =>
+      handle[GetAccountRecentTransactionsRequest, GetAccountRecentTransactionsResponse](ethService.getAccountRecentTransactions, req)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {

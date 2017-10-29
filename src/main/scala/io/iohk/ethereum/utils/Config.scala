@@ -98,6 +98,7 @@ object Config {
       val certificateKeyStorePath: Option[String] = Try(rpcConfig.getString("certificate-keystore-path")).toOption
       val certificatePasswordFile: Option[String] = Try(rpcConfig.getString("certificate-password-file")).toOption
 
+      val txNumRecentBlocks: Int = rpcConfig.getInt("tx-num-recent-blocks")
     }
 
   }
