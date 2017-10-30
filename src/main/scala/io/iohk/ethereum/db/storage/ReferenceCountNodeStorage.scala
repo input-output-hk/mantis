@@ -44,7 +44,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
       changes.foldLeft(Seq.empty[NodeHash], Seq.empty[(NodeHash, NodeEncoded)], Seq.empty[StoredNodeSnapshot]) {
         case ((removeAcc, upsertAcc, snapshotAcc), (key, (storedNode, theSnapshot))) =>
           // If no more references, move it to the list to be removed
-          if(storedNode.references == 0) (removeAcc :+ key, upsertAcc, snapshotAcc :+ theSnapshot)
+          if (storedNode.references == 0) (removeAcc :+ key, upsertAcc, snapshotAcc :+ theSnapshot)
           else (removeAcc, upsertAcc :+ (key -> storedNodeToBytes(storedNode)), snapshotAcc :+ theSnapshot)
       }
 
@@ -56,8 +56,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
   private def applyUpsertChanges(toUpsert: Seq[(NodeHash, NodeEncoded)]): Changes =
     toUpsert.foldLeft(Map.empty[NodeHash, (StoredNode, StoredNodeSnapshot)]) { (storedNodes, toUpsertItem) =>
       val (nodeKey, nodeEncoded) = toUpsertItem
-      val (storedNode, snapshot) = storedNodes.get(nodeKey) // get from current changes
-        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes).map(sn => sn -> StoredNodeSnapshot(nodeKey, Some(sn)))) // or get from DB
+      val (storedNode, snapshot) = getFromChangesOrStorage(nodeKey, storedNodes)
         .getOrElse(StoredNode.withoutReferences(nodeEncoded) -> StoredNodeSnapshot(nodeKey, None)) // if it's new, return an empty stored node
 
       storedNodes + (nodeKey -> (storedNode.incrementReferences(1), snapshot))
@@ -65,8 +64,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
 
   private def applyRemovalChanges(toRemove: Seq[NodeHash], changes: Map[NodeHash, (StoredNode, StoredNodeSnapshot)]): Changes =
     toRemove.foldLeft(changes) { (storedNodes, nodeKey) =>
-      val maybeStoredNode: Option[(StoredNode, StoredNodeSnapshot)] = storedNodes.get(nodeKey) // get from current changes
-        .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes).map(s => s -> StoredNodeSnapshot(nodeKey, Some(s)))) // or db
+      val maybeStoredNode: Option[(StoredNode, StoredNodeSnapshot)] = getFromChangesOrStorage(nodeKey, storedNodes)
 
       maybeStoredNode.fold(storedNodes) {
         case (storedNode, snapshot) => storedNodes + (nodeKey -> (storedNode.decrementReferences(1), snapshot))
@@ -86,6 +84,11 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
       (snapshotCountKey -> snapshotsCountToBytes(blockNumberSnapshotsCount + snapshotsToSave.size)) +: snapshotsToSave
     }
     else Nil
+
+  private def getFromChangesOrStorage(nodeKey: NodeHash, storedNodes: Changes): Option[(StoredNode, StoredNodeSnapshot)] =
+    storedNodes
+      .get(nodeKey)
+      .orElse(nodeStorage.get(nodeKey).map(storedNodeFromBytes).map(sn => sn -> StoredNodeSnapshot(nodeKey, Some(sn))))
 }
 
 object ReferenceCountNodeStorage extends PruneSupport with Logger {

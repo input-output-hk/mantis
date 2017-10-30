@@ -190,7 +190,7 @@ trait Blockchain {
 
   def pruneState(blockNumber: BigInt): Unit
 
-  def rollbackState(blockNumber: BigInt): Unit
+  def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit
 }
 // scalastyle:on
 
@@ -289,7 +289,7 @@ class BlockchainImpl(
     receiptStorage.remove(blockHash)
     maybeTxList.foreach(removeTxsLocations)
     maybeBlockHeader.foreach{ h =>
-      rollbackState(h.number)
+      rollbackStateChangesMadeByBlock(h.number)
       if (getHashByBlockNumber(h.number).contains(blockHash))
         removeBlockNumberMapping(h.number)
 
@@ -342,7 +342,7 @@ class BlockchainImpl(
 
   def pruneState(blockNumber: BigInt): Unit = PruningMode.prune(pruningMode, blockNumber, nodeStorage)
 
-  def rollbackState(blockNumber: BigInt): Unit = PruningMode.rollback(pruningMode, blockNumber, nodeStorage)
+  def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit = PruningMode.rollback(pruningMode, blockNumber, nodeStorage)
 }
 
 trait BlockchainStorages {
