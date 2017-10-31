@@ -1,4 +1,4 @@
-enablePlugins(JavaAppPackaging, SolidityPlugin)
+enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
 
 val commonSettings = Seq(
   name := "mantis",
@@ -159,3 +159,14 @@ testOptions in Test += Tests.Argument("-oD")
 scalastyleSources in Test ++= {(unmanagedSourceDirectories in Integration).value}
 
 mainClass in Compile := Some("io.iohk.ethereum.App")
+
+// Requires the 'ant-javafx.jar' that comes with Oracle JDK
+// Enables creating an executable with the configuration files, has to be run on the OS corresponding to the desired version
+jdkPackagerType := "image"
+
+val sep = java.io.File.separator
+jdkPackagerJVMArgs := Seq(
+  "-Dconfig.file=." + sep + "conf" + sep + "mantis.conf",
+  "-Dlogback.configurationFile=." + sep + "conf" + sep + "logback.xml",
+  "-Xss10M"
+)
