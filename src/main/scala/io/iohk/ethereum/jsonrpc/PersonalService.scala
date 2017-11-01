@@ -54,6 +54,9 @@ object PersonalService {
   case class DeleteWalletRequest(address: Address)
   case class DeleteWalletResponse(result: Boolean)
 
+  case class ChangePassphraseRequest(address: Address, oldPassphrase: String, newPassphrase: String)
+  case class ChangePassphraseResponse()
+
   val InvalidKey = InvalidParams("Invalid key provided, expected 32 bytes (64 hex digits)")
   val InvalidAddress = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
   val InvalidPassphrase = LogicError("Could not decrypt key with given passphrase")
@@ -160,6 +163,13 @@ class PersonalService(
 
     keyStore.deleteWallet(request.address)
       .map(DeleteWalletResponse.apply)
+      .left.map(handleError)
+  }
+
+  def changePassphrase(request: ChangePassphraseRequest): ServiceResponse[ChangePassphraseResponse] = Future {
+    import request._
+    keyStore.changePassphrase(address, oldPassphrase, newPassphrase)
+      .map(_ => ChangePassphraseResponse())
       .left.map(handleError)
   }
 

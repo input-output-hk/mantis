@@ -36,6 +36,8 @@ trait KeyStore {
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet]
 
   def deleteWallet(address: Address): Either[KeyStoreError, Boolean]
+
+  def changePassphrase(address: Address, oldPassphrase: String, newPassphrase: String): Either[KeyStoreError, Unit]
 }
 
 class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyStore with Logger {
@@ -72,6 +74,14 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
     deleted  <- deleteFile(fileName)
   } yield deleted
 
+  def changePassphrase(address: Address, oldPassphrase: String, newPassphrase: String): Either[KeyStoreError, Unit] = for {
+    oldEncKey <- load(address)
+    prvKey <- oldEncKey.decrypt(oldPassphrase).left.map(_ => DecryptionFailed)
+    keyFileName <- findKeyFileName(address)
+    newEncKey = EncryptedKey(prvKey, newPassphrase, secureRandom)
+    _ <- overwrite(keyFileName, newEncKey)
+  } yield ()
+
   private def deleteFile(fileName: String): Either[KeyStoreError, Boolean] = {
     Try(Files.deleteIfExists(Paths.get(keyStoreDir, fileName))).toEither.left.map(ioError)
   }
@@ -97,6 +107,15 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
         }.toEither.left.map(ioError)
       }
     }
+  }
+
+  private def overwrite(name: String, encKey: EncryptedKey): Either[KeyStoreError, Unit] = {
+    val json = EncryptedKeyJsonCodec.toJson(encKey)
+    val path = Paths.get(keyStoreDir, name)
+    Try {
+      Files.write(path, json.getBytes(StandardCharsets.UTF_8))
+      ()
+    }.toEither.left.map(ioError)
   }
 
   private def load(address: Address): Either[KeyStoreError, EncryptedKey] = {

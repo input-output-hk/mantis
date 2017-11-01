@@ -11,7 +11,7 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
+import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyStoreError}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig, TxPoolConfig}
@@ -19,13 +19,15 @@ import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.prop.PropertyChecks
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.duration.FiniteDuration
 
-class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures with NormalPatience with Eventually {
+class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with ScalaFutures with NormalPatience
+  with Eventually with PropertyChecks {
 
   "PersonalService" should "import private keys" in new TestSetup {
     (keyStore.importPrivateKey _).expects(prvKey, passphrase).returning(Right(address))
@@ -371,6 +373,29 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
     val delRes = personal.deleteWallet(DeleteWalletRequest(address)).futureValue
     delRes shouldEqual Left(KeyNotFound)
+  }
+
+  it should "handle changing passwords" in new TestSetup {
+    type KeyStoreRes = Either[KeyStoreError, Unit]
+    type ServiceRes = Either[JsonRpcError, ChangePassphraseResponse]
+
+    val table = Table[KeyStoreRes, ServiceRes](
+      ("keyStoreResult", "serviceResult"),
+      (Right(()), Right(ChangePassphraseResponse())),
+      (Left(KeyStore.KeyNotFound), Left(KeyNotFound)),
+      (Left(KeyStore.DecryptionFailed), Left(InvalidPassphrase))
+    )
+
+    val request = ChangePassphraseRequest(address, "weakpass", "very5tr0ng&l0ngp4s5phr4s3")
+
+    forAll(table) { (keyStoreResult, serviceResult) =>
+      (keyStore.changePassphrase _).expects(address, request.oldPassphrase, request.newPassphrase)
+        .returning(keyStoreResult)
+
+      val result = personal.changePassphrase(request).futureValue
+      result shouldEqual serviceResult
+    }
+
   }
 
 
