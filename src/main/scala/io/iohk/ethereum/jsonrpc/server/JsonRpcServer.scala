@@ -4,8 +4,10 @@ import java.security.SecureRandom
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.headers.HttpOriginRange
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{MalformedRequestContentRejection, RejectionHandler, Route}
+import ch.megard.akka.http.cors.javadsl.CorsRejection
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
@@ -24,12 +26,20 @@ trait JsonRpcServer extends Json4sSupport {
 
   implicit val formats = DefaultFormats
 
-  val corsSettings = CorsSettings.defaultSettings.copy(allowGenericHttpRequests = true)
+  def allowedOrigins: Option[HttpOriginRange]
+
+  val corsSettings = CorsSettings.defaultSettings.copy(
+    allowGenericHttpRequests = true,
+    allowedOrigins = allowedOrigins.getOrElse(HttpOriginRange.Default(Nil))
+  )
 
   implicit def myRejectionHandler: RejectionHandler =
     RejectionHandler.newBuilder()
-      .handle { case _: MalformedRequestContentRejection =>
-        complete((StatusCodes.BadRequest, JsonRpcResponse("2.0", None, Some(JsonRpcErrors.ParseError), JInt(0))))
+      .handle {
+        case _: MalformedRequestContentRejection =>
+          complete((StatusCodes.BadRequest, JsonRpcResponse("2.0", None, Some(JsonRpcErrors.ParseError), JInt(0))))
+        case _: CorsRejection =>
+          complete(StatusCodes.Forbidden)
       }
       .result()
 
@@ -73,6 +83,8 @@ object JsonRpcServer extends Logger {
     val port: Int
     val certificateKeyStorePath: Option[String]
     val certificatePasswordFile: Option[String]
+    val corsAllowedOrigins: Option[HttpOriginRange]
   }
+
 
 }
