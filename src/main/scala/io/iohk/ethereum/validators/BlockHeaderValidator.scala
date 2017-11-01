@@ -22,7 +22,7 @@ object BlockHeaderValidatorImpl {
 
   class PowCacheData(val cache: Array[Int], val dagSize: Long)
 
-  // FIXME: this is used to speed up ETS Blockchain tests. All blocks in those tests have low numbers (1, 2, 3 ...)
+  // FIXME [EC-331]: this is used to speed up ETS Blockchain tests. All blocks in those tests have low numbers (1, 2, 3 ...)
   // so keeping the cache for epoch 0 avoids recalculating it for each individual test. The difference in test runtime
   // can be dramatic - full suite: 26 hours vs 21 minutes on same machine
   // It might be desirable to find a better solution for this - one that doesn't keep this cache unnecessarily

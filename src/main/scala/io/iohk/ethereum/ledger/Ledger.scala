@@ -8,6 +8,7 @@ import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
+import io.iohk.ethereum.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
@@ -62,16 +63,13 @@ class LedgerImpl(
   def importBlock(block: Block): BlockImportResult = {
     val validationResult = validateBlockBeforeExecution(block)
     validationResult match {
-      case Left(error) =>
-        val knownParent = blockchain.getBlockHeaderByHash(block.header.parentHash).isDefined || blockQueue.isQueued(block.header.parentHash)
+      case Left(ValidationBeforeExecError(HeaderParentNotFoundError)) =>
+        log.debug(s"Block(${block.idTag}) has no known parent")
+        UnknownParent
 
-        if (knownParent) {
-          log.debug(s"Block(${block.idTag}) failed pre-import validation")
-          BlockImportFailed(error.reason)
-        } else {
-          log.debug(s"Block(${block.idTag}) has no known parent")
-          UnknownParent
-        }
+      case Left(ValidationBeforeExecError(reason)) =>
+        log.debug(s"Block(${block.idTag}) failed pre-import validation")
+        BlockImportFailed(reason.toString)
 
       case Right(_) =>
         val isDuplicate = blockchain.getBlockByHash(block.header.hash).isDefined || blockQueue.isQueued(block.header.hash)
@@ -504,14 +502,14 @@ class LedgerImpl(
     TxResult(world2, executionGasToPayToMiner, resultWithErrorHandling.logs, result.returnData, result.error)
   }
 
-  private def validateBlockBeforeExecution(block: Block): Either[BlockExecutionError, Unit] = {
+  private def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, Unit] = {
     val result = for {
       _ <- validators.blockHeaderValidator.validate(block.header, getHeaderFromChainOrQueue _)
       _ <- validators.blockValidator.validateHeaderAndBody(block.header, block.body)
       _ <- validators.ommersValidator.validate(block.header.parentHash, block.header.number, block.body.uncleNodesList,
         getHeaderFromChainOrQueue, getNBlocksBackFromChainOrQueue)
     } yield ()
-    result.left.map(error => ValidationBeforeExecError(error.toString))
+    result.left.map(ValidationBeforeExecError)
   }
 
   /**
@@ -767,11 +765,11 @@ object Ledger {
 }
 
 sealed trait BlockExecutionError{
-  val reason: String
+  val reason: Any
 }
 
 object BlockExecutionError {
-  case class ValidationBeforeExecError(reason: String) extends BlockExecutionError
+  case class ValidationBeforeExecError(reason: Any) extends BlockExecutionError
   case class StateBeforeFailure(worldState: InMemoryWorldStateProxy, acumGas: BigInt, acumReceipts: Seq[Receipt])
   case class TxsExecutionError(stx: SignedTransaction, stateBeforeError: StateBeforeFailure, reason: String) extends BlockExecutionError
   case class ValidationAfterExecError(reason: String) extends BlockExecutionError

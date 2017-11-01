@@ -10,7 +10,7 @@ import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.validators.BlockHeaderError.HeaderDifficultyError
+import io.iohk.ethereum.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
 import io.iohk.ethereum.validators.BlockHeaderValidator
 //import io.iohk.ethereum.validators.BlockHeaderError.HeaderDifficultyError
 //import io.iohk.ethereum.validators._
@@ -135,6 +135,20 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     blockQueue.isQueued(newBlock3.header.hash) shouldBe false
   }
 
+  it should "report an orphaned block" in new TestSetup with MockBlockchain {
+    val validators = new Mocks.MockValidatorsAlwaysSucceed {
+      override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
+    }
+    val ledgerWithMockedValidators = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig, validators)
+
+    val newBlock = getBlock()
+
+    (validators.blockHeaderValidator.validate(_: BlockHeader, _: ByteString => Option[BlockHeader]))
+      .expects(newBlock.header, *).returning(Left(HeaderParentNotFoundError))
+
+    ledgerWithMockedValidators.importBlock(newBlock) shouldEqual UnknownParent
+  }
+
   it should "validate blocks prior to import" in new TestSetup with MockBlockchain {
     val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
@@ -145,8 +159,6 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
     (validators.blockHeaderValidator.validate(_: BlockHeader, _: ByteString => Option[BlockHeader]))
       .expects(newBlock.header, *).returning(Left(HeaderDifficultyError))
-
-    (blockchain.getBlockHeaderByHash _).expects(newBlock.header.parentHash).returning(Some(getBlock().header))
 
     ledgerWithMockedValidators.importBlock(newBlock) shouldEqual BlockImportFailed(HeaderDifficultyError.toString)
   }
