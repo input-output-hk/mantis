@@ -62,7 +62,11 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
       if (!dir.exists() || !dir.isDirectory())
         Left(IOError(s"Could not read $keyStoreDir"))
       else
-        listFiles().map(_.flatMap(load(_).toOption).map(_.address))
+        listFiles().map { files =>
+          sortKeyFilesByDate(files)
+            .flatMap(load(_).toOption)
+            .map(_.address)
+        }
     }.toEither.left.map(ioError).flatMap(identity)
   }
 
@@ -165,4 +169,9 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
     matching <- files.find(_.endsWith(address.toUnprefixedString))
       .map(Right(_)).getOrElse(Left(KeyNotFound))
   } yield matching
+
+  private def sortKeyFilesByDate(files: List[String]): List[String] = {
+    // given the date and filename formats sorting by date is equivalent to sorting by name
+    files.sorted
+  }
 }
