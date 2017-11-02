@@ -256,7 +256,7 @@ class RegularSync(
       val blocks = headersQueue.zip(m).map{ case (header, body) => Block(header, body) }
 
       @tailrec
-      def importBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil): (List[Block], Option[Any]) =
+      def importBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil): (List[Block], Option[BlockImportResult]) =
         blocks match {
           case Nil =>
             (importedBlocks, None)
