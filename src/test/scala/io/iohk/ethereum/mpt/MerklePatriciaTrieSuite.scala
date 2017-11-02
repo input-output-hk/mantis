@@ -466,7 +466,7 @@ class MerklePatriciaTrieSuite extends FunSuite
 
     val nodeStorage = new NodeStorage(EphemDataSource())
 
-    val referenceCountBlock0 = new ReferenceCountNodeStorage(nodeStorage, pruningOffset, Some(0))
+    val referenceCountBlock0 = new ReferenceCountNodeStorage(nodeStorage, Some(0))
     val emptyTrieAtBlock0 = MerklePatriciaTrie[ByteString, Int](referenceCountBlock0)
     val trieAtBlock0 = emptyTrieAtBlock0
       .put(decodeHexString("aaab"), 8)
@@ -475,14 +475,14 @@ class MerklePatriciaTrieSuite extends FunSuite
       .put(decodeHexString("bbaaaa"), 10)
 
     // Insertion that generates the duplicated valid temporal extension node
-    val referenceCountBlock10 = new ReferenceCountNodeStorage(nodeStorage, pruningOffset, Some(10))
+    val referenceCountBlock10 = new ReferenceCountNodeStorage(nodeStorage, Some(10))
     val trieAtBlock10 = MerklePatriciaTrie[ByteString, Int](trieAtBlock0.getRootHash, referenceCountBlock10)
       .put(decodeHexString("aaaa"), 6)
 
     // Cause pruning of all nodes deleted in the previous inserts
     // This previously caused the temporal extension node to be deleted, and as the temporal version was never inserted
     // it's copy was deleted instead
-    referenceCountBlock10.prune(0, 10 + pruningOffset + 1)
+    (0 to (10 + pruningOffset + 1)).foreach(ReferenceCountNodeStorage.prune(_, nodeStorage))
 
     assert(trieAtBlock10.get(decodeHexString("aaab")).contains(8))
     assert(trieAtBlock10.get(decodeHexString("aaabaaaa")).contains(10))
@@ -510,21 +510,21 @@ class MerklePatriciaTrieSuite extends FunSuite
 
     val nodeStorage = new NodeStorage(EphemDataSource())
 
-    val referenceCountBlock0 = new ReferenceCountNodeStorage(nodeStorage, pruningOffset, Some(0))
+    val referenceCountBlock0 = new ReferenceCountNodeStorage(nodeStorage, Some(0))
     val emptyTrieAtBlock0 = MerklePatriciaTrie[ByteString, ByteString](referenceCountBlock0)
     val trieAtBlock0 = emptyTrieAtBlock0
       .put(decodeHexString("ab"), largeByteString)
       .put(decodeHexString("bbbb"), largeByteString)
 
     // Insertion that generates the duplicated valid temporal extension node
-    val referenceCountBlock10 = new ReferenceCountNodeStorage(nodeStorage, pruningOffset, Some(10))
+    val referenceCountBlock10 = new ReferenceCountNodeStorage(nodeStorage, Some(10))
     val trieAtBlock10 = MerklePatriciaTrie[ByteString, ByteString](trieAtBlock0.getRootHash, referenceCountBlock10)
       .put(decodeHexString("bbba"), ByteString())
 
     // Cause pruning of all nodes deleted in the previous inserts
     // This previously caused the temporal leaf node to be deleted, and as the temporal version was never inserted it's
     // copy was deleted instead
-    referenceCountBlock10.prune(0, 10 + pruningOffset + 1)
+    (0 to (10 + pruningOffset + 1)).foreach(ReferenceCountNodeStorage.prune(_, nodeStorage))
 
     assert(trieAtBlock10.get(decodeHexString("ab")).contains(largeByteString))
     assert(trieAtBlock10.get(decodeHexString("bbbb")).contains(largeByteString))

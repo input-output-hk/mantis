@@ -34,6 +34,8 @@ trait KeyStore {
   def listAccounts(): Either[KeyStoreError, List[Address]]
 
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet]
+
+  def deleteWallet(address: Address): Either[KeyStoreError, Boolean]
 }
 
 class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyStore with Logger {
@@ -65,6 +67,15 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet] =
     load(address).flatMap(_.decrypt(passphrase).left.map(_ => DecryptionFailed)).map(key => Wallet(address, key))
 
+  def deleteWallet(address: Address): Either[KeyStoreError, Boolean] = for {
+    fileName <- findKeyFileName(address)
+    deleted  <- deleteFile(fileName)
+  } yield deleted
+
+  private def deleteFile(fileName: String): Either[KeyStoreError, Boolean] = {
+    Try(Files.deleteIfExists(Paths.get(keyStoreDir, fileName))).toEither.left.map(ioError)
+  }
+
   private def init(): Unit = {
     val dir = new File(keyStoreDir)
     val res = Try(dir.isDirectory || dir.mkdirs()).filter(identity)
@@ -90,12 +101,8 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
 
   private def load(address: Address): Either[KeyStoreError, EncryptedKey] = {
     for {
-      files <- listFiles()
-
-      matching <- files.find(_.endsWith(address.toUnprefixedString))
-        .map(Right(_)).getOrElse(Left(KeyNotFound))
-
-      key <- load(matching)
+      filename <- findKeyFileName(address)
+      key <- load(filename)
     } yield key
   }
 
@@ -133,4 +140,10 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
     case Left(KeyNotFound) => Right(false)
     case Left(err) => Left(err)
   }
+
+  private def findKeyFileName(address: Address): Either[KeyStoreError, String] = for {
+    files <- listFiles()
+    matching <- files.find(_.endsWith(address.toUnprefixedString))
+      .map(Right(_)).getOrElse(Left(KeyNotFound))
+  } yield matching
 }
