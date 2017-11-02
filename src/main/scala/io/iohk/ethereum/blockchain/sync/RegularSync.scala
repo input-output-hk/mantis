@@ -133,9 +133,9 @@ class RegularSync(
   def handleNewBlockHashesMessages: Receive = {
     case MessageFromPeer(NewBlockHashes(hashes), peerId) =>
       val maybePeer = peersToDownloadFrom.find(peer => peer._1.id == peerId)
-      //we allow asking for new hashes when we are not syncing and we can download from specified peer and we are
-      //top of the chain
-      if (notDownloading() && topOfTheChain && maybePeer.isDefined) {
+      //we allow asking for new hashes when we are not syncing and we can download from specified peer ,we are
+      //top of the chain and not resolving branches currently
+      if (notDownloading() && topOfTheChain && maybePeer.isDefined && !resolvingBranches) {
         val (peer, _) = maybePeer.get
         val hashesToCheck = hashes.take(syncConfig.maxNewHashes)
 
@@ -145,7 +145,6 @@ class RegularSync(
           if (filteredHashes.nonEmpty) {
             val request = GetBlockHeaders(Right(filteredHashes.head.hash), filteredHashes.length, BigInt(0), reverse = false)
             requestBlockHeaders(peer, request)
-            resolvingBranches = false
             cancelScheduledResume()
           } else {
             log.debug("All received hashes all already in Chain, or Queue ")
