@@ -86,7 +86,7 @@ class RegularSync(
     if (waitingForActor.isEmpty)
       askForHeaders()
     else
-      scheduleResume()
+      resumeRegularSyncTimeout = Some(scheduler.scheduleOnce(checkForNewBlockInterval, self, ResumeRegularSync))
   }
 
   private def cancelScheduledResume(): Unit = {
