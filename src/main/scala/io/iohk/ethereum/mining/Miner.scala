@@ -96,7 +96,7 @@ class Miner(
     if (file.exists()) file.delete()
     file.createNewFile()
 
-    val outputStream = new FileOutputStream(dagFile(seed).getPath)
+    val outputStream = new FileOutputStream(dagFile(seed).getAbsolutePath)
     outputStream.write(Array(0xfe, 0xca, 0xdd, 0xba, 0xad, 0xde, 0xe1, 0xfe).map(_.toByte))
 
     val cache = Ethash.makeCache(epoch)
@@ -117,7 +117,7 @@ class Miner(
   }
 
   private def loadDagFromFile(seed: ByteString, dagSize: Long): Array[Array[Int]] = {
-    val inputStream = new FileInputStream(dagFile(seed).getPath)
+    val inputStream = new FileInputStream(dagFile(seed).getAbsolutePath)
     inputStream.skip(8)
     val buffer = new Array[Byte](64)
     val res = new Array[Array[Int]]((dagSize / Ethash.HASH_BYTES).toInt)
