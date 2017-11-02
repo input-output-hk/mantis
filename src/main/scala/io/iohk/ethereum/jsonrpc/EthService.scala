@@ -68,7 +68,7 @@ object EthService {
   case class GetTransactionByHashRequest(txHash: ByteString)
   case class GetTransactionByHashResponse(txResponse: Option[TransactionResponse])
 
-  case class GetAccountRecentTransactionsRequest(address: Address)
+  case class GetAccountRecentTransactionsRequest(address: Address, numRecentBlocks: Option[Int])
   case class GetAccountRecentTransactionsResponse(sent: Seq[TransactionResponse], received: Seq[TransactionResponse])
 
   case class GetTransactionReceiptRequest(txHash: ByteString)
@@ -739,15 +739,17 @@ class EthService(
         .filter(_.tx.receivingAddress.contains(request.address))
         .map(TransactionResponse(_, pending = Some(true)))
 
-      val numRecentBlocks = Config.Network.Rpc.txNumRecentBlocks
+      val numRecentBlocks = request.numRecentBlocks.getOrElse(Config.Network.Rpc.txMaxNumRecentBlocks)
 
       val bestBlockNum = appStateStorage.getBestBlockNumber()
-      val recentTxs = (0 until numRecentBlocks)
-        .flatMap { n => blockchain.getBlockByNumber(bestBlockNum - n) }
+      val start = (bestBlockNum - numRecentBlocks).max(0)
+      val recentTxs = (start to bestBlockNum)
+        .flatMap { n => blockchain.getBlockByNumber(n) }
         .map { block =>
           val sentInBlock = block.body.transactionList.filter(_.senderAddress == request.address)
           val receivedInBlock = block.body.transactionList.filter(_.tx.receivingAddress.contains(request.address))
-          (sentInBlock.map(TransactionResponse(_, Some(block.header))), receivedInBlock.map(TransactionResponse(_, Some(block.header))))
+          (sentInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))),
+            receivedInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))))
         }
 
       val recentSent = recentTxs.flatMap(_._1)
