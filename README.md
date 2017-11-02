@@ -39,7 +39,22 @@ The bootstrap database files can be downloaded from [here](https://github.com/in
 
 As an alternative to downloading the client build the client from source. 
 
-Checkout this repository from github and then type
+First of all `sbt-verify` is used in order to check the validity of the downloaded libraries checksums.
+
+`sbt-verify` can be downloaded from our read only repository by typing
+ 
+ `git clone  https://github.com/input-output-hk/sbt-verify`
+ 
+ Then in order to make `sbt-verify` available to our build type 
+ 
+```
+cd sbt-verify
+sbt publishLocal
+```
+ 
+ This installs the `sbt-verify` library to your local repository. 
+ 
+After installing the `sbt-verify` library to your local repository checkout this repository from github and then type
 
  `sbt dist`
 
