@@ -708,7 +708,7 @@ class EthService(
 
     // TODO improvement analysis is suggested in EC-199
     val gasLimit: Either[JsonRpcError, BigInt] = {
-      if(req.tx.gas.isDefined) Right[JsonRpcError, BigInt](req.tx.gas.get)
+      if (req.tx.gas.isDefined) Right[JsonRpcError, BigInt](req.tx.gas.get)
       else resolveBlock(BlockParam.Latest).map(r => r.block.header.gasLimit)
     }
 
