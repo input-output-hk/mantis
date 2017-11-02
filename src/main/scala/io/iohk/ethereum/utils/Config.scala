@@ -106,10 +106,10 @@ object Config {
           case s => HttpOriginRange.Default(HttpOrigin(s) :: Nil)
         }
 
-      override val corsAllowedOrigins: Option[HttpOriginRange] =
+      val corsAllowedOrigins: HttpOriginRange =
         (Try(parseMultipleOrigins(rpcConfig.getStringList("cors-allowed-origins").asScala)) recoverWith {
           case _ => Try(parseSingleOrigin(rpcConfig.getString("cors-allowed-origins")))
-        }).toOption
+        }).get
     }
 
   }

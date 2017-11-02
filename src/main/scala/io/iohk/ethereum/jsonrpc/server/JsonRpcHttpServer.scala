@@ -26,5 +26,5 @@ class JsonRpcHttpServer(val jsonRpcController: JsonRpcController, config: JsonRp
     }
   }
 
-  override def allowedOrigins: Option[HttpOriginRange] = config.corsAllowedOrigins
+  override def corsAllowedOrigins: HttpOriginRange = config.corsAllowedOrigins
 }

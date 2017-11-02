@@ -106,7 +106,7 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
       case (_, None) => Left("Certificate password file configuration required")
     }
 
-  override def allowedOrigins: Option[HttpOriginRange] = config.corsAllowedOrigins
+  override def corsAllowedOrigins: HttpOriginRange = config.corsAllowedOrigins
 }
 
 object JsonRpcHttpsServer {

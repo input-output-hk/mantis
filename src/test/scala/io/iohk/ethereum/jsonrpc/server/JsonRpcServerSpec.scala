@@ -90,7 +90,7 @@ class JsonRpcServerSpec extends FlatSpec with Matchers with ScalatestRouteTest {
       override val port: Int = 123
       override val certificateKeyStorePath = None
       override val certificatePasswordFile = None
-      override val corsAllowedOrigins = Some(HttpOriginRange.*)
+      override val corsAllowedOrigins = HttpOriginRange.*
     }
 
     val mockJsonRpcController = mock[JsonRpcController]
@@ -99,7 +99,7 @@ class JsonRpcServerSpec extends FlatSpec with Matchers with ScalatestRouteTest {
 
       def run(): Unit = ()
 
-      override def allowedOrigins = Some(HttpOriginRange.*)
+      override def corsAllowedOrigins = config.corsAllowedOrigins
     }
 
     val corsAllowedOrigin = HttpOrigin("http://localhost:3333")
@@ -109,7 +109,7 @@ class JsonRpcServerSpec extends FlatSpec with Matchers with ScalatestRouteTest {
 
       def run(): Unit = ()
 
-      override def allowedOrigins = Some(HttpOriginRange(corsAllowedOrigin))
+      override def corsAllowedOrigins = HttpOriginRange(corsAllowedOrigin)
     }
   }
 

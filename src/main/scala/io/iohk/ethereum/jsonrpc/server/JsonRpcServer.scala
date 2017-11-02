@@ -26,11 +26,11 @@ trait JsonRpcServer extends Json4sSupport {
 
   implicit val formats = DefaultFormats
 
-  def allowedOrigins: Option[HttpOriginRange]
+  def corsAllowedOrigins: HttpOriginRange
 
   val corsSettings = CorsSettings.defaultSettings.copy(
     allowGenericHttpRequests = true,
-    allowedOrigins = allowedOrigins.getOrElse(HttpOriginRange.Default(Nil))
+    allowedOrigins = corsAllowedOrigins
   )
 
   implicit def myRejectionHandler: RejectionHandler =
@@ -83,7 +83,7 @@ object JsonRpcServer extends Logger {
     val port: Int
     val certificateKeyStorePath: Option[String]
     val certificatePasswordFile: Option[String]
-    val corsAllowedOrigins: Option[HttpOriginRange]
+    val corsAllowedOrigins: HttpOriginRange
   }
 
 
