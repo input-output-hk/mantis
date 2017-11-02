@@ -61,7 +61,7 @@ class Miner(
         val seed = Ethash.seed(epoch)
         val dagSize = Ethash.dagSize(epoch)
         val dag =
-          if (!dagExists(seed)) generateDagAndSaveToFile(epoch, dagSize, seed)
+          if (!dagFile(seed).exists()) generateDagAndSaveToFile(epoch, dagSize, seed)
           else loadDagFromFile(seed, dagSize)
 
         currentEpoch = Some(epoch)
@@ -83,10 +83,6 @@ class Miner(
         log.error("Unable to get block for mining", ex)
         context.system.scheduler.scheduleOnce(10.seconds, self, ProcessMining)
     }
-  }
-
-  private def dagExists(seed: ByteString): Boolean = {
-    dagFile(seed).exists()
   }
 
   private def dagFile(seed: ByteString): File = {
@@ -112,7 +108,7 @@ class Miner(
       outputStream.write(Ethash.intsToBytes(item))
       res(i) = item
 
-      if (i % 100000 == 0) log.info("Generating DAG " + ((i / max.toDouble) * 100).toInt + "%")
+      if (i % 100000 == 0) log.info(s"Generating DAG ${((i / max.toDouble) * 100).toInt}%")
     }
 
     Try(outputStream.close())
@@ -128,9 +124,8 @@ class Miner(
     var index = 0
 
     while (inputStream.read(buffer) > 0) {
-      if (index % 100000 == 0) log.info("Loading DAG from file " + ((index / res.length.toDouble) * 100).toInt + "%")
-      val itemAsInt = Ethash.bytesToInts(buffer)
-      res(index) = itemAsInt
+      if (index % 100000 == 0) log.info(s"Loading DAG from file ${((index / res.length.toDouble) * 100).toInt}%")
+      res(index) = Ethash.bytesToInts(buffer)
       index += 1
     }
 
