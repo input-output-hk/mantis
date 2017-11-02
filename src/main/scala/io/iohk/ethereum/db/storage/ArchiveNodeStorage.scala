@@ -1,7 +1,7 @@
 package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.db.storage.pruning.{PruningNodesKeyValueStorage, PruneResult}
+import io.iohk.ethereum.db.storage.pruning.PruneSupport
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 
 /**
@@ -9,7 +9,7 @@ import io.iohk.ethereum.mpt.NodesKeyValueStorage
   * Key: hash of the RLP encoded node
   * Value: the RLP encoded node
   */
-class ArchiveNodeStorage(nodeStorage: NodeStorage) extends PruningNodesKeyValueStorage {
+class ArchiveNodeStorage(nodeStorage: NodeStorage) extends NodesKeyValueStorage {
 
   override def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesKeyValueStorage = {
     nodeStorage.update(Nil, toUpsert)
@@ -17,13 +17,22 @@ class ArchiveNodeStorage(nodeStorage: NodeStorage) extends PruningNodesKeyValueS
   }
 
   override def get(key: NodeHash): Option[NodeEncoded] = nodeStorage.get(key)
+}
+
+object ArchiveNodeStorage extends PruneSupport {
+  /**
+    * Remove unused data for the given block number
+    *
+    * @param blockNumber BlockNumber to prune
+    * @param nodeStorage NodeStorage
+    */
+  override def prune(blockNumber: BigInt, nodeStorage: NodeStorage): Unit = ()
 
   /**
-    * Determines and prunes mpt nodes based on last pruned block number tag and the current best block number
+    * Rollbacks blocknumber changes
     *
-    * @param lastPruned      Last pruned block number tag
-    * @param bestBlockNumber Current best block number
-    * @return PruneResult
+    * @param blockNumber BlockNumber to rollback
+    * @param nodeStorage NodeStorage
     */
-  override def prune(lastPruned: => BigInt, bestBlockNumber: => BigInt): PruneResult = PruneResult(0, 0)
+  override def rollback(blockNumber: BigInt, nodeStorage: NodeStorage): Unit = ()
 }
