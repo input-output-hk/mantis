@@ -728,6 +728,8 @@ class EthService(
   }
 
   def getAccountRecentTransactions(request: GetAccountRecentTransactionsRequest): ServiceResponse[GetAccountRecentTransactionsResponse] = {
+    import Config.Network.Rpc.txMaxNumRecentBlocks
+
     getTransactionsFromPool map { case PendingTransactionsResponse(pendingTransactions) =>
       val pendingSent = pendingTransactions
         .map(_.stx)
@@ -739,7 +741,7 @@ class EthService(
         .filter(_.tx.receivingAddress.contains(request.address))
         .map(TransactionResponse(_, pending = Some(true)))
 
-      val numRecentBlocks = request.numRecentBlocks.getOrElse(Config.Network.Rpc.txMaxNumRecentBlocks)
+      val numRecentBlocks = request.numRecentBlocks.getOrElse(txMaxNumRecentBlocks) min txMaxNumRecentBlocks
 
       val bestBlockNum = appStateStorage.getBestBlockNumber()
       val start = (bestBlockNum - numRecentBlocks).max(0)
