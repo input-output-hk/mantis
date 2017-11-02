@@ -6,15 +6,16 @@ import java.util
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.{kec256, kec512}
-import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.util.BigIntegers
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 
-/** REVISION 23 of https://github.com/ethereum/wiki/wiki/Ethash */
 object Ethash {
+
+  // Revision number of https://github.com/ethereum/wiki/wiki/Ethash
+  val Revision: Int = 23
 
   // scalastyle:off magic.number
 
@@ -203,10 +204,10 @@ object Ethash {
     (v1 * FNV_PRIME) ^ v2
   }
 
-  private def bytesToInts(bytes: Array[Byte]): Array[Int] =
+  def bytesToInts(bytes: Array[Byte]): Array[Int] =
     bytes.grouped(4).map(getIntFromWord).toArray
 
-  private def intsToBytes(input: Array[Int]): Array[Byte] = {
+  def intsToBytes(input: Array[Int]): Array[Byte] = {
     input.flatMap { i =>
       Array(
         (i & 0xFF).toByte,
@@ -220,7 +221,7 @@ object Ethash {
     ByteBuffer.wrap(arr, 0, 4).order(ByteOrder.LITTLE_ENDIAN).getInt
   }
 
-  def checkDifficulty(blockHeader: BlockHeader, proofOfWork: ProofOfWork): Boolean = {
+  def checkDifficulty(blockDifficulty: Long, proofOfWork: ProofOfWork): Boolean = {
     @tailrec
     def compare(a1: Array[Byte], a2: Array[Byte]): Int = {
       if (a1.length > a2.length) 1
@@ -234,7 +235,7 @@ object Ethash {
     }
 
     val headerDifficultyAsByteArray: Array[Byte] =
-      BigIntegers.asUnsignedByteArray(32, BigInteger.ONE.shiftLeft(256).divide(BigInteger.valueOf(blockHeader.difficulty.toLong)))
+      BigIntegers.asUnsignedByteArray(32, BigInteger.ONE.shiftLeft(256).divide(BigInteger.valueOf(blockDifficulty)))
 
     compare(headerDifficultyAsByteArray, proofOfWork.difficultyBoundary.toArray[Byte]) >= 0
   }
