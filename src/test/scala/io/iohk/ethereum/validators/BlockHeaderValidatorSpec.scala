@@ -118,7 +118,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
   }
 
   it should "return a failure if created based on invalid number" in {
-    forAll(bigIntGen) { number =>
+    forAll(longGen) { number =>
       val blockHeader = validBlockHeader.copy(number = number)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
       if(number != validBlockParent.number + 1)

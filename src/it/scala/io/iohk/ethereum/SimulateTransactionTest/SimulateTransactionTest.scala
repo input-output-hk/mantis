@@ -6,7 +6,6 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, SyncConfigBuilder, ValidatorsBuilder}
 import org.scalatest._
-import org.scalatest.FreeSpec
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger, MonetaryPolicyConfig}
 import io.iohk.ethereum.vm.VM
 import org.spongycastle.util.encoders.Hex
