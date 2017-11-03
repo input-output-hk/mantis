@@ -13,7 +13,7 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
   "Block" should "created based on valid data" in {
     val block = Block(validBlockHeader, validBlockBody)
     BlockValidator.validate(block, validReceipts) match {
-      case Right(validated) if validated equals block => succeed
+      case Right(validated) => succeed
       case _ => fail
     }
   }
@@ -46,12 +46,6 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
     }
   }
 
-  "Block" should "return a block when verifing if a block body corresponds to a block header" in {
-    BlockValidator.validateHeaderAndBody(validBlockHeader, validBlockBody) match {
-      case Right(block) if block equals Block(validBlockHeader, validBlockBody) => succeed
-      case _ => fail
-    }
-  }
 
   "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong tx hash" in {
     BlockValidator.validateHeaderAndBody(wrongTransactionsRootHeader, validBlockBody) match {
@@ -69,7 +63,7 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
 
   "Block" should "correctly handle the case where a block has no receipts" in {
     BlockValidator.validate(blockWithOutReceipts, Nil) match {
-      case Right(validated) if validated==blockWithOutReceipts => succeed
+      case Right(validated) => succeed
       case _ => fail
     }
   }

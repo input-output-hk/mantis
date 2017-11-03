@@ -9,7 +9,7 @@ import io.iohk.ethereum.vm.EvmConfig
 trait SignedTransactionValidator {
 
   def validate(stx: SignedTransaction, senderAccount: Account, blockHeader: BlockHeader,
-               upfrontGasCost: UInt256, accumGasUsed: BigInt): Either[SignedTransactionError, Unit]
+               upfrontGasCost: UInt256, accumGasUsed: BigInt): Either[SignedTransactionError, SignedTransactionValid]
 
 }
 
@@ -28,7 +28,7 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     * @return Transaction if valid, error otherwise
     */
   def validate(stx: SignedTransaction, senderAccount: Account, blockHeader: BlockHeader,
-               upfrontGasCost: UInt256, accumGasUsed: BigInt): Either[SignedTransactionError, Unit] = {
+               upfrontGasCost: UInt256, accumGasUsed: BigInt): Either[SignedTransactionError, SignedTransactionValid] = {
     for {
       _ <- checkSyntacticValidity(stx)
       _ <- validateSignature(stx, blockHeader.number)
@@ -36,7 +36,7 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
       _ <- validateGasLimitEnoughForIntrinsicGas(stx, blockHeader.number)
       _ <- validateAccountHasEnoughGasToPayUpfrontCost(senderAccount.balance, upfrontGasCost)
       _ <- validateBlockHasEnoughGasLimitForTx(stx, accumGasUsed, blockHeader.gasLimit)
-    } yield ()
+    } yield SignedTransactionValid
   }
 
   /**
@@ -45,7 +45,7 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     * @param stx Transaction to validate
     * @return Either the validated transaction or TransactionSyntaxError if an error was detected
     */
-  private def checkSyntacticValidity(stx: SignedTransaction): Either[SignedTransactionError, Unit] = {
+  private def checkSyntacticValidity(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] = {
     import stx.tx._
     import stx._
     import Transaction._
@@ -69,7 +69,7 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     else if(signature.s > maxS)
       Left(TransactionSyntaxError(s"Invalid signature: ${signature.s} > $maxS"))
     else
-      Right(())
+      Right(SignedTransactionValid)
   }
 
   /**
@@ -79,7 +79,7 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     * @param blockNumber          Number of the block for this transaction
     * @return Either the validated transaction or TransactionSignatureError if an error was detected
     */
-  private def validateSignature(stx: SignedTransaction, blockNumber: BigInt): Either[SignedTransactionError, Unit] = {
+  private def validateSignature(stx: SignedTransaction, blockNumber: BigInt): Either[SignedTransactionError, SignedTransactionValid] = {
     val r = stx.signature.r
     val s = stx.signature.s
 
@@ -91,7 +91,7 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     val validS = s > 0 && s < (if(beforeHomestead) secp256k1n else secp256k1n / 2)
     val validSigningSchema = if (beforeEIP155) !stx.isChainSpecific else true
 
-    if(validR && validS && validSigningSchema) Right(())
+    if(validR && validS && validSigningSchema) Right(SignedTransactionValid)
     else Left(TransactionSignatureError)
   }
 
@@ -102,8 +102,8 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     * @param senderNonce Nonce of the sender of the transaction
     * @return Either the validated transaction or a TransactionNonceError
     */
-  private def validateNonce(stx: SignedTransaction, senderNonce: UInt256): Either[SignedTransactionError, Unit] = {
-    if (senderNonce == UInt256(stx.tx.nonce)) Right(())
+  private def validateNonce(stx: SignedTransaction, senderNonce: UInt256): Either[SignedTransactionError, SignedTransactionValid] = {
+    if (senderNonce == UInt256(stx.tx.nonce)) Right(SignedTransactionValid)
     else Left(TransactionNonceError(UInt256(stx.tx.nonce), senderNonce))
   }
 
@@ -114,11 +114,12 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     * @param blockHeaderNumber Number of the block where the stx transaction was included
     * @return Either the validated transaction or a TransactionNotEnoughGasForIntrinsicError
     */
-  private def validateGasLimitEnoughForIntrinsicGas(stx: SignedTransaction, blockHeaderNumber: BigInt): Either[SignedTransactionError, Unit] = {
+  private def validateGasLimitEnoughForIntrinsicGas(stx: SignedTransaction, blockHeaderNumber: BigInt)
+  : Either[SignedTransactionError, SignedTransactionValid] = {
     import stx.tx
     val config = EvmConfig.forBlock(blockHeaderNumber, blockchainConfig)
     val txIntrinsicGas = config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
-    if (stx.tx.gasLimit >= txIntrinsicGas) Right(())
+    if (stx.tx.gasLimit >= txIntrinsicGas) Right(SignedTransactionValid)
     else Left(TransactionNotEnoughGasForIntrinsicError(stx.tx.gasLimit, txIntrinsicGas))
   }
 
@@ -130,8 +131,8 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     * @return Either the validated transaction or a TransactionSenderCantPayUpfrontCostError
     */
   private def validateAccountHasEnoughGasToPayUpfrontCost(senderBalance: UInt256, upfrontCost: UInt256)
-  : Either[SignedTransactionError, Unit] = {
-    if (senderBalance >= upfrontCost) Right(())
+  : Either[SignedTransactionError, SignedTransactionValid] = {
+    if (senderBalance >= upfrontCost) Right(SignedTransactionValid)
     else Left(TransactionSenderCantPayUpfrontCostError(upfrontCost, senderBalance))
   }
 
@@ -145,8 +146,8 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     * @return Either the validated transaction or a TransactionGasLimitTooBigError
     */
   private def validateBlockHasEnoughGasLimitForTx(stx: SignedTransaction, accumGasUsed: BigInt, blockGasLimit: BigInt)
-  : Either[SignedTransactionError, Unit] = {
-    if (stx.tx.gasLimit + accumGasUsed <= blockGasLimit) Right(())
+  : Either[SignedTransactionError, SignedTransactionValid] = {
+    if (stx.tx.gasLimit + accumGasUsed <= blockGasLimit) Right(SignedTransactionValid)
     else Left(TransactionGasLimitTooBigError(stx.tx.gasLimit, accumGasUsed, blockGasLimit))
   }
 }
@@ -173,3 +174,6 @@ object SignedTransactionError {
       s"${getClass.getSimpleName}(Tx gas limit ($txGasLimit) + gas accum ($accumGasUsed) > block gas limit ($blockGasLimit))"
   }
 }
+
+sealed trait SignedTransactionValid
+case object SignedTransactionValid extends SignedTransactionValid
