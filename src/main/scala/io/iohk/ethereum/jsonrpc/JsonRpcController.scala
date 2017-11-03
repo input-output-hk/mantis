@@ -192,10 +192,10 @@ class JsonRpcController(
     case req @ JsonRpcRequest(_, "personal_ecRecover", _, _) =>
       handle[EcRecoverRequest, EcRecoverResponse](personalService.ecRecover, req)
 
-    case req @ JsonRpcRequest(_, "personal_deleteWallet", _, _) =>
+    case req @ JsonRpcRequest(_, "daedalus_deleteWallet", _, _) =>
       handle[DeleteWalletRequest, DeleteWalletResponse](personalService.deleteWallet, req)
 
-    case req @ JsonRpcRequest(_, "personal_changePassphrase", _, _) =>
+    case req @ JsonRpcRequest(_, "daedalus_changePassphrase", _, _) =>
       handle[ChangePassphraseRequest, ChangePassphraseResponse](personalService.changePassphrase, req)
   }
 
