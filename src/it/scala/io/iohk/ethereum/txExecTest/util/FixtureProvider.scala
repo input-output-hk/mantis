@@ -5,7 +5,7 @@ import java.io.Closeable
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainStorages, Receipt}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
@@ -13,7 +13,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63._
 import MptNodeEncoders._
 import ReceiptImplicits._
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode, NodesKeyValueStorage}
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, LeafNode, MptNode}
 import org.spongycastle.util.encoders.Hex
 
 import scala.io.Source
@@ -44,11 +44,12 @@ object FixtureProvider {
       override val totalDifficultyStorage: TotalDifficultyStorage = new TotalDifficultyStorage(EphemDataSource())
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(EphemDataSource())
       override val nodeStorage: NodeStorage = new NodeStorage(EphemDataSource())
-      override val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage = bn => PruningMode.nodesKeyValueStorage(ArchivePruning, nodeStorage)(bn)
-      override val appStateStorage: AppStateStorage = new AppStateStorage(EphemDataSource(), PruningMode.nodesKeyValueStorage(ArchivePruning, nodeStorage)(None).prune)
+      override val pruningMode: PruningMode = ArchivePruning
+      override val appStateStorage: AppStateStorage = new AppStateStorage(EphemDataSource())
     }
 
     val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile { case (number, _) => number <= blockNumber }
+    val blockchain = BlockchainImpl(storages)
 
     blocksToInclude.foreach { case (_, block) =>
       storages.blockBodiesStorage.put(block.header.hash, fixtures.blockBodies(block.header.hash))
@@ -58,11 +59,11 @@ object FixtureProvider {
 
       def traverse(nodeHash: ByteString): Unit = fixtures.stateMpt.get(nodeHash).orElse(fixtures.contractMpts.get(nodeHash)) match {
         case Some(m: BranchNode) =>
-          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
+          blockchain.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
           m.children.collect { case Some(Left(hash)) => hash}.foreach(e => traverse(e))
 
         case Some(m: ExtensionNode) =>
-          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
+          blockchain.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
           m.next match {
             case Left(hash) if hash.nonEmpty => traverse(hash)
             case _ =>
@@ -70,7 +71,7 @@ object FixtureProvider {
 
         case Some(m: LeafNode) =>
           import AccountImplicits._
-          storages.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
+          blockchain.nodesKeyValueStorageFor(Some(block.header.number)).update(Nil, Seq(ByteString(m.hash) -> m.toBytes))
           Try(m.value.toArray[Byte].toAccount).toOption.foreach { account =>
             if (account.codeHash != DumpChainActor.emptyEvm) {
               storages.evmCodeStorage.put(account.codeHash, fixtures.evmCode(account.codeHash))

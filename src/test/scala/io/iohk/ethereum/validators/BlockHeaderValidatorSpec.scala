@@ -27,7 +27,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
 
   "BlockHeaderValidator" should "validate correctly formed BlockHeaders" in {
     blockHeaderValidator.validate(validBlockHeader, validBlockParent) match {
-      case Right(validated) if validated equals validBlockHeader => succeed
+      case Right(_) => succeed
       case _ => fail
     }
   }
@@ -73,7 +73,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
       timestamp match {
         case t if t <= validBlockParent.unixTimestamp => assert(validateResult == Left(HeaderTimestampError))
-        case validBlockHeader.unixTimestamp => assert(validateResult == Right(blockHeader))
+        case validBlockHeader.unixTimestamp => assert(validateResult == Right(BlockHeaderValid))
         case _ => assert(validateResult == Left(HeaderDifficultyError))
       }
     }
@@ -84,7 +84,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
       val blockHeader = validBlockHeader.copy(difficulty = difficulty)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
       if(difficulty != validBlockHeader.difficulty) assert(validateResult == Left(HeaderDifficultyError))
-      else assert(validateResult == Right(blockHeader))
+      else assert(validateResult == Right(BlockHeaderValid))
     }
   }
 
@@ -93,7 +93,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
       val blockHeader = validBlockHeader.copy(gasUsed = gasUsed)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
       if(gasUsed > validBlockHeader.gasLimit) assert(validateResult == Left(HeaderGasUsedError))
-      else assert(validateResult == Right(blockHeader))
+      else assert(validateResult == Right(BlockHeaderValid))
     }
   }
 
@@ -107,7 +107,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
       if(gasLimit < LowerGasLimit || gasLimit > UpperGasLimit)
         assert(validateResult == Left(HeaderGasLimitError))
-      else assert(validateResult == Right(blockHeader))
+      else assert(validateResult == Right(BlockHeaderValid))
     }
   }
 
@@ -123,7 +123,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
       if(number != validBlockParent.number + 1)
         assert(validateResult == Left(HeaderNumberError) || validateResult == Left(HeaderDifficultyError))
-      else assert(validateResult == Right(blockHeader))
+      else assert(validateResult == Right(BlockHeaderValid))
     }
   }
 
@@ -142,7 +142,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
   it should "validate correctly a block whose parent is in storage" in new EphemBlockchainTestSetup {
     blockchain.save(validBlockParent)
     blockHeaderValidator.validate(validBlockHeader, blockchain) match {
-      case Right(validated) if validated equals validBlockHeader => succeed
+      case Right(_)  => succeed
       case _ => fail
     }
   }
@@ -156,7 +156,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
 
   it should "properly validate a block after difficulty bomb pause" in new EphemBlockchainTestSetup {
     val res = blockHeaderValidator.validate(pausedDifficultyBombBlock, pausedDifficultyBombBlockParent)
-    res shouldBe Right(pausedDifficultyBombBlock)
+    res shouldBe Right(BlockHeaderValid)
   }
 
   it should "properly calculate the difficulty after difficulty bomb resume" in new EphemBlockchainTestSetup {

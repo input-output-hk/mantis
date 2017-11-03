@@ -500,12 +500,12 @@ class LedgerImpl(
     TxResult(world2, executionGasToPayToMiner, resultWithErrorHandling.logs, result.returnData, result.error)
   }
 
-  private def validateBlockBeforeExecution(block: Block): Either[BlockExecutionError, Unit] = {
+  private def validateBlockBeforeExecution(block: Block): Either[BlockExecutionError, BlockExecutionSuccess] = {
     val result = for {
       _ <- validators.blockHeaderValidator.validate(block.header, blockchain)
       _ <- validators.blockValidator.validateHeaderAndBody(block.header, block.body)
       _ <- validators.ommersValidator.validate(block.header.number, block.body.uncleNodesList, blockchain)
-    } yield ()
+    } yield BlockExecutionSuccess
     result.left.map(error => ValidationBeforeExecError(error.toString))
   }
 
@@ -522,7 +522,7 @@ class LedgerImpl(
     * @return None if valid else a message with what went wrong
     */
   private[ledger] def validateBlockAfterExecution(block: Block, stateRootHash: ByteString, receipts: Seq[Receipt],
-                                                  gasUsed: BigInt): Either[BlockExecutionError, Unit] = {
+                                                  gasUsed: BigInt): Either[BlockExecutionError, BlockExecutionSuccess] = {
     lazy val blockAndReceiptsValidation = validators.blockValidator.validateBlockAndReceipts(block.header, receipts)
     if(block.header.gasUsed != gasUsed)
       Left(ValidationAfterExecError(s"Block has invalid gas used, expected ${block.header.gasUsed} but got $gasUsed"))
@@ -533,7 +533,7 @@ class LedgerImpl(
     else if(blockAndReceiptsValidation.isLeft)
       Left(ValidationAfterExecError(blockAndReceiptsValidation.left.get.toString))
     else
-      Right(())
+      Right(BlockExecutionSuccess)
   }
 
   /**
@@ -743,6 +743,9 @@ object Ledger {
 sealed trait BlockExecutionError{
   val reason: String
 }
+
+sealed trait BlockExecutionSuccess
+case object BlockExecutionSuccess extends BlockExecutionSuccess
 
 object BlockExecutionError {
   case class ValidationBeforeExecError(reason: String) extends BlockExecutionError

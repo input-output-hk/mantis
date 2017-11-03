@@ -130,7 +130,7 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
   val gasUsed = block.header.gasUsed
 
   it should "report valid results from execution as correct" in {
-    ledger.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe Right(())
+    ledger.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe Right(BlockExecutionSuccess)
   }
 
   it should "report as invalid a block that doesn't have the correct gas used" in {
