@@ -16,7 +16,7 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
-import io.iohk.ethereum.validators.BlockValidator.BlockTransactionsHashError
+import io.iohk.ethereum.validators.BlockValidator.{BlockTransactionsHashError, BlockValid}
 import io.iohk.ethereum.validators.SignedTransactionError.TransactionSignatureError
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm._
@@ -377,7 +377,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     object validatorsFailsBlockValidatorWithReceipts extends Mocks.MockValidatorsAlwaysSucceed {
       override val blockValidator = new BlockValidator {
-        override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Right(Block(blockHeader, blockBody))
+        override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Right(BlockValid)
         override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
       }
     }
@@ -704,7 +704,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       override val signedTransactionValidator =
         (stx: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => {
           if (stx.tx.receivingAddress == Some(Address(42))) {
-            Right(())
+            Right(SignedTransactionValid)
           } else {
             Left(TransactionSignatureError)
           }
