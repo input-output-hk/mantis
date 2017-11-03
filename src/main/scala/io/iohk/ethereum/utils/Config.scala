@@ -129,6 +129,9 @@ object Config {
 
     val maxQueuedBlockNumberAhead: Int
     val maxQueuedBlockNumberBehind: Int
+
+    val maxNewBlockHashAge: Int
+    val maxNewHashes: Int
   }
 
   object SyncConfig {
@@ -162,6 +165,8 @@ object Config {
 
         val maxQueuedBlockNumberBehind: Int = syncConfig.getInt("max-queued-block-number-behind")
         val maxQueuedBlockNumberAhead: Int = syncConfig.getInt("max-queued-block-number-ahead")
+        val maxNewBlockHashAge: Int = syncConfig.getInt("max-new-block-hash-age")
+        val maxNewHashes: Int = syncConfig.getInt("max-new-hashes")
       }
     }
   }

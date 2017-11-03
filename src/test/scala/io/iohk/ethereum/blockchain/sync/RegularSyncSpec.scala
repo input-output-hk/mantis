@@ -15,7 +15,7 @@ import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, BlockHeaders, GetBlockBodies}
+import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
@@ -45,6 +45,9 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (ledger.importBlock _).expects(block).returning(BlockImportedToTop(List(block), List(defaultTd)))
         (broadcaster.broadcastBlock _).expects(NewBlock(block, defaultTd), handshakedPeers)
 
+        sendBlockHeaders(Seq.empty)
+        regularSync.underlyingActor.topOfTheChain shouldEqual true
+
         sendNewBlockMsg(block)
 
         ommersPool.expectMsg(RemoveOmmers(block.header :: block.body.uncleNodesList.toList))
@@ -58,6 +61,9 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (ledger.importBlock _).expects(newBlock)
           .returning(ChainReorganised(List(oldBlock), List(newBlock), List(defaultTd)))
         (broadcaster.broadcastBlock _).expects(NewBlock(newBlock, defaultTd), handshakedPeers)
+
+        sendBlockHeaders(Seq.empty)
+        regularSync.underlyingActor.topOfTheChain shouldEqual true
 
         sendNewBlockMsg(newBlock)
 
@@ -74,6 +80,9 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (ledger.importBlock _).expects(block).returning(DuplicateBlock)
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
+        sendBlockHeaders(Seq.empty)
+        regularSync.underlyingActor.topOfTheChain shouldEqual true
+
         sendNewBlockMsg(block)
 
         ommersPool.expectNoMsg(1.second)
@@ -85,6 +94,9 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         (ledger.importBlock _).expects(block).returning(BlockEnqueued)
         (broadcaster.broadcastBlock _).expects(*, *).never()
+
+        sendBlockHeaders(Seq.empty)
+        regularSync.underlyingActor.topOfTheChain shouldEqual true
 
         sendNewBlockMsg(block)
 
@@ -98,6 +110,9 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         (ledger.importBlock _).expects(block).returning(BlockImportFailed("error"))
         (broadcaster.broadcastBlock _).expects(*, *).never()
 
+        sendBlockHeaders(Seq.empty)
+        regularSync.underlyingActor.topOfTheChain shouldEqual true
+
         sendNewBlockMsg(block)
 
         ommersPool.expectNoMsg(1.second)
@@ -107,6 +122,67 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       }
     }
 
+    "receiving NewBlockHashes msg" should {
+
+      "handle newBlockHash message" in new TestSetup {
+        val blockHash = randomBlockHash()
+
+        (ledger.checkBlockStatus _).expects(blockHash.hash).returning(UnknownBlock)
+        sendBlockHeaders(Seq.empty)
+        regularSync.underlyingActor.topOfTheChain shouldEqual true
+        sendNewBlockHashMsg(Seq(blockHash))
+
+        etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
+        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(blockHash.hash), 1, 0, false), peer1.id))
+      }
+
+      "filter out hashes that are already in chain or queue" in new TestSetup {
+        val blockHashes = (1 to 4).map(num => randomBlockHash(num))
+
+        blockHashes.foreach(blockHash =>
+          if (blockHash.number == 1)
+            (ledger.checkBlockStatus _).expects(blockHash.hash).returning(InChain)
+          else if (blockHash.number == 2)
+            (ledger.checkBlockStatus _).expects(blockHash.hash).returning(Queued)
+          else
+            (ledger.checkBlockStatus _).expects(blockHash.hash).returning(UnknownBlock)
+        )
+
+        sendBlockHeaders(Seq.empty)
+        regularSync.underlyingActor.topOfTheChain shouldEqual true
+        sendNewBlockHashMsg(blockHashes)
+
+        val hashesRequested = blockHashes.takeRight(2)
+
+        etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
+        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(hashesRequested.head.hash), hashesRequested.length, 0, false), peer1.id))
+      }
+
+      "blacklist peer sending ancient blockhashes" in new TestSetup {
+        val blockHash = randomBlockHash()
+        storagesInstance.storages.appStateStorage.putBestBlockNumber(blockHash.number + syncConfig.maxNewBlockHashAge + 1)
+        sendBlockHeaders(Seq.empty)
+        regularSync.underlyingActor.topOfTheChain shouldEqual true
+        sendNewBlockHashMsg(Seq(blockHash))
+
+        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+      }
+
+      "handle at most 64 new hashes in one request" in new TestSetup {
+        val blockHashes = (1 to syncConfig.maxNewHashes + 1).map(num => randomBlockHash(num)).toSeq
+
+        blockHashes.take(syncConfig.maxNewHashes).foreach(blockHash =>
+          (ledger.checkBlockStatus _).expects(blockHash.hash).returning(UnknownBlock)
+        )
+        sendBlockHeaders(Seq.empty)
+        regularSync.underlyingActor.topOfTheChain shouldEqual true
+        sendNewBlockHashMsg(blockHashes)
+
+        etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
+        etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(blockHashes.head.hash), syncConfig.maxNewHashes, 0, false), peer1.id))
+      }
+
+    }
 
     "receiving MinedBlock msg" should {
 
@@ -274,6 +350,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       override val fastSyncThrottle: FiniteDuration = 100.milliseconds
       val maxQueuedBlockNumberAhead: Int = 10
       val maxQueuedBlockNumberBehind: Int = 10
+      val maxNewBlockHashAge: Int = 20
+      val maxNewHashes: Int = 64
     }
 
     val regularSync = TestActorRef[RegularSync](RegularSync.props(
@@ -328,7 +406,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
     val keyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
 
-
     def randomHash(): ByteString =
       ObjectGenerators.byteStringOfLengthNGen(32).sample.get
 
@@ -344,6 +421,13 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
     def sendNewBlockMsg(block: Block): Unit = {
       regularSync ! MessageFromPeer(NewBlock(block, 0), peer1.id)
+    }
+
+    def randomBlockHash(blockNum: BigInt = 1): BlockHash =
+      BlockHash(randomHash(), blockNum)
+
+    def sendNewBlockHashMsg(blockHashes: Seq[BlockHash]): Unit = {
+      regularSync ! MessageFromPeer(NewBlockHashes(blockHashes), peer1.id)
     }
 
     def sendMinedBlockMsg(block: Block): Unit = {
