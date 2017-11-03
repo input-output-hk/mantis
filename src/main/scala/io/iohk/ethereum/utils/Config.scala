@@ -90,7 +90,7 @@ object Config {
 
       val apis = {
         val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
-        val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal"))
+        val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal", "daedalus"))
         require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
         providedApis
       }

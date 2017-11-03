@@ -33,6 +33,7 @@ object JsonRpcController {
     val Net = "net"
     val Db = "db"
     val Personal = "personal"
+    val Daedalus = "daedalus"
     val Admin = "admin"
     val Debug = "debug"
     val Rpc = "rpc"
@@ -58,6 +59,7 @@ class JsonRpcController(
     Apis.Net -> handleNetRequest,
     Apis.Db -> PartialFunction.empty,
     Apis.Personal -> handlePersonalRequest,
+    Apis.Daedalus -> handleDaedalusRequest,
     Apis.Rpc -> handleRpcRequest,
     Apis.Admin -> PartialFunction.empty,
     Apis.Debug -> PartialFunction.empty
@@ -191,7 +193,9 @@ class JsonRpcController(
 
     case req @ JsonRpcRequest(_, "personal_ecRecover", _, _) =>
       handle[EcRecoverRequest, EcRecoverResponse](personalService.ecRecover, req)
+  }
 
+  private def handleDaedalusRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "daedalus_deleteWallet", _, _) =>
       handle[DeleteWalletRequest, DeleteWalletResponse](personalService.deleteWallet, req)
 
