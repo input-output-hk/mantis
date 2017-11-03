@@ -574,7 +574,8 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       case o => extractQuantity(o).map(Some(_))
     }
 
-  implicit val mantis_getAccountRecentTransactions = new JsonDecoder[GetAccountRecentTransactionsRequest] with JsonEncoder[GetAccountRecentTransactionsResponse] {
+  implicit val daedalus_getAccountRecentTransactions =
+    new JsonDecoder[GetAccountRecentTransactionsRequest] with JsonEncoder[GetAccountRecentTransactionsResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetAccountRecentTransactionsRequest] =
       params match {
         case Some(jarray: JArray) =>

@@ -36,7 +36,7 @@ object JsonRpcController {
     val Admin = "admin"
     val Debug = "debug"
     val Rpc = "rpc"
-    val Mantis = "mantis"
+    val Daedalus = "daedalus"
   }
 
 }
@@ -60,7 +60,7 @@ class JsonRpcController(
     Apis.Db -> PartialFunction.empty,
     Apis.Personal -> handlePersonalRequest,
     Apis.Rpc -> handleRpcRequest,
-    Apis.Mantis -> handleMantisRequest,
+    Apis.Daedalus -> handleDaedalusRequest,
     Apis.Admin -> PartialFunction.empty,
     Apis.Debug -> PartialFunction.empty
   )
@@ -169,8 +169,8 @@ class JsonRpcController(
       handle[SignRequest, SignResponse](personalService.sign, req)(eth_sign, personal_sign)
   }
 
-  private def handleMantisRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
-    case req @ JsonRpcRequest(_, "mantis_getAccountRecentTransactions", _, _) =>
+  private def handleDaedalusRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "daedalus_getAccountRecentTransactions", _, _) =>
       handle[GetAccountRecentTransactionsRequest, GetAccountRecentTransactionsResponse](ethService.getAccountRecentTransactions, req)
   }
 
