@@ -1293,7 +1293,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       "rpc" -> "1.0",
       "personal" -> "1.0",
       "eth" -> "1.0",
-      "web3" -> "1.0"
+      "web3" -> "1.0",
+      "daedalus" -> "1.0"
     ))
   }
 
