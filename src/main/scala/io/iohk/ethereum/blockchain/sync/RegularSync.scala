@@ -135,7 +135,7 @@ class RegularSync(
       val maybePeer = peersToDownloadFrom.find(peer => peer._1.id == peerId)
       //we allow asking for new hashes when we are not syncing and we can download from specified peer ,we are
       //top of the chain and not resolving branches currently
-      if (notDownloading() && topOfTheChain && maybePeer.isDefined && !resolvingBranches) {
+      if (notDownloading() && topOfTheChain && maybePeer.isDefined) {
         val (peer, _) = maybePeer.get
         val hashesToCheck = hashes.take(syncConfig.maxNewHashes)
 
@@ -399,7 +399,7 @@ class RegularSync(
   }
 
   private def notDownloading(): Boolean =
-    headersQueue.isEmpty && waitingForActor.isEmpty
+    headersQueue.isEmpty && waitingForActor.isEmpty && !resolvingBranches
 
 }
 
