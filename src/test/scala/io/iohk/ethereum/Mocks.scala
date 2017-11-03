@@ -4,18 +4,15 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderNumberError
-import io.iohk.ethereum.validators.BlockValidator.BlockTransactionsHashError
-import io.iohk.ethereum.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack}
-import io.iohk.ethereum.validators.BlockHeaderError.{HeaderDifficultyError, HeaderNumberError}
 import io.iohk.ethereum.validators.BlockValidator.{BlockTransactionsHashError, BlockValid}
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError.OmmersNotValidError
-import io.iohk.ethereum.validators.OmmersValidator.OmmersValid
+import io.iohk.ethereum.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack, OmmersValid}
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm._
 

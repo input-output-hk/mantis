@@ -3,9 +3,8 @@ package io.iohk.ethereum.validators
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.validators.OmmersValidator.{OmmersError, OmmersValid}
-import io.iohk.ethereum.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack, OmmersError}
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError._
+import io.iohk.ethereum.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack, OmmersError, OmmersValid}
 
 trait OmmersValidator {
 
