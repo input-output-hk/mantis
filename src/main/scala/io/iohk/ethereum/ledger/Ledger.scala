@@ -25,6 +25,8 @@ trait Ledger {
   def importBlock(block: Block): BlockImportResult
 
   def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
+
+  def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader): BigInt
 }
 
 //FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
@@ -448,6 +450,14 @@ class LedgerImpl(
     val totalGasToRefund = calcTotalGasToRefund(stx, result)
 
     TxResult(result.world, gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
+  }
+
+  def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader): BigInt = {
+    val lowLimit = EvmConfig.forBlock(blockHeader.number, blockchainConfig).feeSchedule.G_transaction
+    val highLimit = stx.tx.gasLimit
+
+    LedgerUtils.binaryChop(lowLimit, highLimit)(gasLimit =>
+      simulateTransaction(stx.copy(tx = stx.tx.copy(gasLimit = gasLimit)), blockHeader).vmError)
   }
 
   private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {

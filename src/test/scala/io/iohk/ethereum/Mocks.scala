@@ -39,6 +39,9 @@ object Mocks {
     def importBlock(block: Block): BlockImportResult = ???
 
     def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = ???
+
+    def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader): BigInt = ???
+
   }
 
   private val defaultProgramResult: Ledger.PC => Ledger.PR = context => ProgramResult(

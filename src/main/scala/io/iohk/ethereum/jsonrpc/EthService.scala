@@ -528,13 +528,13 @@ class EthService(
 
   def call(req: CallRequest): ServiceResponse[CallResponse] = {
     Future {
-      doCall(req).map(r => CallResponse(r.vmReturnData))
+      doCall(req)(ledger.simulateTransaction).map(r => CallResponse(r.vmReturnData))
     }
   }
 
   def estimateGas(req: CallRequest): ServiceResponse[EstimateGasResponse] = {
     Future {
-      doCall(req).map(r => EstimateGasResponse(r.gasUsed))
+      doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
     }
   }
 
@@ -696,31 +696,30 @@ class EthService(
     }
   }
 
-  private def doCall(req: CallRequest): Either[JsonRpcError, Ledger.TxResult] = {
-    val fromAddress = req.tx.from
-      .map(Address.apply) // `from` param, if specified
-      .getOrElse(
-      keyStore
-        .listAccounts().getOrElse(Nil).headOption // first account, if exists and `from` param not specified
-        .getOrElse(Address(0))) // 0x0 default
+  private def doCall[A](req: CallRequest)(f: (SignedTransaction, BlockHeader) => A): Either[JsonRpcError, A] = for {
+    stx   <- prepareTransaction(req)
+    block <- resolveBlock(req.block)
+  } yield f(stx, block.block.header)
 
-    val toAddress = req.tx.to.map(Address.apply)
+  private def getGasLimit(req: CallRequest): Either[JsonRpcError, BigInt] =
+    if (req.tx.gas.isDefined) Right[JsonRpcError, BigInt](req.tx.gas.get)
+    else resolveBlock(BlockParam.Latest).map(r => r.block.header.gasLimit)
 
-    // TODO improvement analysis is suggested in EC-199
-    val gasLimit: Either[JsonRpcError, BigInt] = {
-      if (req.tx.gas.isDefined) Right[JsonRpcError, BigInt](req.tx.gas.get)
-      else resolveBlock(BlockParam.Latest).map(r => r.block.header.gasLimit)
-    }
+  private def prepareTransaction(req: CallRequest):Either[JsonRpcError ,SignedTransaction] = {
+    getGasLimit(req).map{ gasLimit =>
+      val fromAddress = req.tx.from
+        .map(Address.apply) // `from` param, if specified
+        .getOrElse(
+        keyStore
+          .listAccounts().getOrElse(Nil).headOption // first account, if exists and `from` param not specified
+          .getOrElse(Address(0))) // 0x0 default
 
-    gasLimit.flatMap { gl =>
-      val tx = Transaction(0, req.tx.gasPrice, gl, toAddress, req.tx.value, req.tx.data)
+      val toAddress = req.tx.to.map(Address.apply)
+
+      val tx = Transaction(0, req.tx.gasPrice, gasLimit, toAddress, req.tx.value, req.tx.data)
       val fakeSignature = ECDSASignature(0, 0, 0.toByte)
-      val stx = SignedTransaction(tx, fakeSignature, fromAddress)
-
-      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        ledger.simulateTransaction(stx, block.header)
-      }
+      SignedTransaction(tx, fakeSignature, fromAddress)
     }
-
   }
+
 }

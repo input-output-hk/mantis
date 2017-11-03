@@ -12,13 +12,17 @@ import io.iohk.ethereum.vm.VM
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.Block.BlockDec
 
-class  SimulateTransactionTest extends FreeSpec with Matchers with Logger {
+class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
 
-  "Simulate transaction with throws should correctly estimate gas usage" in new ScenarioSetup {
+  "Estimating transaction" should "correctly estimate minimum gasLimit to run transaction which throws" in new ScenarioSetup {
     /*
-    * Tested transaction requires gasLimit equal to 122397, but actual gas used due to refund is equal 42907.
-    * Our simulateTransaction properly estimates gas usage to 42907, but actually requires at least 122397 gas to
-    * make that estimation
+    * Transaction requires gasLimit equal to 122397, but actual gas used due to refund is equal 42907.
+    * Our simulateTransaction properly estimates gas usage to 42907, but requires at least 122397 gas to
+    * make that simulation
+    *
+    * After some investigation it seems that semantics required from estimateGas is that it should return
+    * minimal gas required to sendTransaction, not minimal gas used by transaction. (it is implemented that way in
+    * parity and geth)
     *
     * */
 
@@ -28,10 +32,37 @@ class  SimulateTransactionTest extends FreeSpec with Matchers with Logger {
     val fakeSignature = ECDSASignature(0, 0, 0.toByte)
     val stx = SignedTransaction(tx, fakeSignature, fromAddress)
 
-    val someRes = ledger.simulateTransaction(stx, genesisBlock.header)
-    val exec = ledger.executeTransaction(stx, genesisBlock.header, worldWithAccount)
+    val simulationResult = ledger.simulateTransaction(stx, genesisBlock.header)
+    val executionResult = ledger.executeTransaction(stx, genesisBlock.header, worldWithAccount)
 
-    someRes.gasUsed shouldEqual exec.gasUsed
+    val estimationResult = ledger.binarySearchGasEstimation(stx, genesisBlock.header)
+
+    // Check that gasUsed from simulation and execution are equal
+    simulationResult.gasUsed shouldEqual executionResult.gasUsed
+
+    // Check that estimation result is equal to expected minimum
+    estimationResult shouldEqual minGasLimitRequiredForFailingTransaction
+
+    // Execute transaction with gasLimit lesser by one that estimated minimum
+    val errorExecResult = ledger.executeTransaction(stx.copy(tx = stx.tx.copy(gasLimit = estimationResult - 1)), genesisBlock.header, worldWithAccount)
+
+    // Check if running with gasLimit < estimatedMinimum return error
+    errorExecResult.vmError shouldBe defined
+  }
+
+  it should "correctly estimate gasLimit for value transfer transaction" in new ScenarioSetup {
+    val lastBlockGasLimit = genesisBlock.header.gasLimit
+
+    val transferValue = 2
+
+    val tx = Transaction(0, 0, lastBlockGasLimit, existingEmptyAccountAddres, transferValue, ByteString.empty)
+    val fakeSignature = ECDSASignature(0, 0, 0.toByte)
+    val stx = SignedTransaction(tx, fakeSignature, fromAddress)
+
+    val executionResult = ledger.executeTransaction(stx, genesisBlock.header, worldWithAccount)
+    val estimationResult = ledger.binarySearchGasEstimation(stx, genesisBlock.header)
+
+    estimationResult shouldEqual executionResult.gasUsed
   }
 }
 
@@ -67,6 +98,8 @@ trait ScenarioSetup
   val existingAddress = Address(10)
   val existingAccount = Account(nonce = UInt256.Zero, balance = UInt256(10))
 
+  val existingEmptyAccountAddres = Address(20)
+  val existingEmptyAccount = Account.empty()
 
   /*
    * Failing code which mess up with gas estimation
@@ -89,13 +122,15 @@ trait ScenarioSetup
 
   val sendData = ByteString(Hex.decode("23fcf32a0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000564756e6e6f000000000000000000000000000000000000000000000000000000"))
 
+  val fromBalance = UInt256(10)
   val fromAddress = Address(0)
-  val startAccount = Account.empty()
+  val startAccount = Account.empty().increaseBalance(fromBalance)
 
   val worldWithAccount =
     InMemoryWorldStateProxy.persistState(
       emptyWorld
         .saveAccount(fromAddress, startAccount)
+        .saveAccount(existingEmptyAccountAddres, existingEmptyAccount)
         .saveAccount(existingAddress, existingAccount)
         .saveCode(existingAddress, failingCode)
     )
@@ -103,9 +138,11 @@ trait ScenarioSetup
   val someGenesisBlock =
     Hex.decode("f901fcf901f7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a07dba07d6b448a186e9612e5f737d1c909dce473e53199901a302c00646d523c1a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302000080832fefd8808454c98c8142a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421880102030405060708c0c0")
 
-  val testableGasLimit: BigInt = 122397
+  val minGasLimitRequiredForFailingTransaction: BigInt = 122397
+
+  val blockGasLimit = 1000000
   val block = someGenesisBlock.toBlock
-  val genesisBlock = block.copy(header = block.header.copy(stateRoot = worldWithAccount.stateRootHash, gasLimit = testableGasLimit))
+  val genesisBlock = block.copy(header = block.header.copy(stateRoot = worldWithAccount.stateRootHash, gasLimit = blockGasLimit))
 
   blockchain.save(genesisBlock)
   blockchain.save(genesisBlock.header.hash, Nil)

@@ -795,6 +795,12 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     )
   }
 
+  it should "properly find minimal required gas limit to execute transaction" in new BinarySimulationChopSetup {
+    testGasValues.foreach(minimumRequiredGas =>
+      LedgerUtils.binaryChop[TxError](minimalGas, maximalGas)(mockTransaction(minimumRequiredGas)) shouldEqual minimumRequiredGas
+    )
+  }
+
   trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
@@ -928,4 +934,18 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       .returning(worldState)
   }
 
+  trait BinarySimulationChopSetup {
+    sealed trait TxError
+    case object TxError extends TxError
+
+    val minimalGas:BigInt = 20000
+    val maximalGas:BigInt = 100000
+    val stepGas: BigInt = 625
+
+    val testGasValues = minimalGas.to(maximalGas, stepGas).toList
+
+    val mockTransaction: BigInt => BigInt => Option[TxError] =
+      minimalWorkingGas => gasLimit => if (gasLimit >= minimalWorkingGas) None else Some(TxError)
+
+  }
 }
