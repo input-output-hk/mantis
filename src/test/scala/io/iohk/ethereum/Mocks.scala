@@ -19,6 +19,8 @@ import io.iohk.ethereum.vm._
 object Mocks {
 
   class MockLedger(blockchain: BlockchainImpl, shouldExecuteCorrectly: (Block, BlockchainImpl) => Boolean) extends Ledger{
+    override def checkBlockStatus(blockHash:ByteString): BlockStatus = ???
+
     override def executeBlock(block: Block, alreadyValidated: Boolean = false)
     : Either[BlockExecutionError, Seq[Receipt]] = {
       if(shouldExecuteCorrectly(block, blockchain))

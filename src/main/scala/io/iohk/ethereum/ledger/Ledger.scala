@@ -17,6 +17,8 @@ import scala.annotation.tailrec
 
 trait Ledger {
 
+  def checkBlockStatus(blockHash: ByteString): BlockStatus
+
   def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]]
 
   def prepareBlock(block: Block): BlockPreparationResult
@@ -306,6 +308,23 @@ class LedgerImpl(
       blockchain.getBlockByNumber(h.number).map(_ :: getBlocksForHeaders(tail)).getOrElse(Nil)
     case Seq() =>
       Nil
+  }
+  /**
+    * Check current status of block, based on its hash
+    *
+    * @param blockHash - hash of block to check
+    * @return One of:
+    *         - [[InChain]] - Block already incorporated into blockchain
+    *         - [[Queued]]  - Block in queue waiting to be resolved
+    *         - [[UnknownBlock]] - Hash its not known to our client
+    */
+  def checkBlockStatus(blockHash: ByteString): BlockStatus = {
+    if (blockchain.getBlockByHash(blockHash).isDefined)
+      InChain
+    else if (blockQueue.isQueued(blockHash))
+      Queued
+    else
+      UnknownBlock
   }
 
   /**
@@ -792,6 +811,10 @@ case object NoChainSwitch extends BranchResolutionResult
 case object UnknownBranch extends BranchResolutionResult
 case object InvalidBranch extends BranchResolutionResult
 
+sealed trait BlockStatus
+case object InChain       extends BlockStatus
+case object Queued        extends BlockStatus
+case object UnknownBlock  extends BlockStatus
 
 trait BlockPreparationError
 
