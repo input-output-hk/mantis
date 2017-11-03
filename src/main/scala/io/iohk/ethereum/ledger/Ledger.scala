@@ -33,6 +33,7 @@ trait Ledger {
 //FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
 //TODO: EC-313: this has grown a bit large, consider splitting the aspects block import, block exec and TX exec
 // scalastyle:off number.of.methods
+// scalastyle:off file.size.limit
 /**
   * Ledger handles importing and executing blocks.
   * Note: this class thread-unsafe because of its dependencies on Blockchain and BlockQueue
