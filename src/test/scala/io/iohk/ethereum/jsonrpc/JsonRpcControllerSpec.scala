@@ -1339,7 +1339,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     ))
   }
 
-  it should "eth_getAccountRecentTransactions" in new TestSetup {
+  it should "mantis_getAccountRecentTransactions" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
 
@@ -1353,7 +1353,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
-      "eth_getAccountRecentTransactions",
+      "mantis_getAccountRecentTransactions",
       Some(JArray(List(
         JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D")
       ))),
