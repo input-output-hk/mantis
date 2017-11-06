@@ -9,11 +9,9 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Account, Address, Blockchain}
-import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
-import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils.{BlockchainConfig, TxPoolConfig}
@@ -50,6 +48,9 @@ object PersonalService {
 
   case class EcRecoverRequest(message: ByteString, signature: ECDSASignature)
   case class EcRecoverResponse(address: Address)
+
+  case class DeleteWalletRequest(address: Address)
+  case class DeleteWalletResponse(result: Boolean)
 
   val InvalidKey = InvalidParams("Invalid key provided, expected 32 bytes (64 hex digits)")
   val InvalidAddress = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
@@ -150,6 +151,14 @@ class PersonalService(
       case None =>
         Future.successful(Left(AccountLocked))
     }
+  }
+
+  def deleteWallet(request: DeleteWalletRequest): ServiceResponse[DeleteWalletResponse] = Future {
+    unlockedWallets.remove(request.address)
+
+    keyStore.deleteWallet(request.address)
+      .map(DeleteWalletResponse.apply)
+      .left.map(handleError)
   }
 
   private def sendTransaction(request: TransactionRequest, wallet: Wallet): Future[ByteString] = {

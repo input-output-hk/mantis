@@ -63,7 +63,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
 
   val upfrontGasCost: UInt256 = UInt256(senderBalance / 2)
 
-  def validateStx(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, Unit] = {
+  def validateStx(stx: SignedTransaction, fromBeforeHomestead: Boolean): Either[SignedTransactionError, SignedTransactionValid] = {
     val (senderAccount, blockHeader) =
       if(fromBeforeHomestead)
         (senderAccountBeforeHomestead, blockHeaderBeforeHomestead)

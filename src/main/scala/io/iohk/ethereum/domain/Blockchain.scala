@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode, NodesKeyValueStorage}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -13,6 +14,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
   */
+// scalastyle:off number.of.methods
 trait Blockchain {
 
   type S <: Storage[S]
@@ -130,6 +132,7 @@ trait Blockchain {
     if (saveAsBestBlock) {
       saveBestBlockNumber(block.header.number)
     }
+    pruneState(block.header.number)
   }
 
   /**
@@ -184,7 +187,12 @@ trait Blockchain {
                                  accountStartNonce: UInt256,
                                  stateRootHash: Option[ByteString] = None,
                                  noEmptyAccounts: Boolean = false): WS
+
+  def pruneState(blockNumber: BigInt): Unit
+
+  def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit
 }
+// scalastyle:on
 
 class BlockchainImpl(
     protected val blockHeadersStorage: BlockHeadersStorage,
@@ -192,7 +200,8 @@ class BlockchainImpl(
     protected val blockNumberMappingStorage: BlockNumberMappingStorage,
     protected val receiptStorage: ReceiptStorage,
     protected val evmCodeStorage: EvmCodeStorage,
-    protected val nodesKeyValueStorageFor: Option[BigInt] => NodesKeyValueStorage,
+    protected val pruningMode: PruningMode,
+    protected val nodeStorage: NodeStorage,
     protected val totalDifficultyStorage: TotalDifficultyStorage,
     protected val transactionMappingStorage: TransactionMappingStorage,
     protected val appStateStorage: AppStateStorage
@@ -280,6 +289,7 @@ class BlockchainImpl(
     receiptStorage.remove(blockHash)
     maybeTxList.foreach(removeTxsLocations)
     maybeBlockHeader.foreach{ h =>
+      rollbackStateChangesMadeByBlock(h.number)
       if (getHashByBlockNumber(h.number).contains(blockHash))
         removeBlockNumberMapping(h.number)
 
@@ -326,6 +336,13 @@ class BlockchainImpl(
       stateRootHash,
       noEmptyAccounts = false
     )
+
+  def nodesKeyValueStorageFor(blockNumber: Option[BigInt]): NodesKeyValueStorage =
+    PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(blockNumber)
+
+  def pruneState(blockNumber: BigInt): Unit = PruningMode.prune(pruningMode, blockNumber, nodeStorage)
+
+  def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit = PruningMode.rollback(pruningMode, blockNumber, nodeStorage)
 }
 
 trait BlockchainStorages {
@@ -337,7 +354,7 @@ trait BlockchainStorages {
   val totalDifficultyStorage: TotalDifficultyStorage
   val transactionMappingStorage: TransactionMappingStorage
   val nodeStorage: NodeStorage
-  val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage
+  val pruningMode: PruningMode
   val appStateStorage: AppStateStorage
 }
 
@@ -349,7 +366,8 @@ object BlockchainImpl {
       blockNumberMappingStorage = storages.blockNumberMappingStorage,
       receiptStorage = storages.receiptStorage,
       evmCodeStorage = storages.evmCodeStorage,
-      nodesKeyValueStorageFor = storages.nodesKeyValueStorageFor,
+      pruningMode = storages.pruningMode,
+      nodeStorage = storages.nodeStorage,
       totalDifficultyStorage = storages.totalDifficultyStorage,
       transactionMappingStorage = storages.transactionMappingStorage,
       appStateStorage = storages.appStateStorage

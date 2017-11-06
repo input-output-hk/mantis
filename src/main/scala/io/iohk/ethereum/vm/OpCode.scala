@@ -682,14 +682,17 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
 
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
       val (newAddress, world1) = state.world.createAddressWithOpCode(state.env.ownerAddr)
+      val world2 = world1.initialiseAccount(newAddress).transfer(state.env.ownerAddr, newAddress, endowment)
 
-      val worldAfterInitialisation = world1.initialiseAccount(state.env.ownerAddr, newAddress, endowment)
+      // EIP-684
+      val conflict = state.world.nonEmptyCodeOrNonceAccount(newAddress)
+      val code = if (conflict) ByteString(INVALID.code) else initCode
 
       val newEnv = state.env.copy(
         callerAddr = state.env.ownerAddr,
         ownerAddr = newAddress,
         value = endowment,
-        program = Program(initCode),
+        program = Program(code),
         inputData = ByteString.empty,
         callDepth = state.env.callDepth + 1
       )
@@ -699,7 +702,7 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
       val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
       val startGas = state.config.gasCap(availableGas)
 
-      val context = ProgramContext[W, S](newEnv, newAddress, startGas, worldAfterInitialisation, state.config, state.addressesToDelete)
+      val context = ProgramContext[W, S](newEnv, newAddress, startGas, world2, state.config, state.addressesToDelete)
       val result = VM.run(context)
 
       val contractCode = result.returnData

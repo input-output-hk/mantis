@@ -262,4 +262,53 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     }
 
   }
+
+  "account with non-empty code already exists" should {
+
+    "fail to create contract" in {
+      val accountNonEmptyCode = Account(codeHash = ByteString("abc"))
+
+      val world = fxt.initWorld.saveAccount(fxt.newAddr, accountNonEmptyCode)
+      val context: PC = fxt.context.copy(world = world)
+      val result = CreateResult(context = context)
+
+      result.returnValue shouldEqual UInt256.Zero
+      result.world.getGuaranteedAccount(fxt.newAddr) shouldEqual accountNonEmptyCode
+      result.world.getCode(fxt.newAddr) shouldEqual ByteString.empty
+    }
+  }
+
+  "account with non-zero nonce already exists" should {
+
+    "fail to create contract" in {
+      val accountNonZeroNonce = Account(nonce = 1)
+
+      val world = fxt.initWorld.saveAccount(fxt.newAddr, accountNonZeroNonce)
+      val context: PC = fxt.context.copy(world = world)
+      val result = CreateResult(context = context)
+
+      result.returnValue shouldEqual UInt256.Zero
+      result.world.getGuaranteedAccount(fxt.newAddr) shouldEqual accountNonZeroNonce
+      result.world.getCode(fxt.newAddr) shouldEqual ByteString.empty
+    }
+  }
+
+  "account with non-zero balance, but empty code and zero nonce, already exists" should {
+
+    "succeed in creating new contract" in {
+      val accountNonZeroBalance = Account(balance = 1)
+
+      val world = fxt.initWorld.saveAccount(fxt.newAddr, accountNonZeroBalance)
+      val context: PC = fxt.context.copy(world = world)
+      val result = CreateResult(context = context)
+
+      result.returnValue shouldEqual fxt.newAddr.toUInt256
+
+      val newContract = result.world.getGuaranteedAccount(fxt.newAddr)
+      newContract.balance shouldEqual (accountNonZeroBalance.balance + fxt.endowment)
+      newContract.nonce shouldEqual accountNonZeroBalance.nonce
+
+      result.world.getCode(fxt.newAddr) shouldEqual fxt.contractCode.code
+    }
+  }
 }

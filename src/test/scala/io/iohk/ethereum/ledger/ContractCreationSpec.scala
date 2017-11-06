@@ -6,7 +6,7 @@ import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
-import io.iohk.ethereum.domain.{Address, BlockchainImpl, TxLogEntry, UInt256}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger.PR
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -38,9 +38,9 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
       error = error
     )
 
-  it should "return an error if it's size is larger than the limit" in new TestSetup {
+  "Ledger" should "return an error if new contract's code size is larger than the limit" in new TestSetup {
     val longContractCode = ByteString(Array.fill(codeSizeLimit + 1)(1.toByte))
-    val resultBeforeSaving = createResult(emptyWorld, gasUsed = defaultGasLimit / 2,
+    val resultBeforeSaving = createResult(emptyWorld(), gasUsed = defaultGasLimit / 2,
       gasLimit = defaultGasLimit, gasRefund = 0, error = None, returnData = longContractCode)
 
     val ledger = new LedgerImpl(new MockVM(), blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
@@ -48,14 +48,76 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     resultAfterSaving.error shouldBe Some(OutOfGas)
   }
 
-  it should "not return an error if it's size is smaller than the limit" in new TestSetup {
+  it should "not return an error if new contract's code size is smaller than the limit" in new TestSetup {
     val shortContractCode = ByteString(Array.fill(codeSizeLimit - 1)(1.toByte))
-    val resultBeforeSaving = createResult(emptyWorld, gasUsed = defaultGasLimit / 2,
+    val resultBeforeSaving = createResult(emptyWorld(), gasUsed = defaultGasLimit / 2,
       gasLimit = defaultGasLimit, gasRefund = 0, error = None, returnData = shortContractCode)
 
     val ledger = new LedgerImpl(new MockVM(), blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
     val resultAfterSaving = ledger.saveNewContract(contractAddress, resultBeforeSaving, config)
     resultAfterSaving.error shouldBe None
+  }
+
+  it should "fail to execute contract creation code in case of address conflict (non-empty code)" in
+  new TestSetup with ContractCreatingTx {
+    val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
+    val world = worldWithCreator.saveAccount(newAddress, accountNonEmptyCode)
+    val result = ledger.executeTransaction(stx, blockHeader, world)
+
+    result.vmError shouldEqual Some(InvalidOpCode(INVALID.code))
+    result.worldState.getGuaranteedAccount(newAddress) shouldEqual accountNonEmptyCode
+  }
+
+  it should "fail to execute contract creation code in case of address conflict (non-zero nonce)" in
+  new TestSetup with ContractCreatingTx {
+    val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
+    val world = worldWithCreator.saveAccount(newAddress, accountNonZeroNonce)
+    val result = ledger.executeTransaction(stx, blockHeader, world)
+
+    result.vmError shouldEqual Some(InvalidOpCode(INVALID.code))
+    result.worldState.getGuaranteedAccount(newAddress) shouldEqual accountNonZeroNonce
+  }
+
+  it should "succeed in creating a contract if the account already has some balance, but zero nonce and empty code" in
+  new TestSetup with ContractCreatingTx {
+    val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
+    val world = worldWithCreator.saveAccount(newAddress, accountNonZeroBalance)
+    val result = ledger.executeTransaction(stx, blockHeader, world)
+
+    result.vmError shouldEqual None
+
+    val newContract = result.worldState.getGuaranteedAccount(newAddress)
+    newContract.balance shouldEqual (transferValue + accountNonZeroBalance.balance)
+    newContract.nonce shouldEqual accountNonZeroBalance.nonce
+    newContract.codeHash should not equal Account.EmptyCodeHash
+
+    result.worldState.getCode(newAddress) shouldEqual ByteString(STOP.code)
+  }
+
+  it should "initialise a new contract account with zero nonce before EIP-161" in
+  new TestSetup with ContractCreatingTx {
+    val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
+    val result = ledger.executeTransaction(stx, blockHeader, worldWithCreator)
+
+    result.vmError shouldEqual None
+
+    val newContract = result.worldState.getGuaranteedAccount(newAddress)
+    newContract.balance shouldEqual transferValue
+    newContract.nonce shouldEqual UInt256.Zero
+    result.worldState.getCode(newAddress) shouldEqual ByteString(STOP.code)
+  }
+
+  it should "initialise a new contract account with incremented nonce after EIP-161" in
+  new TestSetup with ContractCreatingTx {
+    val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
+    val result = ledger.executeTransaction(stx, blockHeader, worldWithCreatorAfterEip161)
+
+    result.vmError shouldEqual None
+
+    val newContract = result.worldState.getGuaranteedAccount(newAddress)
+    newContract.balance shouldEqual transferValue
+    newContract.nonce shouldEqual UInt256.One
+    result.worldState.getCode(newAddress) shouldEqual ByteString(STOP.code)
   }
 
   trait TestSetup extends EphemBlockchainTestSetup with SecureRandomBuilder {
@@ -66,7 +128,8 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     val defaultGasLimit = 5000
     val config = EvmConfig.FrontierConfigBuilder(None)
 
-    val emptyWorld = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
+    def emptyWorld(noEmptyAccounts: Boolean = false) =
+      BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts)
 
     val defaultBlockchainConfig = BlockchainConfig(Config.config)
     val blockchainConfig = new BlockchainConfig {
@@ -91,5 +154,50 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     }
 
     val syncConfig = SyncConfig(Config.config)
+
+    val validators = Mocks.MockValidatorsAlwaysSucceed
+  }
+
+  trait ContractCreatingTx { self: TestSetup =>
+
+    val blockHeader = BlockHeader(
+      parentHash = bEmpty,
+      ommersHash = bEmpty,
+      beneficiary = bEmpty,
+      stateRoot = bEmpty,
+      transactionsRoot = bEmpty,
+      receiptsRoot = bEmpty,
+      logsBloom = bEmpty,
+      difficulty = 1000000,
+      number = blockchainConfig.homesteadBlockNumber + 1,
+      gasLimit = 10000000,
+      gasUsed = 0,
+      unixTimestamp = 0,
+      extraData = bEmpty,
+      mixHash = bEmpty,
+      nonce = bEmpty
+    )
+
+    // code returns a single STOP instruction
+    val initialisingCode = Assembly(
+      PUSH1, 1,
+      PUSH1, 0,
+      RETURN
+    ).code
+
+    val transferValue: BigInt = 100
+    val tx = Transaction(0, 1, 100000, None, transferValue, initialisingCode)
+
+    val stx = SignedTransaction.sign(tx, keyPair, None)
+
+    val accountNonZeroNonce = Account(nonce = 1)
+    val accountNonEmptyCode = Account(codeHash = ByteString("abc"))
+    val accountNonZeroBalance = Account(balance = 1)
+
+    val creatorAccount = Account(nonce = 1, balance = 1000000)
+    val creatorAddr = stx.senderAddress
+    val worldWithCreator = emptyWorld().saveAccount(creatorAddr, creatorAccount)
+    val worldWithCreatorAfterEip161 = emptyWorld(noEmptyAccounts = true).saveAccount(creatorAddr, creatorAccount)
+    val newAddress = worldWithCreator.saveAccount(creatorAddr, creatorAccount.increaseNonce()).createAddress(creatorAddr)
   }
 }

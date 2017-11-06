@@ -85,39 +85,14 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
     newWorld.touchedAccounts.size shouldEqual 0
   }
 
-  it should "delete multiple touched empty accounts more operations" in new TestSetup {
-    val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress3, validEmptyAccountAddress, zeroTransferBalance)
+  it should "not delete touched new account resulting from contract creation (initialised)" in new TestSetup {
+    val worldAfterInitAndTransfer =
+      worldStatePostEIP161.initialiseAccount(validCreatedAccountAddress)
+        .transfer(validAccountAddress, validCreatedAccountAddress, zeroTransferBalance)
 
-    worldAfterTransfer.touchedAccounts.size shouldEqual 2
+    worldAfterInitAndTransfer.touchedAccounts.size shouldEqual 2
 
-    val worldAfterPayingToMiner = ledger.pay(validEmptyAccountAddress1, zeroTransferBalance)(worldAfterTransfer)
-
-    worldAfterPayingToMiner.touchedAccounts.size shouldEqual 3
-
-    val worldafterInitialisation =
-      worldAfterPayingToMiner.initialiseAccount(validAccountAddress, validCreatedAccountAddress, validAccountBalance)
-
-    worldafterInitialisation.touchedAccounts.size shouldEqual 5
-
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldafterInitialisation))
-
-    (accountAddresses -- Set(validEmptyAccountAddress, validEmptyAccountAddress1, validAccountAddress) + validCreatedAccountAddress)
-      .foreach{ a => assert(newWorld.getAccount(a).isDefined) }
-
-    newWorld.getAccount(validEmptyAccountAddress) shouldBe None
-    newWorld.getAccount(validEmptyAccountAddress1) shouldBe None
-    newWorld.getAccount(validAccountAddress) shouldBe None
-    newWorld.touchedAccounts.size shouldEqual 0
-  }
-
-
-  it should "not delete touched account created by message transaction or createOp" in new TestSetup {
-    val worldAfterTransfer =
-      worldStatePostEIP161.initialiseAccount(validAccountAddress, validCreatedAccountAddress, zeroTransferBalance)
-
-    worldAfterTransfer.touchedAccounts.size shouldEqual 2
-
-    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldAfterTransfer))
+    val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldAfterInitAndTransfer))
 
     (accountAddresses + validCreatedAccountAddress).foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.touchedAccounts.size shouldEqual 0

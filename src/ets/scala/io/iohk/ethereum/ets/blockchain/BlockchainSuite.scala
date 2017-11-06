@@ -11,14 +11,7 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
   val supportedNetworks = Set("EIP150", "Frontier", "FrontierToHomesteadAt5", "Homestead", "HomesteadToEIP150At5", "HomesteadToDaoAt5", "EIP158")
 
   //Map of ignored tests, empty set of ignored names means cancellation of whole group
-  val ignoredTests: Map[String, Set[String]] = Map(
-    // they are failing on older version and success on fresh on. Blockchain test suite should be updated
-    // after introduction of EIP684.
-    "TransitionTests/bcHomesteadToDao/DaoTransactions" -> Set.empty,
-    "TransitionTests/bcHomesteadToDao/DaoTransactions_EmptyTransactionAndForkBlocksAhead" -> Set.empty,
-    "TransitionTests/bcHomesteadToDao/DaoTransactions_UncleExtradata" -> Set.empty,
-    "TransitionTests/bcHomesteadToDao/DaoTransactions_XBlockm1" -> Set.empty
-  )
+  val ignoredTests: Map[String, Set[String]] = Map()
 
   override def run(testName: Option[String], args: Args): Status = {
     val options = TestOptions(args.configMap)

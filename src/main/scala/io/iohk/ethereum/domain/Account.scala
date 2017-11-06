@@ -42,15 +42,18 @@ case class Account(
   def withStorage(storageRoot: ByteString): Account =
     copy(storageRoot = storageRoot)
 
-  def resetAccountPreservingBalance(startNonce: UInt256 = UInt256.Zero): Account =
-    copy(nonce = startNonce, storageRoot = Account.EmptyStorageRootHash, codeHash = Account.EmptyCodeHash)
-
   /**
     * According to EIP161: An account is considered empty when it has no code and zero nonce and zero balance.
     * An account's storage is not relevant when determining emptiness.
     */
-  def isEmpty: Boolean =
-    nonce == UInt256.Zero && balance == UInt256.Zero && codeHash == Account.EmptyCodeHash
+  def isEmpty(startNonce: UInt256 = UInt256.Zero): Boolean =
+    nonce == startNonce && balance == UInt256.Zero && codeHash == Account.EmptyCodeHash
+
+  /**
+    * Under EIP-684 if this evaluates to true then we have a conflict when creating a new account
+    */
+  def nonEmptyCodeOrNonce(startNonce: UInt256 = UInt256.Zero): Boolean =
+    nonce != startNonce || codeHash != Account.EmptyCodeHash
 
   override def toString: String =
     s"Account(nonce: $nonce, balance: $balance, " +

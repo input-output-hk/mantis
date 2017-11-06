@@ -6,8 +6,8 @@ import io.iohk.ethereum.domain.{BlockHeader, Blockchain, DifficultyCalculator}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
 trait BlockHeaderValidator {
-  def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader]
-  def validatePreImport(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader]
+  def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeaderValid]
+  def validatePreImport(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeaderValid]
 }
 
 object BlockHeaderValidatorImpl {
@@ -17,7 +17,7 @@ object BlockHeaderValidatorImpl {
   val MaxGasLimit = Long.MaxValue // max gasLimit is equal 2^63-1 according to EIP106
   val MaxPowCaches: Int = 2 // maximum number of epochs for which PoW cache is stored in memory
 
-  case class PowCacheData(cache: Array[Int], dagSize: Long)
+  class PowCacheData(val cache: Array[Int], val dagSize: Long)
 }
 
 class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
@@ -36,7 +36,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param blockHeader BlockHeader to validate.
     * @param parentHeader BlockHeader of the parent of the block to validate.
     */
-  def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
+  def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
       _ <- validateExtraData(blockHeader)
       _ <- validateTimestamp(blockHeader, parentHeader)
@@ -45,7 +45,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
       _ <- validateGasLimit(blockHeader, parentHeader)
       _ <- validateNumber(blockHeader, parentHeader)
       _ <- validatePoW(blockHeader)
-    } yield blockHeader
+    } yield BlockHeaderValid
   }
 
   /** This method allows validate a BlockHeader (stated on
@@ -54,18 +54,18 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param blockHeader BlockHeader to validate.
     * @param blockchain from where the header of the parent of the block will be fetched.
     */
-  def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] = {
+  def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeaderValid] = {
     for {
       blockHeaderParent <- obtainBlockParentHeader(blockHeader, blockchain)
       _ <- validate(blockHeader, blockHeaderParent)
-    } yield blockHeader
+    } yield BlockHeaderValid
   }
 
   /** TODO: implement EC-319
     * should consist of validating PoW and that difficulty is in a certain range (parent unknown)
     */
-  def validatePreImport(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeader] = {
-    Right(blockHeader)
+  def validatePreImport(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeaderValid] = {
+    Right(BlockHeaderValid)
   }
 
   /**
@@ -75,21 +75,21 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[HeaderExtraDataError]] otherwise
     */
-  private def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
+  private def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
 
-    def validateDaoForkExtraData(blockHeader: BlockHeader, daoForkConfig: DaoForkConfig): Either[BlockHeaderError, BlockHeader] =
+    def validateDaoForkExtraData(blockHeader: BlockHeader, daoForkConfig: DaoForkConfig): Either[BlockHeaderError, BlockHeaderValid] =
       (daoForkConfig requiresExtraData blockHeader.number, daoForkConfig.blockExtraData) match {
         case (false, _) =>
-          Right(blockHeader)
+          Right(BlockHeaderValid)
         case (true, Some(forkExtraData)) if blockHeader.extraData == forkExtraData =>
-          Right(blockHeader)
+          Right(BlockHeaderValid)
         case _ =>
           Left(DaoHeaderExtraDataError)
       }
 
     if (blockHeader.extraData.length <= MaxExtraDataSize) {
       import blockchainConfig._
-      daoForkConfig.map(c => validateDaoForkExtraData(blockHeader, c)).getOrElse(Right(blockHeader))
+      daoForkConfig.map(c => validateDaoForkExtraData(blockHeader, c)).getOrElse(Right(BlockHeaderValid))
     } else {
       Left(HeaderExtraDataError)
     }
@@ -103,8 +103,8 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param parentHeader BlockHeader of the parent of the block to validate.
     * @return BlockHeader if valid, an [[HeaderTimestampError]] otherwise
     */
-  private def validateTimestamp(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] =
-    if(blockHeader.unixTimestamp > parentHeader.unixTimestamp) Right(blockHeader)
+  private def validateTimestamp(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+    if(blockHeader.unixTimestamp > parentHeader.unixTimestamp) Right(BlockHeaderValid)
     else Left(HeaderTimestampError)
 
   /**
@@ -115,8 +115,8 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param parentHeader BlockHeader of the parent of the block to validate.
     * @return BlockHeader if valid, an [[HeaderDifficultyError]] otherwise
     */
-  private def validateDifficulty(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] =
-    if (difficulty.calculateDifficulty(blockHeader.number, blockHeader.unixTimestamp, parentHeader) == blockHeader.difficulty) Right(blockHeader)
+  private def validateDifficulty(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+    if (difficulty.calculateDifficulty(blockHeader.number, blockHeader.unixTimestamp, parentHeader) == blockHeader.difficulty) Right(BlockHeaderValid)
     else Left(HeaderDifficultyError)
 
   /**
@@ -126,8 +126,8 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[HeaderGasUsedError]] otherwise
     */
-  private def validateGasUsed(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] =
-    if(blockHeader.gasUsed<=blockHeader.gasLimit) Right(blockHeader)
+  private def validateGasUsed(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+    if(blockHeader.gasUsed<=blockHeader.gasLimit) Right(BlockHeaderValid)
     else Left(HeaderGasUsedError)
 
   /**
@@ -140,7 +140,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param parentHeader BlockHeader of the parent of the block to validate.
     * @return BlockHeader if valid, an [[HeaderGasLimitError]] otherwise
     */
-  private def validateGasLimit(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
+  private def validateGasLimit(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
 
     if (blockHeader.gasLimit > MaxGasLimit && blockHeader.number >= blockchainConfig.eip106BlockNumber)
       Left(HeaderGasLimitError)
@@ -148,7 +148,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
       val gasLimitDiff = (blockHeader.gasLimit - parentHeader.gasLimit).abs
       val gasLimitDiffLimit = parentHeader.gasLimit / GasLimitBoundDivisor
       if (gasLimitDiff < gasLimitDiffLimit && blockHeader.gasLimit >= MinGasLimit)
-        Right(blockHeader)
+        Right(BlockHeaderValid)
       else
         Left(HeaderGasLimitError)
     }
@@ -162,8 +162,8 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param parentHeader BlockHeader of the parent of the block to validate.
     * @return BlockHeader if valid, an [[HeaderNumberError]] otherwise
     */
-  private def validateNumber(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] =
-    if(blockHeader.number == parentHeader.number + 1) Right(blockHeader)
+  private def validateNumber(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+    if(blockHeader.number == parentHeader.number + 1) Right(BlockHeaderValid)
     else Left(HeaderNumberError)
 
   /**
@@ -173,7 +173,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[HeaderPoWError]] otherwise
     */
-  private def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeader] = {
+  private def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     import Ethash._
     import scala.collection.JavaConverters._
 
@@ -181,7 +181,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
       Option(powCaches.get(epoch)) match {
         case Some(pcd) => pcd
         case None =>
-          val data = PowCacheData(
+          val data = new PowCacheData(
             cache = Ethash.makeCache(epoch),
             dagSize = Ethash.dagSize(epoch))
 
@@ -233,3 +233,6 @@ object BlockHeaderError {
   case object HeaderNumberError extends BlockHeaderError
   case object HeaderPoWError extends BlockHeaderError
 }
+
+sealed trait BlockHeaderValid
+case object BlockHeaderValid extends BlockHeaderValid
