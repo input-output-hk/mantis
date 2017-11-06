@@ -90,7 +90,7 @@ object Config {
 
       val apis = {
         val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
-        val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal"))
+        val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal", "daedalus"))
         require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
         providedApis
       }
@@ -98,6 +98,7 @@ object Config {
       val certificateKeyStorePath: Option[String] = Try(rpcConfig.getString("certificate-keystore-path")).toOption
       val certificatePasswordFile: Option[String] = Try(rpcConfig.getString("certificate-password-file")).toOption
 
+      val txMaxNumRecentBlocks: Int = rpcConfig.getInt("tx-max-num-recent-blocks")
     }
 
   }
