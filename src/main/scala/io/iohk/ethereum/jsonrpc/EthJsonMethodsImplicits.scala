@@ -10,6 +10,8 @@ import org.json4s.{Extraction, JsonAST}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue, _}
 import org.json4s.JsonDSL._
 
+import scala.util.Try
+
 // scalastyle:off number.of.methods
 object EthJsonMethodsImplicits extends JsonMethodsImplicits {
 
@@ -550,12 +552,6 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] =
       opt.map(_.right.map(Some.apply)).getOrElse(Right(None))
 
-    def optionalQuantity(input: JValue): Either[JsonRpcError, Option[BigInt]] =
-      input match {
-        case JNothing => Right(None)
-        case o => extractQuantity(o).map(Some(_))
-      }
-
     for {
       from <- toEitherOpt((obj \ "from").extractOpt[String].map(extractBytes))
       to <- toEitherOpt((obj \ "to").extractOpt[String].map(extractBytes))
@@ -572,4 +568,25 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       data = data.getOrElse(ByteString("")))
   }
 
+  private def optionalQuantity(input: JValue): Either[JsonRpcError, Option[BigInt]] =
+    input match {
+      case JNothing => Right(None)
+      case o => extractQuantity(o).map(Some(_))
+    }
+
+  implicit val daedalus_getAccountRecentTransactions =
+    new JsonDecoder[GetAccountRecentTransactionsRequest] with JsonEncoder[GetAccountRecentTransactionsResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetAccountRecentTransactionsRequest] =
+      params match {
+        case Some(jarray: JArray) =>
+          for {
+            addr <- Try(jarray(0)).collect { case s: JString => extractAddress(s) }.getOrElse(Left(InvalidParams()))
+            numRecentBlocks <- optionalQuantity(Try(jarray(1)).getOrElse(JNothing))
+          } yield GetAccountRecentTransactionsRequest(addr, numRecentBlocks.map(_.toInt))
+        case _ => Left(InvalidParams())
+      }
+
+    override def encodeJson(t: GetAccountRecentTransactionsResponse): JValue =
+      JObject("sent" -> t.sent.map(Extraction.decompose), "received" -> t.received.map(Extraction.decompose))
+  }
 }
