@@ -475,8 +475,12 @@ class LedgerImpl(
     val lowLimit = EvmConfig.forBlock(blockHeader.number, blockchainConfig).feeSchedule.G_transaction
     val highLimit = stx.tx.gasLimit
 
-    LedgerUtils.binaryChop(lowLimit, highLimit)(gasLimit =>
-      simulateTransaction(stx.copy(tx = stx.tx.copy(gasLimit = gasLimit)), blockHeader).vmError)
+    if (highLimit < lowLimit)
+      highLimit
+    else {
+      LedgerUtils.binaryChop(lowLimit, highLimit)(gasLimit =>
+        simulateTransaction(stx.copy(tx = stx.tx.copy(gasLimit = gasLimit)), blockHeader).vmError)
+    }
   }
 
   private[ledger] def executeTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): TxResult = {
