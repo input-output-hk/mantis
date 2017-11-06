@@ -36,6 +36,7 @@ object JsonRpcController {
     val Admin = "admin"
     val Debug = "debug"
     val Rpc = "rpc"
+    val Daedalus = "daedalus"
   }
 
 }
@@ -59,6 +60,7 @@ class JsonRpcController(
     Apis.Db -> PartialFunction.empty,
     Apis.Personal -> handlePersonalRequest,
     Apis.Rpc -> handleRpcRequest,
+    Apis.Daedalus -> handleDaedalusRequest,
     Apis.Admin -> PartialFunction.empty,
     Apis.Debug -> PartialFunction.empty
   )
@@ -165,6 +167,11 @@ class JsonRpcController(
       // Even if it's under eth_xxx this method actually does the same as personal_sign but needs the account
       // to be unlocked before calling
       handle[SignRequest, SignResponse](personalService.sign, req)(eth_sign, personal_sign)
+  }
+
+  private def handleDaedalusRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "daedalus_getAccountRecentTransactions", _, _) =>
+      handle[GetAccountRecentTransactionsRequest, GetAccountRecentTransactionsResponse](ethService.getAccountRecentTransactions, req)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {

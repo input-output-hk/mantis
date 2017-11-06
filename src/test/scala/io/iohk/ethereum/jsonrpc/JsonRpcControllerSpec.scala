@@ -1275,7 +1275,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       "rpc" -> "1.0",
       "personal" -> "1.0",
       "eth" -> "1.0",
-      "web3" -> "1.0"
+      "web3" -> "1.0",
+      "daedalus" -> "1.0"
     ))
   }
 
@@ -1337,6 +1338,39 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
         JField("data", JString("0x" + "43" * 32)),
         JField("topics", JArray(List(JString("0x" + "44" * 32), JString("0x" + "45" * 32))))))))
     ))
+  }
+
+  it should "daedalus_getAccountRecentTransactions" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    val block = Fixtures.Blocks.Block3125369
+    val sentTx = block.body.transactionList.head
+    val receivedTx = block.body.transactionList.last
+
+    (mockEthService.getAccountRecentTransactions _).expects(*)
+      .returning(Future.successful(Right(GetAccountRecentTransactionsResponse(Seq(TransactionResponse(sentTx, Some(block.header))),
+        Seq(TransactionResponse(receivedTx, Some(block.header)))))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "daedalus_getAccountRecentTransactions",
+      Some(JArray(List(
+        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    val expectedSentTx = Extraction.decompose(TransactionResponse(sentTx, Some(block.header)))
+    val expectedReceivedTx = Extraction.decompose(TransactionResponse(receivedTx, Some(block.header)))
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JObject(
+      "sent" -> JArray(List(expectedSentTx)),
+      "received" -> JArray(List(expectedReceivedTx))))
   }
 
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
