@@ -1,12 +1,11 @@
 package io.iohk.ethereum.consensus
 
 import java.math.BigInteger
-import java.nio.{ByteBuffer, ByteOrder}
 import java.util
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.{kec256, kec512}
-import io.iohk.ethereum.utils.ByteUtils
+import io.iohk.ethereum.utils.ByteUtils._
 import org.spongycastle.util.BigIntegers
 import org.spongycastle.util.encoders.Hex
 
@@ -106,7 +105,7 @@ object Ethash {
     (0 until CACHE_ROUNDS).foreach { _ =>
       (0 until n).foreach { i =>
         val v = remainderUnsigned(getIntFromWord(bytes(i)), n)
-        bytes(i) = kec512(ByteUtils.xor(bytes((i - 1 + n) % n), bytes(v)))
+        bytes(i) = kec512(xor(bytes((i - 1 + n) % n), bytes(v)))
       }
     }
 
@@ -202,23 +201,6 @@ object Ethash {
 
   private def fnv(v1: Int, v2: Int): Int = {
     (v1 * FNV_PRIME) ^ v2
-  }
-
-  def bytesToInts(bytes: Array[Byte]): Array[Int] =
-    bytes.grouped(4).map(getIntFromWord).toArray
-
-  def intsToBytes(input: Array[Int]): Array[Byte] = {
-    input.flatMap { i =>
-      Array(
-        (i & 0xFF).toByte,
-        ((i >> 8) & 0xFF).toByte,
-        ((i >> 16) & 0xFF).toByte,
-        ((i >> 24) & 0xFF).toByte)
-    }
-  }
-
-  private def getIntFromWord(arr: Array[Byte]): Int = {
-    ByteBuffer.wrap(arr, 0, 4).order(ByteOrder.LITTLE_ENDIAN).getInt
   }
 
   def checkDifficulty(blockDifficulty: Long, proofOfWork: ProofOfWork): Boolean = {

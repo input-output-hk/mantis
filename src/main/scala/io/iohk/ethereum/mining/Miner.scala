@@ -13,7 +13,7 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.MiningConfig
+import io.iohk.ethereum.utils.{ByteUtils, MiningConfig}
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.Future
@@ -60,9 +60,14 @@ class Miner(
       case _ =>
         val seed = Ethash.seed(epoch)
         val dagSize = Ethash.dagSize(epoch)
+        val dagNumHashes = (dagSize / Ethash.HASH_BYTES).toInt
         val dag =
-          if (!dagFile(seed).exists()) generateDagAndSaveToFile(epoch, dagSize, seed)
-          else loadDagFromFile(seed, dagSize)
+          if (!dagFile(seed).exists()) generateDagAndSaveToFile(epoch, dagNumHashes, seed)
+          else {
+            val res = loadDagFromFile(seed, dagNumHashes)
+            res.failed.foreach { ex => log.error(ex, "Cannot read DAG from file") }
+            res.getOrElse(generateDagAndSaveToFile(epoch, dagNumHashes, seed))
+          }
 
         currentEpoch = Some(epoch)
         currentEpochDag = Some(dag)
@@ -80,7 +85,7 @@ class Miner(
         self ! ProcessMining
 
       case Failure(ex) =>
-        log.error("Unable to get block for mining", ex)
+        log.error(ex, "Unable to get block for mining")
         context.system.scheduler.scheduleOnce(10.seconds, self, ProcessMining)
     }
   }
@@ -89,26 +94,26 @@ class Miner(
     new File(s"${miningConfig.ethashDir}/full-R${Ethash.Revision}-${Hex.toHexString(seed.take(8).toArray[Byte])}")
   }
 
-  private def generateDagAndSaveToFile(epoch: Long, dagSize: Long, seed: ByteString): Array[Array[Int]] = {
+  private def generateDagAndSaveToFile(epoch: Long, dagNumHashes: Int, seed: ByteString): Array[Array[Int]] = {
     // scalastyle:off magic.number
 
     val file = dagFile(seed)
     if (file.exists()) file.delete()
+    file.getParentFile.mkdirs()
     file.createNewFile()
 
     val outputStream = new FileOutputStream(dagFile(seed).getAbsolutePath)
-    outputStream.write(Array(0xfe, 0xca, 0xdd, 0xba, 0xad, 0xde, 0xe1, 0xfe).map(_.toByte))
+    outputStream.write(DagFilePrefix.toArray[Byte])
 
     val cache = Ethash.makeCache(epoch)
-    val res = new Array[Array[Int]]((dagSize / Ethash.HASH_BYTES).toInt)
+    val res = new Array[Array[Int]](dagNumHashes)
 
-    val max = (dagSize / Ethash.HASH_BYTES).toInt
-    (0 until max).foreach { i =>
+    (0 until dagNumHashes).foreach { i =>
       val item = Ethash.calcDatasetItem(cache, i)
-      outputStream.write(Ethash.intsToBytes(item))
+      outputStream.write(ByteUtils.intsToBytes(item))
       res(i) = item
 
-      if (i % 100000 == 0) log.info(s"Generating DAG ${((i / max.toDouble) * 100).toInt}%")
+      if (i % 100000 == 0) log.info(s"Generating DAG ${((i / dagNumHashes.toDouble) * 100).toInt}%")
     }
 
     Try(outputStream.close())
@@ -116,22 +121,28 @@ class Miner(
     res
   }
 
-  private def loadDagFromFile(seed: ByteString, dagSize: Long): Array[Array[Int]] = {
+  private def loadDagFromFile(seed: ByteString, dagNumHashes: Int): Try[Array[Array[Int]]] = {
     val inputStream = new FileInputStream(dagFile(seed).getAbsolutePath)
-    inputStream.skip(8)
-    val buffer = new Array[Byte](64)
-    val res = new Array[Array[Int]]((dagSize / Ethash.HASH_BYTES).toInt)
-    var index = 0
 
-    while (inputStream.read(buffer) > 0) {
-      if (index % 100000 == 0) log.info(s"Loading DAG from file ${((index / res.length.toDouble) * 100).toInt}%")
-      res(index) = Ethash.bytesToInts(buffer)
-      index += 1
+    val prefix = new Array[Byte](8)
+    if (inputStream.read(prefix) != 8 || ByteString(prefix) != DagFilePrefix) {
+      Failure(new RuntimeException("Invalid DAG file prefix"))
+    } else {
+      val buffer = new Array[Byte](64)
+      val res = new Array[Array[Int]](dagNumHashes)
+      var index = 0
+
+      while (inputStream.read(buffer) > 0) {
+        if (index % 100000 == 0) log.info(s"Loading DAG from file ${((index / res.length.toDouble) * 100).toInt}%")
+        res(index) = ByteUtils.bytesToInts(buffer)
+        index += 1
+      }
+
+      Try(inputStream.close())
+
+      if (index == dagNumHashes) Success(res)
+      else Failure(new RuntimeException("DAG file ended unexpectedly"))
     }
-
-    Try(inputStream.close())
-
-    res
   }
 
   private def mine(headerHash: Array[Byte], difficulty: Long, dagSize: Long, dag: Array[Array[Int]], numRounds: Int): Option[(ProofOfWork, ByteString)] = {
@@ -159,7 +170,7 @@ class Miner(
 
     (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
       .recover { case ex =>
-        log.error("Failed to get ommers, mining block with empty ommers list", ex)
+        log.error(ex, "Failed to get ommers, mining block with empty ommers list")
         OmmersPool.Ommers(Nil)
       }
   }
@@ -169,7 +180,7 @@ class Miner(
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .recover { case ex =>
-        log.error("Failed to get transactions, mining block with empty transactions list", ex)
+        log.error(ex, "Failed to get transactions, mining block with empty transactions list")
         PendingTransactionsResponse(Nil)
       }
   }
@@ -191,4 +202,6 @@ object Miner {
 
   // scalastyle:off magic.number
   val MaxNonce: BigInt = BigInt(2).pow(64)
+
+  val DagFilePrefix: ByteString = ByteString(Array(0xfe, 0xca, 0xdd, 0xba, 0xad, 0xde, 0xe1, 0xfe).map(_.toByte))
 }

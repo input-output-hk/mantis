@@ -3,7 +3,8 @@ enablePlugins(JavaAppPackaging, SolidityPlugin)
 val commonSettings = Seq(
   name := "mantis",
   version := "0.3-cli-beta",
-  scalaVersion := "2.12.1"
+  scalaVersion := "2.12.1",
+  testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-l", "MinerSpec") // miner tests disabled by default
 )
 
 // Temp resolver for LevelDB fork
