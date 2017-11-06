@@ -1,13 +1,10 @@
 package io.iohk.ethereum.mpt
 
-import java.io.File
-import java.nio.file.Files
-
-import io.iohk.ethereum.db.dataSource.{EphemDataSource, LevelDBDataSource, LevelDbConfig}
+import io.iohk.ethereum.{ObjectGenerators, crypto}
+import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.{ObjectGenerators, crypto}
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
 import org.spongycastle.util.encoders.Hex
@@ -65,26 +62,6 @@ class MerklePatriciaTreeSpeedSpec extends FunSuite
         }
         trie.put(k, v)
       }
-    }
-  }
-
-}
-
-trait PersistentStorage {
-  def withNodeStorage(testCode: NodesKeyValueStorage => Unit): Unit = {
-    val dbPath = Files.createTempDirectory("testdb").toAbsolutePath.toString
-    val dataSource = LevelDBDataSource(new LevelDbConfig {
-      override val verifyChecksums: Boolean = true
-      override val paranoidChecks: Boolean = true
-      override val createIfMissing: Boolean = true
-      override val path: String = dbPath
-    })
-
-    try {
-      testCode(new ArchiveNodeStorage(new NodeStorage(dataSource)))
-    } finally {
-      val dir = new File(dbPath)
-      !dir.exists() || dir.delete()
     }
   }
 }

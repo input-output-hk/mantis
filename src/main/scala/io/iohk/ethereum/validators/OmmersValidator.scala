@@ -2,12 +2,12 @@ package io.iohk.ethereum.validators
 
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.validators.OmmersValidator.OmmersError
+import io.iohk.ethereum.validators.OmmersValidator.{OmmersError, OmmersValid}
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError._
 
 trait OmmersValidator {
 
-  def validate(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit]
+  def validate(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, OmmersValid]
 
 }
 
@@ -21,11 +21,12 @@ object OmmersValidator {
     case object OmmersAncestorsError extends OmmersError
     case object OmmersDuplicatedError extends OmmersError
   }
+
+  sealed trait OmmersValid
+  case object OmmersValid extends OmmersValid
 }
 
-class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersValidator {
-
-  val blockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
+class OmmersValidatorImpl(blockchainConfig: BlockchainConfig, blockHeaderValidator: BlockHeaderValidator) extends OmmersValidator {
 
   val OmmerGenerationLimit: Int = 6 //Stated on section 11.1, eq. (143) of the YP
   val OmmerSizeLimit: Int = 2
@@ -47,9 +48,9 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
     * @param blockchain     from where the previous blocks are obtained
     * @return ommers if valid, an [[OmmersValidator.OmmersError]] otherwise
     */
-  def validate(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit] = {
+  def validate(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, OmmersValid] = {
     if (ommers.isEmpty)
-      Right(())
+      Right(OmmersValid)
     else
       for {
         _ <- validateOmmersLength(ommers)
@@ -57,7 +58,7 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
         _ <- validateOmmersHeaders(ommers, blockchain)
         _ <- validateOmmersAncestors(blockNumber, ommers, blockchain)
         _ <- validateOmmersNotUsed(blockNumber, ommers, blockchain)
-      } yield ()
+      } yield OmmersValid
   }
 
   // FIXME: scaladoc
@@ -68,8 +69,8 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
     * @param ommers         The list of ommers to validate
     * @return ommers if valid, an [[OmmersLengthError]] otherwise
     */
-  private def validateOmmersLength(ommers: Seq[BlockHeader]): Either[OmmersError, Unit] = {
-    if(ommers.length <= OmmerSizeLimit) Right(())
+  private def validateOmmersLength(ommers: Seq[BlockHeader]): Either[OmmersError, OmmersValid] = {
+    if(ommers.length <= OmmerSizeLimit) Right(OmmersValid)
     else Left(OmmersLengthError)
   }
 
@@ -82,8 +83,8 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
     * @param blockchain     from where the ommer's parents will be obtained
     * @return ommers if valid, an [[OmmersNotValidError]] otherwise
     */
-  private def validateOmmersHeaders(ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit] = {
-    if(ommers.forall(blockHeaderValidator.validate(_, blockchain).isRight)) Right(())
+  private def validateOmmersHeaders(ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, OmmersValid] = {
+    if(ommers.forall(blockHeaderValidator.validate(_, blockchain).isRight)) Right(OmmersValid)
     else Left(OmmersNotValidError)
   }
 
@@ -97,7 +98,7 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
     * @param blockchain     from where the ommer's parents will be obtained
     * @return ommers if valid, an [[OmmersUsedBeforeError]] otherwise
     */
-  private def validateOmmersAncestors(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit] = {
+  private def validateOmmersAncestors(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, OmmersValid] = {
     val ancestorsOpt = collectAncestors(blockNumber, OmmerGenerationLimit, blockchain)
 
     val validOmmersAncestors: Seq[BlockHeader] => Boolean = ancestors =>
@@ -106,7 +107,7 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
         val ommersParentIsAncestor = ancestors.exists(_.parentHash == ommer.parentHash)
         ommerIsNotAncestor && ommersParentIsAncestor
       }
-    if(ancestorsOpt.exists(validOmmersAncestors)) Right(())
+    if(ancestorsOpt.exists(validOmmersAncestors)) Right(OmmersValid)
     else Left(OmmersAncestorsError)
   }
 
@@ -120,10 +121,10 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
     * @param blockchain     from where the ommer's parents will be obtained
     * @return ommers if valid, an [[OmmersUsedBeforeError]] otherwise
     */
-  private def validateOmmersNotUsed(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, Unit] = {
+  private def validateOmmersNotUsed(blockNumber: BigInt, ommers: Seq[BlockHeader], blockchain: Blockchain): Either[OmmersError, OmmersValid] = {
     val ommersFromAncestorsOpt = collectOmmersFromAncestors(blockNumber, OmmerGenerationLimit, blockchain)
 
-    if(ommersFromAncestorsOpt.exists(ommers.intersect(_).isEmpty)) Right(())
+    if(ommersFromAncestorsOpt.exists(ommers.intersect(_).isEmpty)) Right(OmmersValid)
     else Left(OmmersUsedBeforeError)
   }
 
@@ -135,8 +136,8 @@ class OmmersValidatorImpl(blockchainConfig: BlockchainConfig) extends OmmersVali
     * @param ommers         The list of ommers to validate
     * @return ommers if valid, an [[OmmersDuplicatedError]] otherwise
     */
-  private def validateDuplicatedOmmers(ommers: Seq[BlockHeader]): Either[OmmersError, Unit] = {
-    if(ommers.distinct.length == ommers.length) Right(())
+  private def validateDuplicatedOmmers(ommers: Seq[BlockHeader]): Either[OmmersError, OmmersValid] = {
+    if(ommers.distinct.length == ommers.length) Right(OmmersValid)
     else Left(OmmersDuplicatedError)
   }
 

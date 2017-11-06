@@ -283,4 +283,19 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
     def encodeJson(t: LockAccountResponse): JValue =
       JBool(t.result)
   }
+
+  implicit val personal_deleteWallet = new Codec[DeleteWalletRequest, DeleteWalletResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, DeleteWalletRequest] = {
+      params match {
+        case Some(JArray(JString(addr) :: _)) =>
+          extractAddress(addr).map(DeleteWalletRequest)
+        case _ =>
+          Left(InvalidParams())
+      }
+    }
+
+    def encodeJson(t: DeleteWalletResponse): JValue =
+      JBool(t.result)
+  }
+
 }

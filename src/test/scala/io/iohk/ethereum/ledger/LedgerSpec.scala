@@ -8,24 +8,24 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.{Fixtures, Mocks, rlp}
-import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.vm._
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.prop.PropertyChecks
-import org.spongycastle.crypto.params.ECPublicKeyParameters
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.validators.BlockValidator.BlockTransactionsHashError
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
+import io.iohk.ethereum.validators.BlockValidator.{BlockTransactionsHashError, BlockValid}
 import io.iohk.ethereum.validators.SignedTransactionError.TransactionSignatureError
 import io.iohk.ethereum.validators._
+import io.iohk.ethereum.vm._
+import io.iohk.ethereum.{Fixtures, Mocks, rlp}
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.prop.PropertyChecks
+import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
+import org.spongycastle.crypto.params.ECPublicKeyParameters
 import org.spongycastle.util.encoders.Hex
 
 // scalastyle:off file.size.limit
@@ -377,7 +377,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
 
     object validatorsFailsBlockValidatorWithReceipts extends Mocks.MockValidatorsAlwaysSucceed {
       override val blockValidator = new BlockValidator {
-        override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Right(Block(blockHeader, blockBody))
+        override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Right(BlockValid)
         override def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
       }
     }
@@ -704,7 +704,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       override val signedTransactionValidator =
         (stx: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => {
           if (stx.tx.receivingAddress == Some(Address(42))) {
-            Right(())
+            Right(SignedTransactionValid)
           } else {
             Left(TransactionSignatureError)
           }
@@ -795,6 +795,29 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     )
   }
 
+  it should "correctly determine current block status" in new BlockchainSetup {
+    val testHash = validBlockParentHeader.copy(number = validBlockParentHeader.number + 5).hash
+
+    val validBlockHeaderNoParent = validBlockHeader.copy(parentHash = testHash)
+
+
+    val ledger = new LedgerImpl(
+      new MockVM(c => createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0)),
+      blockchain,
+      blockchainConfig,
+      syncConfig,
+      Mocks.MockValidatorsAlwaysSucceed
+    )
+
+    ledger.checkBlockStatus(validBlockParentHeader.hash) shouldEqual InChain
+
+    ledger.importBlock(Block(validBlockHeaderNoParent, validBlockBodyWithNoTxs)) shouldEqual BlockEnqueued
+
+    ledger.checkBlockStatus(validBlockHeaderNoParent.hash) shouldEqual Queued
+
+    ledger.checkBlockStatus(validBlockHeader.hash) shouldEqual UnknownBlock
+  }
+
   trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
     val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
@@ -878,6 +901,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val validBlockBodyWithNoTxs: BlockBody = BlockBody(Nil, Nil)
 
     blockchain.save(validBlockParentHeader)
+    blockchain.save(validBlockParentHeader.hash, validBlockBodyWithNoTxs)
+    storagesInstance.storages.appStateStorage.putBestBlockNumber(validBlockParentHeader.number)
     storagesInstance.storages.totalDifficultyStorage.put(validBlockParentHeader.hash, 0)
 
     val validTx: Transaction = defaultTx.copy(

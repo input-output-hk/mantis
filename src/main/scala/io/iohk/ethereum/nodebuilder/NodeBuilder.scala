@@ -346,7 +346,7 @@ trait ValidatorsBuilder {
   lazy val validators = new Validators {
     val blockValidator: BlockValidator = BlockValidator
     val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
-    val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig)
+    val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator)
     val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
   }
 }

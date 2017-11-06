@@ -36,6 +36,7 @@ object JsonRpcController {
     val Admin = "admin"
     val Debug = "debug"
     val Rpc = "rpc"
+    val Daedalus = "daedalus"
   }
 
 }
@@ -59,6 +60,7 @@ class JsonRpcController(
     Apis.Db -> PartialFunction.empty,
     Apis.Personal -> handlePersonalRequest,
     Apis.Rpc -> handleRpcRequest,
+    Apis.Daedalus -> handleDaedalusRequest,
     Apis.Admin -> PartialFunction.empty,
     Apis.Debug -> PartialFunction.empty
   )
@@ -167,6 +169,11 @@ class JsonRpcController(
       handle[SignRequest, SignResponse](personalService.sign, req)(eth_sign, personal_sign)
   }
 
+  private def handleDaedalusRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "daedalus_getAccountRecentTransactions", _, _) =>
+      handle[GetAccountRecentTransactionsRequest, GetAccountRecentTransactionsResponse](ethService.getAccountRecentTransactions, req)
+  }
+
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "personal_importRawKey", _, _) =>
       handle[ImportRawKeyRequest, ImportRawKeyResponse](personalService.importRawKey, req)
@@ -191,6 +198,9 @@ class JsonRpcController(
 
     case req @ JsonRpcRequest(_, "personal_ecRecover", _, _) =>
       handle[EcRecoverRequest, EcRecoverResponse](personalService.ecRecover, req)
+
+    case req @ JsonRpcRequest(_, "personal_deleteWallet", _, _) =>
+      handle[DeleteWalletRequest, DeleteWalletResponse](personalService.deleteWallet, req)
   }
 
   private def handleRpcRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {

@@ -16,6 +16,8 @@ import scala.annotation.tailrec
 
 trait Ledger {
 
+  def checkBlockStatus(blockHash: ByteString): BlockStatus
+
   def executeBlock(block: Block): Either[BlockExecutionError, Seq[Receipt]]
 
   def prepareBlock(block: Block): BlockPreparationResult
@@ -303,6 +305,23 @@ class LedgerImpl(
     case Seq() =>
       Nil
   }
+  /**
+    * Check current status of block, based on its hash
+    *
+    * @param blockHash - hash of block to check
+    * @return One of:
+    *         - [[InChain]] - Block already incorporated into blockchain
+    *         - [[Queued]]  - Block in queue waiting to be resolved
+    *         - [[UnknownBlock]] - Hash its not known to our client
+    */
+  def checkBlockStatus(blockHash: ByteString): BlockStatus = {
+    if (blockchain.getBlockByHash(blockHash).isDefined)
+      InChain
+    else if (blockQueue.isQueued(blockHash))
+      Queued
+    else
+      UnknownBlock
+  }
 
   def executeBlock(block: Block): Either[BlockExecutionError, Seq[Receipt]] = {
 
@@ -490,12 +509,12 @@ class LedgerImpl(
     TxResult(world2, executionGasToPayToMiner, resultWithErrorHandling.logs, result.returnData, result.error)
   }
 
-  private def validateBlockBeforeExecution(block: Block): Either[BlockExecutionError, Unit] = {
+  private def validateBlockBeforeExecution(block: Block): Either[BlockExecutionError, BlockExecutionSuccess] = {
     val result = for {
       _ <- validators.blockHeaderValidator.validate(block.header, blockchain)
       _ <- validators.blockValidator.validateHeaderAndBody(block.header, block.body)
       _ <- validators.ommersValidator.validate(block.header.number, block.body.uncleNodesList, blockchain)
-    } yield ()
+    } yield BlockExecutionSuccess
     result.left.map(error => ValidationBeforeExecError(error.toString))
   }
 
@@ -512,7 +531,7 @@ class LedgerImpl(
     * @return None if valid else a message with what went wrong
     */
   private[ledger] def validateBlockAfterExecution(block: Block, stateRootHash: ByteString, receipts: Seq[Receipt],
-                                                  gasUsed: BigInt): Either[BlockExecutionError, Unit] = {
+                                                  gasUsed: BigInt): Either[BlockExecutionError, BlockExecutionSuccess] = {
     lazy val blockAndReceiptsValidation = validators.blockValidator.validateBlockAndReceipts(block.header, receipts)
     if(block.header.gasUsed != gasUsed)
       Left(ValidationAfterExecError(s"Block has invalid gas used, expected ${block.header.gasUsed} but got $gasUsed"))
@@ -523,7 +542,7 @@ class LedgerImpl(
     else if(blockAndReceiptsValidation.isLeft)
       Left(ValidationAfterExecError(blockAndReceiptsValidation.left.get.toString))
     else
-      Right(())
+      Right(BlockExecutionSuccess)
   }
 
   /**
@@ -734,6 +753,9 @@ sealed trait BlockExecutionError{
   val reason: String
 }
 
+sealed trait BlockExecutionSuccess
+case object BlockExecutionSuccess extends BlockExecutionSuccess
+
 object BlockExecutionError {
   case class ValidationBeforeExecError(reason: String) extends BlockExecutionError
   case class StateBeforeFailure(worldState: InMemoryWorldStateProxy, acumGas: BigInt, acumReceipts: Seq[Receipt])
@@ -754,6 +776,10 @@ case object NoChainSwitch extends BranchResolutionResult
 case object UnknownBranch extends BranchResolutionResult
 case object InvalidBranch extends BranchResolutionResult
 
+sealed trait BlockStatus
+case object InChain       extends BlockStatus
+case object Queued        extends BlockStatus
+case object UnknownBlock  extends BlockStatus
 
 trait BlockPreparationError
 

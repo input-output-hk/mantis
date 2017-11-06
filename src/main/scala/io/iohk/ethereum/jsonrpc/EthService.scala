@@ -68,6 +68,9 @@ object EthService {
   case class GetTransactionByHashRequest(txHash: ByteString)
   case class GetTransactionByHashResponse(txResponse: Option[TransactionResponse])
 
+  case class GetAccountRecentTransactionsRequest(address: Address, numRecentBlocks: Option[Int])
+  case class GetAccountRecentTransactionsResponse(sent: Seq[TransactionResponse], received: Seq[TransactionResponse])
+
   case class GetTransactionReceiptRequest(txHash: ByteString)
   case class GetTransactionReceiptResponse(txResponse: Option[TransactionReceiptResponse])
 
@@ -435,7 +438,7 @@ class EthService(
 
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] = {
     reportActive()
-    import io.iohk.ethereum.mining.pow.PowCache._
+    import io.iohk.ethereum.consensus.Ethash.{seed, epoch}
 
     val blockNumber = appStateStorage.getBestBlockNumber() + 1
 
@@ -445,7 +448,7 @@ class EthService(
           case Right(pb) =>
             Right(GetWorkResponse(
               powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
-              dagSeed = seedForBlock(pb.block.header.number),
+              dagSeed = seed(epoch(pb.block.header.number.toLong)),
               target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
             ))
           case Left(err) =>
@@ -723,4 +726,39 @@ class EthService(
     }
 
   }
+
+  def getAccountRecentTransactions(request: GetAccountRecentTransactionsRequest): ServiceResponse[GetAccountRecentTransactionsResponse] = {
+    import Config.Network.Rpc.txMaxNumRecentBlocks
+
+    getTransactionsFromPool map { case PendingTransactionsResponse(pendingTransactions) =>
+      val pendingSent = pendingTransactions
+        .map(_.stx)
+        .filter(_.senderAddress == request.address)
+        .map(TransactionResponse(_, pending = Some(true)))
+
+      val pendingReceived = pendingTransactions
+        .map(_.stx)
+        .filter(_.tx.receivingAddress.contains(request.address))
+        .map(TransactionResponse(_, pending = Some(true)))
+
+      val numRecentBlocks = request.numRecentBlocks.getOrElse(txMaxNumRecentBlocks) min txMaxNumRecentBlocks
+
+      val bestBlockNum = appStateStorage.getBestBlockNumber()
+      val start = (bestBlockNum - numRecentBlocks).max(0)
+      val recentTxs = (start to bestBlockNum)
+        .flatMap { n => blockchain.getBlockByNumber(n) }
+        .map { block =>
+          val sentInBlock = block.body.transactionList.filter(_.senderAddress == request.address)
+          val receivedInBlock = block.body.transactionList.filter(_.tx.receivingAddress.contains(request.address))
+          (sentInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))),
+            receivedInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))))
+        }
+
+      val recentSent = recentTxs.flatMap(_._1)
+      val recentReceived = recentTxs.flatMap(_._2)
+
+      Right(GetAccountRecentTransactionsResponse(pendingSent ++ recentSent, pendingReceived ++ recentReceived))
+    }
+  }
+
 }
