@@ -366,8 +366,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "return requested work" in new TestSetup {
-    (blockGenerator.generateBlockForMining _).expects(BigInt(1), Nil, *, *).returning(Right(PendingBlock(block, Nil)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    (blockGenerator.generateBlockForMining _).expects(parentBlock, Nil, *, *).returning(Right(PendingBlock(block, Nil)))
+    blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
 
     val response: ServiceResponse[GetWorkResponse] = ethService.getWork(GetWorkRequest())
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
@@ -520,8 +520,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   it should "return if node is mining base on getWork" in new TestSetup {
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
-    (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(PendingBlock(block, Nil)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
+    blockchain.save(parentBlock)
     ethService.getWork(GetWorkRequest())
 
     val response = ethService.getMining(GetMiningRequest())
@@ -552,8 +552,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
   }
 
   it should "return if node is mining after time out" in new TestSetup {
-    (blockGenerator.generateBlockForMining _).expects(*, *, *, *).returning(Right(PendingBlock(block, Nil)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(0)
+    (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
+    blockchain.save(parentBlock)
     ethService.getWork(GetWorkRequest())
 
     Thread.sleep(miningConfig.activeTimeout.toMillis)
@@ -843,10 +843,32 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val uncle = Fixtures.Blocks.DaoForkBlock.header
     val uncleTd = uncle.difficulty
     val blockToRequestWithUncles = blockToRequest.copy(body = BlockBody(Nil, Seq(uncle)))
+
+
     val difficulty = 131072
+    val parentBlock = Block(
+      header = BlockHeader(
+        parentHash = ByteString.empty,
+        ommersHash = ByteString.empty,
+        beneficiary = ByteString.empty,
+        stateRoot = ByteString.empty,
+        transactionsRoot = ByteString.empty,
+        receiptsRoot = ByteString.empty,
+        logsBloom = ByteString.empty,
+        difficulty = difficulty,
+        number = 0,
+        gasLimit = 16733003,
+        gasUsed = 0,
+        unixTimestamp = 1494604900,
+        extraData = ByteString.empty,
+        mixHash = ByteString.empty,
+        nonce = ByteString.empty
+      ),
+      body = BlockBody(Nil, Nil)
+    )
     val block = Block(
       header = BlockHeader(
-        parentHash = ByteString(Hex.decode("fae40e0347c422194d9a0abd00e76774dd85b607ac8614b9bb0abd09ceee8df2")),
+        parentHash = parentBlock.header.hash,
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("000000000000000000000000000000000000002a")),
         stateRoot = ByteString(Hex.decode("2627314387b135a548040d3ca99dbf308265a3f9bd9246bee3e34d12ea9ff0dc")),
@@ -867,7 +889,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val mixHash = ByteString(Hex.decode("40d9bd2064406d7f22390766d6fe5eccd2a67aa89bf218e99df35b2dbb425fb1"))
     val nonce = ByteString(Hex.decode("ce1b500070aeec4f"))
     val seedHash = ByteString(Hex.decode("00" * 32))
-    val powHash = ByteString(Hex.decode("f5877d30b85d6cd0f80d2c4711e3cfb7d386e331f801f903d9ca52fc5e8f7cc2"))
+    val powHash = ByteString(Hex.decode("533f69824ee25d4f97d61ef9f5251d2dabaf0ccadcdf43484dc02c1ba7fafdee"))
     val target = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
 
     val v: Byte = 0x1c

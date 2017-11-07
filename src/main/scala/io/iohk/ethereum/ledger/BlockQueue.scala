@@ -5,7 +5,6 @@ import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.ledger.BlockQueue.{Leaf, QueuedBlock}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.Logger
-import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -46,11 +45,11 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
     blocks.get(hash) match {
 
       case Some(_) =>
-        log.debug(s"Block (${blockId(block)}) already in queue. ")
+        log.debug(s"Block (${block.idTag}) already in queue. ")
         None
 
       case None if isNumberOutOfRange(number, bestBlockNumber) =>
-        log.debug(s"Block (${blockId(block)} is outside accepted range. Current best block number is: $bestBlockNumber")
+        log.debug(s"Block (${block.idTag} is outside accepted range. Current best block number is: $bestBlockNumber")
         None
 
       case None =>
@@ -60,34 +59,38 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
 
           case Some(_) =>
             addBlock(block, parentTd)
-            log.debug(s"Enqueued new block (${blockId(block)}) with parent on the main chain")
+            log.debug(s"Enqueued new block (${block.idTag}) with parent on the main chain")
             updateTotalDifficulties(hash)
 
           case None =>
             addBlock(block, parentTd)
             findClosestChainedAncestor(block) match {
               case Some(ancestor) =>
-                log.debug(s"Enqueued new block (${blockId(block)}) to a rooted sidechain")
+                log.debug(s"Enqueued new block (${block.idTag}) to a rooted sidechain")
                 updateTotalDifficulties(ancestor)
 
               case None =>
-                log.debug(s"Enqueued new block (${blockId(block)}) with unknown relation to the main chain")
+                log.debug(s"Enqueued new block (${block.idTag}) with unknown relation to the main chain")
                 None
             }
         }
     }
   }
 
+  def getBlockByHash(hash: ByteString): Option[Block] =
+    blocks.get(hash).map(_.block)
+
   def isQueued(hash: ByteString): Boolean =
     blocks.get(hash).isDefined
 
 
   /**
-    * Removes a branch going from descendant block upwards to the oldest ancestor. Shared part of branch is not removed
+    * Takes a branch going from descendant block upwards to the oldest ancestor
     * @param descendant the youngest block to be removed
+    * @param dequeue should the branch be removed from the queue. Shared part of branch won't be removed
     * @return full branch from oldest ancestor to descendant, even if not all of it is removed
     */
-  def removeBranch(descendant: ByteString): List[Block] = {
+  def getBranch(descendant: ByteString, dequeue: Boolean): List[Block] = {
 
     def recur(hash: ByteString, childShared: Boolean): List[Block] = {
       blocks.get(hash) match {
@@ -95,7 +98,7 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
           import block.header.parentHash
 
           val isShared = childShared || parentToChildren.get(hash).exists(_.nonEmpty)
-          if (!isShared) {
+          if (!isShared && dequeue) {
             val siblings = parentToChildren.get(parentHash)
             siblings.foreach(sbls => parentToChildren += parentHash -> (sbls - hash))
             blocks -= hash
@@ -191,7 +194,4 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
   private def isNumberOutOfRange(blockNumber: BigInt, bestBlockNumber: BigInt): Boolean =
     blockNumber - bestBlockNumber > maxQueuedBlockNumberAhead ||
     bestBlockNumber - blockNumber > maxQueuedBlockNumberBehind
-
-  private def blockId(block: Block): String =
-    s"${block.header.number}: ${Hex.toHexString(block.header.hash.toArray)}"
 }
