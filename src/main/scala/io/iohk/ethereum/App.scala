@@ -1,6 +1,7 @@
 package io.iohk.ethereum
 
 import io.iohk.ethereum.blockchain.sync.SyncController
+import io.iohk.ethereum.mining.Miner
 import io.iohk.ethereum.network.discovery.DiscoveryListener
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.utils.Logger
@@ -35,6 +36,10 @@ object App {
       }
 
       syncController ! SyncController.Start
+
+      if (miningConfig.miningEnabled) {
+        miner ! Miner.StartMining
+      }
 
       peerDiscoveryManager // unlazy
 

@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import java.security.SecureRandom
+
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
@@ -752,6 +754,50 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         ))))))
   }
 
+  it should "return account recent transactions" in new TestSetup {
+    val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    blockchain.save(blockWithTx)
+    (appStateStorage.getBestBlockNumber _).expects().returning(3125370)
+
+    val address = Address("0xee4439beb5c71513b080bbf9393441697a29f478")
+
+    val request = GetAccountRecentTransactionsRequest(address, Some(10))
+
+    val response = ethService.getAccountRecentTransactions(request)
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
+
+
+    val expectedReceived = Seq(TransactionResponse(
+      Fixtures.Blocks.Block3125369.body.transactionList.head,
+      blockHeader = Some(Fixtures.Blocks.Block3125369.header),
+      pending = Some(false)))
+    response.futureValue shouldEqual Right(GetAccountRecentTransactionsResponse(Nil, expectedReceived))
+  }
+
+  it should "not return account recent transactions from older blocks and return pending txs" in new TestSetup {
+    val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    blockchain.save(blockWithTx)
+    (appStateStorage.getBestBlockNumber _).expects().returning(3125381)
+
+    val keyPair = crypto.generateKeyPair(new SecureRandom)
+
+    val tx = Transaction(0, 123, 456, None, 99, ByteString())
+    val signedTx = SignedTransaction.sign(tx, keyPair, None)
+    val pendingTx = PendingTransaction(signedTx, System.currentTimeMillis)
+
+    val address = signedTx.senderAddress
+    val request = GetAccountRecentTransactionsRequest(address, Some(10))
+
+    val response = ethService.getAccountRecentTransactions(request)
+    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
+    pendingTransactionsManager.reply(PendingTransactionsResponse(Seq(pendingTx)))
+
+    val expectedSent = Seq(TransactionResponse(signedTx, blockHeader = None, pending = Some(true)))
+
+    response.futureValue shouldEqual Right(GetAccountRecentTransactionsResponse(expectedSent, Nil))
+  }
+
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     val blockGenerator = mock[BlockGenerator]
     val appStateStorage = mock[AppStateStorage]
@@ -774,6 +820,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
       override val activeTimeout: FiniteDuration = Timeouts.shortTimeout
       override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
       override val headerExtraData: ByteString = ByteString.empty
+      override val miningEnabled: Boolean = false
+      override val ethashDir: String = "~/.ethash"
+      override val mineRounds: Int = 100000
     }
 
     val filterConfig = new FilterConfig {

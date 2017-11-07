@@ -18,7 +18,7 @@ import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.JsonRpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
-import io.iohk.ethereum.mining.BlockGenerator
+import io.iohk.ethereum.mining.{BlockGenerator, Miner}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.utils._
@@ -419,6 +419,24 @@ trait SecureRandomBuilder {
     Config.secureRandomAlgo.map(SecureRandom.getInstance).getOrElse(new SecureRandom())
 }
 
+trait MinerBuilder {
+  self: ActorSystemBuilder
+    with StorageBuilder
+    with OmmersPoolBuilder
+    with PendingTransactionsManagerBuilder
+    with BlockGeneratorBuilder
+    with SyncControllerBuilder
+    with MiningConfigBuilder =>
+
+  lazy val miner: ActorRef = actorSystem.actorOf(Miner.props(
+    storagesInstance.storages.appStateStorage,
+    blockGenerator,
+    ommersPool,
+    pendingTransactionsManager,
+    syncController,
+    miningConfig))
+}
+
 trait Node extends NodeKeyBuilder
   with ActorSystemBuilder
   with StorageBuilder
@@ -459,3 +477,4 @@ trait Node extends NodeKeyBuilder
   with DiscoveryListenerBuilder
   with KnownNodesManagerBuilder
   with SyncConfigBuilder
+  with MinerBuilder

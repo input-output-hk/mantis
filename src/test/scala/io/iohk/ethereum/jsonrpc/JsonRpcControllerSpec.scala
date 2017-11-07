@@ -1358,6 +1358,39 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     ))
   }
 
+  it should "daedalus_getAccountRecentTransactions" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    val block = Fixtures.Blocks.Block3125369
+    val sentTx = block.body.transactionList.head
+    val receivedTx = block.body.transactionList.last
+
+    (mockEthService.getAccountRecentTransactions _).expects(*)
+      .returning(Future.successful(Right(GetAccountRecentTransactionsResponse(Seq(TransactionResponse(sentTx, Some(block.header))),
+        Seq(TransactionResponse(receivedTx, Some(block.header)))))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "daedalus_getAccountRecentTransactions",
+      Some(JArray(List(
+        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D")
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    val expectedSentTx = Extraction.decompose(TransactionResponse(sentTx, Some(block.header)))
+    val expectedReceivedTx = Extraction.decompose(TransactionResponse(receivedTx, Some(block.header)))
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JObject(
+      "sent" -> JArray(List(expectedSentTx)),
+      "received" -> JArray(List(expectedReceivedTx))))
+  }
+
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     def config: JsonRpcConfig = Config.Network.Rpc
 
@@ -1381,6 +1414,9 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override val activeTimeout: FiniteDuration = Timeouts.normalTimeout
       override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
       override val headerExtraData: ByteString = ByteString.empty
+      override val miningEnabled: Boolean = false
+      override val ethashDir: String = "~/.ethash"
+      override val mineRounds: Int = 100000
     }
 
     val filterConfig = new FilterConfig {
