@@ -246,6 +246,9 @@ trait MiningConfig {
   val activeTimeout: FiniteDuration
   val ommerPoolQueryTimeout: FiniteDuration
   val headerExtraData: ByteString
+  val miningEnabled: Boolean
+  val ethashDir: String
+  val mineRounds: Int
 }
 
 object MiningConfig {
@@ -262,6 +265,9 @@ object MiningConfig {
         ByteString(miningConfig
           .getString("header-extra-data").getBytes)
           .take(BlockHeaderValidatorImpl.MaxExtraDataSize)
+      override val miningEnabled = miningConfig.getBoolean("mining-enabled")
+      override val ethashDir = miningConfig.getString("ethash-dir")
+      override val mineRounds = miningConfig.getInt("mine-rounds")
     }
   }
 }
