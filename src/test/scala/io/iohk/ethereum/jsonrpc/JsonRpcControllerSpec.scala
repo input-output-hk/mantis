@@ -1434,8 +1434,6 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       mixHash = ByteString("unused"),
       nonce = ByteString("unused"))
 
-    val block = Block(blockHeader, BlockBody(Nil, Nil))
-
     val parentBlock = Block(blockHeader.copy(number = 1), BlockBody(Nil, Nil))
 
     val r: ByteString = ByteString(Hex.decode("a3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a1"))
