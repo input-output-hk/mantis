@@ -2,6 +2,7 @@ package io.iohk.ethereum.utils
 
 import java.net.InetSocketAddress
 
+import akka.http.scaladsl.model.headers.{HttpOrigin, HttpOriginRange}
 import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
@@ -99,6 +100,17 @@ object Config {
       val certificatePasswordFile: Option[String] = Try(rpcConfig.getString("certificate-password-file")).toOption
 
       val txMaxNumRecentBlocks: Int = rpcConfig.getInt("tx-max-num-recent-blocks")
+
+      def parseMultipleOrigins(origins: Seq[String]): HttpOriginRange = HttpOriginRange(origins.map(HttpOrigin(_)):_*)
+      def parseSingleOrigin(origin: String): HttpOriginRange = origin match {
+          case "*" => HttpOriginRange.*
+          case s => HttpOriginRange.Default(HttpOrigin(s) :: Nil)
+        }
+
+      val corsAllowedOrigins: HttpOriginRange =
+        (Try(parseMultipleOrigins(rpcConfig.getStringList("cors-allowed-origins").asScala)) recoverWith {
+          case _ => Try(parseSingleOrigin(rpcConfig.getString("cors-allowed-origins")))
+        }).get
     }
 
   }
