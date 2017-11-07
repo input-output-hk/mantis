@@ -5,6 +5,7 @@ import java.security.{KeyStore, SecureRandom}
 import javax.net.ssl.{KeyManagerFactory, SSLContext, TrustManagerFactory}
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.headers.HttpOriginRange
 import akka.http.scaladsl.{ConnectionContext, Http}
 import akka.stream.ActorMaterializer
 import io.iohk.ethereum.jsonrpc.JsonRpcController
@@ -105,6 +106,7 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
       case (_, None) => Left("Certificate password file configuration required")
     }
 
+  override def corsAllowedOrigins: HttpOriginRange = config.corsAllowedOrigins
 }
 
 object JsonRpcHttpsServer {

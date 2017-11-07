@@ -1,6 +1,7 @@
 package io.iohk.ethereum.jsonrpc.server
 
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.{HttpOrigin, HttpOriginRange, Origin}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
@@ -21,7 +22,7 @@ class JsonRpcServerSpec extends FlatSpec with Matchers with ScalatestRouteTest {
     val postRequest = HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
 
     postRequest ~>  Route.seal(mockJsonRpcServer.route) ~> check {
-      status === StatusCodes.OK
+      status shouldEqual StatusCodes.OK
       responseAs[String] shouldEqual """{"jsonrpc":"2.0","result":"this is a response","id":1}"""
     }
   }
@@ -45,7 +46,39 @@ class JsonRpcServerSpec extends FlatSpec with Matchers with ScalatestRouteTest {
     val postRequest = HttpRequest(HttpMethods.POST, uri = "/", entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
 
     postRequest ~>  Route.seal(mockJsonRpcServer.route) ~> check {
-      status === StatusCodes.BadRequest
+      status shouldEqual StatusCodes.BadRequest
+    }
+  }
+
+  it should "return a CORS Error" in new TestSetup {
+    import mockJsonRpcServerWithCors.myRejectionHandler
+
+    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "eth_blockNumber", "id": "1"}""")
+    val postRequest = HttpRequest(
+      HttpMethods.POST,
+      uri = "/",
+      headers = Origin(HttpOrigin("http://non_accepted_origin.com")) :: Nil,
+      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+
+    postRequest ~>  Route.seal(mockJsonRpcServerWithCors.route) ~> check {
+      status shouldEqual StatusCodes.Forbidden
+    }
+  }
+
+  it should "accept CORS Requests" in new TestSetup {
+    import mockJsonRpcServerWithCors.myRejectionHandler
+
+    (mockJsonRpcController.handleRequest _).expects(*).returning(Future.successful(JsonRpcResponse("2.0", Some(JString("this is a response")), None, JInt(1))))
+
+    val jsonRequest = ByteString("""{"jsonrpc":"2.0", "method": "eth_blockNumber", "id": "1"}""")
+    val postRequest = HttpRequest(
+      HttpMethods.POST,
+      uri = "/",
+      headers = Origin(corsAllowedOrigin) :: Nil,
+      entity = HttpEntity(MediaTypes.`application/json`, jsonRequest))
+
+    postRequest ~>  Route.seal(mockJsonRpcServerWithCors.route) ~> check {
+      status shouldEqual StatusCodes.OK
     }
   }
 
@@ -57,6 +90,7 @@ class JsonRpcServerSpec extends FlatSpec with Matchers with ScalatestRouteTest {
       override val port: Int = 123
       override val certificateKeyStorePath = None
       override val certificatePasswordFile = None
+      override val corsAllowedOrigins = HttpOriginRange.*
     }
 
     val mockJsonRpcController = mock[JsonRpcController]
@@ -64,6 +98,18 @@ class JsonRpcServerSpec extends FlatSpec with Matchers with ScalatestRouteTest {
       val jsonRpcController = mockJsonRpcController
 
       def run(): Unit = ()
+
+      override def corsAllowedOrigins = config.corsAllowedOrigins
+    }
+
+    val corsAllowedOrigin = HttpOrigin("http://localhost:3333")
+
+    val mockJsonRpcServerWithCors = new JsonRpcServer {
+      val jsonRpcController = mockJsonRpcController
+
+      def run(): Unit = ()
+
+      override def corsAllowedOrigins = HttpOriginRange(corsAllowedOrigin)
     }
   }
 
