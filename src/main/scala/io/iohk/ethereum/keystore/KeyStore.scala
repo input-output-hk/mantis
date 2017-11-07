@@ -36,6 +36,8 @@ trait KeyStore {
   def unlockAccount(address: Address, passphrase: String): Either[KeyStoreError, Wallet]
 
   def deleteWallet(address: Address): Either[KeyStoreError, Boolean]
+
+  def changePassphrase(address: Address, oldPassphrase: String, newPassphrase: String): Either[KeyStoreError, Unit]
 }
 
 class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyStore with Logger {
@@ -60,7 +62,11 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
       if (!dir.exists() || !dir.isDirectory())
         Left(IOError(s"Could not read $keyStoreDir"))
       else
-        listFiles().map(_.flatMap(load(_).toOption).map(_.address))
+        listFiles().map { files =>
+          sortKeyFilesByDate(files)
+            .flatMap(load(_).toOption)
+            .map(_.address)
+        }
     }.toEither.left.map(ioError).flatMap(identity)
   }
 
@@ -71,6 +77,14 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
     fileName <- findKeyFileName(address)
     deleted  <- deleteFile(fileName)
   } yield deleted
+
+  def changePassphrase(address: Address, oldPassphrase: String, newPassphrase: String): Either[KeyStoreError, Unit] = for {
+    oldEncKey <- load(address)
+    prvKey <- oldEncKey.decrypt(oldPassphrase).left.map(_ => DecryptionFailed)
+    keyFileName <- findKeyFileName(address)
+    newEncKey = EncryptedKey(prvKey, newPassphrase, secureRandom)
+    _ <- overwrite(keyFileName, newEncKey)
+  } yield ()
 
   private def deleteFile(fileName: String): Either[KeyStoreError, Boolean] = {
     Try(Files.deleteIfExists(Paths.get(keyStoreDir, fileName))).toEither.left.map(ioError)
@@ -97,6 +111,15 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
         }.toEither.left.map(ioError)
       }
     }
+  }
+
+  private def overwrite(name: String, encKey: EncryptedKey): Either[KeyStoreError, Unit] = {
+    val json = EncryptedKeyJsonCodec.toJson(encKey)
+    val path = Paths.get(keyStoreDir, name)
+    Try {
+      Files.write(path, json.getBytes(StandardCharsets.UTF_8))
+      ()
+    }.toEither.left.map(ioError)
   }
 
   private def load(address: Address): Either[KeyStoreError, EncryptedKey] = {
@@ -146,4 +169,9 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
     matching <- files.find(_.endsWith(address.toUnprefixedString))
       .map(Right(_)).getOrElse(Left(KeyNotFound))
   } yield matching
+
+  private def sortKeyFilesByDate(files: List[String]): List[String] = {
+    // given the date and filename formats sorting by date is equivalent to sorting by name
+    files.sorted
+  }
 }

@@ -463,20 +463,38 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
   }
 
-  it should "personal_deleteWallet" in new TestSetup {
+  it should "daedalus_deleteWallet" in new TestSetup {
     val address = Address(42)
     val params = JArray(JString(address.toString) :: Nil)
 
     (personalService.deleteWallet _).expects(DeleteWalletRequest(address))
       .returning(Future.successful(Right(DeleteWalletResponse(true))))
 
-    val rpcRequest = JsonRpcRequest("2.0", "personal_deleteWallet", Some(params), Some(1))
+    val rpcRequest = JsonRpcRequest("2.0", "daedalus_deleteWallet", Some(params), Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JBool(true))
+  }
+
+  it should "daedalus_changePassphrase" in new TestSetup {
+    val address = Address(42)
+    val oldPassphrase = "weakpass"
+    val newPassphrase = "very5tr0ng&l0ngp4s5phr4s3"
+    val params = JArray(JString(address.toString) :: JString(oldPassphrase) :: JString(newPassphrase) :: Nil)
+
+    (personalService.changePassphrase _).expects(ChangePassphraseRequest(address, oldPassphrase, newPassphrase))
+      .returning(Future.successful(Right(ChangePassphraseResponse())))
+
+    val rpcRequest = JsonRpcRequest("2.0", "daedalus_changePassphrase", Some(params), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString(""))
   }
 
   it should "eth_sendTransaction" in new TestSetup {
