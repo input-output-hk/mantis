@@ -90,7 +90,7 @@ object Config {
 
       val apis = {
         val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
-        val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal"))
+        val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal", "daedalus"))
         require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
         providedApis
       }
@@ -98,6 +98,7 @@ object Config {
       val certificateKeyStorePath: Option[String] = Try(rpcConfig.getString("certificate-keystore-path")).toOption
       val certificatePasswordFile: Option[String] = Try(rpcConfig.getString("certificate-password-file")).toOption
 
+      val txMaxNumRecentBlocks: Int = rpcConfig.getInt("tx-max-num-recent-blocks")
     }
 
   }
@@ -233,6 +234,9 @@ trait MiningConfig {
   val activeTimeout: FiniteDuration
   val ommerPoolQueryTimeout: FiniteDuration
   val headerExtraData: ByteString
+  val miningEnabled: Boolean
+  val ethashDir: String
+  val mineRounds: Int
 }
 
 object MiningConfig {
@@ -249,6 +253,9 @@ object MiningConfig {
         ByteString(miningConfig
           .getString("header-extra-data").getBytes)
           .take(BlockHeaderValidatorImpl.MaxExtraDataSize)
+      override val miningEnabled = miningConfig.getBoolean("mining-enabled")
+      override val ethashDir = miningConfig.getString("ethash-dir")
+      override val mineRounds = miningConfig.getInt("mine-rounds")
     }
   }
 }

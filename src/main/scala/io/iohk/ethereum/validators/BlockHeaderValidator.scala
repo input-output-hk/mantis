@@ -205,7 +205,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     val proofOfWork = hashimotoLight(crypto.kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)),
       blockHeader.nonce.toArray[Byte], powCacheData.dagSize, powCacheData.cache)
 
-    if (proofOfWork.mixHash == blockHeader.mixHash && checkDifficulty(blockHeader, proofOfWork)) Right(BlockHeaderValid)
+    if (proofOfWork.mixHash == blockHeader.mixHash && checkDifficulty(blockHeader.difficulty.toLong, proofOfWork)) Right(BlockHeaderValid)
     else Left(HeaderPoWError)
   }
 }
