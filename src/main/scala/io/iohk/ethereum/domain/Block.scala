@@ -16,6 +16,9 @@ case class Block(header: BlockHeader, body: BlockBody) {
        | body: $body
      """.stripMargin
   }
+
+  def idTag: String =
+    header.idTag
 }
 
 object Block {

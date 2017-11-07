@@ -421,7 +421,7 @@ trait SecureRandomBuilder {
 
 trait MinerBuilder {
   self: ActorSystemBuilder
-    with StorageBuilder
+    with BlockchainBuilder
     with OmmersPoolBuilder
     with PendingTransactionsManagerBuilder
     with BlockGeneratorBuilder
@@ -429,7 +429,7 @@ trait MinerBuilder {
     with MiningConfigBuilder =>
 
   lazy val miner: ActorRef = actorSystem.actorOf(Miner.props(
-    storagesInstance.storages.appStateStorage,
+    blockchain,
     blockGenerator,
     ommersPool,
     pendingTransactionsManager,

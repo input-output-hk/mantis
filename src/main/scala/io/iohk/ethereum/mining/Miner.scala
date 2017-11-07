@@ -8,8 +8,7 @@ import io.iohk.ethereum.blockchain.sync.RegularSync
 import io.iohk.ethereum.consensus.Ethash
 import io.iohk.ethereum.consensus.Ethash.ProofOfWork
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
@@ -22,7 +21,7 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Random, Success, Try}
 
 class Miner(
-    appStateStorage: AppStateStorage,
+    blockchain: Blockchain,
     blockGenerator: BlockGenerator,
     ommersPool: ActorRef,
     pendingTransactionsManager: ActorRef,
@@ -52,8 +51,8 @@ class Miner(
   }
 
   def processMining(): Unit = {
-    val blockNumber = appStateStorage.getBestBlockNumber() + 1
-    val epoch = Ethash.epoch(blockNumber.toLong)
+    val parentBlock = blockchain.getBestBlock()
+    val epoch = Ethash.epoch(parentBlock.header.number.toLong + 1)
 
     val (dag, dagSize) = (currentEpoch, currentEpochDag, currentEpochDagSize) match {
       case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
@@ -75,7 +74,7 @@ class Miner(
       (dag, dagSize)
     }
 
-    getBlockForMining(blockNumber) onComplete {
+    getBlockForMining(parentBlock) onComplete {
       case Success(PendingBlock(block, _)) =>
         val headerHash = crypto.kec256(BlockHeader.getEncodedWithoutNonce(block.header))
         val mineResult = mine(headerHash, block.header.difficulty.toLong, dagSize, dag, miningConfig.mineRounds)
@@ -156,9 +155,9 @@ class Miner(
     }.collectFirst { case (true, pow, nonce) => (pow, ByteString(nonce.toByteArray)) }
   }
 
-  private def getBlockForMining(blockNumber: BigInt): Future[PendingBlock] = {
-    getOmmersFromPool(blockNumber).zip(getTransactionsFromPool).flatMap { case (ommers, pendingTxs) =>
-      blockGenerator.generateBlockForMining(blockNumber, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
+  private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
+    getOmmersFromPool(parentBlock.header.number + 1).zip(getTransactionsFromPool).flatMap { case (ommers, pendingTxs) =>
+      blockGenerator.generateBlockForMining(parentBlock, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
         case Right(pb) => Future.successful(pb)
         case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
       }
@@ -187,13 +186,13 @@ class Miner(
 }
 
 object Miner {
-  def props(appStateStorage: AppStateStorage,
+  def props(blockchain: Blockchain,
             blockGenerator: BlockGenerator,
             ommersPool: ActorRef,
             pendingTransactionsManager: ActorRef,
             syncController: ActorRef,
             miningConfig: MiningConfig): Props =
-    Props(new Miner(appStateStorage, blockGenerator, ommersPool, pendingTransactionsManager, syncController, miningConfig))
+    Props(new Miner(blockchain, blockGenerator, ommersPool, pendingTransactionsManager, syncController, miningConfig))
 
   case object StartMining
   case object StopMining
