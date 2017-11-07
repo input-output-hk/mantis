@@ -10,7 +10,7 @@ import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction, _}
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
 import io.iohk.ethereum.ledger.{BlockPreparationError, BloomFilter, Ledger}
-import io.iohk.ethereum.mining.BlockGenerator.{InvalidOmmers, NoParent}
+import io.iohk.ethereum.mining.BlockGenerator.InvalidOmmers
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
@@ -28,11 +28,13 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
 
   private val cache: AtomicReference[List[PendingBlock]] = new AtomicReference(Nil)
 
-  def generateBlockForMining(blockNumber: BigInt, transactions: Seq[SignedTransaction], ommers: Seq[BlockHeader], beneficiary: Address):
+  def generateBlockForMining(parent: Block, transactions: Seq[SignedTransaction], ommers: Seq[BlockHeader], beneficiary: Address):
   Either[BlockPreparationError, PendingBlock] = {
+    val blockNumber = parent.header.number + 1
+    val parentHash = parent.header.hash
 
-    val result = validators.ommersValidator.validate(blockNumber, ommers, blockchain).left.map(InvalidOmmers).flatMap { _ =>
-      blockchain.getBlockByNumber(blockNumber - 1).map { parent =>
+    val result = validators.ommersValidator.validate(parentHash, blockNumber, ommers, blockchain)
+      .left.map(InvalidOmmers).flatMap { _ =>
         val blockTimestamp = blockTimestampProvider.getEpochSecond
         val header: BlockHeader = prepareHeader(blockNumber, ommers, beneficiary, parent, blockTimestamp)
         val transactionsForBlock: List[SignedTransaction] = prepareTransactions(transactions, header.gasLimit)
@@ -53,7 +55,6 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
               body = prepareBlock.body), receipts)
         }
         Right(prepared)
-      }.getOrElse(Left(NoParent))
     }
 
     result.right.foreach(b => cache.updateAndGet(new UnaryOperator[List[PendingBlock]] {
@@ -158,8 +159,6 @@ object DefaultBlockTimestampProvider extends BlockTimestampProvider {
 }
 
 object BlockGenerator {
-
-  case object NoParent extends BlockPreparationError
 
   case class InvalidOmmers(reason: OmmersError) extends BlockPreparationError
 

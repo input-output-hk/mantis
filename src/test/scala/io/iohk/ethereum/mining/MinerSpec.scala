@@ -4,7 +4,6 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
@@ -30,8 +29,8 @@ class MinerSpec extends FlatSpec with Matchers {
     val parent = origin
     val bfm = blockForMining(parent.header)
 
-    (appStateStorage.getBestBlockNumber _).expects().returns(0).anyNumberOfTimes()
-    (blockGenerator.generateBlockForMining _).expects(BigInt(1), Nil, Nil, miningConfig.coinbase).returning(Right(PendingBlock(bfm, Nil))).anyNumberOfTimes()
+    (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
+    (blockGenerator.generateBlockForMining _).expects(parent, Nil, Nil, miningConfig.coinbase).returning(Right(PendingBlock(bfm, Nil))).anyNumberOfTimes()
 
     ommersPool.setAutoPilot(new TestActor.AutoPilot {
       def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = {
@@ -79,7 +78,6 @@ class MinerSpec extends FlatSpec with Matchers {
       ),
       BlockBody(Seq(), Seq()))
 
-    val appStateStorage = mock[AppStateStorage]
     val blockchain = mock[BlockchainImpl]
     val blockGenerator: BlockGenerator = mock[BlockGenerator]
 
@@ -139,7 +137,7 @@ class MinerSpec extends FlatSpec with Matchers {
     val pendingTransactionsManager = TestProbe()
     val syncController = TestProbe()
 
-    val miner = TestActorRef(Miner.props(appStateStorage, blockGenerator, ommersPool.ref, pendingTransactionsManager.ref, syncController.ref, miningConfig))
+    val miner = TestActorRef(Miner.props(blockchain, blockGenerator, ommersPool.ref, pendingTransactionsManager.ref, syncController.ref, miningConfig))
 
     def waitForMinedBlock(): Block = {
       syncController.expectMsgPF[Block](10.minutes) {

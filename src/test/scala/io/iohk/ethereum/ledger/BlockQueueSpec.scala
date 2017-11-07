@@ -107,7 +107,7 @@ class BlockQueueSpec extends FlatSpec with Matchers with MockFactory {
     blockQueue.enqueueBlock(block2b)
     blockQueue.enqueueBlock(block3)
 
-    blockQueue.removeBranch(block3.header.hash) shouldEqual List(block1, block2a, block3)
+    blockQueue.getBranch(block3.header.hash, dequeue = true) shouldEqual List(block1, block2a, block3)
 
     blockQueue.isQueued(block3.header.hash) shouldBe false
     blockQueue.isQueued(block2a.header.hash) shouldBe false
