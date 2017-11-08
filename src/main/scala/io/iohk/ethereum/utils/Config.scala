@@ -99,8 +99,6 @@ object Config {
       val certificateKeyStorePath: Option[String] = Try(rpcConfig.getString("certificate-keystore-path")).toOption
       val certificatePasswordFile: Option[String] = Try(rpcConfig.getString("certificate-password-file")).toOption
 
-      val txMaxNumRecentBlocks: Int = rpcConfig.getInt("tx-max-num-recent-blocks")
-
       def parseMultipleOrigins(origins: Seq[String]): HttpOriginRange = HttpOriginRange(origins.map(HttpOrigin(_)):_*)
       def parseSingleOrigin(origin: String): HttpOriginRange = origin match {
           case "*" => HttpOriginRange.*

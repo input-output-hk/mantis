@@ -196,8 +196,8 @@ class JsonRpcController(
   }
 
   private def handleDaedalusRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
-    case req @ JsonRpcRequest(_, "daedalus_getAccountRecentTransactions", _, _) =>
-      handle[GetAccountRecentTransactionsRequest, GetAccountRecentTransactionsResponse](ethService.getAccountRecentTransactions, req)
+    case req @ JsonRpcRequest(_, "daedalus_getAccountTransactions", _, _) =>
+      handle[GetAccountTransactionsRequest, GetAccountTransactionsResponse](ethService.getAccountTransactions, req)
 
     case req @ JsonRpcRequest(_, "daedalus_deleteWallet", _, _) =>
       handle[DeleteWalletRequest, DeleteWalletResponse](personalService.deleteWallet, req)
