@@ -1374,7 +1374,9 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       "2.0",
       "daedalus_getAccountTransactions",
       Some(JArray(List(
-        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D")
+        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D"),
+        JInt(100),
+        JInt(200)
       ))),
       Some(JInt(1))
     )
