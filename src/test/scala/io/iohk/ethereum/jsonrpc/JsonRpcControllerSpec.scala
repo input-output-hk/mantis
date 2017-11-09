@@ -147,7 +147,10 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "only allow to call mehtods of enabled apis" in new TestSetup {
-    override def config: JsonRpcConfig = new JsonRpcConfig { override val apis = Seq("web3") }
+    override def config: JsonRpcConfig = new JsonRpcConfig {
+      override val apis = Seq("web3")
+      override val accountTransactionsMaxBlocks = 50000
+    }
 
     val ethRpcRequest = JsonRpcRequest("2.0", "eth_protocolVersion", None, Some(1))
     val ethResponse = jsonRpcController.handleRequest(ethRpcRequest).futureValue

@@ -25,6 +25,7 @@ object JsonRpcController {
 
   trait JsonRpcConfig {
     def apis: Seq[String]
+    def accountTransactionsMaxBlocks: Int
   }
 
   object Apis {

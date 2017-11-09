@@ -726,30 +726,40 @@ class EthService(
   }
 
   def getAccountTransactions(request: GetAccountTransactionsRequest): ServiceResponse[GetAccountTransactionsResponse] = {
-    getTransactionsFromPool map { case PendingTransactionsResponse(pendingTransactions) =>
-      val pendingSent = pendingTransactions
-        .map(_.stx)
-        .filter(_.senderAddress == request.address)
-        .map(TransactionResponse(_, pending = Some(true)))
+    import Config.Network.Rpc.accountTransactionsMaxBlocks
+    val numBlocksToSearch = request.toBlock - request.fromBlock
+    if (numBlocksToSearch > accountTransactionsMaxBlocks) {
+      Future.successful(Left(JsonRpcErrors.InvalidParams(
+        s"""Maximum number of blocks to search is $accountTransactionsMaxBlocks, requested: $numBlocksToSearch.
+           |See: 'network.rpc.account-transactions-max-blocks' config.""".stripMargin)))
+    } else {
+      getTransactionsFromPool map { case PendingTransactionsResponse(pendingTransactions) =>
+        val pendingSent = pendingTransactions
+          .map(_.stx)
+          .filter(_.senderAddress == request.address)
+          .map(TransactionResponse(_, pending = Some(true)))
 
-      val pendingReceived = pendingTransactions
-        .map(_.stx)
-        .filter(_.tx.receivingAddress.contains(request.address))
-        .map(TransactionResponse(_, pending = Some(true)))
+        val pendingReceived = pendingTransactions
+          .map(_.stx)
+          .filter(_.tx.receivingAddress.contains(request.address))
+          .map(TransactionResponse(_, pending = Some(true)))
 
-      val recentTxs = (request.fromBlock to request.toBlock)
-        .flatMap { n => blockchain.getBlockByNumber(n) }
-        .map { block =>
-          val sentInBlock = block.body.transactionList.filter(_.senderAddress == request.address)
-          val receivedInBlock = block.body.transactionList.filter(_.tx.receivingAddress.contains(request.address))
-          (sentInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))),
-            receivedInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))))
-        }
+        val txsFromBlocks = (request.fromBlock to request.toBlock)
+          .toStream
+          .flatMap { n => blockchain.getBlockByNumber(n) }
+          .map { block =>
+            val sentInBlock = block.body.transactionList.filter(_.senderAddress == request.address)
+            val receivedInBlock = block.body.transactionList.filter(_.tx.receivingAddress.contains(request.address))
+            (sentInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))),
+              receivedInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))))
+          }
+          .filter { case (sent, received) => sent.nonEmpty || received.nonEmpty }
 
-      val recentSent = recentTxs.flatMap(_._1)
-      val recentReceived = recentTxs.flatMap(_._2)
+        val recentSent = txsFromBlocks.flatMap(_._1)
+        val recentReceived = txsFromBlocks.flatMap(_._2)
 
-      Right(GetAccountTransactionsResponse(pendingSent ++ recentSent, pendingReceived ++ recentReceived))
+        Right(GetAccountTransactionsResponse(pendingSent ++ recentSent, pendingReceived ++ recentReceived))
+      }
     }
   }
 }

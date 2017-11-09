@@ -109,6 +109,8 @@ object Config {
         (Try(parseMultipleOrigins(rpcConfig.getStringList("cors-allowed-origins").asScala)) recoverWith {
           case _ => Try(parseSingleOrigin(rpcConfig.getString("cors-allowed-origins")))
         }).get
+
+      val accountTransactionsMaxBlocks = rpcConfig.getInt("account-transactions-max-blocks")
     }
 
   }
