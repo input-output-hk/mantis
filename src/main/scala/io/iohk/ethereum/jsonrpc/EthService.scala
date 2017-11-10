@@ -68,8 +68,8 @@ object EthService {
   case class GetTransactionByHashRequest(txHash: ByteString)
   case class GetTransactionByHashResponse(txResponse: Option[TransactionResponse])
 
-  case class GetAccountRecentTransactionsRequest(address: Address, numRecentBlocks: Option[Int])
-  case class GetAccountRecentTransactionsResponse(sent: Seq[TransactionResponse], received: Seq[TransactionResponse])
+  case class GetAccountTransactionsRequest(address: Address, fromBlock: BigInt, toBlock: BigInt)
+  case class GetAccountTransactionsResponse(sent: Seq[TransactionResponse], received: Seq[TransactionResponse])
 
   case class GetTransactionReceiptRequest(txHash: ByteString)
   case class GetTransactionReceiptResponse(txResponse: Option[TransactionReceiptResponse])
@@ -725,37 +725,41 @@ class EthService(
     }
   }
 
-  def getAccountRecentTransactions(request: GetAccountRecentTransactionsRequest): ServiceResponse[GetAccountRecentTransactionsResponse] = {
-    import Config.Network.Rpc.txMaxNumRecentBlocks
+  def getAccountTransactions(request: GetAccountTransactionsRequest): ServiceResponse[GetAccountTransactionsResponse] = {
+    import Config.Network.Rpc.accountTransactionsMaxBlocks
+    val numBlocksToSearch = request.toBlock - request.fromBlock
+    if (numBlocksToSearch > accountTransactionsMaxBlocks) {
+      Future.successful(Left(JsonRpcErrors.InvalidParams(
+        s"""Maximum number of blocks to search is $accountTransactionsMaxBlocks, requested: $numBlocksToSearch.
+           |See: 'network.rpc.account-transactions-max-blocks' config.""".stripMargin)))
+    } else {
+      getTransactionsFromPool map { case PendingTransactionsResponse(pendingTransactions) =>
+        val pendingSent = pendingTransactions
+          .map(_.stx)
+          .filter(_.senderAddress == request.address)
+          .map(TransactionResponse(_, pending = Some(true)))
 
-    getTransactionsFromPool map { case PendingTransactionsResponse(pendingTransactions) =>
-      val pendingSent = pendingTransactions
-        .map(_.stx)
-        .filter(_.senderAddress == request.address)
-        .map(TransactionResponse(_, pending = Some(true)))
+        val pendingReceived = pendingTransactions
+          .map(_.stx)
+          .filter(_.tx.receivingAddress.contains(request.address))
+          .map(TransactionResponse(_, pending = Some(true)))
 
-      val pendingReceived = pendingTransactions
-        .map(_.stx)
-        .filter(_.tx.receivingAddress.contains(request.address))
-        .map(TransactionResponse(_, pending = Some(true)))
+        val txsFromBlocks = (request.fromBlock to request.toBlock)
+          .toStream
+          .flatMap { n => blockchain.getBlockByNumber(n) }
+          .map { block =>
+            val sentInBlock = block.body.transactionList.filter(_.senderAddress == request.address)
+            val receivedInBlock = block.body.transactionList.filter(_.tx.receivingAddress.contains(request.address))
+            (sentInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))),
+              receivedInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))))
+          }
+          .filter { case (sent, received) => sent.nonEmpty || received.nonEmpty }
 
-      val numRecentBlocks = request.numRecentBlocks.getOrElse(txMaxNumRecentBlocks) min txMaxNumRecentBlocks
+        val recentSent = txsFromBlocks.flatMap(_._1)
+        val recentReceived = txsFromBlocks.flatMap(_._2)
 
-      val bestBlockNum = appStateStorage.getBestBlockNumber()
-      val start = (bestBlockNum - numRecentBlocks).max(0)
-      val recentTxs = (start to bestBlockNum)
-        .flatMap { n => blockchain.getBlockByNumber(n) }
-        .map { block =>
-          val sentInBlock = block.body.transactionList.filter(_.senderAddress == request.address)
-          val receivedInBlock = block.body.transactionList.filter(_.tx.receivingAddress.contains(request.address))
-          (sentInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))),
-            receivedInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))))
-        }
-
-      val recentSent = recentTxs.flatMap(_._1)
-      val recentReceived = recentTxs.flatMap(_._2)
-
-      Right(GetAccountRecentTransactionsResponse(pendingSent ++ recentSent, pendingReceived ++ recentReceived))
+        Right(GetAccountTransactionsResponse(pendingSent ++ recentSent, pendingReceived ++ recentReceived))
+      }
     }
   }
 }

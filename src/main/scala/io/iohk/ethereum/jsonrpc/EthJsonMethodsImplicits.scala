@@ -2,15 +2,12 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.FilterManager.{BlockFilterLogs, LogFilterLogs, PendingTransactionFilterLogs}
 import io.iohk.ethereum.jsonrpc.JsonRpcController.{JsonDecoder, JsonEncoder}
 import io.iohk.ethereum.jsonrpc.JsonRpcErrors.InvalidParams
 import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTransactionResponse, SignRequest}
 import org.json4s.{Extraction, JsonAST}
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue, _}
 import org.json4s.JsonDSL._
-
-import scala.util.Try
 
 // scalastyle:off number.of.methods
 object EthJsonMethodsImplicits extends JsonMethodsImplicits {
@@ -574,19 +571,20 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       case o => extractQuantity(o).map(Some(_))
     }
 
-  implicit val daedalus_getAccountRecentTransactions =
-    new JsonDecoder[GetAccountRecentTransactionsRequest] with JsonEncoder[GetAccountRecentTransactionsResponse] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetAccountRecentTransactionsRequest] =
+  implicit val daedalus_getAccountTransactions =
+    new JsonDecoder[GetAccountTransactionsRequest] with JsonEncoder[GetAccountTransactionsResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetAccountTransactionsRequest] =
       params match {
-        case Some(jarray: JArray) =>
+        case Some(JArray(JString(addrJson) :: fromBlockJson :: toBlockJson :: Nil)) =>
           for {
-            addr <- Try(jarray(0)).collect { case s: JString => extractAddress(s) }.getOrElse(Left(InvalidParams()))
-            numRecentBlocks <- optionalQuantity(Try(jarray(1)).getOrElse(JNothing))
-          } yield GetAccountRecentTransactionsRequest(addr, numRecentBlocks.map(_.toInt))
+            addr <- extractAddress(addrJson)
+            fromBlock <- extractQuantity(fromBlockJson)
+            toBlock <- extractQuantity(toBlockJson)
+          } yield GetAccountTransactionsRequest(addr, fromBlock, toBlock)
         case _ => Left(InvalidParams())
       }
 
-    override def encodeJson(t: GetAccountRecentTransactionsResponse): JValue =
+    override def encodeJson(t: GetAccountTransactionsResponse): JValue =
       JObject("sent" -> t.sent.map(Extraction.decompose), "received" -> t.received.map(Extraction.decompose))
   }
 }

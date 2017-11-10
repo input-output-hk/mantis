@@ -147,7 +147,10 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "only allow to call mehtods of enabled apis" in new TestSetup {
-    override def config: JsonRpcConfig = new JsonRpcConfig { override val apis = Seq("web3") }
+    override def config: JsonRpcConfig = new JsonRpcConfig {
+      override val apis = Seq("web3")
+      override val accountTransactionsMaxBlocks = 50000
+    }
 
     val ethRpcRequest = JsonRpcRequest("2.0", "eth_protocolVersion", None, Some(1))
     val ethResponse = jsonRpcController.handleRequest(ethRpcRequest).futureValue
@@ -1358,7 +1361,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     ))
   }
 
-  it should "daedalus_getAccountRecentTransactions" in new TestSetup {
+  it should "daedalus_getAccountTransactions" in new TestSetup {
     val mockEthService = mock[EthService]
     override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
 
@@ -1366,15 +1369,17 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val sentTx = block.body.transactionList.head
     val receivedTx = block.body.transactionList.last
 
-    (mockEthService.getAccountRecentTransactions _).expects(*)
-      .returning(Future.successful(Right(GetAccountRecentTransactionsResponse(Seq(TransactionResponse(sentTx, Some(block.header))),
+    (mockEthService.getAccountTransactions _).expects(*)
+      .returning(Future.successful(Right(GetAccountTransactionsResponse(Seq(TransactionResponse(sentTx, Some(block.header))),
         Seq(TransactionResponse(receivedTx, Some(block.header)))))))
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
-      "daedalus_getAccountRecentTransactions",
+      "daedalus_getAccountTransactions",
       Some(JArray(List(
-        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D")
+        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D"),
+        JInt(100),
+        JInt(200)
       ))),
       Some(JInt(1))
     )
