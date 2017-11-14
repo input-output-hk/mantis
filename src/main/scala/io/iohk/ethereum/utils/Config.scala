@@ -97,6 +97,7 @@ object Config {
       }
 
       val certificateKeyStorePath: Option[String] = Try(rpcConfig.getString("certificate-keystore-path")).toOption
+      val certificateKeyStoreType: Option[String] = Try(rpcConfig.getString("certificate-keystore-type")).toOption
       val certificatePasswordFile: Option[String] = Try(rpcConfig.getString("certificate-password-file")).toOption
 
       def parseMultipleOrigins(origins: Seq[String]): HttpOriginRange = HttpOriginRange(origins.map(HttpOrigin(_)):_*)

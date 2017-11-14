@@ -82,6 +82,7 @@ object JsonRpcServer extends Logger {
     val interface: String
     val port: Int
     val certificateKeyStorePath: Option[String]
+    val certificateKeyStoreType: Option[String]
     val certificatePasswordFile: Option[String]
     val corsAllowedOrigins: HttpOriginRange
   }
