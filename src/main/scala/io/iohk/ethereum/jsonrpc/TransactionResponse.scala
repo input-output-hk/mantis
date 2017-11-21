@@ -14,13 +14,15 @@ case class TransactionResponse(
     value: BigInt,
     gasPrice: BigInt,
     gas: BigInt,
-    input: ByteString)
+    input: ByteString,
+    pending: Option[Boolean])
 
 object TransactionResponse {
 
   def apply(stx: SignedTransaction,
             blockHeader: Option[BlockHeader] = None,
-            transactionIndex: Option[Int] = None): TransactionResponse =
+            transactionIndex: Option[Int] = None,
+            pending: Option[Boolean] = None): TransactionResponse =
     TransactionResponse(
       hash = stx.hash,
       nonce = stx.tx.nonce,
@@ -32,7 +34,7 @@ object TransactionResponse {
       value = stx.tx.value,
       gasPrice = stx.tx.gasPrice,
       gas = stx.tx.gasLimit,
-      input = stx.tx.payload
-    )
+      input = stx.tx.payload,
+      pending = pending)
 
 }

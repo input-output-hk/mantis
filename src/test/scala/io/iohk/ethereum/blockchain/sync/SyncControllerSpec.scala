@@ -352,6 +352,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       override val fastSyncThrottle: FiniteDuration = 100.milliseconds
       val maxQueuedBlockNumberAhead: Int = 10
       val maxQueuedBlockNumberBehind: Int = 10
+      val maxNewBlockHashAge: Int = 20
+      val maxNewHashes: Int = 64
     }
 
     val syncControllerWithRegularSync = TestActorRef(Props(new SyncController(
@@ -392,7 +394,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val peerMessageBus = TestProbe()
     peerMessageBus.ignoreMsg{
-      case Subscribe(MessageClassifier(codes, PeerSelector.AllPeers)) if codes == Set(NewBlock.code) => true
+      case Subscribe(MessageClassifier(codes, PeerSelector.AllPeers)) if codes == Set(NewBlock.code, NewBlockHashes.code) => true
       case Subscribe(PeerDisconnectedClassifier(_)) => true
       case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
     }
@@ -422,6 +424,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       override val fastSyncThrottle: FiniteDuration = 100.milliseconds
       val maxQueuedBlockNumberAhead: Int = 10
       val maxQueuedBlockNumberBehind: Int = 10
+      val maxNewBlockHashAge: Int = 20
+      val maxNewHashes: Int = 64
     }
 
     lazy val syncConfig = obtainSyncConfig(1.seconds)

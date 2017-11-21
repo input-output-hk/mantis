@@ -284,7 +284,7 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
       JBool(t.result)
   }
 
-  implicit val personal_deleteWallet = new Codec[DeleteWalletRequest, DeleteWalletResponse] {
+  implicit val daedalus_deleteWallet = new Codec[DeleteWalletRequest, DeleteWalletResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, DeleteWalletRequest] = {
       params match {
         case Some(JArray(JString(addr) :: _)) =>
@@ -296,6 +296,20 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
 
     def encodeJson(t: DeleteWalletResponse): JValue =
       JBool(t.result)
+  }
+
+  implicit val daedalus_changePassphrase = new Codec[ChangePassphraseRequest, ChangePassphraseResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, ChangePassphraseRequest] = {
+      params match {
+        case Some(JArray(JString(addr) :: JString(oldPassphrase) :: JString(newPassphrase) :: _)) =>
+          extractAddress(addr).map(a => ChangePassphraseRequest(a, oldPassphrase, newPassphrase))
+        case _ =>
+          Left(InvalidParams())
+      }
+    }
+
+    def encodeJson(t: ChangePassphraseResponse): JValue =
+      JString("")
   }
 
 }

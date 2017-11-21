@@ -62,6 +62,9 @@ class OmmersPoolSpec extends FlatSpec with Matchers with MockFactory {
       override val blockCacheSize: Int = 4
       override val activeTimeout: FiniteDuration = Timeouts.normalTimeout
       override val headerExtraData: ByteString = ByteString.empty
+      override val miningEnabled: Boolean = false
+      override val ethashDir: String = "~/.ethash"
+      override val mineRounds: Int = 100000
     }
 
     val testProbe = TestProbe()

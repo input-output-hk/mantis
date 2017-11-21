@@ -2,6 +2,7 @@ package io.iohk.ethereum.utils
 
 import java.net.InetSocketAddress
 
+import akka.http.scaladsl.model.headers.{HttpOrigin, HttpOriginRange}
 import akka.util.ByteString
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
@@ -90,7 +91,7 @@ object Config {
 
       val apis = {
         val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
-        val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal"))
+        val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal", "daedalus"))
         require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
         providedApis
       }
@@ -98,6 +99,18 @@ object Config {
       val certificateKeyStorePath: Option[String] = Try(rpcConfig.getString("certificate-keystore-path")).toOption
       val certificatePasswordFile: Option[String] = Try(rpcConfig.getString("certificate-password-file")).toOption
 
+      def parseMultipleOrigins(origins: Seq[String]): HttpOriginRange = HttpOriginRange(origins.map(HttpOrigin(_)):_*)
+      def parseSingleOrigin(origin: String): HttpOriginRange = origin match {
+          case "*" => HttpOriginRange.*
+          case s => HttpOriginRange.Default(HttpOrigin(s) :: Nil)
+        }
+
+      val corsAllowedOrigins: HttpOriginRange =
+        (Try(parseMultipleOrigins(rpcConfig.getStringList("cors-allowed-origins").asScala)) recoverWith {
+          case _ => Try(parseSingleOrigin(rpcConfig.getString("cors-allowed-origins")))
+        }).get
+
+      val accountTransactionsMaxBlocks = rpcConfig.getInt("account-transactions-max-blocks")
     }
 
   }
@@ -129,6 +142,9 @@ object Config {
 
     val maxQueuedBlockNumberAhead: Int
     val maxQueuedBlockNumberBehind: Int
+
+    val maxNewBlockHashAge: Int
+    val maxNewHashes: Int
   }
 
   object SyncConfig {
@@ -162,6 +178,8 @@ object Config {
 
         val maxQueuedBlockNumberBehind: Int = syncConfig.getInt("max-queued-block-number-behind")
         val maxQueuedBlockNumberAhead: Int = syncConfig.getInt("max-queued-block-number-ahead")
+        val maxNewBlockHashAge: Int = syncConfig.getInt("max-new-block-hash-age")
+        val maxNewHashes: Int = syncConfig.getInt("max-new-hashes")
       }
     }
   }
@@ -228,6 +246,9 @@ trait MiningConfig {
   val activeTimeout: FiniteDuration
   val ommerPoolQueryTimeout: FiniteDuration
   val headerExtraData: ByteString
+  val miningEnabled: Boolean
+  val ethashDir: String
+  val mineRounds: Int
 }
 
 object MiningConfig {
@@ -244,6 +265,9 @@ object MiningConfig {
         ByteString(miningConfig
           .getString("header-extra-data").getBytes)
           .take(BlockHeaderValidatorImpl.MaxExtraDataSize)
+      override val miningEnabled = miningConfig.getBoolean("mining-enabled")
+      override val ethashDir = miningConfig.getString("ethash-dir")
+      override val mineRounds = miningConfig.getInt("mine-rounds")
     }
   }
 }

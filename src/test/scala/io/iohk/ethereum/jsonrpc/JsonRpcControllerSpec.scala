@@ -147,7 +147,10 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
   }
 
   it should "only allow to call mehtods of enabled apis" in new TestSetup {
-    override def config: JsonRpcConfig = new JsonRpcConfig { override val apis = Seq("web3") }
+    override def config: JsonRpcConfig = new JsonRpcConfig {
+      override val apis = Seq("web3")
+      override val accountTransactionsMaxBlocks = 50000
+    }
 
     val ethRpcRequest = JsonRpcRequest("2.0", "eth_protocolVersion", None, Some(1))
     val ethResponse = jsonRpcController.handleRequest(ethRpcRequest).futureValue
@@ -463,20 +466,38 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
   }
 
-  it should "personal_deleteWallet" in new TestSetup {
+  it should "daedalus_deleteWallet" in new TestSetup {
     val address = Address(42)
     val params = JArray(JString(address.toString) :: Nil)
 
     (personalService.deleteWallet _).expects(DeleteWalletRequest(address))
       .returning(Future.successful(Right(DeleteWalletResponse(true))))
 
-    val rpcRequest = JsonRpcRequest("2.0", "personal_deleteWallet", Some(params), Some(1))
+    val rpcRequest = JsonRpcRequest("2.0", "daedalus_deleteWallet", Some(params), Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JBool(true))
+  }
+
+  it should "daedalus_changePassphrase" in new TestSetup {
+    val address = Address(42)
+    val oldPassphrase = "weakpass"
+    val newPassphrase = "very5tr0ng&l0ngp4s5phr4s3"
+    val params = JArray(JString(address.toString) :: JString(oldPassphrase) :: JString(newPassphrase) :: Nil)
+
+    (personalService.changePassphrase _).expects(ChangePassphraseRequest(address, oldPassphrase, newPassphrase))
+      .returning(Future.successful(Right(ChangePassphraseResponse())))
+
+    val rpcRequest = JsonRpcRequest("2.0", "daedalus_changePassphrase", Some(params), Some(1))
+    val response = jsonRpcController.handleRequest(rpcRequest).futureValue
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JString(""))
   }
 
   it should "eth_sendTransaction" in new TestSetup {
@@ -507,8 +528,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
-    (appStateStorage.getBestBlockNumber _).expects().returns(1)
-    (blockGenerator.generateBlockForMining _).expects(*, *, *, *)
+    blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
+    (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *)
       .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
 
     val request: JsonRpcRequest = JsonRpcRequest(
@@ -542,8 +563,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
-    (appStateStorage.getBestBlockNumber _).expects().returns(1)
-    (blockGenerator.generateBlockForMining _).expects(*, *, *, *)
+    blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
+    (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *)
       .returns(Right(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil)))
 
     val request: JsonRpcRequest = JsonRpcRequest(
@@ -1275,7 +1296,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       "rpc" -> "1.0",
       "personal" -> "1.0",
       "eth" -> "1.0",
-      "web3" -> "1.0"
+      "web3" -> "1.0",
+      "daedalus" -> "1.0"
     ))
   }
 
@@ -1339,6 +1361,41 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     ))
   }
 
+  it should "daedalus_getAccountTransactions" in new TestSetup {
+    val mockEthService = mock[EthService]
+    override val jsonRpcController = new JsonRpcController(web3Service, netService, mockEthService, personalService, config)
+
+    val block = Fixtures.Blocks.Block3125369
+    val sentTx = block.body.transactionList.head
+    val receivedTx = block.body.transactionList.last
+
+    (mockEthService.getAccountTransactions _).expects(*)
+      .returning(Future.successful(Right(GetAccountTransactionsResponse(Seq(TransactionResponse(sentTx, Some(block.header))),
+        Seq(TransactionResponse(receivedTx, Some(block.header)))))))
+
+    val request: JsonRpcRequest = JsonRpcRequest(
+      "2.0",
+      "daedalus_getAccountTransactions",
+      Some(JArray(List(
+        JString(s"0x7B9Bc474667Db2fFE5b08d000F1Acc285B2Ae47D"),
+        JInt(100),
+        JInt(200)
+      ))),
+      Some(JInt(1))
+    )
+
+    val response = jsonRpcController.handleRequest(request).futureValue
+    val expectedSentTx = Extraction.decompose(TransactionResponse(sentTx, Some(block.header)))
+    val expectedReceivedTx = Extraction.decompose(TransactionResponse(receivedTx, Some(block.header)))
+
+    response.jsonrpc shouldBe "2.0"
+    response.id shouldBe JInt(1)
+    response.error shouldBe None
+    response.result shouldBe Some(JObject(
+      "sent" -> JArray(List(expectedSentTx)),
+      "received" -> JArray(List(expectedReceivedTx))))
+  }
+
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     def config: JsonRpcConfig = Config.Network.Rpc
 
@@ -1362,6 +1419,9 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override val activeTimeout: FiniteDuration = Timeouts.normalTimeout
       override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
       override val headerExtraData: ByteString = ByteString.empty
+      override val miningEnabled: Boolean = false
+      override val ethashDir: String = "~/.ethash"
+      override val mineRounds: Int = 100000
     }
 
     val filterConfig = new FilterConfig {
@@ -1396,6 +1456,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       extraData = ByteString("unused"),
       mixHash = ByteString("unused"),
       nonce = ByteString("unused"))
+
+    val parentBlock = Block(blockHeader.copy(number = 1), BlockBody(Nil, Nil))
 
     val r: ByteString = ByteString(Hex.decode("a3f20717a250c2b0b729b7e5becbff67fdaef7e0699da4de7ca5895b02a170a1"))
     val s: ByteString = ByteString(Hex.decode("2d887fd3b17bfdce3481f10bea41f45ba9f709d39ce8325427b57afcfc994cee"))

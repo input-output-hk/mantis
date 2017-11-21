@@ -2,6 +2,7 @@ package io.iohk.ethereum.jsonrpc.server
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.headers.HttpOriginRange
 import akka.stream.ActorMaterializer
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
@@ -25,4 +26,5 @@ class JsonRpcHttpServer(val jsonRpcController: JsonRpcController, config: JsonRp
     }
   }
 
+  override def corsAllowedOrigins: HttpOriginRange = config.corsAllowedOrigins
 }

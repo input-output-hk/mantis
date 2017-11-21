@@ -18,52 +18,57 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with PropertyChecks wit
   val ommersValidator = new OmmersValidatorImpl(blockchainConfig, new BlockHeaderValidatorImpl(blockchainConfig))
 
   it should "validate correctly a valid list of ommers" in new BlockUtils {
-    ommersValidator.validate(ommersBlockNumber, ommers, blockchain) match {
+    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, ommers, blockchain) match {
       case Right(_) => succeed
-      case _ => fail
+      case Left(err) => fail(s"Unexpected validation error: $err")
     }
   }
 
   it should "report a failure if the list of ommers is too big" in new BlockUtils {
-    ommersValidator.validate(ommersBlockNumber, Seq(ommer1, ommer2, ommer2), blockchain) match {
+    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, ommer2, ommer2), blockchain) match {
       case Left(OmmersLengthError) => succeed
-      case _ => fail
+      case Left(err) => fail(s"Unexpected validation error: $err")
+      case Right(_) => fail("Unexpected validation success")
     }
   }
 
   it should "report a failure if there is an invalid header in the list of ommers" in new BlockUtils {
     val invalidOmmer1: BlockHeader = ommer1.copy(number = ommer1.number + 1)
-    ommersValidator.validate(ommersBlockNumber, Seq(invalidOmmer1, ommer2), blockchain) match {
+    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(invalidOmmer1, ommer2), blockchain) match {
       case Left(OmmersNotValidError) => succeed
-      case _ => fail
+      case Left(err) => fail(s"Unexpected validation error: $err")
+      case Right(_) => fail("Unexpected validation success")
     }
   }
 
   it should "report a failure if there is an ommer that was previously used" in new BlockUtils {
-    ommersValidator.validate(ommersBlockNumber, Seq(block93.body.uncleNodesList.head, ommer2), blockchain) match {
+    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(block93.body.uncleNodesList.head, ommer2), blockchain) match {
       case Left(OmmersUsedBeforeError) => succeed
-      case _ => fail
+      case Left(err) => fail(s"Unexpected validation error: $err")
+      case Right(_) => fail("Unexpected validation success")
     }
   }
 
   it should "report a failure if there is an ommer which is of the last ancestors" in new BlockUtils {
-    ommersValidator.validate(ommersBlockNumber, Seq(ommer1, block92.header), blockchain) match {
+    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, block92.header), blockchain) match {
       case Left(OmmersAncestorsError) => succeed
-      case _ => fail
+      case Left(err) => fail(s"Unexpected validation error: $err")
+      case Right(_) => fail("Unexpected validation success")
     }
   }
 
   it should "report a failure if there is an ommer too old" in new BlockUtils {
-    ommersValidator.validate(ommersBlockNumber, Seq(ommer1, block90.header), blockchain) match {
+    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, block90.header), blockchain) match {
       case Left(OmmersAncestorsError) => succeed
       case _ => fail
     }
   }
 
   it should "report a failure if there is a duplicated ommer in the ommer list" in new BlockUtils {
-    ommersValidator.validate(ommersBlockNumber, Seq(ommer1, ommer1), blockchain) match {
+    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, ommer1), blockchain) match {
       case Left(OmmersDuplicatedError) => succeed
-      case _ => fail
+      case Left(err) => fail(s"Unexpected validation error: $err")
+      case Right(_) => fail("Unexpected validation success")
     }
   }
 
@@ -303,6 +308,8 @@ class OmmersValidatorSpec extends FlatSpec with Matchers with PropertyChecks wit
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
+
+    val ommersBlockParentHash = block96.header.hash
 
     blockchain.save(block89)
     blockchain.save(block90)
