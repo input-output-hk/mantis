@@ -99,11 +99,11 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
                                        maybePasswordFile: Option[String]): HttpsSetupResult[(String, String, String)] =
     (maybeKeystorePath, maybeKeystoreType, maybePasswordFile) match {
       case (Some(keystorePath), Some(keystoreType), Some(passwordFile)) =>
-        val certificateFileMissing = !new File(keystorePath).exists()
-        val passwordFileMissing = !new File(passwordFile).exists()
-        if(certificateFileMissing && passwordFileMissing)
+        val keystoreDirMissing = !new File(keystorePath).isDirectory
+        val passwordFileMissing = !new File(passwordFile).isFile
+        if(keystoreDirMissing && passwordFileMissing)
           Left("Certificate keystore path and password file configured but files are missing")
-        else if(certificateFileMissing)
+        else if(keystoreDirMissing)
           Left("Certificate keystore path configured but file is missing")
         else if(passwordFileMissing)
           Left("Certificate password file configured but file is missing")
