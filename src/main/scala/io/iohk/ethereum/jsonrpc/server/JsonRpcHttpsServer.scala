@@ -24,12 +24,12 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
   def run(): Unit = {
     implicit val materializer = ActorMaterializer()
 
-    val maybeSslContext = validateCertificateFiles(config.certificateKeyStorePath, config.certificatePasswordFile).flatMap{
-      case (certificatePath, passwordFile) =>
+    val maybeSslContext = validateCertificateFiles(config.certificateKeyStorePath, config.certificateKeyStoreType, config.certificatePasswordFile).flatMap{
+      case (keystorePath, keystoreType, passwordFile) =>
         val passwordReader = Source.fromFile(passwordFile)
         try {
           val password = passwordReader.getLines().mkString
-          obtainSSLContext(certificatePath, password)
+          obtainSSLContext(keystorePath, keystoreType, password)
         } finally {
           passwordReader.close()
         }
@@ -57,16 +57,23 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
     * @param password for accessing the keystore with the certificate
     * @return the SSL context with the obtained certificate or an error if any happened
     */
-  private def obtainSSLContext(certificateKeyStorePath: String, password: String): HttpsSetupResult[SSLContext] = {
+  private def obtainSSLContext(certificateKeyStorePath: String, certificateKeyStoreType: String, password: String): HttpsSetupResult[SSLContext] = {
     val passwordCharArray: Array[Char] = password.toCharArray
 
-    val ks: KeyStore = KeyStore.getInstance("JKS")
-    val keyStoreInitResult: HttpsSetupResult[Unit] = Option(new FileInputStream(certificateKeyStorePath))
-      .toRight("Certificate keystore creation failed")
-      .flatMap { keyStore =>
-        Try(ks.load(keyStore, passwordCharArray)).toEither.left.map( _.getMessage) }
+    val maybeKeyStore: HttpsSetupResult[KeyStore] = Try(KeyStore.getInstance(certificateKeyStoreType))
+      .toOption.toRight(s"Certificate keystore invalid type set: $certificateKeyStoreType")
+    val keyStoreInitResult: HttpsSetupResult[KeyStore] = maybeKeyStore.flatMap{ keyStore =>
+      val keyStoreFileCreationResult = Option(new FileInputStream(certificateKeyStorePath))
+        .toRight("Certificate keystore file creation failed")
+      keyStoreFileCreationResult.flatMap { keyStoreFile =>
+        Try(keyStore.load(keyStoreFile, passwordCharArray)) match {
+          case Success(_) => Right(keyStore)
+          case Failure(err) => Left(err.getMessage)
+        }
+      }
+    }
 
-    keyStoreInitResult.map { _ =>
+    keyStoreInitResult.map { ks =>
       val keyManagerFactory: KeyManagerFactory = KeyManagerFactory.getInstance("SunX509")
       keyManagerFactory.init(ks, passwordCharArray)
 
@@ -83,27 +90,27 @@ class JsonRpcHttpsServer(val jsonRpcController: JsonRpcController, config: JsonR
   /**
     * Validates that the keystore certificate file and password file were configured and that the files exists
     *
-    * @param maybeCertificatePath, with the path to the keystore certificate if it was configured
+    * @param maybeKeystorePath, with the path to the certificate keystore if it was configured
     * @param maybePasswordFile, with the path to the password file if it was configured
     * @return the certificate path and password file or the error detected
     */
-  private def validateCertificateFiles(maybeCertificatePath: Option[String],
-                                       maybePasswordFile: Option[String]): HttpsSetupResult[(String, String)] =
-    (maybeCertificatePath, maybePasswordFile) match {
-      case (Some(certificatePath), Some(passwordFile)) =>
-        val certificateFileMissing = !new File(certificatePath).exists()
-        val passwordFileMissing = !new File(passwordFile).exists()
-        if(certificateFileMissing && passwordFileMissing)
+  private def validateCertificateFiles(maybeKeystorePath: Option[String],
+                                       maybeKeystoreType: Option[String],
+                                       maybePasswordFile: Option[String]): HttpsSetupResult[(String, String, String)] =
+    (maybeKeystorePath, maybeKeystoreType, maybePasswordFile) match {
+      case (Some(keystorePath), Some(keystoreType), Some(passwordFile)) =>
+        val keystoreDirMissing = !new File(keystorePath).isDirectory
+        val passwordFileMissing = !new File(passwordFile).isFile
+        if(keystoreDirMissing && passwordFileMissing)
           Left("Certificate keystore path and password file configured but files are missing")
-        else if(certificateFileMissing)
+        else if(keystoreDirMissing)
           Left("Certificate keystore path configured but file is missing")
         else if(passwordFileMissing)
           Left("Certificate password file configured but file is missing")
         else
-          Right(certificatePath -> passwordFile)
-      case (None, None) => Left("Certificate keystore path and password file configuration required")
-      case (None, _) => Left("Certificate keystore path configuration required")
-      case (_, None) => Left("Certificate password file configuration required")
+          Right((keystorePath, keystoreType, passwordFile))
+      case _ =>
+        Left("HTTPS requires: certificate-keystore-path, certificate-keystore-type and certificate-password-file to be configured")
     }
 
   override def corsAllowedOrigins: HttpOriginRange = config.corsAllowedOrigins
