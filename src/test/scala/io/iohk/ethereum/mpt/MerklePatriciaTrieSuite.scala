@@ -7,7 +7,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage, ReferenceCountNodeStorage}
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.{MPTException, defaultByteArraySerializable}
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.FunSuite
 import org.scalatest.prop.PropertyChecks
@@ -345,6 +345,17 @@ class MerklePatriciaTrieSuite extends FunSuite
     val trieWithBranch = EmptyTrie.put(key1, key1).put(key2, key2)
     val trieAfterDelete = trieWithBranch.remove(Hex.decode("11a0"))
     assert(trieAfterDelete.getRootHash sameElements trieWithBranch.getRootHash)
+  }
+
+  test("Invalid root hash should return an error accordingly") {
+    val rootId = "2" * 64 // 32 Bytes, should be stored
+    val invalidTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](Hex.decode(rootId), EmptyEphemNodeStorage)
+    val thrown = intercept[MPTException] {
+      invalidTrie.get(Hex.decode("1111")) // Try to get anything
+    }
+
+    assert(thrown.getMessage === s"Root node not found $rootId")
+
   }
 
   /* EthereumJ tests */
