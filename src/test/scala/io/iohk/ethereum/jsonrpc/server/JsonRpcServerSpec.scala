@@ -89,6 +89,7 @@ class JsonRpcServerSpec extends FlatSpec with Matchers with ScalatestRouteTest {
       override val interface: String = ""
       override val port: Int = 123
       override val certificateKeyStorePath = None
+      override val certificateKeyStoreType = None
       override val certificatePasswordFile = None
       override val corsAllowedOrigins = HttpOriginRange.*
     }
