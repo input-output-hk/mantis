@@ -10,18 +10,23 @@ import io.iohk.ethereum.utils.Logger
 /**
   * This class helps to deal with two problems regarding MptNodes storage:
   * 1) Define a way to delete ones that are no longer needed but allow rollbacks to be performed
-  * 2) Avoids removal of nodes that can be used in different trie branches because the hash it's the same
+  * 2) Avoids removal of nodes that can be used in different trie branches because the hash is the same
   *
   * To deal with (1) when a node is no longer needed, block number alongside with a stored node snapshot is saved so
-  * it can be restored in case of rollback
+  * it can be restored in case of rollback.
   *
-  * In order to solve (2), before saving a node, its wrapped with the number of references it has.
+  * In order to solve (2), before saving a node, it's wrapped with the number of references it has.
   *
   * Using this storage will change data to be stored in nodeStorage in two ways (and it will, as consequence, make
   * different pruning mechanisms incompatible):
-  * - Instead of saving KEY -> VALUE, it will store KEY -> STORED_NODE(VALUE, REFERENCE_COUNT)
-  * - Also, the following index will be appended: BLOCK_NUMBER_TAG -> NUMBER_OF_SNAPSHOTS
-  * - All the snapshots as: (BLOCK_NUMBER_TAG ++ SNAPSHOT_INDEX) -> SNAPSHOT
+  * - Instead of saving KEY -> VALUE, it will store KEY -> STORED_NODE(VALUE, REFERENCE_COUNT, LAST_USED_BY_BLOCK)
+  *
+  * Also, additional data will be saved in this storage:
+  * - For each block: BLOCK_NUMBER_TAG -> NUMBER_OF_SNAPSHOTS
+  * - For each node changed within a block: (BLOCK_NUMBER_TAG ++ SNAPSHOT_INDEX) -> SNAPSHOT
+  *
+  * Storing snapshot info this way allows for easy construction of snapshot key (based on a block number
+  * and number of snapshots) and therefore, fast access to each snapshot individually.
   */
 class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[BigInt] = None)
   extends NodesKeyValueStorage {
@@ -37,8 +42,8 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
     val bn = blockNumber.get
     // Process upsert changes. As the same node might be changed twice within the same update, we need to keep changes
     // within a map. There is also stored the snapshot version before changes
-    val upsertChanges = applyUpsertChanges(toUpsert, bn)
-    val changes = applyRemovalChanges(toRemove, upsertChanges, bn)
+    val upsertChanges = prepareUpsertChanges(toUpsert, bn)
+    val changes = prepareRemovalChanges(toRemove, upsertChanges, bn)
 
     val (toUpsertUpdated, snapshots) =
       changes.foldLeft(Seq.empty[(NodeHash, NodeEncoded)], Seq.empty[StoredNodeSnapshot]) {
@@ -52,7 +57,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
     this
   }
 
-  private def applyUpsertChanges(toUpsert: Seq[(NodeHash, NodeEncoded)], blockNumber: BigInt): Changes =
+  private def prepareUpsertChanges(toUpsert: Seq[(NodeHash, NodeEncoded)], blockNumber: BigInt): Changes =
     toUpsert.foldLeft(Map.empty[NodeHash, (StoredNode, StoredNodeSnapshot)]) { (storedNodes, toUpsertItem) =>
       val (nodeKey, nodeEncoded) = toUpsertItem
       val (storedNode, snapshot) = getFromChangesOrStorage(nodeKey, storedNodes)
@@ -61,7 +66,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[Bi
       storedNodes + (nodeKey -> (storedNode.incrementReferences(1, blockNumber), snapshot))
     }
 
-  private def applyRemovalChanges(toRemove: Seq[NodeHash], changes: Map[NodeHash, (StoredNode, StoredNodeSnapshot)], blockNumber: BigInt): Changes =
+  private def prepareRemovalChanges(toRemove: Seq[NodeHash], changes: Map[NodeHash, (StoredNode, StoredNodeSnapshot)], blockNumber: BigInt): Changes =
     toRemove.foldLeft(changes) { (storedNodes, nodeKey) =>
       val maybeStoredNode: Option[(StoredNode, StoredNodeSnapshot)] = getFromChangesOrStorage(nodeKey, storedNodes)
 
@@ -95,7 +100,10 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
   type Changes = Map[NodeHash, (StoredNode, StoredNodeSnapshot)]
 
   /**
-    * Removes snapshots stored in the DB that are not longer needed, which means, cannot be rolled back to
+    * Fetches snapshots stored in the DB for the given block number and deletes the stored nodes, referred to
+    * by these snapshots, that meet criteria for deletion (see `getNodesToBeRemovedInPruning` for details).
+    *
+    * All snapshots for this block are removed, which means state can no longer be rolled back to this point.
     *
     * @param blockNumber BlockNumber to prune
     * @param nodeStorage NodeStorage
@@ -151,7 +159,8 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
 
   /**
     * Within snapshots stored for this block, it looks for Nodes that are not longer being used in order to remove them
-    * from DB. To do so, it looks for nodes whom snapshot reference count is 0
+    * from DB. To do so, it looks for nodes whom snapshot reference count is 0, and checks that the node wasn't updated
+    * by any later block (by examining `lastUsedByBlock` field).
     * @param blockNumber
     * @param snapshotKeys
     * @param nodeStorage
