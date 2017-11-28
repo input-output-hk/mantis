@@ -426,7 +426,8 @@ trait MinerBuilder {
     with PendingTransactionsManagerBuilder
     with BlockGeneratorBuilder
     with SyncControllerBuilder
-    with MiningConfigBuilder =>
+    with MiningConfigBuilder
+    with EthServiceBuilder =>
 
   lazy val miner: ActorRef = actorSystem.actorOf(Miner.props(
     blockchain,
@@ -434,7 +435,8 @@ trait MinerBuilder {
     ommersPool,
     pendingTransactionsManager,
     syncController,
-    miningConfig))
+    miningConfig,
+    ethService))
 }
 
 trait Node extends NodeKeyBuilder

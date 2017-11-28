@@ -9,6 +9,8 @@ import io.iohk.ethereum.consensus.Ethash
 import io.iohk.ethereum.consensus.Ethash.ProofOfWork
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
+import io.iohk.ethereum.jsonrpc.EthService
+import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateRequest
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
@@ -26,7 +28,8 @@ class Miner(
     ommersPool: ActorRef,
     pendingTransactionsManager: ActorRef,
     syncController: ActorRef,
-    miningConfig: MiningConfig)
+    miningConfig: MiningConfig,
+    ethService: EthService)
   extends Actor with ActorLogging {
 
   import Miner._
@@ -77,9 +80,15 @@ class Miner(
     getBlockForMining(parentBlock) onComplete {
       case Success(PendingBlock(block, _)) =>
         val headerHash = crypto.kec256(BlockHeader.getEncodedWithoutNonce(block.header))
+        val startTime = System.currentTimeMillis()
         val mineResult = mine(headerHash, block.header.difficulty.toLong, dagSize, dag, miningConfig.mineRounds)
-        mineResult.foreach { case (pow, nonce) =>
-          syncController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = nonce, mixHash = pow.mixHash)))
+        val time = System.currentTimeMillis() - startTime
+        val hashRate = (mineResult.triedHashes * 1000) / time
+        ethService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
+        mineResult match {
+          case MineSuccessful(_, pow, nonce) =>
+            syncController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = nonce, mixHash = pow.mixHash)))
+          case _ => // nothing
         }
         self ! ProcessMining
 
@@ -144,15 +153,17 @@ class Miner(
     }
   }
 
-  private def mine(headerHash: Array[Byte], difficulty: Long, dagSize: Long, dag: Array[Array[Int]], numRounds: Int): Option[(ProofOfWork, ByteString)] = {
+  private def mine(headerHash: Array[Byte], difficulty: Long, dagSize: Long, dag: Array[Array[Int]], numRounds: Int): MineResult = {
     // scalastyle:off magic.number
     val initNonce = BigInt(64, new Random())
 
     (0 to numRounds).toStream.map { n =>
       val nonce = (initNonce + n) % MaxNonce
       val pow = Ethash.hashimoto(headerHash, nonce.toByteArray, dagSize, dag.apply)
-      (Ethash.checkDifficulty(difficulty, pow), pow, nonce)
-    }.collectFirst { case (true, pow, nonce) => (pow, ByteString(nonce.toByteArray)) }
+      (Ethash.checkDifficulty(difficulty, pow), pow, nonce, n)
+    }
+    .collectFirst { case (true, pow, nonce, n) => MineSuccessful(n + 1, pow, ByteString(nonce.toByteArray)) }
+    .getOrElse(MineUnsuccessful(numRounds))
   }
 
   private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
@@ -191,8 +202,10 @@ object Miner {
             ommersPool: ActorRef,
             pendingTransactionsManager: ActorRef,
             syncController: ActorRef,
-            miningConfig: MiningConfig): Props =
-    Props(new Miner(blockchain, blockGenerator, ommersPool, pendingTransactionsManager, syncController, miningConfig))
+            miningConfig: MiningConfig,
+            ethService: EthService): Props =
+    Props(new Miner(blockchain, blockGenerator, ommersPool,
+      pendingTransactionsManager, syncController, miningConfig, ethService))
 
   case object StartMining
   case object StopMining
@@ -203,4 +216,11 @@ object Miner {
   val MaxNonce: BigInt = BigInt(2).pow(64)
 
   val DagFilePrefix: ByteString = ByteString(Array(0xfe, 0xca, 0xdd, 0xba, 0xad, 0xde, 0xe1, 0xfe).map(_.toByte))
+
+  sealed trait MineResult {
+    def triedHashes: Int
+  }
+  case class MineSuccessful(override val triedHashes: Int, pow: ProofOfWork, nonce: ByteString) extends MineResult
+  case class MineUnsuccessful(override val triedHashes: Int) extends MineResult
+
 }
