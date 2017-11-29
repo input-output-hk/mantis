@@ -128,7 +128,9 @@ trait BlockchainBuilder {
 trait ForkResolverBuilder {
   self: BlockchainConfigBuilder =>
 
-  lazy val forkResolverOpt = blockchainConfig.daoForkConfig.map(new ForkResolver.EtcForkResolver(_))
+  lazy val forkResolverOpt =
+    if (blockchainConfig.customGenesisFileOpt.isDefined) None // no forks on private networks
+    else blockchainConfig.daoForkConfig.map(new ForkResolver.EtcForkResolver(_))
 
 }
 
