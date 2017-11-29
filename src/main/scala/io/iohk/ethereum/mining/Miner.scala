@@ -86,7 +86,7 @@ class Miner(
         val hashRate = (mineResult.triedHashes * 1000) / time
         ethService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
         mineResult match {
-          case MineSuccessful(_, pow, nonce) =>
+          case MiningSuccessful(_, pow, nonce) =>
             syncController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = nonce, mixHash = pow.mixHash)))
           case _ => // nothing
         }
@@ -153,7 +153,7 @@ class Miner(
     }
   }
 
-  private def mine(headerHash: Array[Byte], difficulty: Long, dagSize: Long, dag: Array[Array[Int]], numRounds: Int): MineResult = {
+  private def mine(headerHash: Array[Byte], difficulty: Long, dagSize: Long, dag: Array[Array[Int]], numRounds: Int): MiningResult = {
     // scalastyle:off magic.number
     val initNonce = BigInt(64, new Random())
 
@@ -162,8 +162,8 @@ class Miner(
       val pow = Ethash.hashimoto(headerHash, nonce.toByteArray, dagSize, dag.apply)
       (Ethash.checkDifficulty(difficulty, pow), pow, nonce, n)
     }
-    .collectFirst { case (true, pow, nonce, n) => MineSuccessful(n + 1, pow, ByteString(nonce.toByteArray)) }
-    .getOrElse(MineUnsuccessful(numRounds))
+    .collectFirst { case (true, pow, nonce, n) => MiningSuccessful(n + 1, pow, ByteString(nonce.toByteArray)) }
+    .getOrElse(MiningUnsuccessful(numRounds))
   }
 
   private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
@@ -217,10 +217,10 @@ object Miner {
 
   val DagFilePrefix: ByteString = ByteString(Array(0xfe, 0xca, 0xdd, 0xba, 0xad, 0xde, 0xe1, 0xfe).map(_.toByte))
 
-  sealed trait MineResult {
+  sealed trait MiningResult {
     def triedHashes: Int
   }
-  case class MineSuccessful(override val triedHashes: Int, pow: ProofOfWork, nonce: ByteString) extends MineResult
-  case class MineUnsuccessful(override val triedHashes: Int) extends MineResult
+  case class MiningSuccessful(triedHashes: Int, pow: ProofOfWork, nonce: ByteString) extends MiningResult
+  case class MiningUnsuccessful(triedHashes: Int) extends MiningResult
 
 }
