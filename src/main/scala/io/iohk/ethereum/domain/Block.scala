@@ -14,7 +14,7 @@ case class Block(header: BlockHeader, body: BlockBody) {
     s"""BlockHeader {
        | header: $header
        | body: $body
-     """.stripMargin
+       |}""".stripMargin
   }
 
   def idTag: String =
