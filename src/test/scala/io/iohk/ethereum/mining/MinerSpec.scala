@@ -11,7 +11,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, MiningConfig}
-import io.iohk.ethereum.validators.BlockHeaderValidatorImpl
+import io.iohk.ethereum.validators.{BlockHeaderValid, BlockHeaderValidatorImpl}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers, Tag}
 import org.spongycastle.util.encoders.Hex
@@ -57,7 +57,8 @@ class MinerSpec extends FlatSpec with Matchers {
     miner ! Miner.StopMining
 
     block.body.transactionList shouldBe Seq(txToMine)
-    blockHeaderValidator.validate(block.header, parent.header) shouldBe Right(block.header)
+    block.header.nonce.length shouldBe 8
+    blockHeaderValidator.validate(block.header, parent.header) shouldBe Right(BlockHeaderValid)
   }
 
   trait TestSetup extends MockFactory {
