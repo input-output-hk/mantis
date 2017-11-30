@@ -5,6 +5,8 @@ import akka.testkit.{TestActor, TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.RegularSync
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.EthService
+import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateResponse
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -14,6 +16,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers, Tag}
 import org.spongycastle.util.encoders.Hex
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object MinerSpec {
@@ -30,6 +33,7 @@ class MinerSpec extends FlatSpec with Matchers {
     val bfm = blockForMining(parent.header)
 
     (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
+    (ethService.submitHashRate _).expects(*).returns(Future.successful(Right(SubmitHashRateResponse(true)))).atLeastOnce()
     (blockGenerator.generateBlockForMining _).expects(parent, Nil, Nil, miningConfig.coinbase).returning(Right(PendingBlock(bfm, Nil))).anyNumberOfTimes()
 
     ommersPool.setAutoPilot(new TestActor.AutoPilot {
@@ -137,7 +141,9 @@ class MinerSpec extends FlatSpec with Matchers {
     val pendingTransactionsManager = TestProbe()
     val syncController = TestProbe()
 
-    val miner = TestActorRef(Miner.props(blockchain, blockGenerator, ommersPool.ref, pendingTransactionsManager.ref, syncController.ref, miningConfig))
+    val ethService = mock[EthService]
+
+    val miner = TestActorRef(Miner.props(blockchain, blockGenerator, ommersPool.ref, pendingTransactionsManager.ref, syncController.ref, miningConfig, ethService))
 
     def waitForMinedBlock(): Block = {
       syncController.expectMsgPF[Block](10.minutes) {
