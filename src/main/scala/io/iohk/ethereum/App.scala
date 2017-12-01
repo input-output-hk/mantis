@@ -1,7 +1,9 @@
 package io.iohk.ethereum
 
+import io.iohk.ethereum.utils.Logger
 
-object App {
+
+object App extends Logger {
 
   def main(args: Array[String]): Unit = {
 
@@ -13,7 +15,7 @@ object App {
         case Some(`launchMantis`) => Mantis.main(args.tail)
         case Some(`launchKeytool`) => KeyTool.main(args.tail)
         case Some(unknown) =>
-          println(s"Unrecognised launcher option, " +
+          log.error(s"Unrecognised launcher option, " +
             s"first parameter must be $launchKeytool or $launchMantis")
       }
 
