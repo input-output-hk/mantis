@@ -9,7 +9,7 @@ object App {
     val launchKeytool = "keytool"
 
       args.headOption match {
-        case None => Mantis.main(args.tail)
+        case None => Mantis.main(args)
         case Some(`launchMantis`) => Mantis.main(args.tail)
         case Some(`launchKeytool`) => KeyTool.main(args.tail)
         case Some(unknown) =>
