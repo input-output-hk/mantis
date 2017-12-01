@@ -5,8 +5,8 @@ object App {
 
   def main(args: Array[String]): Unit = {
 
-    private val launchMantis = "mantis"
-    private val launchKeytool = "keytool"
+    val launchMantis = "mantis"
+    val launchKeytool = "keytool"
 
       args.headOption match {
         case None => Mantis.main(args.tail)
