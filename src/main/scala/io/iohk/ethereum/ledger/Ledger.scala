@@ -782,7 +782,7 @@ class LedgerImpl(
         case Some(block) =>
           val remaining = n - queuedBlocks.length - 1
           val numbers = (block.header.number - remaining) until block.header.number
-          numbers.toList.flatMap(blockchain.getBlockByNumber) :+ block
+          (numbers.toList.flatMap(blockchain.getBlockByNumber) :+ block) ::: queuedBlocks
       }
     }
   }
