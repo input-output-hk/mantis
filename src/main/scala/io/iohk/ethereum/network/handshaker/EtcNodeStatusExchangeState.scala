@@ -44,7 +44,7 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
 
   private def createStatusMsg(): Status = {
     val bestBlockHeader = getBestBlockHeader()
-    val totalDifficulty = blockchain.getTotalDifficultyByHash(bestBlockHeader.hash).getOrElse(bestBlockHeader.difficulty)
+    val totalDifficulty = blockchain.getTotalDifficultyByHash(bestBlockHeader.hash).get
     val status = Status(
       protocolVersion = Versions.PV63,
       networkId = peerConfiguration.networkId,
