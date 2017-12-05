@@ -21,6 +21,7 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.{Failure, Random, Success, Try}
+import io.iohk.ethereum.utils.BigIntExtensionMethods._
 
 class Miner(
     blockchain: Blockchain,
@@ -159,10 +160,11 @@ class Miner(
 
     (0 to numRounds).toStream.map { n =>
       val nonce = (initNonce + n) % MaxNonce
-      val pow = Ethash.hashimoto(headerHash, nonce.toByteArray, dagSize, dag.apply)
-      (Ethash.checkDifficulty(difficulty, pow), pow, nonce, n)
+      val nonceBytes = ByteUtils.padLeft(ByteString(nonce.toUnsignedByteArray), 8)
+      val pow = Ethash.hashimoto(headerHash, nonceBytes.toArray[Byte], dagSize, dag.apply)
+      (Ethash.checkDifficulty(difficulty, pow), pow, nonceBytes, n)
     }
-    .collectFirst { case (true, pow, nonce, n) => MiningSuccessful(n + 1, pow, ByteString(nonce.toByteArray)) }
+    .collectFirst { case (true, pow, nonceBytes, n) => MiningSuccessful(n + 1, pow, nonceBytes) }
     .getOrElse(MiningUnsuccessful(numRounds))
   }
 
@@ -213,7 +215,7 @@ object Miner {
   private case object ProcessMining
 
   // scalastyle:off magic.number
-  val MaxNonce: BigInt = BigInt(2).pow(64)
+  val MaxNonce: BigInt = BigInt(2).pow(64) - 1
 
   val DagFilePrefix: ByteString = ByteString(Array(0xfe, 0xca, 0xdd, 0xba, 0xad, 0xde, 0xe1, 0xfe).map(_.toByte))
 
