@@ -401,7 +401,16 @@ class PeerActorSpec extends FlatSpec with Matchers {
       extraData = ByteString("0"),
       mixHash = ByteString("0"),
       nonce = ByteString("0"))
-    blockchain.save(testGenesisHeader)
+
+    val testGenesisBlockBody: BlockBody = BlockBody(
+      transactionList = Seq[SignedTransaction](
+      ),
+      uncleNodesList = Seq[BlockHeader](
+      ))
+
+    val testGenesisBlock = Block(testGenesisHeader, testGenesisBlockBody)
+
+    blockchain.save(testGenesisBlock, Nil, testGenesisBlock.header.difficulty, saveAsBestBlock = true)
 
     val daoForkBlockNumber = 1920000
 
