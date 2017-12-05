@@ -8,6 +8,8 @@ import io.iohk.ethereum.utils.MonetaryPolicyConfig
   * rounding errors.
   * A Geth issue (ethereumproject/go-ethereum#352) and a comment on the ECIP (https://github.com/ethereumproject/ECIPs/issues/15#issuecomment-330660976)
   * were created to check whether this should be changed
+  * Previous issues resulted in https://github.com/ethereumproject/ECIPs/blob/master/ECIPs/ECIP-1039.md which completely
+  * specifies eventual rounding issues.
   */
 class BlockRewardCalculator(config: MonetaryPolicyConfig) {
   /** Era duration in blocks */
