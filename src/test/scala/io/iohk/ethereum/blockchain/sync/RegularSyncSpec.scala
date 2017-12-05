@@ -259,7 +259,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(NewBetterBranch(oldBlocks))
 
-        sendBlockHeaders(newBlocks)
+        sendBlockHeadersFromBlocks(newBlocks)
 
         etcPeerManager.expectMsg(EtcPeerManagerActor.GetHandshakedPeers)
         etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(GetBlockBodies(newBlocks.map(_.header.hash)), peer1.id))
@@ -272,31 +272,37 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(NoChainSwitch)
 
-        sendBlockHeaders(newBlocks)
+        sendBlockHeadersFromBlocks(newBlocks)
 
         ommersPool.expectMsg(AddOmmers(newBlocks.head.header))
       }
 
       // TODO: the following 3 tests are very poor, but fixing that requires re-designing much of the sync actors, with testing in mind
       "handle unknown branch about to be resolved" in new TestSetup {
-        val newBlocks = (1 to 2).map(_ => getBlock())
+        val newBlocks = (1 to 10).map(_ => getBlock())
 
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(UnknownBranch)
 
-        sendBlockHeaders(newBlocks)
+        sendBlockHeadersFromBlocks(newBlocks)
 
         Thread.sleep(1000)
 
+        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
         regularSync.underlyingActor.resolvingBranches shouldBe true
       }
 
-      "handle unknown branch about that can't be resolved" in new TestSetup {
-        val newBlocks = (1 to 6).map(_ => getBlock())
+      "handle unknown branch that can't be resolved" in new TestSetup {
+        val additionalHeaders = (1 to 2).map(_ => getBlock().header)
+        val newHeaders = getBlock().header.copy(parentHash = additionalHeaders.head.hash) +: (1 to 9).map(_ => getBlock().header)
+        inSequence {
+          (ledger.resolveBranch _).expects(newHeaders).returning(UnknownBranch)
+          (ledger.resolveBranch _).expects(additionalHeaders.reverse ++ newHeaders).returning(UnknownBranch)
+        }
 
-        (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(UnknownBranch)
+        sendBlockHeaders(newHeaders)
+        Thread.sleep(1000)
 
-        sendBlockHeaders(newBlocks)
-
+        sendBlockHeaders(additionalHeaders)
         Thread.sleep(1000)
 
         regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
@@ -308,7 +314,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
         (ledger.resolveBranch _).expects(newBlocks.map(_.header)).returning(InvalidBranch)
 
-        sendBlockHeaders(newBlocks)
+        sendBlockHeadersFromBlocks(newBlocks)
 
         Thread.sleep(1000)
 
@@ -331,12 +337,11 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       override val printStatusInterval: FiniteDuration = 1.hour
       override val persistStateSnapshotInterval: FiniteDuration = 20.seconds
       override val targetBlockOffset: Int = 500
-      override val branchResolutionBatchSize: Int = 2
+      override val branchResolutionRequestSize: Int = 2
       override val blacklistDuration: FiniteDuration = 5.seconds
       override val syncRetryInterval: FiniteDuration = 1.second
       override val checkForNewBlockInterval: FiniteDuration = 1.second
       override val startRetryInterval: FiniteDuration = 500.milliseconds
-      override val branchResolutionMaxRequests: Int = 2
       override val blockChainOnlyPeersPoolSize: Int = 100
       override val maxConcurrentRequests: Int = 10
       override val blockHeadersPerRequest: Int = 2
@@ -434,8 +439,12 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       regularSync ! MinedBlock(block)
     }
 
-    def sendBlockHeaders(blocks: Seq[Block]): Unit = {
-      regularSync ! ResponseReceived(peer1, BlockHeaders(blocks.map(_.header)), 0)
+    def sendBlockHeadersFromBlocks(blocks: Seq[Block]): Unit = {
+      sendBlockHeaders(blocks.map(_.header))
+    }
+
+    def sendBlockHeaders(headers: Seq[BlockHeader]): Unit = {
+      regularSync ! ResponseReceived(peer1, BlockHeaders(headers), 0)
     }
   }
 }

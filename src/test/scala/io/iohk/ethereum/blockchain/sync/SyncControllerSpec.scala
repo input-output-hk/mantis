@@ -334,12 +334,11 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       override val printStatusInterval: FiniteDuration = 1.hour
       override val persistStateSnapshotInterval: FiniteDuration = 20.seconds
       override val targetBlockOffset: Int = 500
-      override val branchResolutionBatchSize: Int = 20
+      override val branchResolutionRequestSize: Int = 20
       override val blacklistDuration: FiniteDuration = 5.seconds
       override val syncRetryInterval: FiniteDuration = 1.second
       override val checkForNewBlockInterval: FiniteDuration = 1.second
       override val startRetryInterval: FiniteDuration = 500.milliseconds
-      override val branchResolutionMaxRequests: Int = 100
       override val blockChainOnlyPeersPoolSize: Int = 100
       override val maxConcurrentRequests: Int = 10
       override val blockHeadersPerRequest: Int = 10
@@ -405,12 +404,11 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       override val printStatusInterval: FiniteDuration = 1.hour
       override val persistStateSnapshotInterval: FiniteDuration = 20.seconds
       override val targetBlockOffset: Int = 500
-      override val branchResolutionBatchSize: Int = 20
+      override val branchResolutionRequestSize: Int = 20
       override val blacklistDuration: FiniteDuration = 5.seconds
       override val syncRetryInterval: FiniteDuration = 1.second
       override val checkForNewBlockInterval: FiniteDuration = checkingForNewBlockInterval
       override val startRetryInterval: FiniteDuration = 500.milliseconds
-      override val branchResolutionMaxRequests: Int = 100
       override val blockChainOnlyPeersPoolSize: Int = 100
       override val maxConcurrentRequests: Int = 10
       override val blockHeadersPerRequest: Int = 10

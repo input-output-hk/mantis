@@ -136,9 +136,8 @@ object Config {
     val persistStateSnapshotInterval: FiniteDuration
 
     val checkForNewBlockInterval: FiniteDuration
-    val branchResolutionBatchSize: Int
+    val branchResolutionRequestSize: Int
     val blockChainOnlyPeersPoolSize: Int
-    val branchResolutionMaxRequests: Int
     val fastSyncThrottle: FiniteDuration
 
     val maxQueuedBlockNumberAhead: Int
@@ -172,9 +171,8 @@ object Config {
           syncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis
 
         val checkForNewBlockInterval: FiniteDuration = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis
-        val branchResolutionBatchSize: Int = syncConfig.getInt("branch-resolution-batch-size")
+        val branchResolutionRequestSize: Int = syncConfig.getInt("branch-resolution-request-size")
         val blockChainOnlyPeersPoolSize: Int = syncConfig.getInt("fastsync-block-chain-only-peers-pool")
-        val branchResolutionMaxRequests: Int = syncConfig.getInt("branch-resolution-max-requests")
         val fastSyncThrottle: FiniteDuration = syncConfig.getDuration("fastsync-throttle").toMillis.millis
 
         val maxQueuedBlockNumberBehind: Int = syncConfig.getInt("max-queued-block-number-behind")

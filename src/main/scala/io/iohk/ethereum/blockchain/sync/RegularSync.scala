@@ -37,9 +37,15 @@ class RegularSync(
   import RegularSync._
   import syncConfig._
 
+
   private var headersQueue: Seq[BlockHeader] = Nil
   private var waitingForActor: Option[ActorRef] = None
   var resolvingBranches: Boolean = false
+  /** This is used as an optimisation to avoid handling broadcast messages when we haven't reached the top of the chain.
+    * Currently it's set to true after we receive 0 headers from a peer, which usually means it doesn't have any new headers.
+    * But there could be other reasons for receiving 0 blocks. It may be better to make handling broadcast messages
+    * dependent on our current best block info (stored in this actor to avoid DB lookups).
+    */
   var topOfTheChain: Boolean = false
   private var resumeRegularSyncTimeout: Option[Cancellable] = None
 
@@ -185,8 +191,9 @@ class RegularSync(
     case ResponseReceived(peer: Peer, BlockHeaders(headers), timeTaken) =>
       log.info("Received {} block headers in {} ms", headers.size, timeTaken)
       waitingForActor = None
+      println(s"got ${headers.size}, resolvingBranches = ${resolvingBranches}")
       if (resolvingBranches) handleBlockBranchResolution(peer, headers.reverse)
-      else handleDownload(peer, headers)
+      else handleBlockHeaders(peer, headers)
 
     case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
       log.info("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
@@ -244,7 +251,6 @@ class RegularSync(
       case Some(peer) =>
         val blockNumber = appStateStorage.getBestBlockNumber()
         requestBlockHeaders(peer, GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false))
-        resolvingBranches = false
 
       case None =>
         log.debug("No peers to download from")
@@ -258,11 +264,12 @@ class RegularSync(
       processBlockHeaders(peer, headersQueue)
     } else {
       //we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
-      resumeWithDifferentPeer(peer)
+      resumeWithDifferentPeer(peer, "failed to resolve branch")
+      resolvingBranches = false
     }
   }
 
-  private def handleDownload(peer: Peer, message: Seq[BlockHeader]) = if (message.nonEmpty) {
+  private def handleBlockHeaders(peer: Peer, message: Seq[BlockHeader]) = if (message.nonEmpty) {
     headersQueue = message
     processBlockHeaders(peer, message)
   } else {
@@ -283,15 +290,16 @@ class RegularSync(
 
     case NoChainSwitch =>
       //add first block from branch as ommer
-      headersQueue.headOption.foreach { h => ommersPool ! AddOmmers(h) }
+      headers.headOption.foreach { h => ommersPool ! AddOmmers(h) }
       scheduleResume()
 
     case UnknownBranch =>
-      if ((headersQueue.length - 1) / branchResolutionBatchSize >= branchResolutionMaxRequests) {
+      if (resolvingBranches) {
         log.debug("fail to resolve branch, branch too long, it may indicate malicious peer")
-        resumeWithDifferentPeer(peer)
+        resumeWithDifferentPeer(peer, "failed to resolve branch")
+        resolvingBranches = false
       } else {
-        val request = GetBlockHeaders(Right(headersQueue.head.parentHash), branchResolutionBatchSize, skip = 0, reverse = true)
+        val request = GetBlockHeaders(Right(headersQueue.head.parentHash), branchResolutionRequestSize, skip = 0, reverse = true)
         requestBlockHeaders(peer, request)
         resolvingBranches = true
       }
