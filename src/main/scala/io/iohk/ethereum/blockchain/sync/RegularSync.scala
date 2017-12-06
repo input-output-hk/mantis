@@ -191,7 +191,6 @@ class RegularSync(
     case ResponseReceived(peer: Peer, BlockHeaders(headers), timeTaken) =>
       log.info("Received {} block headers in {} ms", headers.size, timeTaken)
       waitingForActor = None
-      println(s"got ${headers.size}, resolvingBranches = ${resolvingBranches}")
       if (resolvingBranches) handleBlockBranchResolution(peer, headers.reverse)
       else handleBlockHeaders(peer, headers)
 
