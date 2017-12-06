@@ -4,8 +4,6 @@ import io.iohk.ethereum.utils.MonetaryPolicyConfig
 
 /**
   * Calculates rewards for mining blocks and ommers.
-  * To be compatible with Geth division was not defered to be a single and final operation, which produces expected
-  * rounding errors.
   * https://github.com/ethereumproject/ECIPs/blob/master/ECIPs/ECIP-1039.md completely specifies eventual rounding issues.
   */
 class BlockRewardCalculator(config: MonetaryPolicyConfig) {
