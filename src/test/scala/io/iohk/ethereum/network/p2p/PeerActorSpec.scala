@@ -402,11 +402,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
       mixHash = ByteString("0"),
       nonce = ByteString("0"))
 
-    val testGenesisBlockBody: BlockBody = BlockBody(
-      transactionList = Seq[SignedTransaction](
-      ),
-      uncleNodesList = Seq[BlockHeader](
-      ))
+    val testGenesisBlockBody: BlockBody = BlockBody(Nil, Nil)
 
     val testGenesisBlock = Block(testGenesisHeader, testGenesisBlockBody)
 
