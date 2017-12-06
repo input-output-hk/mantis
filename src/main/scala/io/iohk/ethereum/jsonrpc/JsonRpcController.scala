@@ -4,6 +4,8 @@ import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
+import io.iohk.ethereum.jsonrpc.ProofService.{ProveAccountRequest, ProveAccountResponse}
+import io.iohk.ethereum.jsonrpc.ProofServiceJson.proof_proveAccount
 import io.iohk.ethereum.jsonrpc.Web3Service._
 import io.iohk.ethereum.utils.Logger
 import org.json4s.JsonAST.{JArray, JValue}
@@ -38,6 +40,7 @@ object JsonRpcController {
     val Admin = "admin"
     val Debug = "debug"
     val Rpc = "rpc"
+    val Proof = "proof" // extension
   }
 
 }
@@ -47,11 +50,12 @@ class JsonRpcController(
   netService: NetService,
   ethService: EthService,
   personalService: PersonalService,
+  proofService: ProofService,
   config: JsonRpcConfig) extends Logger {
 
-  import JsonRpcController._
   import EthJsonMethodsImplicits._
   import JsonMethodsImplicits._
+  import JsonRpcController._
   import JsonRpcErrors._
 
   val apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
@@ -62,6 +66,7 @@ class JsonRpcController(
     Apis.Personal -> handlePersonalRequest,
     Apis.Daedalus -> handleDaedalusRequest,
     Apis.Rpc -> handleRpcRequest,
+    Apis.Proof -> handleProofRequest,
     Apis.Admin -> PartialFunction.empty,
     Apis.Debug -> PartialFunction.empty
   )
@@ -211,6 +216,11 @@ class JsonRpcController(
     case req @ JsonRpcRequest(_, "rpc_modules", _, _) =>
       val result = enabledApis.map { _ -> "1.0" }.toMap
       Future.successful(JsonRpcResponse("2.0", Some(result), None, req.id))
+  }
+
+  private def handleProofRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, ProofService.Method.ProveAccount, _, _) ⇒
+      handle[ProveAccountRequest, ProveAccountResponse](proofService.proveAccount, req)
   }
 
   def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {

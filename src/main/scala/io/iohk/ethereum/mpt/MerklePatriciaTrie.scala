@@ -2,15 +2,71 @@ package io.iohk.ethereum.mpt
 
 import akka.util.ByteString
 import io.iohk.ethereum.common.SimpleMap
+import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl}
+import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{decode => decodeRLP, encode => encodeRLP, _}
+import io.iohk.ethereum.rlp.{decode ⇒ decodeRLP, encode ⇒ encodeRLP, _}
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 
 object MerklePatriciaTrie {
+  type AccountMPT = MerklePatriciaTrie[Address, Account]
+
+  /** The key prefix corresponding to a node that participates in a proof sketch. */
+  type ProofStepNibbles = Array[Byte]
+
+  /** The cryptographic hash corresponding to a node that participates in a proof sketch. */
+  type ProofHash = Array[Byte]
+
+  implicit class ByteArrayExtensions(val a: Array[Byte]) extends AnyVal {
+    def toByteString: ByteString = ByteString(a)
+
+    def toHexString: String = Hex.toHexString(a)
+
+    def nibblesToString: String = a.map { nibble ⇒ Integer.toHexString(nibble) }. mkString
+  }
+
+  implicit class ByteStringExtensions(val a: ByteString) extends AnyVal {
+    def toHexString: String = a.toArray.toHexString
+  }
+
+  /**
+   * Provides a step for a key membership proof.
+   *
+   * @param nibbles The part of the path (key) for this step.
+   * @param hash    The node hash for this step.
+   */
+  final case class ProofStep(nibbles: ProofStepNibbles, hash: ProofHash) {
+    def nibblesToString: String = nibbles.nibblesToString
+    def nibblesToByteString: ByteString = ByteString(nibbles)
+
+    def hashToHexString: String = Hex.toHexString(hash)
+    def hashToByteString: ByteString = ByteString(hash)
+
+    private[mpt] def hashToDebugHexString: String = {
+      val hs = hashToHexString
+      hs.substring(0, 4) + "_" + hs.substring(hs.length - 4, hs.length)
+    }
+
+    override def toString: String = productPrefix + s"([$nibblesToString], $hashToDebugHexString)"
+  }
+
+  final case class ProofSketch(steps: List[ProofStep]) {
+    def length: Int = steps.length
+  }
+
+  def sameNibblesForKey(leafNode: LeafNode, nibbles: Array[Byte]): Boolean =
+    leafNode.key.toArray[Byte] sameElements nibbles
+
+  def sameNibblesForSharedKey(extensionNode: ExtensionNode, nibbles: Array[Byte]): Boolean =
+    extensionNode.sharedKey.toArray[Byte] sameElements nibbles
+
+  def sameHashForProof(node: MptNode, proofHash: ProofHash): Boolean =
+    node.hash sameElements proofHash
 
   class MPTException(val message: String) extends RuntimeException(message)
 
@@ -44,6 +100,35 @@ object MerklePatriciaTrie {
   : MerklePatriciaTrie[K, V] = {
     if (EmptyRootHash sameElements rootHash) MerklePatriciaTrie(source)
     else new MerklePatriciaTrie[K, V](Some(rootHash), source)(kSerializer, vSerializer)
+  }
+
+  def ofAccounts(stateRoot: Array[Byte], storage: NodesKeyValueStorage): AccountMPT = {
+    import Account.accountSerializer
+    import Address.hashedAddressEncoder
+
+    MerklePatriciaTrie[Address, Account](stateRoot, storage)
+  }
+
+  def ofAccounts(stateRoot: ByteString, storage: NodesKeyValueStorage): AccountMPT = {
+    ofAccounts(stateRoot.toArray, storage)
+  }
+
+  // NOTE maybe add a method to Blockchain to get the Accounts MPT?
+  /**
+   * Creates an accounts MPT from the current status of the given `blockchain`.
+   */
+  def ofAccounts(blockchain: BlockchainImpl): AccountMPT = {
+    val blockNumber = blockchain.getBestBlockNumber()
+    val headerOpt = blockchain.getBlockHeaderByNumber(blockNumber)
+    val stateRootOpt = headerOpt.map(_.stateRoot.toArray)
+    val stateRoot = stateRootOpt.getOrElse(MerklePatriciaTrie.EmptyRootHash)
+
+    // `blockNumber` seems to be used just for updating
+    // and only in the [[ReferenceCountNodeStorage]]
+    // implementation of [[NodesKeyValueStorage]] (!)
+    val nodeStorage = blockchain.nodesKeyValueStorageFor(Some(blockNumber))
+
+    MerklePatriciaTrie.ofAccounts(stateRoot, nodeStorage)
   }
 
   /**
@@ -248,6 +333,268 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
     val afterRemoval = toRemove.foldLeft(this) { (acc, key) => acc - key }
     toUpsert.foldLeft(afterRemoval) { (acc, item) => acc + item }
   }
+
+  /**
+   * Provides some proof sketch that the given `key` existEs in the MPT, in the form of a path from the root
+   * node to the node corresponding to the given `key`.
+   * We assume of course that the root hash is known.
+   * <p/>
+   * A proof sketch is made of [[io.iohk.ethereum.mpt.MerklePatriciaTrie.ProofStep ProofSteps]],
+   * each of which provides information that we can use in verifying the proof.
+   * <p/>
+   * If the proof sketch contains at least the root node (first [[io.iohk.ethereum.mpt.MerklePatriciaTrie.ProofStep ProofStep]])
+   * and the node that corresponds to the given `key` (last `ProofStep`), then by definition the proof
+   * sketch is fully constructed.
+   * In such a case we can easily verify that the key exists in the MPT. Otherwise, we do not know for sure.
+   * <p/>
+   * We return `None` if there is no root hash for this MPT.
+   */
+  def prove(key: K): Option[ProofSketch] = {
+    for {
+      theRootHash ← rootHash
+    } yield {
+      val keyNibbles = key2nibbles(key)
+      val rootNode = getRootNode(theRootHash, nodeStorage)
+
+      @tailrec
+      def walk(currentNode: MptNode, currentNibbles: Array[Byte], currentProofSteps: List[ProofStep]): List[ProofStep] = {
+        currentNode match {
+          case leafNode: LeafNode ⇒
+            if(sameNibblesForKey(leafNode, currentNibbles)) {
+              // end of chain, we got the key, return the full path.
+              val proofHash = leafNode.hash
+              val proofNibbles = currentNibbles
+              val proofStep = ProofStep(proofNibbles, proofHash)
+              val nextProofSteps = proofStep :: currentProofSteps
+
+              nextProofSteps
+            }
+            else {
+              // the key was not found, just return our path so far
+              currentProofSteps
+            }
+
+          case extensionNode @ ExtensionNode(sharedKey, _, _, _) ⇒
+            if(currentNibbles.length >= sharedKey.length) {
+              val (nibblesPrefix, nibblesSuffix) = currentNibbles.splitAt(sharedKey.length)
+
+              if(sameNibblesForSharedKey(extensionNode, nibblesPrefix)) {
+                // decode the `next` node
+                val nextNode = getNextNode(extensionNode, nodeStorage)
+                val nextNibbles = nibblesSuffix
+
+                val proofHash = extensionNode.hash
+                val proofNibbles = nibblesPrefix
+                val proofStep = ProofStep(proofNibbles, proofHash)
+                val nextProofSteps = proofStep :: currentProofSteps
+
+                walk(nextNode, nextNibbles, nextProofSteps)
+              }
+              else {
+                // the key was not found, just return our path so far
+                currentProofSteps
+              }
+            }
+            else {
+              // the key was not found, just return our path so far
+              currentProofSteps
+            }
+
+          case branchNode: BranchNode ⇒
+            if(currentNibbles.length == 0) {
+              // We have a branch node and no (remaining) key to compare ...
+              // so probably that's it ....
+              // FIXME check "probably" above
+              currentProofSteps
+            }
+            else {
+              // Use the first nibble to find the next (child) node
+              val index = currentNibbles(0)
+              val childNodeOpt = getChild(branchNode, index, nodeStorage)
+              childNodeOpt match {
+                case None ⇒
+                  // Not found ...
+                  currentProofSteps
+
+                case Some(nextNode) ⇒
+                  val nextNibbles = currentNibbles.drop(1)
+
+                  val proofHash = branchNode.hash
+                  val proofNibbles = Array(index)
+                  val proofStep = ProofStep(proofNibbles, proofHash)
+                  val nextProofSteps = proofStep :: currentProofSteps
+
+                  walk(nextNode, nextNibbles, nextProofSteps)
+              }
+            }
+        }
+      }
+
+      // Walk from root to the node of the given key and record all intermediate node hashes
+      // in a list.
+      val steps = walk(rootNode, keyNibbles, Nil).reverse
+
+      ProofSketch(steps)
+    }
+  }
+
+  protected def rlpDecodeNode(bytes: NodeStorage.NodeEncoded): MptNode = rlp.decode[MptNode](bytes)
+
+  protected def findNode(parentStepOpt: Option[ProofStep], currentStep: ProofStep): Option[MptNode] = {
+    val currentHash = currentStep.hashToByteString
+
+    // 1. Try find the node directly in the storage, based on its hash
+    nodeStorage.get(currentHash) match {
+      case Some(rlpEncodedNode) ⇒
+        val node = rlpDecodeNode(rlpEncodedNode)
+        Some(node)
+
+      case None ⇒
+        parentStepOpt match {
+          case None ⇒
+            // Too bad, no parent to help us
+            None
+
+          case Some(parentStep) ⇒
+            val parentHash = parentStep.hashToByteString
+            // 2. It must be stored in the parent node, if its size is small
+            nodeStorage.get(parentHash) match {
+              case None ⇒
+                None // too bad, not even the parent node there!
+
+              case Some(rlpEncodedParentNode) ⇒
+                val parentNode = rlpDecodeNode(rlpEncodedParentNode)
+
+                parentNode match {
+                  case node: LeafNode ⇒
+                    // Too bad, the parent is a Leaf node, so nothing else to find here
+                    None
+
+                  case node: BranchNode ⇒
+                    val nibblesToCheck = parentStep.nibbles
+                    assert(nibblesToCheck.length == 1)
+                    val index = nibblesToCheck(0)
+                    node.children(index) match {
+                      case None ⇒
+                        // Too bad, no child in that position!
+                        None
+                      case Some(Left(childNodeHash)) ⇒
+                        // Too bad! In that position a child is represented by a hash
+                        // but in such a case we should have found the child in the storage !
+                        None
+                      case Some(Right(mptNode)) ⇒
+                        if(sameHashForProof(mptNode, currentStep.hash)) {
+                          Some(mptNode)
+                        }
+                        else {
+                          // Too bad, the hash that the proof has provided does not match.
+                          None
+                        }
+                    }
+
+                  case node: ExtensionNode ⇒
+                    node.next match {
+                      case Left(childNodeHash) ⇒
+                        // Too bad! The child is represented by a hash but in this  case we
+                        // should have found the child in the storage directly in the first place !
+                        None
+
+                      case Right(mptNode) ⇒
+                        if(sameHashForProof(mptNode, currentStep.hash)) {
+                          Some(mptNode)
+                        }
+                        else {
+                          // Too bad, the hash that the proof has provided does not match.
+                          None
+                        }
+                    }
+                }
+            }
+        }
+    }
+  }
+
+  /**
+   * Verifies a proof.
+   *
+   * <p/>
+   * This initial implementation is not meant as a fully correct verification; rather
+   * it is a first, non-general approximation that has been developed to ease testing
+   * of the proof algorithm. Also see the following note.
+   *
+   * @note
+   * Fundamentally, proof and verification are the same algorithm that walks a tree, the difference
+   * being in the action done at each node. Proof accumulates node hashes, verification checks those
+   * (previously accumulated) hashes. So, in true modular style, a unified proof/verification algorithm
+   * is a composition of tree traversal plus the action.
+   *
+   * @return `true` iff the proof can be verified.
+   */
+  def verify(proof: ProofSketch): Boolean = {
+    def _verifyStep(proofStep: ProofStep, node: MptNode): Boolean = {
+      val proofHash = proofStep.hash
+      val proofNibbles = proofStep.nibbles
+
+      // 1. Check the hash
+      val realHash = node.hash
+      require(proofHash sameElements realHash)
+
+      // 2. Check the key part (="path")
+      node match {
+        case BranchNode(children, terminatorOpt, _, _) ⇒
+          // By design, in a branch node only one nibble is used for routing
+          proofNibbles.length == 1
+
+        case node @ ExtensionNode(sharedKey, next, _, _) ⇒
+          sameNibblesForSharedKey(node, proofNibbles)
+
+        case node @ LeafNode(key, value, _, _) ⇒
+          sameNibblesForKey(node, proofNibbles)
+      }
+    }
+
+    @tailrec
+    def _verifySteps(parentStepOpt: Option[ProofStep], nodeStep: ProofStep, nextSteps: List[ProofStep]): Boolean = {
+      val nodeOpt = findNode(parentStepOpt, nodeStep)
+      nodeOpt match {
+        case None ⇒
+          false
+
+        case Some(node) ⇒
+          if(_verifyStep(nodeStep, node)) {
+            nextSteps match {
+              case Nil ⇒
+                // nothing else to do, success !
+                true
+              case newNodeStep :: newNextSteps ⇒
+                val newParentStepOpt = Some(nodeStep)
+                _verifySteps(newParentStepOpt, newNodeStep, newNextSteps)
+            }
+          }
+          else false
+      }
+    }
+
+    val steps = proof.steps
+    steps match {
+      case Nil ⇒
+        false // we know nothing since we don't have even a single proof step
+
+      case rootStep :: nextSteps ⇒
+        _verifySteps(None, rootStep, nextSteps)
+    }
+  }
+
+  /** Serializes a key to a byte array. */
+  private[this] def key2bytes(key: K): Array[Byte] = kSerializer.toBytes(key)
+
+  private[this] def bytes2nibbles(bytes: Array[Byte]): Array[Byte] = HexPrefix.bytesToNibbles(bytes)
+
+  /**
+   * Transforms a key to a nibbles byte array, using
+   * [[io.iohk.ethereum.mpt.HexPrefix#bytesToNibbles(byte[]) bytesToNibbles]].
+   */
+  private[this] def key2nibbles(key: K): Array[Byte] = bytes2nibbles(key2bytes(key))
 
   @tailrec
   private def get(node: MptNode, searchKey: Array[Byte]): Option[Array[Byte]] = node match {

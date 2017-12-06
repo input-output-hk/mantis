@@ -312,15 +312,35 @@ trait PersonalServiceBuilder {
     storagesInstance.storages.appStateStorage, blockchainConfig, txPoolConfig)
 }
 
+trait ProofServiceBuilder {
+  self: BlockchainBuilder with BlockchainConfigBuilder ⇒
+
+  lazy val proofService = new ProofService(
+    blockchainConfig = blockchainConfig,
+    blockchain = blockchain
+  )
+}
+
 trait KeyStoreBuilder {
   self: SecureRandomBuilder =>
   lazy val keyStore: KeyStore = new KeyStoreImpl(Config.keyStoreDir, secureRandom)
 }
 
 trait JSONRpcControllerBuilder {
-  this: Web3ServiceBuilder with EthServiceBuilder with NetServiceBuilder with PersonalServiceBuilder =>
+  self: Web3ServiceBuilder
+    with EthServiceBuilder
+    with NetServiceBuilder
+    with PersonalServiceBuilder
+    with ProofServiceBuilder =>
 
-  lazy val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, Config.Network.Rpc)
+  lazy val jsonRpcController = new JsonRpcController(
+    web3Service,
+    netService,
+    ethService,
+    personalService,
+    proofService,
+    Config.Network.Rpc
+  )
 }
 
 trait JSONRpcHttpServerBuilder {
@@ -453,6 +473,7 @@ trait Node extends NodeKeyBuilder
   with EthServiceBuilder
   with NetServiceBuilder
   with PersonalServiceBuilder
+  with ProofServiceBuilder
   with KeyStoreBuilder
   with BlockGeneratorBuilder
   with ValidatorsBuilder

@@ -49,9 +49,11 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
   it should "list accounts" in new TestSetup {
     val addresses = List(123, 42, 1).map(Address(_))
+    println(s"addresses = $addresses")
     (keyStore.listAccounts _).expects().returning(Right(addresses))
 
     val res = personal.listAccounts(ListAccountsRequest()).futureValue
+    println(s"result = $res")
 
     res shouldEqual Right(ListAccountsResponse(addresses))
   }

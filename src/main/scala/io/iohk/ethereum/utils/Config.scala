@@ -4,11 +4,11 @@ import java.net.InetSocketAddress
 
 import akka.http.scaladsl.model.headers.{HttpOrigin, HttpOriginRange}
 import akka.util.ByteString
-import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
+import com.typesafe.config.{ConfigFactory, Config ⇒ TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.LevelDbConfig
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, PruningMode}
 import io.iohk.ethereum.domain.{Address, UInt256}
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.JsonRpcController.{Apis, JsonRpcConfig}
 import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
@@ -83,6 +83,8 @@ object Config {
     object Rpc extends JsonRpcServerConfig with JsonRpcConfig {
       private val rpcConfig = networkConfig.getConfig("rpc")
 
+      val ValidApis = List(Apis.Web3, Apis.Eth, Apis.Net, Apis.Personal, Apis.Daedalus, Apis.Proof)
+
       val mode = rpcConfig.getString("mode")
 
       val enabled = rpcConfig.getBoolean("enabled")
@@ -91,7 +93,7 @@ object Config {
 
       val apis = {
         val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
-        val invalidApis = providedApis.diff(List("web3", "eth", "net", "personal", "daedalus"))
+        val invalidApis = providedApis.diff(ValidApis)
         require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
         providedApis
       }
