@@ -309,6 +309,24 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         regularSync.underlyingActor.resolvingBranches shouldBe false
       }
 
+      "return to normal syncing mode after successful branch resolution" in new TestSetup {
+        val additionalHeaders = (1 to 2).map(_ => getBlock().header)
+        val newHeaders = getBlock().header.copy(parentHash = additionalHeaders.head.hash) +: (1 to 9).map(_ => getBlock().header)
+        inSequence {
+          (ledger.resolveBranch _).expects(newHeaders).returning(UnknownBranch)
+          (ledger.resolveBranch _).expects(additionalHeaders.reverse ++ newHeaders).returning(NoChainSwitch)
+        }
+
+        sendBlockHeaders(newHeaders)
+        Thread.sleep(1000)
+
+        sendBlockHeaders(additionalHeaders)
+        Thread.sleep(1000)
+
+        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe false
+        regularSync.underlyingActor.resolvingBranches shouldBe false
+      }
+
       "handle invalid branch" in new TestSetup {
         val newBlocks = (1 to 2).map(_ => getBlock())
 

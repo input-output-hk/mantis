@@ -264,8 +264,8 @@ class RegularSync(
     } else {
       //we did not get previous blocks, there is no way to resolve, blacklist peer and continue download
       resumeWithDifferentPeer(peer, "failed to resolve branch")
-      resolvingBranches = false
     }
+    resolvingBranches = false
   }
 
   private def handleBlockHeaders(peer: Peer, message: Seq[BlockHeader]) = if (message.nonEmpty) {
@@ -296,7 +296,6 @@ class RegularSync(
       if (resolvingBranches) {
         log.debug("fail to resolve branch, branch too long, it may indicate malicious peer")
         resumeWithDifferentPeer(peer, "failed to resolve branch")
-        resolvingBranches = false
       } else {
         val request = GetBlockHeaders(Right(headersQueue.head.parentHash), branchResolutionRequestSize, skip = 0, reverse = true)
         requestBlockHeaders(peer, request)
