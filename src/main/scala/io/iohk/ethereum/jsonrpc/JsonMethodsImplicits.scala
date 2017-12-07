@@ -42,8 +42,14 @@ trait JsonMethodsImplicits {
   protected def extractAddress(input: String): Either[JsonRpcError, Address] =
     Try(Address(input)).toEither.left.map(_ => InvalidAddress)
 
-  protected def extractDuration(input: String): Either[JsonRpcError, Duration] =
-    Try(Duration.ofSeconds(input.toInt)).toEither.left.map(_ => InvalidParams("Duration should be an number of seconds, less than 2^31 - 1"))
+  protected def extractDurationQuantity(input: JValue): Either[JsonRpcError, Duration] = for {
+    quantity <- extractQuantity(input)
+    duration <- getDuration(quantity)
+  } yield duration
+
+  private def getDuration(value: BigInt): Either[JsonRpcError, Duration] = {
+    Either.cond(value.isValidInt, Duration.ofSeconds(value.toInt), InvalidParams("Duration should be an number of seconds, less than 2^31 - 1"))
+  }
 
   protected def extractAddress(input: JString): Either[JsonRpcError, Address] =
     extractAddress(input.s)
@@ -255,9 +261,9 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val personal_unlockAccount = new Codec[UnlockAccountRequest, UnlockAccountResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, UnlockAccountRequest] = {
       params match {
-        case Some(JArray(JString(addr) :: JString(passphrase) :: JString(duration) :: _)) => for {
+        case Some(JArray(JString(addr) :: JString(passphrase) :: duration :: _)) => for {
             addr <- extractAddress(addr)
-            duration <- extractDuration(duration)
+            duration <- extractDurationQuantity(duration)
           } yield UnlockAccountRequest(addr, passphrase, Some(duration))
         case Some(JArray(JString(addr) :: JString(passphrase) ::  _)) =>
           extractAddress(addr).map(UnlockAccountRequest(_, passphrase, None))

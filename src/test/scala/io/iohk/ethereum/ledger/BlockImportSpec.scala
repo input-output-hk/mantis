@@ -208,6 +208,46 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
       ledger.resolveBranch(headers) shouldEqual NoChainSwitch
     }
 
+  it should "correctly handle a branch that goes up to the genesis block" in
+    new TestSetup with MockBlockchain {
+      val headers = genesisHeader :: getChainHeaders(1, 10, genesisHeader.hash)
+
+      setGenesisHeader(genesisHeader)
+      setBestBlockNumber(10)
+      val oldBlocks = headers.tail.map(h => getBlock(h.number, h.difficulty - 1))
+      oldBlocks.foreach(b => setBlockByNumber(b.header.number, Some(b)))
+      setBlockByNumber(0, Some(Block(genesisHeader, BlockBody(Nil, Nil))))
+
+      ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
+    }
+
+  it should "report an unknown branch if the included genesis header is different than ours" in
+    new TestSetup with MockBlockchain {
+      val differentGenesis = genesisHeader.copy(extraData = ByteString("I'm different ;("))
+      val headers = differentGenesis :: getChainHeaders(1, 10, differentGenesis.hash)
+
+      setGenesisHeader(genesisHeader)
+      setBestBlockNumber(10)
+
+      ledger.resolveBranch(headers) shouldEqual UnknownBranch
+    }
+
+  it should "not include common prefix as result when finding a new better branch" in
+    new TestSetup with MockBlockchain {
+      val headers = getChainHeaders(1, 10)
+      setBestBlockNumber(8)
+      setHeaderByHash(headers.head.parentHash, Some(getBlock(0).header))
+
+      val oldBlocks = headers.slice(2, 8).map(h => getBlock(h.number, h.difficulty - 1))
+      oldBlocks.foreach(b => setBlockByNumber(b.header.number, Some(b)))
+      setBlockByNumber(1, Some(Block(headers(0), BlockBody(Nil, Nil))))
+      setBlockByNumber(2, Some(Block(headers(1), BlockBody(Nil, Nil))))
+      setBlockByNumber(9, None)
+
+      ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
+      assert(oldBlocks.map(_.header.number) == List[BigInt](3, 4, 5, 6, 7, 8))
+    }
+
 
   trait TestSetup {
     val blockchainConfig = BlockchainConfig(Config.config)
@@ -244,6 +284,8 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
       mixHash = bEmpty,
       nonce = bEmpty
     )
+
+    val genesisHeader = defaultHeader.copy(number = 0, extraData = ByteString("genesis"))
 
     def getBlock(
       number: BigInt = 1,
@@ -315,5 +357,10 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
     def setBlockByNumber(number: BigInt, block: Option[Block]) =
       (blockchain.getBlockByNumber _).expects(number).returning(block)
+
+    def setGenesisHeader(header: BlockHeader) = {
+      (blockchain.getBlockHeaderByNumber _).expects(BigInt(0)).returning(Some(header))
+      setHeaderByHash(header.parentHash, None)
+    }
   }
 }
