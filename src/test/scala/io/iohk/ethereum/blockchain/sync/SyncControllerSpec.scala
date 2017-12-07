@@ -317,6 +317,44 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id))))
   }
 
+  it should "re-enqueue block bodies when empty response is received" in new TestSetup {
+    // there are 2 blocks queued
+    val syncState = SyncState(targetBlock = Fixtures.Blocks.Block3125369.header, blockBodiesQueue = Seq(ByteString("1"), ByteString("asd")))
+    storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
+
+    // start fast sync
+    val fastSync = TestActorRef(Props(new FastSync(
+      storagesInstance.storages.fastSyncStateStorage,
+      storagesInstance.storages.appStateStorage,
+      blockchain,
+      new Mocks.MockValidatorsAlwaysSucceed,
+      peerMessageBus.ref, etcPeerManager.ref,
+      syncConfig,
+      scheduler = system.scheduler)))
+
+    val peer1TestProbe: TestProbe = TestProbe()(system)
+    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
+    val peer1Status = Status(1, 1, 1, ByteString("peer1_bestHash"), ByteString("unused"))
+    val handshakedPeers = HandshakedPeers(Map(
+      peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)))
+
+    fastSync ! FastSync.Start
+
+    etcPeerManager.send(fastSync, handshakedPeers)
+
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetBlockBodies(Seq(ByteString("1"), ByteString("asd"))), peer1.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer1.id))))
+    peerMessageBus.reply(MessageFromPeer(BlockBodies(Nil), peer1.id))
+    peerMessageBus.expectMsg(Unsubscribe())
+
+    Thread.sleep(500)
+    fastSync ! FastSync.PersistSyncState
+    Thread.sleep(500)
+
+    storagesInstance.storages.fastSyncStateStorage.getSyncState().get.blockBodiesQueue shouldBe Seq(ByteString("1"), ByteString("asd"))
+  }
+
   it should "start fast sync after restart, if fast sync was partially ran and then regular sync started" in new TestSetup() with MockFactory {
     val peerTestProbe: TestProbe = TestProbe()(system)
     val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerTestProbe.ref, false)

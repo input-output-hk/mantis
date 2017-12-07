@@ -47,6 +47,22 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     }
   }
 
+  it should "send status with total difficulty" in new TestSetup
+    with LocalPeerSetup with RemotePeerSetup {
+
+    val newTotalDifficulty = genesisBlock.header.difficulty + firstBlock.header.difficulty
+
+    blockchain.save(firstBlock, Nil, newTotalDifficulty, saveAsBestBlock = true)
+
+    val newLocalStatus =
+      localStatus.copy(totalDifficulty = newTotalDifficulty, bestHash = firstBlock.header.hash)
+
+    initHandshakerWithoutResolver.nextMessage.map(_.messageToSend) shouldBe Right(localHello: HelloEnc)
+    val handshakerAfterHelloOpt = initHandshakerWithoutResolver.applyMessage(remoteHello)
+    assert(handshakerAfterHelloOpt.isDefined)
+    handshakerAfterHelloOpt.get.nextMessage.map(_.messageToSend) shouldBe Right(newLocalStatus: StatusEnc)
+  }
+
   it should "correctly connect during an apropiate handshake if a fork resolver is used and the remote peer has the DAO block" in new TestSetup
     with LocalPeerSetup with RemotePeerSetup {
 
@@ -129,7 +145,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
 
     val forkBlockHeader = Fixtures.Blocks.DaoForkBlock.header
 
-    blockchain.save(genesisBlock)
+    blockchain.save(genesisBlock, Nil, genesisBlock.header.difficulty, saveAsBestBlock = true)
 
     val nodeStatus = NodeStatus(key = generateKeyPair(secureRandom), serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)
     lazy val nodeStatusHolder = Agent(nodeStatus)
@@ -175,6 +191,8 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
 
     val initHandshakerWithoutResolver = EtcHandshaker(new MockEtcHandshakerConfiguration)
     val initHandshakerWithResolver = EtcHandshaker(etcHandshakerConfigurationWithResolver)
+
+    val firstBlock = genesisBlock.copy(header = genesisBlock.header.copy(parentHash = genesisBlock.header.hash, number = 1))
   }
 
   trait LocalPeerSetup extends TestSetup {
