@@ -164,7 +164,7 @@ class FastSync(
       if (blockBodies.isEmpty) {
         val reason = s"got empty block bodies response for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}"
         blacklist(peer.id, blacklistDuration, reason)
-        syncState = syncState.enqueueBlockBodies(requestedBlockBodies.getOrElse(sender(), Nil))
+        syncState = syncState.enqueueBlockBodies(requestedHashes)
       } else {
         validateBlocks(requestedHashes, blockBodies) match {
           case BlockBodyValidationResult.Valid =>
@@ -585,7 +585,7 @@ object FastSync {
     Props(new FastSync(fastSyncStateStorage, appStateStorage, blockchain, validators, peerEventBus, etcPeerManager, syncConfig, scheduler))
 
   private case object ProcessSyncing
-  private case object PersistSyncState
+  private[sync] case object PersistSyncState
   private case object PrintStatus
 
   case class SyncState(
