@@ -6,8 +6,8 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
-import io.iohk.ethereum.domain.{Account, BlockHeader}
-import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
@@ -282,11 +282,11 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val peer3Status= Status(1, 1, 1, ByteString("peer3_bestHash"), ByteString("unused"))
     val peer4Status= Status(1, 1, 1, ByteString("peer4_bestHash"), ByteString("unused"))
 
-    val handshakedPeers = HandshakedPeers(Map(
-      peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
-      peer2 -> PeerInfo(peer2Status, forkAccepted = false, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
-      peer3 -> PeerInfo(peer3Status, forkAccepted = false, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
-      peer4 -> PeerInfo(peer4Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)))
+      val handshakedPeers = HandshakedPeers(Map(
+        peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
+        peer2 -> PeerInfo(peer2Status, forkAccepted = false, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
+        peer3 -> PeerInfo(peer3Status, forkAccepted = false, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0),
+        peer4 -> PeerInfo(peer4Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0)))
 
     val expectedTargetBlock = 399500
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedTargetBlock)
@@ -377,7 +377,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer.id))
   }
 
-  class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil) extends EphemBlockchainTestSetup {
+  class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil) extends SyncSpec with EphemBlockchainTestSetup {
 
     private def isNewBlock(msg: Message): Boolean = msg match {
       case _: NewBlock => true
@@ -401,33 +401,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val pendingTransactionsManager = TestProbe()
     val ommersPool = TestProbe()
 
-    def obtainSyncConfig(checkingForNewBlockInterval: FiniteDuration): SyncConfig = new SyncConfig {
-      override val printStatusInterval: FiniteDuration = 1.hour
-      override val persistStateSnapshotInterval: FiniteDuration = 20.seconds
-      override val targetBlockOffset: Int = 500
-      override val branchResolutionBatchSize: Int = 20
-      override val blacklistDuration: FiniteDuration = 5.seconds
-      override val syncRetryInterval: FiniteDuration = 1.second
-      override val checkForNewBlockInterval: FiniteDuration = checkingForNewBlockInterval
-      override val startRetryInterval: FiniteDuration = 500.milliseconds
-      override val branchResolutionMaxRequests: Int = 100
-      override val blockChainOnlyPeersPoolSize: Int = 100
-      override val maxConcurrentRequests: Int = 10
-      override val blockHeadersPerRequest: Int = 10
-      override val blockBodiesPerRequest: Int = 10
-      override val doFastSync: Boolean = true
-      override val nodesPerRequest: Int = 10
-      override val receiptsPerRequest: Int = 10
-      override val minPeersToChooseTargetBlock: Int = 2
-      override val peerResponseTimeout: FiniteDuration = 1.second
-      override val peersScanInterval: FiniteDuration = 500.milliseconds
-      override val fastSyncThrottle: FiniteDuration = 100.milliseconds
-      val maxQueuedBlockNumberAhead: Int = 10
-      val maxQueuedBlockNumberBehind: Int = 10
-      val maxNewBlockHashAge: Int = 20
-      val maxNewHashes: Int = 64
-    }
-
     lazy val syncConfig = obtainSyncConfig(1.seconds)
     lazy val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,
@@ -439,24 +412,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       syncConfig,
       () => (),
       externalSchedulerOpt = None)))
-
-    val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
-    val baseBlockHeader = BlockHeader(
-      parentHash = ByteString("unused"),
-      ommersHash = ByteString("unused"),
-      beneficiary = ByteString("unused"),
-      stateRoot = EmptyTrieRootHash,
-      transactionsRoot = EmptyTrieRootHash,
-      receiptsRoot = EmptyTrieRootHash,
-      logsBloom = BloomFilter.EmptyBloomFilter,
-      difficulty = 0,
-      number = 0,
-      gasLimit = 0,
-      gasUsed = 0,
-      unixTimestamp = 0,
-      extraData = ByteString("unused"),
-      mixHash = ByteString("unused"),
-      nonce = ByteString("unused"))
 
     blockchain.save(baseBlockHeader.parentHash, BigInt(0))
 

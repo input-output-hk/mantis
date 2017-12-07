@@ -72,16 +72,20 @@ class FastSync(
   }
 
   def waitingForTargetBlock: Receive = handleCommonMessages orElse {
-    case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
-      if (targetBlockHeader.number < 1) {
-        log.info("Unable to start block synchronization in fast mode: target block is less than 1")
-        appStateStorage.fastSyncDone()
-        context become idle
-        syncController ! Done
-      } else {
+    case FastSyncTargetBlockSelector.Result(Some(targetBlockHeader)) =>
+      if (targetBlockHeader.number < 1) finishFastSync()
+      else {
         val initialSyncState = SyncState(targetBlockHeader, pendingMptNodes = Seq(StateMptNodeHash(targetBlockHeader.stateRoot)))
         startWithState(initialSyncState)
       }
+    case FastSyncTargetBlockSelector.Result(None) => finishFastSync()
+  }
+
+  private def finishFastSync(): Unit = {
+    log.info("Unable to start block synchronization in fast mode: target block is less than 1")
+    appStateStorage.fastSyncDone()
+    context become idle
+    syncController ! Done
   }
 
   private class SyncingHandler(initialSyncState: SyncState) {
