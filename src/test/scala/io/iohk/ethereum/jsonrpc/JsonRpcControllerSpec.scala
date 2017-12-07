@@ -410,18 +410,15 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val address = Address(42)
     val pass = "aaa"
     val dur = "alksjdfh"
+
     val params = JArray(JString(address.toString) :: JString(pass) :: JString(dur) :: Nil)
-
-    (personalService.unlockAccount _).expects(UnlockAccountRequest(address, pass, Some(Duration.ofSeconds(1))))
-      .returning(Future.successful(Right(UnlockAccountResponse(true))))
-
     val rpcRequest = JsonRpcRequest("2.0", "personal_unlockAccount", Some(params), Some(1))
     val response = jsonRpcController.handleRequest(rpcRequest).futureValue
 
-    response.error shouldBe Some(JsonRpcError(-32602, "Duration should be an number of seconds, less than 2^31 - 1", None))
+    response.error shouldBe Some(JsonRpcError(-32602, "Invalid method parameters", None))
 
-    val dur2 = Long.MaxValue.toString
-    val params2 = JArray(JString(address.toString) :: JString(pass) :: JString(dur2) :: Nil)
+    val dur2 = Long.MaxValue
+    val params2 = JArray(JString(address.toString) :: JString(pass) :: JInt(dur2) :: Nil)
     val rpcRequest2 = JsonRpcRequest("2.0", "personal_unlockAccount", Some(params2), Some(1))
     val response2 = jsonRpcController.handleRequest(rpcRequest2).futureValue
     response2.error shouldBe Some(JsonRpcError(-32602, "Duration should be an number of seconds, less than 2^31 - 1", None))
