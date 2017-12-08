@@ -1,11 +1,15 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Scheduler}
+import akka.util.ByteString
+import io.iohk.ethereum.blockchain.sync.FastSync.SyncState
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.validators.Validators
+
+import scala.annotation.tailrec
 
 class SyncController(
     appStateStorage: AppStateStorage,
@@ -46,7 +50,17 @@ class SyncController(
   }
 
   def start(): Unit = {
-    import syncConfig.doFastSync
+    // import syncConfig.doFastSync
+
+    val bestBlock = appStateStorage.getBestBlockNumber()
+    val bestBlockHeader = blockchain.getBlockByNumber(bestBlock).get.header
+    val missingBlockBodies = collectMissingBlocks(bestBlock)
+    println(s"Starting fast sync. Found ${missingBlockBodies.length} missing block bodies to download.")
+    val syncState = SyncState(bestBlockHeader, Nil, Nil, missingBlockBodies, Nil, 0, bestBlock)
+    fastSyncStateStorage.putSyncState(syncState)
+    startFastSync()
+
+    /*
 
     appStateStorage.putSyncStartingBlock(appStateStorage.getBestBlockNumber())
     (appStateStorage.isFastSyncDone(), doFastSync) match {
@@ -64,6 +78,19 @@ class SyncController(
           startFastSync()
         } else
           startRegularSync()
+    }
+    */
+  }
+
+  @tailrec
+  private def collectMissingBlocks(until: BigInt, i: BigInt = 0, ret: Seq[ByteString] = Nil): Seq[ByteString] = {
+    if (until == i) {
+      ret
+    } else {
+      if (i % 10000 == 0) println(s"Collecting missing bodies from $i, so far found ${ret.length} missing bodies")
+      val header = blockchain.getBlockHeaderByNumber(i).get
+      if (blockchain.getBlockBodyByHash(header.hash).isEmpty) collectMissingBlocks(until, i + 1, ret :+ header.hash)
+      else collectMissingBlocks(until, i + 1, ret)
     }
   }
 
