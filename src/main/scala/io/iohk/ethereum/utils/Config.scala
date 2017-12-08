@@ -116,70 +116,70 @@ object Config {
 
   }
 
-  trait SyncConfig {
-    val doFastSync: Boolean
+  case class SyncConfig(
+    doFastSync: Boolean,
 
-    val peersScanInterval: FiniteDuration
-    val blacklistDuration: FiniteDuration
-    val startRetryInterval: FiniteDuration
-    val syncRetryInterval: FiniteDuration
-    val peerResponseTimeout: FiniteDuration
-    val printStatusInterval: FiniteDuration
+    peersScanInterval: FiniteDuration,
+    blacklistDuration: FiniteDuration,
+    startRetryInterval: FiniteDuration,
+    syncRetryInterval: FiniteDuration,
+    peerResponseTimeout: FiniteDuration,
+    printStatusInterval: FiniteDuration,
 
-    val maxConcurrentRequests: Int
-    val blockHeadersPerRequest: Int
-    val blockBodiesPerRequest: Int
-    val receiptsPerRequest: Int
-    val nodesPerRequest: Int
-    val minPeersToChooseTargetBlock: Int
-    val targetBlockOffset: Int
-    val persistStateSnapshotInterval: FiniteDuration
+    maxConcurrentRequests: Int,
+    blockHeadersPerRequest: Int,
+    blockBodiesPerRequest: Int,
+    receiptsPerRequest: Int,
+    nodesPerRequest: Int,
+    minPeersToChooseTargetBlock: Int,
+    targetBlockOffset: Int,
+    persistStateSnapshotInterval: FiniteDuration,
 
-    val checkForNewBlockInterval: FiniteDuration
-    val branchResolutionRequestSize: Int
-    val blockChainOnlyPeersPoolSize: Int
-    val fastSyncThrottle: FiniteDuration
+    checkForNewBlockInterval: FiniteDuration,
+    branchResolutionRequestSize: Int,
+    blockChainOnlyPeersPoolSize: Int,
+    fastSyncThrottle: FiniteDuration,
 
-    val maxQueuedBlockNumberAhead: Int
-    val maxQueuedBlockNumberBehind: Int
+    maxQueuedBlockNumberAhead: Int,
+    maxQueuedBlockNumberBehind: Int,
 
-    val maxNewBlockHashAge: Int
-    val maxNewHashes: Int
-  }
+    maxNewBlockHashAge: Int,
+    maxNewHashes: Int
+  )
 
   object SyncConfig {
     def apply(etcClientConfig: TypesafeConfig): SyncConfig = {
       val syncConfig = etcClientConfig.getConfig("sync")
-      new SyncConfig {
-        val doFastSync: Boolean = syncConfig.getBoolean("do-fast-sync")
+      SyncConfig(
+        doFastSync = syncConfig.getBoolean("do-fast-sync"),
 
-        val peersScanInterval: FiniteDuration = syncConfig.getDuration("peers-scan-interval").toMillis.millis
-        val blacklistDuration: FiniteDuration = syncConfig.getDuration("blacklist-duration").toMillis.millis
-        val startRetryInterval: FiniteDuration = syncConfig.getDuration("start-retry-interval").toMillis.millis
-        val syncRetryInterval: FiniteDuration = syncConfig.getDuration("sync-retry-interval").toMillis.millis
-        val peerResponseTimeout: FiniteDuration = syncConfig.getDuration("peer-response-timeout").toMillis.millis
-        val printStatusInterval: FiniteDuration = syncConfig.getDuration("print-status-interval").toMillis.millis
+        peersScanInterval = syncConfig.getDuration("peers-scan-interval").toMillis.millis,
+        blacklistDuration = syncConfig.getDuration("blacklist-duration").toMillis.millis,
+        startRetryInterval = syncConfig.getDuration("start-retry-interval").toMillis.millis,
+        syncRetryInterval = syncConfig.getDuration("sync-retry-interval").toMillis.millis,
+        peerResponseTimeout = syncConfig.getDuration("peer-response-timeout").toMillis.millis,
+        printStatusInterval = syncConfig.getDuration("print-status-interval").toMillis.millis,
 
-        val maxConcurrentRequests: Int = syncConfig.getInt("max-concurrent-requests")
-        val blockHeadersPerRequest: Int = syncConfig.getInt("block-headers-per-request")
-        val blockBodiesPerRequest: Int = syncConfig.getInt("block-bodies-per-request")
-        val receiptsPerRequest: Int = syncConfig.getInt("receipts-per-request")
-        val nodesPerRequest: Int = syncConfig.getInt("nodes-per-request")
-        val minPeersToChooseTargetBlock: Int = syncConfig.getInt("min-peers-to-choose-target-block")
-        val targetBlockOffset: Int = syncConfig.getInt("target-block-offset")
-        val persistStateSnapshotInterval: FiniteDuration =
-          syncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis
+        maxConcurrentRequests = syncConfig.getInt("max-concurrent-requests"),
+        blockHeadersPerRequest = syncConfig.getInt("block-headers-per-request"),
+        blockBodiesPerRequest = syncConfig.getInt("block-bodies-per-request"),
+        receiptsPerRequest = syncConfig.getInt("receipts-per-request"),
+        nodesPerRequest = syncConfig.getInt("nodes-per-request"),
+        minPeersToChooseTargetBlock = syncConfig.getInt("min-peers-to-choose-target-block"),
+        targetBlockOffset = syncConfig.getInt("target-block-offset"),
+        persistStateSnapshotInterval =
+          syncConfig.getDuration("persist-state-snapshot-interval").toMillis.millis,
 
-        val checkForNewBlockInterval: FiniteDuration = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis
-        val branchResolutionRequestSize: Int = syncConfig.getInt("branch-resolution-request-size")
-        val blockChainOnlyPeersPoolSize: Int = syncConfig.getInt("fastsync-block-chain-only-peers-pool")
-        val fastSyncThrottle: FiniteDuration = syncConfig.getDuration("fastsync-throttle").toMillis.millis
+        checkForNewBlockInterval = syncConfig.getDuration("check-for-new-block-interval").toMillis.millis,
+        branchResolutionRequestSize = syncConfig.getInt("branch-resolution-request-size"),
+        blockChainOnlyPeersPoolSize = syncConfig.getInt("fastsync-block-chain-only-peers-pool"),
+        fastSyncThrottle = syncConfig.getDuration("fastsync-throttle").toMillis.millis,
 
-        val maxQueuedBlockNumberBehind: Int = syncConfig.getInt("max-queued-block-number-behind")
-        val maxQueuedBlockNumberAhead: Int = syncConfig.getInt("max-queued-block-number-ahead")
-        val maxNewBlockHashAge: Int = syncConfig.getInt("max-new-block-hash-age")
-        val maxNewHashes: Int = syncConfig.getInt("max-new-hashes")
-      }
+        maxQueuedBlockNumberBehind = syncConfig.getInt("max-queued-block-number-behind"),
+        maxQueuedBlockNumberAhead = syncConfig.getInt("max-queued-block-number-ahead"),
+        maxNewBlockHashAge = syncConfig.getInt("max-new-block-hash-age"),
+        maxNewHashes = syncConfig.getInt("max-new-hashes")
+      )
     }
   }
 
