@@ -4,10 +4,7 @@ import io.iohk.ethereum.utils.MonetaryPolicyConfig
 
 /**
   * Calculates rewards for mining blocks and ommers.
-  * To be compatible with Geth division was not defered to be a single and final operation, which produces expected
-  * rounding errors.
-  * A Geth issue (ethereumproject/go-ethereum#352) and a comment on the ECIP (https://github.com/ethereumproject/ECIPs/issues/15#issuecomment-330660976)
-  * were created to check whether this should be changed
+  * https://github.com/ethereumproject/ECIPs/blob/master/ECIPs/ECIP-1039.md completely specifies eventual rounding issues.
   */
 class BlockRewardCalculator(config: MonetaryPolicyConfig) {
   /** Era duration in blocks */
