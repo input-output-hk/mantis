@@ -35,7 +35,7 @@ object Mocks {
       ???
     }
 
-    override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader): Ledger.TxResult = {
+    override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): Ledger.TxResult = {
       ???
     }
 
@@ -43,7 +43,7 @@ object Mocks {
 
     def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult = ???
 
-    def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader): BigInt = ???
+    def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = ???
 
   }
 

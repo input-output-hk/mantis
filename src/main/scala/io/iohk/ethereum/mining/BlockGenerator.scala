@@ -9,7 +9,7 @@ import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction, _}
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
-import io.iohk.ethereum.ledger.{BlockPreparationError, BloomFilter, Ledger}
+import io.iohk.ethereum.ledger.{BlockPreparationError, BloomFilter, InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator.InvalidOmmers
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -26,7 +26,7 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
-  private val cache: AtomicReference[List[PendingBlock]] = new AtomicReference(Nil)
+  private val cache: AtomicReference[List[PendingBlockAndState]] = new AtomicReference(Nil)
 
   def generateBlockForMining(parent: Block, transactions: Seq[SignedTransaction], ommers: Seq[BlockHeader], beneficiary: Address):
   Either[BlockPreparationError, PendingBlock] = {
@@ -42,27 +42,27 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
         val block = Block(header, body)
 
         val prepared = ledger.prepareBlock(block) match {
-          case BlockPreparationResult(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot) =>
+          case BlockPreparationResult(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot, updatedWorld) =>
             val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
             val bloomFilter = ByteString(or(receiptsLogs: _*))
 
-            PendingBlock(block.copy(header = block.header.copy(
+            PendingBlockAndState(PendingBlock(block.copy(header = block.header.copy(
               transactionsRoot = buildMpt(prepareBlock.body.transactionList, SignedTransaction.byteArraySerializable),
               stateRoot = stateRoot,
               receiptsRoot = buildMpt(receipts, Receipt.byteArraySerializable),
               logsBloom = bloomFilter,
               gasUsed = gasUsed),
-              body = prepareBlock.body), receipts)
+              body = prepareBlock.body), receipts), updatedWorld)
         }
         Right(prepared)
     }
 
-    result.right.foreach(b => cache.updateAndGet(new UnaryOperator[List[PendingBlock]] {
-      override def apply(t: List[PendingBlock]): List[PendingBlock] =
+    result.right.foreach(b => cache.updateAndGet(new UnaryOperator[List[PendingBlockAndState]] {
+      override def apply(t: List[PendingBlockAndState]): List[PendingBlockAndState] =
         (b :: t).take(miningConfig.blockCacheSize)
     }))
 
-    result
+    result.map(_.pendingBlock)
   }
 
   private def prepareTransactions(transactions: Seq[SignedTransaction], blockGasLimit: BigInt) = {
@@ -113,21 +113,24 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
   }
 
   def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] = {
-    cache.getAndUpdate(new UnaryOperator[List[PendingBlock]] {
-      override def apply(t: List[PendingBlock]): List[PendingBlock] =
-        t.filterNot(pb => ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))) == powHeaderHash)
-    }).find { pb =>
-      ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))) == powHeaderHash
-    }
+    cache.getAndUpdate(new UnaryOperator[List[PendingBlockAndState]] {
+      override def apply(t: List[PendingBlockAndState]): List[PendingBlockAndState] =
+        t.filterNot(pbs => ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash)
+    }).find { pbs =>
+      ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash
+    }.map(_.pendingBlock)
   }
 
   /**
     * This function returns the block currently being mined block with highest timestamp
     */
-  def getPending: Option[PendingBlock] = {
+  def getPendingBlock: Option[PendingBlock] =
+    getPendingBlockAndState.map(_.pendingBlock)
+
+  def getPendingBlockAndState: Option[PendingBlockAndState] = {
     val pendingBlocks = cache.get()
-    if(pendingBlocks.isEmpty) None
-    else Some(pendingBlocks.maxBy(_.block.header.unixTimestamp))
+    if (pendingBlocks.isEmpty) None
+    else Some(pendingBlocks.maxBy(_.pendingBlock.block.header.unixTimestamp))
   }
 
   //returns maximal limit to be able to include as many transactions as possible
@@ -153,6 +156,7 @@ trait BlockTimestampProvider {
 }
 
 case class PendingBlock(block: Block, receipts: Seq[Receipt])
+case class PendingBlockAndState(pendingBlock: PendingBlock, worldState: InMemoryWorldStateProxy)
 
 object DefaultBlockTimestampProvider extends BlockTimestampProvider {
   override def getEpochSecond: Long = Instant.now.getEpochSecond
