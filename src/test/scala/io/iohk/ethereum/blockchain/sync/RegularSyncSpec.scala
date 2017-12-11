@@ -25,7 +25,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 
-import scala.concurrent.duration.{FiniteDuration, _}
+import scala.concurrent.duration._
 
 class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with WordSpecLike
   with Matchers with MockFactory with BeforeAndAfterAll {
@@ -327,6 +327,19 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         regularSync.underlyingActor.resolvingBranches shouldBe false
       }
 
+      "return to normal syncing mode after branch resolution request failed" in new ShortResponseTimeout with TestSetup  {
+        val newHeaders = (1 to 10).map(_ => getBlock().header)
+        inSequence {
+          (ledger.resolveBranch _).expects(newHeaders).returning(UnknownBranch)
+        }
+
+        sendBlockHeaders(newHeaders)
+        Thread.sleep(1000)
+
+        regularSync.underlyingActor.isBlacklisted(peer1.id) shouldBe true
+        regularSync.underlyingActor.resolvingBranches shouldBe false
+      }
+
       "handle invalid branch" in new TestSetup {
         val newBlocks = (1 to 2).map(_ => getBlock())
 
@@ -341,7 +354,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
     }
   }
 
-  trait TestSetup extends EphemBlockchainTestSetup with SecureRandomBuilder {
+  trait TestSetup extends DefaultSyncConfig with EphemBlockchainTestSetup with SecureRandomBuilder {
     storagesInstance.storages.appStateStorage.putBestBlockNumber(0)
 
     val etcPeerManager = TestProbe()
@@ -350,32 +363,6 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
     val txPool = TestProbe()
     val broadcaster = mock[BlockBroadcast]
     val ledger = mock[Ledger]
-
-    val syncConfig = new SyncConfig {
-      override val printStatusInterval: FiniteDuration = 1.hour
-      override val persistStateSnapshotInterval: FiniteDuration = 20.seconds
-      override val targetBlockOffset: Int = 500
-      override val branchResolutionRequestSize: Int = 2
-      override val blacklistDuration: FiniteDuration = 5.seconds
-      override val syncRetryInterval: FiniteDuration = 1.second
-      override val checkForNewBlockInterval: FiniteDuration = 1.second
-      override val startRetryInterval: FiniteDuration = 500.milliseconds
-      override val blockChainOnlyPeersPoolSize: Int = 100
-      override val maxConcurrentRequests: Int = 10
-      override val blockHeadersPerRequest: Int = 2
-      override val blockBodiesPerRequest: Int = 10
-      override val doFastSync: Boolean = false
-      override val nodesPerRequest: Int = 10
-      override val receiptsPerRequest: Int = 10
-      override val minPeersToChooseTargetBlock: Int = 2
-      override val peerResponseTimeout: FiniteDuration = 1.second
-      override val peersScanInterval: FiniteDuration = 500.milliseconds
-      override val fastSyncThrottle: FiniteDuration = 100.milliseconds
-      val maxQueuedBlockNumberAhead: Int = 10
-      val maxQueuedBlockNumberBehind: Int = 10
-      val maxNewBlockHashAge: Int = 20
-      val maxNewHashes: Int = 64
-    }
 
     val regularSync = TestActorRef[RegularSync](RegularSync.props(
       storagesInstance.storages.appStateStorage,
@@ -464,5 +451,39 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
     def sendBlockHeaders(headers: Seq[BlockHeader]): Unit = {
       regularSync ! ResponseReceived(peer1, BlockHeaders(headers), 0)
     }
+  }
+
+  trait DefaultSyncConfig {
+    val defaultSyncConfig = SyncConfig(
+      printStatusInterval = 1.hour,
+      persistStateSnapshotInterval = 20.seconds,
+      targetBlockOffset = 500,
+      branchResolutionRequestSize = 2,
+      blacklistDuration = 5.seconds,
+      syncRetryInterval = 1.second,
+      checkForNewBlockInterval = 1.second,
+      startRetryInterval = 500.milliseconds,
+      blockChainOnlyPeersPoolSize = 100,
+      maxConcurrentRequests = 10,
+      blockHeadersPerRequest = 2,
+      blockBodiesPerRequest = 10,
+      doFastSync = false,
+      nodesPerRequest = 10,
+      receiptsPerRequest = 10,
+      minPeersToChooseTargetBlock = 2,
+      peerResponseTimeout = 1.second,
+      peersScanInterval = 500.milliseconds,
+      fastSyncThrottle = 100.milliseconds,
+      maxQueuedBlockNumberAhead = 10,
+      maxQueuedBlockNumberBehind = 10,
+      maxNewBlockHashAge = 20,
+      maxNewHashes = 64
+    )
+
+    val syncConfig = defaultSyncConfig
+  }
+
+  trait ShortResponseTimeout extends DefaultSyncConfig {
+    override val syncConfig = defaultSyncConfig.copy(peerResponseTimeout = 1.milli)
   }
 }

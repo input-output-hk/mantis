@@ -104,6 +104,7 @@ class RegularSync(
     case MessageFromPeer(NewBlock(newBlock, _), peerId) =>
       //we allow inclusion of new block only if we are not syncing
       if (notDownloading() && topOfTheChain) {
+        log.debug(s"Handling NewBlock message for block (${newBlock.idTag})")
         val importResult = ledger.importBlock(newBlock)
 
         importResult match {
@@ -146,6 +147,7 @@ class RegularSync(
       //we allow asking for new hashes when we are not syncing and we can download from specified peer ,we are
       //top of the chain and not resolving branches currently
       if (notDownloading() && topOfTheChain && maybePeer.isDefined) {
+        log.debug("Handling NewBlockHashes message: \n" + hashes.mkString("\n"))
         val (peer, _) = maybePeer.get
         val hashesToCheck = hashes.take(syncConfig.maxNewHashes)
 
@@ -189,7 +191,7 @@ class RegularSync(
 
   def handleResponseToRequest: Receive = {
     case ResponseReceived(peer: Peer, BlockHeaders(headers), timeTaken) =>
-      log.info("Received {} block headers in {} ms", headers.size, timeTaken)
+      log.info("Received {} block headers in {} ms (branch resolution: {})", headers.size, timeTaken, resolvingBranches)
       waitingForActor = None
       if (resolvingBranches) handleBlockBranchResolution(peer, headers.reverse)
       else handleBlockHeaders(peer, headers)
@@ -200,6 +202,7 @@ class RegularSync(
       handleBlockBodies(peer, blockBodies)
 
     case PeerRequestHandler.RequestFailed(peer, reason) if waitingForActor.contains(sender()) =>
+      log.debug(s"Request to peer ($peer) failed: $reason")
       waitingForActor = None
       if (handshakedPeers.contains(peer)) {
         blacklist(peer.id, blacklistDuration, reason)
@@ -248,8 +251,9 @@ class RegularSync(
   private def askForHeaders() = {
     bestPeer match {
       case Some(peer) =>
-        val blockNumber = appStateStorage.getBestBlockNumber()
-        requestBlockHeaders(peer, GetBlockHeaders(Left(blockNumber + 1), blockHeadersPerRequest, skip = 0, reverse = false))
+        val blockNumber = appStateStorage.getBestBlockNumber() + 1
+        log.debug(s"Requesting $blockHeadersPerRequest headers, starting from $blockNumber")
+        requestBlockHeaders(peer, GetBlockHeaders(Left(blockNumber), blockHeadersPerRequest, skip = 0, reverse = false))
 
       case None =>
         log.debug("No peers to download from")
@@ -297,6 +301,8 @@ class RegularSync(
         log.debug("fail to resolve branch, branch too long, it may indicate malicious peer")
         resumeWithDifferentPeer(peer, "failed to resolve branch")
       } else {
+        log.debug(s"requesting $branchResolutionRequestSize additional headers for branch resolution, " +
+          "starting from: " + Hex.toHexString(headersQueue.head.parentHash.toArray))
         val request = GetBlockHeaders(Right(headersQueue.head.parentHash), branchResolutionRequestSize, skip = 0, reverse = true)
         requestBlockHeaders(peer, request)
         resolvingBranches = true
@@ -376,6 +382,7 @@ class RegularSync(
 
   private def scheduleResume() = {
     headersQueue = Nil
+    resolvingBranches = false
     resumeRegularSyncTimeout = Some(scheduler.scheduleOnce(checkForNewBlockInterval, self, ResumeRegularSync))
   }
 
