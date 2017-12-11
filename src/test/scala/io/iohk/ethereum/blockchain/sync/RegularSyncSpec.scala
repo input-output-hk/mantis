@@ -372,6 +372,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       txPool.ref,
       broadcaster,
       ledger,
+      null,
       syncConfig,
       system.scheduler
     ))

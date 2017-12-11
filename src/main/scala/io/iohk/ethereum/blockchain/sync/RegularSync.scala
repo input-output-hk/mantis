@@ -1,10 +1,12 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor._
+import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -12,6 +14,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.Message
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
@@ -20,6 +23,7 @@ import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success, Try}
 
 //TODO Refactor to get rid of most of mutable state [EC-320]
 class RegularSync(
@@ -30,6 +34,7 @@ class RegularSync(
     val pendingTransactionsManager: ActorRef,
     val broadcaster: BlockBroadcast,
     val ledger: Ledger,
+    val blockchain: Blockchain,
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler)
   extends Actor with ActorLogging with PeerListSupport with BlacklistSupport {
@@ -48,6 +53,8 @@ class RegularSync(
     */
   var topOfTheChain: Boolean = false
   private var resumeRegularSyncTimeout: Option[Cancellable] = None
+
+  var missingStateNodeRetry: Option[MissingStateNodeRetry] = None
 
   scheduler.schedule(printStatusInterval, printStatusInterval, self, PrintStatus)
 
@@ -89,10 +96,17 @@ class RegularSync(
     // The case that waitingForActor is defined (we are waiting for some response),
     // can happen when we are on top of the chain and currently handling newBlockHashes message
 
-    if (waitingForActor.isEmpty)
-      askForHeaders()
-    else
+    if (waitingForActor.isEmpty) {
+      if (missingStateNodeRetry.isEmpty) {
+        headersQueue = Nil
+        resolvingBranches = false
+        askForHeaders()
+      } else {
+        requestMissingNode(missingStateNodeRetry.get.nodeId)
+      }
+    } else {
       resumeRegularSyncTimeout = Some(scheduler.scheduleOnce(checkForNewBlockInterval, self, ResumeRegularSync))
+    }
   }
 
   private def cancelScheduledResume(): Unit = {
@@ -201,6 +215,11 @@ class RegularSync(
       waitingForActor = None
       handleBlockBodies(peer, blockBodies)
 
+    case ResponseReceived(peer, NodeData(nodes), timeTaken) =>
+      log.info("Received {} missing state nodes in {} ms", nodes.size, timeTaken)
+      waitingForActor = None
+      handleRedownloadedStateNodes(peer, nodes)
+
     case PeerRequestHandler.RequestFailed(peer, reason) if waitingForActor.contains(sender()) =>
       log.debug(s"Request to peer ($peer) failed: $reason")
       waitingForActor = None
@@ -258,6 +277,35 @@ class RegularSync(
       case None =>
         log.debug("No peers to download from")
         scheduleResume()
+    }
+  }
+
+  private def requestMissingNode(nodeId: ByteString): Unit = {
+    bestPeer match {
+      case Some(peer) =>
+        waitingForActor = Some(context.actorOf(
+          PeerRequestHandler.props[GetNodeData, NodeData](
+            peer, peerResponseTimeout, etcPeerManager, peerEventBus,
+            requestMsg = GetNodeData(List(nodeId)),
+            responseMsgCode = NodeData.code)))
+
+      case None =>
+        log.debug("Requesting missing state nodes: no peers to download from")
+        scheduleResume()
+    }
+  }
+
+  private def handleRedownloadedStateNodes(peer: Peer, nodes: Seq[ByteString]): Unit = {
+    if (nodes.isEmpty) {
+      log.debug(s"Did not receive missing state node from peer ($peer)")
+      resumeWithDifferentPeer(peer, "did not receive missing state node")
+    } else {
+      val MissingStateNodeRetry(nodeHash, blockPeer, nextBlocks) = missingStateNodeRetry.get
+      blockchain.saveNode(nodeHash, nodes.head.toArray, headersQueue.head.number)
+      missingStateNodeRetry = None
+      log.info(s"Inserted missing state node: ${Hex.toHexString(nodeHash.toArray)}. " +
+        s"Retrying execution starting with block ${headersQueue.head.number}")
+      handleBlockBodies(blockPeer, nextBlocks)
     }
   }
 
@@ -334,25 +382,35 @@ class RegularSync(
       val blocks = headersQueue.zip(m).map{ case (header, body) => Block(header, body) }
 
       @tailrec
-      def importBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil): (List[Block], Option[BlockImportResult]) =
+      def importBlocks(blocks: List[Block], importedBlocks: List[Block] = Nil): (List[Block], Option[Any]) =
         blocks match {
           case Nil =>
             (importedBlocks, None)
 
           case block :: tail =>
-            ledger.importBlock(block) match {
-              case BlockImportedToTop(_, _) =>
-                importBlocks(tail, block :: importedBlocks)
+            Try(ledger.importBlock(block)) match {
+              case Success(result) =>
+                result match {
+                  case BlockImportedToTop(_, _) =>
+                    importBlocks(tail, block :: importedBlocks)
 
-              case ChainReorganised(_, newBranch, _) =>
-                importBlocks(tail, newBranch.reverse ::: importedBlocks)
+                  case ChainReorganised(_, newBranch, _) =>
+                    importBlocks(tail, newBranch.reverse ::: importedBlocks)
 
-              case r @ (DuplicateBlock | BlockEnqueued) =>
-                importBlocks(tail, importedBlocks)
+                  case r @ (DuplicateBlock | BlockEnqueued) =>
+                    importBlocks(tail, importedBlocks)
 
-              case err @ (UnknownParent | BlockImportFailed(_)) =>
-                (importedBlocks, Some(err))
+                  case err @ (UnknownParent | BlockImportFailed(_)) =>
+                    (importedBlocks, Some(err))
+                }
+
+              case Failure(missingNodeEx: MissingNodeException) =>
+                (importedBlocks, Some(missingNodeEx))
+
+              case Failure(ex) =>
+                throw ex
             }
+
         }
 
       val (importedBlocks, errorOpt) = importBlocks(blocks.toList)
@@ -361,11 +419,20 @@ class RegularSync(
         log.debug(s"got new blocks up till block: ${importedBlocks.last.header.number} " +
           s"with hash ${Hex.toHexString(importedBlocks.last.header.hash.toArray[Byte])}")
       }
+
       errorOpt match {
+        case Some(missingNodeEx: MissingNodeException) =>
+          log.error(missingNodeEx, "Requesting missing state nodes")
+          headersQueue = headersQueue.drop(blocks.length)
+          missingStateNodeRetry = Some(MissingStateNodeRetry(missingNodeEx.hash, peer, m))
+          requestMissingNode(missingNodeEx.hash)
+
         case Some(error) =>
+          missingStateNodeRetry = None
           resumeWithDifferentPeer(peer, reason = s"a block execution error: ${error.toString}")
 
         case None =>
+          missingStateNodeRetry = None
           headersQueue = headersQueue.drop(blocks.length)
           if (headersQueue.nonEmpty) {
             val hashes = headersQueue.take(blockBodiesPerRequest).map(_.hash)
@@ -374,6 +441,7 @@ class RegularSync(
             context.self ! ResumeRegularSync
           }
       }
+
     } else {
       //we got empty response for bodies from peer but we got block headers earlier
       resumeWithDifferentPeer(peer)
@@ -381,8 +449,6 @@ class RegularSync(
   }
 
   private def scheduleResume() = {
-    headersQueue = Nil
-    resolvingBranches = false
     resumeRegularSyncTimeout = Some(scheduler.scheduleOnce(checkForNewBlockInterval, self, ResumeRegularSync))
   }
 
@@ -426,10 +492,10 @@ class RegularSync(
 object RegularSync {
   // scalastyle:off parameter.number
   def props(appStateStorage: AppStateStorage, etcPeerManager: ActorRef, peerEventBus: ActorRef, ommersPool: ActorRef,
-      pendingTransactionsManager: ActorRef, broadcaster: BlockBroadcast, ledger: Ledger,
+      pendingTransactionsManager: ActorRef, broadcaster: BlockBroadcast, ledger: Ledger, blockchain: Blockchain,
       syncConfig: SyncConfig, scheduler: Scheduler): Props =
     Props(new RegularSync(appStateStorage, etcPeerManager, peerEventBus, ommersPool, pendingTransactionsManager,
-      broadcaster, ledger, syncConfig, scheduler))
+      broadcaster, ledger, blockchain, syncConfig, scheduler))
 
   private[sync] case object ResumeRegularSync
   private case class ResolveBranch(peer: ActorRef)
@@ -443,4 +509,6 @@ object RegularSync {
   case object StartIdle
 
   case class MinedBlock(block: Block)
+
+  case class MissingStateNodeRetry(nodeId: ByteString, p: Peer, bodies: Seq[BlockBody])
 }

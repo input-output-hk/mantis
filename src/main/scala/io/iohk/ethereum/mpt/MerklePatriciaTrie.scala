@@ -12,7 +12,10 @@ import scala.annotation.tailrec
 
 object MerklePatriciaTrie {
 
-  case class MPTException(message: String) extends RuntimeException(message)
+  class MPTException(message: String) extends RuntimeException(message)
+
+  class MissingNodeException(val hash: ByteString) extends
+    MPTException(s"Node not found ${Hex.toHexString(hash.toArray)}, trie is inconsistent")
 
   val EmptyRootHash: Array[Byte] = Node.hashFn(encodeRLP(Array.emptyByteArray))
 
@@ -74,7 +77,7 @@ object MerklePatriciaTrie {
   }
 
   private def getRootNode(rootId: Array[Byte], source: NodesKeyValueStorage): MptNode =
-    getNode(rootId, source).getOrElse(throw MPTException(s"Root node not found ${Hex.toHexString(rootId)}"))
+    getNode(rootId, source).getOrElse(throw new MPTException(s"Root node not found ${Hex.toHexString(rootId)}"))
 
   private def matchingLength(a: Array[Byte], b: Array[Byte]): Int = a.zip(b).takeWhile(t => t._1 == t._2).length
 
@@ -101,7 +104,7 @@ object MerklePatriciaTrie {
       case Right(node) => node
       case Left(hash) =>
         val nodeId = hash.toArray[Byte]
-        MerklePatriciaTrie.getNode(nodeId, nodeStorage).getOrElse(throw MPTException(s"Node not found ${Hex.toHexString(nodeId)}, trie is inconsistent"))
+        MerklePatriciaTrie.getNode(nodeId, nodeStorage).getOrElse(throw new MissingNodeException(ByteString(nodeId)))
     }
 
   private def getChild(branchNode: BranchNode, pos: Int, nodeStorage: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): Option[MptNode] =
@@ -109,7 +112,7 @@ object MerklePatriciaTrie {
       case Right(node) => node
       case Left(hash) =>
         val nodeId = hash.toArray[Byte]
-        MerklePatriciaTrie.getNode(nodeId, nodeStorage).getOrElse(throw MPTException(s"Node not found ${Hex.toHexString(nodeId)}, trie is inconsistent"))
+        MerklePatriciaTrie.getNode(nodeId, nodeStorage).getOrElse(throw new MissingNodeException(ByteString(nodeId)))
     }
 
   implicit val nodeEnc: RLPEncoder[MptNode] = new RLPEncoder[MptNode] {
@@ -467,7 +470,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
               toDeleteFromStorage = extensionNode +: nodesToRemoveFromStorage,
               toUpdateInStorage = fixedNode +: nodesToUpdateInStorage)
           } getOrElse {
-            throw MPTException("A trie with newRoot extension should have at least 2 values stored")
+            throw new MPTException("A trie with newRoot extension should have at least 2 values stored")
           }
         case NodeRemoveResult(false, _, nodesToRemoveFromStorage, nodesToUpdateInStorage) =>
           NodeRemoveResult(
@@ -500,7 +503,7 @@ class MerklePatriciaTrie[K, V] private (private val rootHash: Option[Array[Byte]
           if (children(i).isDefined) i +: acc else acc
       }
       (usedIndexes, optStoredValue) match {
-        case (Nil, None) => throw MPTException("Branch with no subvalues")
+        case (Nil, None) => throw new MPTException("Branch with no subvalues")
         case (index :: Nil, None) =>
           val temporalExtNode = ExtensionNode(ByteString(index.toByte), children(index).get)
           fix(temporalExtNode, nodeStorage, notStoredYet)
