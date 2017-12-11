@@ -142,7 +142,7 @@ class FilterManager(
     val logs = recur(fromBlockNumber, toBlockNumber, Nil)
 
     if(filter.toBlock.contains(BlockParam.Pending))
-      logs ++ blockGenerator.getPending.map(p => getLogsFromBlock(filter, p.block, p.receipts)).getOrElse(Nil)
+      logs ++ blockGenerator.getPendingBlock.map(p => getLogsFromBlock(filter, p.block, p.receipts)).getOrElse(Nil)
     else logs
   }
 

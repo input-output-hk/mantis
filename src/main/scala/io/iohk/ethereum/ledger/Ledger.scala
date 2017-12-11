@@ -23,13 +23,13 @@ trait Ledger {
 
   def prepareBlock(block: Block): BlockPreparationResult
 
-  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader): TxResult
+  def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult
 
   def importBlock(block: Block): BlockImportResult
 
   def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
 
-  def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader): BigInt
+  def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt
 }
 
 //FIXME: Make Ledger independent of BlockchainImpl, for which it should become independent of WorldStateProxy type
@@ -371,7 +371,7 @@ class LedgerImpl(
       case (execResult@BlockResult(resultingWorldStateProxy, _, _), txExecuted) =>
         val worldToPersist = payBlockReward(block, resultingWorldStateProxy)
         val worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
-        BlockPreparationResult(block.copy(body = block.body.copy(transactionList = txExecuted)), execResult, worldPersisted.stateRootHash)
+        BlockPreparationResult(block.copy(body = block.body.copy(transactionList = txExecuted)), execResult, worldPersisted.stateRootHash, worldToPersist)
     }
   }
 
@@ -466,13 +466,12 @@ class LedgerImpl(
       }
   }
 
-  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader): TxResult = {
-    val stateRoot = blockHeader.stateRoot
+  override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
 
-    val gasLimit = stx.tx.gasLimit
+    val world1 = world.getOrElse(blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(blockHeader.stateRoot)))
+
     val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
-    val world1 = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(stateRoot))
     val world2 =
       if (world1.getAccount(stx.senderAddress).isEmpty)
         world1.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce))
@@ -480,16 +479,17 @@ class LedgerImpl(
         world1
 
     val worldForTx = updateSenderAccountBeforeExecution(stx, world2)
+
     val context: PC = prepareProgramContext(stx, blockHeader, worldForTx, config)
 
     val result = runVM(stx, context, config)
 
     val totalGasToRefund = calcTotalGasToRefund(stx, result)
 
-    TxResult(result.world, gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
+    TxResult(result.world, stx.tx.gasLimit - totalGasToRefund, result.logs, result.returnData, result.error)
   }
 
-  def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader): BigInt = {
+  override def binarySearchGasEstimation(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): BigInt = {
     val lowLimit = EvmConfig.forBlock(blockHeader.number, blockchainConfig).feeSchedule.G_transaction
     val highLimit = stx.tx.gasLimit
 
@@ -497,7 +497,7 @@ class LedgerImpl(
       highLimit
     else {
       LedgerUtils.binaryChop(lowLimit, highLimit)(gasLimit =>
-        simulateTransaction(stx.copy(tx = stx.tx.copy(gasLimit = gasLimit)), blockHeader).vmError)
+        simulateTransaction(stx.copy(tx = stx.tx.copy(gasLimit = gasLimit)), blockHeader, world).vmError)
     }
   }
 
@@ -798,7 +798,7 @@ object Ledger {
   type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
 
   case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
-  case class BlockPreparationResult(block: Block, blockResult: BlockResult, stateRootHash: ByteString)
+  case class BlockPreparationResult(block: Block, blockResult: BlockResult, stateRootHash: ByteString, updatedWorld: InMemoryWorldStateProxy)
   case class TxResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt, logs: Seq[TxLogEntry],
     vmReturnData: ByteString, vmError: Option[ProgramError])
 }

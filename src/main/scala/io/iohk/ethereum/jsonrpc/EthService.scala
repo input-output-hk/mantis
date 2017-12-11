@@ -16,7 +16,7 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.Ledger
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -140,7 +140,7 @@ object EthService {
   case class GetTransactionCountRequest(address: Address, block: BlockParam)
   case class GetTransactionCountResponse(value: BigInt)
 
-  case class ResolvedBlock(block: Block, pending: Boolean)
+  case class ResolvedBlock(block: Block, pendingState: Option[InMemoryWorldStateProxy])
 
   case class NewFilterRequest(filter: Filter)
   case class Filter(
@@ -236,7 +236,7 @@ class EthService(
     val BlockByNumberRequest(blockParam, fullTxs) = request
     val blockResponseOpt = resolveBlock(blockParam).toOption.map { case ResolvedBlock(block, pending) =>
       val totalDifficulty = blockchain.getTotalDifficultyByHash(block.header.hash)
-      BlockResponse(block, totalDifficulty, fullTxs = fullTxs, pendingBlock = pending)
+      BlockResponse(block, totalDifficulty, fullTxs = fullTxs, pendingBlock = pending.isDefined)
     }
     Right(BlockByNumberResponse(blockResponseOpt))
   }
@@ -363,7 +363,7 @@ class EthService(
           val totalDifficulty = blockchain.getTotalDifficultyByHash(uncleHeader.hash)
 
           //The block in the response will not have any txs or uncles
-          Some(BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = pending))
+          Some(BlockResponse(blockHeader = uncleHeader, totalDifficulty = totalDifficulty, pendingBlock = pending.isDefined))
         } else
           None
       }
@@ -689,20 +689,20 @@ class EthService(
     }
 
     blockParam match {
-      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pending = false))
-      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pending = false))
-      case BlockParam.Latest => getBlock(appStateStorage.getBestBlockNumber()).map(ResolvedBlock(_, pending = false))
+      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Latest => getBlock(appStateStorage.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Pending =>
-        blockGenerator.getPending.map(pb => ResolvedBlock(pb.block, pending = true))
+        blockGenerator.getPendingBlockAndState.map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
           .map(Right.apply)
           .getOrElse(resolveBlock(BlockParam.Latest)) //Default behavior in other clients
     }
   }
 
-  private def doCall[A](req: CallRequest)(f: (SignedTransaction, BlockHeader) => A): Either[JsonRpcError, A] = for {
+  private def doCall[A](req: CallRequest)(f: (SignedTransaction, BlockHeader, Option[InMemoryWorldStateProxy]) => A): Either[JsonRpcError, A] = for {
     stx   <- prepareTransaction(req)
     block <- resolveBlock(req.block)
-  } yield f(stx, block.block.header)
+  } yield f(stx, block.block.header, block.pendingState)
 
   private def getGasLimit(req: CallRequest): Either[JsonRpcError, BigInt] =
     if (req.tx.gas.isDefined) Right[JsonRpcError, BigInt](req.tx.gas.get)
