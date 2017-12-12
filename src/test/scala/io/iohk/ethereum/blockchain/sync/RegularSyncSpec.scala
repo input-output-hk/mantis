@@ -478,7 +478,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       maxQueuedBlockNumberAhead = 10,
       maxQueuedBlockNumberBehind = 10,
       maxNewBlockHashAge = 20,
-      maxNewHashes = 64
+      maxNewHashes = 64,
+      redownloadMissingStateNodes = false
     )
 
     val syncConfig = defaultSyncConfig
