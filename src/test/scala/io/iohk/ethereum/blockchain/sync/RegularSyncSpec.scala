@@ -329,9 +329,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
 
       "return to normal syncing mode after branch resolution request failed" in new ShortResponseTimeout with TestSetup  {
         val newHeaders = (1 to 10).map(_ => getBlock().header)
-        inSequence {
-          (ledger.resolveBranch _).expects(newHeaders).returning(UnknownBranch)
-        }
+
+        (ledger.resolveBranch _).expects(newHeaders).returning(UnknownBranch)
 
         sendBlockHeaders(newHeaders)
         Thread.sleep(1000)
@@ -462,7 +461,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       branchResolutionRequestSize = 2,
       blacklistDuration = 5.seconds,
       syncRetryInterval = 1.second,
-      checkForNewBlockInterval = 1.second,
+      checkForNewBlockInterval = 1.milli,
       startRetryInterval = 500.milliseconds,
       blockChainOnlyPeersPoolSize = 100,
       maxConcurrentRequests = 10,
