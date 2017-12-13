@@ -12,10 +12,15 @@ import scala.annotation.tailrec
 
 object MerklePatriciaTrie {
 
-  class MPTException(message: String) extends RuntimeException(message)
+  class MPTException(val message: String) extends RuntimeException(message)
 
-  class MissingNodeException(val hash: ByteString) extends
-    MPTException(s"Node not found ${Hex.toHexString(hash.toArray)}, trie is inconsistent")
+  class MissingNodeException protected (val hash: ByteString, message: String) extends MPTException(message) {
+    def this(hash: ByteString) = this(hash, s"Node not found ${Hex.toHexString(hash.toArray)}, trie is inconsistent")
+  }
+
+  class MissingRootNodeException(hash: ByteString) extends
+    MissingNodeException(hash, s"Root node not found ${Hex.toHexString(hash.toArray)}")
+
 
   val EmptyRootHash: Array[Byte] = Node.hashFn(encodeRLP(Array.emptyByteArray))
 
@@ -77,7 +82,7 @@ object MerklePatriciaTrie {
   }
 
   private def getRootNode(rootId: Array[Byte], source: NodesKeyValueStorage): MptNode =
-    getNode(rootId, source).getOrElse(throw new MPTException(s"Root node not found ${Hex.toHexString(rootId)}"))
+    getNode(rootId, source).getOrElse(throw new MissingRootNodeException(ByteString(rootId)))
 
   private def matchingLength(a: Array[Byte], b: Array[Byte]): Int = a.zip(b).takeWhile(t => t._1 == t._2).length
 
