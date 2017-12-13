@@ -5,6 +5,27 @@ This is first release candidate for the Deadalus Mantis integration release. Thi
 
 For a more detailed description of the functionality and configuration options see https://github.com/input-output-hk/mantis/wiki
 
+Known Issues
+
+EC-254 Full discovery 'kademlia' protocol not implemented. There are no known implications.
+
+EC-362 - eth_call fails when executed in "pending" block
+
+Workaround is to wait 15 seconds until the block is confirmed and try again using `last` block.
+
+EC-284 - Missing MPT Node while doing regular sync
+
+Workaround is to set the redownload-missing-state-nodes flag as per the documentation (see wiki).
+
+EC-371 - Occasional OOM error
+
+Workaround is to restart.
+
+EC-372 -Occasionally the synchronisation stops
+
+Workaround is to restart.
+
+
 
 Issues Fixed Since Last Release
 
@@ -28,13 +49,10 @@ EC-244 etcstats.net data for mantis always seems one block behind
 
 EC-167 Trying to run "regular sync" after an incomplete "fast sync" results in "Node not found" exception
 
-Known Issues
-
-EC-254 Full discovery 'kademlia' protocol not implemented. There are no known implications.
 
 Feedback
 
-Feedback gratefully received through the Ethereum Classic Slack channel #mantis_client_bugs
+Feedback gratefully received through the Ethereum Classic Forum (https://forum.ethereumclassic.org/)
 
 
 
