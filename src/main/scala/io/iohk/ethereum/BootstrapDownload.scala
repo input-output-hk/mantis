@@ -122,6 +122,9 @@ object BootstrapDownload extends Logger {
     log.info(s"Unzip file ${pathToDownloadTo} ${downloadedFileNameAsFile}...")
     unzip(downloadedFileNameAsFile, pathToDownloadTo)
 
+    if(downloadedFileNameAsFile.delete()) log.info(s"Downloaded file $downloadedFileNameAsFile successfully deleted")
+    else log.info(s"Failed to delete downloaded file $downloadedFileNameAsFile")
+
     log.info(s"Bootstrap download successful.")
 
   }
