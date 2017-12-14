@@ -9,7 +9,7 @@ import java.util.zip.ZipInputStream
 
 import scala.language.postfixOps
 import scala.sys.process._
-import io.iohk.ethereum.utils.Logger
+//import io.iohk.ethereum.utils.Logger
 
 /**
   * A facility to
