@@ -1,6 +1,6 @@
 package io.iohk.ethereum
 
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{Config, Logger}
 
 
 object App extends Logger {
@@ -15,7 +15,7 @@ object App extends Logger {
         case None => Mantis.main(args)
         case Some(`launchMantis`) => Mantis.main(args.tail)
         case Some(`launchKeytool`) => KeyTool.main(args.tail)
-        case Some(`downloadBootstrap`) => BootstrapDownload.main(args.tail)
+        case Some(`downloadBootstrap`) => BootstrapDownload.main(args.tail :+ Config.Db.LevelDb.path)
         case Some(unknown) =>
           log.error(s"Unrecognised launcher option, " +
             s"first parameter must be $launchKeytool, $downloadBootstrap or $launchMantis")

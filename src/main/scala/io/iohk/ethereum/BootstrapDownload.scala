@@ -21,7 +21,7 @@ import io.iohk.ethereum.utils.Logger
 object BootstrapDownload extends Logger {
 
   // Compute a hash of a file
-  // The output of this function should match the output of running "md5 -q <file>"
+  // The output of this function should match the output of running "md5sum <file>"
   def computeHash(file: File): String = {
 
     val buffer = new Array[Byte](8192)
@@ -73,38 +73,38 @@ object BootstrapDownload extends Logger {
     //download a zip file from a url.
 
     assert(args.length == 4, "Provide the url to download from, " +
-      "the path to extract the file to," +
-      " expected hash of the downloaded file" +
-      " and the minimum required free disk space in giga bytes")
+      " expected hash of the downloaded file, " +
+      " the minimum required free disk space in giga bytes" +
+      " and the path to extract the file to")
 
-    val minimumExpectedDiskSpace = args(3)
+    val minimumExpectedDiskSpace = args(2)
     val bytesInOneGigaByte = 1073741824l
     val minimumExpectedDiskSpaceInBytes =  minimumExpectedDiskSpace.toLong * bytesInOneGigaByte
-    val expectedHash = args(2)
+    val expectedHash = args(1)
     val path = Paths.get(args(0))
-    val pathToDownloadTo = Paths.get(args(1))
+    val pathToDownloadTo = Paths.get(args(3))
     val f = path.getFileName.toFile
 
-    log.debug(s"Running Bootstrap download ... ")
-    log.debug(s"Expected Minimum disk space is $minimumExpectedDiskSpace ")
-    log.debug(s"Download path is $path")
-    log.debug(s"Path to download to is $pathToDownloadTo")
+    log.info(s"Running Bootstrap download ... ")
+    log.info(s"Expected Minimum disk space is $minimumExpectedDiskSpace ")
+    log.info(s"Download path is $path")
+    log.info(s"Path to download to is $pathToDownloadTo")
 
     assert(pathToDownloadTo.toFile.getUsableSpace() >= minimumExpectedDiskSpaceInBytes,
       s"There is not enough free space ($minimumExpectedDiskSpace GB) to download and expand to $pathToDownloadTo ")
 
-    log.debug(s"Free space check ok, starting download! (this could take some time)")
+    log.info(s"Free space check ok, starting download! (this could take some time)")
     downloadFile(args(0), path.getFileName.toString)
 
-    log.debug(s"Download complete, checking hash against $expectedHash ...")
+    log.info(s"Download complete, checking hash against $expectedHash ...")
     val hash = computeHash(f)
 
     assert(hash == expectedHash, s"The zip file hash $hash did NOT match the expected hash $expectedHash")
 
-    log.debug(s"Hash OK, unzipping file...")
+    log.info(s"Hash OK, unzipping file...")
     unzip(f, pathToDownloadTo)
 
-    log.debug(s"Bootstrap download successful.")
+    log.info(s"Bootstrap download successful.")
 
   }
 }
