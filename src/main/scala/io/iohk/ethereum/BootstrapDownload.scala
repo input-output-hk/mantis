@@ -7,9 +7,8 @@ import java.nio.file._
 import java.security.{DigestInputStream, MessageDigest}
 import java.util.zip.ZipInputStream
 
-import scala.language.postfixOps
-import scala.sys.process._
-//import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.Logger
+
 
 /**
   * A facility to
@@ -18,33 +17,23 @@ import scala.sys.process._
   * - check the checksum
   * - unzip to a given location
   */
-object BootstrapDownload  {
+object BootstrapDownload extends Logger {
 
-  object log {
-    def info(a: String) = println(a)
-  }
+  def downloadFile(urlToDownloadFrom: String, outFile: File): String = {
 
-  // Compute a hash of a file
-  // The output of this function should match the output of running "md5sum <file>"
-  def computeHash(file: File): String = {
-
-    val buffer = new Array[Byte](8192)
     val md5 = MessageDigest.getInstance("MD5")
-
-    val is = new FileInputStream(file)
+    val is = new URL(urlToDownloadFrom).openStream()
     try {
       val dis = new DigestInputStream(is, md5)
       try {
-        while (dis.read(buffer) != -1) {}
-      } finally {
-        dis.close()
-      }
+        val out = new FileOutputStream(outFile)
+        try {
+          val buffer = new Array[Byte](8192)
+          Stream.continually(dis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
+        } finally (out.close())
+        md5.digest.map("%02x".format(_)).mkString
+      } finally(dis.close())
     } finally(is.close())
-    md5.digest.map("%02x".format(_)).mkString
-  }
-
-  def downloadFile(url: String, file: File) = {
-    new URL(url) #> file !!
   }
 
   def unzip(zipFile: File, destination: Path): Unit = {
@@ -60,7 +49,6 @@ object BootstrapDownload  {
             if (!outPathParent.toFile.exists()) {
               outPathParent.toFile.mkdirs()
             }
-
 
             val outFile = outPath.toFile
             val out = new FileOutputStream(outFile)
@@ -88,6 +76,7 @@ object BootstrapDownload  {
     val expectedHash = args(1)
 
     val urlToDownloadFrom = new URL(args(0))
+
     val pathToDownloadTo = Paths.get(args(3))
     val urlToDownloadFromAsFile = new File(urlToDownloadFrom.getFile)
     val downloadedFileNameAsFile = new File(urlToDownloadFromAsFile.getName)
@@ -101,14 +90,15 @@ object BootstrapDownload  {
       s"There is not enough free space ($minimumExpectedDiskSpace GB) to download and expand to $pathToDownloadTo ")
 
     log.info(s"Free space check ok, starting download! (this could take some time)")
-    downloadFile(args(0), downloadedFileNameAsFile)
+    val hash = downloadFile(args(0), downloadedFileNameAsFile)
 
     log.info(s"Download complete, checking hash against $expectedHash ...")
-    val hash = computeHash(downloadedFileNameAsFile)
-
     assert(hash == expectedHash, s"The zip file hash $hash did NOT match the expected hash $expectedHash")
 
-    log.info(s"Hash OK, unzipping file...")
+    log.info(s"Hash OK, clean out folder...")
+    //TODO
+    
+    log.info(s"Unzip file ${pathToDownloadTo}${downloadedFileNameAsFile}...")
     unzip(downloadedFileNameAsFile, pathToDownloadTo)
 
     log.info(s"Bootstrap download successful.")
