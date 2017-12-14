@@ -43,8 +43,8 @@ object BootstrapDownload  {
     md5.digest.map("%02x".format(_)).mkString
   }
 
-  def downloadFile(url: String, filename: String) = {
-    new URL(url) #> new File(filename) !!
+  def downloadFile(url: String, file: File) = {
+    new URL(url) #> file !!
   }
 
   def unzip(zipFile: File, destination: Path): Unit = {
@@ -86,28 +86,30 @@ object BootstrapDownload  {
     val bytesInOneGigaByte = 1073741824l
     val minimumExpectedDiskSpaceInBytes =  minimumExpectedDiskSpace.toLong * bytesInOneGigaByte
     val expectedHash = args(1)
-    val path = Paths.get(args(0))
+
+    val urlToDownloadFrom = new URL(args(0))
     val pathToDownloadTo = Paths.get(args(3))
-    val f = path.getFileName.toFile
+    val urlToDownloadFromAsFile = new File(urlToDownloadFrom.getFile)
+    val downloadedFileNameAsFile = new File(urlToDownloadFromAsFile.getName)
 
     log.info(s"Running Bootstrap download ... ")
     log.info(s"Expected Minimum disk space is $minimumExpectedDiskSpace ")
-    log.info(s"Download path is $path")
+    log.info(s"Download path is $urlToDownloadFrom")
     log.info(s"Path to download to is $pathToDownloadTo")
 
     assert(pathToDownloadTo.toFile.getUsableSpace() >= minimumExpectedDiskSpaceInBytes,
       s"There is not enough free space ($minimumExpectedDiskSpace GB) to download and expand to $pathToDownloadTo ")
 
     log.info(s"Free space check ok, starting download! (this could take some time)")
-    downloadFile(args(0), path.getFileName.toString)
+    downloadFile(args(0), downloadedFileNameAsFile)
 
     log.info(s"Download complete, checking hash against $expectedHash ...")
-    val hash = computeHash(f)
+    val hash = computeHash(downloadedFileNameAsFile)
 
     assert(hash == expectedHash, s"The zip file hash $hash did NOT match the expected hash $expectedHash")
 
     log.info(s"Hash OK, unzipping file...")
-    unzip(f, pathToDownloadTo)
+    unzip(downloadedFileNameAsFile, pathToDownloadTo)
 
     log.info(s"Bootstrap download successful.")
 
