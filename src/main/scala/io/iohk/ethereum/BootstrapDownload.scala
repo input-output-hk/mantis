@@ -13,11 +13,27 @@ import io.iohk.ethereum.utils.Logger
 /**
   * A facility to
   * - check the download location for a minimum amount of free space
-  * - download a zip from a URL
+  * - download a zip from a URL and generate MD5 checksum
   * - check the checksum
+  * - clean files out of given location
   * - unzip to a given location
   */
 object BootstrapDownload extends Logger {
+
+  val bufferSize = 4 * 1024
+
+  def assertAndLog(cond: Boolean, msg: String): Unit = {
+    if(!cond) log.info(msg)
+    assert(cond, msg)
+  }
+
+  def cleanOutFolder(pathToDownloadTo: Path): Unit = {
+    val leveldbFolder = pathToDownloadTo.toFile
+    val leveldbFolderName = "leveldb"
+    assertAndLog(leveldbFolder.isDirectory, s"${pathToDownloadTo} must be a folder.")
+    assertAndLog(leveldbFolder.getName == leveldbFolderName, s"${pathToDownloadTo} must end in a folder named $leveldbFolderName")
+    leveldbFolder.listFiles().foreach(_.delete())
+  }
 
   def downloadFile(urlToDownloadFrom: String, outFile: File): String = {
 
@@ -28,7 +44,7 @@ object BootstrapDownload extends Logger {
       try {
         val out = new FileOutputStream(outFile)
         try {
-          val buffer = new Array[Byte](8192)
+          val buffer = new Array[Byte](bufferSize)
           Stream.continually(dis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
         } finally (out.close())
         md5.digest.map("%02x".format(_)).mkString
@@ -53,7 +69,7 @@ object BootstrapDownload extends Logger {
             val outFile = outPath.toFile
             val out = new FileOutputStream(outFile)
             try {
-              val buffer = new Array[Byte](8192)
+              val buffer = new Array[Byte](bufferSize)
               Stream.continually(zis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
             } finally(out.close())
           }
@@ -62,43 +78,48 @@ object BootstrapDownload extends Logger {
     } finally(in.close())
   }
 
+
   def main(args: Array[String]): Unit = {
     //download a zip file from a url.
 
-    assert(args.length == 4, "Provide the url to download from, " +
+    assertAndLog(args.length == 4, "Provide the url to download from, " +
       " expected hash of the downloaded file, " +
       " the minimum required free disk space in giga bytes" +
       " and the path to extract the file to")
 
-    val minimumExpectedDiskSpace = args(2)
-    val bytesInOneGigaByte = 1073741824l
-    val minimumExpectedDiskSpaceInBytes =  minimumExpectedDiskSpace.toLong * bytesInOneGigaByte
-    val expectedHash = args(1)
-
     val urlToDownloadFrom = new URL(args(0))
-
+    val expectedHash = args(1)
+    val minimumExpectedDiskSpace = args(2)
     val pathToDownloadTo = Paths.get(args(3))
+
+    val bytesInOneGigaByte = 1024l * 1024l * 1024l
+    val minimumExpectedDiskSpaceInBytes =  minimumExpectedDiskSpace.toLong * bytesInOneGigaByte
+
     val urlToDownloadFromAsFile = new File(urlToDownloadFrom.getFile)
     val downloadedFileNameAsFile = new File(urlToDownloadFromAsFile.getName)
+    val pathToDownloadToAsFile = pathToDownloadTo.toFile
 
     log.info(s"Running Bootstrap download ... ")
-    log.info(s"Expected Minimum disk space is $minimumExpectedDiskSpace ")
+    log.info(s"Expected Minimum disk space is $minimumExpectedDiskSpace GB")
     log.info(s"Download path is $urlToDownloadFrom")
     log.info(s"Path to download to is $pathToDownloadTo")
 
-    assert(pathToDownloadTo.toFile.getUsableSpace() >= minimumExpectedDiskSpaceInBytes,
+    if(!pathToDownloadToAsFile.exists()) pathToDownloadToAsFile.mkdirs()
+
+    assertAndLog(pathToDownloadToAsFile.isDirectory, s"$pathToDownloadToAsFile must be a folder.")
+    assertAndLog(pathToDownloadToAsFile.getUsableSpace() >= minimumExpectedDiskSpaceInBytes,
       s"There is not enough free space ($minimumExpectedDiskSpace GB) to download and expand to $pathToDownloadTo ")
 
     log.info(s"Free space check ok, starting download! (this could take some time)")
     val hash = downloadFile(args(0), downloadedFileNameAsFile)
 
     log.info(s"Download complete, checking hash against $expectedHash ...")
-    assert(hash == expectedHash, s"The zip file hash $hash did NOT match the expected hash $expectedHash")
+    assertAndLog(hash == expectedHash, s"The zip file hash $hash did NOT match the expected hash $expectedHash")
 
     log.info(s"Hash OK, clean out folder...")
-    //TODO
-    
-    log.info(s"Unzip file ${pathToDownloadTo}${downloadedFileNameAsFile}...")
+    cleanOutFolder(pathToDownloadTo)
+
+    log.info(s"Unzip file ${pathToDownloadTo} ${downloadedFileNameAsFile}...")
     unzip(downloadedFileNameAsFile, pathToDownloadTo)
 
     log.info(s"Bootstrap download successful.")
