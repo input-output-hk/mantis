@@ -74,14 +74,14 @@ object MerklePatriciaTrie {
     }
   }
 
-  private def getNode(nodeId: Array[Byte], source: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): Option[MptNode] = {
+  def getNode(nodeId: Array[Byte], source: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): Option[MptNode] = {
     val maybeNodeEncoded =
       if (nodeId.length < 32) Some(nodeId)
       else source.get(ByteString(nodeId))
     maybeNodeEncoded.map(nodeEncoded => decodeRLP[MptNode](nodeEncoded).withCachedHash(nodeId).withCachedRlpEncoded(nodeEncoded))
   }
 
-  private def getRootNode(rootId: Array[Byte], source: NodesKeyValueStorage): MptNode =
+  def getRootNode(rootId: Array[Byte], source: NodesKeyValueStorage): MptNode =
     getNode(rootId, source).getOrElse(throw new MissingRootNodeException(ByteString(rootId)))
 
   private def matchingLength(a: Array[Byte], b: Array[Byte]): Int = a.zip(b).takeWhile(t => t._1 == t._2).length
@@ -104,7 +104,7 @@ object MerklePatriciaTrie {
     nodeStorage.update(toBeRemoved, toBeUpdated)
   }
 
-  private def getNextNode(extensionNode: ExtensionNode, nodeStorage: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): MptNode =
+  def getNextNode(extensionNode: ExtensionNode, nodeStorage: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): MptNode =
     extensionNode.next match {
       case Right(node) => node
       case Left(hash) =>
@@ -112,7 +112,7 @@ object MerklePatriciaTrie {
         MerklePatriciaTrie.getNode(nodeId, nodeStorage).getOrElse(throw new MissingNodeException(ByteString(nodeId)))
     }
 
-  private def getChild(branchNode: BranchNode, pos: Int, nodeStorage: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): Option[MptNode] =
+  def getChild(branchNode: BranchNode, pos: Int, nodeStorage: NodesKeyValueStorage)(implicit nodeDec: RLPDecoder[MptNode]): Option[MptNode] =
     branchNode.children(pos) map {
       case Right(node) => node
       case Left(hash) =>
