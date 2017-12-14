@@ -18,7 +18,11 @@ import io.iohk.ethereum.utils.Logger
   * - check the checksum
   * - unzip to a given location
   */
-object BootstrapDownload extends Logger {
+object BootstrapDownload  {
+
+  object log {
+    def info(a: String) = println(a)
+  }
 
   // Compute a hash of a file
   // The output of this function should match the output of running "md5sum <file>"
@@ -56,6 +60,7 @@ object BootstrapDownload extends Logger {
             if (!outPathParent.toFile.exists()) {
               outPathParent.toFile.mkdirs()
             }
+
 
             val outFile = outPath.toFile
             val out = new FileOutputStream(outFile)
