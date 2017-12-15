@@ -370,7 +370,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
         sendBlockHeadersFromBlocks(Seq(newBlock))
         sendBlockBodiesFromBlocks(Seq(newBlock))
 
-        Thread.sleep(10000)
+        Thread.sleep(1000)
 
         regularSync.underlyingActor.missingStateNodeRetry shouldEqual
           Some(MissingStateNodeRetry(missingNodeHash, peer1, Seq(newBlock)))
