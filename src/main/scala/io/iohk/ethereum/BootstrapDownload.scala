@@ -79,7 +79,7 @@ object BootstrapDownload extends Logger {
   }
 
 
-  def deleteDownloadedFile(downloadedFile: File) = {
+  def deleteDownloadedFile(downloadedFile: File): Unit = {
     if(downloadedFile.delete()) log.info(s"Downloaded file $downloadedFile successfully deleted")
     else log.info(s"Failed to delete downloaded file $downloadedFile")
   }
