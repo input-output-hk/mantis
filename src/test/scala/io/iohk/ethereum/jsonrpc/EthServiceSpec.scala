@@ -754,11 +754,23 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         ))))))
   }
 
-  it should "return account recent transactions" in new TestSetup {
-    val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    blockchain.save(blockWithTx)
-
+  it should "return account recent transactions in newest -> oldest order" in new TestSetup {
     val address = Address("0xee4439beb5c71513b080bbf9393441697a29f478")
+
+    val keyPair = crypto.generateKeyPair(new SecureRandom)
+
+    val tx1 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 1, ByteString()), keyPair, None)
+    val tx2 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 2, ByteString()), keyPair, None)
+    val tx3 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 3, ByteString()), keyPair, None)
+
+    val blockWithTx1 = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body.copy(
+      transactionList = Seq(tx1)))
+
+    val blockWithTxs2and3 = Block(Fixtures.Blocks.Block3125369.header.copy(number = 3125370), Fixtures.Blocks.Block3125369.body.copy(
+      transactionList = Seq(tx2, tx3)))
+
+    blockchain.save(blockWithTx1)
+    blockchain.save(blockWithTxs2and3)
 
     val request = GetAccountTransactionsRequest(address, 3125360, 3125370)
 
@@ -766,11 +778,20 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
+    val expectedReceived = Seq(
+      TransactionResponse(
+        tx3,
+        blockHeader = Some(blockWithTxs2and3.header),
+        pending = Some(false)),
+      TransactionResponse(
+        tx2,
+        blockHeader = Some(blockWithTxs2and3.header),
+        pending = Some(false)),
+      TransactionResponse(
+        tx1,
+        blockHeader = Some(blockWithTx1.header),
+        pending = Some(false)))
 
-    val expectedReceived = Seq(TransactionResponse(
-      Fixtures.Blocks.Block3125369.body.transactionList.head,
-      blockHeader = Some(Fixtures.Blocks.Block3125369.header),
-      pending = Some(false)))
     response.futureValue shouldEqual Right(GetAccountTransactionsResponse(Nil, expectedReceived))
   }
 
