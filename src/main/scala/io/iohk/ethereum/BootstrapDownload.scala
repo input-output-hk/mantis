@@ -21,15 +21,15 @@ import io.iohk.ethereum.utils.Logger
 object BootstrapDownload extends Logger {
 
   val bufferSize = 4 * 1024
+  val leveldbFolderName = "leveldb"
 
-  def assertAndLog(cond: Boolean, msg: String): Unit = {
+  private def assertAndLog(cond: Boolean, msg: String): Unit = {
     if(!cond) log.info(msg)
     assert(cond, msg)
   }
 
   def cleanOutFolder(pathToDownloadTo: Path): Unit = {
     val leveldbFolder = pathToDownloadTo.toFile
-    val leveldbFolderName = "leveldb"
     assertAndLog(leveldbFolder.isDirectory, s"${pathToDownloadTo} must be a folder.")
     assertAndLog(leveldbFolder.getName == leveldbFolderName, s"${pathToDownloadTo} must end in a folder named $leveldbFolderName")
     leveldbFolder.listFiles().foreach(_.delete())
@@ -79,6 +79,11 @@ object BootstrapDownload extends Logger {
   }
 
 
+  def deleteDownloadedFile(downloadedFile: File) = {
+    if(downloadedFile.delete()) log.info(s"Downloaded file $downloadedFile successfully deleted")
+    else log.info(s"Failed to delete downloaded file $downloadedFile")
+  }
+
   def main(args: Array[String]): Unit = {
     //download a zip file from a url.
 
@@ -122,8 +127,7 @@ object BootstrapDownload extends Logger {
     log.info(s"Unzip file ${pathToDownloadTo} ${downloadedFileNameAsFile}...")
     unzip(downloadedFileNameAsFile, pathToDownloadTo)
 
-    if(downloadedFileNameAsFile.delete()) log.info(s"Downloaded file $downloadedFileNameAsFile successfully deleted")
-    else log.info(s"Failed to delete downloaded file $downloadedFileNameAsFile")
+    deleteDownloadedFile(downloadedFileNameAsFile)
 
     log.info(s"Bootstrap download successful.")
 
