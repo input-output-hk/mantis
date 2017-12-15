@@ -754,6 +754,7 @@ class EthService(
               receivedInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))))
           }
           .filter { case (sent, received) => sent.nonEmpty || received.nonEmpty }
+          .map { case (sent, received) => (sent.reverse, received.reverse) }
 
         val recentSent = txsFromBlocks.flatMap(_._1)
         val recentReceived = txsFromBlocks.flatMap(_._2)
