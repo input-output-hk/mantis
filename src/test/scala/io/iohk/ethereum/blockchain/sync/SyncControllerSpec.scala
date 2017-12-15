@@ -437,7 +437,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       maxQueuedBlockNumberAhead = 10,
       maxQueuedBlockNumberBehind = 10,
       maxNewBlockHashAge = 20,
-      maxNewHashes = 64
+      maxNewHashes = 64,
+      redownloadMissingStateNodes = false
     )
 
     lazy val syncConfig = defaultSyncConfig

@@ -144,7 +144,9 @@ object Config {
     maxQueuedBlockNumberBehind: Int,
 
     maxNewBlockHashAge: Int,
-    maxNewHashes: Int
+    maxNewHashes: Int,
+
+    redownloadMissingStateNodes: Boolean
   )
 
   object SyncConfig {
@@ -178,7 +180,9 @@ object Config {
         maxQueuedBlockNumberBehind = syncConfig.getInt("max-queued-block-number-behind"),
         maxQueuedBlockNumberAhead = syncConfig.getInt("max-queued-block-number-ahead"),
         maxNewBlockHashAge = syncConfig.getInt("max-new-block-hash-age"),
-        maxNewHashes = syncConfig.getInt("max-new-hashes")
+        maxNewHashes = syncConfig.getInt("max-new-hashes"),
+
+        redownloadMissingStateNodes = syncConfig.getBoolean("redownload-missing-state-nodes")
       )
     }
   }
