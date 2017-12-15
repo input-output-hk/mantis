@@ -744,7 +744,7 @@ class EthService(
           .filter(_.tx.receivingAddress.contains(request.address))
           .map(TransactionResponse(_, pending = Some(true)))
 
-        val txsFromBlocks = (request.fromBlock to request.toBlock)
+        val txsFromBlocks = (request.toBlock to request.fromBlock by -1)
           .toStream
           .flatMap { n => blockchain.getBlockByNumber(n) }
           .map { block =>
