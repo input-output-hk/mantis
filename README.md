@@ -16,7 +16,8 @@ Unit Test Code Coverage Status [![Coverage Status](https://coveralls.io/repos/gi
 
 This version of the code supports 
 
-  - CPU mining  
+  - CPU mining 
+  - peer discovery 
   - fast sync (download a recent state trie snapshot and all blocks, this is the default behaviour)  
   - bootstrap sync (download a database for *mantis* preloaded with a recent version of the block chain, **highly recommended** for testing)
   - regular sync (download and execute every transaction in every block in the chain, this can be very slow and error prone - not recommended) 
