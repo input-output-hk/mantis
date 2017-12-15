@@ -121,35 +121,44 @@ class RegularSync(
       //we allow inclusion of new block only if we are not syncing
       if (notDownloading() && topOfTheChain) {
         log.debug(s"Handling NewBlock message for block (${newBlock.idTag})")
-        val importResult = ledger.importBlock(newBlock)
+        val importResult = Try(ledger.importBlock(newBlock))
 
         importResult match {
-          case BlockImportedToTop(newBlocks, newTds) =>
-            broadcastBlocks(newBlocks, newTds)
-            updateTxAndOmmerPools(newBlocks, Nil)
-            log.debug(s"Added new block ${newBlock.header.number} to the top of the chain received from $peerId")
+          case Success(result) => result match {
+            case BlockImportedToTop(newBlocks, newTds) =>
+              broadcastBlocks(newBlocks, newTds)
+              updateTxAndOmmerPools(newBlocks, Nil)
+              log.debug(s"Added new block ${newBlock.header.number} to the top of the chain received from $peerId")
 
-          case BlockEnqueued =>
-            ommersPool ! AddOmmers(newBlock.header)
-            log.debug(s"Block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId " +
-            s"added to queue")
+            case BlockEnqueued =>
+              ommersPool ! AddOmmers(newBlock.header)
+              log.debug(s"Block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId " +
+                s"added to queue")
 
-          case DuplicateBlock =>
-            log.debug(s"Ignoring duplicate block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId")
+            case DuplicateBlock =>
+              log.debug(s"Ignoring duplicate block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId")
 
-          case UnknownParent =>
-            // This is normal when receiving broadcasted blocks
-            log.debug(s"Ignoring orphaned block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId")
+            case UnknownParent =>
+              // This is normal when receiving broadcasted blocks
+              log.debug(s"Ignoring orphaned block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId")
 
-          case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
-            updateTxAndOmmerPools(newBranch, oldBranch)
-            broadcastBlocks(newBranch, totalDifficulties)
-            log.debug(s"Imported block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId, " +
-              s"resulting in chain reorganisation: new branch of length ${newBranch.size} with head at block " +
-              s"${newBranch.last.header.number} (${Hex.toHexString(newBranch.last.header.hash.toArray)})")
+            case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
+              updateTxAndOmmerPools(newBranch, oldBranch)
+              broadcastBlocks(newBranch, totalDifficulties)
+              log.debug(s"Imported block ${newBlock.header.number} (${Hex.toHexString(newBlock.header.hash.toArray)}) from $peerId, " +
+                s"resulting in chain reorganisation: new branch of length ${newBranch.size} with head at block " +
+                s"${newBranch.last.header.number} (${Hex.toHexString(newBranch.last.header.hash.toArray)})")
 
-          case BlockImportFailed(error) =>
-            blacklist(peerId, blacklistDuration, error)
+            case BlockImportFailed(error) =>
+              blacklist(peerId, blacklistDuration, error)
+          }
+
+          case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
+            // state node redownload will be handled when downloading headers
+            log.error(missingNodeEx, "Ignoring broadcasted block")
+
+          case Failure(ex) =>
+            throw ex
         }
       }
   }
@@ -215,11 +224,9 @@ class RegularSync(
     case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
       log.info("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
       waitingForActor = None
-      matchBlockBodiesWithHeaders(peer, blockBodies).foreach { blocks =>
-        handleBlocks(peer, blocks)
-      }
+      handleBlockBodies(peer, blockBodies)
 
-    case ResponseReceived(peer, NodeData(nodes), timeTaken) =>
+    case ResponseReceived(peer, NodeData(nodes), timeTaken) if missingStateNodeRetry.isDefined =>
       log.info("Received {} missing state nodes in {} ms", nodes.size, timeTaken)
       waitingForActor = None
       handleRedownloadedStateNodes(peer, nodes)
@@ -239,31 +246,39 @@ class RegularSync(
     //we allow inclusion of mined block only if we are not syncing / reorganising chain
     case MinedBlock(block) =>
       if (notDownloading()) {
-        val importResult = ledger.importBlock(block)
+        val importResult = Try(ledger.importBlock(block))
 
         importResult match {
-          case BlockImportedToTop(blocks, totalDifficulties) =>
-            log.debug(s"Added new mined block ${block.header.number} to top of the chain")
-            broadcastBlocks(blocks, totalDifficulties)
-            updateTxAndOmmerPools(blocks, Nil)
+          case Success(result) => result match {
+            case BlockImportedToTop(blocks, totalDifficulties) =>
+              log.debug(s"Added new mined block ${block.header.number} to top of the chain")
+              broadcastBlocks(blocks, totalDifficulties)
+              updateTxAndOmmerPools(blocks, Nil)
 
-          case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
-            log.debug(s"Added new mined block ${block.header.number} resulting in chain reorganization")
-            broadcastBlocks(newBranch, totalDifficulties)
-            updateTxAndOmmerPools(newBranch, oldBranch)
+            case ChainReorganised(oldBranch, newBranch, totalDifficulties) =>
+              log.debug(s"Added new mined block ${block.header.number} resulting in chain reorganization")
+              broadcastBlocks(newBranch, totalDifficulties)
+              updateTxAndOmmerPools(newBranch, oldBranch)
 
-          case DuplicateBlock =>
-            log.warning(s"Mined block is a duplicate, this should never happen")
+            case DuplicateBlock =>
+              log.warning(s"Mined block is a duplicate, this should never happen")
 
-          case BlockEnqueued =>
-            log.debug(s"Mined block ${block.header.number} was added to the queue")
-            ommersPool ! AddOmmers(block.header)
+            case BlockEnqueued =>
+              log.debug(s"Mined block ${block.header.number} was added to the queue")
+              ommersPool ! AddOmmers(block.header)
 
-          case UnknownParent =>
-            log.warning(s"Mined block has no parent on the main chain")
+            case UnknownParent =>
+              log.warning(s"Mined block has no parent on the main chain")
 
-          case BlockImportFailed(err) =>
-            log.warning(s"Failed to execute mined block because of $err")
+            case BlockImportFailed(err) =>
+              log.warning(s"Failed to execute mined block because of $err")
+          }
+
+          case Failure(missingNodeEx: MissingNodeException) if syncConfig.redownloadMissingStateNodes =>
+            log.error(missingNodeEx, "Ignoring mined block")
+
+          case Failure(ex) =>
+            throw ex
         }
 
       } else {
@@ -391,10 +406,11 @@ class RegularSync(
         responseMsgCode = BlockBodies.code)))
   }
 
-  private def matchBlockBodiesWithHeaders(peer: Peer, m: Seq[BlockBody]): Option[Seq[Block]] = {
+  private def handleBlockBodies(peer: Peer, m: Seq[BlockBody]): Unit = {
     if (m.nonEmpty) {
       assert(headersQueue.nonEmpty, "handling block bodies while not having any queued headers")
-      Some(headersQueue.zip(m).map { case (header, body) => Block(header, body) })
+      val blocks = headersQueue.zip(m).map { case (header, body) => Block(header, body) }
+      handleBlocks(peer, blocks)
     } else {
       resumeWithDifferentPeer(peer, "received empty block bodies")
       None
