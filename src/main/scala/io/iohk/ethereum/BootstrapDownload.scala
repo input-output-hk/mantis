@@ -8,6 +8,7 @@ import java.security.{DigestInputStream, MessageDigest}
 import java.util.zip.ZipInputStream
 
 import io.iohk.ethereum.utils.Logger
+import org.spongycastle.util.encoders.Hex
 
 
 /**
@@ -38,18 +39,19 @@ object BootstrapDownload extends Logger {
   def downloadFile(urlToDownloadFrom: String, outFile: File): String = {
 
     val md5 = MessageDigest.getInstance("MD5")
-    val is = new URL(urlToDownloadFrom).openStream()
+    val dis = new DigestInputStream(new URL(urlToDownloadFrom).openStream(), md5)
+
     try {
-      val dis = new DigestInputStream(is, md5)
-      try {
         val out = new FileOutputStream(outFile)
         try {
           val buffer = new Array[Byte](bufferSize)
           Stream.continually(dis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
         } finally (out.close())
-        md5.digest.map("%02x".format(_)).mkString
-      } finally(dis.close())
-    } finally(is.close())
+        Hex.toHexString(md5.digest)
+
+    } finally {
+      dis.close()
+    }
   }
 
   def unzip(zipFile: File, destination: Path): Unit = {
