@@ -1,12 +1,14 @@
 # mantis - Scala client for Ethereum Classic, The Daedalus Release
 
-In this release *Mantis* the new Ethereum Classic client produced by the [Grothendieck Team](https://iohk.io/projects/ethereum-classic/) 
-has been integrated with the [Daedalus](https://daedaluswallet.io/) wallet. This integration puts the Daedalus wallet management
-software into the hands of Ethereum Classic users, giving them a safe way to create, manage and backup their wallets.    
+The Daedalus release consists of two parts, the integration with the Daedalus Wallet and the release of the command line version
+ following on from the Beta release in August. This branch refers to release candidate 1 of the of the command line version.
  
-This version has been tested on Windows 10 and MacOS 
+The differences are very minor and relate only to how the RPC apis are enabled. In the command line version they are enabled over HTTP
+and in the Daedalus integration version they are forced to use HTTPS and client SSL certificate. The Daedalus version comes with a bundled JVM 
+but the command line version requires a JVM to be installed and available on the target machine.   
+    
+This version has been tested on Windows 10, MacOS and Ubuntu. 
  
-The Daedalus bundle contains a JVM, so no pre installed jvm is required. This makes it easier to install than the command line version.
  
 ### Status - CLI Release Candidate 1 
 
@@ -19,13 +21,11 @@ This version of the code supports
   - CPU mining 
   - peer discovery 
   - fast sync (download a recent state trie snapshot and all blocks, this is the default behaviour)  
-  - bootstrap sync (download a database for *mantis* preloaded with a recent version of the block chain, **highly recommended** for testing)
-  - regular sync (download and execute every transaction in every block in the chain, this can be very slow and error prone - not recommended) 
+  - bootstrap sync (download a database for *mantis* preloaded with a recent version of the block chain, **highly recommended**)
+  - regular sync (download and execute every transaction in every block in the chain, this is very slow - not recommended) 
   - JSON RPC API (useful for console and Mist integration)
   - Morden testnet and private network
   - `ethminer` miner integration (allows *mantis* to mine blocks with [ethminer](https://github.com/Genoil/cpp-ethereum))
-  
-This version has been tested on Windows 10, Linux and MacOS     
 
 For more details on configuration and functionality check out our [wiki](http://mantis.readthedocs.io) (also at [wiki](https://github.com/input-output-hk/mantis/wiki))
 
@@ -92,7 +92,7 @@ Note that a slow disk will slow the chain download, an SSD with 25G free space i
 Unzip that file to create a folder structure starting with
 
  ```
- mantis-0.3-cli-beta
+ mantis-1.0-cli-rc1
  ```
 
 ### Run the client on Linux and MacOS
