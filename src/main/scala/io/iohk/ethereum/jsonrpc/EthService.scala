@@ -750,11 +750,11 @@ class EthService(
           .map { block =>
             val sentInBlock = block.body.transactionList.filter(_.senderAddress == request.address)
             val receivedInBlock = block.body.transactionList.filter(_.tx.receivingAddress.contains(request.address))
-            (sentInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))),
-              receivedInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false))))
+            val sentTxResponses = sentInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false)))
+            val receivedTxResponses = receivedInBlock.map(TransactionResponse(_, Some(block.header), pending = Some(false)))
+            (sentTxResponses, receivedTxResponses)
           }
-          .filter { case (sent, received) => sent.nonEmpty || received.nonEmpty }
-          .map { case (sent, received) => (sent.reverse, received.reverse) }
+          .collect { case (sent, received) if sent.nonEmpty || received.nonEmpty => (sent.reverse, received.reverse) }
 
         val recentSent = txsFromBlocks.flatMap(_._1)
         val recentReceived = txsFromBlocks.flatMap(_._2)
