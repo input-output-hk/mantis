@@ -585,6 +585,6 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       }
 
     override def encodeJson(t: GetAccountTransactionsResponse): JValue =
-      JObject("sent" -> t.sent.map(Extraction.decompose), "received" -> t.received.map(Extraction.decompose))
+      JObject("transactions" -> JArray(t.transactions.map(Extraction.decompose).toList))
   }
 }

@@ -36,6 +36,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import java.time.Duration
+
 // scalastyle:off file.size.limit
 class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks with ScalaFutures with NormalPatience with Eventually {
 
@@ -1367,8 +1368,9 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val receivedTx = block.body.transactionList.last
 
     (mockEthService.getAccountTransactions _).expects(*)
-      .returning(Future.successful(Right(GetAccountTransactionsResponse(Seq(TransactionResponse(sentTx, Some(block.header))),
-        Seq(TransactionResponse(receivedTx, Some(block.header)))))))
+      .returning(Future.successful(Right(GetAccountTransactionsResponse(Seq(
+        TransactionResponse(sentTx, Some(block.header), isOutgoing = Some(true)),
+        TransactionResponse(receivedTx, Some(block.header), isOutgoing = Some(false)))))))
 
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
@@ -1382,15 +1384,15 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     )
 
     val response = jsonRpcController.handleRequest(request).futureValue
-    val expectedSentTx = Extraction.decompose(TransactionResponse(sentTx, Some(block.header)))
-    val expectedReceivedTx = Extraction.decompose(TransactionResponse(receivedTx, Some(block.header)))
+    val expectedTxs = Seq(
+      Extraction.decompose(TransactionResponse(sentTx, Some(block.header), isOutgoing = Some(true))),
+      Extraction.decompose(TransactionResponse(receivedTx, Some(block.header), isOutgoing = Some(false))))
 
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
     response.result shouldBe Some(JObject(
-      "sent" -> JArray(List(expectedSentTx)),
-      "received" -> JArray(List(expectedReceivedTx))))
+      "transactions" -> JArray(expectedTxs.toList)))
   }
 
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {

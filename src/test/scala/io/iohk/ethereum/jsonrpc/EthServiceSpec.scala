@@ -778,21 +778,24 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
-    val expectedReceived = Seq(
+    val expectedTxs = Seq(
       TransactionResponse(
         tx3,
         blockHeader = Some(blockWithTxs2and3.header),
-        pending = Some(false)),
+        pending = Some(false),
+        isOutgoing = Some(false)),
       TransactionResponse(
         tx2,
         blockHeader = Some(blockWithTxs2and3.header),
-        pending = Some(false)),
+        pending = Some(false),
+        isOutgoing = Some(false)),
       TransactionResponse(
         tx1,
         blockHeader = Some(blockWithTx1.header),
-        pending = Some(false)))
+        pending = Some(false),
+        isOutgoing = Some(false)))
 
-    response.futureValue shouldEqual Right(GetAccountTransactionsResponse(Nil, expectedReceived))
+    response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedTxs))
   }
 
   it should "not return account recent transactions from older blocks and return pending txs" in new TestSetup {
@@ -812,9 +815,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsResponse(Seq(pendingTx)))
 
-    val expectedSent = Seq(TransactionResponse(signedTx, blockHeader = None, pending = Some(true)))
+    val expectedSent = Seq(TransactionResponse(signedTx, blockHeader = None, pending = Some(true), isOutgoing = Some(true)))
 
-    response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedSent, Nil))
+    response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedSent))
   }
 
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
