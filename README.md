@@ -1,16 +1,23 @@
-# mantis - Scala client for Ethereum Classic
+# mantis - Scala client for Ethereum Classic, The Daedalus Release
 
-*Mantis* is the name given to the new Ethereum Classic client produced by the [Grothendieck Team](https://iohk.io/projects/ethereum-classic/).
+In this release *Mantis* the new Ethereum Classic client produced by the [Grothendieck Team](https://iohk.io/projects/ethereum-classic/) 
+has been integrated with the [Daedalus](https://daedaluswallet.io/) wallet. This integration puts the Daedalus wallet management
+software into the hands of Ethereum Classic users, giving them a safe way to create, manage and backup their wallets.    
  
-### Status - Beta 1 
+This version has been tested on Windows 10 and MacOS 
+ 
+The Daedalus bundle contains a JVM, so no pre installed jvm is required. This makes it easier to install than the command line version.
+ 
+### Status - CLI Release Candidate 1 
 
 Continuous Integration Build Status [![CircleCI](https://circleci.com/gh/input-output-hk/mantis/tree/master.svg?style=svg)](https://circleci.com/gh/input-output-hk/mantis/tree/master)
 
 Unit Test Code Coverage Status [![Coverage Status](https://coveralls.io/repos/github/input-output-hk/mantis/badge.svg?branch=master)](https://coveralls.io/github/input-output-hk/mantis?branch=master)
 
-
 This version of the code supports 
 
+  - CPU mining 
+  - peer discovery 
   - fast sync (download a recent state trie snapshot and all blocks, this is the default behaviour)  
   - bootstrap sync (download a database for *mantis* preloaded with a recent version of the block chain, **highly recommended** for testing)
   - regular sync (download and execute every transaction in every block in the chain, this can be very slow and error prone - not recommended) 
