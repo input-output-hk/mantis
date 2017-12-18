@@ -749,11 +749,11 @@ class EthService(
         val txsFromBlocks = (request.toBlock to request.fromBlock by -1)
           .toStream
           .flatMap { n => blockchain.getBlockByNumber(n) }
-          .map { block =>
+          .flatMap { block =>
             block.body.transactionList.collect(collectTxs(Some(block.header), pending = false)).reverse
           }
 
-        Right(GetAccountTransactionsResponse(pendingTxs ++ txsFromBlocks.flatten))
+        Right(GetAccountTransactionsResponse(pendingTxs ++ txsFromBlocks))
       }
     }
   }
