@@ -7,7 +7,7 @@ The differences are very minor and relate only to how the RPC apis are enabled. 
 and in the Daedalus integration version they are forced to use HTTPS and client SSL certificate. The Daedalus version comes with a bundled JVM 
 but the command line version requires a JVM to be installed and available on the target machine.   
     
-This version has been tested on Windows 10, MacOS and Ubuntu. 
+This version has been tested on Windows 10, MacOS and Linux. 
  
  
 ### Status - CLI Release Candidate 1 
@@ -21,7 +21,7 @@ This version of the code supports
   - CPU mining 
   - peer discovery 
   - fast sync (download a recent state trie snapshot and all blocks, this is the default behaviour)  
-  - bootstrap sync (download a database for *mantis* preloaded with a recent version of the block chain, **highly recommended**)
+  - bootstrap sync (download a database for *mantis* preloaded with a recent version of the blockchain, **highly recommended**)
   - regular sync (download and execute every transaction in every block in the chain, this is very slow - not recommended) 
   - JSON RPC API (useful for console and Mist integration)
   - Morden testnet and private network
