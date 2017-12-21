@@ -29,7 +29,7 @@ test:
           sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*" &&
           sbt "ets:testOnly *BlockchainSuite -- -Ding=bcForkStress*,bcMulti*,bcState*,bcTotalDiff*,bcValidBlock*,Transition*";
         fi
-      fi:
+      fi :
         timeout: 3600
 
 
