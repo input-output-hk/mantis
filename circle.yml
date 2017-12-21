@@ -29,7 +29,9 @@ test:
           sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*" &&
           sbt "ets:testOnly *BlockchainSuite -- -Ding=bcForkStress*,bcMulti*,bcState*,bcTotalDiff*,bcValidBlock*,Transition*";
         fi
-      fi
+      fi:
+        timeout: 3600
+
 
     # As the benchmark tests don't test functionality and should be manually ran, having them compile is enough
     - sbt benchmark:compile
