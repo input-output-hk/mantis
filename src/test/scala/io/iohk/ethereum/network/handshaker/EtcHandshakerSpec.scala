@@ -121,6 +121,22 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     handshakerAfterTimeout.nextMessage.map(_.messageToSend) shouldBe Left(HandshakeFailure(Disconnect.Reasons.TimeoutOnReceivingAMessage))
   }
 
+  it should "fail if a status msg is received with invalid network id" in new TestSetup with LocalPeerSetup with RemotePeerSetup {
+    val wrongNetworkId = localStatus.networkId + 1
+
+    val handshakerAfterHelloOpt = initHandshakerWithResolver.applyMessage(remoteHello)
+    val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(remoteStatus.copy(networkId = wrongNetworkId))
+    handshakerAfterStatusOpt.get.nextMessage.map(_.messageToSend) shouldBe Left(HandshakeFailure(Disconnect.Reasons.DisconnectRequested))
+  }
+
+  it should "fail if a status msg is received with invalid genesisHash" in new TestSetup with LocalPeerSetup with RemotePeerSetup {
+    val wrongGenesisHash = (localStatus.genesisHash.head + 1).toByte +: localStatus.genesisHash.tail
+
+    val handshakerAfterHelloOpt = initHandshakerWithResolver.applyMessage(remoteHello)
+    val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(remoteStatus.copy(genesisHash = wrongGenesisHash))
+    handshakerAfterStatusOpt.get.nextMessage.map(_.messageToSend) shouldBe Left(HandshakeFailure(Disconnect.Reasons.DisconnectRequested))
+  }
+
   it should "fail if the remote peer doesn't support PV63" in new TestSetup with LocalPeerSetup with RemotePeerSetup {
     val pv62Capability = Capability("eth", Versions.PV62.toByte)
     val handshakerAfterHelloOpt = initHandshakerWithResolver.applyMessage(remoteHello.copy(capabilities = Seq(pv62Capability)))
@@ -230,9 +246,9 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
     val remoteStatus =
       Status(
         protocolVersion = Versions.PV63,
-        networkId = 1,
+        networkId = Config.Network.peer.networkId,
         totalDifficulty = 0,
-        bestHash = ByteString.empty,
+        bestHash = genesisBlock.header.hash,
         genesisHash = genesisBlock.header.hash
       )
   }

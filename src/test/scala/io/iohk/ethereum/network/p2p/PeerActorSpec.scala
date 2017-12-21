@@ -117,7 +117,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
-      networkId = 0,
+      networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
@@ -153,7 +153,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
-      networkId = 0,
+      networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
@@ -195,7 +195,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
-      networkId = 0,
+      networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
@@ -220,7 +220,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
-      networkId = 0,
+      networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
@@ -263,7 +263,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
-      networkId = 0,
+      networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
@@ -291,7 +291,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
-      networkId = 0,
+      networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
       genesisHash = genesisHash)
@@ -309,7 +309,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
     val remoteStatus = Status(
       protocolVersion = Versions.PV63,
-      networkId = 0,
+      networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockTotalDifficulty - 2000000, // remote is before the fork
       bestHash = ByteString("blockhash"),
       genesisHash = Fixtures.Blocks.Genesis.header.hash)
@@ -452,7 +452,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
   trait TestSetup extends NodeStatusSetup with BlockUtils with HandshakerSetup {
 
-    val genesisHash = ByteString(Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"))
+    val genesisHash = testGenesisHeader.hash
 
     val daoForkBlockTotalDifficulty: BigInt = BigInt("39490964433395682584")
 
@@ -468,7 +468,7 @@ class PeerActorSpec extends FlatSpec with Matchers {
 
       val remoteStatus = Status(
         protocolVersion = Versions.PV63,
-        networkId = 0,
+        networkId = peerConf.networkId,
         totalDifficulty = daoForkBlockTotalDifficulty + 100000, // remote is after the fork
         bestHash = ByteString("blockhash"),
         genesisHash = genesisHash)
