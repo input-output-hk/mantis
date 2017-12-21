@@ -1,4 +1,4 @@
-# mantis - Scala client for Ethereum Classic, The Daedalus Release
+# Mantis - Scala Client for Ethereum Classic, The Daedalus Release
 
 In this release *Mantis* the new Ethereum Classic client produced by the [Grothendieck Team](https://iohk.io/projects/ethereum-classic/)
 has been integrated with the [Daedalus](https://daedaluswallet.io/) wallet. This integration puts the Daedalus wallet management
@@ -6,7 +6,7 @@ software into the hands of Ethereum Classic users, giving them a safe way to cre
 
 This version has been tested on recent versions of Windows and macOS
 
-The Daedalus bundle contains a JVM, so no pre installed jvm is required. This makes it easier to install than the command line version.
+The Daedalus bundle contains a JVM, so no pre installed jvm is required. This make it easier to install compared to the command line version.
 
 ### Status - Release Candidate 1
 
@@ -37,6 +37,8 @@ To make the installation process as accessible as possible, we have created full
 - when Daedalus is closed down it will also stop the mantis node.
 - uninstall using the OS 'Add/Remove' feature
 
+*Note that the download and extract process could take up to 60 minutes depending on available network and disk resources!*
+ 
 For more details on configuration and functionality check out our [wiki](http://mantis.readthedocs.io) (also at [wiki](https://github.com/input-output-hk/mantis/wiki))
 
 ### Download the client and bootstrap files
