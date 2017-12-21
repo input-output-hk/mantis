@@ -7,20 +7,21 @@ import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.domain.{Blockchain, _}
+import io.iohk.ethereum.domain.{Blockchain, UInt256, _}
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
+import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
-import io.iohk.ethereum.network.p2p.messages.{PV62, PV63}
+import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, NodeStatus, ServerStatus}
-import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -45,8 +46,9 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val waitForStatusTimeout: FiniteDuration = Config.Network.peer.waitForStatusTimeout
       override val waitForChainCheckTimeout: FiniteDuration = Config.Network.peer.waitForChainCheckTimeout
       override val fastSyncHostConfiguration: PeerManagerActor.FastSyncHostConfiguration = Config.Network.peer.fastSyncHostConfiguration
-      override val maxPeers: Int = Config.Network.peer.maxPeers
+      override val maxOutgoingPeers: Int = Config.Network.peer.maxOutgoingPeers
       override val maxIncomingPeers: Int = Config.Network.peer.maxIncomingPeers
+      override val maxPendingPeers: Int = Config.Network.peer.maxPendingPeers
       override val networkId: Int = privateNetworkId
       override val updateNodesInitialDelay: FiniteDuration = 5.seconds
       override val updateNodesInterval: FiniteDuration = 20.seconds
@@ -68,9 +70,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     lazy val nodeStatusHolder = Agent(nodeStatus)
 
-    lazy val forkResolverOpt =
-      if (blockchainConfig.customGenesisFileOpt.isDefined) None
-      else Some(new ForkResolver.EtcForkResolver(blockchainConfig))
+    lazy val forkResolverOpt = blockchainConfig.daoForkConfig.map(new ForkResolver.EtcForkResolver(_))
 
     private val handshakerConfiguration: EtcHandshakerConfiguration =
       new EtcHandshakerConfiguration {
@@ -93,7 +93,9 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       handshaker = handshaker,
       authHandshaker = authHandshaker,
       messageDecoder = EthereumMessageDecoder), "peer-manager")
-    actorSystem.actorOf(DumpChainActor.props(peerManager,peerMessageBus,startBlock,maxBlocks), "dumper")
+    peerManager ! PeerManagerActor.StartConnecting
+
+    actorSystem.actorOf(DumpChainActor.props(peerManager,peerMessageBus,startBlock,maxBlocks, node), "dumper")
   }
 
   class BlockchainMock(genesisHash: ByteString) extends Blockchain {
@@ -109,7 +111,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     override def getBlockBodyByHash(hash: ByteString): Option[PV62.BlockBody] = ???
 
-    override def getMptNodeByHash(hash: ByteString): Option[PV63.MptNode] = ???
+    override def getMptNodeByHash(hash: ByteString): Option[MptNode] = ???
 
     override def save(blockHeader: BlockHeader): Unit = ???
 
@@ -121,7 +123,9 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
     override def save(blockhash: ByteString, totalDifficulty: BigInt): Unit = ???
 
-    override def removeBlock(hash: ByteString): Unit = ???
+    override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
+
+    override def removeBlock(hash: ByteString, saveParentAsBestBlock: Boolean): Unit = ???
 
     override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = ???
 
@@ -138,11 +142,27 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
     override type S = InMemoryWorldStateProxyStorage
     override type WS = InMemoryWorldStateProxy
 
-    override def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy = ???
+    override def getWorldStateProxy(blockNumber: BigInt,
+                                    accountStartNonce: UInt256,
+                                    stateRootHash: Option[ByteString],
+                                    noEmptyAccounts: Boolean): InMemoryWorldStateProxy = ???
 
     override def getReadOnlyWorldStateProxy(
       blockNumber: Option[BigInt],
       accountStartNonce: UInt256,
-      stateRootHash: Option[ByteString]
+      stateRootHash: Option[ByteString],
+      noEmptyAccounts: Boolean
     ): InMemoryWorldStateProxy = ???
+
+    def getBestBlockNumber(): BigInt = ???
+
+    def saveBlockNumber(number: BigInt, hash: NodeHash): Unit = ???
+
+    def saveBestBlockNumber(number: BigInt): Unit = ???
+
+    def getBestBlock(): Block = ???
+
+    override def pruneState(blockNumber: BigInt): Unit = ???
+
+    override def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit = ???
   }

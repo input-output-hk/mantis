@@ -1,45 +1,26 @@
 package io.iohk.ethereum
 
-import io.iohk.ethereum.blockchain.sync.SyncController
-import io.iohk.ethereum.network.discovery.DiscoveryListener
-import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
-import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.nodebuilder.Node
+import io.iohk.ethereum.utils.{Config, Logger}
 
-import scala.concurrent.Await
-import scala.util.{Failure, Success, Try}
 
-object App {
+object App extends Logger {
 
   def main(args: Array[String]): Unit = {
 
-    new Node with Logger {
+    val launchMantis = "mantis"
+    val launchKeytool = "keytool"
+    val downloadBootstrap = "bootstrap"
 
-      def tryAndLogFailure(f: () => Any): Unit = Try(f()) match {
-        case Failure(e) => log.warn("Error while shutting down...", e)
-        case Success(_) =>
+      args.headOption match {
+        case None => Mantis.main(args)
+        case Some(`launchMantis`) => Mantis.main(args.tail)
+        case Some(`launchKeytool`) => KeyTool.main(args.tail)
+        case Some(`downloadBootstrap`) => BootstrapDownload.main(args.tail :+ Config.Db.LevelDb.path)
+        case Some(unknown) =>
+          log.error(s"Unrecognised launcher option, " +
+            s"first parameter must be $launchKeytool, $downloadBootstrap or $launchMantis")
       }
 
-      override def shutdown(): Unit = {
-        tryAndLogFailure(() => Await.ready(actorSystem.terminate, shutdownTimeoutDuration))
-        tryAndLogFailure(() => storagesInstance.dataSources.closeAll())
-      }
-
-      genesisDataLoader.loadGenesisData()
-
-      peerManager ! PeerManagerActor.StartConnecting
-      server ! ServerActor.StartServer(networkConfig.Server.listenAddress)
-
-      if (discoveryConfig.discoveryEnabled) {
-        discoveryListener ! DiscoveryListener.Start
-      }
-
-      syncController ! SyncController.StartSync
-
-      peerDiscoveryManager // unlazy
-
-      if (jsonRpcHttpServerConfig.enabled) jsonRpcHttpServer.run()
-    }
 
   }
 }

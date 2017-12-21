@@ -10,7 +10,7 @@ import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction, _}
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
 import io.iohk.ethereum.ledger.{BlockPreparationError, BloomFilter, Ledger}
-import io.iohk.ethereum.mining.BlockGenerator.{InvalidOmmers, NoParent}
+import io.iohk.ethereum.mining.BlockGenerator.InvalidOmmers
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
@@ -21,26 +21,27 @@ import io.iohk.ethereum.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.crypto._
 
-class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: BlockchainConfig, miningConfig: MiningConfig,
+class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig, miningConfig: MiningConfig,
   ledger: Ledger, validators: Validators, blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider) {
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
   private val cache: AtomicReference[List[PendingBlock]] = new AtomicReference(Nil)
 
-  def generateBlockForMining(blockNumber: BigInt, transactions: Seq[SignedTransaction], ommers: Seq[BlockHeader], beneficiary: Address):
+  def generateBlockForMining(parent: Block, transactions: Seq[SignedTransaction], ommers: Seq[BlockHeader], beneficiary: Address):
   Either[BlockPreparationError, PendingBlock] = {
-    val blockchain = BlockchainImpl(blockchainStorages)
+    val blockNumber = parent.header.number + 1
+    val parentHash = parent.header.hash
 
-    val result = validators.ommersValidator.validate(blockNumber, ommers, blockchain).left.map(InvalidOmmers).flatMap { _ =>
-      blockchain.getBlockByNumber(blockNumber - 1).map { parent =>
+    val result = validators.ommersValidator.validate(parentHash, blockNumber, ommers, blockchain)
+      .left.map(InvalidOmmers).flatMap { _ =>
         val blockTimestamp = blockTimestampProvider.getEpochSecond
         val header: BlockHeader = prepareHeader(blockNumber, ommers, beneficiary, parent, blockTimestamp)
         val transactionsForBlock: List[SignedTransaction] = prepareTransactions(transactions, header.gasLimit)
         val body = BlockBody(transactionsForBlock, ommers)
         val block = Block(header, body)
 
-        val prepared = ledger.prepareBlock(block, blockchainStorages, validators) match {
+        val prepared = ledger.prepareBlock(block) match {
           case BlockPreparationResult(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot) =>
             val receiptsLogs: Seq[Array[Byte]] = BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
             val bloomFilter = ByteString(or(receiptsLogs: _*))
@@ -54,7 +55,6 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
               body = prepareBlock.body), receipts)
         }
         Right(prepared)
-      }.getOrElse(Left(NoParent))
     }
 
     result.right.foreach(b => cache.updateAndGet(new UnaryOperator[List[PendingBlock]] {
@@ -89,24 +89,28 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
     transactionsForBlock
   }
 
-  private def prepareHeader(blockNumber: BigInt, ommers: Seq[BlockHeader], beneficiary: Address, parent: Block, blockTimestamp: Long) = BlockHeader(
-    parentHash = parent.header.hash,
-    ommersHash = ByteString(kec256(ommers.toBytes: Array[Byte])),
-    beneficiary = beneficiary.bytes,
-    stateRoot = ByteString.empty,
-    //we are not able to calculate transactionsRoot here because we do not know if they will fail
-    transactionsRoot = ByteString.empty,
-    receiptsRoot = ByteString.empty,
-    logsBloom = ByteString.empty,
-    difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
-    number = blockNumber,
-    gasLimit = calculateGasLimit(parent.header.gasLimit),
-    gasUsed = 0,
-    unixTimestamp = blockTimestamp,
-    extraData = ByteString("mined with etc scala"),
-    mixHash = ByteString.empty,
-    nonce = ByteString.empty
-  )
+  private def prepareHeader(blockNumber: BigInt, ommers: Seq[BlockHeader], beneficiary: Address, parent: Block, blockTimestamp: Long) = {
+    import blockchainConfig.daoForkConfig
+
+    BlockHeader(
+      parentHash = parent.header.hash,
+      ommersHash = ByteString(kec256(ommers.toBytes: Array[Byte])),
+      beneficiary = beneficiary.bytes,
+      stateRoot = ByteString.empty,
+      //we are not able to calculate transactionsRoot here because we do not know if they will fail
+      transactionsRoot = ByteString.empty,
+      receiptsRoot = ByteString.empty,
+      logsBloom = ByteString.empty,
+      difficulty = difficulty.calculateDifficulty(blockNumber, blockTimestamp, parent.header),
+      number = blockNumber,
+      gasLimit = calculateGasLimit(parent.header.gasLimit),
+      gasUsed = 0,
+      unixTimestamp = blockTimestamp,
+      extraData = daoForkConfig.flatMap(daoForkConfig => daoForkConfig.getExtraData(blockNumber)).getOrElse(miningConfig.headerExtraData),
+      mixHash = ByteString.empty,
+      nonce = ByteString.empty
+    )
+  }
 
   def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] = {
     cache.getAndUpdate(new UnaryOperator[List[PendingBlock]] {
@@ -136,8 +140,7 @@ class BlockGenerator(blockchainStorages: BlockchainStorages, blockchainConfig: B
 
   private def buildMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString = {
     val mpt = MerklePatriciaTrie[Int, K](
-      source = new ArchiveNodeStorage(new NodeStorage(EphemDataSource())),
-      hashFn = (input: Array[Byte]) => kec256(input)
+      source = new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))
     )(intByteArraySerializable, vSerializable)
     val hash = entities.zipWithIndex.foldLeft(mpt) { case (trie, (value, key)) => trie.put(key, value) }.getRootHash
     ByteString(hash)
@@ -156,8 +159,6 @@ object DefaultBlockTimestampProvider extends BlockTimestampProvider {
 }
 
 object BlockGenerator {
-
-  case object NoParent extends BlockPreparationError
 
   case class InvalidOmmers(reason: OmmersError) extends BlockPreparationError
 

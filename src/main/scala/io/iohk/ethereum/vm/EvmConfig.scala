@@ -1,12 +1,15 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.BlockchainConfig
 
 // scalastyle:off number.of.methods
 // scalastyle:off number.of.types
 // scalastyle:off magic.number
 object EvmConfig {
+
+  type EvmConfigBuilder = Option[BigInt] => EvmConfig
 
   val MaxCallDepth: Int = 1024
 
@@ -16,40 +19,50 @@ object EvmConfig {
     * returns the evm config that should be used for given block
     */
   def forBlock(blockNumber: BigInt, blockchainConfig: BlockchainConfig): EvmConfig = {
-    val transitionBlockToConfigMapping: Map[BigInt, EvmConfig] = Map(
-      blockchainConfig.frontierBlockNumber -> FrontierConfig,
-      blockchainConfig.homesteadBlockNumber -> HomesteadConfig,
-      blockchainConfig.eip150BlockNumber -> PostEIP150Config,
-      blockchainConfig.eip160BlockNumber -> PostEIP160Config)
+    val transitionBlockToConfigMapping: Map[BigInt, EvmConfigBuilder] = Map(
+      blockchainConfig.frontierBlockNumber -> FrontierConfigBuilder,
+      blockchainConfig.homesteadBlockNumber -> HomesteadConfigBuilder,
+      blockchainConfig.eip150BlockNumber -> PostEIP150ConfigBuilder,
+      blockchainConfig.eip160BlockNumber -> PostEIP160ConfigBuilder,
+      blockchainConfig.eip161BlockNumber -> PostEIP161ConfigBuilder)
 
     // highest transition block that is less/equal to `blockNumber`
-    transitionBlockToConfigMapping
+    val evmConfigBuilder = transitionBlockToConfigMapping
       .filterKeys(_ <= blockNumber)
       .maxBy(_._1)
       ._2
+    evmConfigBuilder(blockchainConfig.maxCodeSize)
   }
 
-  val FrontierConfig = EvmConfig(
+  val FrontierConfigBuilder: EvmConfigBuilder = maxCodeSize => EvmConfig(
     feeSchedule = new FeeSchedule.FrontierFeeSchedule,
     opCodes = OpCodes.FrontierOpCodes,
     exceptionalFailedCodeDeposit = false,
     subGasCapDivisor = None,
-    chargeSelfDestructForNewAccount = false)
+    chargeSelfDestructForNewAccount = false,
+    maxCodeSize = maxCodeSize,
+    traceInternalTransactions = false)
 
-  val HomesteadConfig = EvmConfig(
+  val HomesteadConfigBuilder: EvmConfigBuilder = maxCodeSize => EvmConfig(
     feeSchedule = new FeeSchedule.HomesteadFeeSchedule,
     opCodes = OpCodes.HomesteadOpCodes,
     exceptionalFailedCodeDeposit = true,
     subGasCapDivisor = None,
-    chargeSelfDestructForNewAccount = false)
+    chargeSelfDestructForNewAccount = false,
+    maxCodeSize = maxCodeSize,
+    traceInternalTransactions = false)
 
-  val PostEIP150Config = HomesteadConfig.copy(
+  val PostEIP150ConfigBuilder: EvmConfigBuilder = maxCodeSize => HomesteadConfigBuilder(maxCodeSize).copy(
     feeSchedule = new FeeSchedule.PostEIP150FeeSchedule,
     subGasCapDivisor = Some(64),
     chargeSelfDestructForNewAccount = true)
 
-  val PostEIP160Config = PostEIP150Config.copy(
+  val PostEIP160ConfigBuilder: EvmConfigBuilder = maxCodeSize => PostEIP150ConfigBuilder(maxCodeSize).copy(
     feeSchedule = new FeeSchedule.PostEIP160FeeSchedule)
+
+  val PostEIP161ConfigBuilder: EvmConfigBuilder = maxCodeSize => PostEIP160ConfigBuilder(maxCodeSize).copy(
+    noEmptyAccounts = true)
+
 }
 
 case class EvmConfig(
@@ -57,7 +70,10 @@ case class EvmConfig(
     opCodes: List[OpCode],
     exceptionalFailedCodeDeposit: Boolean,
     subGasCapDivisor: Option[Long],
-    chargeSelfDestructForNewAccount: Boolean) {
+    chargeSelfDestructForNewAccount: Boolean,
+    maxCodeSize: Option[BigInt],
+    traceInternalTransactions: Boolean,
+    noEmptyAccounts: Boolean = false) {
 
   import feeSchedule._
   import EvmConfig._

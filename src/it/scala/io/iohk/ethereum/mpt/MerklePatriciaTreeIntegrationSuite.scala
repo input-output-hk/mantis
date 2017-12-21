@@ -1,14 +1,9 @@
 package io.iohk.ethereum.mpt
 
-import java.io.File
 import java.nio.ByteBuffer
-import java.nio.file.Files
 import java.security.MessageDigest
 
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.db.dataSource.{EphemDataSource, LevelDBDataSource, LevelDbConfig}
-import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage, ReferenceCountNodeStorage}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.utils.Logger
 import org.scalatest.FunSuite
@@ -22,8 +17,6 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
   with ObjectGenerators
   with Logger
   with PersistentStorage {
-
-  val hashFn = kec256(_: Array[Byte])
 
   val KeySize: Int = 32 + 1 /* Hash size + prefix */
 
@@ -43,7 +36,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   test("EthereumJ compatibility - Insert of the first 40000 numbers") {
     withNodeStorage { ns =>
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
+      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val shuffledKeys = Random.shuffle(0 to 40000).map(intByteArraySerializable.toBytes)
       val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(key, key) }
       assert(Hex.toHexString(trie.getRootHash) == "3f8b75707975e5c16588fa1ba3e69f8da39f4e7bf3ca28b029c7dcb589923463")
@@ -52,7 +45,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   test("EthereumJ compatibility - Insert of the first 20000 numbers hashed") {
     withNodeStorage { ns =>
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
+      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val shuffledKeys = Random.shuffle(0 to 20000).map(intByteArraySerializable.toBytes)
       val trie = shuffledKeys.foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
 
@@ -64,7 +57,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   test("EthereumJ compatibility - Insert of the first 20000 numbers hashed and then remove half of them") {
     withNodeStorage { ns =>
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
+      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
       val trie = Random.shuffle(keys).foldLeft(EmptyTrie) { case (recTrie, key) => recTrie.put(md5(key), key) }
 
@@ -79,7 +72,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced)") {
     withNodeStorage { ns =>
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
+      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
 
       // We slice some of the keys so that me test more code coverage (if not we only test keys with the same length)
@@ -96,7 +89,7 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
 
   test("EthereumJ compatibility - Insert of the first 20000 numbers hashed (with some sliced) and then remove half of them") {
     withNodeStorage { ns =>
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
+      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns)
       val keys = (0 to 20000).map(intByteArraySerializable.toBytes)
 
       // We slice some of the keys so that me test more code coverage (if not we only test keys with the same length)
@@ -118,54 +111,5 @@ class MerklePatriciaTreeIntegrationSuite extends FunSuite
       log.debug("Time taken(ms): " + (System.currentTimeMillis - start))
     }
   }
-
-  /* Performance test */
-  test("Performance test (From: https://github.com/ethereum/wiki/wiki/Benchmarks)") {
-    withNodeStorage { ns =>
-      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](ns, hashFn)
-      val Rounds = 1000
-      val Symmetric = true
-
-      val start: Long = System.currentTimeMillis
-      val emptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](new ArchiveNodeStorage(new NodeStorage(EphemDataSource())), hashFn)
-      var seed: Array[Byte] = Array.fill(32)(0.toByte)
-
-      val trieResult = (0 until Rounds).foldLeft(emptyTrie) { case (recTrie, i) =>
-        seed = hashFn(seed)
-        if (!Symmetric) recTrie.put(seed, seed)
-        else {
-          val mykey = seed
-          seed = hashFn(seed)
-          val myval = if ((seed(0) & 0xFF) % 2 == 1) Array[Byte](seed.last) else seed
-          recTrie.put(mykey, myval)
-        }
-      }
-      val rootHash = Hex.toHexString(trieResult.getRootHash)
-
-      log.debug("Time taken(ms): " + (System.currentTimeMillis - start))
-      log.debug("Root hash obtained: " + rootHash)
-
-      if (Symmetric) assert(rootHash.take(4) == "36f6" && rootHash.drop(rootHash.length - 4) == "93a3")
-      else assert(rootHash.take(4) == "da8a" && rootHash.drop(rootHash.length - 4) == "0ca4")
-    }
-  }
 }
 
-trait PersistentStorage {
-  def withNodeStorage(testCode: NodesKeyValueStorage => Unit): Unit = {
-    val dbPath = Files.createTempDirectory("testdb").toAbsolutePath.toString
-    val dataSource = LevelDBDataSource(new LevelDbConfig {
-      override val verifyChecksums: Boolean = true
-      override val paranoidChecks: Boolean = true
-      override val createIfMissing: Boolean = true
-      override val path: String = dbPath
-    })
-
-    try {
-      testCode(new ArchiveNodeStorage(new NodeStorage(dataSource)))
-    } finally {
-      val dir = new File(dbPath)
-      !dir.exists() || dir.delete()
-    }
-  }
-}

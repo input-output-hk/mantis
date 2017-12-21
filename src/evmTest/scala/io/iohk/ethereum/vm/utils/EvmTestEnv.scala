@@ -2,17 +2,14 @@ package io.iohk.ethereum.vm.utils
 
 import java.io.File
 
+import akka.util.ByteString
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.vm._
+
 import scala.language.dynamics
 import scala.util.Random
-
-import akka.util.ByteString
-import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import io.iohk.ethereum.{rlp, crypto}
-import io.iohk.ethereum.domain.{Account, Address}
-import io.iohk.ethereum.vm._
 
 object EvmTestEnv {
   val ContractsDir = new File("target/contracts")
@@ -23,7 +20,7 @@ trait EvmTestEnv {
 
   import EvmTestEnv._
 
-  val config = EvmConfig.PostEIP160Config
+  val config = EvmConfig.PostEIP160ConfigBuilder(None)
 
   private var contractsAddresses: Map[String, Address] = Map.empty
   private var contractsAbis: Map[String, Seq[ABI]] = Map.empty

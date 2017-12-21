@@ -1,5 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
+import java.time.Duration
+
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Address
@@ -10,11 +12,11 @@ import io.iohk.ethereum.jsonrpc.JsonSerializers.{AddressJsonSerializer, OptionNo
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
+import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, Formats}
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 
 import scala.util.Try
 
@@ -39,6 +41,15 @@ trait JsonMethodsImplicits {
 
   protected def extractAddress(input: String): Either[JsonRpcError, Address] =
     Try(Address(input)).toEither.left.map(_ => InvalidAddress)
+
+  protected def extractDurationQuantity(input: JValue): Either[JsonRpcError, Duration] = for {
+    quantity <- extractQuantity(input)
+    duration <- getDuration(quantity)
+  } yield duration
+
+  private def getDuration(value: BigInt): Either[JsonRpcError, Duration] = {
+    Either.cond(value.isValidInt, Duration.ofSeconds(value.toInt), InvalidParams("Duration should be an number of seconds, less than 2^31 - 1"))
+  }
 
   protected def extractAddress(input: JString): Either[JsonRpcError, Address] =
     extractAddress(input.s)
@@ -231,9 +242,9 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
           decoded.flatMap { case (msg, sig) =>
             val r = sig.take(ECDSASignature.RLength)
             val s = sig.drop(ECDSASignature.RLength).take(ECDSASignature.SLength)
-            val v = sig.takeRight(ECDSASignature.VLength)
+            val v = sig.last
 
-            if (v.contains(ECDSASignature.positivePointSign) || v.contains(ECDSASignature.negativePointSign)) {
+            if (ECDSASignature.allowedPointSigns.contains(v)) {
               Right(EcRecoverRequest(msg, ECDSASignature(r, s, v)))
             } else {
               Left(InvalidParams("invalid point sign v, allowed values are 27 and 28"))
@@ -250,8 +261,12 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val personal_unlockAccount = new Codec[UnlockAccountRequest, UnlockAccountResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, UnlockAccountRequest] = {
       params match {
-        case Some(JArray(JString(addr) :: JString(passphrase) :: _)) =>
-          extractAddress(addr).map(UnlockAccountRequest(_, passphrase))
+        case Some(JArray(JString(addr) :: JString(passphrase) :: duration :: _)) => for {
+            addr <- extractAddress(addr)
+            duration <- extractDurationQuantity(duration)
+          } yield UnlockAccountRequest(addr, passphrase, Some(duration))
+        case Some(JArray(JString(addr) :: JString(passphrase) ::  _)) =>
+          extractAddress(addr).map(UnlockAccountRequest(_, passphrase, None))
         case _ =>
           Left(InvalidParams())
       }
@@ -274,4 +289,33 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
     def encodeJson(t: LockAccountResponse): JValue =
       JBool(t.result)
   }
+
+  implicit val daedalus_deleteWallet = new Codec[DeleteWalletRequest, DeleteWalletResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, DeleteWalletRequest] = {
+      params match {
+        case Some(JArray(JString(addr) :: _)) =>
+          extractAddress(addr).map(DeleteWalletRequest)
+        case _ =>
+          Left(InvalidParams())
+      }
+    }
+
+    def encodeJson(t: DeleteWalletResponse): JValue =
+      JBool(t.result)
+  }
+
+  implicit val daedalus_changePassphrase = new Codec[ChangePassphraseRequest, ChangePassphraseResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, ChangePassphraseRequest] = {
+      params match {
+        case Some(JArray(JString(addr) :: JString(oldPassphrase) :: JString(newPassphrase) :: _)) =>
+          extractAddress(addr).map(a => ChangePassphraseRequest(a, oldPassphrase, newPassphrase))
+        case _ =>
+          Left(InvalidParams())
+      }
+    }
+
+    def encodeJson(t: ChangePassphraseResponse): JValue =
+      JString("")
+  }
+
 }

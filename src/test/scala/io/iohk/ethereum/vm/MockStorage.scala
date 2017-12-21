@@ -1,5 +1,7 @@
 package io.iohk.ethereum.vm
 
+import io.iohk.ethereum.domain.UInt256
+
 object MockStorage {
   val Empty = MockStorage()
 
@@ -22,4 +24,7 @@ case class MockStorage(data: Map[UInt256, UInt256] = Map()) extends Storage[Mock
 
   def load(addr: UInt256): UInt256 =
     data.getOrElse(addr, UInt256.Zero)
+
+  def isEmpty: Boolean =
+    data.isEmpty
 }

@@ -6,7 +6,6 @@ import io.iohk.ethereum.mpt.ByteArraySerializable
 import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 object Account {
@@ -34,14 +33,27 @@ case class Account(
   def increaseBalance(value: UInt256): Account =
     copy(balance = balance + value)
 
-  def increaseNonce: Account =
-    copy(nonce = nonce + 1)
+  def increaseNonce(value: UInt256 = 1): Account =
+    copy(nonce = nonce + value)
 
   def withCode(codeHash: ByteString): Account =
     copy(codeHash = codeHash)
 
   def withStorage(storageRoot: ByteString): Account =
     copy(storageRoot = storageRoot)
+
+  /**
+    * According to EIP161: An account is considered empty when it has no code and zero nonce and zero balance.
+    * An account's storage is not relevant when determining emptiness.
+    */
+  def isEmpty(startNonce: UInt256 = UInt256.Zero): Boolean =
+    nonce == startNonce && balance == UInt256.Zero && codeHash == Account.EmptyCodeHash
+
+  /**
+    * Under EIP-684 if this evaluates to true then we have a conflict when creating a new account
+    */
+  def nonEmptyCodeOrNonce(startNonce: UInt256 = UInt256.Zero): Boolean =
+    nonce != startNonce || codeHash != Account.EmptyCodeHash
 
   override def toString: String =
     s"Account(nonce: $nonce, balance: $balance, " +

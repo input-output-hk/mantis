@@ -48,8 +48,8 @@ class FilterManager(
 
   override def receive: Receive = {
     case NewLogFilter(fromBlock, toBlock, address, topics) => addFilterAndSendResponse(LogFilter(generateId(), fromBlock, toBlock, address, topics))
-    case NewBlockFilter() => addFilterAndSendResponse(BlockFilter(generateId()))
-    case NewPendingTransactionFilter() => addFilterAndSendResponse(PendingTransactionFilter(generateId()))
+    case NewBlockFilter => addFilterAndSendResponse(BlockFilter(generateId()))
+    case NewPendingTransactionFilter => addFilterAndSendResponse(PendingTransactionFilter(generateId()))
     case UninstallFilter(id) => uninstallFilter(id)
     case GetFilterLogs(id) => getFilterLogs(id)
     case GetFilterChanges(id) => getFilterChanges(id)
@@ -79,7 +79,7 @@ class FilterManager(
     lastCheckTimestamps -= id
     filterTimeouts.get(id).foreach(_.cancel())
     filterTimeouts -= id
-    sender() ! UninstallFilterResponse()
+    sender() ! UninstallFilterResponse
   }
 
   private def getFilterLogs(id: BigInt): Unit = {
@@ -267,12 +267,12 @@ object FilterManager {
   case class PendingTransactionFilter(override val id: BigInt) extends Filter
 
   case class NewLogFilter(fromBlock: Option[BlockParam], toBlock: Option[BlockParam], address: Option[Address], topics: Seq[Seq[ByteString]])
-  case class NewBlockFilter()
-  case class NewPendingTransactionFilter()
+  case object NewBlockFilter
+  case object NewPendingTransactionFilter
   case class NewFilterResponse(id: BigInt)
 
   case class UninstallFilter(id: BigInt)
-  case class UninstallFilterResponse()
+  case object UninstallFilterResponse
 
   case class GetFilterLogs(id: BigInt)
   case class GetFilterChanges(id: BigInt)

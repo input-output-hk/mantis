@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network.discovery
 
-import java.net.{InetSocketAddress, URI}
+import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.agent.Agent
@@ -132,7 +132,7 @@ object DiscoveryListener {
       val signatureBytes = wire.drop(MdcLength).take(ECDSASignature.EncodedLength)
       val r = signatureBytes.take(ECDSASignature.RLength)
       val s = signatureBytes.drop(ECDSASignature.RLength).take(ECDSASignature.SLength)
-      val v = ByteString(Array[Byte]((signatureBytes(ECDSASignature.EncodedLength - 1) + 27).toByte))
+      val v = (signatureBytes.last + 27).toByte
 
       ECDSASignature(r, s, v)
     }

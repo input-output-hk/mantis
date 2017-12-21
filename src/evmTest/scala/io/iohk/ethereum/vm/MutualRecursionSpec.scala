@@ -2,6 +2,7 @@ package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.vm.utils.EvmTestEnv
 import org.scalatest.{FreeSpec, Matchers}
+import io.iohk.ethereum.domain.UInt256
 
 // scalastyle:off magic.number
 class MutualRecursionSpec extends FreeSpec with Matchers {

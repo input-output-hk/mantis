@@ -1,9 +1,10 @@
 package io.iohk.ethereum.blockchain.sync
 
 import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{Actor, ActorLogging, Cancellable, Scheduler}
 import io.iohk.ethereum.network.PeerId
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 trait BlacklistSupport {
   selfActor: Actor with ActorLogging =>
@@ -28,9 +29,12 @@ trait BlacklistSupport {
 
   def isBlacklisted(peerId: PeerId): Boolean =
     blacklistedPeers.exists(_._1 == peerId)
+
+  def handleBlacklistMessages: Receive = {
+    case UnblacklistPeer(ref) => undoBlacklist(ref)
+  }
 }
 
 object BlacklistSupport {
-  case class BlacklistPeer(peerId: PeerId, reason: String)
-  case class UnblacklistPeer(peerId: PeerId)
+  private case class UnblacklistPeer(peerId: PeerId)
 }

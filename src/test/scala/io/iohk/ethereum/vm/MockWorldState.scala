@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 
 object MockWorldState {
   type PS = ProgramState[MockWorldState, MockStorage]
@@ -14,7 +14,9 @@ case class MockWorldState(
   accounts: Map[Address, Account] = Map(),
   codeRepo: Map[Address, ByteString] = Map(),
   storages: Map[Address, MockStorage] = Map(),
-  numberOfHashes: UInt256 = 0
+  numberOfHashes: UInt256 = 0,
+  touchedAccounts: Set[Address] = Set.empty,
+  noEmptyAccountsCond: Boolean = false
 ) extends WorldStateProxy[MockWorldState, MockStorage] {
 
   def getAccount(address: Address): Option[Account] =
@@ -27,7 +29,7 @@ case class MockWorldState(
     copy(accounts = accounts + (address -> account))
 
   def deleteAccount(address: Address): MockWorldState =
-    copy(accounts = accounts - address)
+    copy(accounts = accounts - address, codeRepo - address, storages - address)
 
   def getCode(address: Address): ByteString =
     codeRepo.getOrElse(address, ByteString.empty)
@@ -37,15 +39,36 @@ case class MockWorldState(
 
   def getBlockHash(number: UInt256): Option[UInt256] =
     if (numberOfHashes >= number && number >= 0)
-      Some(UInt256(kec256(number.bytes.toArray)))
+      Some(UInt256(kec256(number.toString.getBytes)))
     else
       None
 
   def saveCode(address: Address, code: ByteString): MockWorldState =
-    copy(codeRepo = codeRepo + (address -> code))
+    if (code.isEmpty)
+      copy(codeRepo = codeRepo - address)
+    else
+      copy(codeRepo = codeRepo + (address -> code))
 
   def saveStorage(address: Address, storage: MockStorage): MockWorldState =
-    copy(storages = storages + (address -> storage))
+    if (storage.isEmpty)
+      copy(storages = storages - address)
+    else
+      copy(storages = storages + (address -> storage))
 
   def getEmptyAccount: Account = Account.empty()
+
+  override def touchAccounts(addresses: Address*): MockWorldState =
+    if (noEmptyAccounts)
+      copy(touchedAccounts = touchedAccounts ++ addresses.toSet)
+    else
+      this
+
+  def clearTouchedAccounts: MockWorldState =
+    copy(touchedAccounts = touchedAccounts.empty)
+
+  def noEmptyAccounts: Boolean = noEmptyAccountsCond
+
+  def combineTouchedAccounts(world: MockWorldState): MockWorldState = {
+    copy(touchedAccounts = touchedAccounts ++ world.touchedAccounts)
+  }
 }

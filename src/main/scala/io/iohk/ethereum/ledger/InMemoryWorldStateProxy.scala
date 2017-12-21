@@ -7,7 +7,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, _}
-import io.iohk.ethereum.vm.{Storage, UInt256, WorldStateProxy}
+import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
 
 object InMemoryWorldStateProxy {
 
@@ -18,11 +18,12 @@ object InMemoryWorldStateProxy {
     nodesKeyValueStorage: NodesKeyValueStorage,
     accountStartNonce: UInt256,
     getBlockHashByNumber: BigInt => Option[ByteString],
-    stateRootHash: Option[ByteString] = None
+    stateRootHash: Option[ByteString] = None,
+    noEmptyAccounts: Boolean
   ): InMemoryWorldStateProxy = {
     val accountsStateTrieProxy = createProxiedAccountsStateTrie(
       nodesKeyValueStorage,
-      stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.calculateEmptyRootHash(kec256(_: Array[Byte]))))
+      stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.EmptyRootHash))
     )
     new InMemoryWorldStateProxy(
       nodesKeyValueStorage,
@@ -31,7 +32,9 @@ object InMemoryWorldStateProxy {
       evmCodeStorage,
       Map.empty,
       getBlockHashByNumber,
-      accountStartNonce
+      accountStartNonce,
+      Set.empty,
+      noEmptyAccounts
     )
   }
 
@@ -44,7 +47,7 @@ object InMemoryWorldStateProxy {
     * @param worldState Proxy to commit
     * @return Updated world
     */
-  private[ledger] def persistState(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  def persistState(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
     def persistCode(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
       worldState.accountCodes.foldLeft(worldState) {
         case (updatedWorldState, (address, code)) =>
@@ -93,8 +96,7 @@ object InMemoryWorldStateProxy {
     InMemorySimpleMapProxy.wrap[Address, Account, MerklePatriciaTrie[Address, Account]](
       MerklePatriciaTrie[Address, Account](
         stateRootHash.toArray[Byte],
-        accountsStorage,
-        kec256(_: Array[Byte])
+        accountsStorage
       )(Address.hashedAddressEncoder, accountSerializer)
     )
   }
@@ -126,7 +128,7 @@ class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[UInt256
   override def load(addr: UInt256): UInt256 = wrapped.get(addr).getOrElse(UInt256.Zero)
 }
 
-class InMemoryWorldStateProxy private(
+class InMemoryWorldStateProxy private[ledger](
   // State MPT proxied nodes storage needed to construct the storage MPT when calling [[getStorage]].
   // Accounts state and accounts storage states are saved within the same storage
   val stateStorage: NodesKeyValueStorage,
@@ -138,7 +140,12 @@ class InMemoryWorldStateProxy private(
   // Account's code by Address
   val accountCodes: Map[Address, Code],
   val getBlockByNumber: (BigInt) => Option[ByteString],
-  accountStartNonce: UInt256
+  override val accountStartNonce: UInt256,
+  // touchedAccounts and noEmptyAccountsCond are introduced by EIP161 to track accounts touched during the transaction
+  // execution. Touched account are only added to Set if noEmptyAccountsCond == true, otherwise all other operations
+  // operate on empty set.
+  val touchedAccounts: Set[Address],
+  val noEmptyAccountsCond: Boolean
 ) extends WorldStateProxy[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage] {
 
   import InMemoryWorldStateProxy._
@@ -173,6 +180,21 @@ class InMemoryWorldStateProxy private(
   override def saveStorage(address: Address, storage: InMemoryWorldStateProxyStorage): InMemoryWorldStateProxy =
     copyWith(contractStorages = contractStorages + (address -> storage.wrapped))
 
+  override def touchAccounts(addresses: Address*): InMemoryWorldStateProxy =
+    if (noEmptyAccounts)
+      copyWith(touchedAccounts = touchedAccounts ++ addresses.toSet)
+    else
+      this
+
+  override def clearTouchedAccounts: InMemoryWorldStateProxy =
+    copyWith(touchedAccounts = touchedAccounts.empty)
+
+  override def noEmptyAccounts: Boolean = noEmptyAccountsCond
+
+  override def combineTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    copyWith(touchedAccounts = touchedAccounts ++ world.touchedAccounts)
+  }
+
   /**
     * Returns world state root hash. This value is only updated after persist.
     */
@@ -190,7 +212,8 @@ class InMemoryWorldStateProxy private(
     accountsStateTrie: InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] = accountsStateTrie,
     contractStorages: Map[Address, InMemorySimpleMapProxy[UInt256, UInt256, MerklePatriciaTrie[UInt256, UInt256]]] = contractStorages,
     evmCodeStorage: EvmCodeStorage = evmCodeStorage,
-    accountCodes: Map[Address, Code] = accountCodes
+    accountCodes: Map[Address, Code] = accountCodes,
+    touchedAccounts: Set[Address] = touchedAccounts
   ): InMemoryWorldStateProxy =
     new InMemoryWorldStateProxy(
       stateStorage,
@@ -199,7 +222,9 @@ class InMemoryWorldStateProxy private(
       evmCodeStorage,
       accountCodes,
       getBlockByNumber,
-      accountStartNonce
+      accountStartNonce,
+      touchedAccounts,
+      noEmptyAccountsCond
     )
 
   override def getBlockHash(number: UInt256): Option[UInt256] = getBlockByNumber(number).map(UInt256(_))

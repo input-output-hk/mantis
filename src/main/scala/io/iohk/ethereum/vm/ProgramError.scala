@@ -1,5 +1,7 @@
 package io.iohk.ethereum.vm
 
+import io.iohk.ethereum.domain.UInt256
+
 /**
   * Marker trait for errors that may occur during program execution
   */

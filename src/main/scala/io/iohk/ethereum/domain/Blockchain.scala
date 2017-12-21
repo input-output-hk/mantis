@@ -1,20 +1,20 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie, NodesKeyValueStorage}
+import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode, NodesKeyValueStorage}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNode
-import io.iohk.ethereum.vm.{Storage, UInt256, WorldStateProxy}
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNode._
+import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
   */
+// scalastyle:off number.of.methods
 trait Blockchain {
 
   type S <: Storage[S]
@@ -111,7 +111,29 @@ trait Blockchain {
     */
   def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt]
 
+  def getTotalDifficultyByNumber(blockNumber: BigInt): Option[BigInt] =
+    getHashByBlockNumber(blockNumber).flatMap(getTotalDifficultyByHash)
+
   def getTransactionLocation(txHash: ByteString): Option[TransactionLocation]
+
+  def getBestBlockNumber(): BigInt
+
+  def getBestBlock(): Block
+
+
+  /**
+    * Persists full block along with receipts and total difficulty
+    * @param saveAsBestBlock - whether to save the block's number as current best block
+    */
+  def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = {
+    save(block)
+    save(block.header.hash, receipts)
+    save(block.header.hash, totalDifficulty)
+    if (saveAsBestBlock) {
+      saveBestBlockNumber(block.header.number)
+    }
+    pruneState(block.header.number)
+  }
 
   /**
     * Persists a block in the underlying Blockchain Database
@@ -123,7 +145,7 @@ trait Blockchain {
     save(block.header.hash, block.body)
   }
 
-  def removeBlock(hash: ByteString): Unit
+  def removeBlock(hash: ByteString, saveParentAsBestBlock: Boolean): Unit
 
   /**
     * Persists a block header in the underlying Blockchain Database
@@ -140,6 +162,10 @@ trait Blockchain {
 
   def save(blockhash: ByteString, totalDifficulty: BigInt): Unit
 
+  def saveBestBlockNumber(number: BigInt): Unit
+
+  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
+
   /**
     * Returns a block hash given a block number
     *
@@ -152,21 +178,34 @@ trait Blockchain {
 
   def genesisBlock: Block = getBlockByNumber(0).get
 
-  def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None): WS
+  def getWorldStateProxy(blockNumber: BigInt,
+                         accountStartNonce: UInt256,
+                         stateRootHash: Option[ByteString] = None,
+                         noEmptyAccounts: Boolean = false): WS
 
-  def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt], accountStartNonce: UInt256, stateRootHash: Option[ByteString] = None): WS
+  def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
+                                 accountStartNonce: UInt256,
+                                 stateRootHash: Option[ByteString] = None,
+                                 noEmptyAccounts: Boolean = false): WS
+
+  def pruneState(blockNumber: BigInt): Unit
+
+  def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit
 }
+// scalastyle:on
 
 class BlockchainImpl(
-                      protected val blockHeadersStorage: BlockHeadersStorage,
-                      protected val blockBodiesStorage: BlockBodiesStorage,
-                      protected val blockNumberMappingStorage: BlockNumberMappingStorage,
-                      protected val receiptStorage: ReceiptStorage,
-                      protected val evmCodeStorage: EvmCodeStorage,
-                      protected val nodesKeyValueStorageFor: Option[BigInt] => NodesKeyValueStorage,
-                      protected val totalDifficultyStorage: TotalDifficultyStorage,
-                      protected val transactionMappingStorage: TransactionMappingStorage
-                    ) extends Blockchain {
+    protected val blockHeadersStorage: BlockHeadersStorage,
+    protected val blockBodiesStorage: BlockBodiesStorage,
+    protected val blockNumberMappingStorage: BlockNumberMappingStorage,
+    protected val receiptStorage: ReceiptStorage,
+    protected val evmCodeStorage: EvmCodeStorage,
+    protected val pruningMode: PruningMode,
+    protected val nodeStorage: NodeStorage,
+    protected val totalDifficultyStorage: TotalDifficultyStorage,
+    protected val transactionMappingStorage: TransactionMappingStorage,
+    protected val appStateStorage: AppStateStorage
+) extends Blockchain {
 
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
     blockHeadersStorage.get(hash)
@@ -180,12 +219,17 @@ class BlockchainImpl(
 
   override def getTotalDifficultyByHash(blockhash: ByteString): Option[BigInt] = totalDifficultyStorage.get(blockhash)
 
+  override def getBestBlockNumber(): BigInt =
+    appStateStorage.getBestBlockNumber()
+
+  override def getBestBlock(): Block =
+    getBlockByNumber(getBestBlockNumber()).get
+
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
     getBlockHeaderByNumber(blockNumber).flatMap { bh =>
       val mpt = MerklePatriciaTrie[Address, Account](
         bh.stateRoot.toArray,
-        nodesKeyValueStorageFor(Some(blockNumber)),
-        crypto.kec256(_: Array[Byte])
+        nodesKeyValueStorageFor(Some(blockNumber))
       )
       mpt.get(address)
     }
@@ -216,20 +260,43 @@ class BlockchainImpl(
 
   override def save(hash: ByteString, evmCode: ByteString): Unit = evmCodeStorage.put(hash, evmCode)
 
+  override def saveBestBlockNumber(number: BigInt): Unit =
+    appStateStorage.putBestBlockNumber(number)
+
   def save(blockhash: ByteString, td: BigInt): Unit = totalDifficultyStorage.put(blockhash, td)
+
+  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit =
+    nodesKeyValueStorageFor(Some(blockNumber)).put(nodeHash, nodeEncoded)
 
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     blockNumberMappingStorage.get(number)
 
-  private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit = blockNumberMappingStorage.put(number, hash)
+  private def saveBlockNumberMapping(number: BigInt, hash: ByteString): Unit =
+    blockNumberMappingStorage.put(number, hash)
 
-  override def removeBlock(blockHash: ByteString): Unit = {
+  private def removeBlockNumberMapping(number: BigInt): Unit = {
+    blockNumberMappingStorage.remove(number)
+    appStateStorage.putBestBlockNumber(number - 1) // FIXME: mother of consistency?!?!
+  }
+
+  override def removeBlock(blockHash: ByteString, saveParentAsBestBlock: Boolean): Unit = {
+    val maybeBlockHeader = getBlockHeaderByHash(blockHash)
     val maybeTxList = getBlockBodyByHash(blockHash).map(_.transactionList)
+
     blockHeadersStorage.remove(blockHash)
     blockBodiesStorage.remove(blockHash)
     totalDifficultyStorage.remove(blockHash)
     receiptStorage.remove(blockHash)
     maybeTxList.foreach(removeTxsLocations)
+    maybeBlockHeader.foreach{ h =>
+      rollbackStateChangesMadeByBlock(h.number)
+      if (getHashByBlockNumber(h.number).contains(blockHash))
+        removeBlockNumberMapping(h.number)
+
+      if (saveParentAsBestBlock) {
+        appStateStorage.putBestBlockNumber(h.number - 1)
+      }
+    }
   }
 
   private def saveTxsLocations(blockHash: ByteString, blockBody: BlockBody): Unit =
@@ -243,24 +310,39 @@ class BlockchainImpl(
   override type S = InMemoryWorldStateProxyStorage
   override type WS = InMemoryWorldStateProxy
 
-  override def getWorldStateProxy(blockNumber: BigInt, accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy =
+  override def getWorldStateProxy(blockNumber: BigInt,
+                                  accountStartNonce: UInt256,
+                                  stateRootHash: Option[ByteString],
+                                  noEmptyAccount: Boolean = false): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
       nodesKeyValueStorageFor(Some(blockNumber)),
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
-      stateRootHash
+      stateRootHash,
+      noEmptyAccount
     )
 
   //FIXME Maybe we can use this one in regular execution too and persist underlying storage when block execution is successful
-  override def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt], accountStartNonce: UInt256, stateRootHash: Option[ByteString]): InMemoryWorldStateProxy =
+  override def getReadOnlyWorldStateProxy(blockNumber: Option[BigInt],
+                                          accountStartNonce: UInt256,
+                                          stateRootHash: Option[ByteString],
+                                          noEmptyAccount: Boolean = false): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage,
       ReadOnlyNodeStorage(nodesKeyValueStorageFor(blockNumber)),
       accountStartNonce,
       (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
-      stateRootHash
+      stateRootHash,
+      noEmptyAccounts = false
     )
+
+  def nodesKeyValueStorageFor(blockNumber: Option[BigInt]): NodesKeyValueStorage =
+    PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(blockNumber)
+
+  def pruneState(blockNumber: BigInt): Unit = PruningMode.prune(pruningMode, blockNumber, nodeStorage)
+
+  def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit = PruningMode.rollback(pruningMode, blockNumber, nodeStorage)
 }
 
 trait BlockchainStorages {
@@ -272,7 +354,8 @@ trait BlockchainStorages {
   val totalDifficultyStorage: TotalDifficultyStorage
   val transactionMappingStorage: TransactionMappingStorage
   val nodeStorage: NodeStorage
-  val nodesKeyValueStorageFor: (Option[BigInt]) => NodesKeyValueStorage
+  val pruningMode: PruningMode
+  val appStateStorage: AppStateStorage
 }
 
 object BlockchainImpl {
@@ -283,8 +366,10 @@ object BlockchainImpl {
       blockNumberMappingStorage = storages.blockNumberMappingStorage,
       receiptStorage = storages.receiptStorage,
       evmCodeStorage = storages.evmCodeStorage,
-      nodesKeyValueStorageFor = storages.nodesKeyValueStorageFor,
+      pruningMode = storages.pruningMode,
+      nodeStorage = storages.nodeStorage,
       totalDifficultyStorage = storages.totalDifficultyStorage,
-      transactionMappingStorage = storages.transactionMappingStorage
+      transactionMappingStorage = storages.transactionMappingStorage,
+      appStateStorage = storages.appStateStorage
     )
 }

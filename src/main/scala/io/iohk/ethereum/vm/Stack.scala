@@ -1,5 +1,7 @@
 package io.iohk.ethereum.vm
 
+import io.iohk.ethereum.domain.UInt256
+
 object Stack {
   /**
     * Stack max size as defined in the YP (9.1)

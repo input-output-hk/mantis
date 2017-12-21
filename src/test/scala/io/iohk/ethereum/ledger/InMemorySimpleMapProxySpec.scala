@@ -3,7 +3,6 @@ package io.iohk.ethereum.ledger
 import java.nio.ByteBuffer
 
 import io.iohk.ethereum.common.SimpleMap
-import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
@@ -97,7 +96,7 @@ class InMemorySimpleMapProxySpec extends FlatSpec with Matchers {
 
 
     val nodeStorage = new NodeStorage(EphemDataSource())
-    val mpt: MerklePatriciaTrie[Int, Int] = MerklePatriciaTrie[Int, Int](new ArchiveNodeStorage(nodeStorage), kec256(_: Array[Byte]))
+    val mpt: MerklePatriciaTrie[Int, Int] = MerklePatriciaTrie[Int, Int](new ArchiveNodeStorage(nodeStorage))
   }
 
 }

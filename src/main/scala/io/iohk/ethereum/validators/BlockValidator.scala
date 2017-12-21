@@ -6,14 +6,12 @@ import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction}
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.ByteUtils.or
-import io.iohk.ethereum.validators.BlockValidator.BlockError
-
-import scala.language.reflectiveCalls
+import io.iohk.ethereum.validators.BlockValidator.{BlockError, BlockValid}
 
 trait BlockValidator {
 
-  def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody): Either[BlockError, Block]
-  def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block]
+  def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody): Either[BlockError, BlockValid]
+  def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]): Either[BlockError, BlockValid]
 
 }
 
@@ -25,12 +23,12 @@ object BlockValidator extends BlockValidator {
     * @param block Block to validate
     * @return Block if valid, a Some otherwise
     */
-  private def validateTransactionRoot(block: Block): Either[BlockError, Block] = {
+  private def validateTransactionRoot(block: Block): Either[BlockError, BlockValid] = {
     val isValid = MptListValidator.isValid[SignedTransaction](block.header.transactionsRoot.toArray[Byte],
       block.body.transactionList,
       SignedTransaction.byteArraySerializable
     )
-    if (isValid) Right(block)
+    if (isValid) Right(BlockValid)
     else Left(BlockTransactionsHashError)
   }
 
@@ -41,10 +39,10 @@ object BlockValidator extends BlockValidator {
     * @param block Block to validate
     * @return Block if valid, a Some otherwise
     */
-  private def validateOmmersHash(block: Block): Either[BlockError, Block] = {
+  private def validateOmmersHash(block: Block): Either[BlockError, BlockValid] = {
     import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
     val encodedOmmers: Array[Byte] = block.body.uncleNodesList.toBytes
-    if (kec256(encodedOmmers) sameElements block.header.ommersHash) Right(block)
+    if (kec256(encodedOmmers) sameElements block.header.ommersHash) Right(BlockValid)
     else Left(BlockOmmersHashError)
   }
 
@@ -52,17 +50,17 @@ object BlockValidator extends BlockValidator {
     * Validates [[Receipt]] against [[io.iohk.ethereum.domain.BlockHeader.receiptsRoot]]
     * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
-    * @param block    Block to validate
+    * @param blockHeader    Block header to validate
     * @param receipts Receipts to use
     * @return
     */
-  private def validateReceipts(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block] = {
+  private def validateReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]): Either[BlockError, BlockValid] = {
 
-    val isValid = MptListValidator.isValid[Receipt](block.header.receiptsRoot.toArray[Byte],
+    val isValid = MptListValidator.isValid[Receipt](blockHeader.receiptsRoot.toArray[Byte],
       receipts,
       Receipt.byteArraySerializable
     )
-    if (isValid) Right(block)
+    if (isValid) Right(BlockValid)
     else Left(BlockReceiptsHashError)
   }
 
@@ -70,15 +68,15 @@ object BlockValidator extends BlockValidator {
     * Validates [[io.iohk.ethereum.domain.BlockHeader.logsBloom]] against [[Receipt.logsBloomFilter]]
     * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
-    * @param block    Block to validate
-    * @param receipts Receipts to use
+    * @param blockHeader  Block header to validate
+    * @param receipts     Receipts to use
     * @return
     */
-  private def validateLogBloom(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block] = {
+  private def validateLogBloom(blockHeader: BlockHeader, receipts: Seq[Receipt]): Either[BlockError, BlockValid] = {
     val logsBloomOr =
       if(receipts.isEmpty) BloomFilter.EmptyBloomFilter
       else ByteString(or(receipts.map(_.logsBloomFilter.toArray): _*))
-    if (logsBloomOr == block.header.logsBloom) Right(block)
+    if (logsBloomOr == blockHeader.logsBloom) Right(BlockValid)
     else Left(BlockLogBloomError)
   }
 
@@ -94,11 +92,11 @@ object BlockValidator extends BlockValidator {
     * @param receipts Receipts to be in validation process
     * @return The block if validations are ok, error otherwise
     */
-  def validate(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block] = {
+  def validate(block: Block, receipts: Seq[Receipt]): Either[BlockError, BlockValid] = {
     for {
       _ <- validateHeaderAndBody(block.header, block.body)
-      _ <- validateBlockAndReceipts(block, receipts)
-    } yield block
+      _ <- validateBlockAndReceipts(block.header, receipts)
+    } yield BlockValid
   }
 
   /**
@@ -111,12 +109,12 @@ object BlockValidator extends BlockValidator {
     * @param blockBody to validate
     * @return The block if the header matched the body, error otherwise
     */
-  def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody): Either[BlockError, Block] = {
+  def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody): Either[BlockError, BlockValid] = {
     val block = Block(blockHeader, blockBody)
     for {
       _ <- validateTransactionRoot(block)
       _ <- validateOmmersHash(block)
-    } yield block
+    } yield BlockValid
   }
 
   /**
@@ -125,15 +123,15 @@ object BlockValidator extends BlockValidator {
     *   - BlockValidator.validateReceipts
     *   - BlockValidator.validateLogBloom
     *
-    * @param block    Block to validate
+    * @param blockHeader    Block header to validate
     * @param receipts Receipts to be in validation process
     * @return The block if validations are ok, error otherwise
     */
-  def validateBlockAndReceipts(block: Block, receipts: Seq[Receipt]): Either[BlockError, Block] = {
+  def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]): Either[BlockError, BlockValid] = {
     for {
-      _ <- validateReceipts(block, receipts)
-      _ <- validateLogBloom(block, receipts)
-    } yield block
+      _ <- validateReceipts(blockHeader, receipts)
+      _ <- validateLogBloom(blockHeader, receipts)
+    } yield BlockValid
   }
 
   sealed trait BlockError
@@ -146,4 +144,7 @@ object BlockValidator extends BlockValidator {
 
   case object BlockLogBloomError extends BlockError
 
+  sealed trait BlockValid
+
+  case object BlockValid extends BlockValid
 }

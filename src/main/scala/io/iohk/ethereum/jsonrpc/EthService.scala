@@ -7,12 +7,11 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.pattern.ask
 import akka.util.Timeout
-import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import akka.actor.ActorRef
-import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.SyncController.MinedBlock
+import io.iohk.ethereum.blockchain.sync.RegularSync
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
@@ -27,7 +26,6 @@ import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
-import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.Future
@@ -36,8 +34,6 @@ import scala.util.{Failure, Success, Try}
 
 // scalastyle:off number.of.methods number.of.types
 object EthService {
-
-  val CurrentProtocolVersion = 63
 
   case class ProtocolVersionRequest()
   case class ProtocolVersionResponse(value: String)
@@ -71,6 +67,9 @@ object EthService {
 
   case class GetTransactionByHashRequest(txHash: ByteString)
   case class GetTransactionByHashResponse(txResponse: Option[TransactionResponse])
+
+  case class GetAccountTransactionsRequest(address: Address, fromBlock: BigInt, toBlock: BigInt)
+  case class GetAccountTransactionsResponse(transactions: Seq[TransactionResponse])
 
   case class GetTransactionReceiptRequest(txHash: ByteString)
   case class GetTransactionReceiptResponse(txResponse: Option[TransactionReceiptResponse])
@@ -169,7 +168,7 @@ object EthService {
 }
 
 class EthService(
-    blockchainStorages: BlockchainStorages,
+    blockchain: Blockchain,
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
     miningConfig: MiningConfig,
@@ -180,18 +179,17 @@ class EthService(
     ommersPool: ActorRef,
     filterManager: ActorRef,
     filterConfig: FilterConfig,
-    blockchainConfig: BlockchainConfig)
+    blockchainConfig: BlockchainConfig,
+    protocolVersion: Int)
   extends Logger {
 
   import EthService._
-
-  lazy val blockchain = BlockchainImpl(blockchainStorages)
 
   val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] = new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
   val lastActive = new AtomicReference[Option[Date]](None)
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
-    Future.successful(Right(ProtocolVersionResponse(f"0x$CurrentProtocolVersion%x")))
+    Future.successful(Right(ProtocolVersionResponse(f"0x$protocolVersion%x")))
 
   /**
     * eth_blockNumber that returns the number of most recent block.
@@ -440,17 +438,17 @@ class EthService(
 
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] = {
     reportActive()
-    import io.iohk.ethereum.mining.pow.PowCache._
+    import io.iohk.ethereum.consensus.Ethash.{seed, epoch}
 
-    val blockNumber = appStateStorage.getBestBlockNumber() + 1
+    val bestBlock = blockchain.getBestBlock()
 
-    getOmmersFromPool(blockNumber).zip(getTransactionsFromPool).map {
+    getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map {
       case (ommers, pendingTxs) =>
-        blockGenerator.generateBlockForMining(blockNumber, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
+        blockGenerator.generateBlockForMining(bestBlock, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
           case Right(pb) =>
             Right(GetWorkResponse(
               powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
-              dagSeed = seedForBlock(pb.block.header.number),
+              dagSeed = seed(epoch(pb.block.header.number.toLong)),
               target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
             ))
           case Left(err) =>
@@ -489,7 +487,7 @@ class EthService(
       blockGenerator.getPrepared(req.powHeaderHash) match {
         case Some(pendingBlock) if appStateStorage.getBestBlockNumber() <= pendingBlock.block.header.number =>
           import pendingBlock._
-          syncingController ! MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
+          syncingController ! RegularSync.MinedBlock(block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash)))
           Right(SubmitWorkResponse(true))
         case _ =>
           Right(SubmitWorkResponse(false))
@@ -533,20 +531,20 @@ class EthService(
 
   def call(req: CallRequest): ServiceResponse[CallResponse] = {
     Future {
-      doCall(req).map(r => CallResponse(r.vmReturnData))
+      doCall(req)(ledger.simulateTransaction).map(r => CallResponse(r.vmReturnData))
     }
   }
 
   def estimateGas(req: CallRequest): ServiceResponse[EstimateGasResponse] = {
     Future {
-      doCall(req).map(r => EstimateGasResponse(r.gasUsed))
+      doCall(req)(ledger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
     }
   }
 
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Future {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        val world = BlockchainImpl(blockchainStorages).getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, Some(block.header.stateRoot))
+        val world = blockchain.getWorldStateProxy(block.header.number, blockchainConfig.accountStartNonce, Some(block.header.stateRoot))
         GetCodeResponse(world.getCode(req.address))
       }
     }
@@ -631,7 +629,7 @@ class EthService(
   def newBlockFilter(req: NewBlockFilterRequest): ServiceResponse[NewFilterResponse] = {
     implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
-    (filterManager ? FilterManager.NewBlockFilter()).mapTo[FilterManager.NewFilterResponse].map { resp =>
+    (filterManager ? FilterManager.NewBlockFilter).mapTo[FilterManager.NewFilterResponse].map { resp =>
       Right(NewFilterResponse(resp.id))
     }
   }
@@ -639,7 +637,7 @@ class EthService(
   def newPendingTransactionFilter(req: NewPendingTransactionFilterRequest): ServiceResponse[NewFilterResponse] = {
     implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
-    (filterManager ? FilterManager.NewPendingTransactionFilter()).mapTo[FilterManager.NewFilterResponse].map { resp =>
+    (filterManager ? FilterManager.NewPendingTransactionFilter).mapTo[FilterManager.NewFilterResponse].map { resp =>
       Right(NewFilterResponse(resp.id))
     }
   }
@@ -647,7 +645,7 @@ class EthService(
   def uninstallFilter(req: UninstallFilterRequest): ServiceResponse[UninstallFilterResponse] = {
     implicit val timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
-    (filterManager ? FilterManager.UninstallFilter(req.filterId)).mapTo[FilterManager.UninstallFilterResponse].map { _ =>
+    (filterManager ? FilterManager.UninstallFilter(req.filterId)).map { _ =>
       Right(UninstallFilterResponse(success = true))
     }
   }
@@ -701,31 +699,62 @@ class EthService(
     }
   }
 
-  private def doCall(req: CallRequest): Either[JsonRpcError, Ledger.TxResult] = {
-    val fromAddress = req.tx.from
-      .map(Address.apply) // `from` param, if specified
-      .getOrElse(
-      keyStore
-        .listAccounts().getOrElse(Nil).headOption // first account, if exists and `from` param not specified
-        .getOrElse(Address(0))) // 0x0 default
+  private def doCall[A](req: CallRequest)(f: (SignedTransaction, BlockHeader) => A): Either[JsonRpcError, A] = for {
+    stx   <- prepareTransaction(req)
+    block <- resolveBlock(req.block)
+  } yield f(stx, block.block.header)
 
-    val toAddress = req.tx.to.map(Address.apply)
+  private def getGasLimit(req: CallRequest): Either[JsonRpcError, BigInt] =
+    if (req.tx.gas.isDefined) Right[JsonRpcError, BigInt](req.tx.gas.get)
+    else resolveBlock(BlockParam.Latest).map(r => r.block.header.gasLimit)
 
-    // TODO improvement analysis is suggested in EC-199
-    val gasLimit: Either[JsonRpcError, BigInt] = {
-      if(req.tx.gas.isDefined) Right[JsonRpcError, BigInt](req.tx.gas.get)
-      else resolveBlock(BlockParam.Latest).map(r => r.block.header.gasLimit)
-    }
+  private def prepareTransaction(req: CallRequest):Either[JsonRpcError ,SignedTransaction] = {
+    getGasLimit(req).map{ gasLimit =>
+      val fromAddress = req.tx.from
+        .map(Address.apply) // `from` param, if specified
+        .getOrElse(
+        keyStore
+          .listAccounts().getOrElse(Nil).headOption // first account, if exists and `from` param not specified
+          .getOrElse(Address(0))) // 0x0 default
 
-    gasLimit.flatMap { gl =>
-      val tx = Transaction(0, req.tx.gasPrice, gl, toAddress, req.tx.value, req.tx.data)
+      val toAddress = req.tx.to.map(Address.apply)
+
+      val tx = Transaction(0, req.tx.gasPrice, gasLimit, toAddress, req.tx.value, req.tx.data)
       val fakeSignature = ECDSASignature(0, 0, 0.toByte)
-      val stx = SignedTransaction(tx, fakeSignature, fromAddress)
+      SignedTransaction(tx, fakeSignature, fromAddress)
+    }
+  }
 
-      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        ledger.simulateTransaction(stx, block.header, blockchainStorages)
+  def getAccountTransactions(request: GetAccountTransactionsRequest): ServiceResponse[GetAccountTransactionsResponse] = {
+    import Config.Network.Rpc.accountTransactionsMaxBlocks
+    val numBlocksToSearch = request.toBlock - request.fromBlock
+    if (numBlocksToSearch > accountTransactionsMaxBlocks) {
+      Future.successful(Left(JsonRpcErrors.InvalidParams(
+        s"""Maximum number of blocks to search is $accountTransactionsMaxBlocks, requested: $numBlocksToSearch.
+           |See: 'network.rpc.account-transactions-max-blocks' config.""".stripMargin)))
+    } else {
+
+      def collectTxs(blockHeader: Option[BlockHeader], pending: Boolean): PartialFunction[SignedTransaction, TransactionResponse] = {
+        case stx if stx.senderAddress == request.address =>
+          TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(true))
+        case stx if stx.tx.receivingAddress.contains(request.address) =>
+          TransactionResponse(stx, blockHeader, pending = Some(pending), isOutgoing = Some(false))
+      }
+
+      getTransactionsFromPool map { case PendingTransactionsResponse(pendingTransactions) =>
+        val pendingTxs = pendingTransactions
+          .map(_.stx)
+          .collect(collectTxs(None, pending = true))
+
+        val txsFromBlocks = (request.toBlock to request.fromBlock by -1)
+          .toStream
+          .flatMap { n => blockchain.getBlockByNumber(n) }
+          .flatMap { block =>
+            block.body.transactionList.collect(collectTxs(Some(block.header), pending = false)).reverse
+          }
+
+        Right(GetAccountTransactionsResponse(pendingTxs ++ txsFromBlocks))
       }
     }
-
   }
 }

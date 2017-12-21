@@ -4,7 +4,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.mpt.ByteArrayEncoder
 import io.iohk.ethereum.utils.ByteUtils.padLeft
-import io.iohk.ethereum.vm.UInt256
 import org.spongycastle.util.encoders.Hex
 
 object Address {
@@ -42,7 +41,7 @@ class Address private(val bytes: ByteString) {
 
   override def equals(that: Any): Boolean = that match {
     case addr: Address => addr.bytes == bytes
-    case other => false
+    case _ => false
   }
 
   override def hashCode: Int =

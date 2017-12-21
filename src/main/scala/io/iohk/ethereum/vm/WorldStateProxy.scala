@@ -2,7 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPList
@@ -20,6 +20,12 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   protected def saveAccount(address: Address, account: Account): WS
   protected def deleteAccount(address: Address): WS
   protected def getEmptyAccount: Account
+  protected def touchAccounts(addresses: Address*): WS
+  protected def clearTouchedAccounts: WS
+  protected def noEmptyAccounts: Boolean
+  protected def accountStartNonce: UInt256 = UInt256.Zero
+
+  def combineTouchedAccounts(world: WS): WS
 
   /**
     * In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that
@@ -47,12 +53,41 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     getAccount(address).map(a => UInt256(a.balance)).getOrElse(UInt256.Zero)
 
   def transfer(from: Address, to: Address, value: UInt256): WS = {
-    if(from == to) this
+    if (from == to ||  isZeroValueTransferToNonExistentAccount(to, value))
+      touchAccounts(from)
+    else
+      // perhaps as an optimisation we could avoid touching accounts having non-zero nonce or non-empty code
+      guaranteedTransfer(from, to, value).touchAccounts(from, to)
+  }
+
+  private def guaranteedTransfer(from: Address, to: Address, value: UInt256): WS = {
+    val debited = getGuaranteedAccount(from).increaseBalance(-value)
+    val credited = getAccount(to).getOrElse(getEmptyAccount).increaseBalance(value)
+    saveAccount(from, debited).saveAccount(to, credited)
+  }
+
+  /**
+    * IF EIP-161 is in effect this sets new contract's account initial nonce to 1 over the default value
+    * for the given network (usually zero)
+    * Otherwise it's no-op
+    */
+  def initialiseAccount(newAddress: Address): WS = {
+    if (!noEmptyAccounts)
+      this
     else {
-      val debited = getGuaranteedAccount(from).increaseBalance(-value)
-      val credited = getAccount(to).getOrElse(getEmptyAccount).increaseBalance(value)
-      saveAccount(from, debited).saveAccount(to, credited)
+      val newAccount = getAccount(newAddress).getOrElse(getEmptyAccount).copy(nonce = accountStartNonce + 1)
+      saveAccount(newAddress, newAccount)
     }
+  }
+
+  /**
+    * In case of transfer to self, during selfdestruction the ether is actually destroyed
+    * see https://github.com/ethereum/wiki/wiki/Subtleties/d5d3583e1b0a53c7c49db2fa670fdd88aa7cabaf#other-operations
+    * and https://github.com/ethereum/go-ethereum/blob/ff9a8682323648266d5c73f4f4bce545d91edccb/core/state/statedb.go#L322
+    */
+  def removeAllEther(address: Address): WS = {
+    val debited = getGuaranteedAccount(address).copy(balance = 0)
+    saveAccount(address, debited).touchAccounts(address)
   }
 
   /**
@@ -75,7 +110,24 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     */
   def createAddressWithOpCode(creatorAddr: Address): (Address, WS) = {
     val creatorAccount = getGuaranteedAccount(creatorAddr)
-    val updatedWorld = saveAccount(creatorAddr, creatorAccount.increaseNonce)
+    val updatedWorld = saveAccount(creatorAddr, creatorAccount.increaseNonce())
     updatedWorld.createAddress(creatorAddr) -> updatedWorld
   }
+
+  /**
+    * Determines if account of provided address is dead.
+    * According to EIP161: An account is considered dead when either it is non-existent or it is empty
+    *
+    * @param address, the address of the checked account
+    * @return true if account is dead, false otherwise
+    */
+  def isAccountDead(address: Address): Boolean = {
+    getAccount(address).forall(_.isEmpty(accountStartNonce))
+  }
+
+  def nonEmptyCodeOrNonceAccount(address: Address): Boolean =
+    getAccount(address).exists(_.nonEmptyCodeOrNonce(accountStartNonce))
+
+  def isZeroValueTransferToNonExistentAccount(address: Address, value: UInt256): Boolean =
+    noEmptyAccounts && value == UInt256(0) && !accountExists(address)
 }

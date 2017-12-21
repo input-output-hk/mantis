@@ -1,161 +1,28 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import org.scalatest.{Matchers, WordSpec}
-import Assembly._
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
 import org.scalatest.prop.PropertyChecks
+import org.scalatest.{Matchers, WordSpec}
 
 // scalastyle:off object.name
+// scalastyle:off file.size.limit
 class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
-  val config = EvmConfig.PostEIP160Config
-
+  val config = EvmConfig.PostEIP160ConfigBuilder(None)
+  val startState = MockWorldState(touchedAccounts = Set.empty)
   import config.feeSchedule._
 
-  object fxt {
-
-    val ownerAddr = Address(0xcafebabe)
-    val extAddr = Address(0xfacefeed)
-    val callerAddr = Address(0xdeadbeef)
-
-    val ownerOffset = UInt256(0)
-    val callerOffset = UInt256(1)
-    val valueOffset = UInt256(2)
-
-    val extCode = Assembly(
-      //store owner address
-      ADDRESS,
-      PUSH1, ownerOffset.toInt,
-      SSTORE,
-
-      //store caller address
-      CALLER,
-      PUSH1, callerOffset.toInt,
-      SSTORE,
-
-      //store call value
-      CALLVALUE,
-      PUSH1, valueOffset.toInt,
-      SSTORE,
-
-      // return first half of unmodified input data
-      PUSH1, 2,
-      CALLDATASIZE,
-      DIV,
-      PUSH1, 0,
-      DUP2,
-      DUP2,
-      DUP1,
-      CALLDATACOPY,
-      RETURN
-    )
-
-    val selfDestructCode = Assembly(
-      PUSH1, callerAddr.toUInt256.toInt,
-      SELFDESTRUCT
-    )
-
-    val sstoreWithClearCode = Assembly(
-      //Save a value to the storage
-      PUSH1, 10,
-      PUSH1, 0,
-      SSTORE,
-
-      //Clear the store
-      PUSH1, 0,
-      PUSH1, 0,
-      SSTORE
-    )
-
-    val valueToReturn = 23
-    val returnSingleByteProgram = Assembly(
-      PUSH1, valueToReturn,
-      PUSH1, 0,
-      MSTORE,
-      PUSH1, 1,
-      PUSH1, 31,
-      RETURN
-    )
-
-    val inputData = Generators.getUInt256Gen().sample.get.bytes
-    val expectedMemCost = config.calcMemCost(inputData.size, inputData.size, inputData.size / 2)
-
-    val initialBalance = UInt256(1000)
-
-    val requiredGas = {
-      val storageCost = 3 * G_sset
-      val memCost = config.calcMemCost(0, 0, 32)
-      val copyCost = G_copy * wordsForBytes(32)
-
-      extCode.linearConstGas(config) + storageCost + memCost + copyCost
-    }
-
-    val gasMargin = 13
-
-    val initialOwnerAccount = Account(balance = initialBalance)
-
-    val extProgram = extCode.program
-    val invalidProgram = Program(extProgram.code.init :+ INVALID.code)
-    val selfDestructProgram = selfDestructCode.program
-    val sstoreWithClearProgram = sstoreWithClearCode.program
-
-    val worldWithoutExtAccount = MockWorldState().saveAccount(ownerAddr, initialOwnerAccount)
-    val worldWithExtAccount = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
-      .saveCode(extAddr, extProgram.code)
-    val worldWithInvalidProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
-      .saveCode(extAddr, invalidProgram.code)
-
-    val worldWithSelfDestructProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
-      .saveCode(extAddr, selfDestructProgram.code)
-
-    val worldWithSstoreWithClearProgram = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
-      .saveCode(extAddr, sstoreWithClearProgram.code)
-
-    val worldWithReturnSingleByteCode = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
-      .saveCode(extAddr, returnSingleByteProgram.code)
-
-    val env = ExecEnv(ownerAddr, callerAddr, callerAddr, 1, ByteString.empty, 123, Program(ByteString.empty), null, 0)
-    val context: PC = ProgramContext(env, ownerAddr, 2 * requiredGas, worldWithExtAccount, config)
-  }
-
-  case class CallResult(
-    op: CallOp,
-    context: ProgramContext[MockWorldState, MockStorage] = fxt.context,
-    inputData: ByteString = fxt.inputData,
-    gas: BigInt = fxt.requiredGas + fxt.gasMargin,
-    to: Address = fxt.extAddr,
-    value: UInt256 = fxt.initialBalance / 2,
-    inOffset: UInt256 = UInt256.Zero,
-    inSize: UInt256 = fxt.inputData.size,
-    outOffset: UInt256 = fxt.inputData.size,
-    outSize: UInt256 = fxt.inputData.size / 2
-  ) {
-    private val params = Seq(UInt256(gas), to.toUInt256, value, inOffset, inSize, outOffset, outSize).reverse
-
-    private val paramsForDelegate = params.take(4) ++ params.drop(5)
-
-    private val stack = Stack.empty().push(if (op == DELEGATECALL) paramsForDelegate else params)
-    private val mem = Memory.empty.store(UInt256.Zero, inputData)
-
-    val stateIn: PS = ProgramState(context).withStack(stack).withMemory(mem)
-    val stateOut: PS = op.execute(stateIn)
-    val world: MockWorldState = stateOut.world
-
-    val ownBalance: UInt256 = world.getBalance(context.env.ownerAddr)
-    val extBalance: UInt256 = world.getBalance(to)
-
-    val ownStorage: MockStorage = world.getStorage(context.env.ownerAddr)
-    val extStorage: MockStorage = world.getStorage(to)
-  }
+  val fxt = new CallOpFixture(config, startState)
 
   "CALL" when {
+
     "external contract terminates normally" should {
 
-      val call = CallResult(op = CALL)
+      val call = fxt.CallResult(op = CALL)
 
       "update external account's storage" in {
         call.ownStorage shouldEqual MockStorage.Empty
@@ -198,7 +65,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     "call depth limit is reached" should {
 
       val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth))
-      val call = CallResult(op = CALL, context = context)
+      val call = fxt.CallResult(op = CALL, context = context)
 
       "not modify world state" in {
         call.world shouldEqual fxt.worldWithExtAccount
@@ -216,7 +83,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "call value is greater than balance" should {
 
-      val call = CallResult(op = CALL, value = fxt.initialBalance + 1)
+      val call = fxt.CallResult(op = CALL, value = fxt.initialBalance + 1)
 
       "not modify world state" in {
         call.world shouldEqual fxt.worldWithExtAccount
@@ -233,7 +100,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     }
 
     "call value is zero" should {
-      val call = CallResult(op = CALL, value = 0)
+      val call = fxt.CallResult(op = CALL, value = 0)
 
       "adjust gas cost" in {
         val expectedGas = fxt.requiredGas + G_call + fxt.expectedMemCost - (G_sset - G_sreset)
@@ -244,9 +111,9 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     "external contract terminates abnormally" should {
 
       val context: PC = fxt.context.copy(world = fxt.worldWithInvalidProgram)
-      val call = CallResult(op = CALL, context)
+      val call = fxt.CallResult(op = CALL, context)
 
-      "not modify world state" in {
+      "should not modify world state" in {
         call.world shouldEqual fxt.worldWithInvalidProgram
       }
 
@@ -258,12 +125,17 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
+
+      "extend memory" in {
+        UInt256(call.stateOut.memory.size) shouldEqual call.outOffset + call.outSize
+      }
     }
 
     "calling a non-existent account" should {
 
       val context: PC = fxt.context.copy(world = fxt.worldWithoutExtAccount)
-      val call = CallResult(op = CALL, context)
+
+      val call = fxt.CallResult(op = CALL, context)
 
       "create new account and add to its balance" in {
         call.extBalance shouldEqual call.value
@@ -285,7 +157,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       val invalidSignature = ByteString(Array.fill(128)(0.toByte))
       val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 1))
       val context: PC = fxt.context.copy(world = world)
-      val call = CallResult(op = CALL, context = context, to = contractAddress, inputData = invalidSignature,
+      val call = fxt.CallResult(op = CALL, context = context, to = contractAddress, inputData = invalidSignature,
         inOffset = 0, inSize = 128, outOffset = 0, outSize = 128
       )
 
@@ -318,7 +190,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
       "refund the correct amount of gas" in {
         val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructProgram)
-        val call = CallResult(op = CALL, context)
+        val call = fxt.CallResult(op = CALL, context)
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_selfdestruct
       }
 
@@ -326,16 +198,22 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         val context: PC = fxt.context.copy(
           world = fxt.worldWithSelfDestructProgram,
           initialAddressesToDelete = Set(fxt.extAddr))
-        val call = CallResult(op = CALL, context)
+        val call = fxt.CallResult(op = CALL, context)
         call.stateOut.gasRefund shouldBe 0
       }
 
+      "destruct ether if own address equals refund address" in {
+        val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructSelfProgram)
+        val call = fxt.CallResult(op = CALL, context)
+        call.stateOut.world.getGuaranteedAccount(fxt.extAddr).balance shouldEqual UInt256.Zero
+        call.stateOut.addressesToDelete.contains(fxt.extAddr) shouldBe true
+      }
     }
 
     "calling a program that executes a SSTORE that clears the storage" should {
 
       val context: PC = fxt.context.copy(world = fxt.worldWithSstoreWithClearProgram)
-      val call = CallResult(op = CALL, context)
+      val call = fxt.CallResult(op = CALL, context)
 
       "refund the correct amount of gas" in {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
@@ -344,24 +222,52 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     }
 
     "more gas than available is provided" should {
-      def call(config: EvmConfig): CallResult = {
+      def call(config: EvmConfig): fxt.CallResult = {
         val context: PC = fxt.context.copy(config = config)
-        CallResult(op = CALL, context = context, gas = UInt256.MaxValue / 2)
+        fxt.CallResult(op = CALL, context = context, gas = UInt256.MaxValue / 2)
+      }
+
+      def callVarMemCost(config: EvmConfig): fxt.CallResult = {
+
+        /**
+          * Amount of memory which causes the improper OOG exception, if we don take memcost into account
+          * during calculation of post EIP150 CALLOp gasCap: gasCap(state, gas, gExtra + memCost)
+          */
+        val gasFailingBeforeEIP150Fix = 141072
+
+        val context: PC = fxt.context.copy(config = config)
+        fxt.CallResult(
+          op = CALL,
+          context = context,
+          inOffset = UInt256.Zero,
+          inSize = fxt.inputData.size,
+          outOffset = fxt.inputData.size,
+          outSize = gasFailingBeforeEIP150Fix
+        )
       }
 
       "go OOG before EIP-150" in {
-        call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+        call(EvmConfig.HomesteadConfigBuilder(None)).stateOut.error shouldEqual Some(OutOfGas)
       }
 
       "cap the provided gas after EIP-150" in {
-        call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+        call(EvmConfig.PostEIP150ConfigBuilder(None)).stateOut.stack.pop._1 shouldEqual UInt256.One
+      }
+
+      "go OOG before EIP-150 becaouse of extensive memory cost" in {
+        callVarMemCost(EvmConfig.HomesteadConfigBuilder(None)).stateOut.error shouldEqual Some(OutOfGas)
+      }
+
+      "cap memory cost post EIP-150" in {
+        val CallResult = callVarMemCost(EvmConfig.PostEIP150ConfigBuilder(None))
+        CallResult.stateOut.stack.pop._1 shouldEqual UInt256.One
       }
     }
   }
 
   "CALLCODE" when {
     "external code terminates normally" should {
-      val call = CallResult(op = CALLCODE, outSize = fxt.inputData.size * 2)
+      val call = fxt.CallResult(op = CALLCODE, outSize = fxt.inputData.size * 2)
 
       "update own account's storage" in {
         call.extStorage shouldEqual MockStorage.Empty
@@ -405,7 +311,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     "call depth limit is reached" should {
 
       val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth))
-      val call = CallResult(op = CALLCODE, context = context)
+      val call = fxt.CallResult(op = CALLCODE, context = context)
 
       "not modify world state" in {
         call.world shouldEqual fxt.worldWithExtAccount
@@ -423,7 +329,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "call value is greater than balance" should {
 
-      val call = CallResult(op = CALLCODE, value = fxt.initialBalance + 1)
+      val call = fxt.CallResult(op = CALLCODE, value = fxt.initialBalance + 1)
 
       "not modify world state" in {
         call.world shouldEqual fxt.worldWithExtAccount
@@ -440,7 +346,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     }
 
     "call value is zero" should {
-      val call = CallResult(op = CALL, value = 0)
+      val call = fxt.CallResult(op = CALL, value = 0)
 
       "adjust gas cost" in {
         val expectedGas = fxt.requiredGas + G_call + fxt.expectedMemCost - (G_sset - G_sreset)
@@ -450,7 +356,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "external code terminates abnormally" should {
       val context: PC = fxt.context.copy(world = fxt.worldWithInvalidProgram)
-      val call = CallResult(op = CALLCODE, context)
+      val call = fxt.CallResult(op = CALLCODE, context)
 
       "not modify world state" in {
         call.world shouldEqual fxt.worldWithInvalidProgram
@@ -464,11 +370,15 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
+
+      "extend memory" in {
+        UInt256(call.stateOut.memory.size) shouldEqual call.outOffset + call.outSize
+      }
     }
 
     "external account does not exist" should {
       val context: PC = fxt.context.copy(world = fxt.worldWithoutExtAccount)
-      val call = CallResult(op = CALLCODE, context)
+      val call = fxt.CallResult(op = CALLCODE, context)
 
       "not modify world state" in {
         call.world shouldEqual fxt.worldWithoutExtAccount
@@ -489,7 +399,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       val inputData = ByteString(Array.fill(128)(1.toByte))
       val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 1))
       val context: PC = fxt.context.copy(world = world)
-      val call = CallResult(op = CALLCODE, context = context, to = contractAddress, inputData = inputData,
+      val call = fxt.CallResult(op = CALLCODE, context = context, to = contractAddress, inputData = inputData,
         inOffset = 0, inSize = 128, outOffset = 128, outSize = 32
       )
 
@@ -519,7 +429,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     "calling a program that executes a SELFDESTRUCT" should {
 
       val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructProgram)
-      val call = CallResult(op = CALL, context)
+      val call = fxt.CallResult(op = CALL, context)
 
       "refund the correct amount of gas" in {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_selfdestruct
@@ -530,7 +440,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     "calling a program that executes a SSTORE that clears the storage" should {
 
       val context: PC = fxt.context.copy(world = fxt.worldWithSstoreWithClearProgram)
-      val call = CallResult(op = CALL, context)
+      val call = fxt.CallResult(op = CALL, context)
 
       "refund the correct amount of gas" in {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
@@ -538,24 +448,24 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     }
 
     "more gas than available is provided" should {
-      def call(config: EvmConfig): CallResult = {
+      def call(config: EvmConfig): fxt.CallResult = {
         val context: PC = fxt.context.copy(config = config)
-        CallResult(op = CALLCODE, context = context, gas = UInt256.MaxValue / 2)
+        fxt.CallResult(op = CALLCODE, context = context, gas = UInt256.MaxValue / 2)
       }
 
       "go OOG before EIP-150" in {
-        call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+        call(EvmConfig.HomesteadConfigBuilder(None)).stateOut.error shouldEqual Some(OutOfGas)
       }
 
       "cap the provided gas after EIP-150" in {
-        call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+        call(EvmConfig.PostEIP150ConfigBuilder(None)).stateOut.stack.pop._1 shouldEqual UInt256.One
       }
     }
   }
 
   "DELEGATECALL" when {
     "external code terminates normally" should {
-      val call = CallResult(op = DELEGATECALL, outSize = fxt.inputData.size / 4)
+      val call = fxt.CallResult(op = DELEGATECALL, outSize = fxt.inputData.size / 4)
 
       "update own account's storage" in {
         call.extStorage shouldEqual MockStorage.Empty
@@ -599,7 +509,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     "call depth limit is reached" should {
 
       val context: PC = fxt.context.copy(env = fxt.env.copy(callDepth = EvmConfig.MaxCallDepth))
-      val call = CallResult(op = DELEGATECALL, context = context)
+      val call = fxt.CallResult(op = DELEGATECALL, context = context)
 
       "not modify world state" in {
         call.world shouldEqual fxt.worldWithExtAccount
@@ -617,7 +527,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "external code terminates abnormally" should {
       val context: PC = fxt.context.copy(world = fxt.worldWithInvalidProgram)
-      val call = CallResult(op = DELEGATECALL, context)
+      val call = fxt.CallResult(op = DELEGATECALL, context)
 
       "not modify world state" in {
         call.world shouldEqual fxt.worldWithInvalidProgram
@@ -631,11 +541,15 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
         val expectedGas = fxt.requiredGas + fxt.gasMargin + G_call + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
       }
+
+      "extend memory" in {
+        UInt256(call.stateOut.memory.size) shouldEqual call.outOffset + call.outSize
+      }
     }
 
     "external account does not exist" should {
       val context: PC = fxt.context.copy(world = fxt.worldWithoutExtAccount)
-      val call = CallResult(op = DELEGATECALL, context)
+      val call = fxt.CallResult(op = DELEGATECALL, context)
 
       "not modify world state" in {
         call.world shouldEqual fxt.worldWithoutExtAccount
@@ -656,7 +570,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       val inputData = ByteString(Array.fill(128)(1.toByte))
       val world = fxt.worldWithoutExtAccount.saveAccount(contractAddress, Account(balance = 1))
       val context: PC = fxt.context.copy(world = world)
-      val call = CallResult(op = DELEGATECALL, context = context, to = contractAddress, inputData = inputData,
+      val call = fxt.CallResult(op = DELEGATECALL, context = context, to = contractAddress, inputData = inputData,
         inOffset = 0, inSize = 128, outOffset = 128, outSize = 32
       )
 
@@ -686,7 +600,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     "calling a program that executes a SELFDESTRUCT" should {
 
       val context: PC = fxt.context.copy(world = fxt.worldWithSelfDestructProgram)
-      val call = CallResult(op = CALL, context)
+      val call = fxt.CallResult(op = CALL, context)
 
       "refund the correct amount of gas" in {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_selfdestruct
@@ -697,7 +611,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     "calling a program that executes a SSTORE that clears the storage" should {
 
       val context: PC = fxt.context.copy(world = fxt.worldWithSstoreWithClearProgram)
-      val call = CallResult(op = CALL, context)
+      val call = fxt.CallResult(op = CALL, context)
 
       "refund the correct amount of gas" in {
         call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
@@ -705,17 +619,17 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     }
 
     "more gas than available is provided" should {
-      def call(config: EvmConfig): CallResult = {
+      def call(config: EvmConfig): fxt.CallResult = {
         val context: PC = fxt.context.copy(config = config)
-        CallResult(op = DELEGATECALL, context = context, gas = UInt256.MaxValue / 2)
+        fxt.CallResult(op = DELEGATECALL, context = context, gas = UInt256.MaxValue / 2)
       }
 
       "go OOG before EIP-150" in {
-        call(EvmConfig.HomesteadConfig).stateOut.error shouldEqual Some(OutOfGas)
+        call(EvmConfig.HomesteadConfigBuilder(None)).stateOut.error shouldEqual Some(OutOfGas)
       }
 
       "cap the provided gas after EIP-150" in {
-        call(EvmConfig.PostEIP150Config).stateOut.stack.pop._1 shouldEqual UInt256.One
+        call(EvmConfig.PostEIP150ConfigBuilder(None)).stateOut.stack.pop._1 shouldEqual UInt256.One
       }
     }
   }
@@ -737,7 +651,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
     val startGas = c_extra - 1
     val gas = UInt256.MaxValue - c_extra + 1 //u_s[0]
     val context: PC = fxt.context.copy(startGas = startGas)
-    val call = CallResult(
+    val call = fxt.CallResult(
       op = DELEGATECALL,
       gas = gas,
       context = context,
@@ -768,7 +682,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
           forAll(table) { outOffset =>
 
-            val call = CallResult(
+            val call = fxt.CallResult(
               op = opCode,
               outSize = inputData.size,
               outOffset = outOffset,
@@ -788,5 +702,4 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
       }
     }
   }
-
 }

@@ -1,12 +1,12 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.domain.{Account, Address}
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import org.scalatest.{Matchers, WordSpec}
 import MockWorldState.{PC, PS}
 import akka.util.ByteString
 
 class CreateOpcodeSpec extends WordSpec with Matchers {
-  val config = EvmConfig.PostEIP160Config
+  val config = EvmConfig.PostEIP161ConfigBuilder(None)
   import config.feeSchedule._
 
   object fxt {
@@ -29,11 +29,11 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       RETURN
     )
 
-    val initPart = Assembly(
+    def initPart(contractCodeSize: Int): Assembly = Assembly(
       PUSH1, 42,
       PUSH1, 0,
       SSTORE, //store an arbitrary value
-      PUSH1, contractCode.code.size,
+      PUSH1, contractCodeSize,
       DUP1,
       PUSH1, 16,
       PUSH1, 0,
@@ -59,11 +59,11 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       SSTORE
     )
 
-    val createCode = Assembly(initPart.byteCode ++ contractCode.byteCode: _*)
+    val createCode = Assembly(initPart(contractCode.code.size).byteCode ++ contractCode.byteCode: _*)
 
     val copyCodeGas = G_copy * wordsForBytes(contractCode.code.size) + config.calcMemCost(0, 0, contractCode.code.size)
     val storeGas = G_sset
-    val gasRequiredForInit = initPart.linearConstGas(config) + copyCodeGas + storeGas
+    val gasRequiredForInit = initPart(contractCode.code.size).linearConstGas(config) + copyCodeGas + storeGas
     val depositGas = config.calcCodeDepositCost(contractCode.code)
     val gasRequiredForCreation = gasRequiredForInit + depositGas + G_create
 
@@ -231,5 +231,84 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
       call.stateOut.gasRefund shouldBe call.stateOut.config.feeSchedule.R_sclear
     }
 
+  }
+
+  "maxCodeSize check is enabled" should {
+    val maxCodeSize = 30
+    val ethConfig = EvmConfig.PostEIP160ConfigBuilder(Some(maxCodeSize))
+
+    val context: PC = fxt.context.copy(startGas = Int.MaxValue, config = ethConfig)
+
+    val gasConsumedIfError = G_create + config.gasCap(context.startGas - G_create) //Gas consumed by CREATE opcode if an error happens
+
+    "result in an out of gas if the code is larger than the limit" in {
+      val codeSize = maxCodeSize + 1
+      val largeContractCode = Assembly((0 until codeSize).map(_ => Assembly.OpCodeAsByteCode(STOP)): _*)
+      val createCode = Assembly(fxt.initPart(largeContractCode.code.size).byteCode ++ largeContractCode.byteCode: _*).code
+      val call = CreateResult(context = context, createCode = createCode)
+
+      call.stateOut.error shouldBe None
+      call.stateOut.gasUsed shouldBe gasConsumedIfError
+    }
+
+    "not result in an out of gas if the code is smaller than the limit" in {
+      val codeSize = maxCodeSize - 1
+      val largeContractCode = Assembly((0 until codeSize).map(_ => Assembly.OpCodeAsByteCode(STOP)): _*)
+      val createCode = Assembly(fxt.initPart(largeContractCode.code.size).byteCode ++ largeContractCode.byteCode: _*).code
+      val call = CreateResult(context = context, createCode = createCode)
+
+      call.stateOut.error shouldBe None
+      call.stateOut.gasUsed shouldNot be(gasConsumedIfError)
+    }
+
+  }
+
+  "account with non-empty code already exists" should {
+
+    "fail to create contract" in {
+      val accountNonEmptyCode = Account(codeHash = ByteString("abc"))
+
+      val world = fxt.initWorld.saveAccount(fxt.newAddr, accountNonEmptyCode)
+      val context: PC = fxt.context.copy(world = world)
+      val result = CreateResult(context = context)
+
+      result.returnValue shouldEqual UInt256.Zero
+      result.world.getGuaranteedAccount(fxt.newAddr) shouldEqual accountNonEmptyCode
+      result.world.getCode(fxt.newAddr) shouldEqual ByteString.empty
+    }
+  }
+
+  "account with non-zero nonce already exists" should {
+
+    "fail to create contract" in {
+      val accountNonZeroNonce = Account(nonce = 1)
+
+      val world = fxt.initWorld.saveAccount(fxt.newAddr, accountNonZeroNonce)
+      val context: PC = fxt.context.copy(world = world)
+      val result = CreateResult(context = context)
+
+      result.returnValue shouldEqual UInt256.Zero
+      result.world.getGuaranteedAccount(fxt.newAddr) shouldEqual accountNonZeroNonce
+      result.world.getCode(fxt.newAddr) shouldEqual ByteString.empty
+    }
+  }
+
+  "account with non-zero balance, but empty code and zero nonce, already exists" should {
+
+    "succeed in creating new contract" in {
+      val accountNonZeroBalance = Account(balance = 1)
+
+      val world = fxt.initWorld.saveAccount(fxt.newAddr, accountNonZeroBalance)
+      val context: PC = fxt.context.copy(world = world)
+      val result = CreateResult(context = context)
+
+      result.returnValue shouldEqual fxt.newAddr.toUInt256
+
+      val newContract = result.world.getGuaranteedAccount(fxt.newAddr)
+      newContract.balance shouldEqual (accountNonZeroBalance.balance + fxt.endowment)
+      newContract.nonce shouldEqual accountNonZeroBalance.nonce
+
+      result.world.getCode(fxt.newAddr) shouldEqual fxt.contractCode.code
+    }
   }
 }

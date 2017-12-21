@@ -8,10 +8,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Fixtures.Blocks.{DaoForkBlock, Genesis}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{SharedEphemDataSources, Storages}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl}
+import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.PeerActor.DisconnectPeer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
@@ -254,7 +251,7 @@ class EtcPeerManagerSpec extends FlatSpec with Matchers {
     blockchain.save(Fixtures.Blocks.Genesis.header)
 
     val blockchainConfig = BlockchainConfig(Config.config)
-    val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig)
+    val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)
 
     val peerStatus = Status(
       protocolVersion = Versions.PV63,
