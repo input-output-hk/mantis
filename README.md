@@ -19,8 +19,8 @@ This version of the code supports
   - CPU mining
   - peer discovery
   - fast sync (download a recent state trie snapshot and all blocks, this is the default behaviour)
-  - bootstrap sync (download a database for *mantis* preloaded with a recent version of the block chain, **highly recommended** for testing)
-  - regular sync (download and execute every transaction in every block in the chain, this can be very slow and error prone - not recommended)
+  - bootstrap sync (download a database for *mantis* preloaded with a recent version of the block chain, **highly recommended**)
+  - regular sync (download and execute every transaction in every block in the chain, this can be very slow - not recommended)
   - JSON RPC API (useful for console and Mist integration)
   - Morden testnet and private network
   - `ethminer` miner integration (allows *mantis* to mine blocks with [ethminer](https://github.com/Genoil/cpp-ethereum))
@@ -33,7 +33,7 @@ To make the installation process as accessible as possible, we have created full
 - it will then download a bootstrap database in order to synchronise the Ethereum Classic blockchain.
 - it will check the finger print of the downloaded database in order to prevent MITM attacks.
 - then it will start up both the wallet and the mantis node and begin syncing.
-- until the node is synced no transcations can be made.
+- until the node is synced no transactions can be made.
 - when Daedalus is closed down it will also stop the mantis node.
 - uninstall using the OS 'Add/Remove' feature
 
