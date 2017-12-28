@@ -6,6 +6,7 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.Versions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
 import io.iohk.ethereum.utils.Logger
 
 case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConfiguration) extends InProgressState[PeerInfo] with Logger {
@@ -23,12 +24,18 @@ case class EtcNodeStatusExchangeState(handshakerConfiguration: EtcHandshakerConf
     case remoteStatus: Status =>
       log.debug("Peer returned status ({})", remoteStatus)
 
-      forkResolverOpt match {
-        case Some(forkResolver) =>
-          EtcForkBlockExchangeState(handshakerConfiguration, forkResolver, remoteStatus)
-        case None =>
-          ConnectedState(PeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, 0))
-      }
+      val validNetworkID = remoteStatus.networkId == handshakerConfiguration.peerConfiguration.networkId
+      val validGenesisHash = remoteStatus.genesisHash == blockchain.genesisHeader.hash
+
+      if(validNetworkID && validGenesisHash) {
+        forkResolverOpt match {
+          case Some(forkResolver) =>
+            EtcForkBlockExchangeState(handshakerConfiguration, forkResolver, remoteStatus)
+          case None =>
+            ConnectedState(PeerInfo(remoteStatus, remoteStatus.totalDifficulty, true, 0))
+        }
+      } else
+        DisconnectedState(Reasons.DisconnectRequested)
 
   }
 
