@@ -16,6 +16,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
@@ -54,6 +55,40 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     fullBlock.right.foreach(b => validators.blockHeaderValidator.validate(b.header, blockchain) shouldBe Right(BlockHeaderValid))
     fullBlock.right.foreach(b => ledger.executeBlock(b) shouldBe a[Right[_, Seq[Receipt]]])
     fullBlock.right.foreach(b => b.header.extraData shouldBe miningConfig.headerExtraData)
+  }
+
+
+  it should "be possible to simulate transaction, on world returned with pending block " in new TestSetup {
+    val result: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(bestBlock, Seq(signedTransaction), Nil, Address(testAddress))
+    result shouldBe a[Right[_, Block]]
+
+    //mined with mantis + ethminer
+    val minedNonce = ByteString(Hex.decode("4139b957dae0488d"))
+    val minedMixHash = ByteString(Hex.decode("dc25764fb562d778e5d1320f4c3ba4b09021a2603a0816235e16071e11f342ea"))
+    val miningTimestamp = 1508752265
+
+    val fullBlock: Either[BlockPreparationError, Block] = result.right
+      .map(pb => pb.block.copy(header = pb.block.header.copy(nonce = minedNonce, mixHash = minedMixHash, unixTimestamp = miningTimestamp)))
+
+    // Import Block, to create some existing state
+    val res = ledger.importBlock(fullBlock.right.get)
+
+    // Create new pending block, with updated stateRootHash
+    val result1: Either[BlockPreparationError, PendingBlock] = blockGenerator.generateBlockForMining(blockchain.getBestBlock(), Seq(signedTransaction), Nil, Address(testAddress))
+    result1 shouldBe a[Right[_, Block]]
+
+    val pendBlockAndState = blockGenerator.getPendingBlockAndState.get
+
+    // Try to simulate transaction, on world with updated stateRootHash, but not updated storages
+    assertThrows[MPTException] {
+      ledger.simulateTransaction(signedTransaction, pendBlockAndState.pendingBlock.block.header , None)
+    }
+
+    // Try to simulate transaction, on world with all changes stored in caches
+    val simulationResult =  ledger.simulateTransaction(signedTransaction,  pendBlockAndState.pendingBlock.block.header, Some(pendBlockAndState.worldState))
+
+    // Check if transaction was valid
+    simulationResult.vmError shouldBe None
   }
 
   it should "filter out failing transactions" in new TestSetup {
@@ -253,6 +288,8 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       receivingAddress = Address(testAddress),
       value = txTransfer,
       payload = ByteString.empty)
+
+
     lazy val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
     lazy val duplicatedSignedTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
 

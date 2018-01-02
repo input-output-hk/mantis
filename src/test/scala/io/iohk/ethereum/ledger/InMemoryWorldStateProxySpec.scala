@@ -3,6 +3,7 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.vm.{EvmConfig, Generators}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -225,11 +226,41 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     acc1.balance shouldEqual UInt256.Zero
   }
 
+  it should "get changed account from not persisted read only world" in new TestSetup {
+    val account = Account(0, 100)
+
+    val worldStateWithAnAccount = worldState.saveAccount(address1, account)
+
+    val persistedWorldStateWithAnAccount = InMemoryWorldStateProxy.persistState(worldStateWithAnAccount)
+
+    val readWorldState =
+      blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, Some(persistedWorldStateWithAnAccount.stateRootHash))
+
+    readWorldState.getAccount(address1) shouldEqual Some(account)
+
+    val changedAccount = account.copy(balance = 90)
+
+    val changedReadState = readWorldState
+      .saveAccount(address1, changedAccount)
+
+    val changedReadWorld = InMemoryWorldStateProxy.persistState(
+      changedReadState
+    )
+
+    val newReadWorld = blockchain.getReadOnlyWorldStateProxy(None, UInt256.Zero, Some(changedReadWorld.stateRootHash))
+
+    assertThrows[MPTException] {
+      newReadWorld.getAccount(address1) shouldEqual Some(changedAccount)
+    }
+
+    changedReadState.getAccount(address1) shouldEqual Some(changedAccount)
+  }
+
   trait TestSetup extends EphemBlockchainTestSetup {
     val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(None)
 
-    val worldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None)
-    val postEIP161WorldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, postEip161Config.noEmptyAccounts)
+    val worldState = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
+    val postEIP161WorldState = blockchain.getWorldStateProxy(-1, UInt256.Zero, None, postEip161Config.noEmptyAccounts)
 
     val address1 = Address(0x123456)
     val address2 = Address(0xabcdef)

@@ -10,6 +10,7 @@ import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger, Monetary
 import io.iohk.ethereum.vm.VM
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.Block.BlockDec
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 
 class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
 
@@ -31,10 +32,10 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
     val fakeSignature = ECDSASignature(0, 0, 0.toByte)
     val stx = SignedTransaction(tx, fakeSignature, fromAddress)
 
-    val simulationResult = ledger.simulateTransaction(stx, genesisBlock.header)
+    val simulationResult = ledger.simulateTransaction(stx, genesisBlock.header, None)
     val executionResult = ledger.executeTransaction(stx, genesisBlock.header, worldWithAccount)
 
-    val estimationResult = ledger.binarySearchGasEstimation(stx, genesisBlock.header)
+    val estimationResult = ledger.binarySearchGasEstimation(stx, genesisBlock.header, None)
 
     // Check that gasUsed from simulation and execution are equal
     simulationResult.gasUsed shouldEqual executionResult.gasUsed
@@ -59,9 +60,43 @@ class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
     val stx = SignedTransaction(tx, fakeSignature, fromAddress)
 
     val executionResult = ledger.executeTransaction(stx, genesisBlock.header, worldWithAccount)
-    val estimationResult = ledger.binarySearchGasEstimation(stx, genesisBlock.header)
+    val estimationResult = ledger.binarySearchGasEstimation(stx, genesisBlock.header, None)
 
     estimationResult shouldEqual executionResult.gasUsed
+  }
+
+  it should "correctly simulate transaction on pending block when supplied prepared world" in new ScenarioSetup {
+    val lastBlockGasLimit = genesisBlock.header.gasLimit
+
+    val transferValue = 2
+
+    val tx = Transaction(0, 0, lastBlockGasLimit, existingEmptyAccountAddres, transferValue, ByteString.empty)
+    val fakeSignature = ECDSASignature(0, 0, 0.toByte)
+    val stx = SignedTransaction(tx, fakeSignature, fromAddress)
+
+    val newBlock = genesisBlock.copy(header = block.header.copy(number = 1, parentHash = genesisBlock.header.hash))
+
+    val preparedBlock = ledger.prepareBlock(newBlock)
+
+    val preparedWorld = preparedBlock.updatedWorld
+
+
+    /**
+      * All operations in `ledger.prepareBlock` are performed on ReadOnlyWorldStateProxy so there are no updates in
+      * underlying storages, but StateRootHash returned by it `expect` this updates to be in storages.
+      * It leads to MPTexception.RootNotFound
+      */
+    assertThrows[MPTException] {
+      ledger.simulateTransaction(stx, preparedBlock.block.header.copy(number = 1, stateRoot = preparedBlock.stateRootHash), None)
+    }
+
+    /**
+      * Solution is to return this ReadOnlyWorldStateProxy from `ledger.prepareBlock` along side with preparedBlock
+      * and perform simulateTransaction on this world.
+      */
+    val result =  ledger.simulateTransaction(stx, preparedBlock.block.header.copy(number = 1, stateRoot = preparedBlock.stateRootHash), Some(preparedWorld))
+
+    result.vmError shouldBe None
   }
 }
 
@@ -85,7 +120,7 @@ trait ScenarioSetup
     override val difficultyBombContinueBlockNumber: BigInt = 0
     override val customGenesisFileOpt: Option[String] = None
     override val accountStartNonce: UInt256 = UInt256.Zero
-    override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
+    override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(5, 0, 0)
     override val daoForkConfig: Option[DaoForkConfig] = None
     val gasTieBreaker: Boolean = false
   }
