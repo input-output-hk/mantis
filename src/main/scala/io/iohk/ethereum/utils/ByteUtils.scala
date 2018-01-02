@@ -107,17 +107,17 @@ object ByteUtils {
     sb.toString()
   }
 
-  def bytesToInts(bytes: Array[Byte]): Array[Int] =
-    bytes.grouped(4).map(getIntFromWord).toArray
+  def bytesToInts(bytes: Array[Byte]): Array[Int] = {
+    val buffer =  ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+    val ints = new Array[Int](bytes.length / 4)
+    buffer.asIntBuffer().get(ints)
+    ints
+  }
 
-  def intsToBytes(input: Array[Int]): Array[Byte] = {
-    input.flatMap { i =>
-      Array(
-        (i & 0xFF).toByte,
-        ((i >> 8) & 0xFF).toByte,
-        ((i >> 16) & 0xFF).toByte,
-        ((i >> 24) & 0xFF).toByte)
-    }
+  def intsToBytes(ints: Array[Int]): Array[Byte] = {
+    val buf = ByteBuffer.allocate(ints.length * 4).order(ByteOrder.LITTLE_ENDIAN)
+    buf.asIntBuffer().put(ints)
+    buf.array()
   }
 
   def getIntFromWord(arr: Array[Byte]): Int = {
