@@ -3,6 +3,8 @@
 # to differentiate by branch, use CIRCLE_BRANCH variable in the conditional below
 
 echo "current branch: $CIRCLE_BRANCH"
+echo "memory:"
+free -m
 if [ -z $SKIP_ETS_TESTS ]; then
     git submodule init;
     git submodule update;
