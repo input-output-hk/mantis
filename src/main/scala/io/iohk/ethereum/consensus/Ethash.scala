@@ -8,6 +8,7 @@ import io.iohk.ethereum.crypto.{kec256, kec512}
 import io.iohk.ethereum.utils.ByteUtils._
 import org.spongycastle.util.BigIntegers
 import org.spongycastle.util.encoders.Hex
+import java.lang.Integer.remainderUnsigned
 
 import scala.annotation.tailrec
 
@@ -123,11 +124,11 @@ object Ethash {
 
   def hashimoto(hashWithoutNonce: Array[Byte], nonce: Array[Byte], fullSize: Long, datasetLookup: Int => Array[Int]): ProofOfWork = {
     /* watch out, arrays are mutable here */
-
-    val w = MIX_BYTES / WORD_BYTES
+    val wHash = MIX_BYTES / WORD_BYTES
     val mixHashes = MIX_BYTES / HASH_BYTES
-    val s = bytesToInts(kec512(hashWithoutNonce ++ nonce.reverse))
     val mix = new Array[Int](MIX_BYTES / 4)
+
+    val s = bytesToInts(kec512(hashWithoutNonce ++ nonce.reverse))
 
     (0 until mixHashes).foreach { i =>
       System.arraycopy(s, 0, mix, i * s.length, s.length)
@@ -135,32 +136,46 @@ object Ethash {
 
     val numFullPages = (fullSize / MIX_BYTES).toInt
 
-    (0 until ACCESSES).foreach { i =>
-      val p = remainderUnsigned(fnv(i ^ s(0), mix(i % w)), numFullPages)
+    var i = 0
+    while (i < ACCESSES) {
+      val p = remainderUnsigned(fnv(i ^ s(0), mix(i % wHash)), numFullPages)
       val newData = new Array[Int](mix.length)
       val off = p * mixHashes
 
-      (0 until mixHashes).foreach { j =>
+      var j = 0
+      while (j < mixHashes) {
         val lookup = datasetLookup(off + j)
         System.arraycopy(lookup, 0, newData, j * lookup.length, lookup.length)
+        j = j + 1
       }
 
-      mix.indices.foreach { k =>
+      var k = 0
+      while (k < mix.length) {
         mix(k) = fnv(mix(k), newData(k))
+        k = k + 1
       }
+
+      i = i + 1
     }
 
     val cmix = new Array[Int](mix.length / 4)
-    (mix.indices by 4).foreach { i =>
-      val fnv1 = fnv(mix(i), mix(i + 1))
-      val fnv2 = fnv(fnv1, mix(i + 2))
-      val fnv3 = fnv(fnv2, mix(i + 3))
-      cmix(i >> 2) = fnv3
-    }
+    compressMix(mix, cmix)
 
     ProofOfWork(
       mixHash = ByteString(intsToBytes(cmix)),
       difficultyBoundary = ByteString(kec256(intsToBytes(s) ++ intsToBytes(cmix))))
+  }
+
+  private def compressMix(mixToCompress: Array[Int], compressedMix: Array[Int]): Unit = {
+    var l = 0
+    while (l < mixToCompress.length) {
+      val fnv1 = fnv(mixToCompress(l), mixToCompress(l + 1))
+      val fnv2 = fnv(fnv1, mixToCompress(l + 2))
+      val fnv3 = fnv(fnv2, mixToCompress(l + 3))
+      compressedMix(l >> 2) = fnv3
+      l = l + 4
+    }
+    ()
   }
 
   def calcDatasetItem(cache: Array[Int], index: Int): Array[Int] = {
@@ -172,31 +187,25 @@ object Ethash {
 
     initialMix(0) = index ^ initialMix(0)
     val mix = bytesToInts(kec512(intsToBytes(initialMix)))
-    val dsParents = DATASET_PARENTS
-    val mixLen = mix.length
 
-    (0 until dsParents).foreach { j =>
-      val cacheIdx = remainderUnsigned(fnv(index ^ j, mix(j % r)), n)
-      val off = cacheIdx * r
-      (0 until mixLen).foreach { k =>
-        mix(k) = fnv(mix(k), cache(off + k))
-      }
-    }
+    mixArray(mix, cache, index, r, n)
+
     bytesToInts(kec512(intsToBytes(mix)))
   }
 
-  private def remainderUnsigned(dividend: Int, divisor: Int): Int = {
-    if (divisor >= 0) {
-      if (dividend >= 0) {
-        dividend % divisor
-      } else {
-        // The implementation is a Java port of algorithm described in the book
-        // "Hacker's Delight" (section "Unsigned short division from signed division").
-        val q = ((dividend >>> 1) / divisor) << 1
-        val w = dividend - q * divisor
-        if (w < 0 || w >= divisor) w - divisor else w
+  private def mixArray(mix: Array[Int], cache: Array[Int],  index: Int, r: Int, n: Int): Unit = {
+    var j = 0
+    while (j < DATASET_PARENTS) {
+      val cacheIdx = remainderUnsigned(fnv(index ^ j, mix(j % r)), n)
+      val off = cacheIdx * r
+
+      var k = 0
+      while (k < mix.length) {
+        mix(k) = fnv(mix(k), cache(off + k))
+        k = k + 1
       }
-    } else if (dividend >= 0 || dividend < divisor) dividend else dividend - divisor
+      j = j + 1
+    }
   }
 
   private def fnv(v1: Int, v2: Int): Int = {
