@@ -6,7 +6,7 @@ echo "current branch: $CIRCLE_BRANCH"
 if [ -z $SKIP_ETS_TESTS ]; then
     git submodule init;
     git submodule update;
-    if [ "$CIRCLE_BRANCH" == "master" ]; then
+    if [ "$CIRCLE_BRANCH" == "master" ] || [ "$CIRCLE_BRANCH" == "fix/etsOnCircle" ]; then
         sbt "ets:testOnly * -- -Dexg=vmPerf*";
     else
         sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*" &&
