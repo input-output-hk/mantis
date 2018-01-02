@@ -1,6 +1,6 @@
 machine:
   environment:
-    JAVA_OPTS: -Xmx4g -Xss16m -XX:MaxMetaspaceSize=512m
+    JAVA_OPTS: -Xmx2g -Xss16m -XX:MaxMetaspaceSize=512m
 
 dependencies:
   pre:
