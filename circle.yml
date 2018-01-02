@@ -10,23 +10,23 @@ dependencies:
 
 test:
   override:
-    - sbt scalastyle
-    - sbt test:scalastyle
-    - sbt coverage test
-    - sbt coverage evm:test
-    - sbt coverageOff it:test
-    - sbt coverageReport coverageAggregate coveralls
-    - sbt dist
+    # - sbt scalastyle
+    # - sbt test:scalastyle
+    # - sbt coverage test
+    # - sbt coverage evm:test
+    # - sbt coverageOff it:test
+    # - sbt coverageReport coverageAggregate coveralls
+    # - sbt dist
     - ./test-ets.sh:
         timeout: 14400
 
 
     # As the benchmark tests don't test functionality and should be manually ran, having them compile is enough
-    - sbt benchmark:compile
+    # - sbt benchmark:compile
     # snappy test is not run on Circle - this is just to prevent compilation regression
-    - sbt snappy:compile
+    # - sbt snappy:compile
 
   post:
     - mkdir -p $CIRCLE_ARTIFACTS/scala-2.12
-    - mv target/scala-2.12/coverage-report  $CIRCLE_ARTIFACTS/scala-2.12/coverage-report
-    - mv target/scala-2.12/scoverage-report $CIRCLE_ARTIFACTS/scala-2.12/scoverage-report
+    # - mv target/scala-2.12/coverage-report  $CIRCLE_ARTIFACTS/scala-2.12/coverage-report
+    # - mv target/scala-2.12/scoverage-report $CIRCLE_ARTIFACTS/scala-2.12/scoverage-report
