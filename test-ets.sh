@@ -17,8 +17,6 @@ if [ -z $SKIP_ETS_TESTS ]; then
     git submodule update;
     if [ "$CIRCLE_BRANCH" == "master" ]; then
         sbt "ets:testOnly * -- -Dexg=vmPerf*";
-    elif [ "$CIRCLE_BRANCH" == "fix/etsOnCircle" ]; then
-        sbt "ets:testOnly * -- -Dexg=vmPerf*";
     else
         sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*" &&
         sbt "ets:testOnly *BlockchainSuite -- -Ding=bcForkStress*,bcMulti*,bcState*,bcTotalDiff*,bcValidBlock*,Transition*";
