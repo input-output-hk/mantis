@@ -15,7 +15,7 @@ export JAVA_OPTS="-Xmx2g -Xss16m -XX:MaxMetaspaceSize=512m"
 if [ -z $SKIP_ETS_TESTS ]; then
     git submodule init;
     git submodule update;
-    if [ "$CIRCLE_BRANCH" == "master" ]; then
+    if [ "$CIRCLE_BRANCH" == "master" ] || [ -n $RUN_FULL_ETS ]; then
         sbt "ets:testOnly * -- -Dexg=vmPerf*";
     else
         sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*" &&

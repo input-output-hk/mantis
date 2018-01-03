@@ -1,0 +1,84 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: codestar/circleci-scala-sbt-git:scala-2.12.2-sbt-0.13.15
+    steps:
+      - run:
+          name: predependencies
+          command: |
+            sudo add-apt-repository -y ppa:ethereum/ethereum; sudo apt-get update; sudo apt-get install -y solc
+            git clone https://github.com/input-output-hk/sbt-verify.git; cd sbt-verify; sbt publishLocal
+
+      - checkout
+
+      - restore_cache:
+          key: mantis-{{ checksum "build.sbt" }}
+
+      - run:
+          name: scalastyle
+          command: sbt scalastyle test:scalastyle
+
+      - run:
+          name: unit tests
+          command: sbt coverage test
+
+      - run:
+          name: EVM tests
+          # coverage ???
+          command: sbt coverage evm:test
+
+      - run:
+          name: integration tests
+          command: sbt coverageOff it:test
+
+      - run:
+          name: coverage report
+          command: |
+            sbt coverageReport coverageAggregate coveralls
+            mkdir -p $CIRCLE_ARTIFACTS/scala-2.12
+            mv target/scala-2.12/coverage-report  $CIRCLE_ARTIFACTS/scala-2.12/coverage-report
+            mv target/scala-2.12/scoverage-report $CIRCLE_ARTIFACTS/scala-2.12/scoverage-report
+
+      - run:
+          name: ETS
+          command: ./test-ets.sh
+          no_output_timeout: 1h
+
+      - run:
+          name: additional compilation & dist
+          # this step builds parts of the codebase which are not tested in CI
+          # so as to prevent compilation regression
+          command: sbt benchmark:compile snappy:compile dist
+
+      - save_cache:
+          key: mantis-{{ checksum "build.sbt" }}
+          paths:
+            - ~/.sbt
+            - ~/.ivy2/cache
+            - ~/.m2
+
+  enable_full_ETS:
+    environment:
+      - RUN_FULL_ETS: yes
+
+workflows:
+  version: 2
+
+  on_push:
+    jobs:
+      - build
+
+  weekly_with_full_ETS:
+    triggers:
+      - schedule:
+          cron: "0 16 * * 3"
+          filters:
+            branches:
+              only: phase/release1_1
+
+    jobs:
+      - enable_full_ETS
+      - build:
+          requires:
+            - enable_full_ETS
