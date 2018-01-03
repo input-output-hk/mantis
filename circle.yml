@@ -17,19 +17,9 @@ test:
     - sbt coverageOff it:test
     - sbt coverageReport coverageAggregate coveralls
     - sbt dist
+    - ./test-ets.sh:
+        timeout: 14400
 
-    # to skip these tests, set SKIP_ETS_TEST variable CircleCI UI
-    # to differentiate by branch, use CIRCLE_BRANCH variable in the conditional
-    - if [ -z $SKIP_ETS_TESTS ]; then
-        git submodule init;
-        git submodule update;
-        if [ "$CIRCLE_BRANCH" == "master" ]; then
-          sbt "ets:testOnly * -- -Dexg=vmPerf*";
-        else
-          sbt "ets:testOnly *VMSuite -- -Dexg=vmPerf*" &&
-          sbt "ets:testOnly *BlockchainSuite -- -Ding=bcForkStress*,bcMulti*,bcState*,bcTotalDiff*,bcValidBlock*,Transition*";
-        fi
-      fi
 
     # As the benchmark tests don't test functionality and should be manually ran, having them compile is enough
     - sbt benchmark:compile
