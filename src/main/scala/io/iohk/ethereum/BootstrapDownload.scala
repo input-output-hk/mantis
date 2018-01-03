@@ -33,7 +33,7 @@ object BootstrapDownload extends Logger {
     val leveldbFolder = pathToDownloadTo.toFile
     assertAndLog(leveldbFolder.isDirectory, s"${pathToDownloadTo} must be a folder.")
     assertAndLog(leveldbFolder.getName == leveldbFolderName, s"${pathToDownloadTo} must end in a folder named $leveldbFolderName")
-    leveldbFolder.listFiles().foreach(_.delete())
+    leveldbFolder.listFiles(pathname => !pathname.getName.endsWith(".zip")).foreach(_.delete())
   }
 
   def downloadFile(urlToDownloadFrom: String, outFile: File): String = {
@@ -103,8 +103,8 @@ object BootstrapDownload extends Logger {
     val minimumExpectedDiskSpaceInBytes =  minimumExpectedDiskSpace.toLong * bytesInOneGigaByte
 
     val urlToDownloadFromAsFile = new File(urlToDownloadFrom.getFile)
-    val downloadedFileNameAsFile = new File(urlToDownloadFromAsFile.getName)
     val pathToDownloadToAsFile = pathToDownloadTo.toFile
+    val downloadedFile = new File(pathToDownloadToAsFile, urlToDownloadFromAsFile.getName)
 
     log.info(s"Running Bootstrap download ... ")
     log.info(s"Expected Minimum disk space is $minimumExpectedDiskSpace GB")
@@ -118,7 +118,7 @@ object BootstrapDownload extends Logger {
       s"There is not enough free space ($minimumExpectedDiskSpace GB) to download and expand to $pathToDownloadTo ")
 
     log.info(s"Free space check ok, starting download! (this could take some time)")
-    val hash = downloadFile(args(0), downloadedFileNameAsFile)
+    val hash = downloadFile(args(0), downloadedFile)
 
     log.info(s"Download complete, checking hash against $expectedHash ...")
     assertAndLog(hash == expectedHash, s"The zip file hash $hash did NOT match the expected hash $expectedHash")
@@ -126,10 +126,10 @@ object BootstrapDownload extends Logger {
     log.info(s"Hash OK, clean out folder...")
     cleanOutFolder(pathToDownloadTo)
 
-    log.info(s"Unzip file ${pathToDownloadTo} ${downloadedFileNameAsFile}...")
-    unzip(downloadedFileNameAsFile, pathToDownloadTo)
+    log.info(s"Unzip file ${pathToDownloadTo} ${downloadedFile}...")
+    unzip(downloadedFile, pathToDownloadTo)
 
-    deleteDownloadedFile(downloadedFileNameAsFile)
+    deleteDownloadedFile(downloadedFile)
 
     log.info(s"Bootstrap download successful.")
 

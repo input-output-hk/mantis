@@ -9,7 +9,7 @@
     <logger name="io.iohk.ethereum.vm.VM" level="OFF" />
     <logger name="io.iohk.ethereum.ledger.LedgerImpl" level="OFF" />
 
-    <root level="INFO">
+    <root level="WARN">
         <appender-ref ref="STDOUT" />
     </root>
 
