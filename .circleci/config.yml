@@ -7,7 +7,7 @@ jobs:
       - run:
           name: predependencies
           command: |
-            sudo add-apt-repository -y ppa:ethereum/ethereum; sudo apt-get update; sudo apt-get install -y solc
+            add-apt-repository -y ppa:ethereum/ethereum; apt-get update; apt-get install -y solc
             git clone https://github.com/input-output-hk/sbt-verify.git; cd sbt-verify; sbt publishLocal
 
       - checkout
