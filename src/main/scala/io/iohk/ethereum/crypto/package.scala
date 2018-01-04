@@ -34,7 +34,7 @@ package object crypto {
   def kec256(input: ByteString): ByteString =
     ByteString(kec256(input.toArray))
 
-  def kec512(input: Array[Byte]): Array[Byte] = {
+  def kec512(input: Array[Byte]): Array[Byte] = synchronized {
     kec512engine.digest(input)
   }
 
