@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: rtkaczyk/mantis-circleci:v2
+      - image: rtkaczyk/mantis-circleci:v3
     steps:
       - checkout
 
@@ -55,7 +55,7 @@ jobs:
 
   full_ETS:
     docker:
-      - image: rtkaczyk/mantis-circleci
+      - image: rtkaczyk/mantis-circleci:v3
     steps:
       - checkout
 
@@ -78,7 +78,7 @@ workflows:
   weekly_with_full_ETS:
     triggers:
       - schedule:
-          cron: "0 17 * * 4"
+          cron: "0 18 * * 4"
           filters:
             branches:
               only: phase/release1_1

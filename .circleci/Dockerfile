@@ -11,11 +11,6 @@ RUN \
   apt-get install -y sbt
 
 RUN \
-  git clone https://github.com/input-output-hk/sbt-verify.git &&\
-  cd sbt-verify &&\
-  sbt publishLocal
-
-RUN \
   apt-get install -y software-properties-common &&\
   add-apt-repository -y ppa:ethereum/ethereum &&\
   apt-get update &&\
@@ -27,3 +22,7 @@ WORKDIR /home/circleci
 
 USER circleci
 
+RUN \
+  git clone https://github.com/input-output-hk/sbt-verify.git &&\
+  cd sbt-verify &&\
+  sbt publishLocal
