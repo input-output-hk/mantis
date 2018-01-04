@@ -448,28 +448,6 @@ class FastSync(
       }
     }
 
-    private def insertHeaders(headers: Seq[BlockHeader]): Unit = {
-      val blockHeadersObtained = headers.takeWhile { header =>
-        val parentTd: Option[BigInt] = blockchain.getTotalDifficultyByHash(header.parentHash)
-        parentTd foreach { parentTotalDifficulty =>
-          blockchain.save(header)
-          blockchain.save(header.hash, parentTotalDifficulty + header.difficulty)
-        }
-        parentTd.isDefined
-      }
-
-      blockHeadersObtained.lastOption.foreach { lastHeader =>
-        if (lastHeader.number > syncState.bestBlockHeaderNumber) {
-          syncState = syncState.copy(bestBlockHeaderNumber = lastHeader.number)
-        }
-      }
-
-      val blockHashes = blockHeadersObtained.map(_.hash)
-      syncState = syncState
-        .enqueueBlockBodies(blockHashes)
-        .enqueueReceipts(blockHashes)
-    }
-
     def processSyncing(): Unit = {
       if (fullySynced) {
         finish()
