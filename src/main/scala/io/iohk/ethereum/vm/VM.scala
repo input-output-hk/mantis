@@ -36,7 +36,7 @@ class VM extends Logger {
       case Some(opCode) =>
         val newState = opCode.execute(state)
         import newState._
-        log.trace(s"$opCode | pc: $pc | depth: ${env.callDepth} | gas: $gas | stack: $stack")
+        log.trace("{} | pc: {} | depth: {} | gas: {} | stack: {}", opCode, Integer.valueOf(pc), Integer.valueOf(env.callDepth), gas, stack)
         if (newState.halted)
           newState
         else
