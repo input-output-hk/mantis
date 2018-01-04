@@ -2,18 +2,12 @@ version: 2
 jobs:
   build:
     docker:
-      - image: codestar/circleci-scala-sbt-git:scala-2.12.2-sbt-0.13.15
+      - image: rtkaczyk/mantis-circleci
     steps:
-      - run:
-          name: predependencies
-          command: |
-            add-apt-repository -y ppa:ethereum/ethereum; apt-get update; apt-get install -y solc
-            git clone https://github.com/input-output-hk/sbt-verify.git; cd sbt-verify; sbt publishLocal
-
       - checkout
 
       - restore_cache:
-          key: mantis-{{ checksum "build.sbt" }}
+          key: mantis-{{ checksum "build.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/plugins.sbt" }}
 
       - run:
           name: scalastyle
@@ -52,7 +46,7 @@ jobs:
           command: sbt benchmark:compile snappy:compile dist
 
       - save_cache:
-          key: mantis-{{ checksum "build.sbt" }}
+          key: mantis-{{ checksum "build.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/plugins.sbt" }}
           paths:
             - ~/.sbt
             - ~/.ivy2/cache
@@ -61,12 +55,8 @@ jobs:
 
   full_ETS:
     docker:
-      - image: codestar/circleci-scala-sbt-git:scala-2.12.2-sbt-0.13.15
+      - image: rtkaczyk/mantis-circleci
     steps:
-      - run:
-          name: predependencies
-          command: git clone https://github.com/input-output-hk/sbt-verify.git; cd sbt-verify; sbt publishLocal
-
       - checkout
 
       - restore_cache:
@@ -88,7 +78,7 @@ workflows:
   weekly_with_full_ETS:
     triggers:
       - schedule:
-          cron: "0 16 * * 3"
+          cron: "0 17 * * 4"
           filters:
             branches:
               only: phase/release1_1
