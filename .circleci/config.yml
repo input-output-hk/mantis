@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: rtkaczyk/mantis-circleci
+      - image: rtkaczyk/mantis-circleci:v2
     steps:
       - checkout
 

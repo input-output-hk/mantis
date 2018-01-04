@@ -21,4 +21,9 @@ RUN \
   apt-get update &&\
   apt-get install -y solc
 
-WORKDIR /root
+RUN useradd --create-home -s /bin/bash circleci
+
+WORKDIR /home/circleci
+
+USER circleci
+
