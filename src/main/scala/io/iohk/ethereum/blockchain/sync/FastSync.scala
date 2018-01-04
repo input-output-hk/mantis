@@ -683,6 +683,4 @@ object FastSync {
 
   case object Start
   case object Done
-
-  case class BlockValidationFailed(failedBlock: BlockHeader, error: BlockHeaderError)
 }
