@@ -68,7 +68,7 @@ jobs:
 
       - run:
           name: FULL ETS
-          command: RUN_FULL_ETS=yes; ./test-ets.sh
+          command: RUN_FULL_ETS=yes ./test-ets.sh
           no_output_timeout: 1h
 
 
@@ -82,7 +82,7 @@ workflows:
   weekly_with_full_ETS:
     triggers:
       - schedule:
-          cron: "0 13 * * *"
+          cron: "30 13 * * *"
           filters:
             branches:
               only: feature/migrateToCircle20
