@@ -85,7 +85,7 @@ workflows:
           cron: "0 13 * * *"
           filters:
             branches:
-              only: phase/release1_1
+              only: feature/migrateToCircle20
 
     jobs:
       - full_ETS
