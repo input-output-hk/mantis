@@ -82,10 +82,10 @@ workflows:
   weekly_with_full_ETS:
     triggers:
       - schedule:
-          cron: "30 13 * * *"
+          cron: "0 12 * * 6"
           filters:
             branches:
-              only: feature/migrateToCircle20
+              only: phase/release1_1
 
     jobs:
       - full_ETS
