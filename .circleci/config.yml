@@ -64,7 +64,7 @@ jobs:
       - checkout
 
       - restore_cache:
-          key: mantis-{{ checksum "build.sbt" }}
+          key: mantis-{{ checksum "build.sbt" }}-{{ checksum "project/build.properties" }}-{{ checksum "project/plugins.sbt" }}
 
       - run:
           name: FULL ETS
@@ -79,7 +79,7 @@ workflows:
     jobs:
       - build
 
-  weekly_with_full_ETS:
+  weekly_full_ETS:
     triggers:
       - schedule:
           cron: "0 12 * * 6"
