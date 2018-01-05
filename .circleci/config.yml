@@ -28,11 +28,15 @@ jobs:
 
       - run:
           name: coverage report
-          command: |
-            sbt coverageReport coverageAggregate coveralls
-            mkdir -p $CIRCLE_ARTIFACTS/scala-2.12
-            mv target/scala-2.12/coverage-report  $CIRCLE_ARTIFACTS/scala-2.12/coverage-report
-            mv target/scala-2.12/scoverage-report $CIRCLE_ARTIFACTS/scala-2.12/scoverage-report
+          command: sbt coverageReport coverageAggregate coveralls
+
+      - store_artifacts:
+          path: ~/mantis/target/scala-2.12/coverage-report
+          destination: scala-2.12
+
+      - store_artifacts:
+          path: ~/mantis/target/scala-2.12/scoverage-report
+          destination: scala-2.12
 
       - run:
           name: ETS
