@@ -32,11 +32,11 @@ jobs:
 
       - store_artifacts:
           path: target/scala-2.12/coverage-report
-          destination: scala-2.12
+          destination: scala-2.12/coverage-report
 
       - store_artifacts:
           path: target/scala-2.12/scoverage-report
-          destination: scala-2.12
+          destination: scala-2.12/scoverage-report
 
       - run:
           name: ETS
@@ -82,7 +82,7 @@ workflows:
   weekly_with_full_ETS:
     triggers:
       - schedule:
-          cron: "0 11 * * 5"
+          cron: "0 13 * * *"
           filters:
             branches:
               only: phase/release1_1
