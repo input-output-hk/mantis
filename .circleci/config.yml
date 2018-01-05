@@ -31,11 +31,11 @@ jobs:
           command: sbt coverageReport coverageAggregate coveralls
 
       - store_artifacts:
-          path: ~/mantis/target/scala-2.12/coverage-report
+          path: target/scala-2.12/coverage-report
           destination: scala-2.12
 
       - store_artifacts:
-          path: ~/mantis/target/scala-2.12/scoverage-report
+          path: target/scala-2.12/scoverage-report
           destination: scala-2.12
 
       - run:
