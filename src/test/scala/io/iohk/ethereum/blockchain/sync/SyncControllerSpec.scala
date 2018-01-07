@@ -228,10 +228,10 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     syncController.getSingleChild("fast-sync") ! FastSync.PersistSyncState
     Thread.sleep(200)
     val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
-    syncState.bestBlockHeaderNumber shouldBe (targetBlockHeader.number - FastSync.N - 1)
+    syncState.bestBlockHeaderNumber shouldBe (targetBlockHeader.number - syncConfig.fastSyncBlockValidationN - 1)
     syncState.blockBodiesQueue.isEmpty shouldBe true
     syncState.receiptsQueue.isEmpty shouldBe true
-    syncState.nextBlockToFullyValidate shouldBe (targetBlockHeader.number - FastSync.N)
+    syncState.nextBlockToFullyValidate shouldBe (targetBlockHeader.number - syncConfig.fastSyncBlockValidationN)
   }
 
   it should "throttle requests to peer" in  new TestSetup() {
@@ -500,7 +500,10 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       maxQueuedBlockNumberBehind = 10,
       maxNewBlockHashAge = 20,
       maxNewHashes = 64,
-      redownloadMissingStateNodes = false
+      redownloadMissingStateNodes = false,
+      fastSyncBlockValidationK = 100,
+      fastSyncBlockValidationN = 2048,
+      fastSyncBlockValidationX = 50
     )
 
     lazy val syncConfig = defaultSyncConfig

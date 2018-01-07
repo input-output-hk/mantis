@@ -16,7 +16,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.validators.{BlockHeaderError, Validators}
+import io.iohk.ethereum.validators.Validators
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
@@ -174,6 +174,7 @@ class FastSync(
 
     @tailrec
     private def processHeaders(peer: Peer, headers: Seq[BlockHeader]): Unit = {
+      import syncConfig.{fastSyncBlockValidationK => K, fastSyncBlockValidationN => N, fastSyncBlockValidationX => X}
       if (headers.nonEmpty) {
         val header = headers.head
         val remaining = headers.tail
@@ -196,8 +197,8 @@ class FastSync(
 
               // discard last N blocks
               (header.number to ((header.number - N) max 1) by -1).foreach { n =>
-                blockchain.getBlockHeaderByNumber(n).foreach { header =>
-                  blockchain.removeBlock(header.hash, saveParentAsBestBlock = false)
+                blockchain.getBlockHeaderByNumber(n).foreach { headerToRemove =>
+                  blockchain.removeBlock(headerToRemove.hash, saveParentAsBestBlock = false)
                 }
               }
               blockchain.saveBestBlockNumber((header.number - N - 1) max 0)
@@ -625,11 +626,6 @@ object FastSync {
   def props(fastSyncStateStorage: FastSyncStateStorage, appStateStorage: AppStateStorage, blockchain: Blockchain,
   validators: Validators, peerEventBus: ActorRef, etcPeerManager: ActorRef, syncConfig: SyncConfig, scheduler: Scheduler): Props =
     Props(new FastSync(fastSyncStateStorage, appStateStorage, blockchain, validators, peerEventBus, etcPeerManager, syncConfig, scheduler))
-
-  // validation parameters (see: https://github.com/ethereum/go-ethereum/pull/1889)
-  val K = 100
-  val N = 2048
-  val X = 50
 
   private case object ProcessSyncing
   private[sync] case object PersistSyncState

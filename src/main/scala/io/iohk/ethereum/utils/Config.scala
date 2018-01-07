@@ -146,7 +146,11 @@ object Config {
     maxNewBlockHashAge: Int,
     maxNewHashes: Int,
 
-    redownloadMissingStateNodes: Boolean
+    redownloadMissingStateNodes: Boolean,
+
+    fastSyncBlockValidationK: Int,
+    fastSyncBlockValidationN: Int,
+    fastSyncBlockValidationX: Int
   )
 
   object SyncConfig {
@@ -182,7 +186,11 @@ object Config {
         maxNewBlockHashAge = syncConfig.getInt("max-new-block-hash-age"),
         maxNewHashes = syncConfig.getInt("max-new-hashes"),
 
-        redownloadMissingStateNodes = syncConfig.getBoolean("redownload-missing-state-nodes")
+        redownloadMissingStateNodes = syncConfig.getBoolean("redownload-missing-state-nodes"),
+
+        fastSyncBlockValidationK = syncConfig.getInt("fast-sync-block-validation-k"),
+        fastSyncBlockValidationN = syncConfig.getInt("fast-sync-block-validation-n"),
+        fastSyncBlockValidationX = syncConfig.getInt("fast-sync-block-validation-x")
       )
     }
   }
