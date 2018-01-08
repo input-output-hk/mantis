@@ -11,6 +11,7 @@ trait SignedTransactionValidator {
   def validate(stx: SignedTransaction, senderAccount: Account, blockHeader: BlockHeader,
                upfrontGasCost: UInt256, accumGasUsed: BigInt): Either[SignedTransactionError, SignedTransactionValid]
 
+  def validatePreRpc(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid]
 }
 
 class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends SignedTransactionValidator {
@@ -39,6 +40,9 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     } yield SignedTransactionValid
   }
 
+  def validatePreRpc(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] = {
+    Right(SignedTransactionValid)
+  }
   /**
     * Validates if the transaction is syntactically valid (lengths of the transaction fields are correct)
     *

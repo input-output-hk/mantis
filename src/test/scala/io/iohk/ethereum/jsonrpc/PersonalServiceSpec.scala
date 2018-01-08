@@ -6,6 +6,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{UInt256, _}
@@ -447,7 +448,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val blockchain = mock[BlockchainImpl]
     val txPool = TestProbe()
     val appStateStorage = mock[AppStateStorage]
-    val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig)
+    val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig, MockValidatorsAlwaysSucceed)
 
     def array[T](arr: Array[T]): Matcher[Array[T]] =
       argThat((_: Array[T]) sameElements arr)

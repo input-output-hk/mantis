@@ -5,20 +5,22 @@ import java.time.Duration
 import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
+import cats.data.EitherT
+import cats.implicits._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Account, Address, Blockchain}
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
-import io.iohk.ethereum.jsonrpc.JsonRpcErrors._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils.{BlockchainConfig, TxPoolConfig}
+import io.iohk.ethereum.validators.{SignedTransactionError, Validators}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.Try
 
 object PersonalService {
 
@@ -70,7 +72,8 @@ class PersonalService(
   txPool: ActorRef,
   appStateStorage: AppStateStorage,
   blockchainConfig: BlockchainConfig,
-  txPoolConfig: TxPoolConfig) {
+  txPoolConfig: TxPoolConfig,
+  validators: Validators) {
 
   private val unlockedWallets: ExpiringMap[Address, Wallet] = ExpiringMap.empty(Duration.ofSeconds(defaultUnlockTime))
 
@@ -135,24 +138,28 @@ class PersonalService(
   }
 
   def sendTransaction(request: SendTransactionWithPassphraseRequest): ServiceResponse[SendTransactionWithPassphraseResponse] = {
-    val maybeWalletUnlocked = Future { keyStore.unlockAccount(request.tx.from, request.passphrase).left.map(handleError) }
-    maybeWalletUnlocked.flatMap {
-      case Right(wallet) =>
-        val futureTxHash = sendTransaction(request.tx, wallet)
-        futureTxHash.map(txHash => Right(SendTransactionWithPassphraseResponse(txHash)))
-      case Left(err) => Future.successful(Left(err))
-    }
+    val result = for {
+      wallet <- EitherT(unlockOrGet(request.tx.from, Some(request.passphrase)))
+      hash   <- EitherT(sendTransaction(request.tx, wallet))
+    } yield SendTransactionWithPassphraseResponse(hash)
+
+    result.value
   }
 
-
   def sendTransaction(request: SendTransactionRequest): ServiceResponse[SendTransactionResponse] = {
-    unlockedWallets.get(request.tx.from) match {
-      case Some(wallet) =>
-        val futureTxHash = sendTransaction(request.tx, wallet)
-        futureTxHash.map(txHash => Right(SendTransactionResponse(txHash)))
+    val result = for {
+      wallet <- EitherT(unlockOrGet(request.tx.from, None))
+      hash   <- EitherT(sendTransaction(request.tx, wallet))
+    } yield SendTransactionResponse(hash)
 
-      case None =>
-        Future.successful(Left(AccountLocked))
+    result.value
+  }
+
+  def unlockOrGet(address: Address, passphrase: Option[String]): ServiceResponse[Wallet] = {
+    Future {
+      passphrase.fold(unlockedWallets.get(address).toRight(AccountLocked))(passphrase =>
+        keyStore.unlockAccount(address, passphrase).left.map(handleError)
+      )
     }
   }
 
@@ -171,29 +178,49 @@ class PersonalService(
       .left.map(handleError)
   }
 
-  private def sendTransaction(request: TransactionRequest, wallet: Wallet): Future[ByteString] = {
+  private def sendTransaction(request: TransactionRequest, wallet: Wallet): ServiceResponse[ByteString] = {
+    getSignedTransaction(request, wallet).map {stx =>
+      for {
+        _<- validators.signedTransactionValidator.validatePreRpc(stx).left.map(handleValidationError)
+      } yield {
+        txPool ! AddOrOverrideTransaction(stx)
+        stx.hash
+      }
+    }
+  }
+
+  private def getSignedTransaction(request: TransactionRequest, wallet: Wallet): Future[SignedTransaction] = {
+    val sendingAccount = getCurrentAccount(request.from).getOrElse(Account.empty(blockchainConfig.accountStartNonce))
+
+    getNextTransactionNonce(wallet, sendingAccount).map { nonce =>
+      signTx(request.toTransaction(nonce), wallet)
+    }
+  }
+
+  private def getNextTransactionNonce(wallet: Wallet, account: Account): Future[BigInt] = {
+    getWalletPendingTransactions(wallet).map(transactions =>
+      if (transactions.isEmpty)
+        account.nonce.toBigInt
+      else
+        transactions.map(_.nonce).max + 1
+    )
+  }
+
+  private def getWalletPendingTransactions(wallet: Wallet) = {
     implicit val timeout = Timeout(txPoolConfig.pendingTxManagerQueryTimeout)
 
-    val pendingTxsFuture = (txPool ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
-    val latestPendingTxNonceFuture: Future[Option[BigInt]] = pendingTxsFuture.map { pendingTxs =>
-      val senderTxsNonces = pendingTxs.pendingTransactions
-        .collect { case ptx if ptx.stx.senderAddress == wallet.address => ptx.stx.tx.nonce }
-      Try(senderTxsNonces.max).toOption
-    }
-    latestPendingTxNonceFuture.map{ maybeLatestPendingTxNonce =>
-      val maybeCurrentNonce = getCurrentAccount(request.from).map(_.nonce.toBigInt)
-      val maybeNextTxNonce = maybeLatestPendingTxNonce.map(_ + 1) orElse maybeCurrentNonce
-      val tx = request.toTransaction(maybeNextTxNonce.getOrElse(blockchainConfig.accountStartNonce))
-
-      val stx = if (appStateStorage.getBestBlockNumber() >= blockchainConfig.eip155BlockNumber) {
-        wallet.signTx(tx, Some(blockchainConfig.chainId))
-      }else{
-        wallet.signTx(tx, None)
+    (txPool ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse].map( response =>
+      response.pendingTransactions.collect {
+        case transaction if transaction.stx.senderAddress == wallet.address => transaction.stx.tx
       }
+    )
+  }
 
-      txPool ! AddOrOverrideTransaction(stx)
-
-      stx.hash
+  private def signTx(tx: Transaction, wallet: Wallet): SignedTransaction = {
+    if (appStateStorage.getBestBlockNumber() >= blockchainConfig.eip155BlockNumber) {
+      wallet.signTx(tx, Some(blockchainConfig.chainId))
+    } else {
+      wallet.signTx(tx, None)
     }
   }
 
@@ -215,4 +242,9 @@ class PersonalService(
     case KeyStore.IOError(msg) => LogicError(msg)
     case KeyStore.DuplicateKeySaved => LogicError("account already exists")
   }
+
+  private val handleValidationError: PartialFunction[SignedTransactionError, JsonRpcError] = {
+    case x:SignedTransactionError => LogicError("err")
+  }
+
 }

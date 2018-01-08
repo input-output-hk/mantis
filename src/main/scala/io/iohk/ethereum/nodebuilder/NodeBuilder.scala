@@ -306,10 +306,11 @@ trait PersonalServiceBuilder {
     BlockchainConfigBuilder with
     PendingTransactionsManagerBuilder with
     StorageBuilder with
-    TxPoolConfigBuilder =>
+    TxPoolConfigBuilder with
+    ValidatorsBuilder =>
 
   lazy val personalService = new PersonalService(keyStore, blockchain, pendingTransactionsManager,
-    storagesInstance.storages.appStateStorage, blockchainConfig, txPoolConfig)
+    storagesInstance.storages.appStateStorage, blockchainConfig, txPoolConfig, validators)
 }
 
 trait KeyStoreBuilder {

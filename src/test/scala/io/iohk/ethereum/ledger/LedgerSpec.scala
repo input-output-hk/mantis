@@ -701,8 +701,15 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     })
 
     val validators = new Mocks.MockValidatorsAlwaysSucceed {
-      override val signedTransactionValidator =
-        (stx: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => {
+      override val signedTransactionValidator = new SignedTransactionValidator {
+
+        override def validatePreRpc(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] = Right(SignedTransactionValid)
+
+        override def validate(stx: SignedTransaction,
+                              senderAccount: Account,
+                              blockHeader: BlockHeader,
+                              upfrontGasCost: UInt256,
+                              accumGasUsed: BigInt): Either[SignedTransactionError, SignedTransactionValid] = {
           if (stx.tx.receivingAddress == Some(Address(42))) {
             Right(SignedTransactionValid)
           } else {
@@ -739,10 +746,16 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     })
 
     val validators = new Mocks.MockValidatorsAlwaysSucceed {
-      override val signedTransactionValidator =
-        (_: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => {
-          Left(TransactionSignatureError)
-        }
+      override val signedTransactionValidator = new SignedTransactionValidator {
+
+        override def validatePreRpc(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] = Right(SignedTransactionValid)
+
+        override def validate(stx: SignedTransaction,
+                              senderAccount: Account,
+                              blockHeader: BlockHeader,
+                              upfrontGasCost: UInt256,
+                              accumGasUsed: BigInt): Either[SignedTransactionError, SignedTransactionValid] = Left(TransactionSignatureError)
+      }
     }
 
     val ledger = new LedgerImpl(mockVM, blockchain, blockchainConfig, syncConfig, validators)

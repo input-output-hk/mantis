@@ -90,8 +90,15 @@ object Mocks {
         getBlockHeaderByHash: GetBlockHeaderByHash,
         getNBlocksBack: GetNBlocksBack) => Right(OmmersValid)
 
-    override val signedTransactionValidator: SignedTransactionValidator =
-      (stx: SignedTransaction, account: Account, blockHeader: BlockHeader, upfrontGasCost: UInt256, accumGasLimit: BigInt) => Right(SignedTransactionValid)
+    override val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidator {
+      override def validatePreRpc(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] = Right(SignedTransactionValid)
+
+      override def validate(stx: SignedTransaction,
+                            senderAccount: Account,
+                            blockHeader: BlockHeader,
+                            upfrontGasCost: UInt256,
+                            accumGasUsed: BigInt): Either[SignedTransactionError, SignedTransactionValid] = Right(SignedTransactionValid)
+    }
   }
 
   object MockValidatorsAlwaysSucceed extends MockValidatorsAlwaysSucceed
@@ -100,6 +107,9 @@ object Mocks {
     override val signedTransactionValidator = new SignedTransactionValidator {
       def validate(stx: SignedTransaction, account: Account, blockHeader: BlockHeader,
                    upfrontGasCost: UInt256, accumGasLimit: BigInt) = Left(SignedTransactionError.TransactionSignatureError)
+
+      override def validatePreRpc(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] =
+        Left(SignedTransactionError.TransactionSignatureError)
     }
 
     override val blockHeaderValidator = new BlockHeaderValidator {
