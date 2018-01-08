@@ -12,6 +12,7 @@ import io.iohk.ethereum.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
+import io.iohk.ethereum.domain.Transaction._
 
 import scala.annotation.tailrec
 
@@ -604,23 +605,6 @@ class LedgerImpl(
       ws.saveAccount(ommerAddress, account.increaseBalance(UInt256(ommerReward)))
     }
   }
-
-  /**
-    * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)
-    *
-    * @param tx Target transaction
-    * @return Upfront cost
-    */
-  private def calculateUpfrontGas(tx: Transaction): UInt256 = UInt256(tx.gasLimit * tx.gasPrice)
-
-  /**
-    * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price) + Tv (Tx value). See YP equation number (65)
-    *
-    * @param tx Target transaction
-    * @return Upfront cost
-    */
-  private def calculateUpfrontCost(tx: Transaction): UInt256 =
-    UInt256(calculateUpfrontGas(tx) + tx.value)
 
   /**
     * Increments account nonce by 1 stated in YP equation (69) and

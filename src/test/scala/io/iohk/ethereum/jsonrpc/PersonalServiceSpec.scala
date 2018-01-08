@@ -6,7 +6,6 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{UInt256, _}
@@ -16,7 +15,8 @@ import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyStoreEr
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig, TxPoolConfig}
-import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
+import io.iohk.ethereum.validators.{SignedTransactionError, SignedTransactionValid, SignedTransactionValidator}
+import io.iohk.ethereum.{Fixtures, Mocks, NormalPatience, Timeouts}
 import org.scalamock.matchers.Matcher
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
@@ -399,6 +399,24 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
 
   }
 
+  it should "fail to send a transaction with negative value" in new TestSetup {
+    (keyStore.unlockAccount _ ).expects(address, passphrase)
+      .returning(Right(wallet))
+
+    (appStateStorage.getBestBlockNumber _).expects().returning(1234)
+    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
+    (appStateStorage.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
+
+    val negativeTx = tx.copy(value = Some(-1))
+
+    val req = SendTransactionWithPassphraseRequest(negativeTx, passphrase)
+    val res = personalFail.sendTransaction(req)
+
+    txPool.expectMsg(GetPendingTransactions)
+    txPool.reply(PendingTransactionsResponse(Nil))
+
+    res.futureValue shouldEqual Left(LogicError(SignedTransactionError.TransactionNegativeValueError.toString))
+  }
 
   trait TestSetup {
     val prvKey = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
@@ -448,9 +466,24 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
     val blockchain = mock[BlockchainImpl]
     val txPool = TestProbe()
     val appStateStorage = mock[AppStateStorage]
-    val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig, MockValidatorsAlwaysSucceed)
+    val personal = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig, Mocks.MockValidatorsAlwaysSucceed)
 
     def array[T](arr: Array[T]): Matcher[Array[T]] =
       argThat((_: Array[T]) sameElements arr)
+
+    object validatorsTransactionFail extends Mocks.MockValidatorsAlwaysFail {
+      override val signedTransactionValidator = new SignedTransactionValidator {
+        def validate(stx: SignedTransaction, account: Account, blockHeader: BlockHeader,
+                     upfrontGasCost: UInt256, accumGasLimit: BigInt) = Left(SignedTransactionError.TransactionSignatureError)
+
+        override def validatePreRpc(stx: SignedTransaction,
+                                    senderAccount: Account,
+                                    blockNumber: BigInt,
+                                    upfrontCost: UInt256): Either[SignedTransactionError, SignedTransactionValid] =
+          Left(SignedTransactionError.TransactionNegativeValueError)
+      }
+    }
+
+    val personalFail = new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig, validatorsTransactionFail)
   }
 }

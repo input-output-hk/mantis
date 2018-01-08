@@ -11,7 +11,8 @@ trait SignedTransactionValidator {
   def validate(stx: SignedTransaction, senderAccount: Account, blockHeader: BlockHeader,
                upfrontGasCost: UInt256, accumGasUsed: BigInt): Either[SignedTransactionError, SignedTransactionValid]
 
-  def validatePreRpc(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid]
+  def validatePreRpc(stx: SignedTransaction, senderAccount: Account,
+                     blockNumber: BigInt, upfrontCost: UInt256): Either[SignedTransactionError, SignedTransactionValid]
 }
 
 class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends SignedTransactionValidator {
@@ -40,9 +41,15 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     } yield SignedTransactionValid
   }
 
-  def validatePreRpc(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] = {
-    Right(SignedTransactionValid)
-  }
+  def validatePreRpc(stx: SignedTransaction, senderAccount: Account,
+                     blockNumber: BigInt, upfrontCost: UInt256): Either[SignedTransactionError, SignedTransactionValid] = for {
+    _ <- checkSyntacticValidity(stx)
+    _ <- validateSignature(stx, blockNumber)
+    _ <- validateGasLimitEnoughForIntrinsicGas(stx, blockNumber)
+    _ <- validateValueNotNegative(stx)
+    _ <- validateAccountHasEnoughGasToPayUpfrontCost(senderAccount.balance, upfrontCost)
+  } yield SignedTransactionValid
+
   /**
     * Validates if the transaction is syntactically valid (lengths of the transaction fields are correct)
     *
@@ -154,12 +161,26 @@ class SignedTransactionValidatorImpl(blockchainConfig: BlockchainConfig) extends
     if (stx.tx.gasLimit + accumGasUsed <= blockGasLimit) Right(SignedTransactionValid)
     else Left(TransactionGasLimitTooBigError(stx.tx.gasLimit, accumGasUsed, blockGasLimit))
   }
+
+  /**
+    * Validates if the transaction value is greater than or equal zero.
+    * This error may never happen using RLP decoded transactions but may occur if you create a transaction using the RPC
+    *
+    * @param stx Transaction to validate
+    * @return Either the validated transaction or a TransactionNegativeValueError
+    */
+  private def validateValueNotNegative(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] = {
+    if (stx.tx.value >= 0) Right(SignedTransactionValid)
+    else Left(TransactionNegativeValueError)
+  }
+
 }
 
 sealed trait SignedTransactionError
 
 object SignedTransactionError {
   case object TransactionSignatureError extends SignedTransactionError
+  case object TransactionNegativeValueError extends SignedTransactionError
   case class TransactionSyntaxError(reason: String) extends SignedTransactionError
   case class TransactionNonceError(txNonce: UInt256, senderNonce: UInt256) extends SignedTransactionError {
     override def toString: String =

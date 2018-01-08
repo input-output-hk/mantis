@@ -198,6 +198,20 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
     }
   }
 
+  it should "report as invalid a tx with negative value" in {
+    val txWithNegativeValue = txAfterHomestead.copy(value = -1)
+    val signedTxWithNegativeValue = signedTxAfterHomestead.copy(tx = txWithNegativeValue)
+    signedTransactionValidator.validatePreRpc(
+      stx = signedTxWithNegativeValue,
+      senderAccount = senderAccountAfterHomestead,
+      blockNumber = blockHeaderAfterHomestead.number,
+      upfrontCost = upfrontGasCost
+    ) match {
+      case Left(TransactionNegativeValueError) => succeed
+      case _ => fail
+    }
+  }
+
   it should "report as invalid a tx with too high gas limit for block gas limit" in {
     val txWithInvalidGasLimit = txAfterHomestead.copy(gasLimit = blockHeaderAfterHomestead.gasLimit + 1)
     val signedTxWithInvalidGasLimit = signedTxAfterHomestead.copy(tx = txWithInvalidGasLimit)

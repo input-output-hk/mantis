@@ -13,6 +13,23 @@ object Transaction {
   def apply(nonce: BigInt, gasPrice: BigInt, gasLimit: BigInt, receivingAddress: Address, value: BigInt, payload: ByteString): Transaction =
     Transaction(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload)
 
+
+  /**
+    * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)
+    *
+    * @param tx Target transaction
+    * @return Upfront cost
+    */
+  def calculateUpfrontGas(tx: Transaction): UInt256 = UInt256(tx.gasLimit * tx.gasPrice)
+
+  /**
+    * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price) + Tv (Tx value). See YP equation number (65)
+    *
+    * @param tx Target transaction
+    * @return Upfront cost
+    */
+  def calculateUpfrontCost(tx: Transaction): UInt256 =
+    UInt256(calculateUpfrontGas(tx) + tx.value)
 }
 
 case class Transaction(

@@ -91,7 +91,10 @@ object Mocks {
         getNBlocksBack: GetNBlocksBack) => Right(OmmersValid)
 
     override val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidator {
-      override def validatePreRpc(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] = Right(SignedTransactionValid)
+      override def validatePreRpc(stx: SignedTransaction,
+                                  senderAccount: Account,
+                                  blockNumber: BigInt,
+                                  upfrontCost: UInt256): Either[SignedTransactionError, SignedTransactionValid] = Right(SignedTransactionValid)
 
       override def validate(stx: SignedTransaction,
                             senderAccount: Account,
@@ -103,12 +106,15 @@ object Mocks {
 
   object MockValidatorsAlwaysSucceed extends MockValidatorsAlwaysSucceed
 
-  object MockValidatorsAlwaysFail extends Validators {
+  class MockValidatorsAlwaysFail extends Validators {
     override val signedTransactionValidator = new SignedTransactionValidator {
       def validate(stx: SignedTransaction, account: Account, blockHeader: BlockHeader,
                    upfrontGasCost: UInt256, accumGasLimit: BigInt) = Left(SignedTransactionError.TransactionSignatureError)
 
-      override def validatePreRpc(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] =
+      override def validatePreRpc(stx: SignedTransaction,
+                                  senderAccount: Account,
+                                  blockNumber: BigInt,
+                                  upfrontCost: UInt256): Either[SignedTransactionError, SignedTransactionValid] =
         Left(SignedTransactionError.TransactionSignatureError)
     }
 
@@ -118,16 +124,18 @@ object Mocks {
 
     override val ommersValidator: OmmersValidator =
       (parentHash: ByteString,
-        blockNumber: BigInt,
-        ommers: Seq[BlockHeader],
-        getBlockHeaderByHash: GetBlockHeaderByHash,
-        getNBlocksBack: GetNBlocksBack) => Left(OmmersNotValidError)
+       blockNumber: BigInt,
+       ommers: Seq[BlockHeader],
+       getBlockHeaderByHash: GetBlockHeaderByHash,
+       getNBlocksBack: GetNBlocksBack) => Left(OmmersNotValidError)
 
     override val blockValidator = new BlockValidator {
       def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(BlockTransactionsHashError)
       def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]) = Left(BlockTransactionsHashError)
     }
   }
+
+  object MockValidatorsAlwaysFail extends MockValidatorsAlwaysFail
 
   case class MockHandshakerAlwaysSucceeds(initialStatus: Status, currentMaxBlockNumber: BigInt,
                                           forkAccepted: Boolean) extends Handshaker[PeerInfo] {

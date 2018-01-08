@@ -179,9 +179,15 @@ class PersonalService(
   }
 
   private def sendTransaction(request: TransactionRequest, wallet: Wallet): ServiceResponse[ByteString] = {
-    getSignedTransaction(request, wallet).map {stx =>
+    import io.iohk.ethereum.domain.Transaction._
+
+    val currentBestBlock = appStateStorage.getBestBlockNumber()
+    val sendingAccount = blockchain.getAccount(request.from, currentBestBlock).getOrElse(Account.empty(blockchainConfig.accountStartNonce))
+
+    getSignedTransaction(request, wallet, sendingAccount).map {stx =>
       for {
-        _<- validators.signedTransactionValidator.validatePreRpc(stx).left.map(handleValidationError)
+        _<- validators.signedTransactionValidator.validatePreRpc(stx, sendingAccount, currentBestBlock, calculateUpfrontCost(stx.tx))
+          .left.map(handleValidationError)
       } yield {
         txPool ! AddOrOverrideTransaction(stx)
         stx.hash
@@ -189,9 +195,7 @@ class PersonalService(
     }
   }
 
-  private def getSignedTransaction(request: TransactionRequest, wallet: Wallet): Future[SignedTransaction] = {
-    val sendingAccount = getCurrentAccount(request.from).getOrElse(Account.empty(blockchainConfig.accountStartNonce))
-
+  private def getSignedTransaction(request: TransactionRequest, wallet: Wallet, sendingAccount: Account): Future[SignedTransaction] = {
     getNextTransactionNonce(wallet, sendingAccount).map { nonce =>
       signTx(request.toTransaction(nonce), wallet)
     }
@@ -224,9 +228,6 @@ class PersonalService(
     }
   }
 
-  private def getCurrentAccount(address: Address): Option[Account] =
-    blockchain.getAccount(address, appStateStorage.getBestBlockNumber())
-
   private def getMessageToSign(message: ByteString) = {
     val prefixed: Array[Byte] =
       0x19.toByte +:
@@ -244,7 +245,6 @@ class PersonalService(
   }
 
   private val handleValidationError: PartialFunction[SignedTransactionError, JsonRpcError] = {
-    case x:SignedTransactionError => LogicError("err")
+    case error:SignedTransactionError => LogicError(error.toString)
   }
-
 }

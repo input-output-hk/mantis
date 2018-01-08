@@ -703,7 +703,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val signedTransactionValidator = new SignedTransactionValidator {
 
-        override def validatePreRpc(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] = Right(SignedTransactionValid)
+        override def validatePreRpc(stx: SignedTransaction, senderAccount: Account,
+                                     blockNumber: BigInt, upfrontCost: UInt256): Either[SignedTransactionError, SignedTransactionValid] = Right(SignedTransactionValid)
 
         override def validate(stx: SignedTransaction,
                               senderAccount: Account,
@@ -716,6 +717,7 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
             Left(TransactionSignatureError)
           }
         }
+      }
     }
 
     val ledger = new LedgerImpl(mockVM, blockchain, blockchainConfig, syncConfig, validators)
@@ -748,7 +750,8 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
     val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val signedTransactionValidator = new SignedTransactionValidator {
 
-        override def validatePreRpc(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] = Right(SignedTransactionValid)
+        override def validatePreRpc(stx: SignedTransaction, senderAccount: Account,
+                                    blockNumber: BigInt, upfrontCost: UInt256): Either[SignedTransactionError, SignedTransactionValid] = Right(SignedTransactionValid)
 
         override def validate(stx: SignedTransaction,
                               senderAccount: Account,
