@@ -17,6 +17,8 @@ package object crypto {
   val curveParams: X9ECParameters = SECNamedCurves.getByName("secp256k1")
   val curve: ECDomainParameters = new ECDomainParameters(curveParams.getCurve, curveParams.getG, curveParams.getN, curveParams.getH)
 
+  val kec512engine = new Keccak512
+
   def kec256(input: Array[Byte], start: Int, length: Int): Array[Byte] = {
     val digest = new Keccak256
     digest.update(input, start, length)
@@ -32,10 +34,8 @@ package object crypto {
   def kec256(input: ByteString): ByteString =
     ByteString(kec256(input.toArray))
 
-  def kec512(input: Array[Byte]*): Array[Byte] = {
-    val digest = new Keccak512
-    input.foreach(i => digest.update(i))
-    digest.digest
+  def kec512(input: Array[Byte]): Array[Byte] = synchronized {
+    kec512engine.digest(input)
   }
 
   def generateKeyPair(secureRandom: SecureRandom): AsymmetricCipherKeyPair = {
