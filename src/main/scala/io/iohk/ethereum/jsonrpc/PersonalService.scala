@@ -139,7 +139,7 @@ class PersonalService(
 
   def sendTransaction(request: SendTransactionWithPassphraseRequest): ServiceResponse[SendTransactionWithPassphraseResponse] = {
     val result = for {
-      wallet <- EitherT(unlockOrGet(request.tx.from, Some(request.passphrase)))
+      wallet <- EitherT(unlockOrGetWallet(request.tx.from, Some(request.passphrase)))
       hash   <- EitherT(sendTransaction(request.tx, wallet))
     } yield SendTransactionWithPassphraseResponse(hash)
 
@@ -148,14 +148,14 @@ class PersonalService(
 
   def sendTransaction(request: SendTransactionRequest): ServiceResponse[SendTransactionResponse] = {
     val result = for {
-      wallet <- EitherT(unlockOrGet(request.tx.from, None))
+      wallet <- EitherT(unlockOrGetWallet(request.tx.from, None))
       hash   <- EitherT(sendTransaction(request.tx, wallet))
     } yield SendTransactionResponse(hash)
 
     result.value
   }
 
-  def unlockOrGet(address: Address, passphrase: Option[String]): ServiceResponse[Wallet] = {
+  private def unlockOrGetWallet(address: Address, passphrase: Option[String]): ServiceResponse[Wallet] = {
     Future {
       passphrase.fold(unlockedWallets.get(address).toRight(AccountLocked))(passphrase =>
         keyStore.unlockAccount(address, passphrase).left.map(handleError)
