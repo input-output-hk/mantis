@@ -13,21 +13,32 @@ import io.atomix.protocols.raft.protocol.{TransferRequest, TransferResponse}
 import io.atomix.protocols.raft.storage.RaftStorage
 import io.atomix.utils.concurrent.ThreadModel
 import io.atomix.utils.serializer.{KryoNamespace, Serializer}
-import io.iohk.ethereum.consensus.atomixraft.Miner.{IAmTheLeader, Init}
+import io.iohk.ethereum.consensus.atomixraft.AtomixRaftMiner.{IAmTheLeader, Init}
+import io.iohk.ethereum.consensus.atomixraft.blocks.AtomixRaftBlockGenerator
+import io.iohk.ethereum.consensus.blocks.BlockGenerator
+import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.consensus.validators.std.StdValidators
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockHeaderValidatorImpl}
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.vm.VM
 
-class AtomixRaftConsensus(
+class AtomixRaftConsensus private(
+  vm: VM,
+  blockchain: BlockchainImpl,
   blockchainConfig: BlockchainConfig,
-  val config: FullConsensusConfig[AtomixRaftConfig]
-) extends Consensus with Logger {
+  fullConsensusConfig: FullConsensusConfig[AtomixRaftConfig],
+  _validators: Validators,
+  _blockGenerator: AtomixRaftBlockGenerator
+) extends ConsensusImpl[AtomixRaftConfig](
+  vm,
+  blockchain,
+  blockchainConfig,
+  fullConsensusConfig
+) {
 
-  type Config = AtomixRaftConfig
-
-  private[this] final val defaultValidator = new BlockHeaderValidatorImpl(blockchainConfig)
-
-  private[this] final val miner = new MinerRef
+  private[this] final val miner = new AtomixRaftMinerRef
 
   private[this] final val raftServer = new RaftServerRef
 
@@ -35,7 +46,7 @@ class AtomixRaftConsensus(
 
   private[this] def setupMiner(node: Node): Unit = {
     miner.setOnce {
-      val miner = Miner(node, raftConfig)
+      val miner = AtomixRaftMiner(node)
       miner ! Init
       miner
     }
@@ -95,8 +106,8 @@ class AtomixRaftConsensus(
         .withClusterService(clusterService)
         .withProtocol(protocol)
         .withStorage(raftStorage)
-        /*.withElectionTimeout(Duration.ofMillis(3000))
-        .withHeartbeatInterval(Duration.ofMillis(300))*/
+        /*.withElectionTimeout(Duration.ofMillis(3000))   // FIXME configurable
+        .withHeartbeatInterval(Duration.ofMillis(300))*/  // FIXME configurable
         .addPrimitiveType(LeaderElectionType.instance[Any])
         .build
 
@@ -114,9 +125,9 @@ class AtomixRaftConsensus(
     }
   }
 
-  def isLeader: Option[Boolean] = raftServer.run(_.isLeader) // None means we do not know
+  def isLeader: Option[Boolean] = raftServer.map(_.isLeader) // None means we do not know
 
-  def promoteToLeader(): Unit = raftServer.run(_.promote().join())
+  def promoteToLeader(): Unit = raftServer.map(_.promote().join())
 
   /**
    * Starts the consensus protocol on the current `node`.
@@ -131,14 +142,107 @@ class AtomixRaftConsensus(
     raftServer.stop()
   }
 
-  def protocol: Protocol = AtomixRaft
+  def protocol: Protocol = Protocol.AtomixRaft
 
   /**
-   * Provides the [[io.iohk.ethereum.validators.BlockHeaderValidator BlockHeaderValidator]] that is specific
-   * to this consensus protocol.
-   *
-   * The returned validator does whatever Ethereum requires except from PoW-related validation,
-   * since there is no PoW in this consensus protocol.
+   * Provides the set of validators specific to this consensus protocol.
    */
-  def blockHeaderValidator: BlockHeaderValidator = defaultValidator
+  def validators: Validators = this._validators
+
+
+  /** Internal API, used for testing */
+  protected def newBlockGenerator(validators: Validators): AtomixRaftBlockGenerator = {
+    val blockPreparator = new BlockPreparator(
+      vm = vm,
+      signedTxValidator = validators.signedTransactionValidator,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig
+    )
+
+    new AtomixRaftBlockGenerator(
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      consensusConfig = config.generic,
+      blockPreparator = blockPreparator,
+      blockTimestampProvider = blockGenerator.blockTimestampProvider
+    )
+  }
+
+  /** Internal API, used for testing */
+  def withValidators(validators: Validators): AtomixRaftConsensus = {
+    val blockGenerator = newBlockGenerator(validators)
+
+    new AtomixRaftConsensus(
+      vm = vm,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      fullConsensusConfig = fullConsensusConfig,
+      _validators = validators,
+      _blockGenerator = blockGenerator
+    )
+  }
+
+  /** Internal API, used for testing */
+  def withVM(vm: VM): AtomixRaftConsensus =
+    new AtomixRaftConsensus(
+      vm = vm,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      fullConsensusConfig = fullConsensusConfig,
+      _validators = _validators,
+      _blockGenerator = blockGenerator
+    )
+
+
+  /** Internal API, used for testing */
+  def withBlockGenerator(blockGenerator: BlockGenerator): AtomixRaftConsensus =
+    new AtomixRaftConsensus(
+      vm = vm,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      fullConsensusConfig = fullConsensusConfig,
+      _validators = validators,
+      _blockGenerator = blockGenerator.asInstanceOf[AtomixRaftBlockGenerator]
+    )
+
+  /**
+   * Returns the [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]]
+   * this consensus protocol uses.
+   */
+  def blockGenerator: AtomixRaftBlockGenerator = this._blockGenerator
+}
+
+object AtomixRaftConsensus {
+  def apply(
+    vm: VM,
+    blockchain: BlockchainImpl,
+    blockchainConfig: BlockchainConfig,
+    fullConsensusConfig: FullConsensusConfig[AtomixRaftConfig]
+  ): AtomixRaftConsensus = {
+
+    val validators = StdValidators(blockchainConfig)
+
+    val blockPreparator = new BlockPreparator(
+      vm = vm,
+      signedTxValidator = validators.signedTransactionValidator,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig
+    )
+
+    val blockGenerator = new AtomixRaftBlockGenerator(
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      consensusConfig = fullConsensusConfig.generic,
+      blockPreparator = blockPreparator
+    )
+
+    new AtomixRaftConsensus(
+      vm = vm,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      fullConsensusConfig = fullConsensusConfig,
+      _validators = validators,
+      _blockGenerator = blockGenerator
+    )
+  }
 }

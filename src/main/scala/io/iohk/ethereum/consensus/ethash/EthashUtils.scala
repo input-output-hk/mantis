@@ -13,48 +13,48 @@ import java.lang.Integer.remainderUnsigned
 
 import scala.annotation.tailrec
 
-object Ethash {
+object EthashUtils {
 
   // Revision number of https://github.com/ethereum/wiki/wiki/Ethash
-  val Revision: Int = 23
+  final val Revision: Int = 23
 
   // scalastyle:off magic.number
 
   // value used in Fowler–Noll–Vo hash function
-  val FNV_PRIME: Int = 0x01000193
+  final val FNV_PRIME: Int = 0x01000193
 
   // bytes in word
-  val WORD_BYTES: Int = 4
+  final val WORD_BYTES: Int = 4
 
   // bytes in dataset at genesis
-  val DATASET_BYTES_INIT: Long = BigInt(2).pow(30).toLong
+  final val DATASET_BYTES_INIT: Long = BigInt(2).pow(30).toLong
 
   // dataset growth per epoch
-  val DATASET_BYTES_GROWTH: Long = BigInt(2).pow(23).toLong
+  final val DATASET_BYTES_GROWTH: Long = BigInt(2).pow(23).toLong
 
   // bytes in cache at genesis
-  val CACHE_BYTES_INIT: Long = BigInt(2).pow(24).toLong
+  final val CACHE_BYTES_INIT: Long = BigInt(2).pow(24).toLong
 
   // cache growth per epoch
-  val CACHE_BYTES_GROWTH: Long = BigInt(2).pow(17).toLong
+  final val CACHE_BYTES_GROWTH: Long = BigInt(2).pow(17).toLong
 
   // blocks per epoch
-  val EPOCH_LENGTH: Int = 30000
+  final val EPOCH_LENGTH: Int = 30000
 
   // width of mix
-  val MIX_BYTES: Int = 128
+  final val MIX_BYTES: Int = 128
 
   // hash length in bytes
-  val HASH_BYTES: Int = 64
+  final val HASH_BYTES: Int = 64
 
   // number of parents of each dataset element
-  val DATASET_PARENTS: Int = 256
+  final val DATASET_PARENTS: Int = 256
 
   // number of rounds in cache production
-  val CACHE_ROUNDS: Int = 3
+  final val CACHE_ROUNDS: Int = 3
 
   // number of accesses in hashimoto loop
-  val ACCESSES: Int = 64
+  final val ACCESSES: Int = 64
 
   // scalastyle:on magic.number
 

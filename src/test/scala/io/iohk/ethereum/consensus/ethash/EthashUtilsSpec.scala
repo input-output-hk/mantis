@@ -1,4 +1,4 @@
-package io.iohk.ethereum.consensus
+package io.iohk.ethereum.consensus.ethash
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
@@ -7,9 +7,9 @@ import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-class EthashSpec extends FlatSpec with Matchers with PropertyChecks {
+class EthashUtilsSpec extends FlatSpec with Matchers with PropertyChecks {
 
-  import io.iohk.ethereum.consensus.ethash.Ethash._
+  import io.iohk.ethereum.consensus.ethash.EthashUtils._
 
   "Ethash" should "generate correct hash" in {
     forAll(Arbitrary.arbitrary[Long].filter(_ < 15000000)) { blockNumber =>
@@ -68,5 +68,4 @@ class EthashSpec extends FlatSpec with Matchers with PropertyChecks {
       kec256(seedForBlockReference(blockNumber - EPOCH_LENGTH))
     }
   }
-
 }

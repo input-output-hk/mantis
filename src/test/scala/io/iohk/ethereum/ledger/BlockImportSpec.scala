@@ -1,18 +1,21 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import akka.util.ByteString.{empty => bEmpty}
+import akka.util.ByteString.{empty ⇒ bEmpty}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, StdOmmersValidator}
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
+import io.iohk.ethereum.consensus.validators._
+import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
-import io.iohk.ethereum.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack}
-import io.iohk.ethereum.validators._
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.{Mocks, ObjectGenerators}
+import org.scalamock.handlers.{CallHandler0, CallHandler1, CallHandler4}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -65,7 +68,9 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     ledger.importBlock(block) shouldEqual BlockImportFailed(execError.toString)
   }
 
-  it should "reorganise chain when a newly enqueued block forms a better branch" in new TestSetup with EphemBlockchain {
+  // scalastyle:off magic.number
+  it should "reorganise chain when a newly enqueued block forms a better branch" in new EphemBlockchain {
+
     val block1 = getBlock(bestNum - 2, difficulty = 100)
     val newBlock2 = getBlock(bestNum - 1, difficulty = 101, parent = block1.header.hash)
     val newBlock3 = getBlock(bestNum, difficulty = 105, parent = newBlock2.header.hash)
@@ -99,7 +104,8 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     blockQueue.isQueued(oldBlock3.header.hash) shouldBe true
   }
 
-  it should "handle error when trying to reorganise chain" in new TestSetup with EphemBlockchain {
+  it should "handle error when trying to reorganise chain" in new EphemBlockchain {
+
     val block1 = getBlock(bestNum - 2, difficulty = 100)
     val newBlock2 = getBlock(bestNum - 1, difficulty = 101, parent = block1.header.hash)
     val newBlock3 = getBlock(bestNum, difficulty = 105, parent = newBlock2.header.hash)
@@ -133,10 +139,14 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
   }
 
   it should "report an orphaned block" in new TestSetup with MockBlockchain {
-    val validators = new Mocks.MockValidatorsAlwaysSucceed {
+    override lazy val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
-    val ledgerWithMockedValidators = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig, validators)
+
+    val ledgerWithMockedValidators = new LedgerImpl(
+      blockchain, blockQueue, blockchainConfig,
+      consensus.withValidators(validators).withVM(new Mocks.MockVM())
+    )
 
     val newBlock = getBlock()
 
@@ -147,10 +157,13 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
   }
 
   it should "validate blocks prior to import" in new TestSetup with MockBlockchain {
-    val validators = new Mocks.MockValidatorsAlwaysSucceed {
+    override lazy val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
-    val ledgerWithMockedValidators = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig, validators)
+    val ledgerWithMockedValidators = new LedgerImpl(
+      blockchain, blockQueue, blockchainConfig,
+      consensus.withValidators(validators).withVM(new Mocks.MockVM())
+    )
 
     val newBlock = getBlock()
 
@@ -166,6 +179,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     ledger.resolveBranch(headers) shouldEqual InvalidBranch
   }
 
+  // scalastyle:off magic.number
   it should "report an invalid branch when headers do not reach the current best block number" in new TestSetup with MockBlockchain {
     val headers = getChainHeaders(1, 10)
     setBestBlockNumber(11)
@@ -293,12 +307,21 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     blockchain.getBestBlock() shouldEqual newBlock3WithOmmer
   }
 
-  trait TestSetup {
-    val blockchainConfig = BlockchainConfig(Config.config)
-    val blockQueue: BlockQueue
-    val blockchain: BlockchainImpl
+  trait TestSetup extends EphemBlockchainTestSetup
+  {
+    //+ cake overrides
+    override lazy val vm: VM = VM
 
-    class TestLedgerImpl(validators: Validators) extends LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig, validators) {
+    // Make type more specific
+    override lazy val consensus: TestConsensus = loadConsensus()
+    //- cake overrides
+
+    val blockQueue: BlockQueue
+
+    class TestLedgerImpl(validators: Validators) extends LedgerImpl(
+      blockchain, blockQueue, blockchainConfig,
+      consensus.withValidators(validators).withVM(new Mocks.MockVM())
+    ) {
       private val results = mutable.Map[ByteString, Either[BlockExecutionError, Seq[Receipt]]]()
 
       override def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] =
@@ -308,7 +331,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
         results(block.header.hash) = result
     }
 
-    lazy val ledger = new TestLedgerImpl(Mocks.MockValidatorsAlwaysSucceed)
+    override lazy val ledger = new TestLedgerImpl(successValidators)
 
     def randomHash(): ByteString =
       ObjectGenerators.byteStringOfLengthNGen(32).sample.get
@@ -376,43 +399,51 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     lazy val failLedger = new TestLedgerImpl(FailHeaderValidation)
   }
 
-  trait EphemBlockchain extends EphemBlockchainTestSetup { self: TestSetup =>
+  trait EphemBlockchain extends TestSetup {
     val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
   }
 
   trait MockBlockchain { self: TestSetup =>
-    val blockchain = mock[BlockchainImpl]
+    //+ cake overrides
+    override lazy val blockchain = mock[BlockchainImpl]
+    //- cake overrides
+
     class MockBlockQueue extends BlockQueue(null, 10, 10)
     val blockQueue: BlockQueue = mock[MockBlockQueue]
 
-    def setBlockExists(block: Block, inChain: Boolean, inQueue: Boolean) = {
+    def setBlockExists(block: Block, inChain: Boolean, inQueue: Boolean): CallHandler1[ByteString, Boolean] = {
       (blockchain.getBlockByHash _).expects(block.header.hash).anyNumberOfTimes().returning(Some(block).filter(_ => inChain))
       (blockQueue.isQueued _).expects(block.header.hash).anyNumberOfTimes().returning(inQueue)
     }
 
-    def setBestBlock(block: Block) = {
+    def setBestBlock(block: Block): CallHandler0[BigInt] = {
       (blockchain.getBestBlock _).expects().returning(block)
       (blockchain.getBestBlockNumber _).expects().anyNumberOfTimes().returning(block.header.number)
     }
 
-    def setBestBlockNumber(num: BigInt) =
+    def setBestBlockNumber(num: BigInt): CallHandler0[BigInt] =
       (blockchain.getBestBlockNumber _).expects().returning(num)
 
-    def setTotalDifficultyForBlock(block: Block, td: BigInt) =
+    def setTotalDifficultyForBlock(block: Block, td: BigInt): CallHandler1[ByteString, Option[BigInt]] =
       (blockchain.getTotalDifficultyByHash _).expects(block.header.hash).returning(Some(td))
 
-    def expectBlockSaved(block: Block, receipts: Seq[Receipt], td: BigInt, saveAsBestBlock: Boolean) = {
+    def expectBlockSaved(
+      block: Block,
+      receipts: Seq[Receipt],
+      td: BigInt,
+      saveAsBestBlock: Boolean
+    ): CallHandler4[Block, Seq[Receipt], BigInt, Boolean, Unit] = {
       (blockchain.save(_: Block, _: Seq[Receipt], _: BigInt, _: Boolean))
         .expects(block, receipts, td, saveAsBestBlock).once()
     }
 
-    def setHeaderByHash(hash: ByteString, header: Option[BlockHeader]) =
+    def setHeaderByHash(hash: ByteString, header: Option[BlockHeader]): CallHandler1[ByteString, Option[BlockHeader]] =
       (blockchain.getBlockHeaderByHash _).expects(hash).returning(header)
 
-    def setBlockByNumber(number: BigInt, block: Option[Block]) =
+    def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler1[BigInt, Option[Block]] =
       (blockchain.getBlockByNumber _).expects(number).returning(block)
 
-    def setGenesisHeader(header: BlockHeader) = {
+    def setGenesisHeader(header: BlockHeader): CallHandler1[ByteString, Option[BlockHeader]] = {
       (blockchain.getBlockHeaderByNumber _).expects(BigInt(0)).returning(Some(header))
       setHeaderByHash(header.parentHash, None)
     }
@@ -426,7 +457,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
          ommers: Seq[BlockHeader],
          getBlockHeaderByHash: GetBlockHeaderByHash,
          getNBlocksBack: GetNBlocksBack) =>
-          new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator).validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
+          new StdOmmersValidator(blockchainConfig, blockHeaderValidator).validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
     }
 
     override lazy val ledger = new TestLedgerImpl(OmmerValidation)

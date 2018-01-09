@@ -6,43 +6,47 @@ import java.io.{File, FileInputStream, FileOutputStream}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.consensus.ethash.Ethash.ProofOfWork
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.ethash.EthashUtils.ProofOfWork
+import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
+import io.iohk.ethereum.domain.{Address, Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateRequest
-import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock}
+import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
+import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Random, Success, Try}
-import io.iohk.ethereum.utils.BigIntExtensionMethods._
 
-class Miner(
+class EthashMiner(
   blockchain: Blockchain,
-  blockGenerator: BlockGenerator,
   ommersPool: ActorRef,
   pendingTransactionsManager: ActorRef,
   syncController: ActorRef,
-  config: FullConsensusConfig[MiningConfig],
-  ethService: EthService
+  ethService: EthService,
+  consensus: EthashConsensus
 ) extends Actor with ActorLogging {
 
-  import Miner._
+  import EthashMiner._
   import akka.pattern.ask
 
   var currentEpoch: Option[Long] = None
   var currentEpochDagSize: Option[Long] = None
   var currentEpochDag: Option[Array[Array[Int]]] = None
 
-  private[this] val consensusConfig = config.generic
-  private[this] val miningConfig = config.specific
+  private def config = consensus.config
+  private def consensusConfig = config.generic
+  private def miningConfig = config.specific
+  private def coinbase: Address = consensusConfig.coinbase
+  private def blockGenerator: EthashBlockGenerator = consensus.blockGenerator
 
   override def receive: Receive = stopped
 
@@ -60,14 +64,14 @@ class Miner(
 
   def processMining(): Unit = {
     val parentBlock = blockchain.getBestBlock()
-    val epoch = Ethash.epoch(parentBlock.header.number.toLong + 1)
+    val epoch = EthashUtils.epoch(parentBlock.header.number.toLong + 1)
 
     val (dag, dagSize) = (currentEpoch, currentEpochDag, currentEpochDagSize) match {
       case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
       case _ =>
-        val seed = Ethash.seed(epoch)
-        val dagSize = Ethash.dagSize(epoch)
-        val dagNumHashes = (dagSize / Ethash.HASH_BYTES).toInt
+        val seed = EthashUtils.seed(epoch)
+        val dagSize = EthashUtils.dagSize(epoch)
+        val dagNumHashes = (dagSize / EthashUtils.HASH_BYTES).toInt
         val dag =
           if (!dagFile(seed).exists()) generateDagAndSaveToFile(epoch, dagNumHashes, seed)
           else {
@@ -104,7 +108,7 @@ class Miner(
   }
 
   private def dagFile(seed: ByteString): File = {
-    new File(s"${miningConfig.ethashDir}/full-R${Ethash.Revision}-${Hex.toHexString(seed.take(8).toArray[Byte])}")
+    new File(s"${miningConfig.ethashDir}/full-R${EthashUtils.Revision}-${Hex.toHexString(seed.take(8).toArray[Byte])}")
   }
 
   private def generateDagAndSaveToFile(epoch: Long, dagNumHashes: Int, seed: ByteString): Array[Array[Int]] = {
@@ -118,11 +122,11 @@ class Miner(
     val outputStream = new FileOutputStream(dagFile(seed).getAbsolutePath)
     outputStream.write(DagFilePrefix.toArray[Byte])
 
-    val cache = Ethash.makeCache(epoch)
+    val cache = EthashUtils.makeCache(epoch)
     val res = new Array[Array[Int]](dagNumHashes)
 
     (0 until dagNumHashes).foreach { i =>
-      val item = Ethash.calcDatasetItem(cache, i)
+      val item = EthashUtils.calcDatasetItem(cache, i)
       outputStream.write(ByteUtils.intsToBytes(item))
       res(i) = item
 
@@ -165,8 +169,8 @@ class Miner(
     (0 to numRounds).toStream.map { n =>
       val nonce = (initNonce + n) % MaxNonce
       val nonceBytes = ByteUtils.padLeft(ByteString(nonce.toUnsignedByteArray), 8)
-      val pow = Ethash.hashimoto(headerHash, nonceBytes.toArray[Byte], dagSize, dag.apply)
-      (Ethash.checkDifficulty(difficulty, pow), pow, nonceBytes, n)
+      val pow = EthashUtils.hashimoto(headerHash, nonceBytes.toArray[Byte], dagSize, dag.apply)
+      (EthashUtils.checkDifficulty(difficulty, pow), pow, nonceBytes, n)
     }
       .collectFirst { case (true, pow, nonceBytes, n) => MiningSuccessful(n + 1, pow, nonceBytes) }
       .getOrElse(MiningUnsuccessful(numRounds))
@@ -174,14 +178,14 @@ class Miner(
 
   private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
     getOmmersFromPool(parentBlock.header.number + 1).zip(getTransactionsFromPool).flatMap { case (ommers, pendingTxs) =>
-      blockGenerator.generateBlockForMining(parentBlock, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, consensusConfig.coinbase) match {
+      blockGenerator.generateBlockForMining(parentBlock, pendingTxs.pendingTransactions.map(_.stx), coinbase, ommers.headers) match {
         case Right(pb) => Future.successful(pb)
         case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
       }
     }
   }
 
-  private def getOmmersFromPool(blockNumber: BigInt) = {
+  private def getOmmersFromPool(blockNumber: BigInt): Future[OmmersPool.Ommers] = {
     implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
     (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
@@ -191,7 +195,7 @@ class Miner(
       }
   }
 
-  private def getTransactionsFromPool = {
+  private def getTransactionsFromPool: Future[PendingTransactionsResponse] = {
     implicit val timeout = Timeout(consensusConfig.getTransactionFromPoolTimeout)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
@@ -202,17 +206,35 @@ class Miner(
   }
 }
 
-object Miner {
-  def props(blockchain: Blockchain,
-    blockGenerator: BlockGenerator,
+object EthashMiner {
+  private[ethash] def props(
+    blockchain: Blockchain,
     ommersPool: ActorRef,
     pendingTransactionsManager: ActorRef,
     syncController: ActorRef,
-    config: FullConsensusConfig[MiningConfig],
-    ethService: EthService
+    ethService: EthService,
+    consensus: EthashConsensus
   ): Props =
-    Props(new Miner(blockchain, blockGenerator, ommersPool,
-      pendingTransactionsManager, syncController, config, ethService))
+    Props(new EthashMiner(blockchain, ommersPool,
+      pendingTransactionsManager, syncController, ethService, consensus))
+
+  def apply(node: Node): ActorRef = {
+    node.consensus match {
+      case consensus: EthashConsensus ⇒
+        val minerProps = props(
+          ommersPool = node.ommersPool,
+          blockchain = node.blockchain,
+          pendingTransactionsManager = node.pendingTransactionsManager,
+          syncController = node.syncController,
+          ethService = node.ethService,
+          consensus = consensus
+        )
+
+        node.actorSystem.actorOf(minerProps)
+      case consensus ⇒
+        wrongConsensusArgument[EthashConsensus](consensus)
+    }
+  }
 
   sealed trait MinerMsg
   case object StartMining extends MinerMsg

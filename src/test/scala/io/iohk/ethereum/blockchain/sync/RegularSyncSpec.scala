@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
-import akka.util.ByteString.{empty => bEmpty}
+import akka.util.ByteString.{empty ⇒ bEmpty}
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.RegularSync.{MinedBlock, MissingStateNodeRetry}
@@ -19,7 +19,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.nodebuilder.{SecureRandomBuilder, SyncConfigBuilder}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, RemoveOmmers}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddTransactions, RemoveTransactions}
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -32,7 +32,7 @@ import scala.concurrent.duration._
 class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with WordSpecLike
   with Matchers with MockFactory with BeforeAndAfterAll {
 
-  override def afterAll = {
+  override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
 
@@ -391,7 +391,7 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
     val ommersPool = TestProbe()
     val txPool = TestProbe()
     val broadcaster = mock[BlockBroadcast]
-    val ledger = mock[Ledger]
+    override lazy val ledger = mock[Ledger]
 
     val regularSync = TestActorRef[RegularSync](RegularSync.props(
       storagesInstance.storages.appStateStorage,
@@ -495,7 +495,8 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
     }
   }
 
-  trait DefaultSyncConfig {
+  // scalastyle:off magic.number
+  trait DefaultSyncConfig extends SyncConfigBuilder {
     val defaultSyncConfig = SyncConfig(
       printStatusInterval = 1.hour,
       persistStateSnapshotInterval = 20.seconds,
@@ -526,10 +527,10 @@ class RegularSyncSpec extends TestKit(ActorSystem("RegularSync_system")) with Wo
       fastSyncBlockValidationX = 50
     )
 
-    val syncConfig = defaultSyncConfig
+    override lazy val syncConfig = defaultSyncConfig
   }
 
   trait ShortResponseTimeout extends DefaultSyncConfig {
-    override val syncConfig = defaultSyncConfig.copy(peerResponseTimeout = 1.milli)
+    override lazy val syncConfig = defaultSyncConfig.copy(peerResponseTimeout = 1.milli)
   }
 }

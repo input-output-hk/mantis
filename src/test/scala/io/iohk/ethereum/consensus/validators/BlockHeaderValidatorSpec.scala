@@ -1,16 +1,17 @@
-package io.iohk.ethereum.validators
+package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
+import io.iohk.ethereum.consensus.validators.BlockHeaderError._
+import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator._
+import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
 import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
-import io.iohk.ethereum.validators.BlockHeaderError._
+import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.validators.BlockHeaderValidatorImpl._
 
 class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
 
@@ -59,7 +60,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     )
 
     forAll(cases) { (block, parentBlock, supportsDaoFork, valid ) =>
-      val blockHeaderValidator = new BlockHeaderValidatorImpl(createBlockchainConfig(supportsDaoFork))
+      val blockHeaderValidator = new StdBlockHeaderValidator(createBlockchainConfig(supportsDaoFork))
       blockHeaderValidator.validate(block, parentBlock) match {
         case Right(_) => assert(valid)
         case Left(DaoHeaderExtraDataError) => assert(!valid)
@@ -285,7 +286,6 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
       override val customGenesisFileOpt: Option[String] = None
       override val accountStartNonce: UInt256 = UInt256.Zero
       val gasTieBreaker: Boolean = false
-      val ethCompatibleStorage: Boolean = true
     }
 
   val ProDaoBlock1920008Header = BlockHeader(

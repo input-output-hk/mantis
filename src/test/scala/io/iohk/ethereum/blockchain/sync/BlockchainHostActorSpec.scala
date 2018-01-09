@@ -24,7 +24,6 @@ import scala.language.postfixOps
 class BlockchainHostActorSpec extends FlatSpec with Matchers {
 
   it should "return Receipts for block hashes" in new TestSetup {
-
     peerEventBus.expectMsg(Subscribe(MessageClassifier(
       Set(GetNodeData.code, GetReceipts.code, GetBlockBodies.code, GetBlockHeaders.code), PeerSelector.AllPeers)))
 

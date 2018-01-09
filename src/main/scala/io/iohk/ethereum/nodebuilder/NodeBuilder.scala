@@ -8,9 +8,9 @@ import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
-import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
+import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
+import io.iohk.ethereum.db.components.{DataSourcesComponent, SharedLevelDBDataSources, Storages, StoragesComponent}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
@@ -21,8 +21,6 @@ import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.JsonRpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
-import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.utils._
@@ -34,7 +32,7 @@ import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfigur
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.validators._
+import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.utils.Config.SyncConfig
 
@@ -75,7 +73,8 @@ trait PruningConfigBuilder extends PruningModeComponent {
 }
 
 trait StorageBuilder {
-  lazy val storagesInstance =  new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
+  lazy val storagesInstance: DataSourcesComponent with StoragesComponent with PruningModeComponent =
+    new SharedLevelDBDataSources with PruningConfigBuilder with Storages.DefaultStorages
 }
 
 trait DiscoveryConfigBuilder {
@@ -86,9 +85,15 @@ trait KnownNodesManagerBuilder {
   self: ActorSystemBuilder
     with StorageBuilder =>
 
-  lazy val config = KnownNodesManager.KnownNodesManagerConfig(Config.config)
+  lazy val knownNodesManagerConfig = KnownNodesManager.KnownNodesManagerConfig(Config.config)
 
-  lazy val knownNodesManager = actorSystem.actorOf(KnownNodesManager.props(config, storagesInstance.storages.knownNodesStorage), "known-nodes-manager")
+  lazy val knownNodesManager = actorSystem.actorOf(
+    KnownNodesManager.props(
+      knownNodesManagerConfig,
+      storagesInstance.storages.knownNodesStorage
+    ),
+    "known-nodes-manager"
+  )
 }
 
 trait PeerDiscoveryManagerBuilder {
@@ -267,7 +272,7 @@ trait FilterManagerBuilder {
     actorSystem.actorOf(
       FilterManager.props(
         blockchain,
-        blockGenerator,
+        blockGenerator, // FIXME get from consensus
         storagesInstance.storages.appStateStorage,
         keyStore,
         pendingTransactionsManager,
@@ -275,16 +280,14 @@ trait FilterManagerBuilder {
         txPoolConfig), "filter-manager")
 }
 
+// FIXME Remove, since the consensus provides this now
 trait BlockGeneratorBuilder {
-  self: BlockchainConfigBuilder with
-    ConsensusConfigBuilder with
-    ValidatorsBuilder with
-    LedgerBuilder with
-    BlockchainBuilder =>
+  self: ConsensusBuilder with
+        BlockchainConfigBuilder with
+        ConsensusConfigBuilder with
+        Logger ⇒
 
-  lazy val headerExtraData: ByteString = consensusConfig.headerExtraData
-  lazy val blockCacheSize: Int = consensusConfig.blockCacheSize
-  lazy val blockGenerator = new BlockGenerator(blockchain, blockchainConfig, headerExtraData, blockCacheSize, ledger, validators)
+  lazy val blockGenerator = consensus.blockGenerator
 }
 
 trait EthServiceBuilder {
@@ -303,8 +306,8 @@ trait EthServiceBuilder {
     FilterManagerBuilder with
     FilterConfigBuilder =>
 
-  lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage,
-    consensus.config, ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
+  lazy val ethService = new EthService(blockchain, storagesInstance.storages.appStateStorage,
+    ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
     blockchainConfig, Config.Network.protocolVersion)
 }
 
@@ -345,19 +348,14 @@ trait OmmersPoolBuilder {
     BlockchainBuilder with
     ConsensusConfigBuilder =>
 
-  lazy val ommersPoolSize: Int = 30 // FIXME For this we need MiningConfig, which means Ethash consensus
+  lazy val ommersPoolSize: Int = 30 // FIXME For this we need EthashConfig, which means Ethash consensus
   lazy val ommersPool: ActorRef = actorSystem.actorOf(OmmersPool.props(blockchain, ommersPoolSize))
 }
 
 trait ValidatorsBuilder {
-  self: BlockchainConfigBuilder with ConsensusBuilder =>
+  self: ConsensusBuilder =>
 
-  lazy val validators = new Validators {
-    val blockValidator: BlockValidator = BlockValidator
-    val blockHeaderValidator: BlockHeaderValidator = consensus.blockHeaderValidator
-    val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator)
-    val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
-  }
+  lazy val validators = consensus.validators
 }
 
 trait VmBuilder {
@@ -372,11 +370,15 @@ trait LedgerBuilder {
   self: BlockchainConfigBuilder
     with BlockchainBuilder
     with SyncConfigBuilder
-    with ValidatorsBuilder
-    with ActorSystemBuilder
-    with VmBuilder =>
+    with ConsensusBuilder =>
 
-  lazy val ledger: Ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, validators)
+  // This is used in tests, which need the more specific type
+  // Note See if the APIs that the tests need can be promoted to the Ledger interface.
+  // Note In fact, most if all these APIs are now being delegated to the BlockPreparator,
+  //      so a refactoring should probably take that into account.
+  protected def newLedger(): LedgerImpl = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus)
+
+  lazy val ledger: Ledger = newLedger()
 }
 
 trait SyncControllerBuilder {
@@ -450,10 +452,11 @@ trait SecureRandomBuilder {
 }
 
 /**
- * Provides the basic functionality of a Node.
- * The consensus algorithm is loaded dynamically based on configuration.
+ * Provides the basic functionality of a Node, except the consensus algorithm.
+ * The latter is loaded dynamically based on configuration.
  *
- * @see [[io.iohk.ethereum.consensus.Consensus]]
+ * @see [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]],
+ *      [[io.iohk.ethereum.consensus.ConsensusConfigBuilder ConsensusConfigBuilder]]
  */
 trait Node extends NodeKeyBuilder
   with ActorSystemBuilder
@@ -496,6 +499,6 @@ trait Node extends NodeKeyBuilder
   with DiscoveryListenerBuilder
   with KnownNodesManagerBuilder
   with SyncConfigBuilder
-  with VmBuilder
   with ConsensusBuilder
   with ConsensusConfigBuilder
+  with RemoteVmBuilder // or LocalVmBuilder

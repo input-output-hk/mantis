@@ -1,15 +1,16 @@
-package io.iohk.ethereum.validators
+package io.iohk.ethereum.consensus.validators
 
 import java.math.BigInteger
 import java.security.SecureRandom
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.validators.SignedTransactionError.{TransactionSignatureError, _}
+import io.iohk.ethereum.consensus.validators.std.StdSignedTransactionValidator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.{Fixtures, crypto}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.validators.SignedTransactionError.{TransactionSignatureError, _}
 import io.iohk.ethereum.vm.EvmConfig
+import io.iohk.ethereum.{Fixtures, crypto}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
@@ -17,7 +18,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
 
   val blockchainConfig = BlockchainConfig(Config.config)
 
-  val signedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
+  val signedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
 
   //From block 0x228943f4ef720ac91ca09c08056d7764c2a1650181925dfaeb484f27e544404e with number 1100000 (tx index 0)
   val txBeforeHomestead = Transaction(

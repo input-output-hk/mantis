@@ -1,12 +1,15 @@
-package io.iohk.ethereum.mining
-// FIXME change package
+package io.iohk.ethereum.consensus
+package ethash
+
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig}
-import io.iohk.ethereum.consensus.ethash.{Miner, MiningConfig}
+import io.iohk.ethereum.blockchain.sync.{RegularSync, ScenarioSetup}
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
+import io.iohk.ethereum.consensus.validators.BlockHeaderValid
+import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateResponse
@@ -14,8 +17,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.validators.{BlockHeaderValid, BlockHeaderValidatorImpl}
+import io.iohk.ethereum.vm.VM
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers, Tag}
 import org.spongycastle.util.encoders.Hex
@@ -23,22 +25,16 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object MinerSpec {
-  val MinerSpecTag = Tag("MinerSpec")
-}
+class EthashMinerSpec extends FlatSpec with Matchers {
+  final val EthashMinerSpecTag = Tag("EthashMinerSpec")
 
-// scalastyle:off magic.number
-class MinerSpec extends FlatSpec with Matchers {
-
-  import MinerSpec._
-
-  "Miner" should "mine valid blocks" taggedAs(MinerSpecTag) in new TestSetup {
+  "EthashMiner" should "mine valid blocks" taggedAs(EthashMinerSpecTag) in new TestSetup {
     val parent = origin
     val bfm = blockForMining(parent.header)
 
     (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
     (ethService.submitHashRate _).expects(*).returns(Future.successful(Right(SubmitHashRateResponse(true)))).atLeastOnce()
-    (blockGenerator.generateBlockForMining _).expects(parent, Nil, Nil, consensusConfig.coinbase).returning(Right(PendingBlock(bfm, Nil))).anyNumberOfTimes()
+    (blockGenerator.generateBlockForMining _).expects(parent, Nil, consensusConfig.coinbase, Nil).returning(Right(PendingBlock(bfm, Nil))).atLeastOnce()
 
     ommersPool.setAutoPilot(new TestActor.AutoPilot {
       def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = {
@@ -54,18 +50,18 @@ class MinerSpec extends FlatSpec with Matchers {
       }
     })
 
-    miner ! Miner.StartMining
+    miner ! EthashMiner.StartMining
 
     val block = waitForMinedBlock()
 
-    miner ! Miner.StopMining
+    miner ! EthashMiner.StopMining
 
     block.body.transactionList shouldBe Seq(txToMine)
     block.header.nonce.length shouldBe 8
     blockHeaderValidator.validate(block.header, parent.header) shouldBe Right(BlockHeaderValid)
   }
 
-  trait TestSetup extends MockFactory {
+  trait TestSetup extends ScenarioSetup with MockFactory {
 
     val origin = Block(
       BlockHeader(
@@ -87,13 +83,12 @@ class MinerSpec extends FlatSpec with Matchers {
       ),
       BlockBody(Seq(), Seq()))
 
-    val blockchain = mock[BlockchainImpl]
-    val blockGenerator: BlockGenerator = mock[BlockGenerator]
+    val blockGenerator: EthashBlockGenerator = mock[EthashBlockGenerator]
 
-    val blockchainConfig = BlockchainConfig(Config.config)
-    val consensusConfig = ConsensusConfig(Config.config)(ShutdownHookBuilder)
-    val miningConfig = MiningConfig(Config.config)
-    val fullConsensusConfig = FullConsensusConfig(consensusConfig, miningConfig)
+    override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
+    override lazy val vm: VM = VM
+    override lazy val consensus: EthashConsensus = loadEthashConsensus().withBlockGenerator(blockGenerator)
+
     val difficultyCalc = new DifficultyCalculator(blockchainConfig)
 
     val blockForMiningTimestamp = System.currentTimeMillis()
@@ -140,7 +135,7 @@ class MinerSpec extends FlatSpec with Matchers {
       ), BlockBody(Seq(txToMine), Nil))
     }
 
-    val blockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
+    val blockHeaderValidator = new StdBlockHeaderValidator(blockchainConfig)
 
     implicit val system = ActorSystem("MinerSpec_System")
 
@@ -150,7 +145,9 @@ class MinerSpec extends FlatSpec with Matchers {
 
     val ethService = mock[EthService]
 
-    val miner = TestActorRef(Miner.props(blockchain, blockGenerator, ommersPool.ref, pendingTransactionsManager.ref, syncController.ref, fullConsensusConfig, ethService))
+    val miner = TestActorRef(EthashMiner.props(
+      blockchain, ommersPool.ref, pendingTransactionsManager.ref,
+      syncController.ref, ethService, consensus))
 
     def waitForMinedBlock(): Block = {
       syncController.expectMsgPF[Block](10.minutes) {

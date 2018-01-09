@@ -1,10 +1,12 @@
 package io.iohk.ethereum.ledger
 
+import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.{Fixtures, Mocks}
+import io.iohk.ethereum.vm.VM
+import io.iohk.ethereum.Fixtures
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -15,8 +17,6 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
 
   val blockchain = mock[BlockchainImpl]
 
-  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
-
   "Reward Calculation" should "pay to the miner if no ommers included" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))
     val afterRewardWorldState: InMemoryWorldStateProxy = ledger.payBlockReward(block, worldState)
@@ -24,6 +24,7 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
     afterRewardWorldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance shouldEqual (beforeExecutionBalance + minerTwoOmmersReward)
   }
 
+  // scalastyle:off magic.number
   "Reward" should "be paid to the miner even if the account doesn't exist" in new TestSetup {
     val block = sampleBlock(Address(0xdeadbeef))
     val afterRewardWorldState: InMemoryWorldStateProxy = ledger.payBlockReward(block, worldState)
@@ -51,7 +52,15 @@ class BlockRewardSpec extends FlatSpec with Matchers with MockFactory {
   }
 
 
+  // scalastyle:off magic.number
   trait TestSetup extends EphemBlockchainTestSetup {
+    //+ cake overrides
+    override lazy val vm: VM = new MockVM()
+
+    // Just make the type a bit more specific, since this is needed by the test cases
+    override lazy val ledger: LedgerImpl = newLedger()
+    //- cake overrides
+
 
     val validAccountAddress = Address(0xababab)
     val validAccountAddress2 = Address(0xcdcdcd)

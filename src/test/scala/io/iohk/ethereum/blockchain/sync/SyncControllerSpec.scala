@@ -6,6 +6,9 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
+import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
+import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, Validators}
 import io.iohk.ethereum.domain.{Account, BlockHeader}
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
@@ -18,8 +21,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.validators.{BlockHeaderValidator, Validators}
+import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
@@ -174,7 +176,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
   }
 
-  it should "handle blocks that fail validation" in new TestSetup(validators = new Mocks.MockValidatorsAlwaysSucceed {
+  it should "handle blocks that fail validation" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => Left(HeaderPoWError) }
   }) {
     val peer2TestProbe: TestProbe = TestProbe()(system)
@@ -451,7 +453,21 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer.id))
   }
 
-  class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil, validators: Validators = new Mocks.MockValidatorsAlwaysSucceed) extends EphemBlockchainTestSetup {
+  class TestSetup(
+    blocksForWhichLedgerFails: Seq[BigInt] = Nil,
+    _validators: Validators = new Mocks.MockValidatorsAlwaysSucceed
+  ) extends EphemBlockchainTestSetup {
+
+    //+ cake overrides
+    // FIXME ! overrides the same impl.
+    override lazy val vm: VM = VM
+
+    override lazy val validators: Validators = _validators
+
+    override lazy val consensus: TestConsensus = loadConsensus().withValidators(validators)
+
+    override lazy val ledger: Ledger = mock[Ledger]
+    //+ cake overrides
 
     private def isNewBlock(msg: Message): Boolean = msg match {
       case _: NewBlock => true
@@ -463,8 +479,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       case EtcPeerManagerActor.SendMessage(msg, _) if isNewBlock(msg.underlyingMsg) => true
       case EtcPeerManagerActor.GetHandshakedPeers => true
     }
-
-    val ledger: Ledger = mock[Ledger]
 
     val peerMessageBus = TestProbe()
     peerMessageBus.ignoreMsg{
@@ -506,7 +520,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       fastSyncBlockValidationX = 50
     )
 
-    lazy val syncConfig = defaultSyncConfig
+    override lazy val syncConfig = defaultSyncConfig
 
     lazy val syncController = TestActorRef(Props(new SyncController(
       storagesInstance.storages.appStateStorage,

@@ -9,7 +9,7 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig}
+import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
@@ -17,7 +17,6 @@ import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
-import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -31,6 +30,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
+import scala.language.existentials
 
 // scalastyle:off number.of.methods number.of.types
 object EthService {
@@ -169,9 +169,7 @@ object EthService {
 
 class EthService(
     blockchain: Blockchain,
-    blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
-    fullConsensusConfig: FullConsensusConfig[_],
     ledger: Ledger,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
@@ -188,11 +186,14 @@ class EthService(
   val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] = new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
   val lastActive = new AtomicReference[Option[Date]](None)
 
+  private[this] def consensus = ledger.consensus
+  private[this] def blockGenerator = consensus.blockGenerator
+  private[this] def fullConsensusConfig = consensus.config
   private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
 
   private[this] def ifEthash[Req, Res](req: Req)(f: Req ⇒ Res): ServiceResponse[Res] = {
     @inline def F[A](x: A) = Future.successful(x)
-    fullConsensusConfig.ifEthash[ServiceResponse[Res]](_ ⇒ F(Right(f(req))))(F(Left(JsonRpcErrors.ConsensusIsNotEthash)))
+    consensus.ifEthash[ServiceResponse[Res]](_ ⇒ F(Right(f(req))))(F(Left(JsonRpcErrors.ConsensusIsNotEthash)))
   }
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
@@ -446,15 +447,17 @@ class EthService(
     }
   }
 
+  //noinspection ScalaStyle
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
-    fullConsensusConfig.ifEthash(_ ⇒ {
+    consensus.ifEthash(ethash ⇒ {
       reportActive()
-      import io.iohk.ethereum.consensus.ethash.Ethash.{seed, epoch}
+      import io.iohk.ethereum.consensus.ethash.EthashUtils.{seed, epoch}
 
       val bestBlock = blockchain.getBestBlock()
       getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map {
         case (ommers, pendingTxs) =>
-          blockGenerator.generateBlockForMining(bestBlock, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, consensusConfig.coinbase) match {
+          val blockGenerator = ethash.blockGenerator
+          blockGenerator.generateBlockForMining(bestBlock, pendingTxs.pendingTransactions.map(_.stx), consensusConfig.coinbase, ommers.headers) match {
             case Right(pb) =>
               Right(GetWorkResponse(
                 powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),

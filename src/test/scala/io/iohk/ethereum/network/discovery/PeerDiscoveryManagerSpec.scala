@@ -44,7 +44,7 @@ class PeerDiscoveryManagerSpec extends FlatSpec with Matchers with MockFactory w
 
     val expectedFindNodeResponse = SendMessage(FindNode(ByteString(nodeStatus.nodeId), expectedTime), remoteUdpAddress)
 
-    Thread.sleep(500)
+    Thread.sleep(1000)
     dicoveryListner.expectMsg(expectedFindNodeResponse)
     discoveryPeerManager.underlyingActor.nodesInfo.size shouldEqual 2
     discoveryPeerManager.underlyingActor.nodesInfo.values.toSet should contain (nodeInfo)
