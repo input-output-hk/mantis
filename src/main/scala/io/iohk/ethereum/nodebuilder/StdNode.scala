@@ -66,7 +66,7 @@ class StdNode extends Node {
     }
 
     tryAndLogFailure(() => consensus.stopProtocol())
-    tryAndLogFailure(() => Await.ready(actorSystem.terminate, shutdownTimeoutDuration))
+    tryAndLogFailure(() => Await.ready(system.terminate, shutdownTimeoutDuration))
     tryAndLogFailure(() => storagesInstance.dataSources.closeAll())
   }
 }

@@ -13,11 +13,7 @@ sealed trait Protocol {
   def name: String
 
   /** Returns `true` if this is the standard Ethereum PoW consensus protocol (`ethash`). */
-  final def isEthash: Boolean =
-    this match {
-      case Ethash ⇒ true
-      case _ ⇒ false
-    }
+  def isEthash: Boolean
 }
 
 object Protocol {
@@ -25,37 +21,30 @@ object Protocol {
     // This is the standard Ethereum PoW consensus protocol.
     final val Ethash = "ethash"
 
-    // This is a dummy consensus protocol for demonstration purposes (pluggable consensus)
-    final val Demo0 = "demo-consensus"
-
     // Using the Raft implementation from atomix.io
     final val AtomixRaft = "atomix-raft"
   }
 
-  def find(name: String): Option[Protocol] =
-    name match {
-      case Names.Ethash ⇒ Some(Ethash)
-      case Names.Demo0 ⇒ Some(Demo0)
-      case Names.AtomixRaft ⇒ Some(AtomixRaft)
-      case _ ⇒ None
-    }
+  sealed abstract class ProtocolImpl(val name: String, val isEthash: Boolean) extends Protocol
+
+  /** The standard Ethereum PoW consensus protocol. */
+  case object Ethash extends ProtocolImpl(Names.Ethash, true)
+
+  /** Raft consensus protocol. */
+  case object AtomixRaft extends ProtocolImpl(Names.AtomixRaft, false)
+
+  /** All the known protocols. If a protocol is not put here, then it cannot be used to run Mantis. */
+  final val KnownProtocols = Set(
+    Ethash,
+    AtomixRaft
+  )
+
+  final val KnownProtocolNames = KnownProtocols.map(_.name)
+
+  def find(name: String): Option[Protocol] = KnownProtocols.find(_.name == name)
 
   private[consensus] def apply(name: String): Protocol =
-    find(name) match {
-      case Some(protocol) ⇒ protocol
-      case None ⇒
-        require(requirement = false, "Unknown protocol " + name)
-        throw new Exception()
+    find(name).getOrElse {
+      throw new IllegalArgumentException("Unknown protocol " + name)
     }
 }
-
-sealed abstract class ProtocolImpl private[consensus](val name: String) extends Protocol
-
-/** The standard Ethereum PoW consensus protocol. */
-case object Ethash extends ProtocolImpl(Protocol.Names.Ethash)
-
-/** A dump protocol used internally for demonstration purposes */
-case object Demo0 extends ProtocolImpl(Protocol.Names.Demo0)
-
-/** Raft consensus protocol */
-case object AtomixRaft extends ProtocolImpl(Protocol.Names.AtomixRaft)
