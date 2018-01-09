@@ -69,7 +69,7 @@ class BlockchainSuite extends FreeSpec with Matchers with BeforeAndAfterAll with
     ignoredTests.get(groupName).isDefined && (ignoredTests(groupName).contains(testName) || ignoredTests(groupName).isEmpty)
 
   private def runScenario(scenario: BlockchainScenario, setup: ScenarioSetup): Unit = {
-    import setup._
+    import setup.{log ⇒ _, _}
 
     loadGenesis()
 

@@ -1,20 +1,21 @@
-package io.iohk.ethereum.mining
+package io.iohk.ethereum.consensus
+package ethash
 
 import java.io.{File, FileInputStream, FileOutputStream}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.consensus.Ethash
-import io.iohk.ethereum.consensus.Ethash.ProofOfWork
+import io.iohk.ethereum.consensus.ethash.Ethash.ProofOfWork
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateRequest
+import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.{ByteUtils, MiningConfig}
+import io.iohk.ethereum.utils.ByteUtils
 import org.spongycastle.util.encoders.Hex
 
 import scala.concurrent.Future
@@ -24,14 +25,15 @@ import scala.util.{Failure, Random, Success, Try}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 
 class Miner(
-    blockchain: Blockchain,
-    blockGenerator: BlockGenerator,
-    ommersPool: ActorRef,
-    pendingTransactionsManager: ActorRef,
-    syncController: ActorRef,
-    miningConfig: MiningConfig,
-    ethService: EthService)
-  extends Actor with ActorLogging {
+  blockchain: Blockchain,
+  blockGenerator: BlockGenerator,
+  ommersPool: ActorRef,
+  pendingTransactionsManager: ActorRef,
+  syncController: ActorRef,
+  miningConfig: MiningConfig,
+  ethService: EthService,
+  consensus: Consensus
+) extends Actor with ActorLogging {
 
   import Miner._
   import akka.pattern.ask
@@ -75,7 +77,7 @@ class Miner(
         currentEpoch = Some(epoch)
         currentEpochDag = Some(dag)
         currentEpochDagSize = Some(dagSize)
-      (dag, dagSize)
+        (dag, dagSize)
     }
 
     getBlockForMining(parentBlock) onComplete {
@@ -164,8 +166,8 @@ class Miner(
       val pow = Ethash.hashimoto(headerHash, nonceBytes.toArray[Byte], dagSize, dag.apply)
       (Ethash.checkDifficulty(difficulty, pow), pow, nonceBytes, n)
     }
-    .collectFirst { case (true, pow, nonceBytes, n) => MiningSuccessful(n + 1, pow, nonceBytes) }
-    .getOrElse(MiningUnsuccessful(numRounds))
+      .collectFirst { case (true, pow, nonceBytes, n) => MiningSuccessful(n + 1, pow, nonceBytes) }
+      .getOrElse(MiningUnsuccessful(numRounds))
   }
 
   private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
@@ -200,14 +202,15 @@ class Miner(
 
 object Miner {
   def props(blockchain: Blockchain,
-            blockGenerator: BlockGenerator,
-            ommersPool: ActorRef,
-            pendingTransactionsManager: ActorRef,
-            syncController: ActorRef,
-            miningConfig: MiningConfig,
-            ethService: EthService): Props =
+    blockGenerator: BlockGenerator,
+    ommersPool: ActorRef,
+    pendingTransactionsManager: ActorRef,
+    syncController: ActorRef,
+    miningConfig: MiningConfig,
+    ethService: EthService,
+    consensus: Consensus): Props =
     Props(new Miner(blockchain, blockGenerator, ommersPool,
-      pendingTransactionsManager, syncController, miningConfig, ethService))
+      pendingTransactionsManager, syncController, miningConfig, ethService, consensus))
 
   case object StartMining
   case object StopMining
@@ -226,3 +229,4 @@ object Miner {
   case class MiningUnsuccessful(triedHashes: Int) extends MiningResult
 
 }
+

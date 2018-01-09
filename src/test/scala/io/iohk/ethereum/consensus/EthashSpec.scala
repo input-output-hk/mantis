@@ -9,7 +9,7 @@ import org.spongycastle.util.encoders.Hex
 
 class EthashSpec extends FlatSpec with Matchers with PropertyChecks {
 
-  import Ethash._
+  import io.iohk.ethereum.consensus.ethash.Ethash._
 
   "Ethash" should "generate correct hash" in {
     forAll(Arbitrary.arbitrary[Long].filter(_ < 15000000)) { blockNumber =>

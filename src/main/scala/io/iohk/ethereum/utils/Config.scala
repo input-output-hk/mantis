@@ -13,7 +13,6 @@ import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
-import io.iohk.ethereum.validators.BlockHeaderValidatorImpl
 import org.spongycastle.util.encoders.Hex
 
 import scala.collection.JavaConverters._
@@ -246,39 +245,6 @@ object TxPoolConfig {
       val txPoolSize: Int = txPoolConfig.getInt("tx-pool-size")
       val pendingTxManagerQueryTimeout: FiniteDuration = txPoolConfig.getDuration("pending-tx-manager-query-timeout").toMillis.millis
       val transactionTimeout: FiniteDuration = txPoolConfig.getDuration("transaction-timeout").toMillis.millis
-    }
-  }
-}
-
-trait MiningConfig {
-  val ommersPoolSize: Int
-  val blockCacheSize: Int
-  val coinbase: Address
-  val activeTimeout: FiniteDuration
-  val ommerPoolQueryTimeout: FiniteDuration
-  val headerExtraData: ByteString
-  val miningEnabled: Boolean
-  val ethashDir: String
-  val mineRounds: Int
-}
-
-object MiningConfig {
-  def apply(etcClientConfig: TypesafeConfig): MiningConfig = {
-    val miningConfig = etcClientConfig.getConfig("mining")
-
-    new MiningConfig {
-      val coinbase: Address = Address(miningConfig.getString("coinbase"))
-      val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
-      val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
-      val activeTimeout: FiniteDuration = miningConfig.getDuration("active-timeout").toMillis.millis
-      val ommerPoolQueryTimeout: FiniteDuration = miningConfig.getDuration("ommer-pool-query-timeout").toMillis.millis
-      override val headerExtraData: ByteString =
-        ByteString(miningConfig
-          .getString("header-extra-data").getBytes)
-          .take(BlockHeaderValidatorImpl.MaxExtraDataSize)
-      override val miningEnabled = miningConfig.getBoolean("mining-enabled")
-      override val ethashDir = miningConfig.getString("ethash-dir")
-      override val mineRounds = miningConfig.getInt("mine-rounds")
     }
   }
 }
