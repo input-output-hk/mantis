@@ -1,16 +1,20 @@
 package io.iohk.ethereum.mining
+// FIXME change package
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.RegularSync
+import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig}
+import io.iohk.ethereum.consensus.ethash.{Miner, MiningConfig}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateResponse
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, MiningConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.validators.{BlockHeaderValid, BlockHeaderValidatorImpl}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers, Tag}
@@ -34,7 +38,7 @@ class MinerSpec extends FlatSpec with Matchers {
 
     (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
     (ethService.submitHashRate _).expects(*).returns(Future.successful(Right(SubmitHashRateResponse(true)))).atLeastOnce()
-    (blockGenerator.generateBlockForMining _).expects(parent, Nil, Nil, miningConfig.coinbase).returning(Right(PendingBlock(bfm, Nil))).anyNumberOfTimes()
+    (blockGenerator.generateBlockForMining _).expects(parent, Nil, Nil, consensusConfig.coinbase).returning(Right(PendingBlock(bfm, Nil))).anyNumberOfTimes()
 
     ommersPool.setAutoPilot(new TestActor.AutoPilot {
       def run(sender: ActorRef, msg: Any): TestActor.AutoPilot = {
@@ -87,7 +91,9 @@ class MinerSpec extends FlatSpec with Matchers {
     val blockGenerator: BlockGenerator = mock[BlockGenerator]
 
     val blockchainConfig = BlockchainConfig(Config.config)
+    val consensusConfig = ConsensusConfig(Config.config)(ShutdownHookBuilder)
     val miningConfig = MiningConfig(Config.config)
+    val fullConsensusConfig = FullConsensusConfig(consensusConfig, miningConfig)
     val difficultyCalc = new DifficultyCalculator(blockchainConfig)
 
     val blockForMiningTimestamp = System.currentTimeMillis()
@@ -118,7 +124,7 @@ class MinerSpec extends FlatSpec with Matchers {
       Block(BlockHeader(
         parentHash = parent.hash,
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
-        beneficiary = miningConfig.coinbase.bytes,
+        beneficiary = consensusConfig.coinbase.bytes,
         stateRoot = parent.stateRoot,
         transactionsRoot = parent.transactionsRoot,
         receiptsRoot = parent.receiptsRoot,
@@ -128,7 +134,7 @@ class MinerSpec extends FlatSpec with Matchers {
         gasLimit = calculateGasLimit(parent.gasLimit),
         gasUsed = BigInt(0),
         unixTimestamp = blockForMiningTimestamp,
-        extraData = miningConfig.headerExtraData,
+        extraData = consensusConfig.headerExtraData,
         mixHash = ByteString.empty,
         nonce = ByteString.empty
       ), BlockBody(Seq(txToMine), Nil))
@@ -144,7 +150,7 @@ class MinerSpec extends FlatSpec with Matchers {
 
     val ethService = mock[EthService]
 
-    val miner = TestActorRef(Miner.props(blockchain, blockGenerator, ommersPool.ref, pendingTransactionsManager.ref, syncController.ref, miningConfig, ethService))
+    val miner = TestActorRef(Miner.props(blockchain, blockGenerator, ommersPool.ref, pendingTransactionsManager.ref, syncController.ref, fullConsensusConfig, ethService))
 
     def waitForMinedBlock(): Block = {
       syncController.expectMsgPF[Block](10.minutes) {

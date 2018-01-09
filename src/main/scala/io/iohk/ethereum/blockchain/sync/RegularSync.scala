@@ -128,7 +128,7 @@ class RegularSync(
             case BlockImportedToTop(newBlocks, newTds) =>
               broadcastBlocks(newBlocks, newTds)
               updateTxAndOmmerPools(newBlocks, Nil)
-              log.debug(s"Added new block ${newBlock.header.number} to the top of the chain received from $peerId")
+              log.info(s"Added new block ${newBlock.header.number} to the top of the chain received from $peerId")
 
             case BlockEnqueued =>
               ommersPool ! AddOmmers(newBlock.header)
@@ -216,18 +216,18 @@ class RegularSync(
 
   def handleResponseToRequest: Receive = {
     case ResponseReceived(peer: Peer, BlockHeaders(headers), timeTaken) =>
-      log.info("Received {} block headers in {} ms (branch resolution: {})", headers.size, timeTaken, resolvingBranches)
+      log.debug("Received {} block headers in {} ms from {} (branch resolution: {})", headers.size, timeTaken, peer, resolvingBranches)
       waitingForActor = None
       if (resolvingBranches) handleBlockBranchResolution(peer, headers.reverse)
       else handleBlockHeaders(peer, headers)
 
     case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
-      log.info("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
+      log.debug("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
       waitingForActor = None
       handleBlockBodies(peer, blockBodies)
 
     case ResponseReceived(peer, NodeData(nodes), timeTaken) if missingStateNodeRetry.isDefined =>
-      log.info("Received {} missing state nodes in {} ms", nodes.size, timeTaken)
+      log.debug("Received {} missing state nodes in {} ms", nodes.size, timeTaken)
       waitingForActor = None
       handleRedownloadedStateNodes(peer, nodes)
 

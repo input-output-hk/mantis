@@ -1,4 +1,5 @@
 package io.iohk.ethereum.consensus
+package ethash
 
 import java.math.BigInteger
 import java.util
@@ -212,7 +213,7 @@ object Ethash {
     (v1 * FNV_PRIME) ^ v2
   }
 
-  def checkDifficulty(blockDifficulty: Long, proofOfWork: ProofOfWork): Boolean = {
+  private[ethash] def checkDifficulty(blockDifficulty: Long, proofOfWork: ProofOfWork): Boolean = {
     @tailrec
     def compare(a1: Array[Byte], a2: Array[Byte]): Int = {
       if (a1.length > a2.length) 1

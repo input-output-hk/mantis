@@ -4,8 +4,10 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.ConsensusConfigs
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader}
 import io.iohk.ethereum.jsonrpc.EthService._
@@ -36,6 +38,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import java.time.Duration
+
 
 // scalastyle:off file.size.limit
 class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks with ScalaFutures with NormalPatience with Eventually {
@@ -833,7 +836,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(JString("0x" + "42" * 20))
+    response.result shouldBe Some(JString("0x000000000000000000000000000000000000002a"))
   }
 
   it should "eth_getTransactionByBlockNumberAndIndex by tag" in new TestSetup {
@@ -1411,17 +1414,9 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val ommersPool = TestProbe()
     val filterManager = TestProbe()
 
-    val miningConfig = new MiningConfig {
-      override val coinbase: Address = Address(Hex.decode("42" * 20))
-      override val blockCacheSize: Int = 30
-      override val ommersPoolSize: Int = 30
-      override val activeTimeout: FiniteDuration = Timeouts.normalTimeout
-      override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
-      override val headerExtraData: ByteString = ByteString.empty
-      override val miningEnabled: Boolean = false
-      override val ethashDir: String = "~/.ethash"
-      override val mineRounds: Int = 100000
-    }
+    val miningConfig = ConsensusConfigs.miningConfig
+    val consensusConfig = ConsensusConfigs.consensusConfig
+    val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
 
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -1434,7 +1429,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, miningConfig, ledger,
+    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, fullConsensusConfig, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
       blockchainConfig, currentProtocolVersion)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
@@ -1463,5 +1458,4 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val v: Byte = ByteString(Hex.decode("1b")).last
     val sig = ECDSASignature(r, s, v)
   }
-
 }
