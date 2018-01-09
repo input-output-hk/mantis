@@ -44,7 +44,10 @@ val dep = {
     "io.circe" %% "circe-generic-extras" % circeVersion,
     "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test",
     "commons-io" % "commons-io" % "2.5",
-    "com.typesafe.akka" %% "akka-stream" % akkaVersion
+    "com.typesafe.akka" %% "akka-stream" % akkaVersion,
+    "io.atomix" % "atomix" % "2.1.0-beta1",
+    "io.atomix" % "atomix-raft" % "2.1.0-beta1",
+    "io.netty" % "netty-tcnative-boringssl-static" % "2.0.7.Final" classifier "linux-x86_64" // using native epoll
   )
 }
 

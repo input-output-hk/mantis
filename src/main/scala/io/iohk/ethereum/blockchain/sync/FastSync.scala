@@ -195,7 +195,7 @@ class FastSync(
               if (syncState.bestBlockHeaderNumber >= syncState.targetBlock.number - X) header.number + 1
               else header.number + K / 2 + Random.nextInt(K))
 
-          validators.blockHeaderValidator.validate(header, blockchain) match {
+          validators.blockHeaderValidator.validate(header, blockchain.getBlockHeaderByHash) match {
             case Right(_) =>
               if (insertHeader(header)) processHeaders(peer, remaining)
               else true

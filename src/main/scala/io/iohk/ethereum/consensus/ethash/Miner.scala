@@ -212,8 +212,9 @@ object Miner {
     Props(new Miner(blockchain, blockGenerator, ommersPool,
       pendingTransactionsManager, syncController, miningConfig, ethService, consensus))
 
-  case object StartMining
-  case object StopMining
+  sealed trait MinerMsg
+  case object StartMining extends MinerMsg
+  case object StopMining extends MinerMsg
 
   private case object ProcessMining
 

@@ -19,12 +19,16 @@ object Protocol {
 
     // This is a dummy consensus protocol for demonstration purposes (pluggable consensus)
     final val DemoConsensus = "demo-consensus"
+
+    // Using the Raft implementation from atomix.io
+    final val AtomixRaft = "atomix-raft"
   }
 
   def find(name: String): Option[Protocol] =
     name match {
       case Names.Ethash ⇒ Some(Ethash)
       case Names.DemoConsensus ⇒ Some(DemoPoS)
+      case Names.AtomixRaft ⇒ Some(AtomixRaft)
       case _ ⇒ None
     }
 
@@ -43,4 +47,8 @@ case object Ethash extends Protocol {
 
 case object DemoPoS extends Protocol {
   final val name = Protocol.Names.DemoConsensus
+}
+
+case object AtomixRaft extends Protocol {
+  final val name = Protocol.Names.AtomixRaft
 }

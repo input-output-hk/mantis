@@ -1,14 +1,17 @@
 package io.iohk.ethereum.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain, DifficultyCalculator}
+import io.iohk.ethereum.domain.{BlockHeader, DifficultyCalculator}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
+/**
+ * Validates a [[io.iohk.ethereum.domain.BlockHeader BlockHeader]].
+ */
 trait BlockHeaderValidator {
-  def validate(blockHeader: BlockHeader, getBlockHeaderByHash: ByteString => Option[BlockHeader]): Either[BlockHeaderError, BlockHeaderValid]
-
-  def validate(blockHeader: BlockHeader, blockchain: Blockchain): Either[BlockHeaderError, BlockHeaderValid] =
-    validate(blockHeader, blockchain.getBlockHeaderByHash _)
+  def validate(
+    blockHeader: BlockHeader,
+    getBlockHeaderByHash: ByteString => Option[BlockHeader]
+  ): Either[BlockHeaderError, BlockHeaderValid]
 }
 
 object BlockHeaderValidatorImpl {
@@ -24,8 +27,8 @@ object BlockHeaderValidatorImpl {
 // FIXME Decouple PoW validation
 class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
 
-  import BlockHeaderValidatorImpl._
   import BlockHeaderError._
+  import BlockHeaderValidatorImpl._
 
   // FIXME Reflect the need for being concurrent
   // we need concurrent map since validators can be used from multiple places

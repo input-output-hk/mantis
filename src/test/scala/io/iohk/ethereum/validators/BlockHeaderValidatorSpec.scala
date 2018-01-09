@@ -151,14 +151,14 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
 
   it should "validate correctly a block whose parent is in storage" in new EphemBlockchainTestSetup {
     blockchain.save(validBlockParent)
-    blockHeaderValidator.validate(validBlockHeader, blockchain) match {
+    blockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
       case Right(_)  => succeed
       case _ => fail
     }
   }
 
   it should "return a failure if the parent's header is not in storage" in new EphemBlockchainTestSetup {
-    blockHeaderValidator.validate(validBlockHeader, blockchain) match {
+    blockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
       case Left(HeaderParentNotFoundError) => succeed
       case _ => fail
     }

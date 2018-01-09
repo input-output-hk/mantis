@@ -36,7 +36,7 @@ class DemoConsensusMiner(
 
   private[this] val IAmTheLeader = demoConsensusConfig.IAmTheLeader
 
-  override def receive: Receive = stopped
+  def receive: Receive = stopped
 
   def stopped: Receive = {
     case StartMining =>

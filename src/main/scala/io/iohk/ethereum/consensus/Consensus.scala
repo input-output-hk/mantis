@@ -1,5 +1,8 @@
 package io.iohk.ethereum.consensus
 
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
+import io.iohk.ethereum.ledger.BlockExecutionSuccess
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.validators.BlockHeaderValidator
 
@@ -11,15 +14,10 @@ import io.iohk.ethereum.validators.BlockHeaderValidator
 trait Consensus {
   /**
    * Starts the consensus protocol on the current `node`.
-   * This call must be made before `startMiningProcess`.
    */
   def startProtocol(node: Node): Unit
 
-  /**
-   * Starts the mining process on the current `node`.
-   * It is up to the consensus protocol to define the semantics of mining.
-   */
-  def startMiningProcess(node: Node): Unit
+  def stopProtocol(): Unit
 
   /**
    * Provides the [[io.iohk.ethereum.validators.BlockHeaderValidator BlockHeaderValidator]] that is specific
@@ -27,4 +25,7 @@ trait Consensus {
    */
   // FIXME Probably include the whole of [[io.iohk.ethereum.validators.Validators]].
   def blockHeaderValidator: BlockHeaderValidator
+
+  // Ledger uses this in importBlock
+  def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = ???
 }

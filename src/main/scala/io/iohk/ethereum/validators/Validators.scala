@@ -9,4 +9,3 @@ trait Validators {
   val signedTransactionValidator: SignedTransactionValidator
 
 }
- 

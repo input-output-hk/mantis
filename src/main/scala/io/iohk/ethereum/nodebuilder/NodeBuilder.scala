@@ -41,7 +41,6 @@ import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.utils.Config.SyncConfig
 
-import scala.concurrent.Await
 import scala.util.{Failure, Success, Try}
 
 // scalastyle:off number.of.types
@@ -532,45 +531,3 @@ trait Node extends NodeKeyBuilder
   with ConsensusBuilder
   with ConsensusConfigBuilder
   with RemoteVmBuilder // or LocalVmBuilder
-/**
- * A standard node is everything except the consensus algorithm, which is plugged in dynamically.
- */
-class StdNode extends Node {
-  def start(): Unit = {
-    genesisDataLoader.loadGenesisData()
-
-    peerManager ! PeerManagerActor.StartConnecting
-    server ! ServerActor.StartServer(networkConfig.Server.listenAddress)
-
-    if (discoveryConfig.discoveryEnabled) {
-      discoveryListener ! DiscoveryListener.Start
-    }
-
-    syncController ! SyncController.Start
-
-    consensus.startProtocol(this)
-
-    if(consensusConfig.miningEnabled) {
-      log.info("Mining is enabled")
-      consensus.startMiningProcess(this) // whatever that means for each consensus protocol
-    }
-
-    peerDiscoveryManager // unlazy
-
-    maybeJsonRpcServer match {
-      case Right(jsonRpcServer) if jsonRpcServerConfig.enabled => jsonRpcServer.run()
-      case Left(error) if jsonRpcServerConfig.enabled => log.error(error)
-      case _=> //Nothing
-    }
-  }
-
-  def tryAndLogFailure(f: () => Any): Unit = Try(f()) match {
-    case Failure(e) => log.warn("Error while shutting down...", e)
-    case Success(_) =>
-  }
-
-  override def shutdown(): Unit = {
-    tryAndLogFailure(() => Await.ready(actorSystem.terminate, shutdownTimeoutDuration))
-    tryAndLogFailure(() => storagesInstance.dataSources.closeAll())
-  }
-}

@@ -1,10 +1,12 @@
 package io.iohk.ethereum.consensus
 
+import io.iohk.ethereum.consensus.atomixraft.AtomixRaftConsensus
 import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ShutdownHookBuilder}
 import io.iohk.ethereum.utils.{Config, Logger}
 
 /**
  * A consensus builder is responsible to instantiate the consensus protocol.
+ * This is done dynamically when Mantis boots, based on its configuration.
  */
 trait ConsensusBuilder {
   self: BlockchainConfigBuilder with ConsensusConfigBuilder with Logger =>
@@ -12,14 +14,20 @@ trait ConsensusBuilder {
   private lazy val mantisConfig = Config.config
 
   private def loadEthashConsensus(): ethash.EthashConsensus = {
-    val config = ethash.MiningConfig(mantisConfig)
-    val consensus = new ethash.EthashConsensus(blockchainConfig, config)
+    val miningConfig = ethash.MiningConfig(mantisConfig)
+    val consensus = new ethash.EthashConsensus(blockchainConfig, consensusConfig, miningConfig)
     consensus
   }
 
   private def loadDemoConsensus(): demo.DemoConsensus = {
-    val config = demo.DemoConsensusConfig(mantisConfig)
-    val consensus = new demo.DemoConsensus(blockchainConfig, config)
+    val demoConsensusConfig = demo.DemoConsensusConfig(mantisConfig)
+    val consensus = new demo.DemoConsensus(blockchainConfig, consensusConfig, demoConsensusConfig)
+    consensus
+  }
+
+  private def loadAtomixRaftConsensus(): atomixraft.AtomixRaftConsensus = {
+    val atomixRaftConfig = atomixraft.AtomixRaftConfig(mantisConfig)
+    val consensus = new AtomixRaftConsensus(blockchainConfig, consensusConfig, atomixRaftConfig)
     consensus
   }
 
@@ -32,8 +40,9 @@ trait ConsensusBuilder {
       config.protocol match {
         case Ethash ⇒ loadEthashConsensus()
         case DemoPoS ⇒ loadDemoConsensus()
+        case AtomixRaft ⇒ loadAtomixRaftConsensus()
       }
-    log.info(s"${protocol.name} protocol implemented by ${consensus.getClass.getName}")
+    log.info(s"'${protocol.name}' protocol implemented by ${consensus.getClass.getName}")
 
     consensus
   }

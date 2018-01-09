@@ -11,6 +11,8 @@ import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockHeaderValidatorIm
  */
 class DemoConsensus(
   blockchainConfig: BlockchainConfig,
+  consensusConfig: ConsensusConfig,
+
   demoConsensusConfig: DemoConsensusConfig
 ) extends Consensus with Logger {
 
@@ -18,17 +20,17 @@ class DemoConsensus(
 
   /**
    * Starts the consensus protocol on the current `node`.
-   * This call must be made before `startMiningProcess`.
    */
   def startProtocol(node: Node): Unit = {
+    if(consensusConfig.miningEnabled) {
+      startMiningProcess(node)
+    }
     log.info(s"Howdy, started consensus protocol $this")
   }
 
-  /**
-   * Starts the mining process on the current `node`.
-   * It is up to the consensus protocol to define the semantics of mining.
-   */
-  def startMiningProcess(node: Node): Unit = {
+  def stopProtocol(): Unit = {}
+
+  private[this] def startMiningProcess(node: Node): Unit = {
     val minerBuilder = new DemoConsensusMinerBuilder(node, demoConsensusConfig)
     val miner = minerBuilder.miner
     miner ! DemoConsensusMiner.StartMining

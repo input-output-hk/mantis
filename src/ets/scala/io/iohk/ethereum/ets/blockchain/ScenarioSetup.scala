@@ -9,7 +9,7 @@ import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, BlockchainConfigBuilder, ShutdownHookBuilder, SyncConfigBuilder, ValidatorsBuilder}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.vm.VM
 import org.spongycastle.util.encoders.Hex
 
