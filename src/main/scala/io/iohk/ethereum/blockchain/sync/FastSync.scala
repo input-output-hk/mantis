@@ -206,7 +206,7 @@ class FastSync(
               if (header.number == syncState.targetBlock.number) {
                 // target validation failed, declare a failure and stop syncing
                 log.warning(s"Sync failure! Block header validation failed at fast sync target block. Blockchain state may be invalid.")
-                context stop self
+                sys.exit(1)
                 false
               } else {
                 // validation failed at non-target block, discard N blocks and resume
