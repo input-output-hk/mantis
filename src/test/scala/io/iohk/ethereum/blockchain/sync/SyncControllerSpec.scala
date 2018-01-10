@@ -185,7 +185,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(
       number = expectedTargetBlock,
       stateRoot = ByteString(Hex.decode("deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc")))
-    val bestBlockHeaderNumber: BigInt = targetBlockHeader.number - 1
+    val bestBlockHeaderNumber: BigInt = targetBlockHeader.number - 2
     storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState(targetBlockHeader)
       .copy(bestBlockHeaderNumber = bestBlockHeaderNumber,
         pendingMptNodes = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
@@ -219,19 +219,19 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     //trigger scheduling
 
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
-      GetBlockHeaders(Left(targetBlockHeader.number), expectedTargetBlock - bestBlockHeaderNumber, 0, reverse = false),
+      GetBlockHeaders(Left(targetBlockHeader.number - 1), expectedTargetBlock - bestBlockHeaderNumber, 0, reverse = false),
       peer2.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
-    peerMessageBus.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer2.id))
+    peerMessageBus.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader.copy(number = targetBlockHeader.number - 1))), peer2.id))
     peerMessageBus.expectMsg(Unsubscribe())
 
     syncController.getSingleChild("fast-sync") ! FastSync.PersistSyncState
     Thread.sleep(200)
     val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
-    syncState.bestBlockHeaderNumber shouldBe (targetBlockHeader.number - syncConfig.fastSyncBlockValidationN - 1)
+    syncState.bestBlockHeaderNumber shouldBe (bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN)
     syncState.blockBodiesQueue.isEmpty shouldBe true
     syncState.receiptsQueue.isEmpty shouldBe true
-    syncState.nextBlockToFullyValidate shouldBe (targetBlockHeader.number - syncConfig.fastSyncBlockValidationN)
+    syncState.nextBlockToFullyValidate shouldBe (bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN + 1)
   }
 
   it should "throttle requests to peer" in  new TestSetup() {
