@@ -1,0 +1,79 @@
+syntax = "proto3";
+package io.iohk.ethereum.extvm;
+
+message CallContext {
+  bytes ownerAddr = 1;
+  bytes callerAddr = 2;
+  bytes originAddr = 3;
+  bytes contractCode = 4;
+  bytes inputData = 5;
+  bytes callValue = 6;
+  bytes gasPrice = 7;
+  bytes gasProvided = 8;
+  int32 callDepth = 9;
+  BlockHeader blockHeader = 10;
+};
+
+message BlockHeader {
+  bytes parentHash = 1;
+  bytes ommersHash = 2;
+  bytes beneficiary = 3;
+  bytes stateRoot = 4;
+  bytes transactionsRoot = 5;
+  bytes receiptsRoot = 6;
+  bytes logsBloom = 7;
+  bytes difficulty = 8;
+  bytes number = 9;
+  bytes gasLimit = 10;
+  bytes gasUsed = 11;
+  int64 unixTimestamp = 12;
+  bytes extraData = 13;
+  bytes mixHash = 14;
+  bytes nonce = 15;
+}
+
+message GetAccount {
+  bytes address = 1;
+}
+
+message Account {
+  bytes nonce = 1;
+  bytes balance = 2;
+  bytes storage = 3;
+}
+
+message GetStorageData {
+  bytes address = 1;
+  bytes offset = 2;
+}
+
+message StorageData {
+  bytes data = 1;
+}
+
+message CallResult {
+  bytes returnData = 1;
+  bytes gasRemaining = 2;
+  bytes gasRefund = 3;
+  int32 error = 4;
+  repeated ModifiedAccount modifiedAccounts = 5;
+  repeated LogEntry logs = 6;
+}
+
+message ModifiedAccount {
+  bytes address = 1;
+  bytes nonce = 2;
+  repeated StorageUpdate storageUpdates = 3;
+}
+
+message StorageUpdate {
+  bytes offset = 1;
+  bytes data = 2;
+}
+
+message LogEntry {
+  bytes address = 1;
+  repeated bytes topics = 2;
+  bytes data = 3;
+}
+

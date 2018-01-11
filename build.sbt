@@ -153,6 +153,11 @@ parallelExecution in Test := false
 
 testOptions in Test += Tests.Argument("-oD")
 
+// protobuf compilation
+PB.targets in Compile := Seq(
+  scalapb.gen() -> (sourceManaged in Compile).value
+)
+
 (test in Evm) := (test in Evm).dependsOn(solidityCompile).value
 (sourceDirectory in Evm) := baseDirectory.value / "src" / "evmTest"
 
