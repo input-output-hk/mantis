@@ -19,10 +19,11 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.validators.Validators
 import org.spongycastle.util.encoders.Hex
 
+import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Random, Success, Try}
 
 class FastSync(
     val fastSyncStateStorage: FastSyncStateStorage,
@@ -153,11 +154,86 @@ class FastSync(
       assignedHandlers -= handler
     }
 
-    private def handleBlockHeaders(peer: Peer, headers: Seq[BlockHeader]) = {
-      if (checkHeadersChain(headers)) insertHeaders(headers)
-      else blacklist(peer.id, blacklistDuration, "error in block headers response")
+    private def insertHeader(header: BlockHeader): Boolean = {
+      val parentTdOpt = blockchain.getTotalDifficultyByHash(header.parentHash)
+      parentTdOpt foreach { parentTotalDifficulty =>
+        blockchain.save(header)
+        blockchain.save(header.hash, parentTotalDifficulty + header.difficulty)
 
-      processSyncing()
+        if (header.number > syncState.bestBlockHeaderNumber) {
+          syncState = syncState.copy(bestBlockHeaderNumber = header.number)
+        }
+
+        syncState = syncState
+          .enqueueBlockBodies(Seq(header.hash))
+          .enqueueReceipts(Seq(header.hash))
+      }
+
+      parentTdOpt.isDefined
+    }
+
+    private def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): Unit = {
+      (startBlock to ((startBlock - blocksToDiscard) max 1) by -1).foreach { n =>
+        blockchain.getBlockHeaderByNumber(n).foreach { headerToRemove =>
+          blockchain.removeBlock(headerToRemove.hash, saveParentAsBestBlock = false)
+        }
+      }
+      blockchain.saveBestBlockNumber((startBlock - blocksToDiscard - 1) max 0)
+    }
+
+    @tailrec
+    private def processHeaders(peer: Peer, headers: Seq[BlockHeader]): Boolean = {
+      import syncConfig.{fastSyncBlockValidationK => K, fastSyncBlockValidationN => N, fastSyncBlockValidationX => X}
+      if (headers.nonEmpty) {
+        val header = headers.head
+        val remaining = headers.tail
+
+        val shouldValidate = header.number >= syncState.nextBlockToFullyValidate
+        if (shouldValidate) {
+          syncState = syncState.copy(
+            nextBlockToFullyValidate =
+              if (syncState.bestBlockHeaderNumber >= syncState.targetBlock.number - X) header.number + 1
+              else header.number + K / 2 + Random.nextInt(K))
+
+          validators.blockHeaderValidator.validate(header, blockchain) match {
+            case Right(_) =>
+              if (insertHeader(header)) processHeaders(peer, remaining)
+              else true
+
+            case Left(error) =>
+              log.warning(s"Block header validation failed during fast sync at block ${header.number}: $error")
+
+              if (header.number == syncState.targetBlock.number) {
+                // target validation failed, declare a failure and stop syncing
+                log.warning(s"Sync failure! Block header validation failed at fast sync target block. Blockchain state may be invalid.")
+                sys.exit(1)
+                false
+              } else {
+                // validation failed at non-target block, discard N blocks and resume
+                blacklist(peer.id, blacklistDuration, "block header validation failed")
+                discardLastBlocks(header.number, N)
+                syncState = syncState.copy(
+                  blockBodiesQueue = Seq.empty,
+                  receiptsQueue = Seq.empty,
+                  bestBlockHeaderNumber = (header.number - N - 1) max 0,
+                  nextBlockToFullyValidate = (header.number - N) max 1)
+                true // do not process remaining headers and resume
+              }
+          }
+        } else {
+          if (insertHeader(header)) processHeaders(peer, remaining)
+          else true // do not process remaining headers and resume
+        }
+      } else true
+    }
+
+    private def handleBlockHeaders(peer: Peer, headers: Seq[BlockHeader]) = {
+      if (checkHeadersChain(headers)) {
+        if (processHeaders(peer, headers)) processSyncing()
+      } else {
+        blacklist(peer.id, blacklistDuration, "error in block headers response")
+        processSyncing()
+      }
     }
 
     private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]) = {
@@ -384,28 +460,6 @@ class FastSync(
       }
     }
 
-    private def insertHeaders(headers: Seq[BlockHeader]): Unit = {
-      val blockHeadersObtained = headers.takeWhile { header =>
-        val parentTd: Option[BigInt] = blockchain.getTotalDifficultyByHash(header.parentHash)
-        parentTd foreach { parentTotalDifficulty =>
-          blockchain.save(header)
-          blockchain.save(header.hash, parentTotalDifficulty + header.difficulty)
-        }
-        parentTd.isDefined
-      }
-
-      blockHeadersObtained.lastOption.foreach { lastHeader =>
-        if (lastHeader.number > syncState.bestBlockHeaderNumber) {
-          syncState = syncState.copy(bestBlockHeaderNumber = lastHeader.number)
-        }
-      }
-
-      val blockHashes = blockHeadersObtained.map(_.hash)
-      syncState = syncState
-        .enqueueBlockBodies(blockHashes)
-        .enqueueReceipts(blockHashes)
-    }
-
     def processSyncing(): Unit = {
       if (fullySynced) {
         finish()
@@ -595,7 +649,8 @@ object FastSync {
     blockBodiesQueue: Seq[ByteString] = Nil,
     receiptsQueue: Seq[ByteString] = Nil,
     downloadedNodesCount: Int = 0,
-    bestBlockHeaderNumber: BigInt = 0) {
+    bestBlockHeaderNumber: BigInt = 0,
+    nextBlockToFullyValidate: BigInt = 1) {
 
     def enqueueBlockBodies(blockBodies: Seq[ByteString]): SyncState =
       copy(blockBodiesQueue = blockBodiesQueue ++ blockBodies)

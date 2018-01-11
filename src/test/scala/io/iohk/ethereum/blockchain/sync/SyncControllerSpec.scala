@@ -18,6 +18,8 @@ import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBody, _}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.validators.BlockHeaderError.HeaderPoWError
+import io.iohk.ethereum.validators.{BlockHeaderValidator, Validators}
 import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
@@ -170,6 +172,66 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       GetBlockHeaders(Left(targetBlockHeader.number + 1), syncConfig.blockHeadersPerRequest, 0, reverse = false),
       peer2.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
+  }
+
+  it should "handle blocks that fail validation" in new TestSetup(validators = new Mocks.MockValidatorsAlwaysSucceed {
+    override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => Left(HeaderPoWError) }
+  }) {
+    val peer2TestProbe: TestProbe = TestProbe()(system)
+    val peer2 = Peer(new InetSocketAddress("127.0.0.1", 0), peer2TestProbe.ref, false)
+
+
+    val expectedTargetBlock = 399500
+    val targetBlockHeader: BlockHeader = baseBlockHeader.copy(
+      number = expectedTargetBlock,
+      stateRoot = ByteString(Hex.decode("deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc")))
+    val bestBlockHeaderNumber: BigInt = targetBlockHeader.number - 2
+    storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState(targetBlockHeader)
+      .copy(bestBlockHeaderNumber = bestBlockHeaderNumber,
+        pendingMptNodes = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
+
+    Thread.sleep(1.seconds.toMillis)
+
+    val peer2Status = Status(1, 1, 20, ByteString("peer2_bestHash"), ByteString("unused"))
+
+    syncController ! SyncController.Start
+
+    val handshakedPeers = HandshakedPeers(Map(
+      peer2 -> PeerInfo(peer2Status, forkAccepted = true, totalDifficulty = peer2Status.totalDifficulty, maxBlockNumber = 0)))
+
+    etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").toIterator), handshakedPeers)
+    etcPeerManager.send(syncController.getSingleChild("fast-sync"), handshakedPeers)
+
+    val stateMptLeafWithAccount =
+      ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
+
+    val watcher = TestProbe()
+    watcher.watch(syncController)
+
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer2.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.reply(MessageFromPeer(NodeData(Seq(stateMptLeafWithAccount)), peer2.id))
+    peerMessageBus.expectMsg(Unsubscribe())
+
+    //wait for peers throttle
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    //trigger scheduling
+
+    etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
+      GetBlockHeaders(Left(targetBlockHeader.number - 1), expectedTargetBlock - bestBlockHeaderNumber, 0, reverse = false),
+      peer2.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader.copy(number = targetBlockHeader.number - 1))), peer2.id))
+    peerMessageBus.expectMsg(Unsubscribe())
+
+    syncController.getSingleChild("fast-sync") ! FastSync.PersistSyncState
+    Thread.sleep(200)
+    val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+    syncState.bestBlockHeaderNumber shouldBe (bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN)
+    syncState.blockBodiesQueue.isEmpty shouldBe true
+    syncState.receiptsQueue.isEmpty shouldBe true
+    syncState.nextBlockToFullyValidate shouldBe (bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN + 1)
   }
 
   it should "throttle requests to peer" in  new TestSetup() {
@@ -389,7 +451,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer.id))
   }
 
-  class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil) extends EphemBlockchainTestSetup {
+  class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil, validators: Validators = new Mocks.MockValidatorsAlwaysSucceed) extends EphemBlockchainTestSetup {
 
     private def isNewBlock(msg: Message): Boolean = msg match {
       case _: NewBlock => true
@@ -438,7 +500,10 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       maxQueuedBlockNumberBehind = 10,
       maxNewBlockHashAge = 20,
       maxNewHashes = 64,
-      redownloadMissingStateNodes = false
+      redownloadMissingStateNodes = false,
+      fastSyncBlockValidationK = 100,
+      fastSyncBlockValidationN = 2048,
+      fastSyncBlockValidationX = 50
     )
 
     lazy val syncConfig = defaultSyncConfig
@@ -448,7 +513,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       blockchain,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
-      new Mocks.MockValidatorsAlwaysSucceed,
+      validators,
       peerMessageBus.ref, pendingTransactionsManager.ref, ommersPool.ref, etcPeerManager.ref,
       syncConfig,
       () => (),
