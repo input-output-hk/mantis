@@ -1,6 +1,7 @@
 package io.iohk.ethereum.nodebuilder
 
 import java.security.SecureRandom
+import java.time.Clock
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
@@ -95,7 +96,7 @@ trait PeerDiscoveryManagerBuilder {
 
   lazy val peerDiscoveryManager =
     actorSystem.actorOf(PeerDiscoveryManager.props(discoveryListener, discoveryConfig,
-      storagesInstance.storages.knownNodesStorage, nodeStatusHolder), "peer-discovery-manager")
+      storagesInstance.storages.knownNodesStorage, nodeStatusHolder, Clock.systemUTC()), "peer-discovery-manager")
 }
 
 trait DiscoveryListenerBuilder {
