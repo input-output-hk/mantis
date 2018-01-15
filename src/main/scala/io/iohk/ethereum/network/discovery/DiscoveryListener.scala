@@ -55,47 +55,6 @@ class DiscoveryListener(
       val packet = encodePacket(message, nodeStatusHolder().key)(sm.rlpEnc)
       socket ! Udp.Send(packet, to)
   }
-
-  private def decodePacket(input: ByteString): Try[Packet] = {
-    if (input.length < 98) {
-      Failure(new RuntimeException("Bad message"))
-    } else {
-      val packet = Try(Packet(input))
-      val mdcCheck = crypto.kec256(input.drop(32))
-
-      if (packet.toOption.exists(_.mdc == mdcCheck)) packet
-      else Failure(new RuntimeException("MDC check failed"))
-    }
-  }
-
-  def extractMessage(packet: Packet): Try[Message] = Try {
-    packet.packetType match {
-      case Ping.packetType => rlp.decode[Ping](packet.data.toArray[Byte])
-      case Pong.packetType => rlp.decode[Pong](packet.data.toArray[Byte])
-      case FindNode.packetType => rlp.decode[FindNode](packet.data.toArray[Byte])
-      case Neighbours.packetType => rlp.decode[Neighbours](packet.data.toArray[Byte])
-      case _ => throw new RuntimeException(s"Unknown packet type ${packet.packetType}")
-    }
-  }
-
-  def encodePacket[M <: Message](msg: M, keyPair: AsymmetricCipherKeyPair)(implicit rlpEnc: RLPEncoder[M]): ByteString = {
-    val encodedData = rlp.encode(msg)
-
-    val payload = Array(msg.packetType) ++ encodedData
-    val forSig = crypto.kec256(payload)
-    val signature = ECDSASignature.sign(forSig, keyPair, None)
-
-    val sigBytes =
-      BigIntegers.asUnsignedByteArray(32, signature.r.bigInteger) ++
-      BigIntegers.asUnsignedByteArray(32, signature.s.bigInteger) ++
-      Array[Byte]((signature.v - 27).toByte)
-
-    val forSha = sigBytes ++ Array(msg.packetType) ++ encodedData
-    val mdc = crypto.kec256(forSha)
-
-    ByteString(mdc ++ sigBytes ++ Array(msg.packetType) ++ encodedData)
-  }
-
 }
 
 object DiscoveryListener {
@@ -138,4 +97,43 @@ object DiscoveryListener {
     }
   }
 
+  private[discovery] def encodePacket[M <: Message](msg: M, keyPair: AsymmetricCipherKeyPair)(implicit rlpEnc: RLPEncoder[M]): ByteString = {
+    val encodedData = rlp.encode(msg)
+
+    val payload = Array(msg.packetType) ++ encodedData
+    val forSig = crypto.kec256(payload)
+    val signature = ECDSASignature.sign(forSig, keyPair, None)
+
+    val sigBytes =
+      BigIntegers.asUnsignedByteArray(32, signature.r.bigInteger) ++
+        BigIntegers.asUnsignedByteArray(32, signature.s.bigInteger) ++
+        Array[Byte]((signature.v - 27).toByte)
+
+    val forSha = sigBytes ++ Array(msg.packetType) ++ encodedData
+    val mdc = crypto.kec256(forSha)
+
+    ByteString(mdc ++ sigBytes ++ Array(msg.packetType) ++ encodedData)
+  }
+
+  private[discovery] def extractMessage(packet: Packet): Try[Message] = Try {
+    packet.packetType match {
+      case Ping.packetType => rlp.decode[Ping](packet.data.toArray[Byte])
+      case Pong.packetType => rlp.decode[Pong](packet.data.toArray[Byte])
+      case FindNode.packetType => rlp.decode[FindNode](packet.data.toArray[Byte])
+      case Neighbours.packetType => rlp.decode[Neighbours](packet.data.toArray[Byte])
+      case _ => throw new RuntimeException(s"Unknown packet type ${packet.packetType}")
+    }
+  }
+
+  private[discovery] def decodePacket(input: ByteString): Try[Packet] = {
+    if (input.length < 98) {
+      Failure(new RuntimeException("Bad message"))
+    } else {
+      val packet = Try(Packet(input))
+      val mdcCheck = crypto.kec256(input.drop(32))
+
+      if (packet.toOption.exists(_.mdc == mdcCheck)) packet
+      else Failure(new RuntimeException("MDC check failed"))
+    }
+  }
 }

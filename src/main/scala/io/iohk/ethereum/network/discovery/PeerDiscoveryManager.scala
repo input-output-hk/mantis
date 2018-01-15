@@ -1,6 +1,7 @@
 package io.iohk.ethereum.network.discovery
 
 import java.net.{InetSocketAddress, URI}
+import java.time.Clock
 
 import io.iohk.ethereum.network._
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
@@ -16,9 +17,12 @@ class PeerDiscoveryManager(
     discoveryListener: ActorRef,
     discoveryConfig: DiscoveryConfig,
     knownNodesStorage: KnownNodesStorage,
-    nodeStatusHolder: Agent[NodeStatus]) extends Actor with ActorLogging {
+    nodeStatusHolder: Agent[NodeStatus],
+    clock: Clock) extends Actor with ActorLogging {
 
   import PeerDiscoveryManager._
+
+  val expirationTimeSec = discoveryConfig.messageExpiration.toSeconds
 
   var nodesInfo: Map[ByteString, DiscoveryNodeInfo] = {
     val bootStrapNodesInfo = discoveryConfig.bootstrapNodes.map(DiscoveryNodeInfo.fromNode)
@@ -104,15 +108,16 @@ class PeerDiscoveryManager(
     }
   }
 
-  private def expirationTimestamp = discoveryConfig.messageExpiration.toSeconds + System.currentTimeMillis() / 1000
+  private def expirationTimestamp = clock.instant().plusSeconds(expirationTimeSec).getEpochSecond
 }
 
 object PeerDiscoveryManager {
   def props(discoveryListener: ActorRef,
             discoveryConfig: DiscoveryConfig,
             knownNodesStorage: KnownNodesStorage,
-            nodeStatusHolder: Agent[NodeStatus]): Props =
-    Props(new PeerDiscoveryManager(discoveryListener, discoveryConfig, knownNodesStorage, nodeStatusHolder))
+            nodeStatusHolder: Agent[NodeStatus],
+            clock: Clock): Props =
+    Props(new PeerDiscoveryManager(discoveryListener, discoveryConfig, knownNodesStorage, nodeStatusHolder, clock))
 
   object DiscoveryNodeInfo {
 
