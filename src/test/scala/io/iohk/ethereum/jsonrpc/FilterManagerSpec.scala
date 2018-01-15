@@ -213,7 +213,7 @@ class FilterManagerSpec extends FlatSpec with Matchers with ScalaFutures with No
       senderAddress = Address("0x9900"))
     )
     val block2 = Block(bh2, BlockBody(blockTransactions2, Nil))
-    (blockGenerator.getPending _).expects().returning(Some(
+    (blockGenerator.getPendingBlock _).expects().returning(Some(
       PendingBlock(
         block2,
         Seq(Receipt(
