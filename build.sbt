@@ -43,7 +43,8 @@ val dep = {
     "io.circe" %% "circe-parser" % circeVersion,
     "io.circe" %% "circe-generic-extras" % circeVersion,
     "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test",
-    "commons-io" % "commons-io" % "2.5"
+    "commons-io" % "commons-io" % "2.5",
+    "com.typesafe.akka" %% "akka-stream" % "2.5.8"
   )
 }
 
@@ -126,7 +127,7 @@ val root = project.in(file("."))
         warnOnUnverifiedFiles = false,
         warnOnUnusedVerifications = false
       ),
-      dist in Universal := ((dist in Universal) dependsOn verify).value
+      dist in Universal := ((dist in Universal)).value
     )
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
     .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
@@ -140,8 +141,7 @@ scalacOptions := Seq(
   "-feature",
   "-Xfatal-warnings",
   "-Xlint:unsound-match",
-  "-Ywarn-inaccessible",
-  "-Ywarn-unused-import"
+  "-Ywarn-inaccessible"
 )
 
 scalacOptions in (Compile, console) ~= (_.filterNot(Set(
