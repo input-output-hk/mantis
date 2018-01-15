@@ -11,6 +11,7 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
+import io.iohk.ethereum.extvm.ExtVMInterface
 import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
@@ -357,7 +358,10 @@ trait LedgerBuilder {
     with SyncConfigBuilder
     with ValidatorsBuilder =>
 
-  lazy val ledger: Ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
+  val extvm = new ExtVMInterface(blockchainConfig)
+  val vm = VM
+
+  lazy val ledger: Ledger = new LedgerImpl(extvm, blockchain, blockchainConfig, syncConfig, validators)
 }
 
 trait SyncControllerBuilder {

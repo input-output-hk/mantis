@@ -12,7 +12,8 @@ message CallContext {
   bytes gasProvided = 8;
   int32 callDepth = 9;
   BlockHeader blockHeader = 10;
-};
+  bytes receivingAddr = 11;
+}
 
 message BlockHeader {
   bytes parentHash = 1;
@@ -39,6 +40,7 @@ message GetAccount {
 message Account {
   bytes nonce = 1;
   bytes balance = 2;
+  // TODO: remove this or add codehash?
   bytes storage = 3;
 }
 
@@ -51,19 +53,39 @@ message StorageData {
   bytes data = 1;
 }
 
+message GetCode {
+  bytes address = 1;
+}
+
+message Code {
+  bytes code = 1;
+}
+
+message GetBlockhash {
+  int32 offset = 1;
+}
+
+message Blockhash {
+  bytes hash = 1;
+}
+
 message CallResult {
   bytes returnData = 1;
   bytes gasRemaining = 2;
   bytes gasRefund = 3;
-  int32 error = 4;
+  bool error = 4;
   repeated ModifiedAccount modifiedAccounts = 5;
-  repeated LogEntry logs = 6;
+  repeated bytes deletedAccounts = 6;
+  repeated bytes touchedAccounts = 7;
+  repeated LogEntry logs = 8;
 }
 
 message ModifiedAccount {
   bytes address = 1;
   bytes nonce = 2;
-  repeated StorageUpdate storageUpdates = 3;
+  bytes balance = 3;
+  repeated StorageUpdate storageUpdates = 4;
+  bytes code = 5;
 }
 
 message StorageUpdate {
@@ -75,5 +97,15 @@ message LogEntry {
   bytes address = 1;
   repeated bytes topics = 2;
   bytes data = 3;
+}
+
+message VMQuery {
+  oneof query {
+    GetAccount getAccount = 1;
+    GetStorageData getStorageData = 2;
+    GetCode getCode = 3;
+    GetBlockhash getBlockhash = 4;
+    CallResult callResult = 5;
+  }
 }
 
