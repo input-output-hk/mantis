@@ -46,14 +46,25 @@ class VMServer(blockchainConfig: BlockchainConfig, in: InputStream, out: OutputS
 
   class World(
     accountStartNonce: UInt256,
-    noEmptyAccountsCond: Boolean
+    noEmptyAccountsCond: Boolean,
+    val accounts: mutable.Map[Address, Option[Account]] = mutable.Map(),
+    val modifiedAccounts: mutable.Set[Address] = mutable.Set(),
+    val storages: mutable.Map[Address, Storage] = mutable.Map(),
+    val codeRepo: mutable.Map[Address, ByteString] = mutable.Map(),
+    val blockHashes: mutable.Map[UInt256, Option[UInt256]] = mutable.Map(),
+    val touchedAccounts: mutable.Set[Address] = mutable.Set()
   ) extends vm.WorldStateProxy[World, Storage] {
-    val accounts = mutable.Map[Address, Option[Account]]()
-    val modifiedAccounts = mutable.Set[Address]()
-    val storages = mutable.Map[Address, Storage]()
-    val codeRepo = mutable.Map[Address, ByteString]()
-    val blockHashes = mutable.Map[UInt256, Option[UInt256]]()
-    val touchedAccounts = mutable.Set.empty[Address]
+
+    override def diverge: World =
+      new World(
+        accountStartNonce,
+        noEmptyAccountsCond,
+        mutable.Map() ++ accounts,
+        mutable.Set() ++ modifiedAccounts,
+        mutable.Map() ++ storages,
+        mutable.Map() ++ codeRepo,
+        mutable.Map() ++ blockHashes,
+        mutable.Set() ++ touchedAccounts)
 
     def getAccount(address: Address): Option[Account] = accounts.getOrElse(address, {
       val getAccountMsg = msg.GetAccount(address)
