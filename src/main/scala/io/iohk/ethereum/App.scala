@@ -1,5 +1,6 @@
 package io.iohk.ethereum
 
+import io.iohk.ethereum.extvm.VmServerApp
 import io.iohk.ethereum.utils.{Config, Logger}
 
 
@@ -10,12 +11,14 @@ object App extends Logger {
     val launchMantis = "mantis"
     val launchKeytool = "keytool"
     val downloadBootstrap = "bootstrap"
+    val vmServer = "vm-server"
 
       args.headOption match {
-        case None => RemoteVmTest.main(args)
+        case None => Mantis.main(args)
         case Some(`launchMantis`) => Mantis.main(args.tail)
         case Some(`launchKeytool`) => KeyTool.main(args.tail)
         case Some(`downloadBootstrap`) => BootstrapDownload.main(args.tail :+ Config.Db.LevelDb.path)
+        case Some(`vmServer`) => VmServerApp.main(args.tail)
         case Some(unknown) =>
           log.error(s"Unrecognised launcher option, " +
             s"first parameter must be $launchKeytool, $downloadBootstrap or $launchMantis")

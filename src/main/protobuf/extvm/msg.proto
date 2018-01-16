@@ -13,6 +13,33 @@ message CallContext {
   int32 callDepth = 9;
   BlockHeader blockHeader = 10;
   bytes receivingAddr = 11;
+
+  bytes frontierBlockNumber = 12;
+  bytes homesteadBlockNumber = 13;
+  bytes eip106BlockNumber = 14;
+  bytes eip150BlockNumber = 15;
+  bytes eip155BlockNumber = 16;
+  bytes eip160BlockNumber = 17;
+  bytes eip161BlockNumber = 18;
+  bytes maxCodeSize = 19;
+  bytes difficultyBombPauseBlockNumber = 20;
+  bytes difficultyBombContinueBlockNumber = 21;
+
+  bytes forkBlockNumber = 22;
+  bytes forkBlockHash = 23;
+  bytes forkBlockExtraData = 24;
+  int32 forkRange = 25;
+  bytes forkRefundContract = 26;
+  repeated bytes forkDrainList = 27;
+
+  bytes accountStartNonce = 28;
+  bytes chainId = 29;
+
+  int32 eraDuration = 30;
+  double rewardReductionRate = 31;
+  bytes firstEraBlockReward = 32;
+
+  bool gasTieBreaker = 33;
 }
 
 message BlockHeader {

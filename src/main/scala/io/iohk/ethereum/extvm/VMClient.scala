@@ -6,10 +6,10 @@ import io.iohk.ethereum.vm.{Storage, WorldStateProxy, _}
 import Implicits._
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 
 // scalastyle:off
-class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S], in: InputStream, out: OutputStream) extends Logger {
+class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](blockchainConfig: BlockchainConfig, context: ProgramContext[W, S], in: InputStream, out: OutputStream) extends Logger {
 
   private val world = context.world
 
@@ -118,7 +118,34 @@ class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramCont
       gasProvided = ctx.startGas,
       callDepth = ctx.env.callDepth,
       blockHeader = Some(blockHeader),
-      receivingAddr = ctx.receivingAddr
+      receivingAddr = ctx.receivingAddr,
+
+      frontierBlockNumber = blockchainConfig.frontierBlockNumber,
+      homesteadBlockNumber = blockchainConfig.homesteadBlockNumber,
+      eip106BlockNumber = blockchainConfig.eip106BlockNumber,
+      eip150BlockNumber = blockchainConfig.eip150BlockNumber,
+      eip155BlockNumber = blockchainConfig.eip155BlockNumber,
+      eip160BlockNumber = blockchainConfig.eip160BlockNumber,
+      eip161BlockNumber = blockchainConfig.eip161BlockNumber,
+      maxCodeSize = blockchainConfig.maxCodeSize.map(bigintToGByteString).getOrElse(ByteString()),
+      difficultyBombPauseBlockNumber = blockchainConfig.difficultyBombPauseBlockNumber,
+      difficultyBombContinueBlockNumber = blockchainConfig.difficultyBombContinueBlockNumber,
+
+      forkBlockNumber = blockchainConfig.daoForkConfig.map(f => bigintToGByteString(f.forkBlockNumber)).getOrElse(ByteString()),
+      forkBlockHash = byteString2GByteString(blockchainConfig.daoForkConfig.map(_.forkBlockHash).getOrElse(ByteString())),
+      forkBlockExtraData = byteString2GByteString(blockchainConfig.daoForkConfig.flatMap(_.blockExtraData).getOrElse(ByteString())),
+
+      forkRefundContract = address2GByteString(blockchainConfig.daoForkConfig.flatMap(_.refundContract).getOrElse(Address(0x0))),
+      forkDrainList = blockchainConfig.daoForkConfig.map(_.drainList.map(address2GByteString)).getOrElse(Seq.empty),
+
+      accountStartNonce = blockchainConfig.accountStartNonce,
+      chainId = ByteString(blockchainConfig.chainId),
+
+      eraDuration = blockchainConfig.monetaryPolicyConfig.eraDuration,
+      rewardReductionRate = blockchainConfig.monetaryPolicyConfig.rewardReductionRate,
+      firstEraBlockReward = blockchainConfig.monetaryPolicyConfig.firstEraBlockReward,
+
+      gasTieBreaker = blockchainConfig.gasTieBreaker
     )
   }
 

@@ -2,18 +2,46 @@ package io.iohk.ethereum.extvm
 
 import java.io.{InputStream, OutputStream}
 
+import akka.NotUsed
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.{Flow, Keep, StreamConverters, Tcp}
 import akka.util.ByteString
 import com.google.protobuf.{ByteString => GByteString}
+import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 import io.iohk.ethereum.extvm.Implicits._
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger, MonetaryPolicyConfig}
 import io.iohk.ethereum.vm
 import io.iohk.ethereum.vm.ProgramResult
 
 import scala.collection.mutable
+import scala.util.{Failure, Success, Try}
 
+object VmServerApp {
 
-class VMServer(blockchainConfig: BlockchainConfig, in: InputStream, out: OutputStream) extends Logger {
+  implicit val system = ActorSystem("EVM_System")
+  implicit val materializer = ActorMaterializer()
+
+  def main(args: Array[String]): Unit = {
+    val config = ConfigFactory.load()
+    Tcp().bind(config.getString("mantis.extvm.host"), config.getInt("mantis.extvm.port"))
+      .runForeach(connection => handleConnection(connection.flow))
+  }
+
+  def handleConnection(connection: Flow[ByteString, ByteString, NotUsed]): Unit = {
+    val inSink = StreamConverters.asInputStream()
+    val outSource = StreamConverters.asOutputStream()
+
+    val (out, in) = outSource.via(connection).toMat(inSink)(Keep.both).run()
+
+    new VMServer(in, out).run()
+  }
+}
+
+class VMServer(in: InputStream, out: OutputStream) extends Logger {
+
+  var stopped: Boolean = false
 
   class Storage(address: Address) extends vm.Storage[Storage] {
     val storage = mutable.Map[UInt256, UInt256]()
@@ -173,29 +201,35 @@ class VMServer(blockchainConfig: BlockchainConfig, in: InputStream, out: OutputS
     }
   }
 
-
   def run(): Unit = {
     new Thread(() => {
-      try {
+      while (!stopped) {
+        Try(msg.CallContext.parseDelimitedFrom(in).orNull) match {
+          case Success(cc) if cc == null =>
+            stopped = true
+            close()
 
-        var callContext: msg.CallContext = null
-        while (callContext == null) {
-          callContext = msg.CallContext.parseDelimitedFrom(in).orNull
+          case Success(callContext) =>
+            log.debug("Server received msg: CallContext")
+
+            val context = constructContextFromMsg(callContext)
+            val result = vm.VM.run(context)
+
+            val callResultMsg = buildResultMsg(result)
+            val queryMsg = msg.VMQuery(query = msg.VMQuery.Query.CallResult(callResultMsg))
+            queryMsg.writeDelimitedTo(out)
+
+          case Failure(ex) =>
+            ex.printStackTrace()
         }
-        log.debug("Server received msg: CallContext")
-
-        val context = constructContextFromMsg(callContext)
-        val result = vm.VM.run(context)
-
-        val callResultMsg = buildResultMsg(result)
-        val queryMsg = msg.VMQuery(query = msg.VMQuery.Query.CallResult(callResultMsg))
-        queryMsg.writeDelimitedTo(out)
-
-      } catch {
-        case e: Exception =>
-          e.printStackTrace()
       }
     }).start()
+  }
+
+  def close(): Unit = {
+    log.info("Connection closed")
+    Try(in.close())
+    Try(out.close())
   }
 
   private def constructContextFromMsg(contextMsg: msg.CallContext): vm.ProgramContext[World, Storage] = {
@@ -229,6 +263,8 @@ class VMServer(blockchainConfig: BlockchainConfig, in: InputStream, out: OutputS
       contextMsg.callDepth
     )
 
+    val blockchainConfig = buildBlockchainConfig(contextMsg)
+
     val vmConfig = vm.EvmConfig.forBlock(env.blockHeader.number, blockchainConfig)
     val world = new World(blockchainConfig.accountStartNonce, vmConfig.noEmptyAccounts)
 
@@ -259,6 +295,43 @@ class VMServer(blockchainConfig: BlockchainConfig, in: InputStream, out: OutputS
       val storageUpdates = storage.storage.map { case (key, value) => msg.StorageUpdate(key, value) }.toList
       msg.ModifiedAccount(address = address, nonce = acc.nonce, balance = acc.balance,
         storageUpdates = storageUpdates, code = world.getCode(address))
+    }
+  }
+
+  private def buildBlockchainConfig(context: msg.CallContext): BlockchainConfig = {
+    new BlockchainConfig {
+      override val frontierBlockNumber: BigInt = context.frontierBlockNumber
+      override val homesteadBlockNumber: BigInt = context.homesteadBlockNumber
+      override val eip106BlockNumber: BigInt = context.eip106BlockNumber
+      override val eip150BlockNumber: BigInt = context.eip150BlockNumber
+      override val eip155BlockNumber: BigInt = context.eip155BlockNumber
+      override val eip160BlockNumber: BigInt = context.eip160BlockNumber
+      override val eip161BlockNumber: BigInt = context.eip161BlockNumber
+      override val maxCodeSize: Option[BigInt] = if (context.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(context.maxCodeSize))
+      override val difficultyBombPauseBlockNumber: BigInt = context.difficultyBombPauseBlockNumber
+      override val difficultyBombContinueBlockNumber: BigInt = context.difficultyBombContinueBlockNumber
+
+      override val customGenesisFileOpt: Option[String] = None
+
+      override val daoForkConfig = if (context.forkBlockHash.isEmpty) None else Some(new DaoForkConfig {
+        override val blockExtraData: Option[ByteString] = if (context.forkBlockExtraData.isEmpty) None else Some(context.forkBlockExtraData)
+        override val range: Int = context.forkRange
+        override val drainList: Seq[Address] = context.forkDrainList.map(addressFromGByteString)
+        override val forkBlockHash: ByteString = context.forkBlockHash
+        override val forkBlockNumber: BigInt = context.forkBlockNumber
+        override val refundContract: Option[Address] = if (context.forkRefundContract.isEmpty) None else Some(context.forkRefundContract)
+      })
+
+      override val accountStartNonce: UInt256 = context.accountStartNonce
+
+      override val chainId: Byte = context.chainId.head
+
+      override val monetaryPolicyConfig = MonetaryPolicyConfig(
+        eraDuration = context.eraDuration,
+        rewardReductionRate = context.rewardReductionRate,
+        firstEraBlockReward = context.firstEraBlockReward)
+
+      val gasTieBreaker: Boolean = context.gasTieBreaker
     }
   }
 }

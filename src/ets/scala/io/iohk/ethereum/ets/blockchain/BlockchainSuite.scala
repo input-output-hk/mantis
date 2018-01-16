@@ -25,14 +25,18 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
         } {
           name in new ScenarioSetup(scenario) {
             if (unsupportedNetworks.contains(scenario.network)) {
+              vm.close()
               cancel(s"Unsupported network: ${scenario.network}")
             } else if (!supportedNetworks.contains(scenario.network)) {
+              vm.close()
               fail(s"Unknown network: ${scenario.network}")
             } else if (isCanceled(group.name, name)){
+              vm.close()
               cancel(s"Test: $name in group: ${group.name} not yet supported")
             } else {
               log.info(s"Running test: ${group.name}/$name")
               runScenario(scenario, this)
+              vm.close()
             }
           }
         }
