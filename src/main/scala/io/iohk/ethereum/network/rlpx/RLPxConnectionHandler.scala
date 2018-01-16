@@ -268,7 +268,7 @@ object RLPxConnectionHandler {
 
   def messageCodecFactory(secrets: Secrets, messageDecoder: MessageDecoder,
                           protocolVersion: Message.Version): MessageCodec =
-    new MessageCodec(new FrameCodec(secrets), messageDecoder, protocolVersion)
+    new MessageCodec(new FrameCodecImpl(secrets), messageDecoder, protocolVersion)
 
   case class ConnectTo(uri: URI)
 

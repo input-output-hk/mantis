@@ -17,7 +17,12 @@ case class Frame(header: Header, `type`: Int, payload: ByteString)
 
 case class Header(bodySize: Int, protocol: Int, contextId: Option[Int], totalPacketSize: Option[Int])
 
-class FrameCodec(private val secrets: Secrets) {
+trait FrameCodec {
+  def readFrames(data: ByteString): Seq[Frame]
+  def writeFrames(frames: Seq[Frame]): ByteString
+}
+
+class FrameCodecImpl(private val secrets: Secrets) extends FrameCodec {
 
   val HeaderLength = 32
   val MacSize = 16

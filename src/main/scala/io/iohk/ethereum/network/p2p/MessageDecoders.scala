@@ -20,8 +20,9 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import io.iohk.ethereum.network.p2p.messages.{PV61 => pv61, PV62 => pv62, PV63 => pv63}
+import io.iohk.ethereum.network.p2p.messages.{VmMessages, PV61 => pv61, PV62 => pv62, PV63 => pv63}
 import io.iohk.ethereum.network.p2p.messages.Versions._
+import VmMessages._
 
 object NetworkMessageDecoder extends MessageDecoder {
 
@@ -34,6 +35,7 @@ object NetworkMessageDecoder extends MessageDecoder {
 
 }
 
+// scalastyle:off
 object EthereumMessageDecoder extends MessageDecoder {
 
   override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Version): Message = (protocolVersion, `type`) match {
@@ -54,6 +56,33 @@ object EthereumMessageDecoder extends MessageDecoder {
     case (PV62 | PV63, pv62.BlockBodies.code) => payload.toBlockBodies
 
     case (PV63, t) => handlePV63(t, payload)
+
+    case (_, VmMessages.Execute.code) => payload.toExecute
+    case (_, 41) => payload.toExecute
+
+    case (_, VmMessages.GetStorageData.code) => payload.toGetStorageData
+    case (_, 42) => payload.toGetStorageData
+
+    case (_, VmMessages.StorageData.code) => payload.toStorageData
+    case (_, 43) => payload.toStorageData
+
+    case (_, VmMessages.GetAccount.code) => payload.toGetAccount
+    case (_, 44) => payload.toGetAccount
+
+    case (_, VmMessages.AccountResponse.code) => payload.toAccountResponse
+    case (_, 45) => payload.toAccountResponse
+
+    case (_, VmMessages.GetCode.code) => payload.toGetCode
+    case (_, 46) => payload.toGetCode
+
+    case (_, VmMessages.CodeResponse.code) => payload.toCodeResponse
+    case (_, 47) => payload.toCodeResponse
+
+    case (_, VmMessages.GetBlockHash.code) => payload.toGetBlockHash
+    case (_, 48) => payload.toGetBlockHash
+
+    case (_, VmMessages.BlockHashResponse.code) => payload.toBlockHashResponse
+    case (_, 49) => payload.toBlockHashResponse
 
     case _ => throw new RuntimeException(s"Unknown message type: ${`type`}")
   }
