@@ -214,6 +214,46 @@ object VmMessages {
   }
 
 
+  object VmResult {
+    val code: Int = Versions.SubProtocolOffset + 0x27
+  }
+
+  implicit class VmResultEnc(val underlyingMsg: VmResult) extends MessageSerializableImplicit[VmResult](underlyingMsg) with RLPSerializable {
+    override def code: Int = GetBlockHash.code
+
+    override def toRLPEncodable: RLPEncodeable = {
+      import msg._
+      RLPList(executionId, success.toRLPEncodable)
+    }
+  }
+
+  implicit class VmResultDec(val bytes: Array[Byte]) extends AnyVal {
+    def toVmResult: VmResult = rawDecode(bytes) match {
+      case RLPList(executionId, success) =>
+        VmResult(executionId, success.toUInt256)
+      case _ => throw new RuntimeException("Cannot decode Status")
+    }
+  }
+
+  /**
+    *
+  bytes returnData = 1;
+  bytes gasRemaining = 2;
+  bytes gasRefund = 3;
+  bool error = 4;
+  repeated ModifiedAccount modifiedAccounts = 5;
+  repeated bytes deletedAccounts = 6;
+  repeated bytes touchedAccounts = 7;
+  repeated LogEntry logs = 8;
+    * @param executionId
+    * @param success
+    */
+
+  case class VmResult(executionId: Long, returnData: ByteString, gasRemaining: UInt256, gasRefund: UInt256, error: Boolean, modifiedAccounts: ) extends Message {
+    override def code: Int = VmResult.code
+  }
+
+
 
   object BlockHashResponse {
     val code: Int = Versions.SubProtocolOffset + 0x27

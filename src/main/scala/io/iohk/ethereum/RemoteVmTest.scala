@@ -13,12 +13,12 @@ import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{Await, Future, Promise}
 import scala.concurrent.ExecutionContext.Implicits.global
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.network.p2p.{EthereumMessageDecoder, Message}
-import io.iohk.ethereum.network.p2p.messages.VmMessages.{AccountResponse, BlockHashResponse, CodeResponse, Context, Execute, GetAccount, GetBlockHash, GetCode, GetStorageData, StorageData}
+import io.iohk.ethereum.network.p2p.messages.VmMessages.{AccountResponse, BlockHashResponse, CodeResponse, Context, Execute, GetAccount, GetBlockHash, GetCode, GetStorageData, StorageData, VmResult}
 import io.iohk.ethereum.network.rlpx.{MessageCodec, VmFrameCodec}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.vm.{WorldStateProxy, _}
@@ -104,15 +104,27 @@ object ExternalVm extends {
   }
 
   class World(executionId: Long,
-               accountStartNonce: UInt256,
-               noEmptyAccountsCond: Boolean
-             ) extends vm.WorldStateProxy[World, Storage] {
-    val accounts = mutable.Map[Address, Option[Account]]()
-    val modifiedAccounts = mutable.Set[Address]()
-    val storages = mutable.Map[Address, Storage]()
-    val codeRepo = mutable.Map[Address, ByteString]()
-    val blockHashes = mutable.Map[UInt256, Option[UInt256]]()
-    val touchedAccounts = mutable.Set.empty[Address]
+              accountStartNonce: UInt256,
+              noEmptyAccountsCond: Boolean,
+              val accounts: mutable.Map[Address, Option[Account]] = mutable.Map(),
+              val modifiedAccounts: mutable.Set[Address] = mutable.Set(),
+              val storages: mutable.Map[Address, Storage] = mutable.Map(),
+              val codeRepo: mutable.Map[Address, ByteString] = mutable.Map(),
+              val blockHashes: mutable.Map[UInt256, Option[UInt256]] = mutable.Map(),
+              val touchedAccounts: mutable.Set[Address] = mutable.Set())
+    extends vm.WorldStateProxy[World, Storage] {
+
+    override def diverge: World =
+      new World(
+        executionId,
+        accountStartNonce,
+        noEmptyAccountsCond,
+        mutable.Map() ++ accounts,
+        mutable.Set() ++ modifiedAccounts,
+        mutable.Map() ++ storages,
+        mutable.Map() ++ codeRepo,
+        mutable.Map() ++ blockHashes,
+        mutable.Set() ++ touchedAccounts)
 
     def getAccount(address: Address): Option[Account] = accounts.getOrElse(address, {
 
@@ -216,12 +228,11 @@ class ExternalVmProxy(host: String, port: Int)(implicit actorSystem: ActorSystem
   val messageCodec = new MessageCodec(new VmFrameCodec, EthereumMessageDecoder, 4)
 
   type ExecutionId = Long
-  case class Execution(executionId: ExecutionId, num: Int, promise: Promise[ExecutionResult])
-  case class ExecutionResult(executionId: ExecutionId, num: Int, result: Int)
+  case class Execution[W <: WorldStateProxy[W, S], S <: Storage[S]](executionId: ExecutionId, context: ProgramContext[W, S], promise: Promise[ProgramResult[W, S]])
 
   implicit val materializer = ActorMaterializer()
 
-  var pendingExecutions: Map[ExecutionId, Execution] = Map.empty
+  var pendingExecutions: Map[ExecutionId, Execution[_, _]] = Map.empty
 
   val connection = Tcp().outgoingConnection(host, port)
 
@@ -231,9 +242,19 @@ class ExternalVmProxy(host: String, port: Int)(implicit actorSystem: ActorSystem
       .to(Sink.foreach(handleMessageFromVM))
       .run()
 
-  override def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
+  def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
+    import scala.concurrent.duration._
+    Await.result(run(context), 1.minute)
+  }
+
+  def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): Future[ProgramResult[W, S]] = {
     val out = messageCodec.encodeMessage(Execute(123, Context(context.env, context.receivingAddr, context.startGas)))
     outMessagesQueue offer out
+
+    val promise = Promise[ProgramResult[W, S]]
+
+    val execution = Execution(123, context, promise)
+    pendingExecutions += (execution.executionId -> execution)
 
     promise.future
   }
@@ -241,19 +262,19 @@ class ExternalVmProxy(host: String, port: Int)(implicit actorSystem: ActorSystem
   private def handleMessageFromVM(byteString: ByteString): Unit = {
     val messages = messageCodec.readMessages(byteString)
     println("got messages from vm: " + messages)
-/*
-    msg match {
-      case resultRe(rawExecutionId, rawResult) =>
-        val executionId = rawExecutionId.toInt
-        pendingExecutions.get(executionId).foreach { execution =>
-          execution.promise.trySuccess(ExecutionResult(execution.executionId, execution.num, rawResult.toInt))
-          pendingExecutions -= executionId
+
+    messages.map(_.get).foreach {
+      case vmResult: VmResult =>
+        pendingExecutions.get(vmResult.executionId).foreach { execution =>
+          execution.promise.trySuccess(ProgramResult(execution.executionId, execution.num, rawResult.toInt))
+          pendingExecutions -= vmResult.executionId
         }
 
-      case _ =>
-        println("received query for additional data from vm")
+      case getStorageData: GetStorageData =>
+      case getAccount: GetAccount =>
+      case getCode: GetCode =>
+      case getBlockHash: GetBlockHash =>
     }
-    */
   }
 
 }

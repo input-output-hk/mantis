@@ -8,6 +8,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Logger
 
+// scalastyle:off
 class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S], in: InputStream, out: OutputStream) extends Logger {
 
   private val world = context.world
