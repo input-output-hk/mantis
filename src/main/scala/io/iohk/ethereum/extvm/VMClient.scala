@@ -5,7 +5,7 @@ import java.io.{InputStream, OutputStream}
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy, _}
 import Implicits._
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Account, Address, BlockHeader, TxLogEntry}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Logger
 
 class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S], in: InputStream, out: OutputStream) extends Logger {
