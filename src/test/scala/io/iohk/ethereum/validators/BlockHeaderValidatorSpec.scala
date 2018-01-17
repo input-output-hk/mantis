@@ -97,6 +97,13 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
     }
   }
 
+  it should "return a failure if created based on invalid negative gas used" in {
+    val gasUsed = -1
+    val blockHeader = validBlockHeader.copy(gasUsed = gasUsed)
+    val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParent)
+    assert(validateResult == Left(HeaderGasUsedError))
+  }
+
   it should "return a failure if created based on invalid gas limit" in {
     val LowerGasLimit = MinGasLimit.max(
       validBlockParent.gasLimit - validBlockParent.gasLimit / GasLimitBoundDivisor + 1)
