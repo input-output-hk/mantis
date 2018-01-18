@@ -1,23 +1,32 @@
 package io.iohk.ethereum.extvm
 
-import java.io.{InputStream, OutputStream}
+import java.math.BigInteger
+import java.nio.ByteOrder
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Flow, Keep, StreamConverters, Tcp}
+import akka.stream.{ActorMaterializer, OverflowStrategy}
+import akka.stream.scaladsl.{Flow, Framing, Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete, Tcp}
 import akka.util.ByteString
-import com.google.protobuf.{ByteString => GByteString}
+import com.google.protobuf.{CodedInputStream, GeneratedMessage, ByteString => GByteString}
+import com.trueaccord.scalapb.{GeneratedMessageCompanion, LiteParser}
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 import io.iohk.ethereum.extvm.Implicits._
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils._
 import io.iohk.ethereum.vm
 import io.iohk.ethereum.vm.ProgramResult
+import org.spongycastle.util.BigIntegers
 
+import scala.annotation.tailrec
 import scala.collection.mutable
+import scala.concurrent.Await
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.duration._
+import scala.languageFeature.implicitConversions
+import scala.concurrent.ExecutionContext.Implicits.global
 
+// scalastyle:off
 object VmServerApp {
 
   implicit val system = ActorSystem("EVM_System")
@@ -30,18 +39,18 @@ object VmServerApp {
   }
 
   def handleConnection(connection: Flow[ByteString, ByteString, NotUsed]): Unit = {
-    val inSink = StreamConverters.asInputStream()
-    val outSource = StreamConverters.asOutputStream()
-
-    val (out, in) = outSource.via(connection).toMat(inSink)(Keep.both).run()
+    val (out, in) = Source.queue[ByteString](1024, OverflowStrategy.dropTail)
+      .via(connection)
+      .via(Framing.lengthField(4, 0, Int.MaxValue, ByteOrder.BIG_ENDIAN))
+      .map(_.drop(4))
+      .toMat(Sink.queue[ByteString]())(Keep.both)
+      .run()
 
     new VMServer(in, out).run()
   }
 }
 
-class VMServer(in: InputStream, out: OutputStream) extends Logger {
-
-  var stopped: Boolean = false
+class VMServer(in: SinkQueueWithCancel[ByteString], out: SourceQueueWithComplete[ByteString]) extends Logger {
 
   class Storage(address: Address) extends vm.Storage[Storage] {
     val storage = mutable.Map[UInt256, UInt256]()
@@ -58,18 +67,32 @@ class VMServer(in: InputStream, out: OutputStream) extends Logger {
       case None =>
         val getStorageDataMsg = msg.GetStorageData(address = address, offset = offset)
         val query = msg.VMQuery(query = msg.VMQuery.Query.GetStorageData(getStorageDataMsg))
-        query.writeDelimitedTo(out)
 
-        var storageData: msg.StorageData = null
-        while(storageData == null) {
-          storageData = msg.StorageData.parseDelimitedFrom(in).orNull
-        }
+        sendMessage(query)
+
+        val storageData = awaitMessage[msg.StorageData]
         log.debug("Server received msg: StorageData")
         val value: UInt256 = storageData.data
 
         storage += offset -> value
         value
     }
+  }
+
+  def sendMessage[M <: com.trueaccord.scalapb.GeneratedMessage](msg: M): Unit = {
+    val bytes = msg.toByteArray
+    val lengthBytes = ByteString(BigIntegers.asUnsignedByteArray(4, BigInteger.valueOf(bytes.length)))
+
+    out offer (lengthBytes ++ ByteString(bytes))
+  }
+
+  def awaitMessage[M <: com.trueaccord.scalapb.GeneratedMessage with com.trueaccord.scalapb.Message[M]](implicit companion: com.trueaccord.scalapb.GeneratedMessageCompanion[M]): M = {
+    val resF = in.pull() map {
+      case Some(bytes) => LiteParser.parseFrom(companion, CodedInputStream.newInstance(bytes.toArray[Byte]))
+      case None => throw new RuntimeException("Stream completed")
+    }
+
+    Await.result(resF, 1.minute)
   }
 
   class World(
@@ -97,12 +120,9 @@ class VMServer(in: InputStream, out: OutputStream) extends Logger {
     def getAccount(address: Address): Option[Account] = accounts.getOrElse(address, {
       val getAccountMsg = msg.GetAccount(address)
       val query = msg.VMQuery(query = msg.VMQuery.Query.GetAccount(getAccountMsg))
-      query.writeDelimitedTo(out)
+      sendMessage(query)
 
-      var accountMsg: msg.Account = null
-      while(accountMsg == null) {
-        accountMsg = msg.Account.parseDelimitedFrom(in).orNull
-      }
+      val accountMsg = awaitMessage[msg.Account]
       log.debug("Server received msg: Account")
 
       if (accountMsg.nonce.isEmpty) {
@@ -148,12 +168,9 @@ class VMServer(in: InputStream, out: OutputStream) extends Logger {
     def getCode(address: Address): ByteString = codeRepo.getOrElse(address, {
       val getCodeMsg = msg.GetCode(address)
       val query = msg.VMQuery(query = msg.VMQuery.Query.GetCode(getCodeMsg))
-      query.writeDelimitedTo(out)
+      sendMessage(query)
 
-      var codeMsg: msg.Code = null
-      while(codeMsg == null) {
-        codeMsg = msg.Code.parseDelimitedFrom(in).orNull
-      }
+      val codeMsg = awaitMessage[msg.Code]
       log.debug("Server received msg: Code")
 
       val code: ByteString = codeMsg.code
@@ -170,12 +187,9 @@ class VMServer(in: InputStream, out: OutputStream) extends Logger {
     def getBlockHash(number: UInt256): Option[UInt256] = blockHashes.getOrElse(number, {
       val getBlockhashMsg = msg.GetBlockhash(if (number > Int.MaxValue) - 1 else number.toInt)
       val query = msg.VMQuery(query = msg.VMQuery.Query.GetBlockhash(getBlockhashMsg))
-      query.writeDelimitedTo(out)
+      sendMessage(query)
 
-      var blockhashMsg: msg.Blockhash = null
-      while(blockhashMsg == null) {
-        blockhashMsg = msg.Blockhash.parseDelimitedFrom(in).orNull
-      }
+      val blockhashMsg = awaitMessage[msg.Blockhash]
       log.debug("Server received msg: Blockhash")
 
       if (blockhashMsg.hash.isEmpty) {
@@ -201,35 +215,35 @@ class VMServer(in: InputStream, out: OutputStream) extends Logger {
     }
   }
 
+  @tailrec
+  private def processNextCall(): Unit = {
+    Try {
+      val callContext = awaitMessage[msg.CallContext]
+
+      log.debug("Server received msg: CallContext")
+
+      val context = constructContextFromMsg(callContext)
+      val result = vm.VM.run(context)
+
+      val callResultMsg = buildResultMsg(result)
+      val queryMsg = msg.VMQuery(query = msg.VMQuery.Query.CallResult(callResultMsg))
+      sendMessage(queryMsg)
+    } match {
+      case Success(_) => processNextCall()
+      case Failure(_) => close()
+    }
+  }
+
   def run(): Unit = {
     new Thread(() => {
-      while (!stopped) {
-        Try(msg.CallContext.parseDelimitedFrom(in).orNull) match {
-          case Success(cc) if cc == null =>
-            stopped = true
-            close()
-
-          case Success(callContext) =>
-            log.debug("Server received msg: CallContext")
-
-            val context = constructContextFromMsg(callContext)
-            val result = vm.VM.run(context)
-
-            val callResultMsg = buildResultMsg(result)
-            val queryMsg = msg.VMQuery(query = msg.VMQuery.Query.CallResult(callResultMsg))
-            queryMsg.writeDelimitedTo(out)
-
-          case Failure(ex) =>
-            ex.printStackTrace()
-        }
-      }
+      processNextCall()
     }).start()
   }
 
   def close(): Unit = {
     log.info("Connection closed")
-    Try(in.close())
-    Try(out.close())
+    Try(in.cancel())
+    Try(out.complete())
   }
 
   private def constructContextFromMsg(contextMsg: msg.CallContext): vm.ProgramContext[World, Storage] = {

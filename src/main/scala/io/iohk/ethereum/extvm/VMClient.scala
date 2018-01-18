@@ -1,78 +1,104 @@
 package io.iohk.ethereum.extvm
 
-import java.io.{InputStream, OutputStream}
+import java.math.BigInteger
 
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy, _}
 import Implicits._
+import akka.stream.scaladsl.{SinkQueueWithCancel, SourceQueueWithComplete}
 import akka.util.ByteString
+import com.google.protobuf.CodedInputStream
+import com.trueaccord.scalapb.LiteParser
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteUtils, Logger}
+import org.spongycastle.util.BigIntegers
+
+import scala.annotation.tailrec
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 // scalastyle:off
-class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](blockchainConfig: BlockchainConfig, context: ProgramContext[W, S], in: InputStream, out: OutputStream) extends Logger {
+class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](blockchainConfig: BlockchainConfig, context: ProgramContext[W, S], in: SinkQueueWithCancel[ByteString], out: SourceQueueWithComplete[ByteString]) extends Logger {
 
   private val world = context.world
 
   def run(): ProgramResult[W, S] = {
     val ctx = buildCallContextMsg(context)
-    ctx.writeDelimitedTo(out)
+    sendMessage(ctx)
 
     val callResult = messageLoop()
     constructResultFromMsg(world, callResult)
   }
 
-  private def messageLoop(): msg.CallResult = {
-    import msg.VMQuery.Query
-    var result: msg.CallResult = null
+  def sendMessage[M <: com.trueaccord.scalapb.GeneratedMessage](msg: M): Unit = {
+    val bytes = msg.toByteArray
+    val lengthBytes = ByteString(BigIntegers.asUnsignedByteArray(4, BigInteger.valueOf(bytes.length)))
 
-    while(result eq null) {
-      msg.VMQuery.parseDelimitedFrom(in).foreach { query =>
-        query.query match {
-          case Query.CallResult(res) =>
-            log.debug("Client received msg: CallResult")
-            result = res
+    out offer (lengthBytes ++ ByteString(bytes))
+  }
 
-          case Query.GetAccount(msg.GetAccount(address)) =>
-            log.debug("Client received msg: GetAccount")
-            val accountMsg = world.getAccount(address) match {
-              case Some(acc) =>
-                msg.Account(
-                  nonce = acc.nonce,
-                  balance = acc.balance,
-                  storage = acc.storageRoot
-                )
-
-              case None =>
-                msg.Account()
-            }
-            accountMsg.writeDelimitedTo(out)
-
-          case Query.GetStorageData(msg.GetStorageData(address, offset)) =>
-            log.debug("Client received msg: GetStorageData")
-            val value = world.getStorage(address).load(offset)
-            val storageDataMsg = msg.StorageData(data = value)
-            storageDataMsg.writeDelimitedTo(out)
-
-          case Query.GetCode(msg.GetCode(address)) =>
-            log.debug("Client received msg: GetCode")
-            val codeMsg = msg.Code(world.getCode(address))
-            codeMsg.writeDelimitedTo(out)
-
-          case Query.GetBlockhash(msg.GetBlockhash(offset)) =>
-            log.debug("Client received msg: GetBlockhash")
-            val blockhashMsg = world.getBlockHash(offset) match {
-              case Some(value) => msg.Blockhash(hash = value)
-              case None => msg.Blockhash()
-            }
-            blockhashMsg.writeDelimitedTo(out)
-
-          case Query.Empty =>
-            log.debug("Client received msg: Empty")
-        }
-      }
+  def awaitMessage[M <: com.trueaccord.scalapb.GeneratedMessage with com.trueaccord.scalapb.Message[M]](implicit companion: com.trueaccord.scalapb.GeneratedMessageCompanion[M]): M = {
+    val resF = in.pull() map {
+      case Some(bytes) => LiteParser.parseFrom(companion, CodedInputStream.newInstance(bytes.toArray[Byte]))
+      case None => throw new RuntimeException("Stream completed")
     }
 
-    result
+    Await.result(resF, 1.minute)
+  }
+
+  @tailrec
+  private def messageLoop(): msg.CallResult = {
+    import msg.VMQuery.Query
+
+    val nextMsg = awaitMessage[msg.VMQuery]
+
+    nextMsg.query match {
+      case Query.CallResult(res) =>
+        log.debug("Client received msg: CallResult")
+        res
+
+      case Query.GetAccount(msg.GetAccount(address)) =>
+        log.debug("Client received msg: GetAccount")
+        val accountMsg = world.getAccount(address) match {
+          case Some(acc) =>
+            msg.Account(
+              nonce = acc.nonce,
+              balance = acc.balance,
+              storage = acc.storageRoot
+            )
+
+          case None =>
+            msg.Account()
+        }
+        sendMessage(accountMsg)
+        messageLoop()
+
+      case Query.GetStorageData(msg.GetStorageData(address, offset)) =>
+        log.debug("Client received msg: GetStorageData")
+        val value = world.getStorage(address).load(offset)
+        val storageDataMsg = msg.StorageData(data = value)
+        sendMessage(storageDataMsg)
+        messageLoop()
+
+      case Query.GetCode(msg.GetCode(address)) =>
+        log.debug("Client received msg: GetCode")
+        val codeMsg = msg.Code(world.getCode(address))
+        sendMessage(codeMsg)
+        messageLoop()
+
+      case Query.GetBlockhash(msg.GetBlockhash(offset)) =>
+        log.debug("Client received msg: GetBlockhash")
+        val blockhashMsg = world.getBlockHash(offset) match {
+          case Some(value) => msg.Blockhash(hash = value)
+          case None => msg.Blockhash()
+        }
+        sendMessage(blockhashMsg)
+        messageLoop()
+
+      case Query.Empty =>
+        log.debug("Client received msg: Empty")
+        messageLoop()
+    }
   }
 
   private def constructResultFromMsg(world: W, resultMsg: msg.CallResult): ProgramResult[W, S] = {
