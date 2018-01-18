@@ -343,6 +343,13 @@ class LedgerImpl(
     */
   def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] = {
 
+    val addresses = List(
+      "0x8888f1f195afa192cfee860698584c030f4c9db1",
+      "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b",
+      "0xb94f5374fce5edbc8e2a8697c15331677e6ebf0b",
+      "0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b"
+    ).map(Address(_))
+
     val preExecValidationResult = if (alreadyValidated) Right(block) else validateBlockBeforeExecution(block)
 
     val blockExecResult = for {
@@ -351,9 +358,26 @@ class LedgerImpl(
       execResult <- executeBlockTransactions(block)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
       worldToPersist = payBlockReward(block, resultingWorldStateProxy)
-      worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
+      worldPersisted = {
+        val accountsBefore = addresses.map(a => a -> worldToPersist.getAccount(a))
+        println("BEFORE PERSIST: " + accountsBefore)
+        println("STORAGE BEFORE PERSIST: 1 -> " + worldToPersist.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
 
-      _ <- validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
+
+        InMemoryWorldStateProxy.persistState(worldToPersist)
+      } //State root hash needs to be up-to-date for validateBlockAfterExecution
+
+      //_ <- validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
+
+      _ <- {
+
+
+        val accountsAfter = addresses.map(a => a -> worldPersisted.getAccount(a))
+        println("AFTER PERSIST: " + accountsAfter)
+        println("STORAGE AFTER PERSIST: 1 -> " + worldPersisted.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
+
+        validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
+      }
     } yield receipts
 
     if(blockExecResult.isRight)
@@ -451,6 +475,7 @@ class LedgerImpl(
       validatedStx match {
         case Right(_) =>
           val TxResult(newWorld, gasUsed, logs, _, _) = executeTransaction(stx, blockHeader, worldForTx)
+          println("STORAGE AFTER EXECUTE TX: 1 -> " + newWorld.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
 
           val receipt = Receipt(
             postTransactionStateHash = newWorld.stateRootHash,
@@ -470,8 +495,6 @@ class LedgerImpl(
 
     val world1 = world.getOrElse(blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(blockHeader.stateRoot)))
 
-    val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
-
     val world2 =
       if (world1.getAccount(stx.senderAddress).isEmpty)
         world1.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce))
@@ -480,9 +503,9 @@ class LedgerImpl(
 
     val worldForTx = updateSenderAccountBeforeExecution(stx, world2)
 
-    val context: PC = prepareProgramContext(stx, blockHeader, worldForTx, config)
+    val context: PC = prepareProgramContext(stx, blockHeader, worldForTx)
 
-    val result = runVM(stx, context, config)
+    val result = runVM(stx, context)
 
     val totalGasToRefund = calcTotalGasToRefund(stx, result)
 
@@ -505,11 +528,12 @@ class LedgerImpl(
     log.debug(s"Transaction ${stx.hashAsHexString} execution start")
     val gasPrice = UInt256(stx.tx.gasPrice)
     val gasLimit = stx.tx.gasLimit
-    val config = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
 
     val checkpointWorldState = updateSenderAccountBeforeExecution(stx, world)
-    val context = prepareProgramContext(stx, blockHeader, checkpointWorldState, config)
-    val result = runVM(stx, context, config)
+    val context = prepareProgramContext(stx, blockHeader, checkpointWorldState.diverge)
+    val result = runVM(stx, context)
+    println("STORAGE AFTER RUN VM: 1 -> " + result.world.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
+    println("ACCOUNT AFTER RUN VM: 0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b -> " + result.world.getAccount(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")))
 
     val resultWithErrorHandling: PR =
       if (result.error.isDefined) {
@@ -525,12 +549,17 @@ class LedgerImpl(
     val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256) _
 
     val worldAfterPayments = (refundGasFn andThen payMinerForGasFn)(resultWithErrorHandling.world)
+    println("STORAGE AFTER PAYMENTS: 1 -> " + worldAfterPayments.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
+    println("ACCOUNT AFTER PAYMENTS: 0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b -> " + worldAfterPayments.getAccount(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")))
 
     val deleteAccountsFn = deleteAccounts(resultWithErrorHandling.addressesToDelete) _
     val deleteTouchedAccountsFn = deleteEmptyTouchedAccounts _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
+    println(resultWithErrorHandling.addressesToDelete)
+
 
     val world2 = (deleteAccountsFn andThen deleteTouchedAccountsFn andThen persistStateFn)(worldAfterPayments)
+    println("STORAGE AFTER DELETE: 1 -> " + world2.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
 
     log.debug(
       s"""Transaction ${stx.hashAsHexString} execution end. Summary:
@@ -636,8 +665,7 @@ class LedgerImpl(
     worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce())
   }
 
-  private def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy,
-      config: EvmConfig): PC = {
+  private def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): PC = {
     stx.tx.receivingAddress match {
       case None =>
         val address = world.createAddress(creatorAddr = stx.senderAddress)
@@ -647,18 +675,18 @@ class LedgerImpl(
         val code = if (conflict) ByteString(INVALID.code) else stx.tx.payload
 
         val world1 = world.initialiseAccount(address).transfer(stx.senderAddress, address, UInt256(stx.tx.value))
-        ProgramContext(stx, address,  Program(code), blockHeader, world1, config)
+        ProgramContext(stx, address,  Program(code), blockHeader, world1, blockchainConfig)
 
       case Some(txReceivingAddress) =>
         val world1 = world.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
-        ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, config)
+        ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, blockchainConfig)
     }
   }
 
-  private def runVM(stx: SignedTransaction, context: PC, config: EvmConfig): PR = {
+  private def runVM(stx: SignedTransaction, context: PC): PR = {
     val result: PR = vm.run(context)
     if (stx.tx.isContractInit && result.error.isEmpty)
-      saveNewContract(context.env.ownerAddr, result, config)
+      saveNewContract(context.env.ownerAddr, result, context.evmConfig)
     else
       result
   }

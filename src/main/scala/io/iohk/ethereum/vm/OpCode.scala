@@ -681,7 +681,7 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
     } else {
 
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
-      val (newAddress, world1) = state.world.createAddressWithOpCode(state.env.ownerAddr)
+      val (newAddress, world1) = state.world.diverge.createAddressWithOpCode(state.env.ownerAddr)
       val world2 = world1.initialiseAccount(newAddress).transfer(state.env.ownerAddr, newAddress, endowment)
 
       // EIP-684
@@ -702,7 +702,13 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
       val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
       val startGas = state.config.gasCap(availableGas)
 
-      val context = ProgramContext[W, S](newEnv, newAddress, startGas, world2, state.config, state.addressesToDelete)
+      val context: ProgramContext[W, S] = state.context.copy(
+        env = newEnv,
+        receivingAddr = newAddress,
+        startGas = startGas,
+        world = world2,
+        initialAddressesToDelete = state.addressesToDelete)
+
       val result = VM.run(context)
 
       val contractCode = result.returnData
@@ -768,14 +774,14 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
 
       val (world1, owner, caller) = this match {
         case CALL =>
-          val withTransfer = state.world.transfer(state.ownAddress, toAddr, endowment)
+          val withTransfer = state.world.diverge.transfer(state.ownAddress, toAddr, endowment)
           (withTransfer, toAddr, state.ownAddress)
 
         case CALLCODE =>
-          (state.world, state.ownAddress, state.ownAddress)
+          (state.world.diverge, state.ownAddress, state.ownAddress)
 
         case DELEGATECALL =>
-          (state.world, state.ownAddress, state.env.callerAddr)
+          (state.world.diverge, state.ownAddress, state.env.callerAddr)
       }
 
       val env = state.env.copy(
@@ -821,6 +827,19 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       val output = result.returnData.take(sizeCap)
       val mem2 = mem1.store(outOffset, output).expand(outOffset, outSize)
       val internalTx = internalTransaction(state.env, to, startGas, inputData, endowment)
+
+      val addresses = List(
+        "0x8888f1f195afa192cfee860698584c030f4c9db1",
+        "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b",
+        "0xb94f5374fce5edbc8e2a8697c15331677e6ebf0b",
+        "0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b"
+      ).map(Address(_))
+
+      val accounts = addresses.map(a => a -> result.world.getAccount(a))
+      println("AFTER CALL: " + accounts)
+
+      println("STORAGE: 1 -> " + result.world.getStorage(addresses.last).load(1))
+
 
       state
         .spendGas(-result.gasRemaining)

@@ -1,5 +1,6 @@
 package io.iohk.ethereum.ets.blockchain
 
+import akka.actor.ActorSystem
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.domain.{Account, Address, Block, UInt256}
@@ -10,9 +11,16 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, BlockchainConfigBuilder, SyncConfigBuilder, ValidatorsBuilder}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.vm.VM
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
+
+object ScenarioSetup {
+  implicit lazy val actorSystem = ActorSystem("mantis_system")
+  lazy val extvm = new ExtVMInterface("127.0.0.1", 8888)
+  val vm = VM
+}
 
 abstract class ScenarioSetup(scenario: BlockchainScenario)
   extends EphemBlockchainTestSetup
@@ -21,13 +29,13 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
   with BlockchainConfigBuilder
   with ActorSystemBuilder {
 
+  import ScenarioSetup._
+
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
 
   override lazy val blockchainConfig = buildBlockchainConfig(scenario.network)
 
-  val vm = new ExtVMInterface(blockchainConfig, "127.0.0.1", 8888)
-
-  val ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, validators)
+  val ledger = new LedgerImpl(extvm, blockchain, blockchainConfig, syncConfig, validators)
 
   def loadGenesis(): Block = {
     val genesisBlock = scenario.genesisRLP match {

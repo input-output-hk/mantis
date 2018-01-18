@@ -6,10 +6,10 @@
         </encoder>
     </appender>
 
-    <logger name="io.iohk.ethereum.vm.VM" level="OFF" />
-    <logger name="io.iohk.ethereum.ledger.LedgerImpl" level="OFF" />
+    <logger name="io.iohk.ethereum.vm.VM" level="TRACE" />
+    <logger name="io.iohk.ethereum.ledger.LedgerImpl" level="DEBUG" />
 
-    <root level="INFO">
+    <root level="DEBUG">
         <appender-ref ref="STDOUT" />
     </root>
 

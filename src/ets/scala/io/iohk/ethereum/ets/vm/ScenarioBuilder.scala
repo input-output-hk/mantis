@@ -20,6 +20,7 @@ object ScenarioBuilder {
       scenario.exec.address,
       scenario.exec.gas,
       world,
+      None,
       config
     )
   }

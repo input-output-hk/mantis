@@ -9,7 +9,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 
 // scalastyle:off
-class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](blockchainConfig: BlockchainConfig, context: ProgramContext[W, S], in: InputStream, out: OutputStream) extends Logger {
+class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S], in: InputStream, out: OutputStream) extends Logger {
 
   private val world = context.world
 
@@ -38,8 +38,7 @@ class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](blockchainConfig: Bl
               case Some(acc) =>
                 msg.Account(
                   nonce = acc.nonce,
-                  balance = acc.balance,
-                  storage = acc.storageRoot
+                  balance = acc.balance
                 )
 
               case None =>
@@ -92,21 +91,25 @@ class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](blockchainConfig: Bl
   private def applyAccountChanges(world: W, resultMsg: msg.CallResult): W = {
     val worldWithUpdatedAccounts = resultMsg.modifiedAccounts.foldLeft(world){ (w, change) =>
       val address: Address = change.address
-      val intialStorage = w.getStorage(address)
-      val updatedStorage = change.storageUpdates.foldLeft(intialStorage){ (s, update) =>
+      val initialStorage = w.getStorage(address)
+      val updatedStorage = change.storageUpdates.foldLeft(initialStorage){ (s, update) =>
         s.store(update.offset, update.data)
       }
 
-      val account = Account(change.nonce, change.balance)
+      val account = w.getAccount(address).getOrElse(w.getEmptyAccount).copy(nonce = change.nonce, balance = change.balance)
       val w1 = w.saveAccount(address, account).saveStorage(address, updatedStorage)
       if (change.code.isEmpty) w1 else w1.saveCode(address, change.code)
     }
+
+    println("STORAGE: 1 -> " + worldWithUpdatedAccounts.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
 
     worldWithUpdatedAccounts.touchAccounts(resultMsg.touchedAccounts.map(a => a: Address): _*)
   }
 
   private def buildCallContextMsg(ctx: ProgramContext[_, _]): msg.CallContext = {
     val blockHeader = buildBlockHeaderMsg(ctx.env.blockHeader)
+    val blockchainConfig = ctx.blockchainConfig.map(buildBlockchainConfigMsg)
+    
     msg.CallContext(
       ownerAddr = ctx.env.ownerAddr,
       callerAddr = ctx.env.callerAddr,
@@ -117,9 +120,14 @@ class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](blockchainConfig: Bl
       gasPrice = ctx.env.gasPrice,
       gasProvided = ctx.startGas,
       callDepth = ctx.env.callDepth,
-      blockHeader = Some(blockHeader),
       receivingAddr = ctx.receivingAddr,
+      blockHeader = Some(blockHeader),
+      blockchainConfig = blockchainConfig
+    )
+  }
 
+  private def buildBlockchainConfigMsg(blockchainConfig: BlockchainConfig): msg.BlockchainConfig =
+    msg.BlockchainConfig(
       frontierBlockNumber = blockchainConfig.frontierBlockNumber,
       homesteadBlockNumber = blockchainConfig.homesteadBlockNumber,
       eip106BlockNumber = blockchainConfig.eip106BlockNumber,
@@ -147,7 +155,6 @@ class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](blockchainConfig: Bl
 
       gasTieBreaker = blockchainConfig.gasTieBreaker
     )
-  }
 
   private def buildBlockHeaderMsg(header: BlockHeader): msg.BlockHeader =
     msg.BlockHeader(

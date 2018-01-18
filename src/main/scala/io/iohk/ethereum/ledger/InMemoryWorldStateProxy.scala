@@ -38,6 +38,8 @@ object InMemoryWorldStateProxy {
     )
   }
 
+  var doLog = false
+
   /**
     * Updates state trie with current changes but does not persist them into the storages. To do so it:
     *   - Commits code (to get account's code hashes)
@@ -152,12 +154,18 @@ class InMemoryWorldStateProxy private[ledger](
 
   override def getAccount(address: Address): Option[Account] = accountsStateTrie.get(address)
 
-  override protected def getEmptyAccount: Account = Account.empty(accountStartNonce)
+  override def getEmptyAccount: Account = Account.empty(accountStartNonce)
 
   override def getGuaranteedAccount(address: Address): Account = super.getGuaranteedAccount(address)
 
-  override def saveAccount(address: Address, account: Account): InMemoryWorldStateProxy =
+  override def saveAccount(address: Address, account: Account): InMemoryWorldStateProxy = {
+    if (doLog) {
+      val stackTrace = Thread.currentThread().getStackTrace.drop(2).take(8)
+      val stackTraceStr = stackTrace.map(f => s"${f.getClassName}#${f.getMethodName}:${f.getLineNumber}")
+      println(s"saveAccount $address, called from: \n" + stackTraceStr.mkString("\t", "\n\t", ""))
+    }
     copyWith(accountsStateTrie = accountsStateTrie.put(address, account))
+  }
 
   override def deleteAccount(address: Address): InMemoryWorldStateProxy =
     copyWith(accountsStateTrie = accountsStateTrie.remove(address),
