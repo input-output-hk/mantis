@@ -59,6 +59,7 @@ object PersonalService {
   val InvalidAddress = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
   val InvalidPassphrase = LogicError("Could not decrypt key with given passphrase")
   val KeyNotFound = LogicError("No key found for the given address")
+  val PassPhraseTooShort = LogicError("Provided passphrase must have at least 8 characters")
 
   val PrivateKeyLength = 32
   val defaultUnlockTime = 300
@@ -212,6 +213,7 @@ class PersonalService(
   private val handleError: PartialFunction[KeyStore.KeyStoreError, JsonRpcError] = {
     case KeyStore.DecryptionFailed => InvalidPassphrase
     case KeyStore.KeyNotFound => KeyNotFound
+    case KeyStore.PassPhraseTooShort => PassPhraseTooShort
     case KeyStore.IOError(msg) => LogicError(msg)
     case KeyStore.DuplicateKeySaved => LogicError("account already exists")
   }

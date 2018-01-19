@@ -4,7 +4,7 @@ import java.io.File
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyNotFound}
+import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyNotFound, PassPhraseTooShort}
 import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
@@ -49,12 +49,17 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
   }
 
   it should "create new accounts" in new TestSetup {
-    val newAddr1 = keyStore.newAccount("aaa").right.get
-    val newAddr2 = keyStore.newAccount("bbb").right.get
+    val newAddr1 = keyStore.newAccount("aaaaaaaa").right.get
+    val newAddr2 = keyStore.newAccount("bbbbbbbb").right.get
 
     val listOfNewAccounts = keyStore.listAccounts().right.get
     listOfNewAccounts.toSet shouldEqual Set(newAddr1, newAddr2)
     listOfNewAccounts.length shouldEqual 2
+  }
+
+  it should "fail to create account with too short passphrase" in new TestSetup {
+    val res1 = keyStore.newAccount("aaaaaaa")
+    res1 shouldEqual Left(PassPhraseTooShort)
   }
 
   it should "return an error when the keystore dir cannot be initialized" in new TestSetup {
@@ -67,10 +72,10 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
     clearKeyStore()
 
     val key = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
-    val res1 = keyStore.importPrivateKey(key, "aaa")
+    val res1 = keyStore.importPrivateKey(key, "aaaaaaaa")
     res1 should matchPattern { case Left(IOError(_)) => }
 
-    val res2 = keyStore.newAccount("aaa")
+    val res2 = keyStore.newAccount("aaaaaaaa")
     res2 should matchPattern { case Left(IOError(_)) => }
 
     val res3 = keyStore.listAccounts()
@@ -104,7 +109,7 @@ class KeyStoreImplSpec extends FlatSpec with Matchers with BeforeAndAfter with S
   }
 
   it should "delete existing wallet " in new TestSetup {
-    val newAddr1 = keyStore.newAccount("aaa").right.get
+    val newAddr1 = keyStore.newAccount("aaaaaaaa").right.get
     val listOfNewAccounts = keyStore.listAccounts().right.get
     listOfNewAccounts.toSet shouldEqual Set(newAddr1)
 

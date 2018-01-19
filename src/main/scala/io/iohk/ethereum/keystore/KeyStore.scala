@@ -17,11 +17,12 @@ import scala.util.Try
 
 object KeyStore {
   sealed trait KeyStoreError
-  case object KeyNotFound extends KeyStoreError
-  case object DecryptionFailed extends KeyStoreError
-  case object InvalidKeyFormat extends KeyStoreError
+  case object KeyNotFound         extends KeyStoreError
+  case object PassPhraseTooShort  extends KeyStoreError
+  case object DecryptionFailed    extends KeyStoreError
+  case object InvalidKeyFormat    extends KeyStoreError
   case class IOError(msg: String) extends KeyStoreError
-  case object DuplicateKeySaved extends KeyStoreError
+  case object DuplicateKeySaved   extends KeyStoreError
 }
 
 import io.iohk.ethereum.keystore.KeyStore._
@@ -44,11 +45,17 @@ class KeyStoreImpl(keyStoreDir: String, secureRandom: SecureRandom) extends KeyS
 
   init()
 
+  private val minimalPassphraseLength = 8
+
   def newAccount(passphrase: String): Either[KeyStoreError, Address] = {
-    val keyPair = generateKeyPair(secureRandom)
-    val (prvKey, _) = keyPairToByteStrings(keyPair)
-    val encKey = EncryptedKey(prvKey, passphrase, secureRandom)
-    save(encKey).map(_ => encKey.address)
+    if (passphrase.trim.length < minimalPassphraseLength)
+      Left(PassPhraseTooShort)
+    else {
+      val keyPair = generateKeyPair(secureRandom)
+      val (prvKey, _) = keyPairToByteStrings(keyPair)
+      val encKey = EncryptedKey(prvKey, passphrase, secureRandom)
+      save(encKey).map(_ => encKey.address)
+    }
   }
 
   def importPrivateKey(prvKey: ByteString, passphrase: String): Either[KeyStoreError, Address] = {
