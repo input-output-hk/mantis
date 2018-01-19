@@ -11,16 +11,15 @@ import io.iohk.ethereum.vm._
 
 import scala.util.Try
 
-// scalastyle:off
 class ExtVMInterface(blockchainConfig: BlockchainConfig, host: String, port: Int)(implicit system: ActorSystem) extends VM {
 
-  implicit val materializer = ActorMaterializer()
+  private implicit val materializer = ActorMaterializer()
 
-  val connection = Tcp().outgoingConnection(host, port)
+  private val connection = Tcp().outgoingConnection(host, port)
 
-  val (out, in) = Source.queue[ByteString](1024, OverflowStrategy.dropTail)
+  private val (out, in) = Source.queue[ByteString](QueueBufferSize, OverflowStrategy.dropTail)
     .via(connection)
-    .via(Framing.lengthField(4, 0, Int.MaxValue, ByteOrder.BIG_ENDIAN))
+    .via(Framing.lengthField(LengthPrefixSize, 0, Int.MaxValue, ByteOrder.BIG_ENDIAN))
     .map(_.drop(4))
     .toMat(Sink.queue[ByteString]())(Keep.both)
     .run()

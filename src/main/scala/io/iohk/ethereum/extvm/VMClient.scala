@@ -1,24 +1,20 @@
 package io.iohk.ethereum.extvm
 
-import java.math.BigInteger
-
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy, _}
 import Implicits._
 import akka.stream.scaladsl.{SinkQueueWithCancel, SourceQueueWithComplete}
 import akka.util.ByteString
-import com.google.protobuf.CodedInputStream
-import com.trueaccord.scalapb.LiteParser
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteUtils, Logger}
-import org.spongycastle.util.BigIntegers
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 
 import scala.annotation.tailrec
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 
-// scalastyle:off
-class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](blockchainConfig: BlockchainConfig, context: ProgramContext[W, S], in: SinkQueueWithCancel[ByteString], out: SourceQueueWithComplete[ByteString]) extends Logger {
+class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](
+    blockchainConfig: BlockchainConfig,
+    context: ProgramContext[W, S],
+    override val in: SinkQueueWithCancel[ByteString],
+    override val out: SourceQueueWithComplete[ByteString])
+  extends MessageUtils with Logger {
 
   private val world = context.world
 
@@ -30,22 +26,7 @@ class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](blockchainConfig: Bl
     constructResultFromMsg(world, callResult)
   }
 
-  def sendMessage[M <: com.trueaccord.scalapb.GeneratedMessage](msg: M): Unit = {
-    val bytes = msg.toByteArray
-    val lengthBytes = ByteString(BigIntegers.asUnsignedByteArray(4, BigInteger.valueOf(bytes.length)))
-
-    out offer (lengthBytes ++ ByteString(bytes))
-  }
-
-  def awaitMessage[M <: com.trueaccord.scalapb.GeneratedMessage with com.trueaccord.scalapb.Message[M]](implicit companion: com.trueaccord.scalapb.GeneratedMessageCompanion[M]): M = {
-    val resF = in.pull() map {
-      case Some(bytes) => LiteParser.parseFrom(companion, CodedInputStream.newInstance(bytes.toArray[Byte]))
-      case None => throw new RuntimeException("Stream completed")
-    }
-
-    Await.result(resF, 1.minute)
-  }
-
+  // scalastyle:off method.length
   @tailrec
   private def messageLoop(): msg.CallResult = {
     import msg.VMQuery.Query
@@ -161,7 +142,7 @@ class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](blockchainConfig: Bl
       forkBlockHash = byteString2GByteString(blockchainConfig.daoForkConfig.map(_.forkBlockHash).getOrElse(ByteString())),
       forkBlockExtraData = byteString2GByteString(blockchainConfig.daoForkConfig.flatMap(_.blockExtraData).getOrElse(ByteString())),
 
-      forkRefundContract = address2GByteString(blockchainConfig.daoForkConfig.flatMap(_.refundContract).getOrElse(Address(0x0))),
+      forkRefundContract = address2GByteString(blockchainConfig.daoForkConfig.flatMap(_.refundContract).getOrElse(Address(0))),
       forkDrainList = blockchainConfig.daoForkConfig.map(_.drainList.map(address2GByteString)).getOrElse(Seq.empty),
 
       accountStartNonce = blockchainConfig.accountStartNonce,

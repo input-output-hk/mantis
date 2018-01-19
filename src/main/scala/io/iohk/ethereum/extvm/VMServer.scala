@@ -1,6 +1,5 @@
 package io.iohk.ethereum.extvm
 
-import java.math.BigInteger
 import java.nio.ByteOrder
 
 import akka.NotUsed
@@ -8,25 +7,19 @@ import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.stream.scaladsl.{Flow, Framing, Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete, Tcp}
 import akka.util.ByteString
-import com.google.protobuf.{CodedInputStream, GeneratedMessage, ByteString => GByteString}
-import com.trueaccord.scalapb.{GeneratedMessageCompanion, LiteParser}
+import com.google.protobuf.{ByteString => GByteString}
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 import io.iohk.ethereum.extvm.Implicits._
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.vm
 import io.iohk.ethereum.vm.ProgramResult
-import org.spongycastle.util.BigIntegers
 
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.concurrent.Await
 import scala.util.{Failure, Success, Try}
-import scala.concurrent.duration._
 import scala.languageFeature.implicitConversions
-import scala.concurrent.ExecutionContext.Implicits.global
 
-// scalastyle:off
 object VmServerApp {
 
   implicit val system = ActorSystem("EVM_System")
@@ -39,10 +32,10 @@ object VmServerApp {
   }
 
   def handleConnection(connection: Flow[ByteString, ByteString, NotUsed]): Unit = {
-    val (out, in) = Source.queue[ByteString](1024, OverflowStrategy.dropTail)
+    val (out, in) = Source.queue[ByteString](QueueBufferSize, OverflowStrategy.dropTail)
       .via(connection)
-      .via(Framing.lengthField(4, 0, Int.MaxValue, ByteOrder.BIG_ENDIAN))
-      .map(_.drop(4))
+      .via(Framing.lengthField(LengthPrefixSize, 0, Int.MaxValue, ByteOrder.BIG_ENDIAN))
+      .map(_.drop(LengthPrefixSize))
       .toMat(Sink.queue[ByteString]())(Keep.both)
       .run()
 
@@ -50,7 +43,10 @@ object VmServerApp {
   }
 }
 
-class VMServer(in: SinkQueueWithCancel[ByteString], out: SourceQueueWithComplete[ByteString]) extends Logger {
+class VMServer(
+    override val in: SinkQueueWithCancel[ByteString],
+    override val out: SourceQueueWithComplete[ByteString])
+  extends MessageUtils with Logger {
 
   class Storage(address: Address) extends vm.Storage[Storage] {
     val storage = mutable.Map[UInt256, UInt256]()
@@ -77,22 +73,6 @@ class VMServer(in: SinkQueueWithCancel[ByteString], out: SourceQueueWithComplete
         storage += offset -> value
         value
     }
-  }
-
-  def sendMessage[M <: com.trueaccord.scalapb.GeneratedMessage](msg: M): Unit = {
-    val bytes = msg.toByteArray
-    val lengthBytes = ByteString(BigIntegers.asUnsignedByteArray(4, BigInteger.valueOf(bytes.length)))
-
-    out offer (lengthBytes ++ ByteString(bytes))
-  }
-
-  def awaitMessage[M <: com.trueaccord.scalapb.GeneratedMessage with com.trueaccord.scalapb.Message[M]](implicit companion: com.trueaccord.scalapb.GeneratedMessageCompanion[M]): M = {
-    val resF = in.pull() map {
-      case Some(bytes) => LiteParser.parseFrom(companion, CodedInputStream.newInstance(bytes.toArray[Byte]))
-      case None => throw new RuntimeException("Stream completed")
-    }
-
-    Await.result(resF, 1.minute)
   }
 
   class World(
