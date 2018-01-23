@@ -89,16 +89,13 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
 
-    etcPeerManager.expectMsgAllOf(
-      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer1.id),
-      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(1), 10, 0, reverse = false), peer2.id)
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(1), 10, 0, reverse = false), peer1.id)
     )
-    etcPeerManager.expectNoMsg()
 
     peerMessageBus.expectMsgAllOf(
       Unsubscribe(),
-      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))),
-      Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer1.id)))
+      Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer1.id)))
     )
   }
 
@@ -110,11 +107,11 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(
       number = expectedTargetBlock,
       stateRoot = ByteString(Hex.decode("deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc")))
-    val bestBlockHeaderNumber: BigInt = targetBlockHeader.number - 1
-    storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState(targetBlockHeader)
-      .copy(bestBlockHeaderNumber = bestBlockHeaderNumber,
-        pendingMptNodes = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
 
+    val bestBlockHeaderNumber: BigInt = targetBlockHeader.number - 1
+
+    storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState(targetBlockHeader)
+      .copy(bestBlockHeaderNumber = bestBlockHeaderNumber, safeDownloadTarget = expectedTargetBlock))
     Thread.sleep(1.seconds.toMillis)
 
     val peer2Status = Status(1, 1, 20, ByteString("peer2_bestHash"), ByteString("unused"))
@@ -133,12 +130,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val watcher = TestProbe()
     watcher.watch(syncController)
 
-    etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer2.id))
-    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
-    peerMessageBus.reply(MessageFromPeer(NodeData(Seq(stateMptLeafWithAccount)), peer2.id))
-    peerMessageBus.expectMsg(Unsubscribe())
-
     //wait for peers throttle
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     //trigger scheduling
@@ -150,7 +141,23 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     peerMessageBus.expectMsg(Unsubscribe())
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    Thread.sleep(2.second.toMillis)
+
+    etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").toIterator), handshakedPeers)
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(ByteString("peer2_bestHash")), 1, 0, reverse = false), peer2.id))
+    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer2.id))
+    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
+
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(targetBlockHeader.number - syncConfig.targetBlockOffset), 1, 0, reverse = false), peer2.id))
+    etcPeerManager.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader.copy(number = targetBlockHeader.number - syncConfig.targetBlockOffset))), peer2.id))
+    peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.expectMsg(Unsubscribe())
+
+    Thread.sleep(1.second.toMillis)
+
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetReceipts(Seq(targetBlockHeader.hash)), peer2.id))
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(Receipts.code), PeerSelector.WithId(peer2.id))))
@@ -163,6 +170,14 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockBodies.code), PeerSelector.WithId(peer2.id))))
     peerMessageBus.reply(MessageFromPeer(BlockBodies(Seq(BlockBody(Nil, Nil))), peer2.id))
     peerMessageBus.expectMsg(Unsubscribe())
+
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+    etcPeerManager.expectMsg(
+      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer2.id))
+    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
+    peerMessageBus.reply(MessageFromPeer(NodeData(Seq(stateMptLeafWithAccount)), peer2.id))
+    peerMessageBus.expectMsg(Unsubscribe())
+    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
 
     Thread.sleep(startDelayMillis)
     etcPeerManager.send(syncController.getSingleChild("regular-sync"), handshakedPeers)
@@ -177,21 +192,20 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
   it should "handle blocks that fail validation" in new TestSetup(validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => Left(HeaderPoWError) }
   }) {
-    val peer2TestProbe: TestProbe = TestProbe()(system)
-    val peer2 = Peer(new InetSocketAddress("127.0.0.1", 0), peer2TestProbe.ref, false)
-
 
     val expectedTargetBlock = 399500
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(
       number = expectedTargetBlock,
       stateRoot = ByteString(Hex.decode("deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc")))
     val bestBlockHeaderNumber: BigInt = targetBlockHeader.number - 2
-    storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState(targetBlockHeader)
-      .copy(bestBlockHeaderNumber = bestBlockHeaderNumber,
-        pendingMptNodes = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
+    storagesInstance.storages.fastSyncStateStorage.putSyncState(
+      SyncState(targetBlockHeader).copy(bestBlockHeaderNumber = bestBlockHeaderNumber, safeDownloadTarget = expectedTargetBlock)
+    )
 
     Thread.sleep(1.seconds.toMillis)
 
+    val peer2TestProbe: TestProbe = TestProbe()(system)
+    val peer2 = Peer(new InetSocketAddress("127.0.0.1", 0), peer2TestProbe.ref, false)
     val peer2Status = Status(1, 1, 20, ByteString("peer2_bestHash"), ByteString("unused"))
 
     syncController ! SyncController.Start
@@ -202,22 +216,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").toIterator), handshakedPeers)
     etcPeerManager.send(syncController.getSingleChild("fast-sync"), handshakedPeers)
 
-    val stateMptLeafWithAccount =
-      ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
-
-    val watcher = TestProbe()
-    watcher.watch(syncController)
-
-    etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer2.id))
-    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer2.id))))
-    peerMessageBus.reply(MessageFromPeer(NodeData(Seq(stateMptLeafWithAccount)), peer2.id))
-    peerMessageBus.expectMsg(Unsubscribe())
-
-    //wait for peers throttle
-    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    //trigger scheduling
-
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
       GetBlockHeaders(Left(targetBlockHeader.number - 1), expectedTargetBlock - bestBlockHeaderNumber, 0, reverse = false),
       peer2.id))
@@ -225,6 +223,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     peerMessageBus.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader.copy(number = targetBlockHeader.number - 1))), peer2.id))
     peerMessageBus.expectMsg(Unsubscribe())
 
+    Thread.sleep(200)
     syncController.getSingleChild("fast-sync") ! FastSync.PersistSyncState
     Thread.sleep(200)
     val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
@@ -242,12 +241,13 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val targetBlockHeader: BlockHeader = baseBlockHeader.copy(
       number = expectedTargetBlock,
       stateRoot = ByteString(Hex.decode("deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc")))
+
+
     val bestBlockHeaderNumber: BigInt = targetBlockHeader.number - 1
     storagesInstance.storages.fastSyncStateStorage.putSyncState(SyncState(targetBlockHeader)
-      .copy(bestBlockHeaderNumber = bestBlockHeaderNumber,
-        pendingMptNodes = Seq(StateMptNodeHash(targetBlockHeader.stateRoot))))
+      .copy(bestBlockHeaderNumber = bestBlockHeaderNumber, safeDownloadTarget = targetBlockHeader.number))
 
-    Thread.sleep(1.seconds.toMillis)
+//    Thread.sleep(1.seconds.toMillis)
 
     val peerStatus = Status(1, 1, 20, ByteString("peer2_bestHash"), ByteString("unused"))
 
@@ -259,26 +259,26 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").toIterator), handshakedPeers)
     etcPeerManager.send(syncController.getSingleChild("fast-sync"), handshakedPeers)
 
-    val stateMptLeafWithAccount =
-      ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
+//    val stateMptLeafWithAccount =
+//      ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 
     val watcher = TestProbe()
     watcher.watch(syncController)
 
-    etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer.id))
-    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer.id))))
-    peerMessageBus.reply(MessageFromPeer(NodeData(Seq(stateMptLeafWithAccount)), peer.id))
-    peerMessageBus.expectMsg(Unsubscribe())
+//    etcPeerManager.expectMsg(
+//      EtcPeerManagerActor.SendMessage(GetNodeData(Seq(targetBlockHeader.stateRoot)), peer.id))
+//    peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(NodeData.code), PeerSelector.WithId(peer.id))))
+//    peerMessageBus.reply(MessageFromPeer(NodeData(Seq(stateMptLeafWithAccount)), peer.id))
+//    peerMessageBus.expectMsg(Unsubscribe())
 
     //trigger scheduling
-    etcPeerManager.expectNoMsg(80.millis)
-
-    //wait for peers throttle
-    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-
-    //trigger scheduling again
-    Thread.sleep(2.second.toMillis)
+//    etcPeerManager.expectNoMsg(80.millis)
+//
+//    //wait for peers throttle
+//    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
+//
+//    //trigger scheduling again
+//    Thread.sleep(2.second.toMillis)
     etcPeerManager.expectMsg(EtcPeerManagerActor.SendMessage(
       GetBlockHeaders(Left(targetBlockHeader.number), expectedTargetBlock - bestBlockHeaderNumber, 0, reverse = false),
       peer.id))
@@ -451,7 +451,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer.id))
   }
 
-  class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil, validators: Validators = new Mocks.MockValidatorsAlwaysSucceed) extends EphemBlockchainTestSetup {
+  class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil, validators: Validators = new Mocks.MockValidatorsAlwaysSucceed)
+    extends EphemBlockchainTestSetup {
 
     private def isNewBlock(msg: Message): Boolean = msg match {
       case _: NewBlock => true
@@ -492,7 +493,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       blockBodiesPerRequest = 10,
       nodesPerRequest = 10,
       receiptsPerRequest = 10,
-      minPeersToChooseTargetBlock = 2,
+      minPeersToChooseTargetBlock = 1,
       peerResponseTimeout = 1.second,
       peersScanInterval = 500.milliseconds,
       fastSyncThrottle = 100.milliseconds,
