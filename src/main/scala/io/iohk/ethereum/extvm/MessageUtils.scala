@@ -14,7 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 trait MessageUtils {
 
-  private val AwaitTimeout = 1.minute
+  private val AwaitTimeout = 5.minutes
 
   def in: SinkQueue[ByteString]
 
