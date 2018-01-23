@@ -43,7 +43,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   error: Option[ProgramError] = None
 ) {
 
-  def config: EvmConfig = context.config
+  def config: EvmConfig = context.evmConfig
 
   def env: ExecEnv = context.env
 

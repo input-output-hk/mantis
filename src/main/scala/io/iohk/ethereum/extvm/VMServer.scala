@@ -109,7 +109,7 @@ class VMServer(
         accounts += address -> None
         None
       } else {
-        val account = Account(accountMsg.nonce, accountMsg.balance, accountMsg.storage)
+        val account = Account(accountMsg.nonce, accountMsg.balance, accountMsg.storageHash, accountMsg.codeHash)
         accounts += address -> Some(account)
         Some(account)
       }
@@ -126,7 +126,7 @@ class VMServer(
       this
     }
 
-    protected def getEmptyAccount: Account = Account.empty(accountStartNonce)
+    def getEmptyAccount: Account = Account.empty(accountStartNonce)
 
     def touchAccounts(addresses: Address*): World = {
       touchedAccounts ++= addresses
@@ -257,12 +257,12 @@ class VMServer(
       contextMsg.callDepth
     )
 
-    val blockchainConfig = buildBlockchainConfig(contextMsg)
+    val blockchainConfig = constructBlockchainConfig(contextMsg)
 
     val vmConfig = vm.EvmConfig.forBlock(env.blockHeader.number, blockchainConfig)
     val world = new World(blockchainConfig.accountStartNonce, vmConfig.noEmptyAccounts)
 
-    vm.ProgramContext(env, contextMsg.receivingAddr, contextMsg.gasProvided, world, vmConfig)
+    vm.ProgramContext(env, contextMsg.receivingAddr, contextMsg.gasProvided, world, None, vmConfig)
   }
 
   private def buildResultMsg(result: ProgramResult[World, Storage]): msg.CallResult = {
@@ -292,40 +292,43 @@ class VMServer(
     }
   }
 
-  private def buildBlockchainConfig(context: msg.CallContext): BlockchainConfig = {
+  private def constructBlockchainConfig(context: msg.CallContext): BlockchainConfig = {
+    require(context.blockchainConfig.isDefined)
+    val conf = context.blockchainConfig.get
+    
     new BlockchainConfig {
-      override val frontierBlockNumber: BigInt = context.frontierBlockNumber
-      override val homesteadBlockNumber: BigInt = context.homesteadBlockNumber
-      override val eip106BlockNumber: BigInt = context.eip106BlockNumber
-      override val eip150BlockNumber: BigInt = context.eip150BlockNumber
-      override val eip155BlockNumber: BigInt = context.eip155BlockNumber
-      override val eip160BlockNumber: BigInt = context.eip160BlockNumber
-      override val eip161BlockNumber: BigInt = context.eip161BlockNumber
-      override val maxCodeSize: Option[BigInt] = if (context.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(context.maxCodeSize))
-      override val difficultyBombPauseBlockNumber: BigInt = context.difficultyBombPauseBlockNumber
-      override val difficultyBombContinueBlockNumber: BigInt = context.difficultyBombContinueBlockNumber
+      override val frontierBlockNumber: BigInt = conf.frontierBlockNumber
+      override val homesteadBlockNumber: BigInt = conf.homesteadBlockNumber
+      override val eip106BlockNumber: BigInt = conf.eip106BlockNumber
+      override val eip150BlockNumber: BigInt = conf.eip150BlockNumber
+      override val eip155BlockNumber: BigInt = conf.eip155BlockNumber
+      override val eip160BlockNumber: BigInt = conf.eip160BlockNumber
+      override val eip161BlockNumber: BigInt = conf.eip161BlockNumber
+      override val maxCodeSize: Option[BigInt] = if (conf.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(conf.maxCodeSize))
+      override val difficultyBombPauseBlockNumber: BigInt = conf.difficultyBombPauseBlockNumber
+      override val difficultyBombContinueBlockNumber: BigInt = conf.difficultyBombContinueBlockNumber
 
       override val customGenesisFileOpt: Option[String] = None
 
-      override val daoForkConfig = if (context.forkBlockHash.isEmpty) None else Some(new DaoForkConfig {
-        override val blockExtraData: Option[ByteString] = if (context.forkBlockExtraData.isEmpty) None else Some(context.forkBlockExtraData)
-        override val range: Int = context.forkRange
-        override val drainList: Seq[Address] = context.forkDrainList.map(addressFromGByteString)
-        override val forkBlockHash: ByteString = context.forkBlockHash
-        override val forkBlockNumber: BigInt = context.forkBlockNumber
-        override val refundContract: Option[Address] = if (context.forkRefundContract.isEmpty) None else Some(context.forkRefundContract)
+      override val daoForkConfig = if (conf.forkBlockHash.isEmpty) None else Some(new DaoForkConfig {
+        override val blockExtraData: Option[ByteString] = if (conf.forkBlockExtraData.isEmpty) None else Some(conf.forkBlockExtraData)
+        override val range: Int = conf.forkRange
+        override val drainList: Seq[Address] = conf.forkDrainList.map(addressFromGByteString)
+        override val forkBlockHash: ByteString = conf.forkBlockHash
+        override val forkBlockNumber: BigInt = conf.forkBlockNumber
+        override val refundContract: Option[Address] = if (conf.forkRefundContract.isEmpty) None else Some(conf.forkRefundContract)
       })
 
-      override val accountStartNonce: UInt256 = context.accountStartNonce
+      override val accountStartNonce: UInt256 = conf.accountStartNonce
 
-      override val chainId: Byte = context.chainId.head
+      override val chainId: Byte = conf.chainId.head
 
       override val monetaryPolicyConfig = MonetaryPolicyConfig(
-        eraDuration = context.eraDuration,
-        rewardReductionRate = context.rewardReductionRate,
-        firstEraBlockReward = context.firstEraBlockReward)
+        eraDuration = conf.eraDuration,
+        rewardReductionRate = conf.rewardReductionRate,
+        firstEraBlockReward = conf.firstEraBlockReward)
 
-      val gasTieBreaker: Boolean = context.gasTieBreaker
+      val gasTieBreaker: Boolean = conf.gasTieBreaker
     }
   }
 }

@@ -223,7 +223,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "more gas than available is provided" should {
       def call(config: EvmConfig): fxt.CallResult = {
-        val context: PC = fxt.context.copy(config = config)
+        val context: PC = fxt.context.copy(evmConfig = config)
         fxt.CallResult(op = CALL, context = context, gas = UInt256.MaxValue / 2)
       }
 
@@ -235,7 +235,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
           */
         val gasFailingBeforeEIP150Fix = 141072
 
-        val context: PC = fxt.context.copy(config = config)
+        val context: PC = fxt.context.copy(evmConfig = config)
         fxt.CallResult(
           op = CALL,
           context = context,
@@ -449,7 +449,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "more gas than available is provided" should {
       def call(config: EvmConfig): fxt.CallResult = {
-        val context: PC = fxt.context.copy(config = config)
+        val context: PC = fxt.context.copy(evmConfig = config)
         fxt.CallResult(op = CALLCODE, context = context, gas = UInt256.MaxValue / 2)
       }
 
@@ -620,7 +620,7 @@ class CallOpcodesSpec extends WordSpec with Matchers with PropertyChecks {
 
     "more gas than available is provided" should {
       def call(config: EvmConfig): fxt.CallResult = {
-        val context: PC = fxt.context.copy(config = config)
+        val context: PC = fxt.context.copy(evmConfig = config)
         fxt.CallResult(op = DELEGATECALL, context = context, gas = UInt256.MaxValue / 2)
       }
 

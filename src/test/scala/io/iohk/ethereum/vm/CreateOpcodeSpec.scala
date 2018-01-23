@@ -237,7 +237,7 @@ class CreateOpcodeSpec extends WordSpec with Matchers {
     val maxCodeSize = 30
     val ethConfig = EvmConfig.PostEIP160ConfigBuilder(Some(maxCodeSize))
 
-    val context: PC = fxt.context.copy(startGas = Int.MaxValue, config = ethConfig)
+    val context: PC = fxt.context.copy(startGas = Int.MaxValue, evmConfig = ethConfig)
 
     val gasConsumedIfError = G_create + config.gasCap(context.startGas - G_create) //Gas consumed by CREATE opcode if an error happens
 

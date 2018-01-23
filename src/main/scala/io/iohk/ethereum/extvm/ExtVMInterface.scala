@@ -11,7 +11,7 @@ import io.iohk.ethereum.vm._
 
 import scala.util.Try
 
-class ExtVMInterface(blockchainConfig: BlockchainConfig, host: String, port: Int)(implicit system: ActorSystem) extends VM {
+class ExtVMInterface(host: String, port: Int)(implicit system: ActorSystem) extends VM {
 
   private implicit val materializer = ActorMaterializer()
 
@@ -25,7 +25,7 @@ class ExtVMInterface(blockchainConfig: BlockchainConfig, host: String, port: Int
     .run()
 
   override def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
-    new VMClient(blockchainConfig, context, in, out).run()
+    new VMClient(context, in, out).run()
   }
 
   def close(): Unit = {
