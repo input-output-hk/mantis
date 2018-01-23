@@ -101,8 +101,6 @@ class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramCont
       if (change.code.isEmpty) w1 else w1.saveCode(address, change.code)
     }
 
-    println("STORAGE: 1 -> " + worldWithUpdatedAccounts.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
-
     worldWithUpdatedAccounts.touchAccounts(resultMsg.touchedAccounts.map(a => a: Address): _*)
   }
 

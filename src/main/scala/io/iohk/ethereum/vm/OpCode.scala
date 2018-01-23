@@ -682,7 +682,7 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
 
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
       val (newAddress, world1) = state.world.diverge.createAddressWithOpCode(state.env.ownerAddr)
-      val world2 = world1.initialiseAccount(newAddress).transfer(state.env.ownerAddr, newAddress, endowment)
+      val world2 = world1.diverge.initialiseAccount(newAddress).transfer(state.env.ownerAddr, newAddress, endowment)
 
       // EIP-684
       val conflict = state.world.nonEmptyCodeOrNonceAccount(newAddress)
@@ -827,19 +827,6 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       val output = result.returnData.take(sizeCap)
       val mem2 = mem1.store(outOffset, output).expand(outOffset, outSize)
       val internalTx = internalTransaction(state.env, to, startGas, inputData, endowment)
-
-      val addresses = List(
-        "0x8888f1f195afa192cfee860698584c030f4c9db1",
-        "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b",
-        "0xb94f5374fce5edbc8e2a8697c15331677e6ebf0b",
-        "0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b"
-      ).map(Address(_))
-
-      val accounts = addresses.map(a => a -> result.world.getAccount(a))
-      println("AFTER CALL: " + accounts)
-
-      println("STORAGE: 1 -> " + result.world.getStorage(addresses.last).load(1))
-
 
       state
         .spendGas(-result.gasRemaining)

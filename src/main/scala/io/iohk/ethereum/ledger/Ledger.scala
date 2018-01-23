@@ -343,12 +343,16 @@ class LedgerImpl(
     */
   def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] = {
 
-    val addresses = List(
-      "0x8888f1f195afa192cfee860698584c030f4c9db1",
-      "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b",
-      "0xb94f5374fce5edbc8e2a8697c15331677e6ebf0b",
-      "0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b"
-    ).map(Address(_))
+//    val addresses = List(
+//      "0x5f8bd49cd9f0cb2bd5bb9d4320dfe9b61023249d",
+//      "0x1000000000000000000000000000000000000001",
+//      "0x248f0f0f33eadb89e9d87fd5c127f58567f3ffde",
+//      "0x5dddfce53ee040d9eb21afbc0ae1bb4dbb0ba643",
+//      "0xec0e71ad0a90ffe1909d27dac207f7680abba42d",
+//      "0x8888f1f195afa192cfee860698584c030f4c9db1",
+//      "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b",
+//      "0x0c243ebe6a031753dc0dd850acf422844a3efb76"
+//    ).map(Address(_))
 
     val preExecValidationResult = if (alreadyValidated) Right(block) else validateBlockBeforeExecution(block)
 
@@ -359,10 +363,8 @@ class LedgerImpl(
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
       worldToPersist = payBlockReward(block, resultingWorldStateProxy)
       worldPersisted = {
-        val accountsBefore = addresses.map(a => a -> worldToPersist.getAccount(a))
-        println("BEFORE PERSIST: " + accountsBefore)
-        println("STORAGE BEFORE PERSIST: 1 -> " + worldToPersist.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
-
+        //val accountsBefore = addresses.map(a => a -> worldToPersist.getAccount(a))
+        //println("BEFORE PERSIST: " + accountsBefore)
 
         InMemoryWorldStateProxy.persistState(worldToPersist)
       } //State root hash needs to be up-to-date for validateBlockAfterExecution
@@ -370,11 +372,10 @@ class LedgerImpl(
       //_ <- validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
 
       _ <- {
-
-
-        val accountsAfter = addresses.map(a => a -> worldPersisted.getAccount(a))
-        println("AFTER PERSIST: " + accountsAfter)
-        println("STORAGE AFTER PERSIST: 1 -> " + worldPersisted.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
+//
+//        val accountsAfter = addresses.map(a => a -> worldPersisted.getAccount(a))
+//        println(s"Block ${block.header.number}: ${Hex.toHexString(worldPersisted.stateRootHash.toArray)} (correct root: ${worldPersisted.stateRootHash == block.header.stateRoot})")
+//        println("AFTER PERSIST: " + accountsAfter)
 
         validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
       }
@@ -475,7 +476,6 @@ class LedgerImpl(
       validatedStx match {
         case Right(_) =>
           val TxResult(newWorld, gasUsed, logs, _, _) = executeTransaction(stx, blockHeader, worldForTx)
-          println("STORAGE AFTER EXECUTE TX: 1 -> " + newWorld.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
 
           val receipt = Receipt(
             postTransactionStateHash = newWorld.stateRootHash,
@@ -532,8 +532,6 @@ class LedgerImpl(
     val checkpointWorldState = updateSenderAccountBeforeExecution(stx, world)
     val context = prepareProgramContext(stx, blockHeader, checkpointWorldState.diverge)
     val result = runVM(stx, context)
-    println("STORAGE AFTER RUN VM: 1 -> " + result.world.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
-    println("ACCOUNT AFTER RUN VM: 0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b -> " + result.world.getAccount(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")))
 
     val resultWithErrorHandling: PR =
       if (result.error.isDefined) {
@@ -549,17 +547,12 @@ class LedgerImpl(
     val payMinerForGasFn = pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256) _
 
     val worldAfterPayments = (refundGasFn andThen payMinerForGasFn)(resultWithErrorHandling.world)
-    println("STORAGE AFTER PAYMENTS: 1 -> " + worldAfterPayments.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
-    println("ACCOUNT AFTER PAYMENTS: 0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b -> " + worldAfterPayments.getAccount(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")))
 
     val deleteAccountsFn = deleteAccounts(resultWithErrorHandling.addressesToDelete) _
     val deleteTouchedAccountsFn = deleteEmptyTouchedAccounts _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
-    println(resultWithErrorHandling.addressesToDelete)
-
 
     val world2 = (deleteAccountsFn andThen deleteTouchedAccountsFn andThen persistStateFn)(worldAfterPayments)
-    println("STORAGE AFTER DELETE: 1 -> " + world2.getStorage(Address("0xc94f5374fce5edbc8e2a8697c15331677e6ebf0b")).load(1))
 
     log.debug(
       s"""Transaction ${stx.hashAsHexString} execution end. Summary:
