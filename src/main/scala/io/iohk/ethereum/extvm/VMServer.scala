@@ -48,6 +48,8 @@ class VMServer(
     override val out: SourceQueueWithComplete[ByteString])
   extends MessageUtils with Logger {
 
+  var defaultBlockchainConfig: BlockchainConfig = _
+
   class Storage(address: Address) extends vm.Storage[Storage] {
     val storage = mutable.Map[UInt256, UInt256]()
 
@@ -214,8 +216,13 @@ class VMServer(
     }
   }
 
+  private def awaitDefaultBlockchainConfig(): Unit = {
+    defaultBlockchainConfig = constructBlockchainConfig(awaitMessage[msg.BlockchainConfig])
+  }
+
   def run(): Unit = {
     new Thread(() => {
+      awaitDefaultBlockchainConfig()
       processNextCall()
     }).start()
   }
@@ -257,10 +264,11 @@ class VMServer(
       contextMsg.callDepth
     )
 
-    val blockchainConfig = constructBlockchainConfig(contextMsg)
 
-    val vmConfig = vm.EvmConfig.forBlock(env.blockHeader.number, blockchainConfig)
-    val world = new World(blockchainConfig.accountStartNonce, vmConfig.noEmptyAccounts)
+    val blockchainConfigForCall = contextMsg.blockchainConfig.map(constructBlockchainConfig).getOrElse(defaultBlockchainConfig)
+
+    val vmConfig = vm.EvmConfig.forBlock(env.blockHeader.number, blockchainConfigForCall)
+    val world = new World(blockchainConfigForCall.accountStartNonce, vmConfig.noEmptyAccounts)
 
     vm.ProgramContext(env, contextMsg.receivingAddr, contextMsg.gasProvided, world, None, vmConfig)
   }
@@ -292,10 +300,7 @@ class VMServer(
     }
   }
 
-  private def constructBlockchainConfig(context: msg.CallContext): BlockchainConfig = {
-    require(context.blockchainConfig.isDefined)
-    val conf = context.blockchainConfig.get
-    
+  private def constructBlockchainConfig(conf: msg.BlockchainConfig): BlockchainConfig = {
     new BlockchainConfig {
       override val frontierBlockNumber: BigInt = conf.frontierBlockNumber
       override val homesteadBlockNumber: BigInt = conf.homesteadBlockNumber

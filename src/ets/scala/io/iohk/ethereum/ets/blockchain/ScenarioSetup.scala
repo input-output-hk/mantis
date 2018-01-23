@@ -10,7 +10,7 @@ import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, BlockchainConfigBuilder, SyncConfigBuilder, ValidatorsBuilder}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.vm.VM
 import org.spongycastle.util.encoders.Hex
 
@@ -18,7 +18,7 @@ import scala.util.{Failure, Success, Try}
 
 object ScenarioSetup {
   implicit lazy val actorSystem = ActorSystem("mantis_system")
-  lazy val extvm = new ExtVMInterface("127.0.0.1", 8888)
+  lazy val extvm = new ExtVMInterface("127.0.0.1", 8888, BlockchainConfig(Config.config))
   val vm = VM
 }
 

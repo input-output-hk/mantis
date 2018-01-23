@@ -390,10 +390,10 @@ trait RemoteVmBuilder extends VmBuilder {
     startVMInThisProcess()
   }
 
-  private val vmHost = Config.config.getString("mantis.extvm.host")
-  private val vmPort = Config.config.getInt("mantis.extvm.port")
+  private val vmHost = Config.config.getString("extvm.host")
+  private val vmPort = Config.config.getInt("extvm.port")
 
-  override def vm: VM = new ExtVMInterface(vmHost, vmPort)
+  override def vm: VM = new ExtVMInterface(vmHost, vmPort, blockchainConfig)
 }
 
 trait LedgerBuilder {
