@@ -11,16 +11,12 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import io.iohk.ethereum.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
 import io.iohk.ethereum.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack}
-import io.iohk.ethereum.validators.{BlockHeaderValidator, OmmersValidator, OmmersValidatorImpl}
+import io.iohk.ethereum.validators._
 import io.iohk.ethereum.{Mocks, ObjectGenerators}
-//import io.iohk.ethereum.validators.BlockHeaderError.HeaderDifficultyError
-//import io.iohk.ethereum.validators._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.mutable
-import scala.language.reflectiveCalls
-
 
 class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
 
@@ -222,6 +218,14 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
       ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
     }
 
+  it should "correctly handle importing genesis block" in
+    new TestSetup with MockBlockchain {
+      (blockchain.genesisHeader _).expects().returning(genesisHeader)
+      val genesisBlock = Block(genesisHeader, BlockBody(Nil, Nil))
+
+      failLedger.importBlock(genesisBlock) shouldEqual DuplicateBlock
+    }
+
   it should "report an unknown branch if the included genesis header is different than ours" in
     new TestSetup with MockBlockchain {
       val differentGenesis = genesisHeader.copy(extraData = ByteString("I'm different ;("))
@@ -294,7 +298,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val blockQueue: BlockQueue
     val blockchain: BlockchainImpl
 
-    lazy val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig, Mocks.MockValidatorsAlwaysSucceed) {
+    class TestLedgerImpl(validators: Validators) extends LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig, validators) {
       private val results = mutable.Map[ByteString, Either[BlockExecutionError, Seq[Receipt]]]()
 
       override def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] =
@@ -303,6 +307,8 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
       def setExecutionResult(block: Block, result: Either[BlockExecutionError, Seq[Receipt]]): Unit =
         results(block.header.hash) = result
     }
+
+    lazy val ledger = new TestLedgerImpl(Mocks.MockValidatorsAlwaysSucceed)
 
     def randomHash(): ByteString =
       ObjectGenerators.byteStringOfLengthNGen(32).sample.get
@@ -361,6 +367,13 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val bestBlock = getBlock(bestNum, currentTd / 2)
 
     val execError = ValidationAfterExecError("error")
+
+    object FailHeaderValidation extends Mocks.MockValidatorsAlwaysSucceed {
+       override val blockHeaderValidator: BlockHeaderValidator =
+         (blockHeader: BlockHeader, getBlockHeaderByHash: ByteString => Option[BlockHeader]) => Left(HeaderParentNotFoundError)
+    }
+
+    lazy val failLedger = new TestLedgerImpl(FailHeaderValidation)
   }
 
   trait EphemBlockchain extends EphemBlockchainTestSetup { self: TestSetup =>
@@ -416,14 +429,6 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
           new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator).validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
     }
 
-    override lazy val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig, OmmerValidation) {
-      private val results = mutable.Map[ByteString, Either[BlockExecutionError, Seq[Receipt]]]()
-
-      override def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] =
-        results(block.header.hash)
-
-      def setExecutionResult(block: Block, result: Either[BlockExecutionError, Seq[Receipt]]): Unit =
-        results(block.header.hash) = result
-    }
+    override lazy val ledger = new TestLedgerImpl(OmmerValidation)
   }
 }

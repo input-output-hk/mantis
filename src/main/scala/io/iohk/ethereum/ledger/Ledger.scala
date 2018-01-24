@@ -69,8 +69,14 @@ class LedgerImpl(
     val validationResult = validateBlockBeforeExecution(block)
     validationResult match {
       case Left(ValidationBeforeExecError(HeaderParentNotFoundError)) =>
-        log.debug(s"Block(${block.idTag}) has no known parent")
-        UnknownParent
+        val isGenesis = block.header.number == 0 && blockchain.genesisHeader.hash == block.header.hash
+        if (isGenesis){
+          log.debug(s"Ignoring duplicate genesis block: (${block.idTag})")
+          DuplicateBlock
+        } else {
+          log.debug(s"Block(${block.idTag}) has no known parent")
+          UnknownParent
+        }
 
       case Left(ValidationBeforeExecError(reason)) =>
         log.debug(s"Block(${block.idTag}) failed pre-import validation")
