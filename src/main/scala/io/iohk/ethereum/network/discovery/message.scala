@@ -15,8 +15,8 @@ sealed trait Message {
 
 object Endpoint {
 
-  def makeEndpoint(udpAddres: InetSocketAddress, tcpPort: Int): Endpoint =
-    Endpoint(ByteString(udpAddres.getAddress.getAddress), udpAddres.getPort, tcpPort)
+  def makeEndpoint(udpAddress: InetSocketAddress, tcpPort: Int): Endpoint =
+    Endpoint(ByteString(udpAddress.getAddress.getAddress), udpAddress.getPort, tcpPort)
 
   def toUdpAddress(endpoint: Endpoint): Option[InetSocketAddress] = {
     val addr = Try(InetAddress.getByAddress(endpoint.address.toArray)).toOption
