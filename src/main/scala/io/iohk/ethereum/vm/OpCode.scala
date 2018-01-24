@@ -681,8 +681,8 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
     } else {
 
       val (initCode, memory1) = state.memory.load(inOffset, inSize)
-      val (newAddress, world1) = state.world.diverge.createAddressWithOpCode(state.env.ownerAddr)
-      val world2 = world1.diverge.initialiseAccount(newAddress).transfer(state.env.ownerAddr, newAddress, endowment)
+      val (newAddress, world1) = state.world.createAddressWithOpCode(state.env.ownerAddr)
+      val world2 = world1.initialiseAccount(newAddress).transfer(state.env.ownerAddr, newAddress, endowment)
 
       // EIP-684
       val conflict = state.world.nonEmptyCodeOrNonceAccount(newAddress)
@@ -774,14 +774,14 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
 
       val (world1, owner, caller) = this match {
         case CALL =>
-          val withTransfer = state.world.diverge.transfer(state.ownAddress, toAddr, endowment)
+          val withTransfer = state.world.transfer(state.ownAddress, toAddr, endowment)
           (withTransfer, toAddr, state.ownAddress)
 
         case CALLCODE =>
-          (state.world.diverge, state.ownAddress, state.ownAddress)
+          (state.world, state.ownAddress, state.ownAddress)
 
         case DELEGATECALL =>
-          (state.world.diverge, state.ownAddress, state.env.callerAddr)
+          (state.world, state.ownAddress, state.env.callerAddr)
       }
 
       val env = state.env.copy(

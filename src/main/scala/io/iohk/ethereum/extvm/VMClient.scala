@@ -102,8 +102,10 @@ class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](
         s.store(update.offset, update.data)
       }
 
-      val account = w.getAccount(address).getOrElse(w.getEmptyAccount).copy(nonce = change.nonce, balance = change.balance)
-      val w1 = w.saveAccount(address, account).saveStorage(address, updatedStorage)
+      val initialAccount = w.getAccount(address).getOrElse(w.getEmptyAccount)
+      val updatedAccount = if (change.nonce.isEmpty) initialAccount else initialAccount.copy(nonce = change.nonce, balance = change.balance)
+
+      val w1 = w.saveAccount(address, updatedAccount).saveStorage(address, updatedStorage)
       if (change.code.isEmpty) w1 else w1.saveCode(address, change.code)
     }
 
