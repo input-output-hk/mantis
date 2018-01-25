@@ -150,15 +150,31 @@ class FastSync(
         handleRequestFailure(assignedHandlers(ref), ref, "Unexpected error")
     }
 
+    def waitingForTargetBlockUpdate(state: EntryState): Receive = handleCommonMessages orElse {
+      case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
+        if (targetBlockHeader.number > syncState.targetBlock.number) {
+          updateTargetSyncState(state, targetBlockHeader)
+          context become this.receive
+          processSyncing()
+        } else {
+          syncState = syncState.copy(targetBlockUpdateFailures = syncState.targetBlockUpdateFailures + 1)
+          scheduler.scheduleOnce(syncRetryInterval, self, WaitForDownloadsToFinish(state))
+        }
+
+      case PersistSyncState => persistSyncState()
+
+      case WaitForDownloadsToFinish(sState) => updateTargetBlock(sState)
+    }
+
     private def updateTargetBlock(state: EntryState): Unit = {
-      if (syncState.targetBlockUpdateFailures < syncConfig.maximumTargetUpdateFailures) {
+      if (syncState.targetBlockUpdateFailures <= syncConfig.maximumTargetUpdateFailures) {
         if (assignedHandlers.nonEmpty) {
           scheduler.scheduleOnce(syncRetryInterval, self, WaitForDownloadsToFinish(state))
         } else {
           val targetBlockSelector = context.actorOf(FastSyncTargetBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "target-block-selector")
           targetBlockSelector ! FastSyncTargetBlockSelector.ChooseTargetBlock
-          context become waitingForTargetBlockUpdate(state)
         }
+        context become waitingForTargetBlockUpdate(state)
       } else {
         log.warning(s"Sync failure! Number of targetBlock Failures reached maximum.")
         sys.exit(1)
@@ -170,29 +186,12 @@ class FastSync(
         if (targetBlockHeader.number - syncState.targetBlock.number <= syncConfig.maxTargetDifference) {
           syncState = syncState.copy(pendingMptNodes = Seq(StateMptNodeHash(syncState.targetBlock.stateRoot)))
         } else {
-          log.info(s"Changing target block to ${targetBlockHeader.number}")
-          syncState = syncState.copy(
-            targetBlock = targetBlockHeader,
-            safeDownloadTarget = targetBlockHeader.number + syncConfig.fastSyncBlockValidationX)
+          syncState = syncState.updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = false)
+          log.info(s"Changing target block to ${targetBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}")
         }
 
       case LastBlockValidationFailed =>
-        syncState = syncState.copy(
-          targetBlock = targetBlockHeader,
-          safeDownloadTarget = targetBlockHeader.number + syncConfig.fastSyncBlockValidationX,
-          targetBlockUpdateFailures = syncState.targetBlockUpdateFailures + 1)
-    }
-
-    def waitingForTargetBlockUpdate(state: EntryState): Receive = handleCommonMessages orElse {
-      case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
-        if (targetBlockHeader.number > syncState.targetBlock.number) {
-          updateTargetSyncState(state, targetBlockHeader)
-          context become this.receive
-          processSyncing()
-        } else {
-          syncState = syncState.copy(targetBlockUpdateFailures = syncState.targetBlockUpdateFailures + 1)
-          scheduler.scheduleOnce(syncRetryInterval, self, WaitForDownloadsToFinish(state))
-        }
+        syncState = syncState.updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = true)
     }
 
     private def removeRequestHandler(handler: ActorRef): Unit = {
@@ -741,6 +740,12 @@ object FastSync {
     )
 
     val totalNodesCount: Int = downloadedNodesCount + pendingMptNodes.size + pendingNonMptNodes.size
+
+    def updateTargetBlock(newTarget: BlockHeader, numberOfSafeBlocks:BigInt, updateFailures: Boolean) = copy(
+      targetBlock = newTarget,
+      safeDownloadTarget = newTarget.number + numberOfSafeBlocks,
+      targetBlockUpdateFailures = if (updateFailures) targetBlockUpdateFailures + 1 else targetBlockUpdateFailures
+    )
   }
 
   sealed trait HashType {

@@ -209,6 +209,67 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     syncState.blockBodiesQueue.isEmpty shouldBe true
     syncState.receiptsQueue.isEmpty shouldBe true
     syncState.nextBlockToFullyValidate shouldBe (newBestBlock - syncConfig.fastSyncBlockValidationN + 1)
+    syncState.targetBlockUpdateFailures shouldEqual 1
+  }
+
+  it should "not process, out of date new target block" in new TestSetup() {
+
+    val newSafeTarget   = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
+    val bestBlockNumber = defaultExpectedTargetBlock
+    val firstNewBlock = bestBlockNumber + 1
+
+    startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber, safeDownloadTarget = newSafeTarget))
+
+    Thread.sleep(1.seconds.toMillis)
+
+    syncController ! SyncController.Start
+
+    val handshakedPeers = HandshakedPeers(singlePeer)
+    updateHandshakedPeers(handshakedPeers)
+
+    val newBlocks = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
+    sendBlockHeaders(
+      firstNewBlock,
+      newBlocks,
+      peer1,
+      syncConfig.blockHeadersPerRequest
+    )
+
+    Thread.sleep(1.second.toMillis)
+
+    val newTarget = defaultTargetBlockHeader
+
+    sendNewTargetBlock(
+      newTarget,
+      peer1,
+      peer1Status,
+      handshakedPeers
+    )
+
+    persistState()
+
+    val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+
+    syncState.targetBlockUpdateFailures shouldEqual  1
+
+    Thread.sleep(syncConfig.syncRetryInterval.toMillis)
+
+    val goodTarget = newTarget.copy(number = newTarget.number + syncConfig.blockHeadersPerRequest)
+    sendNewTargetBlock(
+      goodTarget,
+      peer1,
+      peer1Status,
+      handshakedPeers
+    )
+
+    persistState()
+
+    val newSyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+
+    newSyncState.safeDownloadTarget shouldEqual goodTarget.number + syncConfig.fastSyncBlockValidationX
+    newSyncState.targetBlock shouldEqual goodTarget
+    newSyncState.bestBlockHeaderNumber shouldEqual newBlocks.last.number
+    newSyncState.targetBlockUpdateFailures shouldEqual  1
   }
 
 
@@ -559,9 +620,9 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     }
 
     def persistState(): Unit = {
-      Thread.sleep(200)
+      Thread.sleep(300)
       syncController.getSingleChild("fast-sync") ! FastSync.PersistSyncState
-      Thread.sleep(200)
+      Thread.sleep(300)
     }
 
   }
