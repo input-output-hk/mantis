@@ -28,11 +28,6 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   def combineTouchedAccounts(world: WS): WS
 
   /**
-    * Override for mutable implemenations to create a copy
-    */
-  def diverge: WS = this
-
-  /**
     * In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that
     * transfer value to another. There could be no input to our application that would cause this fail, so we shouldn't
     * handle account existence in such cases. If it does fail, it means there's something terribly wrong with our code

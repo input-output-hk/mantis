@@ -343,17 +343,6 @@ class LedgerImpl(
     */
   def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] = {
 
-//    val addresses = List(
-//      "0x5f8bd49cd9f0cb2bd5bb9d4320dfe9b61023249d",
-//      "0x1000000000000000000000000000000000000001",
-//      "0x248f0f0f33eadb89e9d87fd5c127f58567f3ffde",
-//      "0x5dddfce53ee040d9eb21afbc0ae1bb4dbb0ba643",
-//      "0xec0e71ad0a90ffe1909d27dac207f7680abba42d",
-//      "0x8888f1f195afa192cfee860698584c030f4c9db1",
-//      "0xa94f5374fce5edbc8e2a8697c15331677e6ebf0b",
-//      "0x0c243ebe6a031753dc0dd850acf422844a3efb76"
-//    ).map(Address(_))
-
     val preExecValidationResult = if (alreadyValidated) Right(block) else validateBlockBeforeExecution(block)
 
     val blockExecResult = for {
@@ -362,23 +351,10 @@ class LedgerImpl(
       execResult <- executeBlockTransactions(block)
       BlockResult(resultingWorldStateProxy, gasUsed, receipts) = execResult
       worldToPersist = payBlockReward(block, resultingWorldStateProxy)
-      worldPersisted = {
-        //val accountsBefore = addresses.map(a => a -> worldToPersist.getAccount(a))
-        //println("BEFORE PERSIST: " + accountsBefore)
+      worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist) //State root hash needs to be up-to-date for validateBlockAfterExecution
 
-        InMemoryWorldStateProxy.persistState(worldToPersist)
-      } //State root hash needs to be up-to-date for validateBlockAfterExecution
+      _ <- validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
 
-      //_ <- validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
-
-      _ <- {
-//
-//        val accountsAfter = addresses.map(a => a -> worldPersisted.getAccount(a))
-//        println(s"Block ${block.header.number}: ${Hex.toHexString(worldPersisted.stateRootHash.toArray)} (correct root: ${worldPersisted.stateRootHash == block.header.stateRoot})")
-//        println("AFTER PERSIST: " + accountsAfter)
-
-        validateBlockAfterExecution(block, worldPersisted.stateRootHash, receipts, gasUsed)
-      }
     } yield receipts
 
     if(blockExecResult.isRight)
@@ -530,7 +506,7 @@ class LedgerImpl(
     val gasLimit = stx.tx.gasLimit
 
     val checkpointWorldState = updateSenderAccountBeforeExecution(stx, world)
-    val context = prepareProgramContext(stx, blockHeader, checkpointWorldState.diverge)
+    val context = prepareProgramContext(stx, blockHeader, checkpointWorldState)
     val result = runVM(stx, context)
 
     val resultWithErrorHandling: PR =

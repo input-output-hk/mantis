@@ -48,153 +48,145 @@ class VMServer(
     override val out: SourceQueueWithComplete[ByteString])
   extends MessageUtils with Logger {
 
-  var defaultBlockchainConfig: BlockchainConfig = _
+class StorageCache {
+    private val cache = mutable.Map[(Address, UInt256), UInt256]()
 
-  class Storage(address: Address) extends vm.Storage[Storage] {
-    val storage = mutable.Map[UInt256, UInt256]()
-
-    def store(offset: UInt256, value: UInt256): Storage = {
-      storage += offset -> value
-      this
-    }
-
-    def load(offset: UInt256): UInt256 = storage.get(offset) match {
-      case Some(value) =>
-        value
-
-      case None =>
-        val getStorageDataMsg = msg.GetStorageData(address = address, offset = offset)
-        val query = msg.VMQuery(query = msg.VMQuery.Query.GetStorageData(getStorageDataMsg))
-
-        sendMessage(query)
-
-        val storageData = awaitMessage[msg.StorageData]
-        log.debug("Server received msg: StorageData")
-        val value: UInt256 = storageData.data
-
-        storage += offset -> value
-        value
-    }
-  }
-
-  class World(
-    accountStartNonce: UInt256,
-    noEmptyAccountsCond: Boolean,
-    val accounts: mutable.Map[Address, Option[Account]] = mutable.Map(),
-    val modifiedAccounts: mutable.Set[Address] = mutable.Set(),
-    val storages: mutable.Map[Address, Storage] = mutable.Map(),
-    val codeRepo: mutable.Map[Address, ByteString] = mutable.Map(),
-    val blockHashes: mutable.Map[UInt256, Option[UInt256]] = mutable.Map(),
-    val touchedAccounts: mutable.Set[Address] = mutable.Set()
-  ) extends vm.WorldStateProxy[World, Storage] {
-
-    override def diverge: World =
-      new World(
-        accountStartNonce,
-        noEmptyAccountsCond,
-        mutable.Map() ++ accounts,
-        mutable.Set() ++ modifiedAccounts,
-        mutable.Map() ++ storages,
-        mutable.Map() ++ codeRepo,
-        mutable.Map() ++ blockHashes,
-        mutable.Set() ++ touchedAccounts)
-
-    def getAccount(address: Address): Option[Account] = accounts.getOrElse(address, {
-      val getAccountMsg = msg.GetAccount(address)
-      val query = msg.VMQuery(query = msg.VMQuery.Query.GetAccount(getAccountMsg))
+    def getStorageData(address: Address, offset: UInt256): UInt256 = cache.getOrElse((address, offset), {
+      val getStorageDataMsg = msg.GetStorageData(address = address, offset = offset)
+      val query = msg.VMQuery(query = msg.VMQuery.Query.GetStorageData(getStorageDataMsg))
       sendMessage(query)
 
-      val accountMsg = awaitMessage[msg.Account]
-      log.debug("Server received msg: Account")
+      val storageData = awaitMessage[msg.StorageData]
+      log.debug("Server received msg: StorageData")
+      val value: UInt256 = storageData.data
 
-      if (accountMsg.nonce.isEmpty) {
-        accounts += address -> None
-        None
-      } else {
-        val account = Account(accountMsg.nonce, accountMsg.balance, accountMsg.storageHash, accountMsg.codeHash)
-        accounts += address -> Some(account)
-        Some(account)
-      }
+      cache += (address, offset) -> value
+      value
     })
+  }
 
-    def saveAccount(address: Address, account: Account): World = {
-      modifiedAccounts += address
-      accounts += address -> Some(account)
-      this
-    }
+  class Storage(val address: Address, val storage: Map[UInt256, UInt256], cache: StorageCache) extends vm.Storage[Storage] {
 
-    protected def deleteAccount(address: Address): World = {
-      accounts += address -> None
-      this
-    }
+    def store(offset: UInt256, value: UInt256): Storage =
+      new Storage(address, storage + (offset -> value), cache)
+
+    def load(offset: UInt256): UInt256 =
+      storage.getOrElse(offset, cache.getStorageData(address, offset))
+  }
+
+  class AccountCache {
+    private val cache = mutable.Map[Address, Option[Account]]()
+
+    def getAccount(address: Address): Option[Account] =
+      cache.getOrElse(address, {
+        val getAccountMsg = msg.GetAccount(address)
+        val query = msg.VMQuery(query = msg.VMQuery.Query.GetAccount(getAccountMsg))
+        sendMessage(query)
+
+        val accountMsg = awaitMessage[msg.Account]
+        log.debug("Server received msg: Account")
+
+        if (accountMsg.nonce.isEmpty) {
+          cache += address -> None
+          None
+        } else {
+          val account = Account(accountMsg.nonce, accountMsg.balance, accountMsg.storageHash, accountMsg.codeHash)
+          cache += address -> Some(account)
+          Some(account)
+        }
+      })
+  }
+
+  class CodeCache {
+    private val cache = mutable.Map[Address, ByteString]()
+
+    def getCode(address: Address): ByteString =
+      cache.getOrElse(address, {
+        val getCodeMsg = msg.GetCode(address)
+        val query = msg.VMQuery(query = msg.VMQuery.Query.GetCode(getCodeMsg))
+        sendMessage(query)
+
+        val codeMsg = awaitMessage[msg.Code]
+        log.debug("Server received msg: Code")
+
+        val code: ByteString = codeMsg.code
+        cache += address -> code
+        code
+      })
+  }
+
+  class BlockhashCache {
+    private val cache = mutable.Map[UInt256, Option[UInt256]]()
+
+    def getBlockhash(offset: UInt256): Option[UInt256] =
+      cache.getOrElse(offset, {
+        val getBlockhashMsg = msg.GetBlockhash(if (offset > Int.MaxValue) - 1 else offset.toInt)
+        val query = msg.VMQuery(query = msg.VMQuery.Query.GetBlockhash(getBlockhashMsg))
+        sendMessage(query)
+
+        val blockhashMsg = awaitMessage[msg.Blockhash]
+        log.debug("Server received msg: Blockhash")
+
+        if (blockhashMsg.hash.isEmpty) {
+          cache += offset -> None
+          None
+        } else {
+          val hash: UInt256 = blockhashMsg.hash
+          cache += offset -> Some(hash)
+          Some(hash)
+        }
+      })
+  }
+
+  case class World(
+    override val accountStartNonce: UInt256,
+    noEmptyAccountsCond: Boolean,
+    accounts: Map[Address, Account] = Map(),
+    storages: Map[Address, Storage] = Map(),
+    codeRepo: Map[Address, ByteString] = Map(),
+    touchedAccounts: Set[Address] = Set(),
+    accountCache: AccountCache = new AccountCache,
+    storageCache: StorageCache = new StorageCache,
+    codeCache: CodeCache = new CodeCache,
+    blockhashCache: BlockhashCache = new BlockhashCache
+  ) extends vm.WorldStateProxy[World, Storage] {
+
+    def getAccount(address: Address): Option[Account] =
+      accounts.get(address).orElse(accountCache.getAccount(address))
+
+    def saveAccount(address: Address, account: Account): World =
+      copy(accounts = accounts + (address -> account))
+
+    protected def deleteAccount(address: Address): World =
+      copy(accounts = accounts - address)
 
     def getEmptyAccount: Account = Account.empty(accountStartNonce)
 
-    def touchAccounts(addresses: Address*): World = {
-      touchedAccounts ++= addresses
-      this
-    }
+    def touchAccounts(addresses: Address*): World =
+      copy(touchedAccounts = touchedAccounts ++ addresses)
 
-    protected def clearTouchedAccounts: World = {
-      touchedAccounts.clear()
-      this
-    }
+    protected def clearTouchedAccounts: World =
+      copy(touchedAccounts = Set.empty)
 
     protected def noEmptyAccounts: Boolean = noEmptyAccountsCond
 
-    def combineTouchedAccounts(world: World): World = {
-      touchedAccounts ++= world.touchedAccounts
-      this
-    }
+    def combineTouchedAccounts(world: World): World =
+      copy(touchedAccounts = touchedAccounts ++ world.touchedAccounts)
 
-    def getCode(address: Address): ByteString = codeRepo.getOrElse(address, {
-      val getCodeMsg = msg.GetCode(address)
-      val query = msg.VMQuery(query = msg.VMQuery.Query.GetCode(getCodeMsg))
-      sendMessage(query)
+    def getCode(address: Address): ByteString =
+      codeRepo.getOrElse(address, codeCache.getCode(address))
 
-      val codeMsg = awaitMessage[msg.Code]
-      log.debug("Server received msg: Code")
+    def getStorage(address: Address): Storage =
+      storages.getOrElse(address, new Storage(address, Map.empty, storageCache))
 
-      val code: ByteString = codeMsg.code
-      codeRepo += address -> code
-      code
-    })
+    def getBlockHash(offset: UInt256): Option[UInt256] =
+      blockhashCache.getBlockhash(offset)
 
-    def getStorage(address: Address): Storage = storages.getOrElse(address, {
-      val storage = new Storage(address)
-      storages += address -> storage
-      storage
-    })
+    def saveCode(address: Address, code: ByteString): World =
+      copy(codeRepo = codeRepo + (address -> code))
 
-    def getBlockHash(number: UInt256): Option[UInt256] = blockHashes.getOrElse(number, {
-      val getBlockhashMsg = msg.GetBlockhash(if (number > Int.MaxValue) - 1 else number.toInt)
-      val query = msg.VMQuery(query = msg.VMQuery.Query.GetBlockhash(getBlockhashMsg))
-      sendMessage(query)
-
-      val blockhashMsg = awaitMessage[msg.Blockhash]
-      log.debug("Server received msg: Blockhash")
-
-      if (blockhashMsg.hash.isEmpty) {
-        blockHashes += number -> None
-        None
-      } else {
-        val hash: UInt256 = blockhashMsg.hash
-        blockHashes += number -> Some(hash)
-        Some(hash)
-      }
-    })
-
-    def saveCode(address: Address, code: ByteString): World = {
-      modifiedAccounts += address
-      codeRepo += address -> code
-      this
-    }
-
-    def saveStorage(address: Address, storage: Storage): World = {
-      modifiedAccounts += address
-      storages += address -> storage
-      this
-    }
+    def saveStorage(address: Address, storage: Storage): World =
+      copy(storages = storages + (address -> storage))
   }
 
   @tailrec
@@ -216,13 +208,8 @@ class VMServer(
     }
   }
 
-  private def awaitDefaultBlockchainConfig(): Unit = {
-    defaultBlockchainConfig = constructBlockchainConfig(awaitMessage[msg.BlockchainConfig])
-  }
-
   def run(): Unit = {
     new Thread(() => {
-      awaitDefaultBlockchainConfig()
       processNextCall()
     }).start()
   }
@@ -264,11 +251,10 @@ class VMServer(
       contextMsg.callDepth
     )
 
+    val blockchainConfig = constructBlockchainConfig(contextMsg)
 
-    val blockchainConfigForCall = contextMsg.blockchainConfig.map(constructBlockchainConfig).getOrElse(defaultBlockchainConfig)
-
-    val vmConfig = vm.EvmConfig.forBlock(env.blockHeader.number, blockchainConfigForCall)
-    val world = new World(blockchainConfigForCall.accountStartNonce, vmConfig.noEmptyAccounts)
+    val vmConfig = vm.EvmConfig.forBlock(env.blockHeader.number, blockchainConfig)
+    val world = new World(blockchainConfig.accountStartNonce, vmConfig.noEmptyAccounts)
 
     vm.ProgramContext(env, contextMsg.receivingAddr, contextMsg.gasProvided, world, None, vmConfig)
   }
@@ -291,16 +277,25 @@ class VMServer(
   }
 
   private def buildModifiedAccountsMsg(world: World): Seq[msg.ModifiedAccount] = {
-    world.modifiedAccounts.toList.map { address =>
-      val acc = world.getAccount(address).get
+    val modifiedAddresses = world.accounts.keySet ++ world.codeRepo.keySet ++ world.storages.keySet
+    modifiedAddresses.toList.map { address =>
+      val acc = world.getAccount(address)
       val storage = world.getStorage(address)
       val storageUpdates = storage.storage.map { case (key, value) => msg.StorageUpdate(key, value) }.toList
-      msg.ModifiedAccount(address = address, nonce = acc.nonce, balance = acc.balance,
-        storageUpdates = storageUpdates, code = world.getCode(address))
+
+      msg.ModifiedAccount(
+        address = address,
+        nonce = acc.map(_.nonce: GByteString).getOrElse(GByteString.EMPTY),
+        balance = acc.map(_.balance: GByteString).getOrElse(GByteString.EMPTY),
+        storageUpdates = storageUpdates,
+        code = world.getCode(address))
     }
   }
 
-  private def constructBlockchainConfig(conf: msg.BlockchainConfig): BlockchainConfig = {
+  private def constructBlockchainConfig(context: msg.CallContext): BlockchainConfig = {
+    require(context.blockchainConfig.isDefined)
+    val conf = context.blockchainConfig.get
+    
     new BlockchainConfig {
       override val frontierBlockNumber: BigInt = conf.frontierBlockNumber
       override val homesteadBlockNumber: BigInt = conf.homesteadBlockNumber
