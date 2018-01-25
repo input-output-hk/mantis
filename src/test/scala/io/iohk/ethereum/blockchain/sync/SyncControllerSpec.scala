@@ -19,7 +19,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, Nod
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.validators.{BlockHeaderValidator, Validators}
+import io.iohk.ethereum.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
 import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
@@ -102,7 +102,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     sendBlockHeaders(defaultTargetBlockHeader.number, Seq(defaultTargetBlockHeader), peer1, 1)
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    sendNewTargetBlock(defaultTargetBlockHeader, peer1, peer1Status, handshakedPeers)
+    sendNewTargetBlock(defaultTargetBlockHeader.copy(number = defaultTargetBlockHeader.number + 1), peer1, peer1Status, handshakedPeers)
 
     Thread.sleep(1.second.toMillis)
     sendReceipts(Seq(defaultTargetBlockHeader.hash), Seq(Nil), peer1)
@@ -152,6 +152,65 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     syncState.receiptsQueue.isEmpty shouldBe true
     syncState.nextBlockToFullyValidate shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN + 1)
   }
+
+  it should "update target block if target fail" in new TestSetup(validators = new Mocks.MockValidatorsAlwaysSucceed {
+    override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => {
+      if (blockHeader.number != 399500 + 10 ){
+        Right(BlockHeaderValid)
+      } else {
+        Left(HeaderPoWError)
+      }
+    } }
+  }) {
+
+    val newSafeTarget   = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
+    val bestBlockNumber = defaultExpectedTargetBlock
+    val firstNewBlock = bestBlockNumber + 1
+
+    startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber, safeDownloadTarget = newSafeTarget))
+
+    Thread.sleep(1.seconds.toMillis)
+
+    syncController ! SyncController.Start
+
+    val handshakedPeers = HandshakedPeers(singlePeer)
+    updateHandshakedPeers(handshakedPeers)
+
+
+    val newBlocks = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
+    sendBlockHeaders(
+      firstNewBlock,
+      newBlocks,
+      peer1,
+      syncConfig.blockHeadersPerRequest
+    )
+
+    val numberOfBLocksThatPassedValidation = 9
+    val newBestBlock = bestBlockNumber + numberOfBLocksThatPassedValidation
+
+    Thread.sleep(1.second.toMillis)
+
+    val newBestBlockHeader = defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock + syncConfig.targetBlockOffset + syncConfig.blockHeadersPerRequest)
+
+    sendNewTargetBlock(
+      newBestBlockHeader,
+      peer1,
+      peer1Status,
+      handshakedPeers
+    )
+
+    persistState()
+
+    val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+
+    syncState.targetBlock shouldEqual  newBestBlockHeader
+    syncState.safeDownloadTarget shouldEqual  newBestBlockHeader.number + syncConfig.fastSyncBlockValidationX
+    syncState.bestBlockHeaderNumber shouldBe (newBestBlock - syncConfig.fastSyncBlockValidationN)
+    syncState.blockBodiesQueue.isEmpty shouldBe true
+    syncState.receiptsQueue.isEmpty shouldBe true
+    syncState.nextBlockToFullyValidate shouldBe (newBestBlock - syncConfig.fastSyncBlockValidationN + 1)
+  }
+
 
   it should "throttle requests to peer" in  new TestSetup() {
     val newBestBlock = defaultExpectedTargetBlock - 2 * syncConfig.blockHeadersPerRequest
@@ -338,7 +397,9 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       redownloadMissingStateNodes = false,
       fastSyncBlockValidationK = 100,
       fastSyncBlockValidationN = 2048,
-      fastSyncBlockValidationX = 50
+      fastSyncBlockValidationX = 10,
+      maxTargetDifference =  5,
+      maximumTargetUpdateFailures = 1
     )
 
     lazy val syncConfig = defaultSyncConfig
@@ -406,18 +467,20 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val singlePeer = Map(peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0))
 
     def sendNewTargetBlock(targetBlockHeader: BlockHeader, peer: Peer ,peerStatus: Status, handshakedPeers: HandshakedPeers): Unit = {
+
       etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").toIterator), handshakedPeers)
       peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
       etcPeerManager.expectMsg(
         EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(peerStatus.bestHash), 1, 0, reverse = false), peer.id))
-      etcPeerManager.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer.id))
+      etcPeerManager.reply(MessageFromPeer(BlockHeaders(Seq(targetBlockHeader.copy(number = targetBlockHeader.number + syncConfig.targetBlockOffset))), peer.id))
       peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
+
 
       peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
       etcPeerManager.expectMsg(
-        EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(targetBlockHeader.number - syncConfig.targetBlockOffset), 1, 0, reverse = false), peer.id))
+        EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(targetBlockHeader.number), 1, 0, reverse = false), peer.id))
       etcPeerManager.reply(
-        MessageFromPeer(BlockHeaders(Seq(targetBlockHeader.copy(number = targetBlockHeader.number - syncConfig.targetBlockOffset))), peer.id)
+        MessageFromPeer(BlockHeaders(Seq(targetBlockHeader)), peer.id)
       )
       peerMessageBus.expectMsg(Unsubscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
       peerMessageBus.expectMsg(Unsubscribe())
