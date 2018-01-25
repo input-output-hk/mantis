@@ -48,7 +48,7 @@ class VMServer(
     override val out: SourceQueueWithComplete[ByteString])
   extends MessageUtils with Logger {
 
-class StorageCache {
+  class StorageCache {
     private val cache = mutable.Map[(Address, UInt256), UInt256]()
 
     def getStorageData(address: Address, offset: UInt256): UInt256 = cache.getOrElse((address, offset), {
@@ -208,8 +208,15 @@ class StorageCache {
     }
   }
 
+  private var defaultBlockchainConfig: msg.BlockchainConfig = _
+
+  private def awaitDefaultBlockchainConfig(): Unit = {
+    defaultBlockchainConfig = awaitMessage[msg.BlockchainConfig]
+  }
+
   def run(): Unit = {
     new Thread(() => {
+      awaitDefaultBlockchainConfig()
       processNextCall()
     }).start()
   }
@@ -251,7 +258,7 @@ class StorageCache {
       contextMsg.callDepth
     )
 
-    val blockchainConfig = constructBlockchainConfig(contextMsg)
+    val blockchainConfig = constructBlockchainConfig(contextMsg.blockchainConfig.getOrElse(defaultBlockchainConfig))
 
     val vmConfig = vm.EvmConfig.forBlock(env.blockHeader.number, blockchainConfig)
     val world = new World(blockchainConfig.accountStartNonce, vmConfig.noEmptyAccounts)
@@ -292,10 +299,7 @@ class StorageCache {
     }
   }
 
-  private def constructBlockchainConfig(context: msg.CallContext): BlockchainConfig = {
-    require(context.blockchainConfig.isDefined)
-    val conf = context.blockchainConfig.get
-    
+  private def constructBlockchainConfig(conf: msg.BlockchainConfig): BlockchainConfig = {
     new BlockchainConfig {
       override val frontierBlockNumber: BigInt = conf.frontierBlockNumber
       override val homesteadBlockNumber: BigInt = conf.homesteadBlockNumber
