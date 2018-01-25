@@ -8,7 +8,7 @@ This version has been tested on recent versions of Windows and macOS
  
 The Daedalus bundle contains a JVM, so no pre installed jvm is required. This makes it easier to install than the command line version.
   
-### Status
+### Status - Release 1.0
 
 Continuous Integration Build Status [![CircleCI](https://circleci.com/gh/input-output-hk/mantis/tree/master.svg?style=svg)](https://circleci.com/gh/input-output-hk/mantis/tree/master)
 
