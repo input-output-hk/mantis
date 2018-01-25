@@ -43,7 +43,9 @@ class VMClient[W <: WorldStateProxy[W, S], S <: Storage[S]](
           case Some(acc) =>
             msg.Account(
               nonce = acc.nonce,
-              balance = acc.balance
+              balance = acc.balance,
+              storageHash = acc.storageRoot,
+              codeHash = acc.codeHash
             )
 
           case None =>
