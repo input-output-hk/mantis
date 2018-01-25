@@ -59,7 +59,7 @@ class FastSync(
   }
 
   def startWithState(syncState: SyncState): Unit = {
-    log.info(s"Starting block synchronization (fast mode), target block ${syncState.targetBlock.number}")
+    log.info(s"Starting block synchronization (fast mode), target block ${syncState.targetBlock.number}, block to download to ${syncState.safeDownloadTarget}")
     val syncingHandler = new SyncingHandler(syncState)
     context become syncingHandler.receive
     syncingHandler.processSyncing()
@@ -152,6 +152,7 @@ class FastSync(
 
     def waitingForTargetBlockUpdate(state: EntryState): Receive = handleCommonMessages orElse {
       case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
+        log.info(s"new target block with number ${targetBlockHeader.number} received")
         if (targetBlockHeader.number > syncState.targetBlock.number) {
           updateTargetSyncState(state, targetBlockHeader)
           context become this.receive
@@ -169,6 +170,7 @@ class FastSync(
     private def updateTargetBlock(state: EntryState): Unit = {
       if (syncState.targetBlockUpdateFailures <= syncConfig.maximumTargetUpdateFailures) {
         if (assignedHandlers.nonEmpty) {
+          log.info(s"Still waiting for some responses, rescheduling target block update")
           scheduler.scheduleOnce(syncRetryInterval, self, WaitForDownloadsToFinish(state))
         } else {
           val targetBlockSelector = context.actorOf(FastSyncTargetBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "target-block-selector")
@@ -184,6 +186,7 @@ class FastSync(
     private def updateTargetSyncState(state: EntryState, targetBlockHeader: BlockHeader): Unit = state match {
       case ImportedLastBlock =>
         if (targetBlockHeader.number - syncState.targetBlock.number <= syncConfig.maxTargetDifference) {
+          log.info(s"Current target block is fresh enough, starting state download")
           syncState = syncState.copy(pendingMptNodes = Seq(StateMptNodeHash(syncState.targetBlock.stateRoot)))
         } else {
           syncState = syncState.updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = false)
@@ -191,6 +194,7 @@ class FastSync(
         }
 
       case LastBlockValidationFailed =>
+        log.info(s"Changing target block after failure, to ${targetBlockHeader.number}, new safe target is ${syncState.safeDownloadTarget}")
         syncState = syncState.updateTargetBlock(targetBlockHeader, syncConfig.fastSyncBlockValidationX, updateFailures = true)
     }
 
