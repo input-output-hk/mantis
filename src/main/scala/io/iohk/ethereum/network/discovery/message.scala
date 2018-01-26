@@ -1,15 +1,27 @@
 package io.iohk.ethereum.network.discovery
 
+import java.net.{InetAddress, InetSocketAddress}
+
 import akka.util.ByteString
 import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPEncoder, RLPList}
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
+
+import scala.util.Try
 
 sealed trait Message {
   def packetType: Byte
 }
 
 object Endpoint {
+
+  def makeEndpoint(udpAddress: InetSocketAddress, tcpPort: Int): Endpoint =
+    Endpoint(ByteString(udpAddress.getAddress.getAddress), udpAddress.getPort, tcpPort)
+
+  def toUdpAddress(endpoint: Endpoint): Option[InetSocketAddress] = {
+    val addr = Try(InetAddress.getByAddress(endpoint.address.toArray)).toOption
+    addr.map(address => new InetSocketAddress(address, endpoint.udpPort))
+  }
 
   implicit val rlpEncDec = new RLPEncoder[Endpoint] with RLPDecoder[Endpoint] {
     override def encode(obj: Endpoint): RLPEncodeable = {

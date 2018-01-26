@@ -131,7 +131,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     * @return BlockHeader if valid, an [[HeaderGasUsedError]] otherwise
     */
   private def validateGasUsed(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
-    if(blockHeader.gasUsed<=blockHeader.gasLimit) Right(BlockHeaderValid)
+    if(blockHeader.gasUsed<=blockHeader.gasLimit && blockHeader.gasUsed >= 0) Right(BlockHeaderValid)
     else Left(HeaderGasUsedError)
 
   /**
