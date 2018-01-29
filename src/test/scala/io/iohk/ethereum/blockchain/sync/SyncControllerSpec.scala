@@ -272,6 +272,49 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     newSyncState.targetBlockUpdateFailures shouldEqual  1
   }
 
+  it should "should start state download only when target block is fresh enough" in new TestSetup() {
+
+    val newSafeTarget   = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
+    val bestBlockNumber = defaultExpectedTargetBlock
+    val firstNewBlock = bestBlockNumber + 1
+
+    startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber, safeDownloadTarget = newSafeTarget))
+
+    Thread.sleep(1.seconds.toMillis)
+
+    syncController ! SyncController.Start
+
+    val handshakedPeers = HandshakedPeers(singlePeer)
+
+    updateHandshakedPeers(handshakedPeers)
+
+    val newBlocks = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
+
+    sendBlockHeaders(
+      firstNewBlock,
+      newBlocks,
+      peer1,
+      syncConfig.blockHeadersPerRequest
+    )
+
+    Thread.sleep(1.second.toMillis)
+
+    val newTarget = defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock + syncConfig.maxTargetDifference)
+
+    sendNewTargetBlock(
+      newTarget,
+      peer1,
+      peer1Status,
+      handshakedPeers
+    )
+
+    persistState()
+
+    val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
+
+    // Target did not change as new target was close enough
+    syncState.targetBlock shouldEqual defaultTargetBlockHeader
+  }
 
   it should "throttle requests to peer" in  new TestSetup() {
     val newBestBlock = defaultExpectedTargetBlock - 2 * syncConfig.blockHeadersPerRequest
