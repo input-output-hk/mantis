@@ -8,6 +8,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 
 import scala.annotation.tailrec
+import scala.util.Try
 
 class VMClient(
     override val in: SinkQueueWithCancel[ByteString],
@@ -183,4 +184,10 @@ class VMClient(
       mixHash = header.mixHash,
       nonce = header.nonce
     )
+
+  def close(): Unit = {
+    Try(in.cancel())
+    Try(out.complete())
+  }
+
 }
