@@ -84,7 +84,8 @@ class FastSync(
         startWithState(initialSyncState)
       }
   }
-  // scalastyle:off
+
+  // scalastyle:off number.of.methods
   private class SyncingHandler(initialSyncState: SyncState) {
 
     private val BlockHeadersHandlerName = "block-headers-request-handler"
@@ -173,7 +174,8 @@ class FastSync(
           log.info(s"Still waiting for some responses, rescheduling target block update")
           scheduler.scheduleOnce(syncRetryInterval, self, WaitForDownloadsToFinish(state))
         } else {
-          val targetBlockSelector = context.actorOf(FastSyncTargetBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "target-block-selector")
+          val targetBlockSelector =
+            context.actorOf(FastSyncTargetBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "target-block-selector")
           targetBlockSelector ! FastSyncTargetBlockSelector.ChooseTargetBlock
         }
         context become waitingForTargetBlockUpdate(state)
@@ -764,7 +766,7 @@ object FastSync {
 
     val totalNodesCount: Int = downloadedNodesCount + pendingMptNodes.size + pendingNonMptNodes.size
 
-    def updateTargetBlock(newTarget: BlockHeader, numberOfSafeBlocks:BigInt, updateFailures: Boolean) = copy(
+    def updateTargetBlock(newTarget: BlockHeader, numberOfSafeBlocks:BigInt, updateFailures: Boolean): SyncState = copy(
       targetBlock = newTarget,
       safeDownloadTarget = newTarget.number + numberOfSafeBlocks,
       targetBlockUpdateFailures = if (updateFailures) targetBlockUpdateFailures + 1 else targetBlockUpdateFailures
@@ -788,19 +790,7 @@ object FastSync {
   case class  ValidationFailed(header:BlockHeader, peer: Peer)  extends HeaderProcessingResult
   case object ImportedTargetBlock                               extends HeaderProcessingResult
 
-
   sealed abstract class FinalBlockProcessingResult
   case object ImportedLastBlock         extends FinalBlockProcessingResult
   case object LastBlockValidationFailed extends FinalBlockProcessingResult
-
-//  sealed abstract class HeaderProcessingResult
-//  abstract class RegularBlockResult
-//  abstract class FinalBlockResult
-//
-//  case object HeaderProcessingFinished
-//  sealed abstract class FinalBlocksResult extends HeaderProcessingResult
-//
-//  sealed abstract class ValidationFailed
-
-
 }
