@@ -119,7 +119,7 @@ class VMClient(
   private def buildCallContextMsg(ctx: ProgramContext[_, _]): msg.CallContext = {
     val blockHeader = buildBlockHeaderMsg(ctx.env.blockHeader)
     val blockchainConfig = ctx.blockchainConfig.map(buildBlockchainConfigMsg)
-    
+
     msg.CallContext(
       ownerAddr = ctx.env.ownerAddr,
       callerAddr = ctx.env.callerAddr,

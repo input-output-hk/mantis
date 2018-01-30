@@ -127,7 +127,7 @@ val root = project.in(file("."))
         warnOnUnverifiedFiles = false,
         warnOnUnusedVerifications = false
       ),
-      dist in Universal := ((dist in Universal)).value
+      dist in Universal := ((dist in Universal) dependsOn verify).value
     )
     .settings(inConfig(Integration)(Defaults.testSettings) : _*)
     .settings(inConfig(Benchmark)(Defaults.testSettings) : _*)
@@ -141,7 +141,8 @@ scalacOptions := Seq(
   "-feature",
   "-Xfatal-warnings",
   "-Xlint:unsound-match",
-  "-Ywarn-inaccessible"
+  "-Ywarn-inaccessible",
+  "-Ywarn-unused-import"
 )
 
 scalacOptions in (Compile, console) ~= (_.filterNot(Set(
