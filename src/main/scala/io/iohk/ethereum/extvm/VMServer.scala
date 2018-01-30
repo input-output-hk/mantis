@@ -18,7 +18,6 @@ import io.iohk.ethereum.vm.ProgramResult
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
-import scala.languageFeature.implicitConversions
 
 object VmServerApp {
 
