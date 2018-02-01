@@ -11,9 +11,9 @@ class BlockRewardCalculator(config: MonetaryPolicyConfig) {
   val eraDuration: BigInt = config.eraDuration
 
   /** Rate at which block and ommer rewards are reduced in successive eras (numerator) */
-  val rewardReductionRateDenom: BigInt = BigDecimal(1 - config.rewardRedutionRate).precision * 10
+  val rewardReductionRateDenom: BigInt = BigDecimal(1 - config.rewardReductionRate).precision * 10
   /** Rate at which block and ommer rewards are reduced in successive eras (denominator) */
-  val rewardReductionRateNumer: BigInt = ((1 - config.rewardRedutionRate) * rewardReductionRateDenom.toDouble).toInt
+  val rewardReductionRateNumer: BigInt = ((1 - config.rewardReductionRate) * rewardReductionRateDenom.toDouble).toInt
 
   /** Base block reward in the first era */
   val firstEraBlockReward: BigInt = config.firstEraBlockReward

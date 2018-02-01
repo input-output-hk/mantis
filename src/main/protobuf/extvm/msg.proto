@@ -1,0 +1,141 @@
+syntax = "proto3";
+package io.iohk.ethereum.extvm;
+
+message CallContext {
+  bytes ownerAddr = 1;
+  bytes callerAddr = 2;
+  bytes originAddr = 3;
+  bytes contractCode = 4;
+  bytes inputData = 5;
+  bytes callValue = 6;
+  bytes gasPrice = 7;
+  bytes gasProvided = 8;
+  int32 callDepth = 9;
+  bytes receivingAddr = 10;
+  BlockHeader blockHeader = 11;
+  BlockchainConfig blockchainConfig = 12;
+}
+
+message BlockHeader {
+  bytes parentHash = 1;
+  bytes ommersHash = 2;
+  bytes beneficiary = 3;
+  bytes stateRoot = 4;
+  bytes transactionsRoot = 5;
+  bytes receiptsRoot = 6;
+  bytes logsBloom = 7;
+  bytes difficulty = 8;
+  bytes number = 9;
+  bytes gasLimit = 10;
+  bytes gasUsed = 11;
+  int64 unixTimestamp = 12;
+  bytes extraData = 13;
+  bytes mixHash = 14;
+  bytes nonce = 15;
+}
+
+message BlockchainConfig {
+  bytes frontierBlockNumber = 1;
+  bytes homesteadBlockNumber = 2;
+  bytes eip106BlockNumber = 3;
+  bytes eip150BlockNumber = 4;
+  bytes eip155BlockNumber = 5;
+  bytes eip160BlockNumber = 6;
+  bytes eip161BlockNumber = 7;
+  bytes maxCodeSize = 8;
+  bytes difficultyBombPauseBlockNumber = 9;
+  bytes difficultyBombContinueBlockNumber = 10;
+
+  bytes forkBlockNumber = 11;
+  bytes forkBlockHash = 12;
+  bytes forkBlockExtraData = 13;
+  int32 forkRange = 14;
+  bytes forkRefundContract = 15;
+  repeated bytes forkDrainList = 16;
+
+  bytes accountStartNonce = 17;
+  bytes chainId = 18;
+
+  int32 eraDuration = 19;
+  double rewardReductionRate = 20;
+  bytes firstEraBlockReward = 21;
+
+  bool gasTieBreaker = 22;
+}
+
+message GetAccount {
+  bytes address = 1;
+}
+
+message Account {
+  bytes nonce = 1;
+  bytes balance = 2;
+  //FIXME: the hashes required because of an implementation detail, should be gone in the final solution
+  bytes storageHash = 3;
+  bytes codeHash = 4;
+}
+
+message GetStorageData {
+  bytes address = 1;
+  bytes offset = 2;
+}
+
+message StorageData {
+  bytes data = 1;
+}
+
+message GetCode {
+  bytes address = 1;
+}
+
+message Code {
+  bytes code = 1;
+}
+
+message GetBlockhash {
+  int32 offset = 1;
+}
+
+message Blockhash {
+  bytes hash = 1;
+}
+
+message CallResult {
+  bytes returnData = 1;
+  bytes gasRemaining = 2;
+  bytes gasRefund = 3;
+  bool error = 4;
+  repeated ModifiedAccount modifiedAccounts = 5;
+  repeated bytes deletedAccounts = 6;
+  repeated bytes touchedAccounts = 7;
+  repeated LogEntry logs = 8;
+}
+
+message ModifiedAccount {
+  bytes address = 1;
+  bytes nonce = 2;
+  bytes balance = 3;
+  repeated StorageUpdate storageUpdates = 4;
+  bytes code = 5;
+}
+
+message StorageUpdate {
+  bytes offset = 1;
+  bytes data = 2;
+}
+
+message LogEntry {
+  bytes address = 1;
+  repeated bytes topics = 2;
+  bytes data = 3;
+}
+
+message VMQuery {
+  oneof query {
+    GetAccount getAccount = 1;
+    GetStorageData getStorageData = 2;
+    GetCode getCode = 3;
+    GetBlockhash getBlockhash = 4;
+    CallResult callResult = 5;
+  }
+}

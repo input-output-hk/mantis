@@ -43,7 +43,8 @@ val dep = {
     "io.circe" %% "circe-parser" % circeVersion,
     "io.circe" %% "circe-generic-extras" % circeVersion,
     "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test",
-    "commons-io" % "commons-io" % "2.5"
+    "commons-io" % "commons-io" % "2.5",
+    "com.typesafe.akka" %% "akka-stream" % "2.5.8"
   )
 }
 
@@ -153,6 +154,11 @@ scalacOptions in (Compile, console) ~= (_.filterNot(Set(
 parallelExecution in Test := false
 
 testOptions in Test += Tests.Argument("-oD")
+
+// protobuf compilation
+PB.targets in Compile := Seq(
+  scalapb.gen() -> (sourceManaged in Compile).value
+)
 
 (test in Evm) := (test in Evm).dependsOn(solidityCompile).value
 (sourceDirectory in Evm) := baseDirectory.value / "src" / "evmTest"

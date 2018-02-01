@@ -152,12 +152,13 @@ class InMemoryWorldStateProxy private[ledger](
 
   override def getAccount(address: Address): Option[Account] = accountsStateTrie.get(address)
 
-  override protected def getEmptyAccount: Account = Account.empty(accountStartNonce)
+  override def getEmptyAccount: Account = Account.empty(accountStartNonce)
 
   override def getGuaranteedAccount(address: Address): Account = super.getGuaranteedAccount(address)
 
-  override def saveAccount(address: Address, account: Account): InMemoryWorldStateProxy =
+  override def saveAccount(address: Address, account: Account): InMemoryWorldStateProxy = {
     copyWith(accountsStateTrie = accountsStateTrie.put(address, account))
+  }
 
   override def deleteAccount(address: Address): InMemoryWorldStateProxy =
     copyWith(accountsStateTrie = accountsStateTrie.remove(address),

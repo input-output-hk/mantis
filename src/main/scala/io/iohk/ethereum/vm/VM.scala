@@ -16,7 +16,7 @@ class VM extends Logger {
    */
   def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
     PrecompiledContracts.runOptionally(context).getOrElse {
-      val finalState = run(ProgramState[W, S](context))
+      val finalState = run(ProgramState(context))
       ProgramResult[W, S](
         finalState.returnData,
         finalState.gas,

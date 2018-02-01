@@ -16,11 +16,11 @@ import io.iohk.ethereum.rlp.UInt256RLPImplicits._
   */
 trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS =>
 
-  protected def getAccount(address: Address): Option[Account]
-  protected def saveAccount(address: Address, account: Account): WS
+  def getAccount(address: Address): Option[Account]
+  def saveAccount(address: Address, account: Account): WS
   protected def deleteAccount(address: Address): WS
-  protected def getEmptyAccount: Account
-  protected def touchAccounts(addresses: Address*): WS
+  def getEmptyAccount: Account
+  def touchAccounts(addresses: Address*): WS
   protected def clearTouchedAccounts: WS
   protected def noEmptyAccounts: Boolean
   protected def accountStartNonce: UInt256 = UInt256.Zero

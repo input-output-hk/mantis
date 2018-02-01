@@ -6,11 +6,11 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, SyncConfigBuilder, ValidatorsBuilder}
 import org.scalatest._
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger, MonetaryPolicyConfig}
-import io.iohk.ethereum.vm.VM
+import io.iohk.ethereum.utils._
 import org.spongycastle.util.encoders.Hex
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
+import io.iohk.ethereum.vm.VM
 
 class  SimulateTransactionTest extends FlatSpec with Matchers with Logger {
 

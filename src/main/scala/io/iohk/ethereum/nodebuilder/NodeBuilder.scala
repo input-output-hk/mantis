@@ -1,5 +1,7 @@
 package io.iohk.ethereum.nodebuilder
 
+import java.io.File
+import java.net.URLClassLoader
 import java.security.SecureRandom
 import java.time.Clock
 
@@ -12,6 +14,7 @@ import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
+import io.iohk.ethereum.extvm.{ExtVMInterface, VmServerApp}
 import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl}
@@ -352,13 +355,57 @@ trait ValidatorsBuilder {
   }
 }
 
+trait VmBuilder {
+  def vm: VM
+}
+
+trait LocalVmBuilder extends VmBuilder {
+  override def vm: VM = new VM
+}
+
+trait RemoteVmBuilder extends VmBuilder {
+  self: ActorSystemBuilder
+    with BlockchainConfigBuilder =>
+
+  def startVMInThisProcess(): Unit = {
+    VmServerApp.main(Array())
+  }
+
+  def startVMProcess(): Unit = {
+    val classpath = Thread.currentThread().getContextClassLoader.asInstanceOf[URLClassLoader].getURLs
+      .map(_.getFile)
+      .mkString(File.pathSeparator)
+
+    new ProcessBuilder(
+      System.getProperty("java.home") + "/bin/java",
+      "-classpath",
+      classpath,
+      "io.iohk.ethereum.extvm.VmServerApp")
+      .inheritIO()
+      .start()
+  }
+
+  if (Thread.currentThread().getContextClassLoader.isInstanceOf[URLClassLoader]) {
+    startVMProcess()
+  } else {
+    startVMInThisProcess()
+  }
+
+  private val vmHost = Config.config.getString("extvm.host")
+  private val vmPort = Config.config.getInt("extvm.port")
+
+  override def vm: VM = new ExtVMInterface(vmHost, vmPort, blockchainConfig)
+}
+
 trait LedgerBuilder {
   self: BlockchainConfigBuilder
     with BlockchainBuilder
     with SyncConfigBuilder
-    with ValidatorsBuilder =>
+    with ValidatorsBuilder
+    with ActorSystemBuilder
+    with VmBuilder =>
 
-  lazy val ledger: Ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
+  lazy val ledger: Ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, validators)
 }
 
 trait SyncControllerBuilder {
@@ -481,3 +528,4 @@ trait Node extends NodeKeyBuilder
   with KnownNodesManagerBuilder
   with SyncConfigBuilder
   with MinerBuilder
+  with RemoteVmBuilder // or LocalVmBuilder

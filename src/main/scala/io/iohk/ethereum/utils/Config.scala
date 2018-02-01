@@ -386,10 +386,10 @@ object BlockchainConfig {
 
 case class MonetaryPolicyConfig(
   eraDuration: Int,
-  rewardRedutionRate: Double,
+  rewardReductionRate: Double,
   firstEraBlockReward: BigInt
 ) {
-  require(rewardRedutionRate >= 0.0 && rewardRedutionRate <= 1.0,
+  require(rewardReductionRate >= 0.0 && rewardReductionRate <= 1.0,
     "reward-reduction-rate should be a value in range [0.0, 1.0]")
 }
 

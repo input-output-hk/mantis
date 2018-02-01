@@ -2,6 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.utils.BlockchainConfig
 
 
 object ProgramContext {
@@ -11,7 +12,8 @@ object ProgramContext {
     program: Program,
     blockHeader: BlockHeader,
     world: W,
-    config: EvmConfig): ProgramContext[W, S] = {
+    blockchainConfig: Option[BlockchainConfig],
+    evmConfig: EvmConfig): ProgramContext[W, S] = {
 
     import stx.tx
 
@@ -25,10 +27,52 @@ object ProgramContext {
     val env = ExecEnv(recipientAddress, senderAddress, senderAddress, UInt256(tx.gasPrice), inputData,
       UInt256(tx.value), program, blockHeader, callDepth = 0)
 
-    val gasLimit = tx.gasLimit - config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
+    val gasLimit = tx.gasLimit - evmConfig.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
 
-    ProgramContext(env, recipientAddress, gasLimit, world, config)
+    ProgramContext(env, recipientAddress, gasLimit, world, blockchainConfig, evmConfig)
   }
+
+  def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
+    stx: SignedTransaction,
+    recipientAddress: Address,
+    program: Program,
+    blockHeader: BlockHeader,
+    world: W,
+    blockchainConfig: BlockchainConfig): ProgramContext[W, S] = {
+
+    val evmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
+    apply(stx, recipientAddress, program, blockHeader, world, Some(blockchainConfig), evmConfig)
+  }
+
+  def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
+    stx: SignedTransaction,
+    recipientAddress: Address,
+    program: Program,
+    blockHeader: BlockHeader,
+    world: W,
+    evmConfig: EvmConfig): ProgramContext[W, S] =
+    apply(stx, recipientAddress, program, blockHeader, world, None, evmConfig)
+
+  def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
+    env: ExecEnv,
+    receivingAddr: Address,
+    startGas: BigInt,
+    world: W,
+    blockchainConfig: BlockchainConfig
+  ): ProgramContext[W, S] = {
+    val evmConfig = EvmConfig.forBlock(env.blockHeader.number, blockchainConfig)
+    ProgramContext(env, receivingAddr, startGas, world, Some(blockchainConfig), evmConfig)
+  }
+
+  def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
+    env: ExecEnv,
+    receivingAddr: Address,
+    startGas: BigInt,
+    world: W,
+    evmConfig: EvmConfig
+  ): ProgramContext[W, S] =
+    ProgramContext(env, receivingAddr, startGas, world, None, evmConfig)
+
 }
 
 /**
@@ -40,7 +84,8 @@ object ProgramContext {
   *                      different from the addresses defined in env)
   * @param startGas initial gas for the execution
   * @param world provides interactions with world state
-  * @param config evm config
+  * @param blockchainConfig blockchain config
+  * @param evmConfig evm config
   * @param initialAddressesToDelete contains initial set of addresses to delete (from lower depth calls)
   */
 case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
@@ -48,5 +93,6 @@ case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
   receivingAddr: Address,
   startGas: BigInt,
   world: W,
-  config: EvmConfig,
+  blockchainConfig: Option[BlockchainConfig],
+  evmConfig: EvmConfig,
   initialAddressesToDelete: Set[Address] = Set.empty)

@@ -702,7 +702,13 @@ abstract class CreateOp extends OpCode(0xf0, 3, 1, _.G_create) {
       val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
       val startGas = state.config.gasCap(availableGas)
 
-      val context = ProgramContext[W, S](newEnv, newAddress, startGas, world2, state.config, state.addressesToDelete)
+      val context: ProgramContext[W, S] = state.context.copy(
+        env = newEnv,
+        receivingAddr = newAddress,
+        startGas = startGas,
+        world = world2,
+        initialAddressesToDelete = state.addressesToDelete)
+
       val result = VM.run(context)
 
       val contractCode = result.returnData
