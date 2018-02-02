@@ -1,6 +1,6 @@
 Introduction
 
-This is first release candidate for the command line version of the Deadalus Mantis integration release.
+This is 1.0 command line version of the Deadalus Mantis integration release.
 
 For a more detailed description of the functionality and configuration options see https://github.com/input-output-hk/mantis/wiki
 
@@ -48,6 +48,7 @@ EC-244 etcstats.net data for mantis always seems one block behind
 
 EC-167 Trying to run "regular sync" after an incomplete "fast sync" results in "Node not found" exception
 
+EC-415 Fixed discovery bug which impacted peer connectivity
 
 Feedback
 

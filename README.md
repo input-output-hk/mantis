@@ -1,7 +1,7 @@
 # mantis - Scala client for Ethereum Classic, The Daedalus Release
 
 The Daedalus release consists of two parts, the integration with the Daedalus Wallet and the release of the command line version
- following on from the Beta release in August. This branch refers to release candidate 1 of the of the command line version.
+This branch refers to 1.0 version of the of the command line version.
  
 The differences are very minor and relate only to how the RPC apis are enabled. In the command line version they are enabled over HTTP
 and in the Daedalus integration version they are forced to use HTTPS and client SSL certificate. The Daedalus version comes with a bundled JVM 
@@ -10,7 +10,7 @@ but the command line version requires a JVM to be installed and available on the
 This version has been tested on Windows 10, MacOS and Linux. 
  
  
-### Status - CLI Release Candidate 1 
+### Status - CLI 1.0 Release
 
 Continuous Integration Build Status [![CircleCI](https://circleci.com/gh/input-output-hk/mantis/tree/master.svg?style=svg)](https://circleci.com/gh/input-output-hk/mantis/tree/master)
 
@@ -92,7 +92,7 @@ Note that a slow disk will slow the chain download, an SSD with 25G free space i
 Unzip that file to create a folder structure starting with
 
  ```
- mantis-1.0-cli-rc1
+ mantis-1.0-cli
  ```
 
 ### Run the client on Linux and MacOS

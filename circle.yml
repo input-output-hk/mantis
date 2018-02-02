@@ -40,4 +40,4 @@ test:
     - mkdir -p $CIRCLE_ARTIFACTS/scala-2.12
     - mv target/scala-2.12/coverage-report  $CIRCLE_ARTIFACTS/scala-2.12/coverage-report
     - mv target/scala-2.12/scoverage-report $CIRCLE_ARTIFACTS/scala-2.12/scoverage-report
-    - mv target/universal/mantis-1.0-cli-rc1.zip $CIRCLE_ARTIFACTS/scala-2.12/mantis-1.0-cli-rc1.zip
+    - mv target/universal/mantis-1.0-cli.zip $CIRCLE_ARTIFACTS/scala-2.12/mantis-1.0-cli.zip
