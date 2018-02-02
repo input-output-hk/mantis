@@ -49,6 +49,7 @@ EC-244 etcstats.net data for mantis always seems one block behind
 
 EC-167 Trying to run "regular sync" after an incomplete "fast sync" results in "Node not found" exception
 
+EC-415 Fixed discovery bug which impacted peer connectivity
 
 Feedback
 

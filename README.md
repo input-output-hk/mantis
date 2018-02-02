@@ -2,13 +2,13 @@
 
 In this release *Mantis* the new Ethereum Classic client produced by the [Grothendieck Team](https://iohk.io/projects/ethereum-classic/)
 has been integrated with the [Daedalus](https://daedaluswallet.io/) wallet. This integration puts the Daedalus wallet management
-software into the hands of Ethereum Classic users, giving them a safe way to create, manage and backup their wallets.
-
-This version has been tested on recent versions of Windows and macOS
-
-The Daedalus bundle contains a JVM, so no pre installed jvm is required. This make it easier to install compared to the command line version.
-
-### Status - Release Candidate 1
+software into the hands of Ethereum Classic users, giving them a safe way to create, manage and backup their wallets.    
+ 
+This version has been tested on recent versions of Windows and macOS 
+ 
+The Daedalus bundle contains a JVM, so no pre installed jvm is required. This makes it easier to install than the command line version.
+  
+### Status - Release 1.0
 
 Continuous Integration Build Status [![CircleCI](https://circleci.com/gh/input-output-hk/mantis/tree/master.svg?style=svg)](https://circleci.com/gh/input-output-hk/mantis/tree/master)
 
