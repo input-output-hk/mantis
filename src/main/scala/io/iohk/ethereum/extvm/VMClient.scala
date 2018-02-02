@@ -18,8 +18,10 @@ class VMClient(
 
   private val messageHandler = new MessageHandler(in, out)
 
-  def setBlockchainConfig(blockchainConfig: BlockchainConfig): Unit = {
-    messageHandler.sendMessage(buildBlockchainConfigMsg(blockchainConfig))
+  def sendHello(version: String, blockchainConfig: BlockchainConfig): Unit = {
+    val configMsg = msg.Hello.Config.EthereumConfig(buildEthereumConfigMsg(blockchainConfig))
+    val helloMsg = msg.Hello(version, configMsg)
+    messageHandler.sendMessage(helloMsg)
   }
 
   def run[W <: WorldStateProxy[W, S], S <: vm.Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
@@ -49,8 +51,7 @@ class VMClient(
             msg.Account(
               nonce = acc.nonce,
               balance = acc.balance,
-              storageHash = acc.storageRoot,
-              codeHash = acc.codeHash
+              codeEmpty = acc.codeHash == Account.EmptyCodeHash
             )
 
           case None =>
@@ -120,8 +121,9 @@ class VMClient(
   }
 
   private def buildCallContextMsg(ctx: ProgramContext[_, _]): msg.CallContext = {
+    import msg.CallContext.Config
     val blockHeader = buildBlockHeaderMsg(ctx.env.blockHeader)
-    val blockchainConfig = ctx.blockchainConfig.map(buildBlockchainConfigMsg)
+    val ethereumConfig = ctx.blockchainConfig.map(buildEthereumConfigMsg).map(Config.EthereumConfig)
 
     msg.CallContext(
       ownerAddr = ctx.env.ownerAddr,
@@ -133,14 +135,13 @@ class VMClient(
       gasPrice = ctx.env.gasPrice,
       gasProvided = ctx.startGas,
       callDepth = ctx.env.callDepth,
-      receivingAddr = ctx.receivingAddr,
       blockHeader = Some(blockHeader),
-      blockchainConfig = blockchainConfig
+      config = ethereumConfig.getOrElse(Config.Empty)
     )
   }
 
-  private def buildBlockchainConfigMsg(blockchainConfig: BlockchainConfig): msg.BlockchainConfig =
-    msg.BlockchainConfig(
+  private def buildEthereumConfigMsg(blockchainConfig: BlockchainConfig): msg.EthereumConfig =
+    msg.EthereumConfig(
       frontierBlockNumber = blockchainConfig.frontierBlockNumber,
       homesteadBlockNumber = blockchainConfig.homesteadBlockNumber,
       eip106BlockNumber = blockchainConfig.eip106BlockNumber,
@@ -149,43 +150,16 @@ class VMClient(
       eip160BlockNumber = blockchainConfig.eip160BlockNumber,
       eip161BlockNumber = blockchainConfig.eip161BlockNumber,
       maxCodeSize = blockchainConfig.maxCodeSize.map(bigintToGByteString).getOrElse(ByteString()),
-      difficultyBombPauseBlockNumber = blockchainConfig.difficultyBombPauseBlockNumber,
-      difficultyBombContinueBlockNumber = blockchainConfig.difficultyBombContinueBlockNumber,
-
-      forkBlockNumber = blockchainConfig.daoForkConfig.map(f => bigintToGByteString(f.forkBlockNumber)).getOrElse(ByteString()),
-      forkBlockHash = byteString2GByteString(blockchainConfig.daoForkConfig.map(_.forkBlockHash).getOrElse(ByteString())),
-      forkBlockExtraData = byteString2GByteString(blockchainConfig.daoForkConfig.flatMap(_.blockExtraData).getOrElse(ByteString())),
-
-      forkRefundContract = address2GByteString(blockchainConfig.daoForkConfig.flatMap(_.refundContract).getOrElse(Address(0))),
-      forkDrainList = blockchainConfig.daoForkConfig.map(_.drainList.map(address2GByteString)).getOrElse(Seq.empty),
-
-      accountStartNonce = blockchainConfig.accountStartNonce,
-      chainId = ByteString(blockchainConfig.chainId),
-
-      eraDuration = blockchainConfig.monetaryPolicyConfig.eraDuration,
-      rewardReductionRate = blockchainConfig.monetaryPolicyConfig.rewardReductionRate,
-      firstEraBlockReward = blockchainConfig.monetaryPolicyConfig.firstEraBlockReward,
-
-      gasTieBreaker = blockchainConfig.gasTieBreaker
+      accountStartNonce = blockchainConfig.accountStartNonce
     )
 
   private def buildBlockHeaderMsg(header: BlockHeader): msg.BlockHeader =
     msg.BlockHeader(
-      parentHash = header.parentHash,
-      ommersHash = header.ommersHash,
       beneficiary = header.beneficiary,
-      stateRoot = header.stateRoot,
-      transactionsRoot = header.transactionsRoot,
-      receiptsRoot = header.receiptsRoot,
-      logsBloom = header.logsBloom,
       difficulty = header.difficulty,
       number = header.number,
       gasLimit = header.gasLimit,
-      gasUsed = header.gasUsed,
-      unixTimestamp = header.unixTimestamp,
-      extraData = header.extraData,
-      mixHash = header.mixHash,
-      nonce = header.nonce
+      unixTimestamp = header.unixTimestamp
     )
 
   def close(): Unit = {
