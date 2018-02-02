@@ -12,13 +12,9 @@ import scala.concurrent.duration._
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 
-trait MessageUtils {
+class MessageHandler(in: SinkQueue[ByteString], out: SourceQueue[ByteString]) {
 
   private val AwaitTimeout = 5.minutes
-
-  def in: SinkQueue[ByteString]
-
-  def out: SourceQueue[ByteString]
 
   def sendMessage[M <: GeneratedMessage](msg: M): Unit = {
     val bytes = msg.toByteArray

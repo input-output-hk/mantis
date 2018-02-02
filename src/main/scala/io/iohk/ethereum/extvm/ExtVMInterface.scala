@@ -7,6 +7,7 @@ import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.stream.scaladsl.{Framing, Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete, Tcp}
 import akka.util.ByteString
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.vm
 import io.iohk.ethereum.vm._
 
 import scala.annotation.tailrec
@@ -46,7 +47,7 @@ class ExtVMInterface(host: String, port: Int, blockchainConfig: BlockchainConfig
   }
 
   @tailrec
-  override final def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
+  override final def run[W <: WorldStateProxy[W, S], S <: vm.Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
     if (vmClient.isEmpty) initConnection()
 
     Try(vmClient.get.run(context)) match {

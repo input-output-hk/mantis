@@ -1,6 +1,7 @@
 package io.iohk.ethereum.extvm
 
-import io.iohk.ethereum.vm.{Storage, WorldStateProxy, _}
+import io.iohk.ethereum.vm
+import io.iohk.ethereum.vm.{WorldStateProxy, _}
 import Implicits._
 import akka.stream.scaladsl.{SinkQueueWithCancel, SourceQueueWithComplete}
 import akka.util.ByteString
@@ -11,17 +12,19 @@ import scala.annotation.tailrec
 import scala.util.Try
 
 class VMClient(
-    override val in: SinkQueueWithCancel[ByteString],
-    override val out: SourceQueueWithComplete[ByteString])
-  extends MessageUtils with Logger {
+    in: SinkQueueWithCancel[ByteString],
+    out: SourceQueueWithComplete[ByteString])
+  extends Logger {
+
+  private val messageHandler = new MessageHandler(in, out)
 
   def setBlockchainConfig(blockchainConfig: BlockchainConfig): Unit = {
-    sendMessage(buildBlockchainConfigMsg(blockchainConfig))
+    messageHandler.sendMessage(buildBlockchainConfigMsg(blockchainConfig))
   }
 
-  def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
+  def run[W <: WorldStateProxy[W, S], S <: vm.Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] = {
     val ctx = buildCallContextMsg(context)
-    sendMessage(ctx)
+    messageHandler.sendMessage(ctx)
 
     val callResult = messageLoop[W, S](context.world)
     constructResultFromMsg(context.world, callResult)
@@ -29,10 +32,10 @@ class VMClient(
 
   // scalastyle:off method.length
   @tailrec
-  private def messageLoop[W <: WorldStateProxy[W, S], S <: Storage[S]](world: W): msg.CallResult = {
+  private def messageLoop[W <: WorldStateProxy[W, S], S <: vm.Storage[S]](world: W): msg.CallResult = {
     import msg.VMQuery.Query
 
-    val nextMsg = awaitMessage[msg.VMQuery]
+    val nextMsg = messageHandler.awaitMessage[msg.VMQuery]
 
     nextMsg.query match {
       case Query.CallResult(res) =>
@@ -53,20 +56,20 @@ class VMClient(
           case None =>
             msg.Account()
         }
-        sendMessage(accountMsg)
+        messageHandler.sendMessage(accountMsg)
         messageLoop[W, S](world)
 
       case Query.GetStorageData(msg.GetStorageData(address, offset)) =>
         log.debug("Client received msg: GetStorageData")
         val value = world.getStorage(address).load(offset)
         val storageDataMsg = msg.StorageData(data = value)
-        sendMessage(storageDataMsg)
+        messageHandler.sendMessage(storageDataMsg)
         messageLoop[W, S](world)
 
       case Query.GetCode(msg.GetCode(address)) =>
         log.debug("Client received msg: GetCode")
         val codeMsg = msg.Code(world.getCode(address))
-        sendMessage(codeMsg)
+        messageHandler.sendMessage(codeMsg)
         messageLoop[W, S](world)
 
       case Query.GetBlockhash(msg.GetBlockhash(offset)) =>
@@ -75,7 +78,7 @@ class VMClient(
           case Some(value) => msg.Blockhash(hash = value)
           case None => msg.Blockhash()
         }
-        sendMessage(blockhashMsg)
+        messageHandler.sendMessage(blockhashMsg)
         messageLoop[W, S](world)
 
       case Query.Empty =>
@@ -84,7 +87,7 @@ class VMClient(
     }
   }
 
-  private def constructResultFromMsg[W <: WorldStateProxy[W, S], S <: Storage[S]](world: W, resultMsg: msg.CallResult): ProgramResult[W, S] = {
+  private def constructResultFromMsg[W <: WorldStateProxy[W, S], S <: vm.Storage[S]](world: W, resultMsg: msg.CallResult): ProgramResult[W, S] = {
     val updatedWorld = applyAccountChanges[W, S](world, resultMsg)
     ProgramResult(
       resultMsg.returnData,
@@ -98,7 +101,7 @@ class VMClient(
     )
   }
 
-  private def applyAccountChanges[W <: WorldStateProxy[W, S], S <: Storage[S]](world: W, resultMsg: msg.CallResult): W = {
+  private def applyAccountChanges[W <: WorldStateProxy[W, S], S <: vm.Storage[S]](world: W, resultMsg: msg.CallResult): W = {
     val worldWithUpdatedAccounts = resultMsg.modifiedAccounts.foldLeft(world){ (w, change) =>
       val address: Address = change.address
       val initialStorage = w.getStorage(address)
