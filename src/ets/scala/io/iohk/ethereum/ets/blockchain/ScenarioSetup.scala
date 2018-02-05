@@ -4,8 +4,8 @@ import akka.actor.ActorSystem
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.domain.{Account, Address, Block, UInt256}
-import io.iohk.ethereum.ets.common.AccountState
-import io.iohk.ethereum.extvm.ExtVMInterface
+import io.iohk.ethereum.ets.common.{AccountState, TestOptions}
+import io.iohk.ethereum.extvm.{ExtVMInterface, VmServerApp}
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, BlockchainConfigBuilder, SyncConfigBuilder, ValidatorsBuilder}
@@ -18,11 +18,15 @@ import scala.util.{Failure, Success, Try}
 
 object ScenarioSetup {
   implicit lazy val actorSystem = ActorSystem("mantis_system")
-  lazy val extvm = new ExtVMInterface("127.0.0.1", 8888, BlockchainConfig(Config.config))
-  val vm = VM
+
+  lazy val extvm = {
+    import Config.config
+    VmServerApp.main(Array())
+    new ExtVMInterface(config.getString("extvm.host"), config.getInt("extvm.port"), BlockchainConfig(config))
+  }
 }
 
-abstract class ScenarioSetup(scenario: BlockchainScenario)
+abstract class ScenarioSetup(options: TestOptions, scenario: BlockchainScenario)
   extends EphemBlockchainTestSetup
   with ValidatorsBuilder
   with SyncConfigBuilder
@@ -35,7 +39,9 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
 
   override lazy val blockchainConfig = buildBlockchainConfig(scenario.network)
 
-  val ledger = new LedgerImpl(extvm, blockchain, blockchainConfig, syncConfig, validators)
+  val vm = if (options.useLocalVM) VM else extvm
+
+  val ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, validators)
 
   def loadGenesis(): Block = {
     val genesisBlock = scenario.genesisRLP match {

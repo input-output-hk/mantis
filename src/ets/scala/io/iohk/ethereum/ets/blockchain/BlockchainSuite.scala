@@ -23,7 +23,7 @@ class BlockchainSuite extends FreeSpec with Matchers with Logger {
           (name, scenario) <- group.scenarios
           if options.isScenarioIncluded(name)
         } {
-          name in new ScenarioSetup(scenario) {
+          name in new ScenarioSetup(options, scenario) {
             if (unsupportedNetworks.contains(scenario.network)) {
               cancel(s"Unsupported network: ${scenario.network}")
             } else if (!supportedNetworks.contains(scenario.network)) {
