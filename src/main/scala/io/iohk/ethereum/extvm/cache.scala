@@ -72,16 +72,16 @@ class BlockhashCache(messageHandler: MessageHandler) extends Logger {
 }
 
 class StorageCache(messageHandler: MessageHandler) extends Logger {
-  private val cache = mutable.Map[(Address, UInt256), UInt256]()
+  private val cache = mutable.Map[(Address, ByteString), ByteString]()
 
-  def getStorageData(address: Address, offset: UInt256): UInt256 = cache.getOrElse((address, offset), {
+  def getStorageData(address: Address, offset: ByteString): ByteString = cache.getOrElse((address, offset), {
     val getStorageDataMsg = msg.GetStorageData(address = address, offset = offset)
     val query = msg.VMQuery(query = msg.VMQuery.Query.GetStorageData(getStorageDataMsg))
     messageHandler.sendMessage(query)
 
     val storageData = messageHandler.awaitMessage[msg.StorageData]
     log.debug("Server received msg: StorageData")
-    val value: UInt256 = storageData.data
+    val value: ByteString = storageData.data
 
     cache += (address, offset) -> value
     value

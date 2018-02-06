@@ -25,7 +25,7 @@ import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock, PendingBlockAndState}
-import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.validators.Validators
 import org.scalamock.scalatest.MockFactory
@@ -651,9 +651,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     }
 
     val storageMpt =
-      MerklePatriciaTrie[UInt256, UInt256](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))(
-        HashByteArraySerializable(byteArrayUInt256Serializer), rlpUInt256Serializer)
-        .put(UInt256(333), UInt256(123))
+      io.iohk.ethereum.domain.storageMpt(ByteString(MerklePatriciaTrie.EmptyRootHash), new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))
+        .put(UInt256(333).bytes, UInt256(123).bytes)
 
     val mpt =
       MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))

@@ -1,17 +1,18 @@
 package io.iohk.ethereum.extvm
 
-import io.iohk.ethereum.domain.{Address, UInt256}
+import akka.util.ByteString
+import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.vm
 
 class Storage(
     val address: Address,
-    val storage: Map[UInt256, UInt256],
+    val storage: Map[ByteString, ByteString],
     cache: StorageCache)
   extends vm.Storage[Storage] {
 
-  def store(offset: UInt256, value: UInt256): Storage =
+  def store(offset: ByteString, value: ByteString): Storage =
     new Storage(address, storage + (offset -> value), cache)
 
-  def load(offset: UInt256): UInt256 =
+  def load(offset: ByteString): ByteString =
     storage.getOrElse(offset, cache.getStorageData(address, offset))
 }

@@ -117,7 +117,7 @@ abstract class ScenarioSetup(scenario: BlockchainScenario)
       val worldWithAccountAndCode = world.saveAccount(address, account).saveCode(address, accountState.code)
       val emptyStorage = worldWithAccountAndCode.getStorage(address)
       val updatedStorage = accountState.storage.foldLeft(emptyStorage) { case (storage, (key, value)) =>
-        storage.store(key, value)
+        storage.store(key.bytes, value.bytes)
       }
       worldWithAccountAndCode.saveStorage(address, updatedStorage)
     }

@@ -238,7 +238,7 @@ class BlockchainImpl(
     storageMpt(
       rootHash,
       nodesKeyValueStorageFor(None)
-    ).get(UInt256(position)).getOrElse(UInt256(0)).bytes
+    ).get(UInt256(position).bytes).getOrElse(ByteString(0x00))
   }
 
   override def save(blockHeader: BlockHeader): Unit = {

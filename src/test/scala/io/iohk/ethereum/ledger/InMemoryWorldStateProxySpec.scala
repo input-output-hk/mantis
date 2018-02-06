@@ -8,6 +8,7 @@ import io.iohk.ethereum.vm.{EvmConfig, Generators}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
+// scalastyle:off
 class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
 
   "InMemoryWorldStateProxy" should "allow to create and retrieve an account" in new TestSetup {
@@ -20,8 +21,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   }
 
   it should "allow to save and get storage" in new TestSetup {
-    val addr = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue)
-    val value = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue)
+    val addr = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue).bytes
+    val value = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue).bytes
 
     val storage = worldState
       .getStorage(address1)
@@ -50,7 +51,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val persistedWithContractStorageValue = InMemoryWorldStateProxy.persistState(
       persistedWorldStateWithAnAccount.saveStorage(address1, worldState
         .getStorage(address1)
-        .store(UInt256.One, UInt256.Zero)
+        .store(UInt256.One.bytes, UInt256.Zero.bytes)
       )
     )
     persistedWorldStateWithAnAccount.stateRootHash shouldEqual persistedWithContractStorageValue.stateRootHash
@@ -64,7 +65,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val persistedWithContractStorageValue = InMemoryWorldStateProxy.persistState(
       persistedWorldStateWithAnAccount.saveStorage(address1, worldState
         .getStorage(address1)
-        .store(UInt256.One, UInt256.One)
+        .store(UInt256.One.bytes, UInt256.One.bytes)
       )
     )
     persistedWorldStateWithAnAccount.stateRootHash equals persistedWithContractStorageValue.stateRootHash shouldBe false
@@ -72,7 +73,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val persistedWithZero = InMemoryWorldStateProxy.persistState(
       persistedWorldStateWithAnAccount.saveStorage(address1, worldState
         .getStorage(address1)
-        .store(UInt256.One, UInt256.Zero)
+        .store(UInt256.One.bytes, UInt256.Zero.bytes)
       )
     )
 
@@ -82,8 +83,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   it should "be able to persist changes and continue working after that" in new TestSetup {
 
     val account = Account(0, 100)
-    val addr = UInt256.Zero
-    val value = UInt256.MaxValue
+    val addr = UInt256.Zero.bytes
+    val value = UInt256.MaxValue.bytes
     val code = ByteString(Hex.decode("deadbeefdeadbeefdeadbeef"))
 
     val validateInitialWorld = (ws: InMemoryWorldStateProxy) => {
