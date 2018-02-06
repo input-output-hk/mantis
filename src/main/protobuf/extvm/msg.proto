@@ -9,6 +9,7 @@ message Hello {
   // or may required different configurations.
   oneof config {
     EthereumConfig ethereumConfig = 2;
+    IeleConfig ieleConfig = 3;
   }
 }
 
@@ -28,6 +29,7 @@ message CallContext {
   // re-instantiating VM for each test.
   oneof config {
     EthereumConfig ethereumConfig = 11;
+    IeleConfig ieleConfig = 12;
   }
 }
 
@@ -49,6 +51,10 @@ message EthereumConfig {
   bytes eip161BlockNumber = 7;
   bytes maxCodeSize = 8;
   bytes accountStartNonce = 17;
+}
+
+message IeleConfig {
+  // empty
 }
 
 message GetAccount {
