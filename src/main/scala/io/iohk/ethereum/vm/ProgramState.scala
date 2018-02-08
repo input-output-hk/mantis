@@ -4,48 +4,55 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.{Address, TxLogEntry, UInt256}
 
 object ProgramState {
-  def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramState[W, S] =
+  def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
+      vm: VM[W, S],
+      context: ProgramContext[W, S],
+      env: ExecEnv): ProgramState[W, S] = {
+
     ProgramState(
-      context = context,
-      gas = context.startGas,
+      vm = vm,
+      env = env,
+      gas = env.startGas,
       world = context.world,
       addressesToDelete = context.initialAddressesToDelete)
+  }
 }
 
 /**
   * Intermediate state updated with execution of each opcode in the program
   *
-  * @param context the context which initiates the program
+  * @param vm the VM
+  * @param env program constants
   * @param gas current gas for the execution
+  * @param world world state
+  * @param addressesToDelete list of addresses of accounts scheduled to be deleted
   * @param stack current stack
   * @param memory current memory
   * @param pc program counter - an index of the opcode in the program to be executed
   * @param returnData data to be returned from the program execution
   * @param gasRefund the amount of gas to be refunded after execution (not sure if a separate field is required)
-  * @param addressesToDelete list of addresses of accounts scheduled to be deleted
   * @param internalTxs list of internal transactions (for debugging/tracing)
   * @param halted a flag to indicate program termination
   * @param error indicates whether the program terminated abnormally
   */
 case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
-  context: ProgramContext[W, S],
+  vm: VM[W, S],
+  env: ExecEnv,
   gas: BigInt,
   world: W,
+  addressesToDelete: Set[Address],
   stack: Stack = Stack.empty(),
   memory: Memory = Memory.empty,
   pc: Int = 0,
   returnData: ByteString = ByteString.empty,
   gasRefund: BigInt = 0,
-  addressesToDelete: Set[Address] = Set.empty,
   internalTxs: Vector[InternalTransaction] = Vector.empty,
   logs: Vector[TxLogEntry] = Vector.empty,
   halted: Boolean = false,
   error: Option[ProgramError] = None
 ) {
 
-  def config: EvmConfig = context.evmConfig
-
-  def env: ExecEnv = context.env
+  def config: EvmConfig = env.evmConfig
 
   def ownAddress: Address = env.ownerAddr
 
@@ -53,7 +60,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def storage: S = world.getStorage(ownAddress)
 
-  def gasUsed: BigInt = context.startGas - gas
+  def gasUsed: BigInt = env.startGas - gas
 
   def withWorld(updated: W): ProgramState[W, S] =
     copy(world = updated)
@@ -106,4 +113,15 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def halt: ProgramState[W, S] =
     copy(halted = true)
+  
+  def toResult: ProgramResult[W, S] =
+    ProgramResult[W, S](
+      returnData,
+      if (error.isDefined) 0 else gas,
+      world,
+      addressesToDelete,
+      logs,
+      internalTxs,
+      gasRefund,
+      error)
 }

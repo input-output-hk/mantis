@@ -58,9 +58,9 @@ object Mocks {
     error = None
   )
 
-  class MockVM(runFn: Ledger.PC => Ledger.PR = defaultProgramResult) extends VM {
-    override def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] =
-      runFn(context.asInstanceOf[Ledger.PC]).asInstanceOf[ProgramResult[W, S]]
+  class MockVM(runFn: Ledger.PC => Ledger.PR = defaultProgramResult) extends Ledger.VMImpl {
+    override def run(context: Ledger.PC): Ledger.PR =
+      runFn(context)
   }
 
   class MockValidatorsFailingOnBlockBodies extends MockValidatorsAlwaysSucceed {

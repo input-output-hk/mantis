@@ -3,7 +3,7 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
-import io.iohk.ethereum.vm.MockWorldState.{PC, PS}
+import io.iohk.ethereum.vm.MockWorldState._
 
 class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
   import config.feeSchedule._
@@ -121,12 +121,26 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
   val worldWithReturnSingleByteCode = worldWithoutExtAccount.saveAccount(extAddr, accountWithCode(returnSingleByteProgram.code))
     .saveCode(extAddr, returnSingleByteProgram.code)
 
-  val env = ExecEnv(ownerAddr, callerAddr, callerAddr, 1, ByteString.empty, 123, Program(ByteString.empty), null, 0)
-  val context: PC = ProgramContext(env, ownerAddr, 2 * requiredGas, worldWithExtAccount, config)
+  val context: PC = ProgramContext(
+    callerAddr = callerAddr,
+    originAddr = callerAddr,
+    recipientAddr = Some(ownerAddr),
+    gasPrice = 1,
+    startGas = 2 * requiredGas,
+    inputData = ByteString.empty,
+    value = 123,
+    endowment = 123,
+    doTransfer = true,
+    blockHeader = null,
+    callDepth = 0,
+    world = worldWithExtAccount,
+    initialAddressesToDelete = Set(),
+    evmConfig = config
+  )
 
   case class CallResult(
     op: CallOp,
-    context: ProgramContext[MockWorldState, MockStorage] = context,
+    context: PC = context,
     inputData: ByteString = inputData,
     gas: BigInt = requiredGas + gasMargin,
     to: Address = extAddr,
@@ -136,6 +150,11 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     outOffset: UInt256 = inputData.size,
     outSize: UInt256 = inputData.size / 2
     ) {
+
+    val vm = new TestVM
+
+    val env = ExecEnv(context, ByteString.empty, ownerAddr)
+
     private val params = Seq(UInt256(gas), to.toUInt256, value, inOffset, inSize, outOffset, outSize).reverse
 
     private val paramsForDelegate = params.take(4) ++ params.drop(5)
@@ -143,14 +162,14 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     private val stack = Stack.empty().push(if (op == DELEGATECALL) paramsForDelegate else params)
     private val mem = Memory.empty.store(UInt256.Zero, inputData)
 
-    val stateIn: PS = ProgramState(context).withStack(stack).withMemory(mem)
+    val stateIn: PS = ProgramState(vm, context, env).withStack(stack).withMemory(mem)
     val stateOut: PS = op.execute(stateIn)
     val world: MockWorldState = stateOut.world
 
-    val ownBalance: UInt256 = world.getBalance(context.env.ownerAddr)
+    val ownBalance: UInt256 = world.getBalance(env.ownerAddr)
     val extBalance: UInt256 = world.getBalance(to)
 
-    val ownStorage: MockStorage = world.getStorage(context.env.ownerAddr)
+    val ownStorage: MockStorage = world.getStorage(env.ownerAddr)
     val extStorage: MockStorage = world.getStorage(to)
   }
 }

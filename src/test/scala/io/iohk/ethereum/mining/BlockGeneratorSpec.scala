@@ -7,10 +7,9 @@ import io.iohk.ethereum.{Timeouts, crypto}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.{BlockPreparationError, LedgerImpl}
+import io.iohk.ethereum.ledger.{BlockPreparationError, Ledger, LedgerImpl}
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.validators._
-import io.iohk.ethereum.vm.VM
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
@@ -323,7 +322,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
     }
 
-    lazy val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
+    lazy val ledger = new LedgerImpl(new Ledger.VMImpl, blockchain, blockchainConfig, syncConfig, validators)
 
     val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
     genesisDataLoader.loadGenesisData()

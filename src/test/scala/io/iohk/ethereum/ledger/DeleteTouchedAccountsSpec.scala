@@ -5,7 +5,7 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.vm.EvmConfig
+import io.iohk.ethereum.vm.{BlockchainConfigForEvm, EvmConfig}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -99,8 +99,9 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(None)
-    val postEip160Config = EvmConfig.PostEIP160ConfigBuilder(None)
+    val conf = BlockchainConfigForEvm(blockchainConfig)
+    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(conf)
+    val postEip160Config = EvmConfig.PostEIP160ConfigBuilder(conf)
 
     val validAccountAddress  = Address(0xababab)
     val validAccountBalance = 10

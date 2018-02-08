@@ -13,6 +13,15 @@ import org.scalatest._
 
 class VMSuite extends FreeSpec with Matchers with Logger {
 
+  val vm = new TestVM {
+//    //TODO: instead of this and saving empty caller account in ScenarioBuilder, consider changing context.endowment to
+//    //TODO: option and don't make transfer in VM#call if it's None
+//    override def isValidCall(context: PC): Boolean =
+//      context.callDepth == 0 ||
+//      context.endowment <= context.world.getBalance(context.callerAddr) &&
+//      context.callDepth <= EvmConfig.MaxCallDepth
+  }
+
   override def run(testName: Option[String], args: Args): Status = {
 
     val options = TestOptions(args.configMap)
@@ -37,7 +46,7 @@ class VMSuite extends FreeSpec with Matchers with Logger {
 
   private def runScenario(scenario: VMScenario): Unit = {
     val context = ScenarioBuilder.prepareContext(scenario)
-    val result = deleteAccounts(VM.run(context))
+    val result = deleteAccounts(vm.run(context))
     verifyResult(result, scenario)
   }
 
@@ -60,7 +69,7 @@ class VMSuite extends FreeSpec with Matchers with Logger {
       // implemented in cpp-ethereum (and duplicated in the likes of Parity).
       // See: https://github.com/ethereum/cpp-ethereum/issues/4281
 
-      val postWorld = ScenarioBuilder.prepareWorld(post, scenario.env.currentNumber)
+      val postWorld = ScenarioBuilder.prepareWorld(post, scenario.env.currentNumber, scenario.exec)
       val deadAccounts = postWorld.accounts.keys.filter(postWorld.isAccountDead)
       val expectedWorld = deadAccounts.foldLeft(postWorld)(_ deleteAccount _)
       val actualWorldNoDead = deadAccounts.foldLeft(result.world)(_ deleteAccount _)

@@ -356,11 +356,11 @@ trait ValidatorsBuilder {
 }
 
 trait VmBuilder {
-  def vm: VM
+  def vm: Ledger.VMImpl
 }
 
 trait LocalVmBuilder extends VmBuilder {
-  override def vm: VM = new VM
+  override def vm: Ledger.VMImpl = new VM
 }
 
 trait RemoteVmBuilder extends VmBuilder {
@@ -398,7 +398,7 @@ trait RemoteVmBuilder extends VmBuilder {
   private val vmHost = Config.config.getString("extvm.host")
   private val vmPort = Config.config.getInt("extvm.port")
 
-  override def vm: VM = new ExtVMInterface(vmHost, vmPort, blockchainConfig)
+  override def vm: Ledger.VMImpl = new ExtVMInterface(vmHost, vmPort, blockchainConfig, testMode = false)
 }
 
 trait LedgerBuilder {

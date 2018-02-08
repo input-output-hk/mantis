@@ -5,10 +5,11 @@ import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.vm.Generators._
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FunSuite, Matchers}
+import Fixtures.blockchainConfig
 
 class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with PropertyChecks {
 
-  override val config = EvmConfig.PostEIP160ConfigBuilder(None)
+  override val config = EvmConfig.PostEIP160ConfigBuilder(blockchainConfig)
 
   import config.feeSchedule._
 
@@ -486,7 +487,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
     forAll(stateGen) { stateIn =>
       val (refund, _) = stateIn.stack.pop
       whenever(stateIn.world.getAccount(Address(refund)).isEmpty) {
-        val updatedStateIn = stateIn.withAddressToDelete(stateIn.context.env.ownerAddr)
+        val updatedStateIn = stateIn.withAddressToDelete(stateIn.env.ownerAddr)
         val stateOut = op.execute(updatedStateIn)
         verifyGas(G_selfdestruct + G_newaccount, updatedStateIn, stateOut)
         stateOut.gasRefund shouldEqual 0

@@ -257,7 +257,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(None)
+    import io.iohk.ethereum.vm.Fixtures.blockchainConfig
+    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
 
     val worldState = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
     val postEIP161WorldState = blockchain.getWorldStateProxy(-1, UInt256.Zero, None, postEip161Config.noEmptyAccounts)

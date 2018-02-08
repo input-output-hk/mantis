@@ -1,24 +1,27 @@
 package io.iohk.ethereum.ledger
 
-import akka.util.ByteString
-import akka.util.ByteString.{empty => bEmpty}
-import io.iohk.ethereum.Mocks
-import io.iohk.ethereum.Mocks.MockVM
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.Ledger.PR
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
-import io.iohk.ethereum.vm._
+
+//import akka.util.ByteString
+//import akka.util.ByteString.{empty => bEmpty}
+//import io.iohk.ethereum.Mocks
+//import io.iohk.ethereum.Mocks.MockVM
+//import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+//import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
+//import io.iohk.ethereum.domain._
+//import io.iohk.ethereum.ledger.Ledger.PR
+//import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+//import io.iohk.ethereum.utils.Config.SyncConfig
+//import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
+//import io.iohk.ethereum.vm._
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.PropertyChecks
-import org.spongycastle.crypto.AsymmetricCipherKeyPair
-import org.spongycastle.crypto.params.ECPublicKeyParameters
+//import org.spongycastle.crypto.AsymmetricCipherKeyPair
+//import org.spongycastle.crypto.params.ECPublicKeyParameters
 
+
+//TODO: port to a VM test
 class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
-
+/*
   def createResult(world: InMemoryWorldStateProxy,
                    gasUsed: BigInt,
                    gasLimit: BigInt,
@@ -200,4 +203,5 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
     val worldWithCreatorAfterEip161 = emptyWorld(noEmptyAccounts = true).saveAccount(creatorAddr, creatorAccount)
     val newAddress = worldWithCreator.saveAccount(creatorAddr, creatorAccount.increaseNonce()).createAddress(creatorAddr)
   }
+*/
 }

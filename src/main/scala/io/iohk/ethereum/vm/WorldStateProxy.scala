@@ -103,15 +103,11 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   }
 
   /**
-    * Increases the creator's nonce and creates a new address based on the address and the new nonce of the creator
-    *
-    * @param creatorAddr, the address of the creator of the new address
-    * @return the new address and the state world after the creator's nonce was increased
+    * Increase nonce for a guaranteed account - ie. throws an error if this does not exist
     */
-  def createAddressWithOpCode(creatorAddr: Address): (Address, WS) = {
-    val creatorAccount = getGuaranteedAccount(creatorAddr)
-    val updatedWorld = saveAccount(creatorAddr, creatorAccount.increaseNonce())
-    updatedWorld.createAddress(creatorAddr) -> updatedWorld
+  def increaseNonce(address: Address): WS = {
+    val account = getGuaranteedAccount(address).increaseNonce()
+    saveAccount(address, account)
   }
 
   /**

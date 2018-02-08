@@ -41,14 +41,14 @@ trait Ledger {
   * Note: this class thread-unsafe because of its dependencies on Blockchain and BlockQueue
   */
 class LedgerImpl(
-    vm: VM,
+    vm: VMImpl,
     blockchain: BlockchainImpl,
     blockQueue: BlockQueue,
     blockchainConfig: BlockchainConfig,
     validators: Validators)
   extends Ledger with Logger {
 
-  def this(vm: VM, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig,
+  def this(vm: VMImpl, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig,
     syncConfig: SyncConfig, validators: Validators) =
     this(vm, blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, validators)
 
@@ -485,9 +485,7 @@ class LedgerImpl(
 
     val worldForTx = updateSenderAccountBeforeExecution(stx, world2)
 
-    val context: PC = prepareProgramContext(stx, blockHeader, worldForTx)
-
-    val result = runVM(stx, context)
+    val result = runVM(stx, blockHeader, worldForTx)
 
     val totalGasToRefund = calcTotalGasToRefund(stx, result)
 
@@ -512,8 +510,7 @@ class LedgerImpl(
     val gasLimit = stx.tx.gasLimit
 
     val checkpointWorldState = updateSenderAccountBeforeExecution(stx, world)
-    val context = prepareProgramContext(stx, blockHeader, checkpointWorldState)
-    val result = runVM(stx, context)
+    val result = runVM(stx, blockHeader, checkpointWorldState)
 
     val resultWithErrorHandling: PR =
       if (result.error.isDefined) {
@@ -640,51 +637,10 @@ class LedgerImpl(
     worldStateProxy.saveAccount(senderAddress, account.increaseBalance(-calculateUpfrontGas(stx.tx)).increaseNonce())
   }
 
-  private def prepareProgramContext(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): PC = {
-    stx.tx.receivingAddress match {
-      case None =>
-        val address = world.createAddress(creatorAddr = stx.senderAddress)
-
-        // EIP-684
-        val conflict = world.nonEmptyCodeOrNonceAccount(address)
-        val code = if (conflict) ByteString(INVALID.code) else stx.tx.payload
-
-        val world1 = world.initialiseAccount(address).transfer(stx.senderAddress, address, UInt256(stx.tx.value))
-        ProgramContext(stx, address,  Program(code), blockHeader, world1, blockchainConfig)
-
-      case Some(txReceivingAddress) =>
-        val world1 = world.transfer(stx.senderAddress, txReceivingAddress, UInt256(stx.tx.value))
-        ProgramContext(stx, txReceivingAddress, Program(world1.getCode(txReceivingAddress)), blockHeader, world1, blockchainConfig)
-    }
-  }
-
-  private def runVM(stx: SignedTransaction, context: PC): PR = {
-    val result: PR = vm.run(context)
-    if (stx.tx.isContractInit && result.error.isEmpty)
-      saveNewContract(context.env.ownerAddr, result, context.evmConfig)
-    else
-      result
-  }
-
-  private[ledger] def saveNewContract(address: Address, result: PR, config: EvmConfig): PR = {
-    val contractCode = result.returnData
-    val codeDepositCost = config.calcCodeDepositCost(contractCode)
-
-    val maxCodeSizeExceeded = blockchainConfig.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
-    val codeStoreOutOfGas = result.gasRemaining < codeDepositCost
-
-    if (maxCodeSizeExceeded || (codeStoreOutOfGas && config.exceptionalFailedCodeDeposit)) {
-      // Code size too big or code storage causes out-of-gas with exceptionalFailedCodeDeposit enabled
-      result.copy(error = Some(OutOfGas))
-    } else if (codeStoreOutOfGas && !config.exceptionalFailedCodeDeposit) {
-      // Code storage causes out-of-gas with exceptionalFailedCodeDeposit disabled
-      result
-    } else {
-      // Code storage succeeded
-      result.copy(
-        gasRemaining = result.gasRemaining - codeDepositCost,
-        world = result.world.saveCode(address, result.returnData))
-    }
+  private def runVM(stx: SignedTransaction, blockHeader: BlockHeader, world: InMemoryWorldStateProxy): PR = {
+    val evmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
+    val context: PC = ProgramContext(stx, blockHeader, world, evmConfig)
+    vm.run(context)
   }
 
   /**
@@ -797,6 +753,7 @@ class LedgerImpl(
 }
 
 object Ledger {
+  type VMImpl = VM[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
   type PC = ProgramContext[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
   type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
 
