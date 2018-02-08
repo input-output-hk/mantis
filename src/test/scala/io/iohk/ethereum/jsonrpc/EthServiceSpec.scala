@@ -664,8 +664,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     (appStateStorage.getBestBlockNumber _).expects().returning(newblock.header.number)
 
     val response = ethService.getStorageAt(GetStorageAtRequest(address, 333, BlockParam.Latest))
-
-    response.futureValue shouldEqual Right(GetStorageAtResponse(UInt256(123).bytes))
+    response.futureValue.map(v => UInt256(v.value)) shouldEqual Right(UInt256(123))
   }
 
   it should "handle get transaction count request" in new TestSetup {
