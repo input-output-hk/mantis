@@ -1,45 +1,29 @@
 package io.iohk.ethereum.ets.blockchain
 
-import akka.actor.ActorSystem
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.domain.{Account, Address, Block, UInt256}
-import io.iohk.ethereum.ets.common.{AccountState, TestOptions}
-import io.iohk.ethereum.extvm.{ExtVMInterface, VmServerApp}
+import io.iohk.ethereum.ets.common.AccountState
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, BlockchainConfigBuilder, SyncConfigBuilder, ValidatorsBuilder}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.VM
 import org.spongycastle.util.encoders.Hex
 
 import scala.util.{Failure, Success, Try}
 
-object ScenarioSetup {
-  implicit lazy val actorSystem = ActorSystem("mantis_system")
-
-  lazy val extvm = {
-    import Config.config
-    VmServerApp.main(Array())
-    new ExtVMInterface(config.getString("extvm.host"), config.getInt("extvm.port"), BlockchainConfig(config))
-  }
-}
-
-abstract class ScenarioSetup(options: TestOptions, scenario: BlockchainScenario)
+abstract class ScenarioSetup(vm: VM, scenario: BlockchainScenario)
   extends EphemBlockchainTestSetup
   with ValidatorsBuilder
   with SyncConfigBuilder
   with BlockchainConfigBuilder
   with ActorSystemBuilder {
 
-  import ScenarioSetup._
-
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
 
   override lazy val blockchainConfig = buildBlockchainConfig(scenario.network)
-
-  val vm = if (options.useLocalVM) VM else extvm
 
   val ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, validators)
 
