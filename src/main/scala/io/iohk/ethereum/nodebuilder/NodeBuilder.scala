@@ -372,14 +372,18 @@ trait RemoteVmBuilder extends VmBuilder {
   }
 
   def startVMProcess(): Unit = {
+    import File.{separator, pathSeparator}
+
     val classpath = Thread.currentThread().getContextClassLoader.asInstanceOf[URLClassLoader].getURLs
       .map(_.getFile)
-      .mkString(File.pathSeparator)
+      .mkString(pathSeparator)
 
     new ProcessBuilder(
       System.getProperty("java.home") + "/bin/java",
       "-classpath",
       classpath,
+      "-Dconfig.file=." + separator + "conf" + separator + "mantis.conf",
+      "-Dlogback.configurationFile=." + separator + "conf" + separator + "logback.xml",
       "io.iohk.ethereum.extvm.VmServerApp")
       .inheritIO()
       .start()
