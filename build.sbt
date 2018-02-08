@@ -44,13 +44,14 @@ val dep = {
     "io.circe" %% "circe-generic-extras" % circeVersion,
     "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.1" % "it,test",
     "commons-io" % "commons-io" % "2.5",
-    "com.typesafe.akka" %% "akka-stream" % "2.5.8"
+    "com.typesafe.akka" %% "akka-stream" % akkaVersion
   )
 }
 
 val verifyDeps = Seq(
   "org.scala-lang" % "scala-library" sha1 "dd235d04037dc6f4b6090257872dd35359a563ce",
   "com.typesafe.akka" % "akka-actor" sha1 "ba05c9b5fb9ab1b9a7f2a14b94c71454d9ade820",
+  "com.typesafe" % "ssl-config-core" sha1 "7497c001276c3fd76df8204f4611baaa24c5aea9",
   "com.typesafe" % "config" sha1 "f533aa6ea13e443b50e639d070986c42d03efc35",
   "org.scala-lang.modules" % "scala-java8-compat" sha1 "1e6f1e745bf6d3c34d1e2ab150653306069aaf34",
   "com.typesafe.akka" % "akka-agent" sha1 "a902cb66c53d1376a877790265c7dabe672a0cb4",
@@ -62,7 +63,6 @@ val verifyDeps = Seq(
   "com.typesafe.akka" % "akka-parsing" sha1 "db7a5ce5708ff0f6feed6939bd15f98a5413c4e5",
   "com.typesafe.akka" % "akka-stream" sha1 "4633154311941f0db62a2418a31f49513a505e43",
   "org.reactivestreams" % "reactive-streams" sha1 "14b8c877d98005ba3941c9257cfe09f6ed0e0d74",
-  "com.typesafe" % "ssl-config-core" sha1 "7497c001276c3fd76df8204f4611baaa24c5aea9",
   "org.scala-lang.modules" % "scala-parser-combinators" sha1 "3c1c5475ece77c41e18dd971f8f818c091e4961c",
   "ch.megard" % "akka-http-cors" sha1 "a86580cc415a343fa2e5d9aa8a6c6c7391f09372",
   "org.json4s" % "json4s-native" sha1 "5474e881ee64da870254517c2eb334fe466e5259",
@@ -98,10 +98,15 @@ val verifyDeps = Seq(
   "io.circe" % "circe-generic" sha1 "38a949ac611a8d48c80fd8c0736d55688d08e69e",
   "io.circe" % "circe-parser" sha1 "009d8fce67711164d8f17f0b05fce4d0daa44736",
   "io.circe" % "circe-jawn" sha1 "23890a0fa474c84ca5b39312425c0b9879467cd5",
-  "org.spire-math" % "jawn-parser" sha1 "452b1bdf2982219e1b7c9d27ec316241144b0910",
   "io.circe" % "circe-generic-extras" sha1 "f9b74914b6fd7193b221bb0eed8d1a82f7fa2aef",
-  "commons-io" % "commons-io" sha1 "2852e6e05fbb95076fc091f6d1780f1f8fe35e0f"
-)
+  "org.spire-math" % "jawn-parser" sha1 "452b1bdf2982219e1b7c9d27ec316241144b0910",
+  "commons-io" % "commons-io" sha1 "2852e6e05fbb95076fc091f6d1780f1f8fe35e0f",
+  "com.trueaccord.scalapb" % "scalapb-runtime" sha1 "efc8fc4d491cd988d75c86787187bd1556086043",
+  "com.trueaccord.lenses" % "lenses" sha1 "d97d2958814bcfe2f19e1ed2f0f03fd9da5a3961",
+  "com.lihaoyi" % "fastparse" sha1 "aaf2048f9c6223220eac28c9b6a442f27ba83c55",
+  "com.lihaoyi" % "fastparse-utils" sha1 "92da792e8608653317ed6eb456f935fbfb2316bc",
+  "com.lihaoyi" % "sourcecode" sha1 "ef9a771975cb0860f2b42778c5cf1f5d76818979",
+  "com.google.protobuf" % "protobuf-java" sha1 "b32aba0cbe737a4ca953f71688725972e3ee927c")
 
 val Integration = config("it") extend Test
 
