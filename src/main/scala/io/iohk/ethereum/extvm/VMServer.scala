@@ -4,15 +4,16 @@ import java.nio.ByteOrder
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.stream.scaladsl.{Flow, Framing, Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete, Tcp}
+import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.util.ByteString
 import com.google.protobuf.{ByteString => GByteString}
 import com.typesafe.config.ConfigFactory
-import io.iohk.ethereum.domain.{Address, BlockHeader, UInt256}
+import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.extvm.Implicits._
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.vm
+import io.iohk.ethereum.vm.EvmConfig.BlockchainConfigForEvm
 import io.iohk.ethereum.vm.ProgramResult
 
 import scala.annotation.tailrec
@@ -67,15 +68,19 @@ class VMServer(
     }
   }
 
-  private var defaultBlockchainConfig: msg.BlockchainConfig = _
+  private var defaultBlockchainConfig: BlockchainConfigForEvm = _
 
-  private def awaitDefaultBlockchainConfig(): Unit = {
-    defaultBlockchainConfig = messageHandler.awaitMessage[msg.BlockchainConfig]
+  private def awaitHello(): Unit = {
+    val helloMsg = messageHandler.awaitMessage[msg.Hello]
+    //TODO: handle properly, read version from file
+    require(helloMsg.version == "1.0")
+    require(helloMsg.config.isEthereumConfig)
+    defaultBlockchainConfig = constructBlockchainConfig(helloMsg.config.ethereumConfig.get)
   }
 
   def run(): Unit = {
     new Thread(() => {
-      awaitDefaultBlockchainConfig()
+      awaitHello()
       processNextCall()
     }).start()
   }
@@ -87,22 +92,24 @@ class VMServer(
   }
 
   private def constructContextFromMsg(contextMsg: msg.CallContext): vm.ProgramContext[World, Storage] = {
+    import ByteString.{empty => irrelevant} // used for irrelevant BlockHeader fields
+
     val blockHeader = BlockHeader(
-      contextMsg.blockHeader.get.parentHash,
-      contextMsg.blockHeader.get.ommersHash,
+      irrelevant,
+      irrelevant,
       contextMsg.blockHeader.get.beneficiary,
-      contextMsg.blockHeader.get.stateRoot,
-      contextMsg.blockHeader.get.transactionsRoot,
-      contextMsg.blockHeader.get.receiptsRoot,
-      contextMsg.blockHeader.get.logsBloom,
+      irrelevant,
+      irrelevant,
+      irrelevant,
+      irrelevant,
       contextMsg.blockHeader.get.difficulty,
       contextMsg.blockHeader.get.number,
       contextMsg.blockHeader.get.gasLimit,
-      contextMsg.blockHeader.get.gasUsed,
+      0, // irrelevant
       contextMsg.blockHeader.get.unixTimestamp,
-      contextMsg.blockHeader.get.extraData,
-      contextMsg.blockHeader.get.mixHash,
-      contextMsg.blockHeader.get.nonce
+      irrelevant,
+      irrelevant,
+      irrelevant
     )
 
     val env = vm.ExecEnv(
@@ -117,12 +124,12 @@ class VMServer(
       contextMsg.callDepth
     )
 
-    val blockchainConfig = constructBlockchainConfig(contextMsg.blockchainConfig.getOrElse(defaultBlockchainConfig))
+    val blockchainConfig = contextMsg.config.ethereumConfig.map(constructBlockchainConfig).getOrElse(defaultBlockchainConfig)
 
     val vmConfig = vm.EvmConfig.forBlock(env.blockHeader.number, blockchainConfig)
     val world = World(blockchainConfig.accountStartNonce, vmConfig.noEmptyAccounts, messageHandler)
 
-    vm.ProgramContext(env, contextMsg.receivingAddr, contextMsg.gasProvided, world, None, vmConfig)
+    vm.ProgramContext(env, contextMsg.ownerAddr, contextMsg.gasProvided, world, None, vmConfig)
   }
 
   private def buildResultMsg(result: ProgramResult[World, Storage]): msg.CallResult = {
@@ -158,40 +165,17 @@ class VMServer(
     }
   }
 
-  private def constructBlockchainConfig(conf: msg.BlockchainConfig): BlockchainConfig = {
-    new BlockchainConfig {
-      override val frontierBlockNumber: BigInt = conf.frontierBlockNumber
-      override val homesteadBlockNumber: BigInt = conf.homesteadBlockNumber
-      override val eip106BlockNumber: BigInt = conf.eip106BlockNumber
-      override val eip150BlockNumber: BigInt = conf.eip150BlockNumber
-      override val eip155BlockNumber: BigInt = conf.eip155BlockNumber
-      override val eip160BlockNumber: BigInt = conf.eip160BlockNumber
-      override val eip161BlockNumber: BigInt = conf.eip161BlockNumber
-      override val maxCodeSize: Option[BigInt] = if (conf.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(conf.maxCodeSize))
-      override val difficultyBombPauseBlockNumber: BigInt = conf.difficultyBombPauseBlockNumber
-      override val difficultyBombContinueBlockNumber: BigInt = conf.difficultyBombContinueBlockNumber
-
-      override val customGenesisFileOpt: Option[String] = None
-
-      override val daoForkConfig = if (conf.forkBlockHash.isEmpty) None else Some(new DaoForkConfig {
-        override val blockExtraData: Option[ByteString] = if (conf.forkBlockExtraData.isEmpty) None else Some(conf.forkBlockExtraData)
-        override val range: Int = conf.forkRange
-        override val drainList: Seq[Address] = conf.forkDrainList.map(addressFromGByteString)
-        override val forkBlockHash: ByteString = conf.forkBlockHash
-        override val forkBlockNumber: BigInt = conf.forkBlockNumber
-        override val refundContract: Option[Address] = if (conf.forkRefundContract.isEmpty) None else Some(conf.forkRefundContract)
-      })
-
-      override val accountStartNonce: UInt256 = conf.accountStartNonce
-
-      override val chainId: Byte = conf.chainId.head
-
-      override val monetaryPolicyConfig = MonetaryPolicyConfig(
-        eraDuration = conf.eraDuration,
-        rewardReductionRate = conf.rewardReductionRate,
-        firstEraBlockReward = conf.firstEraBlockReward)
-
-      val gasTieBreaker: Boolean = conf.gasTieBreaker
-    }
+  private def constructBlockchainConfig(conf: msg.EthereumConfig): BlockchainConfigForEvm = {
+    BlockchainConfigForEvm(
+      frontierBlockNumber = conf.frontierBlockNumber,
+      homesteadBlockNumber = conf.homesteadBlockNumber,
+      eip106BlockNumber = conf.eip106BlockNumber,
+      eip150BlockNumber = conf.eip150BlockNumber,
+      eip155BlockNumber = conf.eip155BlockNumber,
+      eip160BlockNumber = conf.eip160BlockNumber,
+      eip161BlockNumber = conf.eip161BlockNumber,
+      maxCodeSize = if (conf.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(conf.maxCodeSize)),
+      accountStartNonce = conf.accountStartNonce
+    )
   }
 }

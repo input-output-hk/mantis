@@ -1,6 +1,18 @@
 syntax = "proto3";
 package io.iohk.ethereum.extvm;
 
+message Hello {
+  string version = 1;
+
+  // A blockchain related configuration for the VM for the entire session.
+  // Currently only Mantis-EVM is supported. Other VMs may ingore this
+  // or may required different configurations.
+  oneof config {
+    EthereumConfig ethereumConfig = 2;
+    IeleConfig ieleConfig = 3;
+  }
+}
+
 message CallContext {
   bytes ownerAddr = 1;
   bytes callerAddr = 2;
@@ -11,30 +23,25 @@ message CallContext {
   bytes gasPrice = 7;
   bytes gasProvided = 8;
   int32 callDepth = 9;
-  bytes receivingAddr = 10;
-  BlockHeader blockHeader = 11;
-  BlockchainConfig blockchainConfig = 12;
+  BlockHeader blockHeader = 10;
+
+  // This may be used to override the VM configuration for the session. It used in tests to avoid
+  // re-instantiating VM for each test.
+  oneof config {
+    EthereumConfig ethereumConfig = 11;
+    IeleConfig ieleConfig = 12;
+  }
 }
 
 message BlockHeader {
-  bytes parentHash = 1;
-  bytes ommersHash = 2;
-  bytes beneficiary = 3;
-  bytes stateRoot = 4;
-  bytes transactionsRoot = 5;
-  bytes receiptsRoot = 6;
-  bytes logsBloom = 7;
-  bytes difficulty = 8;
-  bytes number = 9;
-  bytes gasLimit = 10;
-  bytes gasUsed = 11;
-  int64 unixTimestamp = 12;
-  bytes extraData = 13;
-  bytes mixHash = 14;
-  bytes nonce = 15;
+  bytes beneficiary = 1;
+  bytes difficulty = 2;
+  bytes number = 3;
+  bytes gasLimit = 4;
+  int64 unixTimestamp = 5;
 }
 
-message BlockchainConfig {
+message EthereumConfig {
   bytes frontierBlockNumber = 1;
   bytes homesteadBlockNumber = 2;
   bytes eip106BlockNumber = 3;
@@ -43,24 +50,11 @@ message BlockchainConfig {
   bytes eip160BlockNumber = 6;
   bytes eip161BlockNumber = 7;
   bytes maxCodeSize = 8;
-  bytes difficultyBombPauseBlockNumber = 9;
-  bytes difficultyBombContinueBlockNumber = 10;
-
-  bytes forkBlockNumber = 11;
-  bytes forkBlockHash = 12;
-  bytes forkBlockExtraData = 13;
-  int32 forkRange = 14;
-  bytes forkRefundContract = 15;
-  repeated bytes forkDrainList = 16;
-
   bytes accountStartNonce = 17;
-  bytes chainId = 18;
+}
 
-  int32 eraDuration = 19;
-  double rewardReductionRate = 20;
-  bytes firstEraBlockReward = 21;
-
-  bool gasTieBreaker = 22;
+message IeleConfig {
+  // empty
 }
 
 message GetAccount {
@@ -70,9 +64,7 @@ message GetAccount {
 message Account {
   bytes nonce = 1;
   bytes balance = 2;
-  //FIXME: the hashes required because of an implementation detail, should be gone in the final solution
-  bytes storageHash = 3;
-  bytes codeHash = 4;
+  bool codeEmpty = 3;
 }
 
 message GetStorageData {
@@ -102,13 +94,16 @@ message Blockhash {
 
 message CallResult {
   bytes returnData = 1;
-  bytes gasRemaining = 2;
-  bytes gasRefund = 3;
-  bool error = 4;
-  repeated ModifiedAccount modifiedAccounts = 5;
-  repeated bytes deletedAccounts = 6;
-  repeated bytes touchedAccounts = 7;
-  repeated LogEntry logs = 8;
+  // required for IELE VM
+  bytes returnCode = 2;
+  bytes gasRemaining = 3;
+  bytes gasRefund = 4;
+  bool error = 5;
+  repeated ModifiedAccount modifiedAccounts = 6;
+  repeated bytes deletedAccounts = 7;
+  // touchedAccounts is specific Ethereum's EIP-161. VMs that do not follow these rules may ignore this field
+  repeated bytes touchedAccounts = 8;
+  repeated LogEntry logs = 9;
 }
 
 message ModifiedAccount {
@@ -116,6 +111,7 @@ message ModifiedAccount {
   bytes nonce = 2;
   bytes balance = 3;
   repeated StorageUpdate storageUpdates = 4;
+  // empty value indicates that no code has been assigned to this account
   bytes code = 5;
 }
 

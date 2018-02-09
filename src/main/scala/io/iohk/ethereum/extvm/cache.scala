@@ -10,6 +10,11 @@ import scala.collection.mutable
 class AccountCache(messageHandler: MessageHandler) extends Logger {
   private val cache = mutable.Map[Address, Option[Account]]()
 
+  // we don't the actual hash value, we only need to compare it to Account.EmptyCodeHash
+  val nonEmptyCodeHash = Account.EmptyStorageRootHash
+  // storage hash is irrelevant in the VM
+  val defaultStorageHash = Account.EmptyStorageRootHash
+
   def getAccount(address: Address): Option[Account] =
     cache.getOrElse(address, {
       val getAccountMsg = msg.GetAccount(address)
@@ -23,7 +28,8 @@ class AccountCache(messageHandler: MessageHandler) extends Logger {
         cache += address -> None
         None
       } else {
-        val account = Account(accountMsg.nonce, accountMsg.balance, accountMsg.storageHash, accountMsg.codeHash)
+        val codeHash = if (accountMsg.codeEmpty) Account.EmptyCodeHash else nonEmptyCodeHash
+        val account = Account(accountMsg.nonce, accountMsg.balance, defaultStorageHash, codeHash)
         cache += address -> Some(account)
         Some(account)
       }
