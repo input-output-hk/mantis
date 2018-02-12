@@ -85,7 +85,15 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
   }
 
   it should "download target block, request state, blocks and finish when downloaded" in new TestSetup() {
-    startWithState(defaultState)
+
+    val newSafeTarget   = defaultExpectedTargetBlock + syncConfig.fastSyncBlockValidationX
+    val bestBlockNumber = defaultExpectedTargetBlock
+    val firstNewBlock = bestBlockNumber + 1
+
+    startWithState(defaultState.copy(
+      bestBlockHeaderNumber = bestBlockNumber,
+      safeDownloadTarget = newSafeTarget)
+    )
 
     Thread.sleep(1.seconds.toMillis)
 
@@ -97,18 +105,22 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val watcher = TestProbe()
     watcher.watch(syncController)
 
+    val newBlocks = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
+    val newReceipts = newBlocks.map(_.hash).map(_ => Seq.empty[Receipt])
+    val newBodies = newBlocks.map(_ => BlockBody(Nil, Nil))
+
     //wait for peers throttle
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    sendBlockHeaders(defaultTargetBlockHeader.number, Seq(defaultTargetBlockHeader), peer1, 1)
+    sendBlockHeaders(firstNewBlock, newBlocks, peer1, newBlocks.size)
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendNewTargetBlock(defaultTargetBlockHeader.copy(number = defaultTargetBlockHeader.number + 1), peer1, peer1Status, handshakedPeers)
 
     Thread.sleep(1.second.toMillis)
-    sendReceipts(Seq(defaultTargetBlockHeader.hash), Seq(Nil), peer1)
+    sendReceipts(newBlocks.map(_.hash), newReceipts, peer1)
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    sendBlockBodies(Seq(defaultTargetBlockHeader.hash), Seq(BlockBody(Nil, Nil)), peer1)
+    sendBlockBodies(newBlocks.map(_.hash), newBodies, peer1)
 
     Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
     sendNodes(Seq(defaultTargetBlockHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
@@ -127,10 +139,9 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) => Left(HeaderPoWError) }
   }) {
 
-    val bestBlockNumber = defaultExpectedTargetBlock - 2
-    val bestValidated = bestBlockNumber
+    val bestBlockNumber = defaultExpectedTargetBlock - 1
 
-    startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber, bestValidatedBlockNumber = bestValidated))
+    startWithState(defaultState.copy(bestBlockHeaderNumber = bestBlockNumber))
 
     Thread.sleep(1.seconds.toMillis)
 
@@ -139,7 +150,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     updateHandshakedPeers(HandshakedPeers(singlePeer))
 
     sendBlockHeaders(
-      defaultTargetBlockHeader.number - 1,
+      defaultTargetBlockHeader.number,
       Seq(defaultTargetBlockHeader.copy(number = defaultExpectedTargetBlock - 1)),
       peer1,
       defaultExpectedTargetBlock - bestBlockNumber)
@@ -148,10 +159,11 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
-    syncState.bestBlockHeaderNumber shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN)
+    syncState.bestBlockHeaderNumber shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN - 1)
+    syncState.nextBlockToFullyValidate shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN)
     syncState.blockBodiesQueue.isEmpty shouldBe true
     syncState.receiptsQueue.isEmpty shouldBe true
-    syncState.nextBlockToFullyValidate shouldBe (bestBlockNumber - syncConfig.fastSyncBlockValidationN + 1)
+
   }
 
   it should "update target block if target fail" in new TestSetup(validators = new Mocks.MockValidatorsAlwaysSucceed {
@@ -222,9 +234,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     startWithState(defaultState.copy(
       bestBlockHeaderNumber = bestBlockNumber,
-      safeDownloadTarget = newSafeTarget,
-      bestValidatedBlockNumber = bestValid)
-    )
+      safeDownloadTarget = newSafeTarget
+    ))
 
     Thread.sleep(1.seconds.toMillis)
 
@@ -265,7 +276,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
       goodTarget,
       peer1,
       peer1Status,
-      handshakedPeers
+      handshakedPeers,
+      "$b"
     )
 
     persistState()
@@ -273,9 +285,8 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val newSyncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
 
     newSyncState.safeDownloadTarget shouldEqual goodTarget.number + syncConfig.fastSyncBlockValidationX
-    newSyncState.bestValidatedBlockNumber shouldEqual newBlocks.last.number
     newSyncState.targetBlock shouldEqual goodTarget
-    newSyncState.bestBlockHeaderNumber shouldEqual bestBlockNumber
+    newSyncState.bestBlockHeaderNumber shouldEqual bestBlockNumber + syncConfig.blockHeadersPerRequest
     newSyncState.targetBlockUpdateFailures shouldEqual  1
   }
 
@@ -327,7 +338,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val newBestBlock = defaultExpectedTargetBlock - 2 * syncConfig.blockHeadersPerRequest
     val newBestValid = newBestBlock
     val firstNewBlockNumber = newBestBlock + 1
-    startWithState(defaultState.copy(bestBlockHeaderNumber = newBestBlock, bestValidatedBlockNumber = newBestValid))
+    startWithState(defaultState.copy(bestBlockHeaderNumber = newBestBlock))
 
     syncController ! SyncController.Start
 
@@ -346,7 +357,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     startWithState(
       defaultState.copy(
         bestBlockHeaderNumber = defaultExpectedTargetBlock,
-        bestValidatedBlockNumber = defaultExpectedTargetBlock,
         pendingMptNodes = Seq(StateMptNodeHash(defaultTargetBlockHeader.stateRoot))
       )
     )
@@ -455,93 +465,6 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     //Fast sync node request should be received
     etcPeerManager.expectMsg(
       EtcPeerManagerActor.SendMessage(GetNodeData(Seq(ByteString("node_hash"))), peer1.id))
-  }
-
-  it should "not save last x blocks" in new TestSetup() {
-
-    val newTargetBlockNumber = defaultExpectedTargetBlock + 10
-    val newTargetHeader = defaultTargetBlockHeader.copy(number = newTargetBlockNumber)
-    val newSafeTarget   = newTargetBlockNumber + syncConfig.fastSyncBlockValidationX
-    val bestBlockNumber = defaultExpectedTargetBlock
-    val bestValid = bestBlockNumber
-    val firstNewBlock = bestBlockNumber + 1
-
-    startWithState(defaultState.copy(
-      targetBlock = newTargetHeader,
-      bestBlockHeaderNumber = bestBlockNumber,
-      safeDownloadTarget = newSafeTarget,
-      bestValidatedBlockNumber = bestValid)
-    )
-
-    Thread.sleep(1.seconds.toMillis)
-
-    syncController ! SyncController.Start
-
-    val handshakedPeers = HandshakedPeers(singlePeer)
-    updateHandshakedPeers(handshakedPeers)
-
-    val newBlocks = getHeaders(firstNewBlock, syncConfig.blockHeadersPerRequest)
-    val receipts = newBlocks.map(_.hash).map(_ => Seq.empty[Receipt])
-
-    sendBlockHeaders(
-      firstNewBlock,
-      newBlocks,
-      peer1,
-      syncConfig.blockHeadersPerRequest
-    )
-
-    persistState()
-    val stateAfterheaders = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
-
-    stateAfterheaders.safeDownloadTarget shouldEqual newSafeTarget
-    stateAfterheaders.bestValidatedBlockNumber shouldEqual newTargetBlockNumber
-    stateAfterheaders.targetBlock shouldEqual newTargetHeader
-    stateAfterheaders.bestBlockHeaderNumber shouldEqual newTargetBlockNumber
-    stateAfterheaders.blockChainWorkQueued shouldBe true
-
-    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-
-    sendReceipts(newBlocks.map(_.hash), receipts, peer1)
-
-    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-
-    sendBlockBodies(newBlocks.map(_.hash), newBlocks.map(_ => BlockBody(Nil, Nil)), peer1)
-
-    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-
-    val firstlastBlock = newBlocks.last.number + 1
-    val lastBlocks = getHeaders(firstlastBlock, syncConfig.blockHeadersPerRequest)
-
-    sendBlockHeaders(
-      firstlastBlock,
-      lastBlocks,
-      peer1,
-      syncConfig.blockHeadersPerRequest
-    )
-
-    persistState()
-    val newstate = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
-
-    newstate.safeDownloadTarget shouldEqual newSafeTarget
-    newstate.bestValidatedBlockNumber shouldEqual newSafeTarget
-    newstate.targetBlock shouldEqual newTargetHeader
-    newstate.bestBlockHeaderNumber shouldEqual newTargetBlockNumber
-    newstate.anythingQueued shouldBe false
-
-    Thread.sleep(1.seconds.toMillis)
-
-    val newTarget = defaultTargetBlockHeader
-
-    sendNewTargetBlock(
-      newTargetHeader,
-      peer1,
-      peer1Status,
-      handshakedPeers
-    )
-
-    // Check that state download start correctly
-    Thread.sleep(syncConfig.fastSyncThrottle.toMillis)
-    sendNodes(Seq(newTargetHeader.stateRoot), Seq(defaultStateMptLeafWithAccount), peer1)
   }
 
   class TestSetup(blocksForWhichLedgerFails: Seq[BigInt] = Nil, validators: Validators = new Mocks.MockValidatorsAlwaysSucceed)
@@ -666,9 +589,13 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val singlePeer = Map(peer1 -> PeerInfo(peer1Status, forkAccepted = true, totalDifficulty = peer1Status.totalDifficulty, maxBlockNumber = 0))
 
-    def sendNewTargetBlock(targetBlockHeader: BlockHeader, peer: Peer ,peerStatus: Status, handshakedPeers: HandshakedPeers): Unit = {
+    def sendNewTargetBlock(targetBlockHeader: BlockHeader,
+                           peer: Peer,
+                           peerStatus: Status,
+                           handshakedPeers: HandshakedPeers,
+                           actorName: String = "$a"): Unit = {
 
-      etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq("target-block-selector").toIterator), handshakedPeers)
+      etcPeerManager.send(syncController.getSingleChild("fast-sync").getChild(Seq(actorName).toIterator), handshakedPeers)
       peerMessageBus.expectMsg(Subscribe(MessageClassifier(Set(BlockHeaders.code), PeerSelector.WithId(peer.id))))
       etcPeerManager.expectMsg(
         EtcPeerManagerActor.SendMessage(GetBlockHeaders(Right(peerStatus.bestHash), 1, 0, reverse = false), peer.id))
@@ -698,8 +625,7 @@ class SyncControllerSpec extends FlatSpec with Matchers with BeforeAndAfter with
     val defaultState = SyncState(
       defaultTargetBlockHeader,
       defaultSafeDownloadTarget,
-      bestBlockHeaderNumber = defaultBestBlock,
-      bestValidatedBlockNumber = defaulBestValidated)
+      bestBlockHeaderNumber = defaultBestBlock)
 
     val defaultStateMptLeafWithAccount =
       ByteString(Hex.decode("f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
