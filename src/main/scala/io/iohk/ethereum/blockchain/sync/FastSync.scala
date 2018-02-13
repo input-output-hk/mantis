@@ -124,7 +124,7 @@ class FastSync(
     private val heartBeat = scheduler.schedule(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
 
     def receive: Receive = handleCommonMessages orElse {
-      case WaitForDownloadsToFinish(state) => updateTargetBlock(state)
+      case UpdateTargetBlock(state) => updateTargetBlock(state)
       case ProcessSyncing => processSyncing()
       case PrintStatus => printStatus()
       case PersistSyncState => persistSyncState()
@@ -134,7 +134,7 @@ class FastSync(
         requestedHeaders.get(peer).foreach{ requestedNum =>
           removeRequestHandler(sender())
           requestedHeaders -= peer
-          if (requestedNum == blockHeaders.size)
+          if (blockHeaders.size <= requestedNum)
             handleBlockHeaders(peer, blockHeaders)
           else
             blacklist(peer.id, blacklistDuration, "wrong number of headers in response")
@@ -169,22 +169,22 @@ class FastSync(
         handleRequestFailure(assignedHandlers(ref), ref, "Unexpected error")
     }
 
-    def waitingForTargetBlockUpdate(state: FinalBlockProcessingResult): Receive = handleCommonMessages orElse {
+    def waitingForTargetBlockUpdate(processState: FinalBlockProcessingResult): Receive = handleCommonMessages orElse {
       case FastSyncTargetBlockSelector.Result(targetBlockHeader) =>
         log.info(s"new target block with number ${targetBlockHeader.number} received")
         if (targetBlockHeader.number >= syncState.targetBlock.number) {
-          updateTargetSyncState(state, targetBlockHeader)
+          updateTargetSyncState(processState, targetBlockHeader)
           syncState = syncState.copy(updatingTargetBlock = false)
           context become this.receive
           processSyncing()
         } else {
           syncState = syncState.copy(targetBlockUpdateFailures = syncState.targetBlockUpdateFailures + 1)
-          scheduler.scheduleOnce(syncRetryInterval, self, WaitForDownloadsToFinish(state))
+          scheduler.scheduleOnce(syncRetryInterval, self, UpdateTargetBlock(processState))
         }
 
       case PersistSyncState => persistSyncState()
 
-      case WaitForDownloadsToFinish(sState) => updateTargetBlock(sState)
+      case UpdateTargetBlock(state) => updateTargetBlock(state)
     }
 
     private def updateTargetBlock(state: FinalBlockProcessingResult): Unit = {
@@ -192,7 +192,7 @@ class FastSync(
       if (syncState.targetBlockUpdateFailures <= syncConfig.maximumTargetUpdateFailures) {
         if (assignedHandlers.nonEmpty) {
           log.info(s"Still waiting for some responses, rescheduling target block update")
-          scheduler.scheduleOnce(syncRetryInterval, self, WaitForDownloadsToFinish(state))
+          scheduler.scheduleOnce(syncRetryInterval, self, UpdateTargetBlock(state))
         } else {
           log.info("Asking for new target block")
           val targetBlockSelector =
@@ -291,11 +291,11 @@ class FastSync(
 
     private def processHeader(header: BlockHeader, peer: Peer) : Either[HeaderProcessingResult , (BlockHeader, BigInt)] = for {
       validatedHeader  <- validateHeader(header, peer)
-      parentDifficulty <- getDifficulty(header)
+      parentDifficulty <- getParentDifficulty(header)
     } yield (validatedHeader, parentDifficulty)
 
-    private def getDifficulty(header: BlockHeader) = {
-      blockchain.getTotalDifficultyByHash(header.parentHash).toRight(HeadersProcessingFinished)
+    private def getParentDifficulty(header: BlockHeader) = {
+      blockchain.getTotalDifficultyByHash(header.parentHash).toRight(ParentDifficultyNotFound(header))
     }
 
     private def handleBlockValidationError(header: BlockHeader, peer: Peer, N: Int): Unit = {
@@ -316,8 +316,13 @@ class FastSync(
     private def handleBlockHeaders(peer: Peer, headers: Seq[BlockHeader]) = {
       if (checkHeadersChain(headers)) {
         processHeaders(peer, headers) match {
-          case HeadersProcessingFinished => processSyncing()
-          case ImportedTargetBlock  => updateTargetBlock(ImportedLastBlock)
+          case ParentDifficultyNotFound(header) =>
+            log.debug("Parent difficulty not found for block {}, not processing rest of headers", header.number)
+            processSyncing()
+          case HeadersProcessingFinished =>
+            processSyncing()
+          case ImportedTargetBlock  =>
+            updateTargetBlock(ImportedLastBlock)
           case ValidationFailed(header, peerToBlackList) =>
             handleBlockValidationError(header, peerToBlackList, syncConfig.fastSyncBlockValidationN)
         }
@@ -722,7 +727,7 @@ object FastSync {
   validators: Validators, peerEventBus: ActorRef, etcPeerManager: ActorRef, syncConfig: SyncConfig, scheduler: Scheduler): Props =
     Props(new FastSync(fastSyncStateStorage, appStateStorage, blockchain, validators, peerEventBus, etcPeerManager, syncConfig, scheduler))
 
-  private case class WaitForDownloadsToFinish(state: FinalBlockProcessingResult)
+  private case class UpdateTargetBlock(state: FinalBlockProcessingResult)
   private case object ProcessSyncing
   private[sync] case object PersistSyncState
   private case object PrintStatus
@@ -803,6 +808,7 @@ object FastSync {
 
   sealed abstract class HeaderProcessingResult
   case object HeadersProcessingFinished                         extends HeaderProcessingResult
+  case class  ParentDifficultyNotFound(header:BlockHeader)      extends HeaderProcessingResult
   case class  ValidationFailed(header:BlockHeader, peer: Peer)  extends HeaderProcessingResult
   case object ImportedTargetBlock                               extends HeaderProcessingResult
 
