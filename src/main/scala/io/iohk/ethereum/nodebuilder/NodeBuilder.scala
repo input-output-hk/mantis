@@ -7,8 +7,10 @@ import java.time.Clock
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.agent.Agent
+import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
+import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -22,7 +24,7 @@ import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.JsonRpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
-import io.iohk.ethereum.mining.{BlockGenerator, Miner}
+import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.utils._
@@ -39,6 +41,8 @@ import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.utils.Config.SyncConfig
 
+import scala.util.{Failure, Success, Try}
+
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
   lazy val blockchainConfig = BlockchainConfig(Config.config)
@@ -50,10 +54,6 @@ trait SyncConfigBuilder {
 
 trait TxPoolConfigBuilder {
   lazy val txPoolConfig = TxPoolConfig(Config.config)
-}
-
-trait MiningConfigBuilder {
-  lazy val miningConfig = MiningConfig(Config.config)
 }
 
 trait FilterConfigBuilder {
@@ -278,10 +278,11 @@ trait BlockGeneratorBuilder {
   self: BlockchainConfigBuilder with
     ValidatorsBuilder with
     LedgerBuilder with
-    MiningConfigBuilder with
     BlockchainBuilder =>
 
-  lazy val blockGenerator = new BlockGenerator(blockchain, blockchainConfig, miningConfig, ledger, validators)
+  lazy val headerExtraData: ByteString = ByteString.empty // FIXME implement
+  lazy val blockCacheSize: Int = 0         // FIXME implement
+  lazy val blockGenerator = new BlockGenerator(blockchain, blockchainConfig, headerExtraData, blockCacheSize, ledger, validators)
 }
 
 trait EthServiceBuilder {
@@ -295,12 +296,12 @@ trait EthServiceBuilder {
     KeyStoreBuilder with
     SyncControllerBuilder with
     OmmersPoolBuilder with
-    MiningConfigBuilder with
+    ConsensusConfigBuilder with
     FilterManagerBuilder with
     FilterConfigBuilder =>
 
   lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage,
-    miningConfig, ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
+    consensusConfig, ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
     blockchainConfig, Config.Network.protocolVersion)
 }
 
@@ -339,17 +340,18 @@ trait JSONRpcHttpServerBuilder {
 trait OmmersPoolBuilder {
   self: ActorSystemBuilder with
     BlockchainBuilder with
-    MiningConfigBuilder =>
+    ConsensusConfigBuilder =>
 
-  lazy val ommersPool: ActorRef = actorSystem.actorOf(OmmersPool.props(blockchain, miningConfig))
+  lazy val ommersPoolSize: Int = 0 // FIXME Implement (using ConsensusConfigBuilder ??)
+  lazy val ommersPool: ActorRef = actorSystem.actorOf(OmmersPool.props(blockchain, ommersPoolSize))
 }
 
 trait ValidatorsBuilder {
-  self: BlockchainConfigBuilder =>
+  self: BlockchainConfigBuilder with ConsensusBuilder =>
 
   lazy val validators = new Validators {
     val blockValidator: BlockValidator = BlockValidator
-    val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
+    val blockHeaderValidator: BlockHeaderValidator = consensus.blockHeaderValidator
     val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator)
     val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
   }
@@ -445,9 +447,8 @@ trait SyncControllerBuilder {
 
 }
 
-trait ShutdownHookBuilder {
-
-  def shutdown(): Unit
+trait ShutdownHookBuilder { self: Logger ⇒
+  def shutdown(): Unit = {/* No default behaviour during shutdown. */}
 
   lazy val shutdownTimeoutDuration = Config.shutdownTimeout
 
@@ -456,6 +457,16 @@ trait ShutdownHookBuilder {
       shutdown()
     }
   })
+
+  def shutdownOnError[A](f: ⇒ A): A = {
+    Try(f) match {
+      case Success(v) ⇒ v
+      case Failure(t) ⇒
+        log.error(t.getMessage, t)
+        shutdown()
+        throw t
+    }
+  }
 }
 
 trait GenesisDataLoaderBuilder {
@@ -471,26 +482,12 @@ trait SecureRandomBuilder {
     Config.secureRandomAlgo.map(SecureRandom.getInstance).getOrElse(new SecureRandom())
 }
 
-trait MinerBuilder {
-  self: ActorSystemBuilder
-    with BlockchainBuilder
-    with OmmersPoolBuilder
-    with PendingTransactionsManagerBuilder
-    with BlockGeneratorBuilder
-    with SyncControllerBuilder
-    with MiningConfigBuilder
-    with EthServiceBuilder =>
-
-  lazy val miner: ActorRef = actorSystem.actorOf(Miner.props(
-    blockchain,
-    blockGenerator,
-    ommersPool,
-    pendingTransactionsManager,
-    syncController,
-    miningConfig,
-    ethService))
-}
-
+/**
+ * Provides the basic functionality of a Node, except the consensus algorithm.
+ * The latter is loaded dynamically based on configuration.
+ *
+ * @see [[]]
+ */
 trait Node extends NodeKeyBuilder
   with ActorSystemBuilder
   with StorageBuilder
@@ -512,12 +509,12 @@ trait Node extends NodeKeyBuilder
   with JSONRpcControllerBuilder
   with JSONRpcHttpServerBuilder
   with ShutdownHookBuilder
+  with Logger
   with GenesisDataLoaderBuilder
   with BlockchainConfigBuilder
   with PeerEventBusBuilder
   with PendingTransactionsManagerBuilder
   with OmmersPoolBuilder
-  with MiningConfigBuilder
   with EtcPeerManagerActorBuilder
   with BlockchainHostBuilder
   with FilterManagerBuilder
@@ -531,5 +528,6 @@ trait Node extends NodeKeyBuilder
   with DiscoveryListenerBuilder
   with KnownNodesManagerBuilder
   with SyncConfigBuilder
-  with MinerBuilder
+  with ConsensusBuilder
+  with ConsensusConfigBuilder
   with RemoteVmBuilder // or LocalVmBuilder

@@ -25,6 +25,7 @@ trait Ledger {
 
   def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult
 
+  // FIXME check if needs to change for pluggable consensus
   def importBlock(block: Block): BlockImportResult
 
   def resolveBranch(headers: Seq[BlockHeader]): BranchResolutionResult
@@ -545,6 +546,7 @@ class LedgerImpl(
     TxResult(world2, executionGasToPayToMiner, resultWithErrorHandling.logs, result.returnData, result.error)
   }
 
+  // FIXME move to consensus
   private def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
     val result = for {
       _ <- validators.blockHeaderValidator.validate(block.header, getHeaderFromChainOrQueue _)
@@ -555,6 +557,7 @@ class LedgerImpl(
     result.left.map(ValidationBeforeExecError)
   }
 
+  // FIXME move to consensus
   /**
     * This function validates that the various results from execution are consistent with the block. This includes:
     *   - Validating the resulting stateRootHash

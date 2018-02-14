@@ -12,6 +12,7 @@ import akka.actor.ActorRef
 import io.iohk.ethereum.db.storage.AppStateStorage
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.RegularSync
+import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
@@ -171,7 +172,7 @@ class EthService(
     blockchain: Blockchain,
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
-    miningConfig: MiningConfig,
+    consensusConfig: ConsensusConfig,
     ledger: Ledger,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
@@ -401,14 +402,15 @@ class EthService(
     }
   }
 
-  def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] = {
+  // FIXME implement only if consensus is PoW
+  def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] = ???/*{
     val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
       override def apply(e: Option[Date]): Option[Date] = {
         e.filter { time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < miningConfig.activeTimeout.toMillis }
       }
     }).isDefined
     Future.successful(Right(GetMiningResponse(isMining)))
-  }
+  }*/
 
   private def reportActive() = {
     val now = new Date()
@@ -430,15 +432,19 @@ class EthService(
     Future.successful(Right(GetHashRateResponse(hashRates.mapValues { case (hr, _) => hr }.values.sum)))
   }
 
+  // FIXME implement only if consensus is PoW
+  // Initial code used: miningConfig.activeTimeout
+  // and that's why I have introduced [[io.iohk.ethereum.consensus.ConsensusConfig.activeTimeout]]
   private def removeObsoleteHashrates(now: Date, rates: Map[ByteString, (BigInt, Date)]):Map[ByteString, (BigInt, Date)]={
     rates.filter { case (_, (_, reported)) =>
-      Duration.between(reported.toInstant, now.toInstant).toMillis < miningConfig.activeTimeout.toMillis
+      Duration.between(reported.toInstant, now.toInstant).toMillis < consensusConfig.activeTimeout.toMillis
     }
   }
 
-  def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] = {
+  // FIXME implement only if consensus is PoW
+  def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] = ???/*{
     reportActive()
-    import io.iohk.ethereum.consensus.Ethash.{seed, epoch}
+    import io.iohk.ethereum.consensus.ethash.Ethash.{seed, epoch}
 
     val bestBlock = blockchain.getBestBlock()
 
@@ -456,9 +462,10 @@ class EthService(
             Left(JsonRpcErrors.InternalError)
         }
       }
-  }
+  }*/
 
-  private def getOmmersFromPool(blockNumber: BigInt) = {
+  // FIXME implement only if consensus is PoW (??)
+  private def getOmmersFromPool(blockNumber: BigInt): Future[OmmersPool.Ommers] = ???/*{
     implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
     (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
@@ -466,9 +473,10 @@ class EthService(
         log.error("failed to get ommer, mining block with empty ommers list", ex)
         OmmersPool.Ommers(Nil)
       }
-  }
+  }*/
 
-  private def getTransactionsFromPool = {
+  // FIXME implement only if consensus is PoW (??)
+  private def getTransactionsFromPool: Future[PendingTransactionsResponse] = ???/*{
     implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
@@ -476,10 +484,11 @@ class EthService(
         log.error("failed to get transactions, mining block with empty transactions list", ex)
         PendingTransactionsResponse(Nil)
       }
-  }
+  }*/
 
-  def getCoinbase(req: GetCoinbaseRequest): ServiceResponse[GetCoinbaseResponse] =
-    Future.successful(Right(GetCoinbaseResponse(miningConfig.coinbase)))
+  // FIXME implement only if consensus is PoW (??)
+  def getCoinbase(req: GetCoinbaseRequest): ServiceResponse[GetCoinbaseResponse] = ???
+    /*Future.successful(Right(GetCoinbaseResponse(miningConfig.coinbase)))*/
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
     reportActive()
