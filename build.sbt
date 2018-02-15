@@ -141,7 +141,8 @@ scalacOptions := Seq(
   "-Xfatal-warnings",
   "-Xlint:unsound-match",
   "-Ywarn-inaccessible",
-  "-Ywarn-unused-import"
+  "-Ywarn-unused-import",
+  "-encoding", "utf-8"
 )
 
 scalacOptions in (Compile, console) ~= (_.filterNot(Set(
