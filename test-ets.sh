@@ -15,7 +15,7 @@ export JAVA_OPTS="-Xmx2g -Xss16m -XX:MaxMetaspaceSize=512m"
 if [ -z $SKIP_ETS_TESTS ]; then
     git submodule init;
     git submodule update;
-    if [ "$CIRCLE_BRANCH" == "masterTest" -o -n "$RUN_FULL_ETS" ]; then
+    if [ "$CIRCLE_BRANCH" == "feature/masterTest" -o -n "$RUN_FULL_ETS" ]; then
         echo "running full ETS"
         sbt "ets:testOnly * -- -Dexg=vmPerf*";
     else
