@@ -7,8 +7,9 @@ import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.validators.BlockHeaderValidator
 
 /**
- * Provides generic requirements from an abstracted consensus protocol.
- * Finer-grained consensus details can be hidden in the specific implementation.
+ * Abstraction for a consensus protocol.
+ *
+ * @see [[io.iohk.ethereum.consensus.Protocol Protocol]]
  */
 // FIXME Lot's of stuff to do...
 trait Consensus {

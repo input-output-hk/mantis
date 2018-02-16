@@ -2,6 +2,7 @@ package io.iohk.ethereum.consensus
 
 /**
  * Enumerates the known consensus protocols that Mantis can use.
+ * For the respective implementations, see [[io.iohk.ethereum.consensus.Consensus Consensus]].
  */
 sealed trait Protocol {
   /**
@@ -51,10 +52,10 @@ object Protocol {
 sealed abstract class ProtocolImpl private[consensus](val name: String) extends Protocol
 
 /** The standard Ethereum PoW consensus protocol. */
-case object Ethash     extends ProtocolImpl(Protocol.Names.Ethash)
+case object Ethash extends ProtocolImpl(Protocol.Names.Ethash)
 
 /** A dump protocol used internally for demonstration purposes */
-case object Demo0      extends ProtocolImpl(Protocol.Names.Demo0)
+case object Demo0 extends ProtocolImpl(Protocol.Names.Demo0)
 
 /** Raft consensus protocol */
 case object AtomixRaft extends ProtocolImpl(Protocol.Names.AtomixRaft)

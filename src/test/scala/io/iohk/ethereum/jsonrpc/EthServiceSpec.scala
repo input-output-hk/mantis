@@ -568,7 +568,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
   it should "return correct coinbase" in new TestSetup {
     val response = ethService.getCoinbase(GetCoinbaseRequest())
-    response.futureValue shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
+    response.futureValue shouldEqual Right(GetCoinbaseResponse(consensusConfig.coinbase))
   }
 
   it should "return 0 gas price if there are no transactions" in new TestSetup {

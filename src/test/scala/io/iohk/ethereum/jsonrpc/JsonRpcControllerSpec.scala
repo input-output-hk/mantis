@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.{Ethash, FullConsensusConfig}
+import io.iohk.ethereum.consensus.ConsensusConfigs
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 // FIXME uncomment
 //import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
@@ -41,8 +41,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import java.time.Duration
 
-import io.iohk.ethereum.consensus.ConsensusConfig
-import io.iohk.ethereum.consensus.ethash.MiningConfig
 
 // scalastyle:off file.size.limit
 class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks with ScalaFutures with NormalPatience with Eventually {
@@ -1421,26 +1419,9 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val ommersPool = TestProbe()
     val filterManager = TestProbe()
 
-    val miningConfig = new MiningConfig {
-      override val blockCacheSize: Int = 30
-      override val ommersPoolSize: Int = 30
-      override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
-      override val headerExtraData: ByteString = ByteString.empty
-      override val ethashDir: String = "~/.ethash"
-      override val mineRounds: Int = 100000
-    }
-
-    val CoinbaseAddrNum = Hex.decode("42" * 20)
-
-    val consensusConfig: ConsensusConfig = new ConsensusConfig(
-      protocol = Ethash, // FIXME is it OK for the test?
-      coinbase = Address(CoinbaseAddrNum),
-      activeTimeout = Timeouts.shortTimeout,
-      getTransactionFromPoolTimeout = Timeouts.normalTimeout,
-      miningEnabled = false
-    )
-
-    val fullConsensusConfig = FullConsensusConfig(consensusConfig, miningConfig)
+    val miningConfig = ConsensusConfigs.miningConfig
+    val consensusConfig = ConsensusConfigs.consensusConfig
+    val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
 
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout

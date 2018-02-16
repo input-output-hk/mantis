@@ -5,7 +5,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.consensus.{Consensus, ConsensusConfig, FullConsensusConfig}
+import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig}
 import io.iohk.ethereum.consensus.ethash.{Miner, MiningConfig}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService
@@ -149,7 +149,6 @@ class MinerSpec extends FlatSpec with Matchers {
     val syncController = TestProbe()
 
     val ethService = mock[EthService]
-    val consensus  = mock[Consensus]
 
     val miner = TestActorRef(Miner.props(blockchain, blockGenerator, ommersPool.ref, pendingTransactionsManager.ref, syncController.ref, fullConsensusConfig, ethService))
 
