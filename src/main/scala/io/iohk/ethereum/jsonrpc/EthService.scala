@@ -447,7 +447,6 @@ class EthService(
   }
 
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
-    // TODO: Review if this is the correct approach, that is if we enable the functionality only under Ethash consensus.
     fullConsensusConfig.ifEthash(_ ⇒ {
       reportActive()
       import io.iohk.ethereum.consensus.ethash.Ethash.{seed, epoch}

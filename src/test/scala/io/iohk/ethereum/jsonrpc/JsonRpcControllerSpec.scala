@@ -6,8 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.ConsensusConfigs
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
-// FIXME uncomment
-//import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
+import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader}
@@ -21,10 +20,9 @@ import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
 import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-// FIXME uncomment
-//import io.iohk.ethereum.ommers.OmmersPool
-//import io.iohk.ethereum.ommers.OmmersPool.Ommers
-//import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.ommers.OmmersPool.Ommers
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.validators.Validators
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
@@ -526,8 +524,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString(s"0x${Hex.toHexString(txHash.toArray)}"))
   }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "eth_getWork" in new TestSetup {
+  it should "eth_getWork" in new TestSetup {
     val seed = s"""0x${"00" * 32}"""
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
@@ -560,10 +557,9 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       JString(seed),
       JString(target)
     )))
-  }*/
+  }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "eth_getWork when fail to get ommers and transactions" in new TestSetup {
+  it should "eth_getWork when fail to get ommers and transactions" in new TestSetup {
     val seed = s"""0x${"00" * 32}"""
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
@@ -594,7 +590,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       JString(seed),
       JString(target)
     )))
-  }*/
+  }
 
   it should "eth_submitWork" in new TestSetup {
     val nonce = s"0x0000000000000001"
@@ -828,8 +824,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.result shouldBe Some(JString("0x11"))
   }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "eth_coinbase " in new TestSetup {
+  it should "eth_coinbase " in new TestSetup {
     val request: JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "eth_coinbase",
@@ -841,8 +836,8 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     response.jsonrpc shouldBe "2.0"
     response.id shouldBe JInt(1)
     response.error shouldBe None
-    response.result shouldBe Some(JString("0x" + "42" * 20))
-  }*/
+    response.result shouldBe Some(JString("0x000000000000000000000000000000000000002a"))
+  }
 
   it should "eth_getTransactionByBlockNumberAndIndex by tag" in new TestSetup {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
@@ -1463,5 +1458,4 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val v: Byte = ByteString(Hex.decode("1b")).last
     val sig = ECDSASignature(r, s, v)
   }
-
 }
