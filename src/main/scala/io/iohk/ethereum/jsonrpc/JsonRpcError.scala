@@ -14,4 +14,6 @@ object JsonRpcErrors {
   val InternalError = JsonRpcError(-32603, "Internal JSON-RPC error", None)
   def LogicError(msg: String) = JsonRpcError(-32000, msg, None)
   val AccountLocked = LogicError("account is locked or unknown")
+
+  val ConsensusIsNotEthash = JsonRpcError(200, "The consensus algorithm is not Ethash", None)
 }

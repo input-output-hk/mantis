@@ -12,6 +12,15 @@ import io.iohk.ethereum.validators.BlockHeaderValidator
  */
 // FIXME Lot's of stuff to do...
 trait Consensus {
+  type Config <: AnyRef /*Product*/
+
+  def protocol: Protocol
+
+  def config: FullConsensusConfig[Config]
+
+  /** Returns `true` if this is the standard Ethereum PoW consensus protocol (`ethash`). */
+  final def isEthash: Boolean = protocol.isEthash
+
   /**
    * Starts the consensus protocol on the current `node`.
    */

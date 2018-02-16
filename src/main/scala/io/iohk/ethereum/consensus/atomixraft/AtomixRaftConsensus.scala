@@ -20,15 +20,18 @@ import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockHeaderValidatorIm
 
 class AtomixRaftConsensus(
   blockchainConfig: BlockchainConfig,
-  consensusConfig: ConsensusConfig,
-  raftConfig: AtomixRaftConfig
+  val config: FullConsensusConfig[AtomixRaftConfig]
 ) extends Consensus with Logger {
+
+  type Config = AtomixRaftConfig
 
   private[this] final val defaultValidator = new BlockHeaderValidatorImpl(blockchainConfig)
 
   private[this] final val miner = new MinerRef
 
   private[this] final val raftServer = new RaftServerRef
+
+  private[this] val raftConfig: AtomixRaftConfig = config.specific
 
   private[this] def setupMiner(node: Node): Unit = {
     miner.setOnce {
@@ -127,6 +130,8 @@ class AtomixRaftConsensus(
     miner.kill()
     raftServer.stop()
   }
+
+  def protocol: Protocol = AtomixRaft
 
   /**
    * Provides the [[io.iohk.ethereum.validators.BlockHeaderValidator BlockHeaderValidator]] that is specific

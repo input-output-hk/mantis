@@ -1,22 +1,19 @@
 package io.iohk.ethereum.jsonrpc
 
-// FIXME uncomment
-//import java.security.SecureRandom
+import java.security.SecureRandom
 
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.{ConsensusConfig, Ethash}
-import io.iohk.ethereum.consensus.ethash.MiningConfig
+import io.iohk.ethereum.consensus.ConsensusConfigs
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
 import io.iohk.ethereum.db.storage.{AppStateStorage, ArchiveNodeStorage}
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-// FIXME uncomment
-//import io.iohk.ethereum.ommers.OmmersPool
-//import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
@@ -30,8 +27,7 @@ import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie}
-// FIXME uncomment
-//import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.validators.Validators
 import org.scalamock.scalatest.MockFactory
 import org.spongycastle.util.encoders.Hex
@@ -372,7 +368,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
 
   // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "return requested work" in new TestSetup {
+  it should "return requested work" in new TestSetup {
     (blockGenerator.generateBlockForMining _).expects(parentBlock, Nil, *, *).returning(Right(PendingBlock(block, Nil)))
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)
 
@@ -384,7 +380,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     ommersPool.reply(OmmersPool.Ommers(Nil))
 
     response.futureValue shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
-  }*/
+  }
 
   it should "accept submitted correct PoW" in new TestSetup {
     val headerHash = ByteString(Hex.decode("01" * 32))
@@ -524,8 +520,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response2.futureValue shouldEqual Right(GetHashRateResponse(rate))
   }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "return if node is mining base on getWork" in new TestSetup {
+  it should "return if node is mining base on getWork" in new TestSetup {
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
     (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
@@ -535,10 +530,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val response = ethService.getMining(GetMiningRequest())
 
     response.futureValue shouldEqual Right(GetMiningResponse(true))
-  }*/
+  }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "return if node is mining base on submitWork" in new TestSetup {
+  it should "return if node is mining base on submitWork" in new TestSetup {
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
     (blockGenerator.getPrepared _).expects(*).returning(Some(PendingBlock(block, Nil)))
@@ -548,10 +542,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val response = ethService.getMining(GetMiningRequest())
 
     response.futureValue shouldEqual Right(GetMiningResponse(true))
-  }*/
+  }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "return if node is mining base on submitHashRate" in new TestSetup {
+  it should "return if node is mining base on submitHashRate" in new TestSetup {
     ethService.getMining(GetMiningRequest()).futureValue shouldEqual Right(GetMiningResponse(false))
 
     ethService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
@@ -559,10 +552,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val response = ethService.getMining(GetMiningRequest())
 
     response.futureValue shouldEqual Right(GetMiningResponse(true))
-  }*/
+  }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "return if node is mining after time out" in new TestSetup {
+  it should "return if node is mining after time out" in new TestSetup {
     (blockGenerator.generateBlockForMining _).expects(parentBlock, *, *, *).returning(Right(PendingBlock(block, Nil)))
     blockchain.save(parentBlock)
     ethService.getWork(GetWorkRequest())
@@ -572,13 +564,12 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val response = ethService.getMining(GetMiningRequest())
 
     response.futureValue shouldEqual Right(GetMiningResponse(false))
-  }*/
+  }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "return correct coinbase" in new TestSetup {
+  it should "return correct coinbase" in new TestSetup {
     val response = ethService.getCoinbase(GetCoinbaseRequest())
     response.futureValue shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
-  }*/
+  }
 
   it should "return 0 gas price if there are no transactions" in new TestSetup {
     (appStateStorage.getBestBlockNumber _).expects().returning(42)
@@ -700,8 +691,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response.futureValue shouldEqual Right(GetTransactionCountResponse(BigInt(999)))
   }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "handle get transaction by hash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
+  it should "handle get transaction by hash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
     val request = GetTransactionByHashRequest(txToRequestHash)
     val response = ethService.getTransactionByHash(request)
 
@@ -709,10 +699,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     pendingTransactionsManager.reply(PendingTransactionsResponse(Nil))
 
     response.futureValue shouldEqual Right(GetTransactionByHashResponse(None))
-  }*/
+  }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "handle get transaction by hash if the tx is still pending" in new TestSetup {
+  it should "handle get transaction by hash if the tx is still pending" in new TestSetup {
     val request = GetTransactionByHashRequest(txToRequestHash)
     val response = ethService.getTransactionByHash(request)
 
@@ -720,10 +709,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     pendingTransactionsManager.reply(PendingTransactionsResponse(Seq(PendingTransaction(txToRequest, System.currentTimeMillis))))
 
     response.futureValue shouldEqual Right(GetTransactionByHashResponse(Some(TransactionResponse(txToRequest))))
-  }*/
+  }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "handle get transaction by hash if the tx was already executed" in new TestSetup {
+  it should "handle get transaction by hash if the tx was already executed" in new TestSetup {
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     blockchain.save(blockWithTx)
 
@@ -735,7 +723,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     response.futureValue shouldEqual Right(GetTransactionByHashResponse(Some(
       TransactionResponse(txToRequest, Some(blockWithTx.header), Some(0)))))
-  }*/
+  }
 
   it should "calculate correct contract address for contract creating by transaction" in new TestSetup {
     val body = BlockBody(Seq(Fixtures.Blocks.Block3125369.body.transactionList.head, contractCreatingTransaction), Nil)
@@ -769,8 +757,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         ))))))
   }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "return account recent transactions in newest -> oldest order" in new TestSetup {
+  it should "return account recent transactions in newest -> oldest order" in new TestSetup {
     val address = Address("0xee4439beb5c71513b080bbf9393441697a29f478")
 
     val keyPair = crypto.generateKeyPair(new SecureRandom)
@@ -812,10 +799,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
         isOutgoing = Some(false)))
 
     response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedTxs))
-  }*/
+  }
 
-  // FIXME decide to uncomment when we implement PoW decoupling
-  /*it should "not return account recent transactions from older blocks and return pending txs" in new TestSetup {
+  it should "not return account recent transactions from older blocks and return pending txs" in new TestSetup {
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     blockchain.save(blockWithTx)
 
@@ -835,8 +821,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val expectedSent = Seq(TransactionResponse(signedTx, blockHeader = None, pending = Some(true), isOutgoing = Some(true)))
 
     response.futureValue shouldEqual Right(GetAccountTransactionsResponse(expectedSent))
-  }*/
+  }
 
+  // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
   trait TestSetup extends MockFactory with EphemBlockchainTestSetup {
     val blockGenerator = mock[BlockGenerator]
     val appStateStorage = mock[AppStateStorage]
@@ -852,22 +839,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val ommersPool = TestProbe()
     val filterManager = TestProbe()
 
-    val miningConfig = new MiningConfig {
-      override val coinbase: Address = Address(42)
-      override val blockCacheSize: Int = 30
-      override val ommersPoolSize: Int = 30
-      override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
-      override val headerExtraData: ByteString = ByteString.empty
-      override val ethashDir: String = "~/.ethash"
-      override val mineRounds: Int = 100000
-    }
-
-    val consensusConfig: ConsensusConfig = ConsensusConfig(
-      protocol = Ethash, // FIXME is it OK for the test?
-      activeTimeout = Timeouts.shortTimeout,
-      miningEnabled = false
-    )
-
+    val miningConfig = ConsensusConfigs.miningConfig
+    val consensusConfig = ConsensusConfigs.consensusConfig
+    val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
 
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -876,8 +850,9 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val currentProtocolVersion = 11
 
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, consensusConfig, ledger,
-      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig, blockchainConfig, currentProtocolVersion)
+    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, fullConsensusConfig, ledger,
+      keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
+      blockchainConfig, currentProtocolVersion)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number

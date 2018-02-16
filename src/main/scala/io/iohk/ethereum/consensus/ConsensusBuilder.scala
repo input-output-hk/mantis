@@ -15,19 +15,22 @@ trait ConsensusBuilder {
 
   private def loadEthashConsensus(): ethash.EthashConsensus = {
     val miningConfig = ethash.MiningConfig(mantisConfig)
-    val consensus = new ethash.EthashConsensus(blockchainConfig, consensusConfig, miningConfig)
+    val fullConfig = FullConsensusConfig(consensusConfig, miningConfig)
+    val consensus = new ethash.EthashConsensus(blockchainConfig, fullConfig)
     consensus
   }
 
   private def loadDemoConsensus(): demo.DemoConsensus = {
     val demoConsensusConfig = demo.DemoConsensusConfig(mantisConfig)
-    val consensus = new demo.DemoConsensus(blockchainConfig, consensusConfig, demoConsensusConfig)
+    val fullConfig = FullConsensusConfig(consensusConfig, demoConsensusConfig)
+    val consensus = new demo.DemoConsensus(blockchainConfig, fullConfig)
     consensus
   }
 
   private def loadAtomixRaftConsensus(): atomixraft.AtomixRaftConsensus = {
     val atomixRaftConfig = atomixraft.AtomixRaftConfig(mantisConfig)
-    val consensus = new AtomixRaftConsensus(blockchainConfig, consensusConfig, atomixRaftConfig)
+    val fullConfig = FullConsensusConfig(consensusConfig, atomixRaftConfig)
+    val consensus = new AtomixRaftConsensus(blockchainConfig, fullConfig)
     consensus
   }
 
@@ -39,7 +42,7 @@ trait ConsensusBuilder {
     val consensus =
       config.protocol match {
         case Ethash ⇒ loadEthashConsensus()
-        case DemoPoS ⇒ loadDemoConsensus()
+        case Demo0 ⇒ loadDemoConsensus()
         case AtomixRaft ⇒ loadAtomixRaftConsensus()
       }
     log.info(s"'${protocol.name}' protocol implemented by ${consensus.getClass.getName}")

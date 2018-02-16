@@ -14,7 +14,6 @@ class DemoConsensusMinerBuilder(node: Node, demoConsensusConfig: DemoConsensusCo
     pendingTransactionsManager,
     syncController,
     demoConsensusConfig,
-    ethService,
-    consensus
+    ethService
   ))
 }

@@ -1,36 +1,35 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
-import java.util.function.UnaryOperator
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.UnaryOperator
 
-import akka.pattern.ask
-import akka.util.Timeout
-import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import akka.actor.ActorRef
-import io.iohk.ethereum.db.storage.AppStateStorage
-import akka.util.ByteString
+import akka.pattern.ask
+import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig}
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
+import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mining.BlockGenerator
-import io.iohk.ethereum.utils._
-import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
+import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
+import io.iohk.ethereum.utils._
 import org.spongycastle.util.encoders.Hex
 
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 // scalastyle:off number.of.methods number.of.types
@@ -172,7 +171,7 @@ class EthService(
     blockchain: Blockchain,
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
-    consensusConfig: ConsensusConfig,
+    fullConsensusConfig: FullConsensusConfig[_],
     ledger: Ledger,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
@@ -188,6 +187,13 @@ class EthService(
 
   val hashRate: AtomicReference[Map[ByteString, (BigInt, Date)]] = new AtomicReference[Map[ByteString, (BigInt, Date)]](Map())
   val lastActive = new AtomicReference[Option[Date]](None)
+
+  private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
+
+  private[this] def ifEthash[Req, Res](req: Req)(res: ⇒ Res): ServiceResponse[Res] = {
+    @inline def F[A](x: A) = Future.successful(x)
+    fullConsensusConfig.ifEthash[ServiceResponse[Res]](_ ⇒ F(Right(res)))(F(Left(JsonRpcErrors.ConsensusIsNotEthash)))
+  }
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
     Future.successful(Right(ProtocolVersionResponse(f"0x$protocolVersion%x")))
@@ -372,17 +378,18 @@ class EthService(
     Right(UncleByBlockNumberAndIndexResponse(uncleBlockResponseOpt))
   }
 
-  def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] = {
-    reportActive()
-    hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
-      override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
-        val now = new Date
-        removeObsoleteHashrates(now, t + (req.id -> (req.hashRate, now)))
-      }
-    })
+  def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] =
+    ifEthash(req) {
+      reportActive()
+      hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
+        override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
+          val now = new Date
+          removeObsoleteHashrates(now, t + (req.id -> (req.hashRate, now)))
+        }
+      })
 
-    Future.successful(Right(SubmitHashRateResponse(true)))
-  }
+      SubmitHashRateResponse(true)
+    }
 
   def getGetGasPrice(req: GetGasPriceRequest): ServiceResponse[GetGasPriceResponse] = {
     val blockDifference = 30
@@ -402,93 +409,90 @@ class EthService(
     }
   }
 
-  // FIXME implement only if consensus is PoW
-  def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] = ???/*{
-    val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
-      override def apply(e: Option[Date]): Option[Date] = {
-        e.filter { time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < miningConfig.activeTimeout.toMillis }
-      }
-    }).isDefined
-    Future.successful(Right(GetMiningResponse(isMining)))
-  }*/
+  def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] =
+    ifEthash(req) {
+      val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
+        override def apply(e: Option[Date]): Option[Date] = {
+          e.filter {
+            time => Duration.between(time.toInstant, (new Date).toInstant).toMillis < consensusConfig.activeTimeout.toMillis
+          }
+        }
+      }).isDefined
+
+      GetMiningResponse(isMining)
+    }
 
   private def reportActive() = {
     val now = new Date()
-    lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
-      override def apply(e: Option[Date]): Option[Date] = {
-        Some(now)
-      }
-    })
+    lastActive.updateAndGet(_ ⇒ Some(now))
   }
 
-  def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] = {
-    val hashRates: Map[ByteString, (BigInt, Date)] = hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
-      override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
-        removeObsoleteHashrates(new Date, t)
-      }
-    })
+  def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] =
+    ifEthash(req) {
+      val hashRates: Map[ByteString, (BigInt, Date)] = hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
+        override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
+          removeObsoleteHashrates(new Date, t)
+        }
+      })
 
-    //sum all reported hashRates
-    Future.successful(Right(GetHashRateResponse(hashRates.mapValues { case (hr, _) => hr }.values.sum)))
-  }
+      //sum all reported hashRates
+      GetHashRateResponse(hashRates.mapValues { case (hr, _) => hr }.values.sum)
+    }
 
-  // FIXME implement only if consensus is PoW
-  // Initial code used: miningConfig.activeTimeout
-  // and that's why I have introduced [[io.iohk.ethereum.consensus.ConsensusConfig.activeTimeout]]
+  // NOTE This is called from places that guarantee we are running Ethash consensus.
   private def removeObsoleteHashrates(now: Date, rates: Map[ByteString, (BigInt, Date)]):Map[ByteString, (BigInt, Date)]={
     rates.filter { case (_, (_, reported)) =>
       Duration.between(reported.toInstant, now.toInstant).toMillis < consensusConfig.activeTimeout.toMillis
     }
   }
 
-  // FIXME implement only if consensus is PoW
-  def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] = ???/*{
-    reportActive()
-    import io.iohk.ethereum.consensus.ethash.Ethash.{seed, epoch}
+  def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
+    // TODO: Review if this is the correct approach, that is if we enable the functionality only under Ethash consensus.
+    fullConsensusConfig.ifEthash(_ ⇒ {
+      reportActive()
+      import io.iohk.ethereum.consensus.ethash.Ethash.{seed, epoch}
 
-    val bestBlock = blockchain.getBestBlock()
+      val bestBlock = blockchain.getBestBlock()
+      getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map {
+        case (ommers, pendingTxs) =>
+          blockGenerator.generateBlockForMining(bestBlock, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, consensusConfig.coinbase) match {
+            case Right(pb) =>
+              Right(GetWorkResponse(
+                powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
+                dagSeed = seed(epoch(pb.block.header.number.toLong)),
+                target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
+              ))
+            case Left(err) =>
+              log.error(s"unable to prepare block because of $err")
+              Left(JsonRpcErrors.InternalError)
+          }
+      }
+    })(Future.successful(Left(JsonRpcErrors.ConsensusIsNotEthash)))
 
-    getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map {
-      case (ommers, pendingTxs) =>
-        blockGenerator.generateBlockForMining(bestBlock, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
-          case Right(pb) =>
-            Right(GetWorkResponse(
-              powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
-              dagSeed = seed(epoch(pb.block.header.number.toLong)),
-              target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
-            ))
-          case Left(err) =>
-            log.error(s"unable to prepare block because of $err")
-            Left(JsonRpcErrors.InternalError)
+  private def getOmmersFromPool(blockNumber: BigInt): Future[OmmersPool.Ommers] =
+    fullConsensusConfig.ifEthash(miningConfig ⇒ {
+      implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
+
+      (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
+        .recover { case ex =>
+          log.error("failed to get ommer, mining block with empty ommers list", ex)
+          OmmersPool.Ommers(Nil)
         }
-      }
-  }*/
+    })(Future.successful(OmmersPool.Ommers(Nil))) // NOTE If not Ethash consensus, ommers do not make sense, so => Nil
 
-  // FIXME implement only if consensus is PoW (??)
-  private def getOmmersFromPool(blockNumber: BigInt): Future[OmmersPool.Ommers] = ???/*{
-    implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
-
-    (ommersPool ? OmmersPool.GetOmmers(blockNumber)).mapTo[OmmersPool.Ommers]
-      .recover { case ex =>
-        log.error("failed to get ommer, mining block with empty ommers list", ex)
-        OmmersPool.Ommers(Nil)
-      }
-  }*/
-
-  // FIXME implement only if consensus is PoW (??)
-  private def getTransactionsFromPool: Future[PendingTransactionsResponse] = ???/*{
-    implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
+  // TODO This seems to be re-implemented elsewhere, probably move to a better place? Also generalize the error message.
+  private def getTransactionsFromPool: Future[PendingTransactionsResponse] = {
+    implicit val timeout = Timeout(consensusConfig.getTransactionFromPoolTimeout)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .recover { case ex =>
         log.error("failed to get transactions, mining block with empty transactions list", ex)
         PendingTransactionsResponse(Nil)
       }
-  }*/
+  }
 
-  // FIXME implement only if consensus is PoW (??)
-  def getCoinbase(req: GetCoinbaseRequest): ServiceResponse[GetCoinbaseResponse] = ???
-    /*Future.successful(Right(GetCoinbaseResponse(miningConfig.coinbase)))*/
+  def getCoinbase(req: GetCoinbaseRequest): ServiceResponse[GetCoinbaseResponse] =
+    Future.successful(Right(GetCoinbaseResponse(consensusConfig.coinbase)))
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
     reportActive()

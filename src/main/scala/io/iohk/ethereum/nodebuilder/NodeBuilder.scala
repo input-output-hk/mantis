@@ -296,12 +296,13 @@ trait EthServiceBuilder {
     KeyStoreBuilder with
     SyncControllerBuilder with
     OmmersPoolBuilder with
+    ConsensusBuilder with
     ConsensusConfigBuilder with
     FilterManagerBuilder with
     FilterConfigBuilder =>
 
   lazy val ethService = new EthService(blockchain, blockGenerator, storagesInstance.storages.appStateStorage,
-    consensusConfig, ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
+    consensus.config, ledger, keyStore, pendingTransactionsManager, syncController, ommersPool, filterManager, filterConfig,
     blockchainConfig, Config.Network.protocolVersion)
 }
 
@@ -468,6 +469,8 @@ trait ShutdownHookBuilder { self: Logger ⇒
     }
   }
 }
+
+object ShutdownHookBuilder extends ShutdownHookBuilder with Logger
 
 trait GenesisDataLoaderBuilder {
   self: BlockchainBuilder

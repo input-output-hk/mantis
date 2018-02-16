@@ -23,8 +23,7 @@ class DemoConsensusMiner(
   pendingTransactionsManager: ActorRef,
   syncController: ActorRef,
   demoConsensusConfig: DemoConsensusConfig,
-  ethService: EthService,
-  consensus: Consensus
+  ethService: EthService
 ) extends Actor with ActorLogging {
 
   import DemoConsensusMiner._
@@ -141,11 +140,10 @@ object DemoConsensusMiner {
     pendingTransactionsManager: ActorRef,
     syncController: ActorRef,
     miningConfig: DemoConsensusConfig,
-    ethService: EthService,
-    consensus: Consensus
+    ethService: EthService
   ): Props =
     Props(new DemoConsensusMiner(blockchain, blockGenerator, ommersPool,
-      pendingTransactionsManager, syncController, miningConfig, ethService, consensus))
+      pendingTransactionsManager, syncController, miningConfig, ethService))
 
   case object StartMining
   case object StopMining

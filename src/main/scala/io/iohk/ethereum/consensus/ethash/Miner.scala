@@ -30,9 +30,8 @@ class Miner(
   ommersPool: ActorRef,
   pendingTransactionsManager: ActorRef,
   syncController: ActorRef,
-  miningConfig: MiningConfig,
-  ethService: EthService,
-  consensus: Consensus
+  config: FullConsensusConfig[MiningConfig],
+  ethService: EthService
 ) extends Actor with ActorLogging {
 
   import Miner._
@@ -41,6 +40,9 @@ class Miner(
   var currentEpoch: Option[Long] = None
   var currentEpochDagSize: Option[Long] = None
   var currentEpochDag: Option[Array[Array[Int]]] = None
+
+  private[this] val consensusConfig = config.generic
+  private[this] val miningConfig = config.specific
 
   override def receive: Receive = stopped
 
@@ -172,7 +174,7 @@ class Miner(
 
   private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
     getOmmersFromPool(parentBlock.header.number + 1).zip(getTransactionsFromPool).flatMap { case (ommers, pendingTxs) =>
-      blockGenerator.generateBlockForMining(parentBlock, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, miningConfig.coinbase) match {
+      blockGenerator.generateBlockForMining(parentBlock, pendingTxs.pendingTransactions.map(_.stx), ommers.headers, consensusConfig.coinbase) match {
         case Right(pb) => Future.successful(pb)
         case Left(err) => Future.failed(new RuntimeException(s"Error while generating block for mining: $err"))
       }
@@ -190,7 +192,7 @@ class Miner(
   }
 
   private def getTransactionsFromPool = {
-    implicit val timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
+    implicit val timeout = Timeout(consensusConfig.getTransactionFromPoolTimeout)
 
     (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions).mapTo[PendingTransactionsResponse]
       .recover { case ex =>
@@ -206,11 +208,11 @@ object Miner {
     ommersPool: ActorRef,
     pendingTransactionsManager: ActorRef,
     syncController: ActorRef,
-    miningConfig: MiningConfig,
-    ethService: EthService,
-    consensus: Consensus): Props =
+    config: FullConsensusConfig[MiningConfig],
+    ethService: EthService
+  ): Props =
     Props(new Miner(blockchain, blockGenerator, ommersPool,
-      pendingTransactionsManager, syncController, miningConfig, ethService, consensus))
+      pendingTransactionsManager, syncController, config, ethService))
 
   sealed trait MinerMsg
   case object StartMining extends MinerMsg

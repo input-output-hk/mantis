@@ -1,25 +1,30 @@
 package io.iohk.ethereum.consensus
 
 import com.typesafe.config.{Config ⇒ TypesafeConfig}
+import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
 /**
+ * Provides generic consensus configuration. Each consensus protocol implementation
+ * will use its own specific configuration as well.
  *
  * @param protocol Designates the consensus protocol.
  * @param activeTimeout
- * @param miningEnabled Provides support for generalized "mining".
- *                      If this is `true` then the consensus protocol implementation must be notified via
- *                      [[io.iohk.ethereum.consensus.Consensus#startMiningProcess Consensus.startMiningProcess]]
- *                      in order to start its mining process.
+ * @param miningEnabled Provides support for generalized "mining". The exact semantics are up to the
+ *                      specific consensus protocol implementation.
  */
 final case class ConsensusConfig(
   protocol: Protocol,
 
-  // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.MiningConfig MiningConfig]]
+  coinbase: Address,
+
+    // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.MiningConfig MiningConfig]]
   activeTimeout: FiniteDuration,
+
+  getTransactionFromPoolTimeout: FiniteDuration,
 
   miningEnabled: Boolean
 )
@@ -28,14 +33,16 @@ object ConsensusConfig extends Logger {
   object Keys {
     final val Consensus = "consensus"
     final val Protocol = "protocol"
+    final val Coinbase = "coinbase"
     final val ActiveTimeout = "active-timeout"
     final val MiningEnabled = "mining-enabled"
+    final val GetTransactionFromPoolTimeout = "get-transaction-from-pool-timeout"
   }
 
 
   final val AllowedProtocols = Set(
     Protocol.Names.Ethash,
-    Protocol.Names.DemoConsensus,
+    Protocol.Names.Demo0,
     Protocol.Names.AtomixRaft
   )
 
@@ -58,16 +65,23 @@ object ConsensusConfig extends Logger {
   }
 
 
-  def apply(etcClientConfig: TypesafeConfig)(shutdownHook: ShutdownHookBuilder): ConsensusConfig = {
-    val config = etcClientConfig.getConfig(Keys.Consensus)
+  def apply(mantisConfig: TypesafeConfig)(shutdownHook: ShutdownHookBuilder): ConsensusConfig = {
+    val config = mantisConfig.getConfig(Keys.Consensus)
+
+    def millis(path: String): FiniteDuration = config.getDuration(path).toMillis.millis
 
     val protocol = shutdownHook.shutdownOnError(readProtocol(config))
-    val activeTimeout = config.getDuration(Keys.ActiveTimeout).toMillis.millis
+    val coinbase = Address(config.getString(Keys.Coinbase))
+
+    val activeTimeout = millis(Keys.ActiveTimeout)
     val miningEnabled = config.getBoolean(Keys.MiningEnabled)
+    val getTransactionFromPoolTimeout = millis(Keys.GetTransactionFromPoolTimeout)
 
     new ConsensusConfig(
       protocol = protocol,
+      coinbase = coinbase,
       activeTimeout = activeTimeout,
+      getTransactionFromPoolTimeout = getTransactionFromPoolTimeout,
       miningEnabled = miningEnabled
     )
   }

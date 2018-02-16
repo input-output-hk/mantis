@@ -1,4 +1,5 @@
-package io.iohk.ethereum.consensus
+package io.iohk.ethereum
+package consensus
 package ethash
 
 import java.util.concurrent.atomic.AtomicReference
@@ -16,9 +17,10 @@ import io.iohk.ethereum.validators.{BlockHeaderError, BlockHeaderValid, BlockHea
  */
 class EthashConsensus(
   blockchainConfig: BlockchainConfig,
-  consensusConfig: ConsensusConfig,
-  miningConfig: MiningConfig
+  val config: FullConsensusConfig[MiningConfig]
 ) extends Consensus {
+
+  type Config = MiningConfig
 
   private[this] val defaultValidator = new BlockHeaderValidatorImpl(blockchainConfig)
   private[this] val powValidator = new ethash.validators.BlockHeaderValidatorImpl(blockchainConfig)
@@ -43,7 +45,7 @@ class EthashConsensus(
   private[this] def startMiningProcess(node: Node): Unit = {
     atomicMiner.get() match {
       case None ⇒
-        val minerBuilder = new MinerBuilder(node, miningConfig)
+        val minerBuilder = new MinerBuilder(node, config.specific)
         val miner = minerBuilder.miner
         atomicMiner.set(Some(miner))
 
@@ -63,14 +65,16 @@ class EthashConsensus(
    * Starts the consensus protocol on the current `node`.
    */
   def startProtocol(node: Node): Unit = {
-    if(consensusConfig.miningEnabled) {
+    if(config.miningEnabled) {
       startMiningProcess(node)
     }
   }
 
   def stopProtocol(): Unit = {
-    if(consensusConfig.miningEnabled) {
+    if(config.miningEnabled) {
       stopMiningProcess()
     }
   }
+
+  def protocol: Protocol = consensus.Ethash
 }

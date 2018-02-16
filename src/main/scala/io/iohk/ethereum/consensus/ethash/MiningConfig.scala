@@ -1,18 +1,16 @@
-package io.iohk.ethereum.consensus
+package io.iohk.ethereum
+package consensus
 package ethash
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.Address
+import com.typesafe.config.{Config ⇒ TypesafeConfig}
 import io.iohk.ethereum.validators.BlockHeaderValidatorImpl
-import com.typesafe.config.{Config =>TypesafeConfig}
-import scala.concurrent.duration._
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{FiniteDuration, _}
 
 trait MiningConfig {
   val ommersPoolSize: Int // NOTE was only used to instantiate OmmersPool
   val blockCacheSize: Int // NOTE only used in BlockGenerator
-  val coinbase: Address
   val ommerPoolQueryTimeout: FiniteDuration
   val headerExtraData: ByteString // only used in BlockGenerator
   val ethashDir: String
@@ -24,7 +22,6 @@ object MiningConfig {
     val miningConfig = etcClientConfig.getConfig("mining")
 
     new MiningConfig {
-      val coinbase: Address = Address(miningConfig.getString("coinbase"))
       val blockCacheSize: Int = miningConfig.getInt("block-cashe-size")
       val ommersPoolSize: Int = miningConfig.getInt("ommers-pool-size")
       val ommerPoolQueryTimeout: FiniteDuration = miningConfig.getDuration("ommer-pool-query-timeout").toMillis.millis

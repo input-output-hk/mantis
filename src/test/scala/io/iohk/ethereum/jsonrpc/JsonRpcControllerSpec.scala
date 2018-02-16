@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.Ethash
+import io.iohk.ethereum.consensus.{Ethash, FullConsensusConfig}
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 // FIXME uncomment
 //import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
@@ -1422,7 +1422,6 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val filterManager = TestProbe()
 
     val miningConfig = new MiningConfig {
-      override val coinbase: Address = Address(Hex.decode("42" * 20))
       override val blockCacheSize: Int = 30
       override val ommersPoolSize: Int = 30
       override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -1431,11 +1430,17 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
       override val mineRounds: Int = 100000
     }
 
-    val consensusConfig: ConsensusConfig = ConsensusConfig(
+    val CoinbaseAddrNum = Hex.decode("42" * 20)
+
+    val consensusConfig: ConsensusConfig = new ConsensusConfig(
       protocol = Ethash, // FIXME is it OK for the test?
+      coinbase = Address(CoinbaseAddrNum),
       activeTimeout = Timeouts.shortTimeout,
+      getTransactionFromPoolTimeout = Timeouts.normalTimeout,
       miningEnabled = false
     )
+
+    val fullConsensusConfig = FullConsensusConfig(consensusConfig, miningConfig)
 
     val filterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -1448,7 +1453,7 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val web3Service = new Web3Service
     val netService = mock[NetService]
     val personalService = mock[PersonalService]
-    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, consensusConfig, ledger,
+    val ethService = new EthService(blockchain, blockGenerator, appStateStorage, fullConsensusConfig, ledger,
       keyStore, pendingTransactionsManager.ref, syncingController.ref, ommersPool.ref, filterManager.ref, filterConfig,
       blockchainConfig, currentProtocolVersion)
     val jsonRpcController = new JsonRpcController(web3Service, netService, ethService, personalService, config)
