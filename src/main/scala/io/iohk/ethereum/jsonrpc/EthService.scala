@@ -190,9 +190,9 @@ class EthService(
 
   private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
 
-  private[this] def ifEthash[Req, Res](req: Req)(res: ⇒ Res): ServiceResponse[Res] = {
+  private[this] def ifEthash[Req, Res](req: Req)(f: Req ⇒ Res): ServiceResponse[Res] = {
     @inline def F[A](x: A) = Future.successful(x)
-    fullConsensusConfig.ifEthash[ServiceResponse[Res]](_ ⇒ F(Right(res)))(F(Left(JsonRpcErrors.ConsensusIsNotEthash)))
+    fullConsensusConfig.ifEthash[ServiceResponse[Res]](_ ⇒ F(Right(f(req))))(F(Left(JsonRpcErrors.ConsensusIsNotEthash)))
   }
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
@@ -379,7 +379,7 @@ class EthService(
   }
 
   def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] =
-    ifEthash(req) {
+    ifEthash(req) { req ⇒
       reportActive()
       hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
         override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
@@ -410,7 +410,7 @@ class EthService(
   }
 
   def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] =
-    ifEthash(req) {
+    ifEthash(req) { req ⇒
       val isMining = lastActive.updateAndGet(new UnaryOperator[Option[Date]] {
         override def apply(e: Option[Date]): Option[Date] = {
           e.filter {
@@ -428,7 +428,7 @@ class EthService(
   }
 
   def getHashRate(req: GetHashRateRequest): ServiceResponse[GetHashRateResponse] =
-    ifEthash(req) {
+    ifEthash(req) { req ⇒
       val hashRates: Map[ByteString, (BigInt, Date)] = hashRate.updateAndGet(new UnaryOperator[Map[ByteString, (BigInt, Date)]] {
         override def apply(t: Map[ByteString, (BigInt, Date)]): Map[ByteString, (BigInt, Date)] = {
           removeObsoleteHashrates(new Date, t)
