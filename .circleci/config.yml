@@ -26,9 +26,9 @@ jobs:
           name: integration tests
           command: sbt coverageOff it:test
 
-      - run:
-          name: coverage report
-          command: sbt coverageReport coverageAggregate coveralls
+#      - run:
+#          name: coverage report
+#          command: sbt coverageReport coverageAggregate coveralls
 
       - store_artifacts:
           path: target/scala-2.12/coverage-report
