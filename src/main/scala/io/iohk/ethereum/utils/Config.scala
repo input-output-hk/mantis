@@ -13,6 +13,8 @@ import io.iohk.ethereum.jsonrpc.server.JsonRpcServer.JsonRpcServerConfig
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.NumericUtils._
+import io.iohk.ethereum.utils.VmConfig.ExternalConfig.StartVmConfig
+import io.iohk.ethereum.utils.VmConfig.VmMode
 import io.iohk.ethereum.validators.BlockHeaderValidatorImpl
 import org.spongycastle.util.encoders.Hex
 
@@ -418,6 +420,48 @@ object PruningConfig {
 
     new PruningConfig {
       override val mode: PruningMode = pruningMode
+    }
+  }
+}
+
+case class VmConfig(
+    mode: VmMode,
+    externalConfig: Option[VmConfig.ExternalConfig])
+
+object VmConfig {
+
+  sealed trait VmMode
+  object VmMode {
+    case object Local extends VmMode
+    case object External extends VmMode
+  }
+
+  case class ExternalConfig(startVm: ExternalConfig.StartVmConfig, host: String, port: Int)
+
+  object ExternalConfig {
+    sealed trait StartVmConfig
+    object StartVmConfig {
+      case object Mantis extends StartVmConfig
+      case object Iele extends StartVmConfig
+      case object None extends StartVmConfig
+    }
+  }
+
+  def apply(mpConfig: TypesafeConfig): VmConfig = {
+    def parseExternalConfig(): ExternalConfig = {
+      val startVmConfig = mpConfig.getString("vm.external.start-vm") match {
+        case "mantis" => StartVmConfig.Mantis
+        case "iele" => StartVmConfig.Iele
+        case "none" => StartVmConfig.None
+        case other => throw new RuntimeException(s"Unknown VM to start: $other. Expected one of: mantis, iele, none")
+      }
+      ExternalConfig(startVmConfig, mpConfig.getString("vm.external.host"), mpConfig.getInt("vm.external.port"))
+    }
+
+    mpConfig.getString("vm.mode") match {
+      case "local" => VmConfig(VmMode.Local, None)
+      case "external" => VmConfig(VmMode.External, Some(parseExternalConfig()))
+      case other => throw new RuntimeException(s"Unknown VM mode: $other. Expected one of: local, external")
     }
   }
 }

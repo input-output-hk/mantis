@@ -26,7 +26,7 @@ object VmServerApp {
 
   def main(args: Array[String]): Unit = {
     val config = ConfigFactory.load()
-    Tcp().bind(config.getString("mantis.extvm.host"), config.getInt("mantis.extvm.port"))
+    Tcp().bind(config.getString("mantis.vm.external.host"), config.getInt("mantis.vm.external.port"))
       .runForeach(connection => handleConnection(connection.flow))
   }
 
