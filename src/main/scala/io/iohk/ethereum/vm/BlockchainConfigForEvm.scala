@@ -11,9 +11,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 case class BlockchainConfigForEvm(
   frontierBlockNumber: BigInt,
   homesteadBlockNumber: BigInt,
-  eip106BlockNumber: BigInt,
   eip150BlockNumber: BigInt,
-  eip155BlockNumber: BigInt,
   eip160BlockNumber: BigInt,
   eip161BlockNumber: BigInt,
   maxCodeSize: Option[BigInt],
@@ -26,9 +24,7 @@ object BlockchainConfigForEvm {
     BlockchainConfigForEvm(
       frontierBlockNumber = frontierBlockNumber,
       homesteadBlockNumber = homesteadBlockNumber,
-      eip106BlockNumber = eip106BlockNumber,
       eip150BlockNumber = eip150BlockNumber,
-      eip155BlockNumber = eip155BlockNumber,
       eip160BlockNumber = eip160BlockNumber,
       eip161BlockNumber = eip161BlockNumber,
       maxCodeSize = maxCodeSize,

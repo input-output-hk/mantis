@@ -33,13 +33,12 @@ class FrontierConfig extends BlockchainTestConfig {
   override val frontierBlockNumber = 0
 }
 class HomesteadConfig extends BlockchainTestConfig {
+  override val frontierBlockNumber = -1
   override val homesteadBlockNumber = 0
 }
 class Eip150Config extends BlockchainTestConfig {
-
-  // To keep difficulty calculation relevant, we need to have network order
-  // frontier >> homestead >> eip150
-  override val homesteadBlockNumber: BigInt = -1
+  override val frontierBlockNumber = -1
+  override val homesteadBlockNumber = -1
   override val eip150BlockNumber = 0
 }
 class FrontierToHomesteadAt5 extends BlockchainTestConfig {
@@ -47,10 +46,12 @@ class FrontierToHomesteadAt5 extends BlockchainTestConfig {
   override val homesteadBlockNumber = 5
 }
 class HomesteadToEIP150At5 extends BlockchainTestConfig {
-  override val eip150BlockNumber = 5
+  override val frontierBlockNumber = -1
   override val homesteadBlockNumber = 0
+  override val eip150BlockNumber = 5
 }
 class HomesteadToDaoAt5 extends BlockchainTestConfig {
+  override val frontierBlockNumber = -1
   override val homesteadBlockNumber = 0
   override val daoForkConfig: Option[DaoForkConfig] = Some(
     new DaoForkConfig {
@@ -182,7 +183,11 @@ class HomesteadToDaoAt5 extends BlockchainTestConfig {
 }
 
 class Eip158Config extends BlockchainTestConfig {
+  override val frontierBlockNumber = -1
   override val homesteadBlockNumber = -1
+  override val eip150BlockNumber = -1
+  override val eip155BlockNumber = -1
+  override val eip160BlockNumber = -1
   override val eip161BlockNumber: BigInt = 0
   override val maxCodeSize: Option[BigInt] = Some(24576)
 }

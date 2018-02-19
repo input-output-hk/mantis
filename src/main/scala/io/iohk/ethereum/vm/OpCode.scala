@@ -853,9 +853,9 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       g
   }
 
-  private def gasExtra[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], callValue: UInt256, to: Address): BigInt = {
+  private def gasExtra[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], endowment: UInt256, to: Address): BigInt = {
 
-    val isValueTransfer = callValue > 0
+    val isValueTransfer = endowment > 0
 
     def postEip161CostCondition: Boolean =
       state.world.isAccountDead(to) && this == CALL && isValueTransfer
@@ -867,7 +867,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       if (state.config.noEmptyAccounts && postEip161CostCondition || !state.config.noEmptyAccounts && preEip161CostCondition)
         state.config.feeSchedule.G_newaccount else 0
 
-    val c_xfer: BigInt = if (callValue.isZero) 0 else state.config.feeSchedule.G_callvalue
+    val c_xfer: BigInt = if (endowment.isZero) 0 else state.config.feeSchedule.G_callvalue
     state.config.feeSchedule.G_call + c_xfer + c_new
   }
 }

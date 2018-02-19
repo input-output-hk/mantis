@@ -152,9 +152,7 @@ class VMClient(
     msg.EthereumConfig(
       frontierBlockNumber = blockchainConfig.frontierBlockNumber,
       homesteadBlockNumber = blockchainConfig.homesteadBlockNumber,
-      eip106BlockNumber = blockchainConfig.eip106BlockNumber,
       eip150BlockNumber = blockchainConfig.eip150BlockNumber,
-      eip155BlockNumber = blockchainConfig.eip155BlockNumber,
       eip160BlockNumber = blockchainConfig.eip160BlockNumber,
       eip161BlockNumber = blockchainConfig.eip161BlockNumber,
       maxCodeSize = blockchainConfig.maxCodeSize.map(bigintToGByteString).getOrElse(ByteString()),

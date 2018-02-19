@@ -74,7 +74,7 @@ class VMServer(
   private def awaitHello(): Unit = {
     val helloMsg = messageHandler.awaitMessage[msg.Hello]
     //TODO: handle properly, read version from file
-    require(helloMsg.version == "1.0")
+    require(helloMsg.version == "1.1")
     require(helloMsg.config.isEthereumConfig)
     defaultBlockchainConfig = constructBlockchainConfig(helloMsg.config.ethereumConfig.get)
   }
@@ -176,9 +176,7 @@ class VMServer(
     BlockchainConfigForEvm(
       frontierBlockNumber = conf.frontierBlockNumber,
       homesteadBlockNumber = conf.homesteadBlockNumber,
-      eip106BlockNumber = conf.eip106BlockNumber,
       eip150BlockNumber = conf.eip150BlockNumber,
-      eip155BlockNumber = conf.eip155BlockNumber,
       eip160BlockNumber = conf.eip160BlockNumber,
       eip161BlockNumber = conf.eip161BlockNumber,
       maxCodeSize = if (conf.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(conf.maxCodeSize)),

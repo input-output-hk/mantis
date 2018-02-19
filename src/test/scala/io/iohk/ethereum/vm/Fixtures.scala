@@ -6,9 +6,7 @@ object Fixtures {
     // block numbers are irrelevant
     frontierBlockNumber = 0,
     homesteadBlockNumber = 0,
-    eip106BlockNumber = 0,
     eip150BlockNumber = 0,
-    eip155BlockNumber = 0,
     eip160BlockNumber = 0,
     eip161BlockNumber = 0,
     maxCodeSize = None,

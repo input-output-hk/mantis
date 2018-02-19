@@ -113,7 +113,7 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def halt: ProgramState[W, S] =
     copy(halted = true)
-  
+
   def toResult: ProgramResult[W, S] =
     ProgramResult[W, S](
       returnData,

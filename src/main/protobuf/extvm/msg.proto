@@ -42,13 +42,11 @@ message BlockHeader {
 message EthereumConfig {
   bytes frontierBlockNumber = 1;
   bytes homesteadBlockNumber = 2;
-  bytes eip106BlockNumber = 3;
-  bytes eip150BlockNumber = 4;
-  bytes eip155BlockNumber = 5;
-  bytes eip160BlockNumber = 6;
-  bytes eip161BlockNumber = 7;
-  bytes maxCodeSize = 8;
-  bytes accountStartNonce = 17;
+  bytes eip150BlockNumber = 3;
+  bytes eip160BlockNumber = 4;
+  bytes eip161BlockNumber = 5;
+  bytes maxCodeSize = 6;
+  bytes accountStartNonce = 7;
 }
 
 message IeleConfig {

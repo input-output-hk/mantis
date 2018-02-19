@@ -14,10 +14,10 @@ object Implicits {
     GByteString.copyFrom(a.toArray)
 
   implicit def uint256ToGByteString(u: UInt256): GByteString =
-    GByteString.copyFrom(u.bytes.toArray)
+    u.toBigInt
 
   implicit def bigintToGByteString(b: BigInt): GByteString =
-    UInt256(b)
+    GByteString.copyFrom(b.toByteArray)
 
   implicit def byteStringFromGByteString(gb: GByteString): ByteString =
     ByteString(gb.toByteArray)
@@ -26,8 +26,8 @@ object Implicits {
     Address(gb.toByteArray)
 
   implicit def uint256FromGByteString(gb: GByteString): UInt256 =
-    UInt256(gb.toByteArray)
+    UInt256(gb: BigInt)
 
   implicit def bigintFromGByteString(gb: GByteString): BigInt =
-    gb.toBigInt
+    BigInt(gb.toByteArray)
 }
