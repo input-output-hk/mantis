@@ -10,6 +10,7 @@ import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode, NodesKeyValueStorage}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
+import org.spongycastle.util.BigIntegers
 
 /**
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
@@ -235,10 +236,11 @@ class BlockchainImpl(
     }
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = {
-    storageMpt(
+    val value = storageMpt(
       rootHash,
       nodesKeyValueStorageFor(None)
-    ).get(UInt256(position).bytes).getOrElse(ByteString(0x00))
+    ).get(position).getOrElse(BigInt(0))
+    ByteString(BigIntegers.asUnsignedByteArray(value.bigInteger))
   }
 
   override def save(blockHeader: BlockHeader): Unit = {

@@ -21,8 +21,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   }
 
   it should "allow to save and get storage" in new TestSetup {
-    val addr = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue).bytes
-    val value = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue).bytes
+    val addr = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue).toBigInt
+    val value = Generators.getUInt256Gen().sample.getOrElse(UInt256.MaxValue).toBigInt
 
     val storage = worldState
       .getStorage(address1)
@@ -51,7 +51,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val persistedWithContractStorageValue = InMemoryWorldStateProxy.persistState(
       persistedWorldStateWithAnAccount.saveStorage(address1, worldState
         .getStorage(address1)
-        .store(UInt256.One.bytes, UInt256.Zero.bytes)
+        .store(UInt256.One, UInt256.Zero)
       )
     )
     persistedWorldStateWithAnAccount.stateRootHash shouldEqual persistedWithContractStorageValue.stateRootHash
@@ -65,7 +65,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val persistedWithContractStorageValue = InMemoryWorldStateProxy.persistState(
       persistedWorldStateWithAnAccount.saveStorage(address1, worldState
         .getStorage(address1)
-        .store(UInt256.One.bytes, UInt256.One.bytes)
+        .store(UInt256.One, UInt256.One)
       )
     )
     persistedWorldStateWithAnAccount.stateRootHash equals persistedWithContractStorageValue.stateRootHash shouldBe false
@@ -73,7 +73,7 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
     val persistedWithZero = InMemoryWorldStateProxy.persistState(
       persistedWorldStateWithAnAccount.saveStorage(address1, worldState
         .getStorage(address1)
-        .store(UInt256.One.bytes, UInt256.Zero.bytes)
+        .store(UInt256.One, UInt256.Zero)
       )
     )
 
@@ -83,8 +83,8 @@ class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
   it should "be able to persist changes and continue working after that" in new TestSetup {
 
     val account = Account(0, 100)
-    val addr = UInt256.Zero.bytes
-    val value = UInt256.MaxValue.bytes
+    val addr = UInt256.Zero.toBigInt
+    val value = UInt256.MaxValue.toBigInt
     val code = ByteString(Hex.decode("deadbeefdeadbeefdeadbeef"))
 
     val validateInitialWorld = (ws: InMemoryWorldStateProxy) => {

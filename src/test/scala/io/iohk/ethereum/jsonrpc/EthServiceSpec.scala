@@ -652,7 +652,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
 
     val storageMpt =
       io.iohk.ethereum.domain.storageMpt(ByteString(MerklePatriciaTrie.EmptyRootHash), new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))
-        .put(UInt256(333).bytes, UInt256(123).bytes)
+        .put(UInt256(333), UInt256(123))
 
     val mpt =
       MerklePatriciaTrie[Array[Byte], Account](new ArchiveNodeStorage(storagesInstance.storages.nodeStorage))

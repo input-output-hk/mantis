@@ -22,6 +22,8 @@ object Address {
 
   def apply(uint: UInt256): Address = Address(uint.bytes)
 
+  def apply(bigInt: BigInt): Address = Address(UInt256(bigInt))
+
   def apply(arr: Array[Byte]): Address = Address(ByteString(arr))
 
   def apply(addr: Long): Address = Address(UInt256(addr))

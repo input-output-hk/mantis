@@ -111,21 +111,21 @@ object InMemoryWorldStateProxy {
     * @return Proxied Contract Storage Trie
     */
   private def createProxiedContractStorageTrie(contractStorage: NodesKeyValueStorage, storageRoot: ByteString):
-  InMemorySimpleMapProxy[ByteString, ByteString, MerklePatriciaTrie[ByteString, ByteString]] =
-    InMemorySimpleMapProxy.wrap[ByteString, ByteString, MerklePatriciaTrie[ByteString, ByteString]](domain.storageMpt(storageRoot, contractStorage))
+  InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]] =
+    InMemorySimpleMapProxy.wrap[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]](domain.storageMpt(storageRoot, contractStorage))
 }
 
-class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[ByteString, ByteString, MerklePatriciaTrie[ByteString, ByteString]])
+class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]])
   extends Storage[InMemoryWorldStateProxyStorage] {
 
-  override def store(addr: ByteString, value: ByteString): InMemoryWorldStateProxyStorage = {
+  override def store(addr: BigInt, value: BigInt): InMemoryWorldStateProxyStorage = {
     val newWrapped =
-      if (value.forall(_ == 0x00)) wrapped - addr
+      if (value == 0) wrapped - addr
       else wrapped + (addr -> value)
     new InMemoryWorldStateProxyStorage(newWrapped)
   }
 
-  override def load(addr: ByteString): ByteString = wrapped.get(addr).getOrElse(ByteString(0x00))
+  override def load(addr: BigInt): BigInt = wrapped.get(addr).getOrElse(0)
 }
 
 class InMemoryWorldStateProxy private[ledger](
@@ -134,7 +134,7 @@ class InMemoryWorldStateProxy private[ledger](
   val stateStorage: NodesKeyValueStorage,
   val accountsStateTrie: InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]],
   // Contract Storage Proxies by Address
-  val contractStorages: Map[Address, InMemorySimpleMapProxy[ByteString, ByteString, MerklePatriciaTrie[ByteString, ByteString]]],
+  val contractStorages: Map[Address, InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]]],
   //It's easier to use the storage instead of the blockchain here (because of proxy wrapping). We might need to reconsider this
   val evmCodeStorage: EvmCodeStorage,
   // Account's code by Address
@@ -211,7 +211,7 @@ class InMemoryWorldStateProxy private[ledger](
   private def copyWith(
     stateStorage: NodesKeyValueStorage = stateStorage,
     accountsStateTrie: InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] = accountsStateTrie,
-    contractStorages: Map[Address, InMemorySimpleMapProxy[ByteString, ByteString, MerklePatriciaTrie[ByteString, ByteString]]] = contractStorages,
+    contractStorages: Map[Address, InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]]] = contractStorages,
     evmCodeStorage: EvmCodeStorage = evmCodeStorage,
     accountCodes: Map[Address, Code] = accountCodes,
     touchedAccounts: Set[Address] = touchedAccounts

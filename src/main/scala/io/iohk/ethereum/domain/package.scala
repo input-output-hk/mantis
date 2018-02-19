@@ -1,19 +1,30 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
-import io.iohk.ethereum.mpt.{ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie, NodesKeyValueStorage}
+import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie, NodesKeyValueStorage}
 import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.utils.ByteUtils
+import org.spongycastle.util.BigIntegers
 
 package object domain {
 
-  val rlpByteStringSerializer = new ByteArraySerializable[ByteString] {
-    override def fromBytes(bytes: Array[Byte]): ByteString = rlp.decode[ByteString](bytes)
-    override def toBytes(input: ByteString): Array[Byte] = rlp.encode(if (input.forall(_ == 0x00)) ByteString(0x00) else input.dropWhile(_ == 0x00))
+  val byteArrayBigIntSerializer = new ByteArrayEncoder[BigInt] {
+    override def toBytes(input: BigInt): Array[Byte] =
+      ByteUtils.padLeft(ByteString(BigIntegers.asUnsignedByteArray(input.bigInteger)), 32).toArray[Byte]
   }
 
-  def storageMpt(rootHash: ByteString, nodeStorage: NodesKeyValueStorage): MerklePatriciaTrie[ByteString, ByteString] = {
-    MerklePatriciaTrie[ByteString, ByteString](rootHash.toArray[Byte], nodeStorage)(
-      HashByteArraySerializable(mpt.byteStringSerializer), rlpByteStringSerializer)
+  val rlpBigIntSerializer = new ByteArraySerializable[BigInt] {
+    override def fromBytes(bytes: Array[Byte]): BigInt = {
+      BigIntegers.fromUnsignedByteArray(rlp.decode[ByteString](bytes).toArray[Byte])
+    }
+
+    override def toBytes(input: BigInt): Array[Byte] = {
+      val enc = BigIntegers.asUnsignedByteArray(input.bigInteger)
+      rlp.encode[ByteString](if (enc.isEmpty) ByteString(0x00) else ByteString(enc))
+    }
   }
+
+  def storageMpt(rootHash: ByteString, nodeStorage: NodesKeyValueStorage): MerklePatriciaTrie[BigInt, BigInt] =
+    MerklePatriciaTrie[BigInt, BigInt](rootHash.toArray[Byte], nodeStorage)(HashByteArraySerializable(byteArrayBigIntSerializer), rlpBigIntSerializer)
 
 }

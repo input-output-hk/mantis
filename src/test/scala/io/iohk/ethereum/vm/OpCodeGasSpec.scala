@@ -366,7 +366,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
   }
 
   test(SSTORE) { op =>
-    val storage = MockStorage.Empty.store(Zero.bytes, One.bytes)
+    val storage = MockStorage.Empty.store(Zero, One)
     val table = Table[UInt256, UInt256, BigInt, BigInt](("offset", "value", "expectedGas", "expectedRefund"),
       (0, 1, G_sreset, 0),
       (0, 0, G_sreset, R_sclear),
@@ -393,7 +393,7 @@ class OpCodeGasSpec extends FunSuite with OpCodeTesting with Matchers with Prope
       val stateOut = op.execute(stateIn)
 
       val (Seq(offset, value), _) = stateIn.stack.pop(2)
-      val oldValue = stateIn.storage.load(offset.bytes)
+      val oldValue = stateIn.storage.load(offset)
       val expectedGas: BigInt = if (UInt256(oldValue).isZero && !value.isZero) G_sset else G_sreset
       val expectedRefund: BigInt = if (value.isZero && !UInt256(oldValue).isZero) R_sclear else Zero
 
