@@ -24,7 +24,7 @@ class FibonacciSpec extends FreeSpec with Matchers {
       val getNewRes = contract.getNewFib(6).call()
 
       getNewRes.error shouldBe None
-      UInt256(contract.storage.load(UInt256(0).bytes)) shouldBe UInt256(8)
+      contract.storage.load(0) shouldBe BigInt(8)
 
       val getStoredRes = contract.getStoredFib().call()
 
