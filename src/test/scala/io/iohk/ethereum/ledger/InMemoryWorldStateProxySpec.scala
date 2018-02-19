@@ -8,7 +8,6 @@ import io.iohk.ethereum.vm.{EvmConfig, Generators}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
-// scalastyle:off
 class InMemoryWorldStateProxySpec extends FlatSpec with Matchers {
 
   "InMemoryWorldStateProxy" should "allow to create and retrieve an account" in new TestSetup {

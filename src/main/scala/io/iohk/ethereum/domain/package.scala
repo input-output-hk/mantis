@@ -14,14 +14,8 @@ package object domain {
   }
 
   val rlpBigIntSerializer = new ByteArraySerializable[BigInt] {
-    override def fromBytes(bytes: Array[Byte]): BigInt = {
-      BigIntegers.fromUnsignedByteArray(rlp.decode[ByteString](bytes).toArray[Byte])
-    }
-
-    override def toBytes(input: BigInt): Array[Byte] = {
-      val enc = BigIntegers.asUnsignedByteArray(input.bigInteger)
-      rlp.encode[ByteString](if (enc.isEmpty) ByteString(0x00) else ByteString(enc))
-    }
+    override def fromBytes(bytes: Array[Byte]): BigInt = rlp.decode[BigInt](bytes)
+    override def toBytes(input: BigInt): Array[Byte] = rlp.encode[BigInt](input)
   }
 
   def storageMpt(rootHash: ByteString, nodeStorage: NodesKeyValueStorage): MerklePatriciaTrie[BigInt, BigInt] =
