@@ -1,9 +1,9 @@
 package io.iohk.ethereum.validators
 
-import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{decode, encode}
 
 object MptListValidator {

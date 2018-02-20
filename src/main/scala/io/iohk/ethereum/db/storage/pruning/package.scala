@@ -14,14 +14,14 @@ package object pruning {
       * @param blockNumber BlockNumber to prune
       * @param nodeStorage NodeStorage
       */
-    def prune(blockNumber: BigInt, nodeStorage: NodeStorage)
+    def prune(blockNumber: BigInt, nodeStorage: NodesStorage)
 
     /**
       * Rollbacks blocknumber changes
       * @param blockNumber BlockNumber to rollback
       * @param nodeStorage NodeStorage
       */
-    def rollback(blockNumber: BigInt, nodeStorage: NodeStorage)
+    def rollback(blockNumber: BigInt, nodeStorage: NodesStorage)
   }
 
   object PruningMode {
@@ -31,7 +31,7 @@ package object pruning {
       * @param blockNumber block number to be used as tag when doing update / removal operations. None can be sent if read only
       * @return Storage to be used
       */
-    def nodesKeyValueStorage(pruningMode: PruningMode, nodeStorage: NodeStorage)(blockNumber: Option[BigInt]): NodesKeyValueStorage =
+    def nodesKeyValueStorage(pruningMode: PruningMode, nodeStorage: NodesStorage)(blockNumber: Option[BigInt]): NodesKeyValueStorage =
       pruningMode match {
         case ArchivePruning => new ArchiveNodeStorage(nodeStorage)
         case BasicPruning(history) => new ReferenceCountNodeStorage(nodeStorage, blockNumber)
@@ -43,7 +43,7 @@ package object pruning {
       * @param blockNumber Block number to prune
       * @param nodeStorage NodeStorage
       */
-    def prune(pruningMode: PruningMode, blockNumber: BigInt, nodeStorage: NodeStorage): Unit =
+    def prune(pruningMode: PruningMode, blockNumber: BigInt, nodeStorage: NodesStorage): Unit =
       pruningMode match {
         case ArchivePruning => ArchiveNodeStorage.prune(blockNumber, nodeStorage)
         case BasicPruning(history) => ReferenceCountNodeStorage.prune(blockNumber - history, nodeStorage)
@@ -55,7 +55,7 @@ package object pruning {
       * @param blockNumber Block number to rollback
       * @param nodeStorage NodeStorage
       */
-    def rollback(pruningMode: PruningMode, blockNumber: BigInt, nodeStorage: NodeStorage): Unit = {
+    def rollback(pruningMode: PruningMode, blockNumber: BigInt, nodeStorage: NodesStorage): Unit = {
       val pruneSupport: PruneSupport = pruningMode match {
         case ArchivePruning => ArchiveNodeStorage
         case BasicPruning(history) => ReferenceCountNodeStorage

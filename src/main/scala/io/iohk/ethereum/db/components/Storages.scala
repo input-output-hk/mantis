@@ -1,13 +1,23 @@
 package io.iohk.ethereum.db.components
 
+import com.github.blemale.scaffeine.Scaffeine
+import io.iohk.ethereum.db.cache.{CombinedCache, MapCache}
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
+
+import scala.collection.mutable
 
 object Storages {
 
   trait PruningModeComponent {
     val pruningMode: PruningMode
   }
+
+  private val upcache = mutable.Map.empty[NodeHash, Option[NodeEncoded]]
+  private val newCache = new MapCache[NodeHash, NodeEncoded](upcache)
+  private val readCache = Scaffeine().maximumSize(10000).build[NodeHash, NodeEncoded]()
+  private val comb = new CombinedCache[NodeHash, NodeEncoded](upcache, readCache)
 
   trait DefaultStorages extends StoragesComponent {
 
@@ -26,6 +36,8 @@ object Storages {
       override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
 
       override val nodeStorage: NodeStorage = new NodeStorage(dataSources.mptDataSource)
+
+      override val cachedNodeStorage: CachedNodeStorage = new CachedNodeStorage(nodeStorage, comb)
 
       override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSources.fastSyncStateDataSource)
 
@@ -64,6 +76,8 @@ object Storages {
       override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSources.receiptsDataSource)
 
       override val nodeStorage: NodeStorage = new NodeStorage(dataSources.mptDataSource)
+
+      override val cachedNodeStorage: CachedNodeStorage = new CachedNodeStorage(nodeStorage, newCache)
 
       override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSources.fastSyncStateDataSource)
 

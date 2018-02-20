@@ -1,15 +1,22 @@
 package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
+import io.iohk.ethereum.db.cache.Cache
 import io.iohk.ethereum.db.dataSource.DataSource
-import io.iohk.ethereum.db.storage.NodeStorage._
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+
+//TODO naming could be better
+sealed trait NodesStorage <: {
+  def get(key: NodeHash): Option[NodeEncoded]
+  def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesStorage
+}
 
 /**
   * This class is used to store Nodes (defined in mpt/Node.scala), by using:
   *   Key: hash of the RLP encoded node
   *   Value: the RLP encoded node
   */
-class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, NodeEncoded, NodeStorage] {
+class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, NodeEncoded, NodeStorage] with NodesStorage {
 
   val namespace: IndexedSeq[Byte] = Namespaces.NodeNamespace
   def keySerializer: NodeHash => IndexedSeq[Byte] = _.toIndexedSeq
@@ -18,6 +25,13 @@ class NodeStorage(val dataSource: DataSource) extends KeyValueStorage[NodeHash, 
 
   protected def apply(dataSource: DataSource): NodeStorage = new NodeStorage(dataSource)
 }
+
+class CachedNodeStorage(val storage: NodeStorage, val cache: Cache[NodeHash, NodeEncoded])
+  extends CachedKeyValueStorage[NodeHash, NodeEncoded, CachedNodeStorage] with NodesStorage {
+  override type I = NodeStorage
+  override def apply(cache: Cache[NodeHash, NodeEncoded], storage: NodeStorage): CachedNodeStorage = new CachedNodeStorage(storage, cache)
+}
+
 
 object NodeStorage {
   type NodeHash = ByteString

@@ -2,6 +2,7 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import org.scalatest.{FlatSpec, Matchers}
 
 class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
@@ -174,7 +175,7 @@ class ReferenceCountNodeStorageSpec extends FlatSpec with Matchers {
     val dataSource = EphemDataSource()
     val nodeStorage = new NodeStorage(dataSource)
 
-    def insertRangeKeys(n: Int, storage: ReferenceCountNodeStorage): Seq[(ByteString, Array[Byte])] = {
+    def insertRangeKeys(n: Int, storage: NodesKeyValueStorage): Seq[(ByteString, Array[Byte])] = {
       val toInsert = (1 to n).map(i => ByteString(s"key$i") -> ByteString(s"value$i").toArray[Byte])
       toInsert.foreach(i => storage.put(i._1, i._2))
       toInsert

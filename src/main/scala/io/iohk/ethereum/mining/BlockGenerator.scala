@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.function.UnaryOperator
 
 import akka.util.ByteString
+import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction, _}
@@ -14,12 +15,11 @@ import io.iohk.ethereum.mining.BlockGenerator.InvalidOmmers
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
-import io.iohk.ethereum.utils.{BlockchainConfig, MiningConfig}
 import io.iohk.ethereum.utils.ByteUtils.or
+import io.iohk.ethereum.utils.{BlockchainConfig, MiningConfig}
 import io.iohk.ethereum.validators.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.validators.Validators
-import io.iohk.ethereum.crypto._
 
 class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig, miningConfig: MiningConfig,
   ledger: Ledger, validators: Validators, blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider) {
@@ -142,6 +142,7 @@ class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
   }
 
   private def buildMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString = {
+
     val mpt = MerklePatriciaTrie[Int, K](
       source = new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))
     )(intByteArraySerializable, vSerializable)

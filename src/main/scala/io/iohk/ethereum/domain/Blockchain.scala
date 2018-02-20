@@ -126,13 +126,14 @@ trait Blockchain {
     * @param saveAsBestBlock - whether to save the block's number as current best block
     */
   def save(block: Block, receipts: Seq[Receipt], totalDifficulty: BigInt, saveAsBestBlock: Boolean): Unit = {
+    pruneState(block.header.number)
+    persistCachedNodes()
     save(block)
     save(block.header.hash, receipts)
     save(block.header.hash, totalDifficulty)
     if (saveAsBestBlock) {
       saveBestBlockNumber(block.header.number)
     }
-    pruneState(block.header.number)
   }
 
   /**
@@ -191,6 +192,8 @@ trait Blockchain {
   def pruneState(blockNumber: BigInt): Unit
 
   def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit
+
+  def persistCachedNodes(): Unit
 }
 // scalastyle:on
 
@@ -202,6 +205,7 @@ class BlockchainImpl(
     protected val evmCodeStorage: EvmCodeStorage,
     protected val pruningMode: PruningMode,
     protected val nodeStorage: NodeStorage,
+    protected val cachedNodeStorage: CachedNodeStorage,
     protected val totalDifficultyStorage: TotalDifficultyStorage,
     protected val transactionMappingStorage: TransactionMappingStorage,
     protected val appStateStorage: AppStateStorage
@@ -265,8 +269,10 @@ class BlockchainImpl(
 
   def save(blockhash: ByteString, td: BigInt): Unit = totalDifficultyStorage.put(blockhash, td)
 
-  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit =
+  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = {
     nodesKeyValueStorageFor(Some(blockNumber)).put(nodeHash, nodeEncoded)
+    persistCachedNodes()
+  }
 
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     blockNumberMappingStorage.get(number)
@@ -297,6 +303,8 @@ class BlockchainImpl(
         appStateStorage.putBestBlockNumber(h.number - 1)
       }
     }
+
+    persistCachedNodes()
   }
 
   private def saveTxsLocations(blockHash: ByteString, blockBody: BlockBody): Unit =
@@ -338,11 +346,15 @@ class BlockchainImpl(
     )
 
   def nodesKeyValueStorageFor(blockNumber: Option[BigInt]): NodesKeyValueStorage =
-    PruningMode.nodesKeyValueStorage(pruningMode, nodeStorage)(blockNumber)
+    PruningMode.nodesKeyValueStorage(pruningMode, cachedNodeStorage)(blockNumber)
 
-  def pruneState(blockNumber: BigInt): Unit = PruningMode.prune(pruningMode, blockNumber, nodeStorage)
+  def pruneState(blockNumber: BigInt): Unit = PruningMode.prune(pruningMode, blockNumber, cachedNodeStorage)
 
-  def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit = PruningMode.rollback(pruningMode, blockNumber, nodeStorage)
+  def rollbackStateChangesMadeByBlock(blockNumber: BigInt): Unit = PruningMode.rollback(pruningMode, blockNumber, cachedNodeStorage)
+
+  def persistCachedNodes(): Unit = {
+    cachedNodeStorage.persist()
+  }
 }
 
 trait BlockchainStorages {
@@ -356,6 +368,7 @@ trait BlockchainStorages {
   val nodeStorage: NodeStorage
   val pruningMode: PruningMode
   val appStateStorage: AppStateStorage
+  val cachedNodeStorage: CachedNodeStorage
 }
 
 object BlockchainImpl {
@@ -368,6 +381,7 @@ object BlockchainImpl {
       evmCodeStorage = storages.evmCodeStorage,
       pruningMode = storages.pruningMode,
       nodeStorage = storages.nodeStorage,
+      cachedNodeStorage = storages.cachedNodeStorage,
       totalDifficultyStorage = storages.totalDifficultyStorage,
       transactionMappingStorage = storages.transactionMappingStorage,
       appStateStorage = storages.appStateStorage

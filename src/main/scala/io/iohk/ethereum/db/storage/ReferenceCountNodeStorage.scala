@@ -28,7 +28,7 @@ import io.iohk.ethereum.utils.Logger
   * Storing snapshot info this way allows for easy construction of snapshot key (based on a block number
   * and number of snapshots) and therefore, fast access to each snapshot individually.
   */
-class ReferenceCountNodeStorage(nodeStorage: NodeStorage, blockNumber: Option[BigInt] = None)
+class ReferenceCountNodeStorage(nodeStorage: NodesStorage, blockNumber: Option[BigInt] = None)
   extends NodesKeyValueStorage {
 
   import ReferenceCountNodeStorage._
@@ -108,7 +108,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     * @param blockNumber BlockNumber to prune
     * @param nodeStorage NodeStorage
     */
-  override def prune(blockNumber: BigInt, nodeStorage: NodeStorage): Unit = {
+  override def prune(blockNumber: BigInt, nodeStorage: NodesStorage): Unit = {
     log.debug(s"Pruning block $blockNumber")
 
     withSnapshotCount(blockNumber, nodeStorage) { (snapshotsCountKey, snapshotCount) =>
@@ -126,7 +126,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     * @param blockNumber BlockNumber to rollback
     * @param nodeStorage NodeStorage
     */
-  override def rollback(blockNumber: BigInt, nodeStorage: NodeStorage): Unit =
+  override def rollback(blockNumber: BigInt, nodeStorage: NodesStorage): Unit =
     withSnapshotCount(blockNumber, nodeStorage) { (snapshotsCountKey, snapshotCount) =>
       // Get all the snapshots
       val snapshots = snapshotKeysUpTo(blockNumber, snapshotCount)
@@ -142,7 +142,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
       nodeStorage.update(toRemove :+ snapshotsCountKey, toUpsert)
     }
 
-  private def withSnapshotCount(blockNumber: BigInt, nodeStorage: NodeStorage)(f: (ByteString, BigInt) => Unit): Unit = {
+  private def withSnapshotCount(blockNumber: BigInt, nodeStorage: NodesStorage)(f: (ByteString, BigInt) => Unit): Unit = {
     val snapshotsCountKey = getSnapshotsCountKey(blockNumber)
     // Look for snapshot count for given block number
     val maybeSnapshotCount = nodeStorage.get(snapshotsCountKey).map(snapshotsCountFromBytes)
@@ -166,7 +166,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     * @param nodeStorage
     * @return
     */
-  private def getNodesToBeRemovedInPruning(blockNumber: BigInt, snapshotKeys: Seq[NodeHash], nodeStorage: NodeStorage): Seq[NodeHash] =
+  private def getNodesToBeRemovedInPruning(blockNumber: BigInt, snapshotKeys: Seq[NodeHash], nodeStorage: NodesStorage): Seq[NodeHash] =
     snapshotKeys.foldLeft(Seq.empty[Option[NodeHash]]) { (nodesToRemove, snapshotKey) =>
       val toRemove = for {
         snapshot <- nodeStorage.get(snapshotKey).map(snapshotFromBytes)

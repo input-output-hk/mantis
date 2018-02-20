@@ -97,9 +97,10 @@ class GenesisDataLoader(
       val ephemNodeStorage =  PruningMode.nodesKeyValueStorage(pruning.ArchivePruning, nodeStorage)(Some(idx - genesisData.alloc.size))
       val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, ephemNodeStorage)
       val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
-      mpt.put(crypto.kec256(Hex.decode(paddedAddress)),
+      val stateRoot = mpt.put(crypto.kec256(Hex.decode(paddedAddress)),
         Account(blockchainConfig.accountStartNonce, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash)
       ).getRootHash
+      stateRoot
     }
 
     val header: BlockHeader = prepareHeader(genesisData, stateMptRootHash)
