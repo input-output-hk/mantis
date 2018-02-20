@@ -134,7 +134,7 @@ class MinerSpec extends FlatSpec with Matchers {
         gasLimit = calculateGasLimit(parent.gasLimit),
         gasUsed = BigInt(0),
         unixTimestamp = blockForMiningTimestamp,
-        extraData = miningConfig.headerExtraData,
+        extraData = consensusConfig.headerExtraData,
         mixHash = ByteString.empty,
         nonce = ByteString.empty
       ), BlockBody(Seq(txToMine), Nil))

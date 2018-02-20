@@ -493,6 +493,7 @@ class EthService(
   def getCoinbase(req: GetCoinbaseRequest): ServiceResponse[GetCoinbaseResponse] =
     Future.successful(Right(GetCoinbaseResponse(consensusConfig.coinbase)))
 
+  // FIXME only valid for Ethash consensus?
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] = {
     reportActive()
     Future {

@@ -21,7 +21,6 @@ abstract class ScenarioSetup(vm: VM, scenario: BlockchainScenario)
   with SyncConfigBuilder
   with BlockchainConfigBuilder
   with ActorSystemBuilder
-  // FIXME What are the semantics after PoW decoupling?
   with ConsensusBuilder
   with ConsensusConfigBuilder
   with ShutdownHookBuilder

@@ -15,5 +15,7 @@ object JsonRpcErrors {
   def LogicError(msg: String) = JsonRpcError(-32000, msg, None)
   val AccountLocked = LogicError("account is locked or unknown")
 
-  val ConsensusIsNotEthash = JsonRpcError(200, "The consensus algorithm is not Ethash", None)
+  // Using the recommendation from https://github.com/ethereum/wiki/wiki/JSON-RPC-Error-Codes-Improvement-Proposal
+  // Error Code "2", "Action not allowed" could be a candidate here
+  final val ConsensusIsNotEthash = JsonRpcError(200, "The consensus algorithm is not Ethash", None)
 }

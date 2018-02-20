@@ -1,9 +1,11 @@
 package io.iohk.ethereum.consensus
 
+import akka.util.ByteString
 import com.typesafe.config.{Config ⇒ TypesafeConfig}
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.validators.BlockHeaderValidatorImpl
 
 import scala.concurrent.duration.{FiniteDuration, _}
 
@@ -21,8 +23,14 @@ final case class ConsensusConfig(
 
   coinbase: Address,
 
-    // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.MiningConfig MiningConfig]]
+  // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.MiningConfig MiningConfig]]
   activeTimeout: FiniteDuration,
+
+  // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.MiningConfig MiningConfig]]
+  headerExtraData: ByteString, // only used in BlockGenerator
+
+  // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.MiningConfig MiningConfig]]
+  blockCacheSize: Int, // only used in BlockGenerator
 
   getTransactionFromPoolTimeout: FiniteDuration,
 
@@ -35,6 +43,8 @@ object ConsensusConfig extends Logger {
     final val Protocol = "protocol"
     final val Coinbase = "coinbase"
     final val ActiveTimeout = "active-timeout"
+    final val HeaderExtraData = "header-extra-data"
+    final val BlockCacheSize = "block-cashe-size"
     final val MiningEnabled = "mining-enabled"
     final val GetTransactionFromPoolTimeout = "get-transaction-from-pool-timeout"
   }
@@ -74,13 +84,19 @@ object ConsensusConfig extends Logger {
     val coinbase = Address(config.getString(Keys.Coinbase))
 
     val activeTimeout = millis(Keys.ActiveTimeout)
+    val headerExtraData = ByteString(config.getString(Keys.HeaderExtraData).getBytes)
+      .take(BlockHeaderValidatorImpl.MaxExtraDataSize)
+    val blockCacheSize = config.getInt(Keys.BlockCacheSize)
     val miningEnabled = config.getBoolean(Keys.MiningEnabled)
+
     val getTransactionFromPoolTimeout = millis(Keys.GetTransactionFromPoolTimeout)
 
     new ConsensusConfig(
       protocol = protocol,
       coinbase = coinbase,
       activeTimeout = activeTimeout,
+      headerExtraData = headerExtraData,
+      blockCacheSize = blockCacheSize,
       getTransactionFromPoolTimeout = getTransactionFromPoolTimeout,
       miningEnabled = miningEnabled
     )

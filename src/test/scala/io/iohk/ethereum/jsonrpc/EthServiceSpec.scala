@@ -366,8 +366,6 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     response shouldEqual SyncingResponse(None)
   }
 
-
-  // FIXME decide to uncomment when we implement PoW decoupling
   it should "return requested work" in new TestSetup {
     (blockGenerator.generateBlockForMining _).expects(parentBlock, Nil, *, *).returning(Right(PendingBlock(block, Nil)))
     blockchain.save(parentBlock, Nil, parentBlock.header.difficulty, true)

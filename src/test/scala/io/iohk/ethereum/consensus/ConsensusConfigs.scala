@@ -7,15 +7,14 @@ import io.iohk.ethereum.domain.Address
 
 /** Provides utility values used throughout tests */
 object ConsensusConfigs {
+  final val blockCacheSize = 30
   final val coinbaseAddressNum = 42
   final val coinbase = Address(coinbaseAddressNum)
 
   //noinspection ScalaStyle
   final val miningConfig = new MiningConfig(
-    blockCacheSize = 30,
     ommersPoolSize = 30,
     ommerPoolQueryTimeout = Timeouts.normalTimeout,
-    headerExtraData = ByteString.empty,
     ethashDir = "~/.ethash",
     mineRounds = 100000
   )
@@ -24,6 +23,8 @@ object ConsensusConfigs {
     protocol = Ethash,
     coinbase = coinbase,
     activeTimeout = Timeouts.shortTimeout,
+    headerExtraData = ByteString.empty,
+    blockCacheSize = blockCacheSize,
     getTransactionFromPoolTimeout = miningConfig.ommerPoolQueryTimeout,
     miningEnabled = false
   )

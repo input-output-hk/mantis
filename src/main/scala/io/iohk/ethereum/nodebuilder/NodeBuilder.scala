@@ -276,12 +276,13 @@ trait FilterManagerBuilder {
 
 trait BlockGeneratorBuilder {
   self: BlockchainConfigBuilder with
+    ConsensusConfigBuilder with
     ValidatorsBuilder with
     LedgerBuilder with
     BlockchainBuilder =>
 
-  lazy val headerExtraData: ByteString = ByteString.empty // FIXME implement
-  lazy val blockCacheSize: Int = 0         // FIXME implement
+  lazy val headerExtraData: ByteString = consensusConfig.headerExtraData
+  lazy val blockCacheSize: Int = consensusConfig.blockCacheSize
   lazy val blockGenerator = new BlockGenerator(blockchain, blockchainConfig, headerExtraData, blockCacheSize, ledger, validators)
 }
 
@@ -343,7 +344,7 @@ trait OmmersPoolBuilder {
     BlockchainBuilder with
     ConsensusConfigBuilder =>
 
-  lazy val ommersPoolSize: Int = 0 // FIXME Implement (using ConsensusConfigBuilder ??)
+  lazy val ommersPoolSize: Int = 30 // FIXME For this we need MiningConfig, which means Ethash consensus
   lazy val ommersPool: ActorRef = actorSystem.actorOf(OmmersPool.props(blockchain, ommersPoolSize))
 }
 
@@ -488,8 +489,6 @@ trait SecureRandomBuilder {
 /**
  * Provides the basic functionality of a Node, except the consensus algorithm.
  * The latter is loaded dynamically based on configuration.
- *
- * @see [[]]
  */
 trait Node extends NodeKeyBuilder
   with ActorSystemBuilder

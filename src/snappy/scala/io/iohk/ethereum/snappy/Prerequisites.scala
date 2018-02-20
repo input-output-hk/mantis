@@ -52,7 +52,6 @@ class Prerequisites(config: Config) {
   val targetBlockchain = targetStorages.map(ts => BlockchainImpl(ts.storages))
 
   private val components = new ValidatorsBuilder with BlockchainConfigBuilder with SyncConfigBuilder
-    // FIXME What are the semantics after PoW decoupling?
     with ConsensusBuilder with ConsensusConfigBuilder with ShutdownHookBuilder with Logger
 
 

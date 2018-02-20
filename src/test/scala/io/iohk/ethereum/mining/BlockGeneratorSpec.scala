@@ -328,18 +328,6 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     val bestBlock = blockchain.getBestBlock()
 
-    // FIXME delete
-//    val miningConfig = new MiningConfig {
-//      override val coinbase: Address = Address(42)
-//      override val blockCacheSize: Int = 30
-//      override val ommersPoolSize: Int = 30
-//      override val ommerPoolQueryTimeout: FiniteDuration = Timeouts.normalTimeout
-//      override val headerExtraData: ByteString = ByteString("mined with etc scala")
-//      override val miningEnabled: Boolean = false
-//      override val ethashDir: String = "~/.ethash"
-//      override val mineRounds: Int = 100000
-//    }
-
     lazy val blockTimestampProvider = new FakeBlockTimestampProvider
 
     val blockCacheSize: Int = 30

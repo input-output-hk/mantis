@@ -106,7 +106,6 @@ trait ScenarioSetup
   with ValidatorsBuilder
   with SyncConfigBuilder
   with BlockchainConfigBuilder
-  // FIXME What are the semantics after PoW decoupling?
   with ConsensusBuilder
   with ConsensusConfigBuilder
   with ShutdownHookBuilder
