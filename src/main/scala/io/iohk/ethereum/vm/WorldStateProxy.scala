@@ -14,7 +14,7 @@ import io.iohk.ethereum.rlp.UInt256RLPImplicits._
   * should be kept in memory and applied only after a transaction completes without errors. This does not forbid mutable
   * caches for DB retrieval operations.
   */
-trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS =>
+trait WorldStateProxy[WS <: WorldStateProxy[WS, S, T], S <: Storage[T, S], T] { self: WS =>
 
   def getAccount(address: Address): Option[Account]
   def saveAccount(address: Address, account: Account): WS
