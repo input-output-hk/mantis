@@ -50,10 +50,10 @@ object VmSetup {
         startVm match {
           case Mantis =>
             Thread.currentThread().getContextClassLoader match {
-              case ucl: URLClassLoader => VmSetup.startMantisVmProcess(ucl.getURLs.map(_.getFile))
-              case _ => VmSetup.startMantisVmInThisProcess()
+              case ucl: URLClassLoader => startMantisVmProcess(ucl.getURLs.map(_.getFile))
+              case _ => startMantisVmInThisProcess()
             }
-          case Iele => VmSetup.startIeleVmProcess(host, port)
+          case Iele => startIeleVmProcess(host, port)
           case None => // nothing
         }
         new ExtVMInterface(host, port, blockchainConfig)
