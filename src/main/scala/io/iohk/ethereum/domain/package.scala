@@ -8,17 +8,32 @@ import org.spongycastle.util.BigIntegers
 
 package object domain {
 
-  val byteArrayBigIntSerializer = new ByteArrayEncoder[BigInt] {
-    override def toBytes(input: BigInt): Array[Byte] =
-      ByteUtils.padLeft(ByteString(BigIntegers.asUnsignedByteArray(input.bigInteger)), 32).toArray[Byte]
+  object EthereumUInt256Mpt {
+    val byteArrayBigIntSerializer = new ByteArrayEncoder[BigInt] {
+      override def toBytes(input: BigInt): Array[Byte] =
+        ByteUtils.padLeft(ByteString(BigIntegers.asUnsignedByteArray(input.bigInteger)), 32).toArray[Byte]
+    }
+
+    val rlpBigIntSerializer = new ByteArraySerializable[BigInt] {
+      override def fromBytes(bytes: Array[Byte]): BigInt = rlp.decode[BigInt](bytes)
+
+      override def toBytes(input: BigInt): Array[Byte] = rlp.encode[BigInt](input)
+    }
+
+    def storageMpt(rootHash: ByteString, nodeStorage: NodesKeyValueStorage): MerklePatriciaTrie[BigInt, BigInt] =
+      MerklePatriciaTrie[BigInt, BigInt](rootHash.toArray[Byte], nodeStorage)(HashByteArraySerializable(byteArrayBigIntSerializer), rlpBigIntSerializer)
   }
 
-  val rlpBigIntSerializer = new ByteArraySerializable[BigInt] {
-    override def fromBytes(bytes: Array[Byte]): BigInt = rlp.decode[BigInt](bytes)
-    override def toBytes(input: BigInt): Array[Byte] = rlp.encode[BigInt](input)
-  }
+  object ArbitraryIntegerMpt {
+    // does it have to use RLP?
+    val bigIntSerializer = new ByteArraySerializable[BigInt] {
+      override def fromBytes(bytes: Array[Byte]): BigInt = BigInt(bytes)
 
-  def storageMpt(rootHash: ByteString, nodeStorage: NodesKeyValueStorage): MerklePatriciaTrie[BigInt, BigInt] =
-    MerklePatriciaTrie[BigInt, BigInt](rootHash.toArray[Byte], nodeStorage)(HashByteArraySerializable(byteArrayBigIntSerializer), rlpBigIntSerializer)
+      override def toBytes(input: BigInt): Array[Byte] = input.toByteArray
+    }
+
+    def storageMpt(rootHash: ByteString, nodeStorage: NodesKeyValueStorage): MerklePatriciaTrie[BigInt, BigInt] =
+      MerklePatriciaTrie[BigInt, BigInt](rootHash.toArray[Byte], nodeStorage)(HashByteArraySerializable(bigIntSerializer), bigIntSerializer)
+  }
 
 }

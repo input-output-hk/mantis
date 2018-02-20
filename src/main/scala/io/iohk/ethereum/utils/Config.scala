@@ -345,6 +345,8 @@ trait BlockchainConfig {
   val monetaryPolicyConfig: MonetaryPolicyConfig
 
   val gasTieBreaker: Boolean
+
+  val contractStorageEthereumCompatibility: Boolean = true
 }
 
 

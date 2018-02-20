@@ -235,7 +235,7 @@ class BlockchainImpl(
     }
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt): ByteString = {
-    val value = storageMpt(
+    val value = EthereumUInt256Mpt.storageMpt(
       rootHash,
       nodesKeyValueStorageFor(None)
     ).get(position).getOrElse(BigInt(0))

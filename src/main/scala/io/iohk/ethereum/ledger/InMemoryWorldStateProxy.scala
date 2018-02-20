@@ -34,7 +34,8 @@ object InMemoryWorldStateProxy {
       getBlockHashByNumber,
       accountStartNonce,
       Set.empty,
-      noEmptyAccounts
+      noEmptyAccounts,
+      ethCompatibleStorage = true
     )
   }
 
@@ -100,19 +101,6 @@ object InMemoryWorldStateProxy {
       )(Address.hashedAddressEncoder, accountSerializer)
     )
   }
-
-  /**
-    * Returns an [[InMemorySimpleMapProxy]] of the contract storage defined as "trie as a map-ping from the Keccak
-    * 256-bit hash of the 256-bit integer keys to the RLP-encoded256-bit integer values."
-    * See [[http://paper.gavwood.com YP 4.1]]
-    *
-    * @param contractStorage Storage where trie nodes are saved
-    * @param storageRoot     Trie root
-    * @return Proxied Contract Storage Trie
-    */
-  private def createProxiedContractStorageTrie(contractStorage: NodesKeyValueStorage, storageRoot: ByteString):
-  InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]] =
-    InMemorySimpleMapProxy.wrap[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]](domain.storageMpt(storageRoot, contractStorage))
 }
 
 class InMemoryWorldStateProxyStorage(val wrapped: InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]])
@@ -145,10 +133,9 @@ class InMemoryWorldStateProxy private[ledger](
   // execution. Touched account are only added to Set if noEmptyAccountsCond == true, otherwise all other operations
   // operate on empty set.
   val touchedAccounts: Set[Address],
-  val noEmptyAccountsCond: Boolean
+  val noEmptyAccountsCond: Boolean,
+  val ethCompatibleStorage: Boolean
 ) extends WorldStateProxy[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage] {
-
-  import InMemoryWorldStateProxy._
 
   override def getAccount(address: Address): Option[Account] = accountsStateTrie.get(address)
 
@@ -225,9 +212,30 @@ class InMemoryWorldStateProxy private[ledger](
       getBlockByNumber,
       accountStartNonce,
       touchedAccounts,
-      noEmptyAccountsCond
+      noEmptyAccountsCond,
+      ethCompatibleStorage
     )
 
   override def getBlockHash(number: UInt256): Option[UInt256] = getBlockByNumber(number).map(UInt256(_))
+
+  /**
+    * Returns an [[InMemorySimpleMapProxy]] of the contract storage defined as "trie as a map-ping from the Keccak
+    * 256-bit hash of the 256-bit integer keys to the RLP-encoded256-bit integer values."
+    * See [[http://paper.gavwood.com YP 4.1]]
+    *
+    * @param contractStorage Storage where trie nodes are saved
+    * @param storageRoot     Trie root
+    * @return Proxied Contract Storage Trie
+    */
+  private def createProxiedContractStorageTrie(contractStorage: NodesKeyValueStorage, storageRoot: ByteString):
+  InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]] = {
+    val mpt =
+      if (ethCompatibleStorage)
+        domain.EthereumUInt256Mpt.storageMpt(storageRoot, contractStorage)
+      else
+        domain.ArbitraryIntegerMpt.storageMpt(storageRoot, contractStorage)
+
+    InMemorySimpleMapProxy.wrap[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]](mpt)
+  }
 }
 
