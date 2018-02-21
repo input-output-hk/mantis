@@ -153,6 +153,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val accountStartNonce: UInt256 = UInt256.Zero
       override val daoForkConfig: Option[DaoForkConfig] = None
       val gasTieBreaker: Boolean = false
+      val ethCompatibleStorage: Boolean = true
     }
 
     val generalTx = SignedTransaction.sign(transaction, keyPair, None)
@@ -312,6 +313,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
       override val accountStartNonce: UInt256 = UInt256.Zero
       override val daoForkConfig: Option[DaoForkConfig] = None
       val gasTieBreaker: Boolean = false
+      val ethCompatibleStorage: Boolean = true
     }
 
     val syncConfig = SyncConfig(Config.config)

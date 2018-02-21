@@ -19,7 +19,8 @@ object InMemoryWorldStateProxy {
     accountStartNonce: UInt256,
     getBlockHashByNumber: BigInt => Option[ByteString],
     stateRootHash: Option[ByteString] = None,
-    noEmptyAccounts: Boolean
+    noEmptyAccounts: Boolean,
+    ethCompatibleStorage: Boolean
   ): InMemoryWorldStateProxy = {
     val accountsStateTrieProxy = createProxiedAccountsStateTrie(
       nodesKeyValueStorage,
@@ -35,7 +36,7 @@ object InMemoryWorldStateProxy {
       accountStartNonce,
       Set.empty,
       noEmptyAccounts,
-      ethCompatibleStorage = true
+      ethCompatibleStorage
     )
   }
 
@@ -219,7 +220,7 @@ class InMemoryWorldStateProxy private[ledger](
   override def getBlockHash(number: UInt256): Option[UInt256] = getBlockByNumber(number).map(UInt256(_))
 
   /**
-    * Returns an [[InMemorySimpleMapProxy]] of the contract storage defined as "trie as a map-ping from the Keccak
+    * Returns an [[InMemorySimpleMapProxy]] of the contract storage, for `ethCompatibleStorage` defined as "trie as a map-ping from the Keccak
     * 256-bit hash of the 256-bit integer keys to the RLP-encoded256-bit integer values."
     * See [[http://paper.gavwood.com YP 4.1]]
     *
@@ -238,4 +239,3 @@ class InMemoryWorldStateProxy private[ledger](
     InMemorySimpleMapProxy.wrap[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]](mpt)
   }
 }
-

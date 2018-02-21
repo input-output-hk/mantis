@@ -151,6 +151,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
       override val homesteadBlockNumber: BigInt = defaultBlockchainConfig.homesteadBlockNumber
       override val accountStartNonce: UInt256 = defaultBlockchainConfig.accountStartNonce
       val gasTieBreaker: Boolean = false
+      val ethCompatibleStorage: Boolean = true
     }
 
     val syncConfig = SyncConfig(Config.config)

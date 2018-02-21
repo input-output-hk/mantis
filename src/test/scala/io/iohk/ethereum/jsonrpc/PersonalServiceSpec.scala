@@ -426,6 +426,7 @@ class PersonalServiceSpec extends FlatSpec with Matchers with MockFactory with S
       override val monetaryPolicyConfig: MonetaryPolicyConfig = new MonetaryPolicyConfig(0, 0, 0)
       override val daoForkConfig: Option[DaoForkConfig] = None
       val gasTieBreaker: Boolean = false
+      val ethCompatibleStorage: Boolean = true
     }
 
     val wallet = Wallet(address, prvKey)

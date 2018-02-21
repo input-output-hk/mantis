@@ -371,7 +371,8 @@ class LedgerImpl(
   def prepareBlock(block: Block): BlockPreparationResult = {
 
     val parentStateRoot = blockchain.getBlockHeaderByHash(block.header.parentHash).map(_.stateRoot)
-    val initialWorld = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, parentStateRoot)
+    val initialWorld = blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, parentStateRoot,
+      ethCompatibleStorage = blockchainConfig.ethCompatibleStorage)
     val prepared = executePreparedTransactions(block.body.transactionList, initialWorld, block.header)
 
     prepared match {
@@ -395,7 +396,8 @@ class LedgerImpl(
         block.header.number,
         blockchainConfig.accountStartNonce,
         parentStateRoot,
-        EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts)
+        EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
+        ethCompatibleStorage = blockchainConfig.ethCompatibleStorage)
 
     val inputWorld = blockchainConfig.daoForkConfig match {
       case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(block.header.number) => drainDaoForkAccounts(initialWorld, daoForkConfig)
@@ -475,7 +477,8 @@ class LedgerImpl(
 
   override def simulateTransaction(stx: SignedTransaction, blockHeader: BlockHeader, world: Option[InMemoryWorldStateProxy]): TxResult = {
 
-    val world1 = world.getOrElse(blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(blockHeader.stateRoot)))
+    val world1 = world.getOrElse(blockchain.getReadOnlyWorldStateProxy(None, blockchainConfig.accountStartNonce, Some(blockHeader.stateRoot),
+      ethCompatibleStorage = blockchainConfig.ethCompatibleStorage))
 
     val world2 =
       if (world1.getAccount(stx.senderAddress).isEmpty)

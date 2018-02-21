@@ -27,6 +27,7 @@ trait BlockchainTestConfig extends BlockchainConfig {
 
   // TODO: only place where this was supposed to be used but now it seems it's not, remove? Issue: EC-312
   val gasTieBreaker: Boolean = false
+  val ethCompatibleStorage: Boolean = true
 }
 
 class FrontierConfig extends BlockchainTestConfig {

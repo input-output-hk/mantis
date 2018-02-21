@@ -199,6 +199,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
         override val refundContract: Option[Address] = None
       })
       val gasTieBreaker: Boolean = false
+      val ethCompatibleStorage: Boolean = true
     }
 
     val etcHandshakerConfigurationWithResolver = new MockEtcHandshakerConfiguration {

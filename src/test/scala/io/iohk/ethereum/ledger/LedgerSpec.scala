@@ -951,11 +951,12 @@ class LedgerSpec extends FlatSpec with PropertyChecks with Matchers with MockFac
       override val eip106BlockNumber = Long.MaxValue
       override val maxCodeSize: Option[BigInt] = None
       val gasTieBreaker: Boolean = false
+      val ethCompatibleStorage: Boolean = true
     }
 
     (testBlockchain.getBlockHeaderByHash _).expects(proDaoBlock.header.parentHash).returning(Some(Fixtures.Blocks.DaoParentBlock.header))
     (testBlockchain.getWorldStateProxy _)
-      .expects(proDaoBlock.header.number, proDaoBlockchainConfig.accountStartNonce, Some(Fixtures.Blocks.DaoParentBlock.header.stateRoot), false)
+      .expects(proDaoBlock.header.number, proDaoBlockchainConfig.accountStartNonce, Some(Fixtures.Blocks.DaoParentBlock.header.stateRoot), false, true)
       .returning(worldState)
   }
 

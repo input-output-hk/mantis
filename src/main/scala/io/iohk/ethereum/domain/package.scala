@@ -25,10 +25,8 @@ package object domain {
   }
 
   object ArbitraryIntegerMpt {
-    // does it have to use RLP?
     val bigIntSerializer = new ByteArraySerializable[BigInt] {
       override def fromBytes(bytes: Array[Byte]): BigInt = BigInt(bytes)
-
       override def toBytes(input: BigInt): Array[Byte] = input.toByteArray
     }
 

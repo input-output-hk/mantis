@@ -284,6 +284,7 @@ class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyCheck
       override val customGenesisFileOpt: Option[String] = None
       override val accountStartNonce: UInt256 = UInt256.Zero
       val gasTieBreaker: Boolean = false
+      val ethCompatibleStorage: Boolean = true
     }
 
   val ProDaoBlock1920008Header = BlockHeader(

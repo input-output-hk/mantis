@@ -346,7 +346,7 @@ trait BlockchainConfig {
 
   val gasTieBreaker: Boolean
 
-  val contractStorageEthereumCompatibility: Boolean = true
+  val ethCompatibleStorage: Boolean
 }
 
 
@@ -382,6 +382,8 @@ object BlockchainConfig {
       override val monetaryPolicyConfig = MonetaryPolicyConfig(blockchainConfig.getConfig("monetary-policy"))
 
       val gasTieBreaker: Boolean = blockchainConfig.getBoolean("gas-tie-breaker")
+
+      val ethCompatibleStorage: Boolean = blockchainConfig.getBoolean("eth-compatible-storage")
     }
   }
 }
