@@ -1,5 +1,6 @@
 package io.iohk.ethereum.txExecTest
 
+import io.iohk.ethereum.consensus.Validators
 import io.iohk.ethereum.domain.{BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
@@ -21,43 +22,43 @@ class ContractTest extends FlatSpec with Matchers {
     val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
   }
 
-  "Ledger" should "transfer ether" in {
+  "Ledger" should "transfer ether" in new ScenarioSetup {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract")
 
     val storage = FixtureProvider.prepareStorages(0, fixtures)
     val blockchain = BlockchainImpl(storage)
 
     //block only with ether transfers
-    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators).executeBlock(fixtures.blockByNumber(1)) shouldBe noErrors
+    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators).executeBlock(fixtures.blockByNumber(1)) shouldBe noErrors
   }
 
-  it should "deploy contract" in {
+  it should "deploy contract" in new ScenarioSetup {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract")
 
     val storage = FixtureProvider.prepareStorages(1, fixtures)
     val blockchain = BlockchainImpl(storage)
 
     //contract creation
-    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators).executeBlock(fixtures.blockByNumber(2)) shouldBe noErrors
+    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators).executeBlock(fixtures.blockByNumber(2)) shouldBe noErrors
   }
 
-  it should "execute contract call" in {
+  it should "execute contract call" in new ScenarioSetup {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract")
 
     val storage = FixtureProvider.prepareStorages(2, fixtures)
     val blockchain = BlockchainImpl(storage)
 
     //block with ether transfers and contract call
-    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators).executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
+    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators).executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
   }
 
-  it should "execute contract that pays 2 accounts" in {
+  it should "execute contract that pays 2 accounts" in new ScenarioSetup {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract")
 
     val storage = FixtureProvider.prepareStorages(2, fixtures)
     val blockchain = BlockchainImpl(storage)
 
     //block contains contract paying 2 accounts
-    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators).executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
+    new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators).executeBlock(fixtures.blockByNumber(3)) shouldBe noErrors
   }
 }

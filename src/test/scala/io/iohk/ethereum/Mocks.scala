@@ -1,6 +1,7 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.Validators
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult

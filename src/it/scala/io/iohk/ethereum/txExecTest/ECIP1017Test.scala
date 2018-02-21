@@ -1,5 +1,6 @@
 package io.iohk.ethereum.txExecTest
 
+import io.iohk.ethereum.consensus.Validators
 import io.iohk.ethereum.domain.{BlockchainImpl, Receipt, UInt256}
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
@@ -51,7 +52,7 @@ class ECIP1017Test extends FlatSpec with Matchers {
     * as the reward reaches zero at era 193 (which starts at block number 579), given an eraDuration of 3,
     * a rewardReductionRate of 0.2 and a firstEraBlockReward of 5 ether.
     */
-  "Ledger" should "execute blocks with respect to block reward changed by ECIP 1017" in {
+  "Ledger" should "execute blocks with respect to block reward changed by ECIP 1017" in new ScenarioSetup {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/ecip1017Test")
 
     val startBlock = 1
@@ -60,7 +61,7 @@ class ECIP1017Test extends FlatSpec with Matchers {
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchain = BlockchainImpl(storages)
-      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
+      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators)
 
       ledger.executeBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }

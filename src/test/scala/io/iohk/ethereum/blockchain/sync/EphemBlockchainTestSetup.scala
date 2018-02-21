@@ -6,7 +6,7 @@ import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.domain.BlockchainImpl
 
 
-trait EphemBlockchainTestSetup {
+trait EphemBlockchainTestSetup extends ScenarioSetup {
 
   trait Pruning extends PruningModeComponent {
     override val pruningMode: PruningMode = ArchivePruning

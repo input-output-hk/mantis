@@ -132,7 +132,7 @@ trait ScenarioSetup
 
   val emptyWorld = blockchain.getWorldStateProxy(-1, UInt256.Zero, None)
 
-  val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
+  val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators)
 
   val existingAddress = Address(10)
   val existingAccount = Account(nonce = UInt256.Zero, balance = UInt256(10))

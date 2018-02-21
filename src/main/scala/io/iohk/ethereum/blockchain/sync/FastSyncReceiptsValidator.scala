@@ -1,9 +1,9 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.Validators
 import io.iohk.ethereum.domain.{Blockchain, Receipt}
 import io.iohk.ethereum.validators.BlockValidator.BlockError
-import io.iohk.ethereum.validators.Validators
 
 trait FastSyncReceiptsValidator {
 

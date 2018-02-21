@@ -1,14 +1,16 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import akka.util.ByteString.{empty => bEmpty}
+import akka.util.ByteString.{empty ⇒ bEmpty}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder, Validators}
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ShutdownHookBuilder}
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
 import io.iohk.ethereum.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.validators._
@@ -136,7 +138,8 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
-    val ledgerWithMockedValidators = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig, validators)
+    val ledgerWithMockedValidators = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig,
+      consensus, validators)
 
     val newBlock = getBlock()
 
@@ -150,7 +153,8 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     val validators = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
-    val ledgerWithMockedValidators = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig, validators)
+    val ledgerWithMockedValidators = new LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig,
+      consensus, validators)
 
     val newBlock = getBlock()
 
@@ -293,12 +297,19 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
     blockchain.getBestBlock() shouldEqual newBlock3WithOmmer
   }
 
-  trait TestSetup {
-    val blockchainConfig = BlockchainConfig(Config.config)
+  trait TestSetup extends BlockchainConfigBuilder
+    with ConsensusBuilder
+    with ConsensusConfigBuilder
+    with ShutdownHookBuilder
+    with Logger
+  {
     val blockQueue: BlockQueue
     val blockchain: BlockchainImpl
 
-    class TestLedgerImpl(validators: Validators) extends LedgerImpl(new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig, validators) {
+    class TestLedgerImpl(validators: Validators) extends LedgerImpl(
+      new Mocks.MockVM(), blockchain, blockQueue, blockchainConfig,
+      consensus, validators
+    ) {
       private val results = mutable.Map[ByteString, Either[BlockExecutionError, Seq[Receipt]]]()
 
       override def executeBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] =

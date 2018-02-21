@@ -7,6 +7,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncBlocksValidator.BlockBodyValidationResult
 import io.iohk.ethereum.blockchain.sync.FastSyncReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
+import io.iohk.ethereum.consensus.Validators
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
@@ -16,7 +17,6 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.validators.Validators
 import org.spongycastle.util.encoders.Hex
 
 import scala.annotation.tailrec

@@ -1,6 +1,7 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.{Consensus, Validators}
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
@@ -9,7 +10,6 @@ import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderParentNotFoundError
-import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 
@@ -42,16 +42,17 @@ trait Ledger {
   * Note: this class thread-unsafe because of its dependencies on Blockchain and BlockQueue
   */
 class LedgerImpl(
-    vm: VM,
-    blockchain: BlockchainImpl,
-    blockQueue: BlockQueue,
-    blockchainConfig: BlockchainConfig,
-    validators: Validators)
-  extends Ledger with Logger {
+  vm: VM,
+  blockchain: BlockchainImpl,
+  blockQueue: BlockQueue,
+  blockchainConfig: BlockchainConfig,
+  consensus: Consensus,
+  validators: Validators
+) extends Ledger with Logger {
 
   def this(vm: VM, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig,
-    syncConfig: SyncConfig, validators: Validators) =
-    this(vm, blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, validators)
+    syncConfig: SyncConfig, consensus: Consensus, validators: Validators) =
+    this(vm, blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, consensus, validators)
 
   val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
 

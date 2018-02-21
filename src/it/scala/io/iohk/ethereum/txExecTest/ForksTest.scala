@@ -1,5 +1,6 @@
 package io.iohk.ethereum.txExecTest
 
+import io.iohk.ethereum.consensus.Validators
 import io.iohk.ethereum.domain.{BlockchainImpl, Receipt, UInt256}
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
@@ -43,7 +44,7 @@ class ForksTest extends FlatSpec with Matchers {
     val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
   }
 
-  "Ledger" should "execute blocks with respect to forks" in {
+  "Ledger" should "execute blocks with respect to forks" in new ScenarioSetup {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/forksTest")
 
     val startBlock = 1
@@ -52,7 +53,7 @@ class ForksTest extends FlatSpec with Matchers {
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchain = BlockchainImpl(storages)
-      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, validators)
+      val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators)
 
       ledger.executeBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }

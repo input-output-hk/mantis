@@ -6,6 +6,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.FastSync.{StateMptNodeHash, SyncState}
+import io.iohk.ethereum.consensus.Validators
 import io.iohk.ethereum.domain.{Account, BlockHeader}
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo}
@@ -19,7 +20,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, Nod
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.validators.{BlockHeaderValidator, Validators}
+import io.iohk.ethereum.validators.BlockHeaderValidator
 import io.iohk.ethereum.{Fixtures, Mocks}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}

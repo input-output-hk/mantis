@@ -30,7 +30,7 @@ abstract class ScenarioSetup(vm: VM, scenario: BlockchainScenario)
 
   override lazy val blockchainConfig = buildBlockchainConfig(scenario.network)
 
-  val ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, validators)
+  val ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, consensus, validators)
 
   def loadGenesis(): Block = {
     val genesisBlock = scenario.genesisRLP match {

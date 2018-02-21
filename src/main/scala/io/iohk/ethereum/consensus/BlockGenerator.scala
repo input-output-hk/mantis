@@ -19,7 +19,6 @@ import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils.or
 import io.iohk.ethereum.validators.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError
-import io.iohk.ethereum.validators.Validators
 
 // NOTE decoupled from EthashConfig
 class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,

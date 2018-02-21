@@ -10,7 +10,7 @@ import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
-import io.iohk.ethereum.consensus.{BlockGenerator, ConsensusBuilder, ConsensusConfigBuilder}
+import io.iohk.ethereum.consensus.{BlockGenerator, ConsensusBuilder, ConsensusConfigBuilder, Validators}
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -416,9 +416,10 @@ trait LedgerBuilder {
     with SyncConfigBuilder
     with ValidatorsBuilder
     with ActorSystemBuilder
-    with VmBuilder =>
+    with VmBuilder
+    with ConsensusBuilder =>
 
-  lazy val ledger: Ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, validators)
+  lazy val ledger: Ledger = new LedgerImpl(vm, blockchain, blockchainConfig, syncConfig, consensus, validators)
 }
 
 trait SyncControllerBuilder {

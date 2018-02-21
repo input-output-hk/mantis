@@ -2,6 +2,7 @@ package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
@@ -16,15 +17,27 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
   val blockchain = mock[BlockchainImpl]
 
-  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, blockchainConfig, syncConfig, Mocks.MockValidatorsAlwaysSucceed)
+  private[this] def newLedger(consensus: Consensus): LedgerImpl =
+    new LedgerImpl(
+      new Mocks.MockVM(),
+      blockchain,
+      blockchainConfig,
+      syncConfig,
+      consensus,
+      Mocks.MockValidatorsAlwaysSucceed
+    )
 
   it should "delete no accounts when there are no touched accounts" in new TestSetup {
+    val ledger = newLedger(consensus)
+
     val newWorld = InMemoryWorldStateProxy.persistState(ledger.deleteEmptyTouchedAccounts(worldStatePostEIP161))
     accountAddresses.foreach{ a => assert(newWorld.getAccount(a).isDefined) }
     newWorld.stateRootHash shouldBe worldStatePostEIP161.stateRootHash
   }
 
   it should "delete no accounts when there are no empty touched accounts" in new TestSetup {
+    val ledger = newLedger(consensus)
+
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validAccountAddress2, transferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
@@ -33,6 +46,8 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
   }
 
   it should "delete touched empty account" in new TestSetup {
+    val ledger = newLedger(consensus)
+
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
@@ -44,6 +59,8 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
   }
 
   it should "delete touched empty account after transfer to self" in new TestSetup {
+    val ledger = newLedger(consensus)
+
     val worldAfterTransfer = worldStatePostEIP161.transfer(validEmptyAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 1
 
@@ -56,6 +73,8 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
 
   it should "not mark for deletion and delete any account pre EIP161" in new TestSetup {
+    val ledger = newLedger(consensus)
+
     val worldAfterTransfer = worldStatePreEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 0
 
@@ -70,6 +89,8 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
 
 
   it should "delete multiple touched empty accounts" in new TestSetup {
+    val ledger = newLedger(consensus)
+
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
@@ -86,6 +107,8 @@ class DeleteTouchedAccountsSpec extends FlatSpec with Matchers with MockFactory 
   }
 
   it should "not delete touched new account resulting from contract creation (initialised)" in new TestSetup {
+    val ledger = newLedger(consensus)
+
     val worldAfterInitAndTransfer =
       worldStatePostEIP161.initialiseAccount(validCreatedAccountAddress)
         .transfer(validAccountAddress, validCreatedAccountAddress, zeroTransferBalance)

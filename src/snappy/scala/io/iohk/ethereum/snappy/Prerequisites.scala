@@ -57,10 +57,12 @@ class Prerequisites(config: Config) {
 
   val ledger: Ledger = targetBlockchain match {
     case Some(tb) =>
-      new LedgerImpl(VM, tb, components.blockchainConfig, components.syncConfig, components.validators)
+      new LedgerImpl(VM, tb,
+        components.blockchainConfig, components.syncConfig, components.consensus, components.validators)
 
     case None =>
-      new LedgerImpl(VM, sourceBlockchain, components.blockchainConfig, components.syncConfig, components.validators)
+      new LedgerImpl(VM, sourceBlockchain,
+        components.blockchainConfig, components.syncConfig, components.consensus, components.validators)
   }
 
   targetBlockchain.foreach { blockchain =>
