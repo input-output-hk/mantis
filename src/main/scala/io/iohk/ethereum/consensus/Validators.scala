@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus
 
-import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockValidator, OmmersValidator, SignedTransactionValidator}
+import io.iohk.ethereum.consensus.validators.BlockValidator
+import io.iohk.ethereum.validators.{BlockHeaderValidator, OmmersValidator, SignedTransactionValidator}
 
 trait Validators {
   def blockValidator: BlockValidator

@@ -2,13 +2,13 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ShutdownHookBuilder}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{Config, Logger}
-import io.iohk.ethereum.validators.BlockValidator
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex

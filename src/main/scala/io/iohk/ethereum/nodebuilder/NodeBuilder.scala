@@ -10,6 +10,7 @@ import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
+import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.consensus.{BlockGenerator, ConsensusBuilder, ConsensusConfigBuilder, Validators}
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
