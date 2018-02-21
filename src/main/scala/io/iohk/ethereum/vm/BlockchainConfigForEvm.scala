@@ -4,7 +4,7 @@ import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.BlockchainConfig
 
 /**
-  * A subset of [[BlockchainConfig]] that is required for instantiating an [[EvmConfig]]
+  * A subset of [[io.iohk.ethereum.utils.BlockchainConfig]] that is required for instantiating an [[EvmConfig]]
   * Note that `accountStartNonce` is required for a [[WorldStateProxy]] implementation that is used
   * by a given VM
   */

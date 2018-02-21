@@ -13,14 +13,7 @@ import org.scalatest._
 
 class VMSuite extends FreeSpec with Matchers with Logger {
 
-  val vm = new TestVM {
-//    //TODO: instead of this and saving empty caller account in ScenarioBuilder, consider changing context.endowment to
-//    //TODO: option and don't make transfer in VM#call if it's None
-//    override def isValidCall(context: PC): Boolean =
-//      context.callDepth == 0 ||
-//      context.endowment <= context.world.getBalance(context.callerAddr) &&
-//      context.callDepth <= EvmConfig.MaxCallDepth
-  }
+  val vm = new TestVM
 
   override def run(testName: Option[String], args: Args): Status = {
 

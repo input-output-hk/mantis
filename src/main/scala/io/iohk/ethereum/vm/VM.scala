@@ -24,11 +24,13 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       log.trace(s"caller:  $callerAddr | recipient: $recipientAddr | gasPrice: $gasPrice | value: $value | inputData: ${Hex.toHexString(inputData.toArray)}")
     }
 
-    if (context.recipientAddr.isEmpty)
-      create(context)._1
+    context.recipientAddr match {
+      case Some(recipientAddr) =>
+        call(context, recipientAddr)
 
-    else
-      call(context, context.recipientAddr.get)
+      case None =>
+        create(context)._1
+    }
   }
 
   /**
@@ -59,27 +61,27 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
     * Contract creation - Λ function in YP
     */
   private[vm] def create(context: PC): (PR, Address) =
-  if (!isValidCall(context))
-    (invalidCallResult(context), Address(0))
-  else {
-    require(context.recipientAddr.isEmpty, "recipient address must be empty for contract creation")
-    require(context.doTransfer, "contract creation will alwyas transfer funds")
+    if (!isValidCall(context))
+      (invalidCallResult(context), Address(0))
+    else {
+      require(context.recipientAddr.isEmpty, "recipient address must be empty for contract creation")
+      require(context.doTransfer, "contract creation will alwyas transfer funds")
 
-    val newAddress = context.world.createAddress(context.callerAddr)
-    val world1 = context.world.initialiseAccount(newAddress).transfer(context.callerAddr, newAddress, context.endowment)
+      val newAddress = context.world.createAddress(context.callerAddr)
+      val world1 = context.world.initialiseAccount(newAddress).transfer(context.callerAddr, newAddress, context.endowment)
 
-    // EIP-684
-    val conflict = context.world.nonEmptyCodeOrNonceAccount(newAddress)
-    val code = if (conflict) ByteString(INVALID.code) else context.inputData
+      // EIP-684
+      val conflict = context.world.nonEmptyCodeOrNonceAccount(newAddress)
+      val code = if (conflict) ByteString(INVALID.code) else context.inputData
 
-    val env = ExecEnv(context, code, newAddress).copy(inputData = ByteString.empty)
+      val env = ExecEnv(context, code, newAddress).copy(inputData = ByteString.empty)
 
-    val initialState: PS = ProgramState(this, context.copy(world = world1), env)
-    val execResult = exec(initialState).toResult
+      val initialState: PS = ProgramState(this, context.copy(world = world1), env)
+      val execResult = exec(initialState).toResult
 
-    val newContractResult = saveNewContract(context, newAddress, execResult, env.evmConfig)
-    (newContractResult, newAddress)
-  }
+      val newContractResult = saveNewContract(context, newAddress, execResult, env.evmConfig)
+      (newContractResult, newAddress)
+    }
 
   @tailrec
   private def exec(state: ProgramState[W, S]): ProgramState[W, S] = {
