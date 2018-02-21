@@ -12,7 +12,7 @@ object ConsensusConfigs {
   final val coinbase = Address(coinbaseAddressNum)
 
   //noinspection ScalaStyle
-  final val miningConfig = new EthashConfig(
+  final val ethashConfig = new EthashConfig(
     ommersPoolSize = 30,
     ommerPoolQueryTimeout = Timeouts.normalTimeout,
     ethashDir = "~/.ethash",
@@ -25,9 +25,9 @@ object ConsensusConfigs {
     activeTimeout = Timeouts.shortTimeout,
     headerExtraData = ByteString.empty,
     blockCacheSize = blockCacheSize,
-    getTransactionFromPoolTimeout = miningConfig.ommerPoolQueryTimeout,
+    getTransactionFromPoolTimeout = ethashConfig.ommerPoolQueryTimeout,
     miningEnabled = false
   )
 
-  final val fullConsensusConfig = FullConsensusConfig(consensusConfig, miningConfig)
+  final val fullConsensusConfig = FullConsensusConfig(consensusConfig, ethashConfig)
 }

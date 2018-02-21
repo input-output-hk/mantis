@@ -132,7 +132,7 @@ class ContractCreationSpec extends FlatSpec with PropertyChecks with Matchers {
       BlockchainImpl(storagesInstance.storages).getWorldStateProxy(-1, UInt256.Zero, None, noEmptyAccounts)
 
     val defaultBlockchainConfig = BlockchainConfig(Config.config)
-    val blockchainConfig = new BlockchainConfig {
+    override lazy val blockchainConfig = new BlockchainConfig {
       override val maxCodeSize: Option[BigInt] = Some(codeSizeLimit)
 
       //unused

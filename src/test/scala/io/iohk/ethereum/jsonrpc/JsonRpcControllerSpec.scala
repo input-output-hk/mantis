@@ -1405,15 +1405,15 @@ class JsonRpcControllerSpec extends FlatSpec with Matchers with PropertyChecks w
     val syncingController = TestProbe()
     val ledger = mock[Ledger]
     val validators = mock[Validators]
-    val blockchainConfig = mock[BlockchainConfig]
+    override lazy val blockchainConfig = mock[BlockchainConfig]
     val keyStore = mock[KeyStore]
 
     val pendingTransactionsManager = TestProbe()
     val ommersPool = TestProbe()
     val filterManager = TestProbe()
 
-    val miningConfig = ConsensusConfigs.miningConfig
-    val consensusConfig = ConsensusConfigs.consensusConfig
+    val ethashConfig = ConsensusConfigs.ethashConfig
+    override lazy val consensusConfig = ConsensusConfigs.consensusConfig
     val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
 
     val filterConfig = new FilterConfig {

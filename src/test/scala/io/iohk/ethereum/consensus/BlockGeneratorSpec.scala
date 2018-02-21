@@ -291,7 +291,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
     lazy val signedTransaction: SignedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
     lazy val duplicatedSignedTransaction: SignedTransaction = SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
 
-    lazy val blockchainConfig = new BlockchainConfig {
+    override lazy val blockchainConfig = new BlockchainConfig {
       override val frontierBlockNumber: BigInt = 0
       override val homesteadBlockNumber: BigInt = 1150000
       override val difficultyBombPauseBlockNumber: BigInt = 3000000

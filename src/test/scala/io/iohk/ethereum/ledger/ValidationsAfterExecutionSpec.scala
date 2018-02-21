@@ -2,26 +2,43 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
+import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ShutdownHookBuilder}
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{BlockchainConfig, Config}
+import io.iohk.ethereum.utils.{Config, Logger}
 import io.iohk.ethereum.validators.BlockValidator
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
 class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFactory {
+  object ScenarioSetup extends BlockchainConfigBuilder
+    with ConsensusBuilder
+    with ConsensusConfigBuilder
+    with ShutdownHookBuilder
+    with Logger {
 
-  val blockchain = mock[BlockchainImpl]
+    val blockchain = mock[BlockchainImpl]
 
-  val validators = new Mocks.MockValidatorsAlwaysSucceed {
-    override val blockValidator = BlockValidator
+    val validators = new Mocks.MockValidatorsAlwaysSucceed {
+      override val blockValidator = BlockValidator
+    }
+
+    val syncConfig = SyncConfig(Config.config)
   }
 
-  val syncConfig = SyncConfig(Config.config)
 
-  val ledger = new LedgerImpl(new Mocks.MockVM(), blockchain, BlockchainConfig(Config.config), syncConfig, validators)
+  final val ledger =
+    new LedgerImpl(
+      new Mocks.MockVM(),
+      ScenarioSetup.blockchain,
+      ScenarioSetup.blockchainConfig,
+      ScenarioSetup.syncConfig,
+      ScenarioSetup.consensus,
+      Mocks.MockValidatorsAlwaysSucceed
+    )
 
   val block: Block = Block(
     BlockHeader(

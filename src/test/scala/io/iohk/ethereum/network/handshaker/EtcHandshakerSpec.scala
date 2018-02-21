@@ -174,7 +174,7 @@ class EtcHandshakerSpec extends FlatSpec with Matchers  {
       override val appStateStorage: AppStateStorage = TestSetup.this.storagesInstance.storages.appStateStorage
     }
 
-    val blockchainConfig = new BlockchainConfig {
+    override lazy val blockchainConfig = new BlockchainConfig {
       //unused
       override val maxCodeSize: Option[BigInt] = None
       override val frontierBlockNumber: BigInt = 0

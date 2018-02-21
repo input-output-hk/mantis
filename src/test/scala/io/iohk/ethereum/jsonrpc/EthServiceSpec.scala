@@ -826,7 +826,7 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val keyStore = mock[KeyStore]
     val ledger = mock[Ledger]
     val validators = mock[Validators]
-    val blockchainConfig = mock[BlockchainConfig]
+    override lazy val blockchainConfig = mock[BlockchainConfig]
 
     implicit val system = ActorSystem("EthServiceSpec_System")
 
@@ -835,8 +835,8 @@ class EthServiceSpec extends FlatSpec with Matchers with ScalaFutures with MockF
     val ommersPool = TestProbe()
     val filterManager = TestProbe()
 
-    val miningConfig = ConsensusConfigs.miningConfig
-    val consensusConfig = ConsensusConfigs.consensusConfig
+    override lazy val consensusConfig = ConsensusConfigs.consensusConfig
+    val miningConfig = ConsensusConfigs.ethashConfig
     val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
 
     val filterConfig = new FilterConfig {
