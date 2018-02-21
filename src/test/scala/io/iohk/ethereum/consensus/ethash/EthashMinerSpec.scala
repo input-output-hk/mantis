@@ -22,16 +22,11 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object EthashMinerSpec {
-  val MinerSpecTag = Tag("EthashMinerSpec")
-}
-
 // scalastyle:off magic.number
 class EthashMinerSpec extends FlatSpec with Matchers {
+  final val EthashMinerSpecTag = Tag("EthashMinerSpec")
 
-  import EthashMinerSpec._
-
-  "EthashMiner" should "mine valid blocks" taggedAs(MinerSpecTag) in new TestSetup {
+  "EthashMiner" should "mine valid blocks" taggedAs(EthashMinerSpecTag) in new TestSetup {
     val parent = origin
     val bfm = blockForMining(parent.header)
 

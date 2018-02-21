@@ -21,9 +21,15 @@ import io.iohk.ethereum.consensus.validators.MptListValidator.intByteArraySerial
 import io.iohk.ethereum.consensus.validators.OmmersValidator.OmmersError
 
 // NOTE decoupled from EthashConfig
-class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
-  headerExtraData: ByteString, blockCacheSize: Int,
-  ledger: Ledger, validators: Validators, val blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider) {
+class BlockGenerator(
+  blockchain: Blockchain,
+  blockchainConfig: BlockchainConfig,
+  headerExtraData: ByteString,
+  blockCacheSize: Int,
+  ledger: Ledger,
+  validators: Validators,
+  val blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
+) {
 
   val difficulty = new DifficultyCalculator(blockchainConfig)
 
@@ -164,7 +170,5 @@ object DefaultBlockTimestampProvider extends BlockTimestampProvider {
 }
 
 object BlockGenerator {
-
   case class InvalidOmmers(reason: OmmersError) extends BlockPreparationError
-
 }

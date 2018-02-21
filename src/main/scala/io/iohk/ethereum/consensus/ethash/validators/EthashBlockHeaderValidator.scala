@@ -32,7 +32,7 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends Blo
    * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
    *
    * @param blockHeader BlockHeader to validate.
-   * @return BlockHeader if valid, an [[io.iohk.ethereum.validators.BlockHeaderError.HeaderPoWError]] otherwise
+   * @return BlockHeader if valid, an [[io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError]] otherwise
    */
   private def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     import EthashUtils._
