@@ -61,7 +61,7 @@ class VMClient(
             )
 
           case None =>
-            msg.Account()
+            msg.Account(codeEmpty = true)
         }
         messageHandler.sendMessage(accountMsg)
         messageLoop[W, S](world)
