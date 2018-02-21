@@ -4,15 +4,15 @@ import akka.actor.ActorRef
 import io.iohk.ethereum.consensus.FullConsensusConfig
 import io.iohk.ethereum.nodebuilder._
 
-class MinerBuilder(
+class EthashMinerBuilder(
   node: Node,
-  miningConfig: MiningConfig
+  miningConfig: EthashConfig
 ) {
   import node._
 
   private[this] val config = FullConsensusConfig(consensusConfig, miningConfig)
 
-  lazy val miner: ActorRef = actorSystem.actorOf(Miner.props(
+  lazy val miner: ActorRef = actorSystem.actorOf(EthashMiner.props(
     blockchain,
     blockGenerator,
     ommersPool,

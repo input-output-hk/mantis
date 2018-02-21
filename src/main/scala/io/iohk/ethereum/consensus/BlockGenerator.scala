@@ -1,16 +1,17 @@
-package io.iohk.ethereum.mining
+package io.iohk.ethereum.consensus
 
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.UnaryOperator
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.BlockGenerator.InvalidOmmers
+import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
 import io.iohk.ethereum.domain.{Block, BlockHeader, Receipt, SignedTransaction, _}
 import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
 import io.iohk.ethereum.ledger.{BlockPreparationError, BloomFilter, InMemoryWorldStateProxy, Ledger}
-import io.iohk.ethereum.mining.BlockGenerator.InvalidOmmers
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
@@ -19,9 +20,8 @@ import io.iohk.ethereum.utils.ByteUtils.or
 import io.iohk.ethereum.validators.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.validators.Validators
-import io.iohk.ethereum.crypto._
 
-// NOTE decoupled from MiningConfig
+// NOTE decoupled from EthashConfig
 class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,
   headerExtraData: ByteString, blockCacheSize: Int,
   ledger: Ledger, validators: Validators, val blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider) {

@@ -1,12 +1,11 @@
-package io.iohk.ethereum.mining
-// FIXME change package
+package io.iohk.ethereum.consensus
+package ethash
+
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig}
-import io.iohk.ethereum.consensus.ethash.{Miner, MiningConfig}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateResponse
@@ -23,16 +22,16 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-object MinerSpec {
-  val MinerSpecTag = Tag("MinerSpec")
+object EthashMinerSpec {
+  val MinerSpecTag = Tag("EthashMinerSpec")
 }
 
 // scalastyle:off magic.number
-class MinerSpec extends FlatSpec with Matchers {
+class EthashMinerSpec extends FlatSpec with Matchers {
 
-  import MinerSpec._
+  import EthashMinerSpec._
 
-  "Miner" should "mine valid blocks" taggedAs(MinerSpecTag) in new TestSetup {
+  "EthashMiner" should "mine valid blocks" taggedAs(MinerSpecTag) in new TestSetup {
     val parent = origin
     val bfm = blockForMining(parent.header)
 
@@ -54,11 +53,11 @@ class MinerSpec extends FlatSpec with Matchers {
       }
     })
 
-    miner ! Miner.StartMining
+    miner ! EthashMiner.StartMining
 
     val block = waitForMinedBlock()
 
-    miner ! Miner.StopMining
+    miner ! EthashMiner.StopMining
 
     block.body.transactionList shouldBe Seq(txToMine)
     block.header.nonce.length shouldBe 8
@@ -92,7 +91,7 @@ class MinerSpec extends FlatSpec with Matchers {
 
     val blockchainConfig = BlockchainConfig(Config.config)
     val consensusConfig = ConsensusConfig(Config.config)(ShutdownHookBuilder)
-    val miningConfig = MiningConfig(Config.config)
+    val miningConfig = EthashConfig(Config.config)
     val fullConsensusConfig = FullConsensusConfig(consensusConfig, miningConfig)
     val difficultyCalc = new DifficultyCalculator(blockchainConfig)
 
@@ -150,7 +149,7 @@ class MinerSpec extends FlatSpec with Matchers {
 
     val ethService = mock[EthService]
 
-    val miner = TestActorRef(Miner.props(blockchain, blockGenerator, ommersPool.ref, pendingTransactionsManager.ref, syncController.ref, fullConsensusConfig, ethService))
+    val miner = TestActorRef(EthashMiner.props(blockchain, blockGenerator, ommersPool.ref, pendingTransactionsManager.ref, syncController.ref, fullConsensusConfig, ethService))
 
     def waitForMinedBlock(): Block = {
       syncController.expectMsgPF[Block](10.minutes) {

@@ -23,13 +23,13 @@ final case class ConsensusConfig(
 
   coinbase: Address,
 
-  // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.MiningConfig MiningConfig]]
+  // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.EthashConfig EthashConfig]]
   activeTimeout: FiniteDuration,
 
-  // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.MiningConfig MiningConfig]]
+  // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.EthashConfig EthashConfig]]
   headerExtraData: ByteString, // only used in BlockGenerator
 
-  // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.MiningConfig MiningConfig]]
+  // NOTE Moved from [[io.iohk.ethereum.consensus.ethash.EthashConfig EthashConfig]]
   blockCacheSize: Int, // only used in BlockGenerator
 
   getTransactionFromPoolTimeout: FiniteDuration,

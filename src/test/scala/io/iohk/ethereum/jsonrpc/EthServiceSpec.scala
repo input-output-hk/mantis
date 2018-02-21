@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ConsensusConfigs
+import io.iohk.ethereum.consensus.{BlockGenerator, ConsensusConfigs, PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.domain.{Address, Block, BlockHeader, BlockchainImpl, UInt256, _}
 import io.iohk.ethereum.db.storage.{AppStateStorage, ArchiveNodeStorage}
@@ -25,7 +25,6 @@ import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.validators.Validators

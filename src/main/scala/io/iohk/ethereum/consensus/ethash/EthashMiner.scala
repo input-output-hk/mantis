@@ -6,12 +6,11 @@ import java.io.{File, FileInputStream, FileOutputStream}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.consensus.ethash.Ethash.ProofOfWork
+import io.iohk.ethereum.consensus.ethash.EthashUtils.ProofOfWork
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateRequest
-import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
@@ -24,17 +23,17 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Random, Success, Try}
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 
-class Miner(
+class EthashMiner(
   blockchain: Blockchain,
   blockGenerator: BlockGenerator,
   ommersPool: ActorRef,
   pendingTransactionsManager: ActorRef,
   syncController: ActorRef,
-  config: FullConsensusConfig[MiningConfig],
+  config: FullConsensusConfig[EthashConfig],
   ethService: EthService
 ) extends Actor with ActorLogging {
 
-  import Miner._
+  import EthashMiner._
   import akka.pattern.ask
 
   var currentEpoch: Option[Long] = None
@@ -60,14 +59,14 @@ class Miner(
 
   def processMining(): Unit = {
     val parentBlock = blockchain.getBestBlock()
-    val epoch = Ethash.epoch(parentBlock.header.number.toLong + 1)
+    val epoch = EthashUtils.epoch(parentBlock.header.number.toLong + 1)
 
     val (dag, dagSize) = (currentEpoch, currentEpochDag, currentEpochDagSize) match {
       case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
       case _ =>
-        val seed = Ethash.seed(epoch)
-        val dagSize = Ethash.dagSize(epoch)
-        val dagNumHashes = (dagSize / Ethash.HASH_BYTES).toInt
+        val seed = EthashUtils.seed(epoch)
+        val dagSize = EthashUtils.dagSize(epoch)
+        val dagNumHashes = (dagSize / EthashUtils.HASH_BYTES).toInt
         val dag =
           if (!dagFile(seed).exists()) generateDagAndSaveToFile(epoch, dagNumHashes, seed)
           else {
@@ -104,7 +103,7 @@ class Miner(
   }
 
   private def dagFile(seed: ByteString): File = {
-    new File(s"${miningConfig.ethashDir}/full-R${Ethash.Revision}-${Hex.toHexString(seed.take(8).toArray[Byte])}")
+    new File(s"${miningConfig.ethashDir}/full-R${EthashUtils.Revision}-${Hex.toHexString(seed.take(8).toArray[Byte])}")
   }
 
   private def generateDagAndSaveToFile(epoch: Long, dagNumHashes: Int, seed: ByteString): Array[Array[Int]] = {
@@ -118,11 +117,11 @@ class Miner(
     val outputStream = new FileOutputStream(dagFile(seed).getAbsolutePath)
     outputStream.write(DagFilePrefix.toArray[Byte])
 
-    val cache = Ethash.makeCache(epoch)
+    val cache = EthashUtils.makeCache(epoch)
     val res = new Array[Array[Int]](dagNumHashes)
 
     (0 until dagNumHashes).foreach { i =>
-      val item = Ethash.calcDatasetItem(cache, i)
+      val item = EthashUtils.calcDatasetItem(cache, i)
       outputStream.write(ByteUtils.intsToBytes(item))
       res(i) = item
 
@@ -165,8 +164,8 @@ class Miner(
     (0 to numRounds).toStream.map { n =>
       val nonce = (initNonce + n) % MaxNonce
       val nonceBytes = ByteUtils.padLeft(ByteString(nonce.toUnsignedByteArray), 8)
-      val pow = Ethash.hashimoto(headerHash, nonceBytes.toArray[Byte], dagSize, dag.apply)
-      (Ethash.checkDifficulty(difficulty, pow), pow, nonceBytes, n)
+      val pow = EthashUtils.hashimoto(headerHash, nonceBytes.toArray[Byte], dagSize, dag.apply)
+      (EthashUtils.checkDifficulty(difficulty, pow), pow, nonceBytes, n)
     }
       .collectFirst { case (true, pow, nonceBytes, n) => MiningSuccessful(n + 1, pow, nonceBytes) }
       .getOrElse(MiningUnsuccessful(numRounds))
@@ -202,16 +201,16 @@ class Miner(
   }
 }
 
-object Miner {
+object EthashMiner {
   def props(blockchain: Blockchain,
     blockGenerator: BlockGenerator,
     ommersPool: ActorRef,
     pendingTransactionsManager: ActorRef,
     syncController: ActorRef,
-    config: FullConsensusConfig[MiningConfig],
+    config: FullConsensusConfig[EthashConfig],
     ethService: EthService
   ): Props =
-    Props(new Miner(blockchain, blockGenerator, ommersPool,
+    Props(new EthashMiner(blockchain, blockGenerator, ommersPool,
       pendingTransactionsManager, syncController, config, ethService))
 
   sealed trait MinerMsg

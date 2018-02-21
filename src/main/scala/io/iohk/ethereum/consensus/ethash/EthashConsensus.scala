@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorRef
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.ethash.Miner.MinerMsg
+import io.iohk.ethereum.consensus.ethash.EthashMiner.MinerMsg
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -17,10 +17,10 @@ import io.iohk.ethereum.validators.{BlockHeaderError, BlockHeaderValid, BlockHea
  */
 class EthashConsensus(
   blockchainConfig: BlockchainConfig,
-  val config: FullConsensusConfig[MiningConfig]
+  val config: FullConsensusConfig[EthashConfig]
 ) extends Consensus {
 
-  type Config = MiningConfig
+  type Config = EthashConfig
 
   private[this] val defaultValidator = new BlockHeaderValidatorImpl(blockchainConfig)
   private[this] val powValidator = new ethash.validators.BlockHeaderValidatorImpl(blockchainConfig)
@@ -45,18 +45,18 @@ class EthashConsensus(
   private[this] def startMiningProcess(node: Node): Unit = {
     atomicMiner.get() match {
       case None ⇒
-        val minerBuilder = new MinerBuilder(node, config.specific)
+        val minerBuilder = new EthashMinerBuilder(node, config.specific)
         val miner = minerBuilder.miner
         atomicMiner.set(Some(miner))
 
-        sendMiner(Miner.StartMining)
+        sendMiner(EthashMiner.StartMining)
 
       case _ ⇒
     }
   }
 
   private[this] def stopMiningProcess(): Unit = {
-    sendMiner(Miner.StopMining)
+    sendMiner(EthashMiner.StopMining)
   }
 
   def blockHeaderValidator: BlockHeaderValidator = ethashValidator
@@ -76,5 +76,5 @@ class EthashConsensus(
     }
   }
 
-  def protocol: Protocol = consensus.Ethash
+  def protocol: Protocol = Protocol.Ethash
 }

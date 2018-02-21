@@ -9,7 +9,7 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig}
+import io.iohk.ethereum.consensus.{BlockGenerator, ConsensusConfig, FullConsensusConfig}
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
@@ -17,7 +17,6 @@ import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256, _}
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs, TxLog}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
-import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -449,7 +448,7 @@ class EthService(
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
     fullConsensusConfig.ifEthash(_ ⇒ {
       reportActive()
-      import io.iohk.ethereum.consensus.ethash.Ethash.{seed, epoch}
+      import io.iohk.ethereum.consensus.ethash.EthashUtils.{seed, epoch}
 
       val bestBlock = blockchain.getBestBlock()
       getOmmersFromPool(bestBlock.header.number + 1).zip(getTransactionsFromPool).map {

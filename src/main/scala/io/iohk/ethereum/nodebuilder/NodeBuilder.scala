@@ -10,7 +10,7 @@ import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
-import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
+import io.iohk.ethereum.consensus.{BlockGenerator, ConsensusBuilder, ConsensusConfigBuilder}
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -24,7 +24,6 @@ import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.JsonRpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
-import io.iohk.ethereum.mining.BlockGenerator
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.utils._
@@ -85,9 +84,15 @@ trait KnownNodesManagerBuilder {
   self: ActorSystemBuilder
     with StorageBuilder =>
 
-  lazy val config = KnownNodesManager.KnownNodesManagerConfig(Config.config)
+  lazy val knownNodesManagerConfig = KnownNodesManager.KnownNodesManagerConfig(Config.config)
 
-  lazy val knownNodesManager = actorSystem.actorOf(KnownNodesManager.props(config, storagesInstance.storages.knownNodesStorage), "known-nodes-manager")
+  lazy val knownNodesManager = actorSystem.actorOf(
+    KnownNodesManager.props(
+      knownNodesManagerConfig,
+      storagesInstance.storages.knownNodesStorage
+    ),
+    "known-nodes-manager"
+  )
 }
 
 trait PeerDiscoveryManagerBuilder {
@@ -344,7 +349,7 @@ trait OmmersPoolBuilder {
     BlockchainBuilder with
     ConsensusConfigBuilder =>
 
-  lazy val ommersPoolSize: Int = 30 // FIXME For this we need MiningConfig, which means Ethash consensus
+  lazy val ommersPoolSize: Int = 30 // FIXME For this we need EthashConfig, which means Ethash consensus
   lazy val ommersPool: ActorRef = actorSystem.actorOf(OmmersPool.props(blockchain, ommersPoolSize))
 }
 

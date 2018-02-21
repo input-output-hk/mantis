@@ -1,25 +1,25 @@
-package io.iohk.ethereum.mining
+package io.iohk.ethereum.consensus
 
 import java.time.Instant
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparationError, LedgerImpl}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
+import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
-import io.iohk.ethereum.utils.Config.SyncConfig
 import org.spongycastle.crypto.AsymmetricCipherKeyPair
 import org.spongycastle.crypto.params.ECPublicKeyParameters
+import org.spongycastle.util.encoders.Hex
 
 class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with Logger {
 

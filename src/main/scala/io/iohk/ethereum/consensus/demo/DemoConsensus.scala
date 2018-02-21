@@ -36,7 +36,7 @@ class DemoConsensus(
     miner ! DemoConsensusMiner.StartMining
   }
 
-  def protocol: Protocol = Demo0
+  def protocol: Protocol = Protocol.Demo0
 
   /**
    * Provides the [[io.iohk.ethereum.validators.BlockHeaderValidator BlockHeaderValidator]] that is specific

@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ConsensusConfigs
+import io.iohk.ethereum.consensus.{BlockGenerator, ConsensusConfigs, PendingBlock}
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.crypto.ECDSASignature
@@ -18,7 +18,6 @@ import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BloomFilter, Ledger}
-import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers

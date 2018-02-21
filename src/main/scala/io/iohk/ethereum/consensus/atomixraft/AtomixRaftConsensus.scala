@@ -13,7 +13,7 @@ import io.atomix.protocols.raft.protocol.{TransferRequest, TransferResponse}
 import io.atomix.protocols.raft.storage.RaftStorage
 import io.atomix.utils.concurrent.ThreadModel
 import io.atomix.utils.serializer.{KryoNamespace, Serializer}
-import io.iohk.ethereum.consensus.atomixraft.Miner.{IAmTheLeader, Init}
+import io.iohk.ethereum.consensus.atomixraft.AtomixRaftMiner.{IAmTheLeader, Init}
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockHeaderValidatorImpl}
@@ -35,7 +35,7 @@ class AtomixRaftConsensus(
 
   private[this] def setupMiner(node: Node): Unit = {
     miner.setOnce {
-      val miner = Miner(node, raftConfig)
+      val miner = AtomixRaftMiner(node, this)
       miner ! Init
       miner
     }
@@ -114,9 +114,9 @@ class AtomixRaftConsensus(
     }
   }
 
-  def isLeader: Option[Boolean] = raftServer.run(_.isLeader) // None means we do not know
+  def isLeader: Option[Boolean] = raftServer.map(_.isLeader) // None means we do not know
 
-  def promoteToLeader(): Unit = raftServer.run(_.promote().join())
+  def promoteToLeader(): Unit = raftServer.map(_.promote().join())
 
   /**
    * Starts the consensus protocol on the current `node`.
@@ -131,7 +131,7 @@ class AtomixRaftConsensus(
     raftServer.stop()
   }
 
-  def protocol: Protocol = AtomixRaft
+  def protocol: Protocol = Protocol.AtomixRaft
 
   /**
    * Provides the [[io.iohk.ethereum.validators.BlockHeaderValidator BlockHeaderValidator]] that is specific

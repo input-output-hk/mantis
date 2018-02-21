@@ -7,7 +7,6 @@ import io.iohk.ethereum.blockchain.sync.RegularSync
 import io.iohk.ethereum.consensus.demo.Demo.ProofOfWork
 import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.jsonrpc.EthService
-import io.iohk.ethereum.mining.{BlockGenerator, PendingBlock}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 

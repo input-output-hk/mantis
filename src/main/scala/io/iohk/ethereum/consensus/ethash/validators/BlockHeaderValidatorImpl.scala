@@ -35,7 +35,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
    * @return BlockHeader if valid, an [[io.iohk.ethereum.validators.BlockHeaderError.HeaderPoWError]] otherwise
    */
   private def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
-    import Ethash._
+    import EthashUtils._
     import scala.collection.JavaConverters._
 
     def getPowCacheData(epoch: Long): PowCacheData = {
@@ -44,8 +44,8 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
           case Some(pcd) => pcd
           case None =>
             val data = new PowCacheData(
-              cache = Ethash.makeCache(epoch),
-              dagSize = Ethash.dagSize(epoch))
+              cache = EthashUtils.makeCache(epoch),
+              dagSize = EthashUtils.dagSize(epoch))
 
             val keys = powCaches.keySet().asScala
             val keysToRemove = keys.toSeq.sorted.take(keys.size - MaxPowCaches + 1)
@@ -77,6 +77,6 @@ object BlockHeaderValidatorImpl {
   // can be dramatic - full suite: 26 hours vs 21 minutes on same machine
   // It might be desirable to find a better solution for this - one that doesn't keep this cache unnecessarily
   lazy val epoch0PowCache = new PowCacheData(
-    cache = Ethash.makeCache(0),
-    dagSize = Ethash.dagSize(0))
+    cache = EthashUtils.makeCache(0),
+    dagSize = EthashUtils.dagSize(0))
 }
