@@ -1,15 +1,15 @@
-package io.iohk.ethereum.validators
+package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.validators.BlockHeaderError._
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidatorImpl._
 import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
-import io.iohk.ethereum.validators.BlockHeaderError._
+import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
-import io.iohk.ethereum.validators.BlockHeaderValidatorImpl._
 
 class BlockHeaderValidatorSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
 

@@ -1,13 +1,12 @@
-package io.iohk.ethereum.validators
+package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.validators.OmmersValidator.OmmersError._
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
-import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.validators.OmmersValidator.OmmersError._
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex

@@ -10,8 +10,8 @@ import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
-import io.iohk.ethereum.consensus.validators.BlockValidator
-import io.iohk.ethereum.consensus.{BlockGenerator, ConsensusBuilder, ConsensusConfigBuilder, Validators}
+import io.iohk.ethereum.consensus.validators.{BlockValidator, OmmersValidator, OmmersValidatorImpl}
+import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -36,7 +36,7 @@ import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfigur
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.validators._
+import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -358,10 +358,10 @@ trait ValidatorsBuilder {
   self: BlockchainConfigBuilder with ConsensusBuilder =>
 
   lazy val validators = new Validators {
-    val blockValidator: BlockValidator = BlockValidator
-    val blockHeaderValidator: BlockHeaderValidator = consensus.blockHeaderValidator
-    val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator)
-    val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
+    def blockValidator: BlockValidator = BlockValidator
+    def blockHeaderValidator: BlockHeaderValidator = consensus.blockHeaderValidator
+    def ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator)
+    def signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
   }
 }
 

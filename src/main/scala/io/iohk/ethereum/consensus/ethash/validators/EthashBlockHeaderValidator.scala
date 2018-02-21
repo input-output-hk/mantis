@@ -5,9 +5,9 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.validators.BlockHeaderValidatorImpl.PowCacheData
-import io.iohk.ethereum.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator}
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidatorImpl.PowCacheData
+import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator}
 
 // NOTE Copied parts from [[io.iohk.ethereum.validators.BlockHeaderValidatorImpl]]
 class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {

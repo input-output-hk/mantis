@@ -1,6 +1,7 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.consensus.{Consensus, Validators}
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
@@ -9,7 +10,6 @@ import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
-import io.iohk.ethereum.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.vm._
 import org.spongycastle.util.encoders.Hex
 

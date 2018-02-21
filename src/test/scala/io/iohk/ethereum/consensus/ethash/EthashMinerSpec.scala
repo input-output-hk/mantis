@@ -6,6 +6,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.RegularSync
+import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidatorImpl}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateResponse
@@ -14,7 +15,6 @@ import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.validators.{BlockHeaderValid, BlockHeaderValidatorImpl}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers, Tag}
 import org.spongycastle.util.encoders.Hex

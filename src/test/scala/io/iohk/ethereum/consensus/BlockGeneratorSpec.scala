@@ -5,7 +5,7 @@ import java.time.Instant
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.validators.BlockValidator
+import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
@@ -14,7 +14,6 @@ import io.iohk.ethereum.ledger.{BlockPreparationError, LedgerImpl}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
@@ -315,12 +314,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     val syncConfig = SyncConfig(Config.config)
 
-    lazy val validators = new Validators {
-      val blockValidator: BlockValidator = BlockValidator
-      val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
-      val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator)
-      val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
-    }
+    lazy val validators = new StdValidators(blockchainConfig)
 
     lazy val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators)
 

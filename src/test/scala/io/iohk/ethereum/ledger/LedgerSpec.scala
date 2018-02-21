@@ -6,8 +6,9 @@ import akka.util.ByteString.{empty ⇒ bEmpty}
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.Validators
-import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.consensus.validators.BlockValidator.{BlockTransactionsHashError, BlockValid}
+import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
+import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
@@ -19,8 +20,6 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig, MonetaryPolicyConfig}
-import io.iohk.ethereum.validators.SignedTransactionError.TransactionSignatureError
-import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm._
 import io.iohk.ethereum.{Fixtures, Mocks, rlp}
 import org.scalamock.scalatest.MockFactory

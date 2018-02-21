@@ -1,7 +1,6 @@
-package io.iohk.ethereum.validators
+package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.consensus.validators.BlockValidator.{BlockLogBloomError, BlockOmmersHashError, BlockReceiptsHashError, BlockTransactionsHashError}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter

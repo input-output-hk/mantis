@@ -16,7 +16,7 @@ import io.atomix.utils.serializer.{KryoNamespace, Serializer}
 import io.iohk.ethereum.consensus.atomixraft.AtomixRaftMiner.{IAmTheLeader, Init}
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockHeaderValidatorImpl}
+import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, BlockHeaderValidatorImpl}
 
 class AtomixRaftConsensus(
   blockchainConfig: BlockchainConfig,

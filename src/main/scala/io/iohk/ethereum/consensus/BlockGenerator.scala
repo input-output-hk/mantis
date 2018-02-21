@@ -17,8 +17,8 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils.or
-import io.iohk.ethereum.validators.MptListValidator.intByteArraySerializable
-import io.iohk.ethereum.validators.OmmersValidator.OmmersError
+import io.iohk.ethereum.consensus.validators.MptListValidator.intByteArraySerializable
+import io.iohk.ethereum.consensus.validators.OmmersValidator.OmmersError
 
 // NOTE decoupled from EthashConfig
 class BlockGenerator(blockchain: Blockchain, blockchainConfig: BlockchainConfig,

@@ -2,10 +2,10 @@ package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
 import com.typesafe.config.{Config ⇒ TypesafeConfig}
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidatorImpl
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.validators.BlockHeaderValidatorImpl
 
 import scala.concurrent.duration.{FiniteDuration, _}
 

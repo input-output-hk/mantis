@@ -2,7 +2,7 @@ package io.iohk.ethereum.consensus
 package demo
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import io.iohk.ethereum.validators.{BlockHeaderValidator, BlockHeaderValidatorImpl}
+import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, BlockHeaderValidatorImpl}
 
 /**
  * Ridiculously simple (non-)consensus.

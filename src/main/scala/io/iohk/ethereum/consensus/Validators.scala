@@ -1,7 +1,7 @@
 package io.iohk.ethereum.consensus
 
-import io.iohk.ethereum.consensus.validators.BlockValidator
-import io.iohk.ethereum.validators.{BlockHeaderValidator, OmmersValidator, SignedTransactionValidator}
+import io.iohk.ethereum.consensus.validators._
+import io.iohk.ethereum.utils.BlockchainConfig
 
 trait Validators {
   def blockValidator: BlockValidator
@@ -9,4 +9,20 @@ trait Validators {
   // FIXME remove
   def ommersValidator: OmmersValidator
   def signedTransactionValidator: SignedTransactionValidator
+}
+
+class StdValidators(
+  blockchainConfig: BlockchainConfig,
+  val blockValidator: BlockValidator = BlockValidator
+) extends Validators {
+
+  private[this] val _blockHeaderV = new BlockHeaderValidatorImpl(blockchainConfig)
+  private[this] val _ommersV = new OmmersValidatorImpl(blockchainConfig, this._blockHeaderV)
+  private[this] val _signedTxV = new SignedTransactionValidatorImpl(blockchainConfig)
+
+  def blockHeaderValidator: BlockHeaderValidator = this._blockHeaderV
+
+  def ommersValidator: OmmersValidator = this._ommersV
+
+  def signedTransactionValidator: SignedTransactionValidator = this._signedTxV
 }

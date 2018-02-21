@@ -5,7 +5,7 @@ import io.iohk.ethereum.domain.{Block, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.validators.BlockHeaderValidator
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 
 /**
  * Abstraction for a consensus protocol implementation.

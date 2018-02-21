@@ -3,6 +3,9 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import akka.util.ByteString.{empty ⇒ bEmpty}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
+import io.iohk.ethereum.consensus.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack}
+import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder, Validators}
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
@@ -11,9 +14,6 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.nodebuilder.{BlockchainConfigBuilder, ShutdownHookBuilder}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{Config, Logger}
-import io.iohk.ethereum.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
-import io.iohk.ethereum.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack}
-import io.iohk.ethereum.validators._
 import io.iohk.ethereum.{Mocks, ObjectGenerators}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{FlatSpec, Matchers}

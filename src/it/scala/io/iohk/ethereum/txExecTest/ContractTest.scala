@@ -1,13 +1,11 @@
 package io.iohk.ethereum.txExecTest
 
-import io.iohk.ethereum.consensus.Validators
-import io.iohk.ethereum.consensus.validators.BlockValidator
+import io.iohk.ethereum.consensus.StdValidators
 import io.iohk.ethereum.domain.{BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.validators._
 import io.iohk.ethereum.vm.VM
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -16,12 +14,7 @@ class ContractTest extends FlatSpec with Matchers {
   val syncConfig = SyncConfig(Config.config)
 
   val noErrors = a[Right[_, Seq[Receipt]]]
-  val validators = new Validators {
-    val blockValidator: BlockValidator = BlockValidator
-    val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
-    val ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator)
-    val signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
-  }
+  val validators = new StdValidators(blockchainConfig) // FIXME Where does consensus enter the picture?
 
   "Ledger" should "transfer ether" in new ScenarioSetup {
     val fixtures: FixtureProvider.Fixture = FixtureProvider.loadFixtures("/txExecTest/purchaseContract")

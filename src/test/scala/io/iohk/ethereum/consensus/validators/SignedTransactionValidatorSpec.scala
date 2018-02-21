@@ -1,15 +1,15 @@
-package io.iohk.ethereum.validators
+package io.iohk.ethereum.consensus.validators
 
 import java.math.BigInteger
 import java.security.SecureRandom
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.validators.SignedTransactionError.{TransactionSignatureError, _}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.{Fixtures, crypto}
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
-import io.iohk.ethereum.validators.SignedTransactionError.{TransactionSignatureError, _}
 import io.iohk.ethereum.vm.EvmConfig
+import io.iohk.ethereum.{Fixtures, crypto}
 import org.scalatest.{FlatSpec, Matchers}
 import org.spongycastle.util.encoders.Hex
 
