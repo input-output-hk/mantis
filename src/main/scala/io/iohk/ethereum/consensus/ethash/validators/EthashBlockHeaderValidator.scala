@@ -10,8 +10,8 @@ import io.iohk.ethereum.validators.BlockHeaderValidatorImpl.PowCacheData
 import io.iohk.ethereum.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator}
 
 // NOTE Copied parts from [[io.iohk.ethereum.validators.BlockHeaderValidatorImpl]]
-class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
-  import BlockHeaderValidatorImpl._
+class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
+  import EthashBlockHeaderValidator._
 
   // NOTE This is code from before PoW decoupling
   // we need concurrent map since validators can be used from multiple places
@@ -39,7 +39,7 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
     import scala.collection.JavaConverters._
 
     def getPowCacheData(epoch: Long): PowCacheData = {
-      if (epoch == 0) BlockHeaderValidatorImpl.epoch0PowCache else
+      if (epoch == 0) EthashBlockHeaderValidator.epoch0PowCache else
         Option(powCaches.get(epoch)) match {
           case Some(pcd) => pcd
           case None =>
@@ -67,8 +67,8 @@ class BlockHeaderValidatorImpl(blockchainConfig: BlockchainConfig) extends Block
   }
 }
 
-object BlockHeaderValidatorImpl {
-  val MaxPowCaches: Int = 2 // maximum number of epochs for which PoW cache is stored in memory
+object EthashBlockHeaderValidator {
+  final val MaxPowCaches: Int = 2 // maximum number of epochs for which PoW cache is stored in memory
 
   // NOTE The below FIXME is from before PoW decoupling.
 
@@ -76,7 +76,7 @@ object BlockHeaderValidatorImpl {
   // so keeping the cache for epoch 0 avoids recalculating it for each individual test. The difference in test runtime
   // can be dramatic - full suite: 26 hours vs 21 minutes on same machine
   // It might be desirable to find a better solution for this - one that doesn't keep this cache unnecessarily
-  lazy val epoch0PowCache = new PowCacheData(
+  final lazy val epoch0PowCache = new PowCacheData(
     cache = EthashUtils.makeCache(0),
     dagSize = EthashUtils.dagSize(0))
 }

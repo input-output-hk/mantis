@@ -23,7 +23,7 @@ class EthashConsensus(
   type Config = EthashConfig
 
   private[this] val defaultValidator = new BlockHeaderValidatorImpl(blockchainConfig)
-  private[this] val powValidator = new ethash.validators.BlockHeaderValidatorImpl(blockchainConfig)
+  private[this] val powValidator = new ethash.validators.EthashBlockHeaderValidator(blockchainConfig)
 
   private[this] val ethashValidator = new BlockHeaderValidator {
     def validate(
