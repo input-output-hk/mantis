@@ -2,7 +2,7 @@ package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
 import com.typesafe.config.{Config ⇒ TypesafeConfig}
-import io.iohk.ethereum.consensus.validators.BlockHeaderValidatorImpl
+import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.nodebuilder.ShutdownHookBuilder
 import io.iohk.ethereum.utils.Logger
@@ -85,7 +85,7 @@ object ConsensusConfig extends Logger {
 
     val activeTimeout = millis(Keys.ActiveTimeout)
     val headerExtraData = ByteString(config.getString(Keys.HeaderExtraData).getBytes)
-      .take(BlockHeaderValidatorImpl.MaxExtraDataSize)
+      .take(StdBlockHeaderValidator.MaxExtraDataSize)
     val blockCacheSize = config.getInt(Keys.BlockCacheSize)
     val miningEnabled = config.getBoolean(Keys.MiningEnabled)
 

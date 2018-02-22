@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.{BlockGenerator, ConsensusConfigs, PendingBlock, Validators}
+import io.iohk.ethereum.consensus.{BlockGenerator, ConsensusConfigs, PendingBlock}
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts}
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.crypto.ECDSASignature
@@ -36,6 +36,8 @@ import org.spongycastle.util.encoders.Hex
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import java.time.Duration
+
+import io.iohk.ethereum.consensus.validators.Validators
 
 
 // scalastyle:off file.size.limit

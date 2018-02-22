@@ -1,6 +1,6 @@
 package io.iohk.ethereum.txExecTest
 
-import io.iohk.ethereum.consensus.StdValidators
+import io.iohk.ethereum.consensus.validators.std.StdValidators
 import io.iohk.ethereum.domain.{BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.txExecTest.util.FixtureProvider

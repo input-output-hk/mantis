@@ -4,7 +4,7 @@ package demo
 
 import akka.util.ByteString
 import com.typesafe.config.{Config ⇒ TypesafeConfig}
-import io.iohk.ethereum.consensus.validators.BlockHeaderValidatorImpl
+import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
 import io.iohk.ethereum.domain.Address
 
 import scala.concurrent.duration.{FiniteDuration, _}
@@ -30,7 +30,7 @@ object DemoConsensusConfig {
       blockCacheSize = config.getInt("block-cashe-size"),
       coinbase = Address(config.getString("coinbase")),
       ommerPoolQueryTimeout = config.getDuration("ommer-pool-query-timeout").toMillis.millis,
-      headerExtraData = ByteString(config.getString("header-extra-data").getBytes).take(BlockHeaderValidatorImpl.MaxExtraDataSize),
+      headerExtraData = ByteString(config.getString("header-extra-data").getBytes).take(StdBlockHeaderValidator.MaxExtraDataSize),
       ethashDir = config.getString("ethash-dir"),
       mineRounds = config.getInt("mine-rounds")
     )

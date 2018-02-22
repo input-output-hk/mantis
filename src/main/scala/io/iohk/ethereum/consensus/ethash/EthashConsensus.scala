@@ -8,7 +8,8 @@ import akka.actor.ActorRef
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ethash.EthashMiner.MinerMsg
 import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
-import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator, BlockHeaderValidatorImpl}
+import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
+import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -23,7 +24,7 @@ class EthashConsensus(
 
   type Config = EthashConfig
 
-  private[this] val defaultValidator = new BlockHeaderValidatorImpl(blockchainConfig)
+  private[this] val defaultValidator = new StdBlockHeaderValidator(blockchainConfig)
   private[this] val powValidator = new EthashBlockHeaderValidator(blockchainConfig)
 
   private[this] val ethashValidator = new BlockHeaderValidator {

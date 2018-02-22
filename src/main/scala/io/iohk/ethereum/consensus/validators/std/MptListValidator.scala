@@ -1,4 +1,5 @@
 package io.iohk.ethereum.consensus.validators
+package std
 
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}

@@ -2,7 +2,7 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.Mocks
-import io.iohk.ethereum.consensus.validators.BlockValidator
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
@@ -23,7 +23,7 @@ class ValidationsAfterExecutionSpec extends FlatSpec with Matchers with MockFact
     val blockchain = mock[BlockchainImpl]
 
     val validators = new Mocks.MockValidatorsAlwaysSucceed {
-      override val blockValidator = BlockValidator
+      override val blockValidator = StdBlockValidator
     }
 
     val syncConfig = SyncConfig(Config.config)

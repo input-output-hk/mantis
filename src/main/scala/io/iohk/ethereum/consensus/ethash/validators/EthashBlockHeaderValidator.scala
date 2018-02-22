@@ -6,10 +6,10 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.consensus.validators.BlockHeaderValidatorImpl.PowCacheData
+import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator.PowCacheData
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator}
 
-// NOTE Copied parts from [[io.iohk.ethereum.validators.BlockHeaderValidatorImpl]]
+// NOTE Copied parts from [[io.iohk.ethereum.validators.StdBlockHeaderValidator]]
 class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends BlockHeaderValidator {
   import EthashBlockHeaderValidator._
 

@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.validators.OmmersValidator.OmmersError._
+import io.iohk.ethereum.consensus.validators.std.{StdBlockHeaderValidator, StdOmmersValidator}
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
@@ -14,7 +15,7 @@ import org.spongycastle.util.encoders.Hex
 class OmmersValidatorSpec extends FlatSpec with Matchers with PropertyChecks with ObjectGenerators {
 
   val blockchainConfig = BlockchainConfig(Config.config)
-  val ommersValidator = new OmmersValidatorImpl(blockchainConfig, new BlockHeaderValidatorImpl(blockchainConfig))
+  val ommersValidator = new StdOmmersValidator(blockchainConfig, new StdBlockHeaderValidator(blockchainConfig))
 
   it should "validate correctly a valid list of ommers" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, ommers, blockchain) match {

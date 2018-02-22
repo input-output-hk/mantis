@@ -2,7 +2,8 @@ package io.iohk.ethereum.consensus
 package demo
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
-import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, BlockHeaderValidatorImpl}
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
+import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
 
 /**
  * Ridiculously simple (non-)consensus.
@@ -14,7 +15,7 @@ class DemoConsensus(
   val config: FullConsensusConfig[DemoConsensusConfig]
 ) extends Consensus with Logger {
 
-  private[this] val defaultValidator = new BlockHeaderValidatorImpl(blockchainConfig)
+  private[this] val defaultValidator = new StdBlockHeaderValidator(blockchainConfig)
 
   type Config = DemoConsensusConfig
 
@@ -39,8 +40,8 @@ class DemoConsensus(
   def protocol: Protocol = Protocol.Demo0
 
   /**
-   * Provides the [[io.iohk.ethereum.validators.BlockHeaderValidator BlockHeaderValidator]] that is specific
-   * to this consensus protocol.
+   * Provides the [[io.iohk.ethereum.consensus.validators.BlockHeaderValidator BlockHeaderValidator]]
+   * that is specific to this consensus [[io.iohk.ethereum.consensus.Protocol protocol]].
    */
   def blockHeaderValidator: BlockHeaderValidator = defaultValidator
 }

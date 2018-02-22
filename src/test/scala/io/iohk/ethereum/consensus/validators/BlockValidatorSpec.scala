@@ -1,7 +1,8 @@
 package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators.BlockValidator.{BlockLogBloomError, BlockOmmersHashError, BlockReceiptsHashError, BlockTransactionsHashError}
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockLogBloomError, BlockOmmersHashError, BlockReceiptsHashError, BlockTransactionsHashError}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -12,35 +13,35 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
 
   "Block" should "created based on valid data" in {
     val block = Block(validBlockHeader, validBlockBody)
-    BlockValidator.validate(block, validReceipts) match {
+    StdBlockValidator.validate(block, validReceipts) match {
       case Right(validated) => succeed
       case _ => fail
     }
   }
 
   "Block" should "return a failure if created based on invalid transactions header" in {
-    BlockValidator.validate(Block(wrongTransactionsRootHeader, validBlockBody), validReceipts) match {
+    StdBlockValidator.validate(Block(wrongTransactionsRootHeader, validBlockBody), validReceipts) match {
       case Left(BlockTransactionsHashError) => succeed
       case _ => fail
     }
   }
 
   "Block" should "return a failure if created based on invalid ommers header" in {
-    BlockValidator.validate(Block(wrongOmmersHashHeader, validBlockBody), validReceipts) match {
+    StdBlockValidator.validate(Block(wrongOmmersHashHeader, validBlockBody), validReceipts) match {
       case Left(BlockOmmersHashError) => succeed
       case _ => fail
     }
   }
 
   "Block" should "return a failure if created based on invalid receipts header" in {
-    BlockValidator.validate(Block(wrongReceiptsHeader, validBlockBody), validReceipts) match {
+    StdBlockValidator.validate(Block(wrongReceiptsHeader, validBlockBody), validReceipts) match {
       case Left(BlockReceiptsHashError) => succeed
       case _ => fail
     }
   }
 
   "Block" should "return a failure if created based on invalid log bloom header" in {
-    BlockValidator.validate(Block(wrongLogBloomBlockHeader, validBlockBody), validReceipts) match {
+    StdBlockValidator.validate(Block(wrongLogBloomBlockHeader, validBlockBody), validReceipts) match {
       case Left(BlockLogBloomError) => succeed
       case _ => fail
     }
@@ -48,21 +49,21 @@ class BlockValidatorSpec extends FlatSpec with Matchers {
 
 
   "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong tx hash" in {
-    BlockValidator.validateHeaderAndBody(wrongTransactionsRootHeader, validBlockBody) match {
+    StdBlockValidator.validateHeaderAndBody(wrongTransactionsRootHeader, validBlockBody) match {
       case Left(BlockTransactionsHashError) => succeed
       case _ => fail
     }
   }
 
   "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong ommers hash" in {
-    BlockValidator.validateHeaderAndBody(wrongOmmersHashHeader, validBlockBody) match {
+    StdBlockValidator.validateHeaderAndBody(wrongOmmersHashHeader, validBlockBody) match {
       case Left(BlockOmmersHashError) => succeed
       case _ => fail
     }
   }
 
   "Block" should "correctly handle the case where a block has no receipts" in {
-    BlockValidator.validate(blockWithOutReceipts, Nil) match {
+    StdBlockValidator.validate(blockWithOutReceipts, Nil) match {
       case Right(validated) => succeed
       case _ => fail
     }

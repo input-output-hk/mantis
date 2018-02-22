@@ -6,7 +6,8 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
 import io.iohk.ethereum.consensus.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder, Validators}
+import io.iohk.ethereum.consensus.validators.std.StdOmmersValidator
+import io.iohk.ethereum.consensus.{ConsensusBuilder, ConsensusConfigBuilder}
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
@@ -437,7 +438,7 @@ class BlockImportSpec extends FlatSpec with Matchers with MockFactory {
          ommers: Seq[BlockHeader],
          getBlockHeaderByHash: GetBlockHeaderByHash,
          getNBlocksBack: GetNBlocksBack) =>
-          new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator).validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
+          new StdOmmersValidator(blockchainConfig, blockHeaderValidator).validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
     }
 
     override lazy val ledger = new TestLedgerImpl(OmmerValidation)

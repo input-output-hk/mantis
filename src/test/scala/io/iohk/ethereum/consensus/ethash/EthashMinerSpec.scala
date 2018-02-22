@@ -6,7 +6,8 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.RegularSync
-import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidatorImpl}
+import io.iohk.ethereum.consensus.validators.BlockHeaderValid
+import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService
 import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateResponse
@@ -134,7 +135,7 @@ class EthashMinerSpec extends FlatSpec with Matchers {
       ), BlockBody(Seq(txToMine), Nil))
     }
 
-    val blockHeaderValidator = new BlockHeaderValidatorImpl(blockchainConfig)
+    val blockHeaderValidator = new StdBlockHeaderValidator(blockchainConfig)
 
     implicit val system = ActorSystem("MinerSpec_System")
 

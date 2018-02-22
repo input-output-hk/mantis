@@ -10,7 +10,7 @@ import akka.agent.Agent
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
-import io.iohk.ethereum.consensus.validators.{BlockValidator, OmmersValidator, OmmersValidatorImpl}
+import io.iohk.ethereum.consensus.validators.OmmersValidator
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
@@ -37,6 +37,7 @@ import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.consensus.validators._
+import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdOmmersValidator, StdSignedTransactionValidator}
 import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -357,11 +358,12 @@ trait OmmersPoolBuilder {
 trait ValidatorsBuilder {
   self: BlockchainConfigBuilder with ConsensusBuilder =>
 
+  // FIXME use StdValidators
   lazy val validators = new Validators {
-    def blockValidator: BlockValidator = BlockValidator
+    def blockValidator: BlockValidator = StdBlockValidator
     def blockHeaderValidator: BlockHeaderValidator = consensus.blockHeaderValidator
-    def ommersValidator: OmmersValidator = new OmmersValidatorImpl(blockchainConfig, blockHeaderValidator)
-    def signedTransactionValidator: SignedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
+    def ommersValidator: OmmersValidator = new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
+    def signedTransactionValidator: SignedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
   }
 }
 
@@ -496,6 +498,9 @@ trait SecureRandomBuilder {
 /**
  * Provides the basic functionality of a Node, except the consensus algorithm.
  * The latter is loaded dynamically based on configuration.
+ *
+ * @see [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]],
+ *      [[io.iohk.ethereum.consensus.ConsensusConfigBuilder ConsensusConfigBuilder]]
  */
 trait Node extends NodeKeyBuilder
   with ActorSystemBuilder

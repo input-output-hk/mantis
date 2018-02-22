@@ -1,12 +1,11 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.Validators
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderNumberError
-import io.iohk.ethereum.consensus.validators.BlockValidator.{BlockTransactionsHashError, BlockValid}
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
 import io.iohk.ethereum.consensus.validators.OmmersValidator.OmmersError.OmmersNotValidError
 import io.iohk.ethereum.consensus.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack, OmmersValid}
-import io.iohk.ethereum.consensus.validators._
+import io.iohk.ethereum.consensus.validators.{Validators, _}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger.BlockPreparationResult

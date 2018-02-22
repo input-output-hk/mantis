@@ -20,7 +20,11 @@ trait Consensus {
 
   def config: FullConsensusConfig[Config]
 
-  /** Returns `true` if this is the standard Ethereum PoW consensus protocol (`ethash`). */
+  /**
+   * Returns `true` if this is the standard Ethereum PoW consensus protocol (`ethash`).
+   *
+   * @see [[io.iohk.ethereum.consensus.Protocol.Ethash Protocol.Ethash]]
+   */
   final def isEthash: Boolean = protocol.isEthash
 
   /**
@@ -28,13 +32,17 @@ trait Consensus {
    */
   def startProtocol(node: Node): Unit
 
+  /**
+   * Stops the consensus protocol on the current node.
+   * This is called internally when the node terminates.
+   */
   def stopProtocol(): Unit
 
   /**
-   * Provides the [[io.iohk.ethereum.validators.BlockHeaderValidator BlockHeaderValidator]] that is specific
+   * Provides the [[io.iohk.ethereum.consensus.validators.BlockHeaderValidator BlockHeaderValidator]] that is specific
    * to this consensus protocol.
    */
-  // FIXME Probably include the whole of [[io.iohk.ethereum.consensus.Validators]].
+  // FIXME Probably include the whole of [[io.iohk.ethereum.consensus.validators.Validators]].
   def blockHeaderValidator: BlockHeaderValidator
 
   // Ledger uses this in importBlock

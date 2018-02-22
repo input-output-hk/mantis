@@ -5,6 +5,7 @@ import java.security.SecureRandom
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.{TransactionSignatureError, _}
+import io.iohk.ethereum.consensus.validators.std.StdSignedTransactionValidator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
@@ -17,7 +18,7 @@ class SignedTransactionValidatorSpec extends FlatSpec with Matchers {
 
   val blockchainConfig = BlockchainConfig(Config.config)
 
-  val signedTransactionValidator = new SignedTransactionValidatorImpl(blockchainConfig)
+  val signedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
 
   //From block 0x228943f4ef720ac91ca09c08056d7764c2a1650181925dfaeb484f27e544404e with number 1100000 (tx index 0)
   val txBeforeHomestead = Transaction(
