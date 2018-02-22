@@ -317,7 +317,7 @@ class BlockGeneratorSpec extends FlatSpec with Matchers with PropertyChecks with
 
     lazy val validators = new StdValidators(blockchainConfig)
 
-    lazy val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus, validators)
+    lazy val ledger = new LedgerImpl(VM, blockchain, blockchainConfig, syncConfig, consensus)
 
     val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
     genesisDataLoader.loadGenesisData()

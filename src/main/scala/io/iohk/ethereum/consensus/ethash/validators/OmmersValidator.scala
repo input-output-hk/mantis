@@ -1,7 +1,8 @@
-package io.iohk.ethereum.consensus.validators
+package io.iohk.ethereum.consensus.ethash.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack, OmmersError, OmmersValid}
+import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.{OmmersError, OmmersValid}
+import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 
 trait OmmersValidator {
@@ -11,13 +12,15 @@ trait OmmersValidator {
     blockNumber: BigInt,
     ommers: Seq[BlockHeader],
     getBlockHeaderByHash: GetBlockHeaderByHash,
-    getNBlocksBack: GetNBlocksBack): Either[OmmersError, OmmersValid]
+    getNBlocksBack: GetNBlocksBack
+  ): Either[OmmersError, OmmersValid]
 
   def validate(
     parentHash: ByteString,
     blockNumber: BigInt,
     ommers: Seq[BlockHeader],
-    blockchain: Blockchain): Either[OmmersError, OmmersValid] = {
+    blockchain: Blockchain
+  ): Either[OmmersError, OmmersValid] = {
 
     val getBlockHeaderByHash: ByteString => Option[BlockHeader] = blockchain.getBlockHeaderByHash
     val getNBlocksBack: (ByteString, Int) => List[Block] =
@@ -41,9 +44,4 @@ object OmmersValidator {
 
   sealed trait OmmersValid
   case object OmmersValid extends OmmersValid
-
-  type GetBlockHeaderByHash = ByteString => Option[BlockHeader]
-  type GetNBlocksBack = (ByteString, Int) => Seq[Block]
 }
-
-

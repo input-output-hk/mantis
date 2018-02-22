@@ -12,6 +12,7 @@ import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
 import io.iohk.ethereum.consensus.validators.OmmersValidator
 import io.iohk.ethereum.consensus._
+import io.iohk.ethereum.consensus.ethash.validators.StdOmmersValidator
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{SharedLevelDBDataSources, Storages}
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -37,7 +38,7 @@ import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdOmmersValidator, StdSignedTransactionValidator}
+import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
 import io.iohk.ethereum.vm.VM
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.utils.Config.SyncConfig

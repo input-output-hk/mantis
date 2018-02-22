@@ -6,6 +6,10 @@ import java.util.function.UnaryOperator
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.BlockGenerator.InvalidOmmers
+import io.iohk.ethereum.consensus.ethash.validators.EthashValidators
+import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError
+import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage}
@@ -17,31 +21,50 @@ import io.iohk.ethereum.network.p2p.messages.PV62.BlockBody
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaderImplicits._
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils.or
-import io.iohk.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable
-import io.iohk.ethereum.consensus.validators.OmmersValidator.OmmersError
-import io.iohk.ethereum.consensus.validators.Validators
+
+trait BlockGenerator[X] {
+  def generateBlockForMining(
+    parent: Block,
+    transactions: Seq[SignedTransaction],
+    beneficiary: Address,
+    ommers: X // we call it ommers to remember what is needed in Ethash but in general it can be anything
+  ): Either[BlockPreparationError, PendingBlock]
+
+  def prepareHeader(
+    blockNumber: BigInt,
+    parent: Block,
+    beneficiary: Address,
+    blockTimestamp: Long,
+    ommers: X
+  ): BlockHeader
+}
 
 // NOTE decoupled from EthashConfig
-class BlockGenerator(
+class StdBlockGenerator[X](
   blockchain: Blockchain,
   blockchainConfig: BlockchainConfig,
   headerExtraData: ByteString,
   blockCacheSize: Int,
   ledger: Ledger,
-  validators: Validators,
   val blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
-) {
+) extends BlockGenerator[X] {
 
-  val difficulty = new DifficultyCalculator(blockchainConfig)
+  protected val difficulty = new DifficultyCalculator(blockchainConfig)
 
-  private val cache: AtomicReference[List[PendingBlockAndState]] = new AtomicReference(Nil)
+  protected val cache: AtomicReference[List[PendingBlockAndState]] = new AtomicReference(Nil)
+  protected val consensus = ledger.consensus
 
-  def generateBlockForMining(parent: Block, transactions: Seq[SignedTransaction], ommers: Seq[BlockHeader], beneficiary: Address):
-  Either[BlockPreparationError, PendingBlock] = {
+  def generateBlockForMining(
+    parent: Block,
+    transactions: Seq[SignedTransaction],
+    beneficiary: Address,
+    ommers: Seq[BlockHeader]
+  ): Either[BlockPreparationError, PendingBlock] = {
     val blockNumber = parent.header.number + 1
     val parentHash = parent.header.hash
 
-    val result = validators.ommersValidator.validate(parentHash, blockNumber, ommers, blockchain)
+    val result: Either[InvalidOmmers, PendingBlockAndState] = validators.asInstanceOf[EthashValidators].ommersValidator
+      .validate(parentHash, blockNumber, ommers, blockchain)
       .left.map(InvalidOmmers).flatMap { _ =>
         val blockTimestamp = blockTimestampProvider.getEpochSecond
         val header: BlockHeader = prepareHeader(blockNumber, ommers, beneficiary, parent, blockTimestamp)
@@ -171,5 +194,6 @@ object DefaultBlockTimestampProvider extends BlockTimestampProvider {
 }
 
 object BlockGenerator {
+  // FIXME Move to Ethash
   case class InvalidOmmers(reason: OmmersError) extends BlockPreparationError
 }

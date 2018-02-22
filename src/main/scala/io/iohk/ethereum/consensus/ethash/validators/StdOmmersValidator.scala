@@ -1,10 +1,10 @@
-package io.iohk.ethereum.consensus.validators
-package std
+package io.iohk.ethereum.consensus.ethash.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators.OmmersValidator
-import io.iohk.ethereum.consensus.validators.OmmersValidator.OmmersError._
-import io.iohk.ethereum.consensus.validators.OmmersValidator.{GetBlockHeaderByHash, GetNBlocksBack, OmmersError, OmmersValid}
+import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError._
+import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.{OmmersError, OmmersValid}
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
+import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
@@ -57,7 +57,8 @@ class StdOmmersValidator(blockchainConfig: BlockchainConfig, blockHeaderValidato
    * based on validations stated in section 11.1 of the YP
    *
    * @param ommers         The list of ommers to validate
-   * @return ommers if valid, an [[OmmersLengthError]] otherwise
+   * @return ommers if valid, an [[io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersLengthError OmmersLengthError]]
+   *         otherwise
    */
   private def validateOmmersLength(ommers: Seq[BlockHeader]): Either[OmmersError, OmmersValid] = {
     if (ommers.length <= OmmerSizeLimit) Right(OmmersValid)
@@ -71,7 +72,8 @@ class StdOmmersValidator(blockchainConfig: BlockchainConfig, blockHeaderValidato
    *
    * @param ommers         The list of ommers to validate
    * @param getBlockByHash     function to obtain ommers' parents
-   * @return ommers if valid, an [[OmmersNotValidError]] otherwise
+   * @return ommers if valid, an [[io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersNotValidError OmmersNotValidError]]
+   *         otherwise
    */
   private def validateOmmersHeaders(ommers: Seq[BlockHeader], getBlockByHash: GetBlockHeaderByHash): Either[OmmersError, OmmersValid] = {
     if (ommers.forall(blockHeaderValidator.validate(_, getBlockByHash).isRight)) Right(OmmersValid)
@@ -87,7 +89,8 @@ class StdOmmersValidator(blockchainConfig: BlockchainConfig, blockHeaderValidato
    * @param blockNumber    The number of the block to which the ommers belong
    * @param ommers         The list of ommers to validate
    * @param getNBlocksBack     from where the ommers' parents will be obtained
-   * @return ommers if valid, an [[OmmersUsedBeforeError]] otherwise
+   * @return ommers if valid, an [[io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersUsedBeforeError OmmersUsedBeforeError]]
+   *         otherwise
    */
   private def validateOmmersAncestors(
     parentHash: ByteString,
@@ -116,7 +119,8 @@ class StdOmmersValidator(blockchainConfig: BlockchainConfig, blockHeaderValidato
    * @param blockNumber    The number of the block to which the ommers belong
    * @param ommers         The list of ommers to validate
    * @param getNBlocksBack     from where the ommers' parents will be obtained
-   * @return ommers if valid, an [[OmmersUsedBeforeError]] otherwise
+   * @return ommers if valid, an [[io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersUsedBeforeError OmmersUsedBeforeError]]
+   *         otherwise
    */
   private def validateOmmersNotUsed(
     parentHash: ByteString,
@@ -136,7 +140,8 @@ class StdOmmersValidator(blockchainConfig: BlockchainConfig, blockHeaderValidato
    * based on validations stated in the white paper (https://github.com/ethereum/wiki/wiki/White-Paper)
    *
    * @param ommers         The list of ommers to validate
-   * @return ommers if valid, an [[OmmersDuplicatedError]] otherwise
+   * @return ommers if valid, an [[io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersDuplicatedError OmmersDuplicatedError]]
+   *         otherwise
    */
   private def validateDuplicatedOmmers(ommers: Seq[BlockHeader]): Either[OmmersError, OmmersValid] = {
     if (ommers.distinct.length == ommers.length) Right(OmmersValid)

@@ -8,13 +8,10 @@ class StdValidators(
   val blockValidator: BlockValidator = StdBlockValidator
 ) extends Validators {
 
-  private[this] val _blockHeaderV = new StdBlockHeaderValidator(blockchainConfig)
-  private[this] val _ommersV = new StdOmmersValidator(blockchainConfig, this._blockHeaderV)
-  private[this] val _signedTxV = new StdSignedTransactionValidator(blockchainConfig)
+  protected val _blockHeaderV = new StdBlockHeaderValidator(blockchainConfig)
+  protected val _signedTxV = new StdSignedTransactionValidator(blockchainConfig)
 
   def blockHeaderValidator: BlockHeaderValidator = this._blockHeaderV
-
-  def ommersValidator: OmmersValidator = this._ommersV
 
   def signedTransactionValidator: SignedTransactionValidator = this._signedTxV
 }

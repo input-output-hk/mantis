@@ -1,6 +1,6 @@
-package io.iohk.ethereum.consensus.validators
+package io.iohk.ethereum.consensus
+package validators
 
-import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeader
 
 /**
@@ -9,7 +9,7 @@ import io.iohk.ethereum.domain.BlockHeader
 trait BlockHeaderValidator {
   def validate(
     blockHeader: BlockHeader,
-    getBlockHeaderByHash: ByteString => Option[BlockHeader]
+    getBlockHeaderByHash: GetBlockHeaderByHash
   ): Either[BlockHeaderError, BlockHeaderValid]
 }
 

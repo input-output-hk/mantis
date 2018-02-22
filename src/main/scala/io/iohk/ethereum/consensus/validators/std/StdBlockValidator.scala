@@ -94,7 +94,7 @@ object StdBlockValidator extends BlockValidator {
   }
 
   /**
-   * This method allows validate that a BlockHeader matches a BlockBody. It only perfoms the following validations (stated on
+   * This method allows validate that a BlockHeader matches a BlockBody. It only performs the following validations (stated on
    * section 4.4.2 of http://paper.gavwood.com/):
    *   - BlockValidator.validateTransactionRoot
    *   - BlockValidator.validateOmmersHash

@@ -10,7 +10,9 @@ import io.iohk.ethereum.consensus.ethash.EthashMiner.MinerMsg
 import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator}
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
+import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BlockchainConfig
 
@@ -20,7 +22,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 class EthashConsensus(
   blockchainConfig: BlockchainConfig,
   val config: FullConsensusConfig[EthashConfig]
-) extends Consensus {
+) extends StdConsensus {
 
   type Config = EthashConfig
 
@@ -79,4 +81,27 @@ class EthashConsensus(
   }
 
   def protocol: Protocol = Protocol.Ethash
+
+  override def validateBlockBeforeExecution(
+    block: Block,
+    getBlockHeaderByHash: GetBlockHeaderByHash,
+    getNBlocksBack: GetNBlocksBack
+  ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = {
+
+    val blockHeaderV = validators.blockHeaderValidator
+    val blockV = validators.blockValidator
+    val ommersV = validators.ommersValidator
+
+    val header = block.header
+    val body = block.body
+
+    val result = for {
+      _ <- blockHeaderV.validate(header, getBlockHeaderByHash)
+      _ <- blockV.validateHeaderAndBody(header, body)
+      _ <- ommersV.validate(header.parentHash, header.number, body.uncleNodesList,
+        getBlockHeaderByHash, getNBlocksBack)
+    } yield BlockExecutionSuccess
+
+    result.left.map(ValidationBeforeExecError)
+  }
 }

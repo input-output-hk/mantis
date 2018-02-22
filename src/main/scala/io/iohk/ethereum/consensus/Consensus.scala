@@ -1,11 +1,12 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Block, Receipt}
-import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
+import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, SignedTransactionError, SignedTransactionValid, Validators}
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
+import org.spongycastle.util.encoders.Hex
 
 /**
  * Abstraction for a consensus protocol implementation.
@@ -15,10 +16,18 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 // FIXME Lot's of stuff to do...
 trait Consensus {
   type Config <: AnyRef /*Product*/
+  // type Validators <: validators.Validators
 
   def protocol: Protocol
 
   def config: FullConsensusConfig[Config]
+
+  /**
+   * Provides the set of validators this consensus protocol demands.
+   */
+  def validators: Validators
+
+  def blockGenerator: BlockGenerator
 
   /**
    * Returns `true` if this is the standard Ethereum PoW consensus protocol (`ethash`).
@@ -46,7 +55,11 @@ trait Consensus {
   def blockHeaderValidator: BlockHeaderValidator
 
   // Ledger uses this in importBlock
-  def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = ???
+  def validateBlockBeforeExecution(
+    block: Block,
+    getBlockHeaderByHash: GetBlockHeaderByHash,
+    getNBlocksBack: GetNBlocksBack
+  ): Either[ValidationBeforeExecError, BlockExecutionSuccess]
 
   /**
    * This function validates that the various results from execution are consistent with the block. This includes:
@@ -67,5 +80,73 @@ trait Consensus {
     stateRootHash: ByteString,
     receipts: Seq[Receipt],
     gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess] = ???
+  ): Either[BlockExecutionError, BlockExecutionSuccess]
+
+  def validateSignedTransaction(
+    stx: SignedTransaction,
+    senderAccount: Account,
+    blockHeader: BlockHeader,
+    upfrontGasCost: UInt256,
+    accumGasUsed: BigInt
+  ): Either[SignedTransactionError, SignedTransactionValid]
+}
+
+abstract class StdConsensus extends Consensus {
+  // NOTE Ethash overrides this to include ommers validation
+  def validateBlockBeforeExecution(
+    block: Block,
+    getBlockHeaderByHash: GetBlockHeaderByHash,
+    getNBlocksBack: GetNBlocksBack
+  ): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
+    val blockHeaderV = validators.blockHeaderValidator
+    val blockV = validators.blockValidator
+
+    val header = block.header
+    val body = block.body
+
+    val result = for {
+      _ <- blockHeaderV.validate(header, getBlockHeaderByHash)
+      _ <- blockV.validateHeaderAndBody(header, body)
+    } yield BlockExecutionSuccess
+
+    result.left.map(ValidationBeforeExecError)
+  }
+
+  def validateBlockAfterExecution(
+    block: Block,
+    stateRootHash: ByteString,
+    receipts: Seq[Receipt],
+    gasUsed: BigInt
+  ): Either[BlockExecutionError, BlockExecutionSuccess] = {
+
+    val blockV = validators.blockValidator
+    val header = block.header
+    val blockAndReceiptsValidation = blockV.validateBlockAndReceipts(header, receipts)
+
+    if(header.gasUsed != gasUsed)
+      Left(ValidationAfterExecError(s"Block has invalid gas used, expected ${header.gasUsed} but got $gasUsed"))
+    else if(header.stateRoot != stateRootHash)
+      Left(ValidationAfterExecError(
+        s"Block has invalid state root hash, expected ${Hex.toHexString(header.stateRoot.toArray)} but got ${Hex.toHexString(stateRootHash.toArray)}")
+      )
+    else if(blockAndReceiptsValidation.isLeft)
+      Left(ValidationAfterExecError(blockAndReceiptsValidation.left.get.toString))
+    else
+      Right(BlockExecutionSuccess)
+  }
+
+  def validateSignedTransaction(
+    stx: SignedTransaction, senderAccount: Account,
+    blockHeader: BlockHeader, upfrontGasCost: UInt256,
+    accumGasUsed: BigInt
+  ): Either[SignedTransactionError, SignedTransactionValid] = {
+
+    validators.signedTransactionValidator.validate(
+      stx = stx,
+      senderAccount = senderAccount,
+      blockHeader = blockHeader,
+      upfrontGasCost = upfrontGasCost,
+      accumGasUsed = accumGasUsed
+    )
+  }
 }

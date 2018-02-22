@@ -1,12 +1,12 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError, ValidationAfterExecError, ValidationBeforeExecError}
+import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -17,6 +17,7 @@ import org.spongycastle.util.encoders.Hex
 import scala.annotation.tailrec
 
 trait Ledger {
+  def consensus: Consensus
 
   def checkBlockStatus(blockHash: ByteString): BlockStatus
 
@@ -47,8 +48,7 @@ class LedgerImpl(
   blockchain: BlockchainImpl,
   blockQueue: BlockQueue,
   blockchainConfig: BlockchainConfig,
-  consensus: Consensus,
-  validators: Validators
+  _consensus: Consensus
 ) extends Ledger with Logger {
 
   def this(vm: VM, blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig,
@@ -57,9 +57,12 @@ class LedgerImpl(
 
   val blockRewardCalculator = new BlockRewardCalculator(blockchainConfig.monetaryPolicyConfig)
 
+  def consensus: Consensus = _consensus
+
   // scalastyle:off method.length
   /**
     * Tries to import the block as the new best block in the chain or enqueue it for later processing
+ *
     * @param block - block to be imported
     * @return One of:
     *         - [[BlockImportedToTop]] - if the block was added as the new best block
@@ -456,7 +459,7 @@ class LedgerImpl(
           (Account.empty(blockchainConfig.accountStartNonce), world.saveAccount(stx.senderAddress, Account.empty(blockchainConfig.accountStartNonce)))
         )
       val upfrontCost = calculateUpfrontCost(stx.tx)
-      val validatedStx = validators.signedTransactionValidator.validate(stx, senderAccount, blockHeader, upfrontCost, acumGas)
+      val validatedStx = consensus.validateSignedTransaction(stx, senderAccount, blockHeader, upfrontCost, acumGas)
 
       validatedStx match {
         case Right(_) =>
@@ -548,43 +551,29 @@ class LedgerImpl(
     TxResult(world2, executionGasToPayToMiner, resultWithErrorHandling.logs, result.returnData, result.error)
   }
 
-  // FIXME move to consensus
+  // NOTE Delegating to consensus
   private def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
-    val result = for {
-      _ <- validators.blockHeaderValidator.validate(block.header, getHeaderFromChainOrQueue _)
-      _ <- validators.blockValidator.validateHeaderAndBody(block.header, block.body)
-      _ <- validators.ommersValidator.validate(block.header.parentHash, block.header.number, block.body.uncleNodesList,
-        getHeaderFromChainOrQueue, getNBlocksBackFromChainOrQueue)
-    } yield BlockExecutionSuccess
-    result.left.map(ValidationBeforeExecError)
+    consensus.validateBlockBeforeExecution(
+      block = block,
+      getBlockHeaderByHash = getHeaderFromChainOrQueue,
+      getNBlocksBack = getNBlocksBackFromChainOrQueue
+    )
   }
 
-  // FIXME move to consensus
-  /**
-    * This function validates that the various results from execution are consistent with the block. This includes:
-    *   - Validating the resulting stateRootHash
-    *   - Doing BlockValidator.validateBlockReceipts validations involving the receipts
-    *   - Validating the resulting gas used
-    *
-    * @param block to validate
-    * @param stateRootHash from the resulting state trie after executing the txs from the block
-    * @param receipts associated with the execution of each of the tx from the block
-    * @param gasUsed, accumulated gas used for the execution of the txs from the block
-    * @return None if valid else a message with what went wrong
-    */
-  private[ledger] def validateBlockAfterExecution(block: Block, stateRootHash: ByteString, receipts: Seq[Receipt],
-                                                  gasUsed: BigInt): Either[BlockExecutionError, BlockExecutionSuccess] = {
-    lazy val blockAndReceiptsValidation = validators.blockValidator.validateBlockAndReceipts(block.header, receipts)
-    if(block.header.gasUsed != gasUsed)
-      Left(ValidationAfterExecError(s"Block has invalid gas used, expected ${block.header.gasUsed} but got $gasUsed"))
-    else if(block.header.stateRoot != stateRootHash)
-      Left(ValidationAfterExecError(
-        s"Block has invalid state root hash, expected ${Hex.toHexString(block.header.stateRoot.toArray)} but got ${Hex.toHexString(stateRootHash.toArray)}")
-      )
-    else if(blockAndReceiptsValidation.isLeft)
-      Left(ValidationAfterExecError(blockAndReceiptsValidation.left.get.toString))
-    else
-      Right(BlockExecutionSuccess)
+  // NOTE Delegating to consensus
+  private[ledger] def validateBlockAfterExecution(
+    block: Block,
+    stateRootHash: ByteString,
+    receipts: Seq[Receipt],
+    gasUsed: BigInt
+  ): Either[BlockExecutionError, BlockExecutionSuccess] = {
+
+    consensus.validateBlockAfterExecution(
+      block = block,
+      stateRootHash = stateRootHash,
+      receipts = receipts,
+      gasUsed = gasUsed
+    )
   }
 
   /**
